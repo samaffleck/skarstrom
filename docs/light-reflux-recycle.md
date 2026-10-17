@@ -32,4 +32,4 @@ The inlet then receives that fraction of the source's total moles, spread unifor
 
 ## Accounting for recycle in KPIs
 
-Recycled gas should not be counted as net product. In the [KPI Configuration](performance-metrics.md), mark the steps that receive recycled product as **Recycled** so that recovery is computed as *(product − recycled product) / feed*. See [Performance Metrics](performance-metrics.md) for the exact definitions.
+Recycled gas should not be counted as net product. In the [KPI configuration](performance-metrics.md#configuring-kpis), give the inlets that receive recycled product the **recycle** role (`sim.kpi.track(..., recycle=[...])` in Python) so that recovery is computed as *(product − recycled product) / feed* while purity stays the purity of the collected product. See [Performance Metrics](performance-metrics.md) for the exact definitions.

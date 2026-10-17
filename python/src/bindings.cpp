@@ -432,7 +432,8 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "connect") b::Connect(d, id(0), id(1));
         else if (op == "set_energy_source") b::SetEnergySource(d, id(0), id(1), args[2].cast<bool>());
         else if (op == "set_kpi")
-          b::SetKPI(d, str(0), args[1].cast<std::vector<size_t>>(), args[2].cast<std::vector<size_t>>());
+          b::SetKPI(d, str(0), args[1].cast<std::vector<size_t>>(), args[2].cast<std::vector<size_t>>(),
+                    args.size() > 3 ? args[3].cast<std::vector<size_t>>() : std::vector<size_t>{});
         else if (op == "add_variable") b::AddVariable(d, str(0), str(1), str(2), str(3));
         else throw py::value_error("unknown build operation '" + op + "'");
         s.RefreshParameters();
@@ -619,6 +620,7 @@ PYBIND11_MODULE(_core, m) {
           k["component"] = cfg.product_component;
           k["feed"] = ids_of(cfg.feed_endpoints);
           k["product"] = ids_of(cfg.product_endpoints);
+          k["recycle"] = ids_of(cfg.recycle_endpoints);
           kpis.append(k);
         }
         out["kpis"] = kpis;

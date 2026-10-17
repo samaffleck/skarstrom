@@ -54,7 +54,7 @@ namespace adsim {
       }
 
       // Need at least one product endpoint and one feed endpoint to attribute
-      // throughput. Recycle is no longer a role.
+      // throughput. Recycle endpoints are optional.
       if (product_endpoints.empty() || feed_endpoints.empty()) {
         return false;
       }
@@ -70,9 +70,12 @@ namespace adsim {
     int cycle_index_{};
     std::string product_comp_{};
     // Endpoints (a flow stream or a pressure boundary on a given step) whose
-    // throughput counts as feed / product for this component. Each is summed.
+    // throughput counts as feed / product / recycle for this component. Each
+    // is summed. Recycle (product fed back into the bed) is subtracted from
+    // the product for the net KPIs; purity uses the product alone.
     std::vector<KPIEndpointRef> feed_endpoints{};
     std::vector<KPIEndpointRef> product_endpoints{};
+    std::vector<KPIEndpointRef> recycle_endpoints{};
     const EquationLog& eq_log_;
     const BoundaryLog& b_log_;
   };
@@ -366,10 +369,11 @@ namespace adsim {
   }
 
   // Net moles leaving the bed across the selected product endpoints. Signed sum:
-  // an outlet (net leaving) adds; a product-quality stream re-entering the bed
-  // (e.g. light-product pressurisation) subtracts. This is how a "recycle" is
-  // accounted — there is no separate recycle role. For a pure outlet the signed
-  // sum equals the gross throughput, so ordinary product endpoints are unaffected.
+  // an outlet (net leaving) adds; flow back into the bed through a product
+  // endpoint subtracts. For a pure outlet the signed sum equals the gross
+  // throughput. Product fed back through other endpoints (a purge or a
+  // light-product pressurisation) belongs in the recycle role, see
+  // CalculateNetComponentMolesInProduct.
   static double CalculateTotalMolesInProduct(const KPIParams& params) {
     if (!params.Check()) {
       return 0.0;
@@ -397,6 +401,27 @@ namespace adsim {
     }
 
     return product_moles;
+  }
+
+  // Component moles the recycle endpoints carry into the bed (entering =
+  // positive).
+  static double CalculateComponentMolesRecycled(const KPIParams& params) {
+    if (!params.Check()) {
+      return 0.0;
+    }
+
+    double recycled = 0.0;
+    for (const auto& ep : params.recycle_endpoints) {
+      recycled += EndpointComponentMolesIn(params.b_log_, params.cycle_index_, ep, params.product_comp_);
+    }
+
+    return recycled;
+  }
+
+  // Product the process delivers: product drawn minus product recycled.
+  // Recovery, productivity, production rate and specific energy use this.
+  static double CalculateNetComponentMolesInProduct(const KPIParams& params) {
+    return CalculateComponentMolesInProduct(params) - CalculateComponentMolesRecycled(params);
   }
 
   static double CalculateComponentMolesInFeed(const KPIParams& params) {
@@ -492,7 +517,7 @@ namespace adsim {
 
     bool ok = true;
     double moles_in_feed = CalculateComponentMolesInFeed(params);
-    double moles_in_product = ZeroIfRoundoff(CalculateComponentMolesInProduct(params), moles_in_feed);
+    double moles_in_product = ZeroIfRoundoff(CalculateNetComponentMolesInProduct(params), moles_in_feed);
     double recovery = KPIRatio(moles_in_product, moles_in_feed, ok);
 
     return KPIResult(recovery, ok, defined);
@@ -514,7 +539,7 @@ namespace adsim {
     // -- Start calculation --
 
     bool ok = true;
-    double product_moles = CalculateComponentMolesInProduct(params);    
+    double product_moles = CalculateNetComponentMolesInProduct(params);    
     double cycle_time = eq_log.sys_data.total_cycle_time; // [s]
     double product_mass = product_moles * mr.at(product_component); // [kg/s]
     double productivity = KPIRatio(product_mass, cycle_time, ok); // [kg product/(s)]
@@ -558,7 +583,7 @@ namespace adsim {
 
     // -- Start calculation --
     bool ok = true;
-    const double moles_out = CalculateComponentMolesInProduct(params);
+    const double moles_out = CalculateNetComponentMolesInProduct(params);
     const double cycle_time = eq_log.sys_data.total_cycle_time; // [s]
     const double production_rate = KPIRatio(moles_out, cycle_time, ok); // [mol/s]
 
@@ -633,7 +658,7 @@ namespace adsim {
     }
 
     bool ok = true;
-    double product_moles = CalculateComponentMolesInProduct(params);    
+    double product_moles = CalculateNetComponentMolesInProduct(params);    
     double product_mass = product_moles * mr.at(product_component); // [kg_gas]
     double total_specific_energy = KPIRatio(total_energy, product_mass, ok); // [J/kg_gas]
     

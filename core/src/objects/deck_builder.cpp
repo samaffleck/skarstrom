@@ -494,7 +494,7 @@ void SetEnergySource(UserData& data, size_t step, size_t layer, bool enabled) {
 }
 
 void SetKPI(UserData& data, const std::string& component, const std::vector<size_t>& feed_endpoints,
-            const std::vector<size_t>& product_endpoints) {
+            const std::vector<size_t>& product_endpoints, const std::vector<size_t>& recycle_endpoints) {
   CheckComponent(data, component);
   data.kpi_config.SyncToComponents(data.fluid.components_);
   ComponentKPIConfig* kpi = data.kpi_config.FindByComponent(component);
@@ -513,6 +513,7 @@ void SetKPI(UserData& data, const std::string& component, const std::vector<size
   kpi->tracked = true;
   kpi->feed_endpoints = refs(feed_endpoints);
   kpi->product_endpoints = refs(product_endpoints);
+  kpi->recycle_endpoints = refs(recycle_endpoints);
 }
 
 // ---- user variables -----------------------------------------------------------------

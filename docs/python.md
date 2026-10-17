@@ -282,7 +282,7 @@ What each part takes:
 | `end.set_closed()` | no flow |
 | `step.add_energy_source(layer, power=)` | heats (positive) or cools a layer during the step [W] |
 | `sim.connect(a, b)` | two endpoints (an outlet stream feeding an inlet stream or pressure boundary of another step) |
-| `sim.kpi.track(component, feed=, product=)` | endpoints or step ends (all their streams) |
+| `sim.kpi.track(component, feed=, product=, recycle=)` | endpoints or step ends (all their streams); `recycle` is optional |
 
 Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)` and `sk.exponential(end, start=, time=)`; a pressure ramp starts from the bed pressure and lasts the step, so it takes only its end. `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. `y` and `temperature` of an outlet are the gas that enters if the flow reverses.
 

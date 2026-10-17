@@ -8,6 +8,15 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added (KPIs)
+- A **recycle** role in the KPI configuration (`Recycle_Endpoints` in the
+  deck, `recycle=` in `sim.kpi.track` and `adsim::build::SetKPI`): inlets that
+  return product to the bed (a purge or a light-product pressurisation fed
+  from the product). Recovery, productivity, production rate and specific
+  energy use the net product (product minus recycle); purity stays the purity
+  of the collected product. Before, a recycle inlet could only be ticked as
+  product, which subtracted it from the purity as well.
+
 ### Changed
 - Python: `skarstrom.Pump` is now the pump specification the builder takes
   (`sk.Pump("vacuum_pump", efficiency=0.7)`); the deck object behind

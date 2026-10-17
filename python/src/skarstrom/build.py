@@ -285,15 +285,21 @@ def _endpoint_ids(x: Any) -> List[int]:
 
 
 class KPIConfig:
-    """Which components get KPIs, and which streams are their feed and product."""
+    """Which components get KPIs, and which streams are their feed, product and recycle."""
 
     def __init__(self, sim: "Simulation") -> None:
         self._sim = sim
 
-    def track(self, component: str, feed: Any, product: Any) -> None:
-        """Compute ``component``'s purity, recovery... with ``feed`` and ``product`` given as
-        endpoints, step ends (every stream of that end) or endpoint IDs."""
-        self._sim._build("set_kpi", self._sim._component(component), _endpoint_ids(feed), _endpoint_ids(product))
+    def track(self, component: str, feed: Any, product: Any, recycle: Any = ()) -> None:
+        """Compute ``component``'s purity, recovery... with ``feed``, ``product`` and ``recycle``
+        given as endpoints, step ends (every stream of that end) or endpoint IDs.
+
+        ``recycle`` lists the streams that carry product back into the bed (a purge or a
+        pressurisation fed from the product). Purity is the product's; recovery, productivity,
+        production rate and specific energy count the product minus the recycle.
+        """
+        self._sim._build("set_kpi", self._sim._component(component), _endpoint_ids(feed), _endpoint_ids(product),
+                         _endpoint_ids(recycle))
 
     def __repr__(self) -> str:
         rows = self._sim.describe()["kpis"]
@@ -517,7 +523,9 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
     for k in d["kpis"]:
         feed = "[" + ", ".join(ep_expr.get(e, str(e)) for e in k["feed"]) + "]"
         product = "[" + ", ".join(ep_expr.get(e, str(e)) for e in k["product"]) + "]"
-        w(f"{name}.kpi.track({k['component']!r}, feed={feed}, product={product})")
+        recycle = ", ".join(ep_expr.get(e, str(e)) for e in k.get("recycle", []))
+        recycle = f", recycle=[{recycle}]" if recycle else ""
+        w(f"{name}.kpi.track({k['component']!r}, feed={feed}, product={product}{recycle})")
 
     w("")
     w("# ---- solver, cyclic steady state, energy balance --------------------------------------")

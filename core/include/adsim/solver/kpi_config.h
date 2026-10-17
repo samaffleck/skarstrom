@@ -94,15 +94,18 @@ namespace adsim {
   };
 
   // Per-component KPI configuration: which endpoints supply this component's
-  // feed and product throughput. Recycle is no longer a role — a recycled
-  // stream is simply an endpoint the user does not mark as product (the split
-  // into product vs recycle streams is modelled at the boundary itself).
+  // feed, product and recycle throughput. A recycle endpoint carries product
+  // back into the bed (a purge or light-product pressurisation fed from the
+  // product): it does not change the product's purity, but its moles are
+  // subtracted from the product for recovery, productivity and production
+  // rate (net product).
   struct ComponentKPIConfig {
     std::string product_component{};
     bool tracked = false;                                    // included in KPI tabs/results when true
 
     std::vector<KPIEndpointRef> feed_endpoints{};
     std::vector<KPIEndpointRef> product_endpoints{};
+    std::vector<KPIEndpointRef> recycle_endpoints{};
 
     static bool Contains(const std::vector<KPIEndpointRef>& v, int step, const std::string& name) {
       return std::any_of(v.begin(), v.end(),
@@ -111,6 +114,7 @@ namespace adsim {
 
     bool IsFeed(int step, const std::string& name) const { return Contains(feed_endpoints, step, name); }
     bool IsProduct(int step, const std::string& name) const { return Contains(product_endpoints, step, name); }
+    bool IsRecycle(int step, const std::string& name) const { return Contains(recycle_endpoints, step, name); }
 
     bool HasAnyFeed() const { return !feed_endpoints.empty(); }
     bool HasAnyProduct() const { return !product_endpoints.empty(); }
@@ -134,6 +138,9 @@ namespace adsim {
     }
     void SetProduct(int step, const std::string& name, BoundaryLocation loc, bool on) {
       SetRole(product_endpoints, step, name, loc, on);
+    }
+    void SetRecycle(int step, const std::string& name, BoundaryLocation loc, bool on) {
+      SetRole(recycle_endpoints, step, name, loc, on);
     }
 
     // ---- Structural cycle edits ------------------------------------------
@@ -161,6 +168,7 @@ namespace adsim {
       };
       remap(feed_endpoints);
       remap(product_endpoints);
+      remap(recycle_endpoints);
     }
 
     // A step was inserted at `index`: refs at or after it shift +1.
@@ -195,6 +203,7 @@ namespace adsim {
       };
       rename(feed_endpoints);
       rename(product_endpoints);
+      rename(recycle_endpoints);
     }
 
     // The top and bottom boundary conditions of step `index` (named
@@ -217,6 +226,7 @@ namespace adsim {
       };
       swap(feed_endpoints);
       swap(product_endpoints);
+      swap(recycle_endpoints);
     }
 
     // A flow stream on step `index` was renamed from `old_name` to `new_name`.
@@ -235,6 +245,7 @@ namespace adsim {
       };
       rename(feed_endpoints);
       rename(product_endpoints);
+      rename(recycle_endpoints);
     }
 
     // Re-bind every ref to the current cycle (KPIEndpointRef::Resolve: by ID,
@@ -247,6 +258,7 @@ namespace adsim {
       };
       prune(feed_endpoints);
       prune(product_endpoints);
+      prune(recycle_endpoints);
     }
 
     // As Prune, but keeps refs that do not resolve (used on load and before
@@ -254,6 +266,7 @@ namespace adsim {
     void ResolveIds(const std::vector<Step>& steps) {
       for (auto& r : feed_endpoints) r.Resolve(steps);
       for (auto& r : product_endpoints) r.Resolve(steps);
+      for (auto& r : recycle_endpoints) r.Resolve(steps);
     }
 
   private:
@@ -265,7 +278,8 @@ namespace adsim {
         cereal::make_nvp("Product_Component", product_component),
         cereal::make_nvp("Tracked", tracked),
         cereal::make_nvp("Feed_Endpoints", feed_endpoints),
-        cereal::make_nvp("Product_Endpoints", product_endpoints)
+        cereal::make_nvp("Product_Endpoints", product_endpoints),
+        cereal::make_nvp("Recycle_Endpoints", recycle_endpoints)
       );
     }
 
@@ -280,6 +294,7 @@ namespace adsim {
           cereal::make_nvp("Feed_Endpoints", feed_endpoints),
           cereal::make_nvp("Product_Endpoints", product_endpoints)
         );
+        if (version >= 2) ar(cereal::make_nvp("Recycle_Endpoints", recycle_endpoints));
         return;
       }
 
@@ -428,5 +443,5 @@ namespace adsim {
 } // end adsim namespace
 
 CEREAL_CLASS_VERSION(adsim::KPIEndpointRef, 1);
-CEREAL_CLASS_VERSION(adsim::ComponentKPIConfig, 1);
+CEREAL_CLASS_VERSION(adsim::ComponentKPIConfig, 2);
 CEREAL_CLASS_VERSION(adsim::KPIConfig, 3);

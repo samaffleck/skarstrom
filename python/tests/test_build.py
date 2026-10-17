@@ -194,7 +194,7 @@ def test_from_scratch_structure():
     assert len(d["connections"]) == 1
     assert d["kpis"] == [{"component": "CarbonDioxide",
                           "feed": [feed["bottom"]["streams"][0]["endpoint"], press["bottom"]["endpoint"]],
-                          "product": [evac["bottom"]["endpoint"]]}]
+                          "product": [evac["bottom"]["endpoint"]], "recycle": []}]
     assert connections(sim) == {frozenset({"Feed/top/1", "Evacuation/top/0"})}
 
     assert d["variables"] == [
@@ -230,6 +230,25 @@ def test_from_scratch_runs():
     assert r.ok, r.message
     (kpi,) = sim.kpis(cycle=-1)
     assert kpi.component == "CarbonDioxide" and kpi.valid and 0 < kpi.recovery <= 1
+
+
+def test_recycle_counts_against_recovery_not_purity():
+    # N2 product leaves at the Feed top; the purge stream carries part of it back
+    # into the bed during Evacuation. As recycle it lowers the net recovery and
+    # leaves the purity alone.
+    sim, parts = build_vsa()
+    feed, evacuation = parts["feed"], parts["evacuation"]
+    sim.kpi.track("N2", feed=[feed.bottom], product=[feed.top])
+    assert sim.run(cycles=2).ok
+    gross = {k.component: k for k in sim.kpis(cycle=-1)}["Nitrogen"]
+    sim.kpi.track("N2", feed=[feed.bottom], product=[feed.top], recycle=[evacuation.top["Purge in"]])
+    assert sim.describe()["kpis"][1]["recycle"] == [evacuation.top["Purge in"].id]
+    net = {k.component: k for k in sim.kpis(cycle=-1)}["Nitrogen"]
+    assert net.purity == pytest.approx(gross.purity, rel=1e-12)
+    assert 0 < net.recovery < gross.recovery
+    assert net.production_rate < gross.production_rate
+    script = sk.to_script(sim)
+    assert "recycle=[" in script
 
 
 def test_from_scratch_round_trips_through_a_script():

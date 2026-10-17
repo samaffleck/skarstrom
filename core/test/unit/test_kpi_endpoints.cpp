@@ -4,8 +4,10 @@
 // by hand (no full solve) so we can assert the exact selection behaviour:
 //   * a flow boundary with TWO outlet streams — selecting only the product stream
 //     must ignore the other (recycle) stream on the same face;
-//   * folding a re-entry (recycle) endpoint into the product list subtracts it
-//     via the signed sum (the replacement for the old "product - recycled" term);
+//   * folding a re-entry endpoint into the product list subtracts it via the
+//     signed sum, from purity as well;
+//   * a recycle endpoint is subtracted from the product for recovery,
+//     productivity and production rate but leaves purity untouched;
 //   * the velocity-sign -> entering/leaving conversion keyed off the endpoint's
 //     bed end (Top negated, Bottom not).
 
@@ -13,7 +15,10 @@
 
 #include <cmath>
 #include <set>
+#include <sstream>
 #include <vector>
+
+#include <cereal/archives/json.hpp>
 
 #include "adsim/solver/kpis.h"
 #include "adsim/solver/log.h"
@@ -102,7 +107,7 @@ TEST(KpiEndpoints, ProductStreamSelectionIgnoresOtherStreamOnSameFace) {
 }
 
 // Folding the re-entry "Recycle" endpoint into the product list subtracts it
-// (signed sum) — reproducing the old "product - recycled product" behaviour.
+// (signed sum), from the purity too.
 TEST(KpiEndpoints, RecycleFoldedIntoProductSubtracts) {
   auto rig = BuildRig();
   KPIParams p(rig->eq_log, rig->b_log);
@@ -120,6 +125,53 @@ TEST(KpiEndpoints, RecycleFoldedIntoProductSubtracts) {
   EXPECT_NEAR(CalculateTotalMolesInProduct(p),     1.0, 1e-9);
   EXPECT_NEAR(CalculateComponentMolesInFeed(p),    2.0, 1e-9);
   EXPECT_NEAR(CalculateRecovery(p), 1.1 / 2.0, 1e-9);
+}
+
+// The recycle role: purity is the product stream's own (1.6/2.0); recovery,
+// productivity and production rate count product minus recycle (1.6 - 0.5).
+TEST(KpiEndpoints, RecycleRoleNetsRecoveryButNotPurity) {
+  auto rig = BuildRig();
+  rig->eq_log.sys_data.total_cycle_time = 10.0;
+  KPIParams p(rig->eq_log, rig->b_log);
+  p.cycle_index_ = 0;
+  p.product_comp_ = CO2;
+  p.feed_endpoints    = { Ep(0, "Feed", BoundaryLocation::BOTTOM) };
+  p.product_endpoints = { Ep(0, "Product", BoundaryLocation::TOP) };
+  p.recycle_endpoints = { Ep(0, "Recycle", BoundaryLocation::TOP) };
+
+  ASSERT_TRUE(p.Check());
+  EXPECT_NEAR(CalculateComponentMolesRecycled(p), 0.5, 1e-9);
+  EXPECT_NEAR(CalculateNetComponentMolesInProduct(p), 1.1, 1e-9);
+  EXPECT_NEAR(CalculatePurity(p), 0.8, 1e-9);
+  EXPECT_NEAR(CalculateRecovery(p), 1.1 / 2.0, 1e-9);
+  EXPECT_NEAR(CalculateProductionRate(p), 1.1 / 10.0, 1e-9);
+  EXPECT_NEAR(CalculateProductivity(p), 1.1 * 0.044 / 10.0, 1e-12);
+}
+
+// Recycle refs follow structural cycle edits and survive a save/load.
+TEST(KpiEndpoints, RecycleRefsFollowCycleEdits) {
+  ComponentKPIConfig c;
+  c.SetRecycle(2, "Purge", BoundaryLocation::TOP, true);
+  EXPECT_TRUE(c.IsRecycle(2, "Purge"));
+  c.OnStepInserted(0);
+  EXPECT_TRUE(c.IsRecycle(3, "Purge"));
+  c.OnStreamRenamed(3, "Purge", "O2 purge");
+  EXPECT_TRUE(c.IsRecycle(3, "O2 purge"));
+  c.OnStepRemoved(3);
+  EXPECT_TRUE(c.recycle_endpoints.empty());
+
+  c.SetRecycle(1, "Pressurization Pressure Boundary Top", BoundaryLocation::TOP, true);
+  std::stringstream ss;
+  {
+    cereal::JSONOutputArchive out(ss);
+    out(c);
+  }
+  ComponentKPIConfig loaded;
+  {
+    cereal::JSONInputArchive in(ss);
+    in(loaded);
+  }
+  EXPECT_TRUE(loaded.IsRecycle(1, "Pressurization Pressure Boundary Top"));
 }
 
 // Contract guard: every name from Step::GetEndpoints() (what the KPI config

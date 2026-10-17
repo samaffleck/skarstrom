@@ -234,7 +234,8 @@ namespace adsim {
     KPIVariableType        kpi_type,
     const std::string&     product_comp,
     const std::vector<KPIEndpointRef>& feed_endpoints,
-    const std::vector<KPIEndpointRef>& product_endpoints)
+    const std::vector<KPIEndpointRef>& product_endpoints,
+    const std::vector<KPIEndpointRef>& recycle_endpoints = {})
   {
     const auto& sim_log = eq_log.GetSimulationLog();
     double sse = 0.0;
@@ -249,6 +250,7 @@ namespace adsim {
       kpi_p.product_comp_               = product_comp;
       kpi_p.product_endpoints           = product_endpoints;
       kpi_p.feed_endpoints              = feed_endpoints;
+      kpi_p.recycle_endpoints           = recycle_endpoints;
 
       double kpi_val = 0.0;
       switch (kpi_type) {

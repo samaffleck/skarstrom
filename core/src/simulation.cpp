@@ -559,6 +559,7 @@ namespace adsim {
       p.product_comp_ = cfg.product_component;
       p.feed_endpoints = cfg.feed_endpoints;
       p.product_endpoints = cfg.product_endpoints;
+      p.recycle_endpoints = cfg.recycle_endpoints;
       KPIRecord r;
       r.cycle = c;
       r.component = cfg.product_component;

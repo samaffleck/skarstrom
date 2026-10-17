@@ -148,9 +148,11 @@ void SetPump(UserData& data, size_t endpoint, const std::string& kind, const std
 void Connect(UserData& data, size_t endpoint_a, size_t endpoint_b);
 // An energy source (heater or cooler) acting on a layer during a step.
 void SetEnergySource(UserData& data, size_t step, size_t layer, bool enabled);
-// Track a component's KPIs with these feed and product endpoints.
+// Track a component's KPIs with these feed and product endpoints. Recycle
+// endpoints carry product back into the bed (a purge or pressurisation fed
+// from the product): recovery and productivity count product minus recycle.
 void SetKPI(UserData& data, const std::string& component, const std::vector<size_t>& feed_endpoints,
-            const std::vector<size_t>& product_endpoints);
+            const std::vector<size_t>& product_endpoints, const std::vector<size_t>& recycle_endpoints = {});
 
 // ---- user variables -----------------------------------------------------------------
 // A named value other values' expressions can use ("2 * t_feed"). `formula`
