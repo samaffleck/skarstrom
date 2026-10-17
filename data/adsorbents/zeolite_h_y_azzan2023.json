@@ -52,29 +52,9 @@
                                 "value0": {},
                                 "Isotherm_Params": [
                                     {
-                                        "key": "Hydrogen",
-                                        "value": {
-                                            "cereal_class_version": 0,
-                                            "IP_m1": {
-                                                "Value": 5.86,
-                                                "Expression": "5.86",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_b1": {
-                                                "Value": 1.4068599999999999e-9,
-                                                "Expression": "1.4068599999999998e-09",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_q1": {
-                                                "Value": 8960.0,
-                                                "Expression": "8.96e+03",
-                                                "DisplayUnitIndex": 0
-                                            }
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
+                                            "cereal_class_version": 0,
                                             "IP_m1": {
                                                 "Value": 5.86,
                                                 "Expression": "5.86",
@@ -88,6 +68,26 @@
                                             "IP_q1": {
                                                 "Value": 23310.0,
                                                 "Expression": "2.331e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Hydrogen",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 5.86,
+                                                "Expression": "5.86",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 1.4068599999999999e-9,
+                                                "Expression": "1.4068599999999998e-09",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 8960.0,
+                                                "Expression": "8.96e+03",
                                                 "DisplayUnitIndex": 0
                                             }
                                         }

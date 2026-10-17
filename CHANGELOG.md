@@ -8,6 +8,21 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed
+- Competitive isotherms summed their per-component terms in `std::unordered_map`
+  order, which depends on the order of the entries in the deck file and on the
+  standard library. A deck and its re-saved copy could therefore run to
+  slightly different numbers (seen on macOS arm64, where FMA contraction makes
+  even a two-component sum order-dependent). Isotherm parameters are now kept
+  in key order (`std::map`); the deck format is unchanged.
+- CI: the "example decks unchanged" check no longer uses `A && B || C`
+  (shellcheck SC2015) and also fails when the test suite deletes a file.
+
+### Added
+- `DeckRoundTrip` tests: every example deck's numbers parse exactly and
+  survive save/reload bit for bit, and a run is unchanged when every map in
+  the deck is listed in reverse order.
+
 ## [0.1.0] — initial open-source release (unreleased)
 
 First public release of the Skarstrom engine under the Apache License 2.0.

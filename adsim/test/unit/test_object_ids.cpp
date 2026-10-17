@@ -237,7 +237,10 @@ TEST(ObjectIds, ParameterPathsUseIds) {
 }
 
 // Example decks predate IDs: they load with deterministic IDs, their KPI refs
-// bind, and a re-saved copy (with IDs) runs to exactly the same numbers.
+// bind, and a re-saved copy (with IDs) runs to exactly the same numbers. The
+// re-saved copy lists its map entries in this standard library's unordered_map
+// order, so this also fails if a run depends on that order (it did on macOS;
+// see DeckRoundTrip.RunDoesNotDependOnMapOrderInTheDeck).
 TEST(ObjectIds, OldDeckLoadsDeterministicallyAndRunsIdentically) {
   const std::string deck = (kExamples / "Perez2019_A.json").string();
   UserData a, b;

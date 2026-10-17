@@ -122,7 +122,14 @@ jobs:
         # embedded result numbers may move in the last digits, but no file may
         # appear or disappear.
         run: |
-          git status --porcelain --untracked-files=all examples data | grep '^??' && exit 1 || true
+          changed=$(git status --porcelain --untracked-files=all examples data | grep -E '^(\?\?| D|D )' || true)
+          if [ -n "$changed" ]; then
+            echo "::error::The test suite added or removed files under examples/ or data/:"
+            echo "$changed"
+            exit 1
+          else
+            echo "No files added or removed under examples/ or data/."
+          fi
 
       - name: Remove test output
         if: always()

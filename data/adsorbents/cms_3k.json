@@ -52,29 +52,9 @@
                                 "value0": {},
                                 "Isotherm_Params": [
                                     {
-                                        "key": "Methane",
-                                        "value": {
-                                            "cereal_class_version": 0,
-                                            "IP_m1": {
-                                                "Value": 2.13,
-                                                "Expression": "2.13",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_b1": {
-                                                "Value": 0.0000031000000000000006,
-                                                "Expression": "3.1000000000000004e-06",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_q1": {
-                                                "Value": 33674.0,
-                                                "Expression": "33674",
-                                                "DisplayUnitIndex": 0
-                                            }
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
+                                            "cereal_class_version": 0,
                                             "IP_m1": {
                                                 "Value": 2.4699999999999999,
                                                 "Expression": "2.4699999999999998",
@@ -88,6 +68,26 @@
                                             "IP_q1": {
                                                 "Value": 38947.0,
                                                 "Expression": "38947",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Methane",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 2.13,
+                                                "Expression": "2.13",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 0.0000031000000000000006,
+                                                "Expression": "3.1000000000000004e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 33674.0,
+                                                "Expression": "33674",
                                                 "DisplayUnitIndex": 0
                                             }
                                         }

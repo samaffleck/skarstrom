@@ -175,49 +175,9 @@
                                                 "value0": {},
                                                 "Isotherm_Params": [
                                                     {
-                                                        "key": "Methane",
-                                                        "value": {
-                                                            "cereal_class_version": 0,
-                                                            "IP_A1": {
-                                                                "Value": 4.473,
-                                                                "Expression": "4.473",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_A2": {
-                                                                "Value": -0.6569,
-                                                                "Expression": "-0.6569",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_B1": {
-                                                                "Value": 3.605e-9,
-                                                                "Expression": "3.605e-09",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_B2": {
-                                                                "Value": 15561.0,
-                                                                "Expression": "15561",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_C1": {
-                                                                "Value": 1.073,
-                                                                "Expression": "1.073",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_C2": {
-                                                                "Value": 0.0,
-                                                                "Expression": "0",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_T_ref": {
-                                                                "Value": 298.0,
-                                                                "Expression": "298",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        }
-                                                    },
-                                                    {
                                                         "key": "CarbonDioxide",
                                                         "value": {
+                                                            "cereal_class_version": 0,
                                                             "IP_A1": {
                                                                 "Value": 7.268,
                                                                 "Expression": "7.268",
@@ -246,6 +206,46 @@
                                                             "IP_C2": {
                                                                 "Value": 0.7238,
                                                                 "Expression": "0.7238",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_T_ref": {
+                                                                "Value": 298.0,
+                                                                "Expression": "298",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "key": "Methane",
+                                                        "value": {
+                                                            "IP_A1": {
+                                                                "Value": 4.473,
+                                                                "Expression": "4.473",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_A2": {
+                                                                "Value": -0.6569,
+                                                                "Expression": "-0.6569",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_B1": {
+                                                                "Value": 3.605e-9,
+                                                                "Expression": "3.605e-09",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_B2": {
+                                                                "Value": 15561.0,
+                                                                "Expression": "15561",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_C1": {
+                                                                "Value": 1.073,
+                                                                "Expression": "1.073",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_C2": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
                                                                 "DisplayUnitIndex": 0
                                                             },
                                                             "IP_T_ref": {

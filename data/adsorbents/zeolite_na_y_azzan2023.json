@@ -60,9 +60,29 @@
                                 "value0": {},
                                 "Isotherm_Params": [
                                     {
-                                        "key": "Hydrogen",
+                                        "key": "CarbonDioxide",
                                         "value": {
                                             "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 7.03,
+                                                "Expression": "7.03",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 1.021e-10,
+                                                "Expression": "1.021e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 33210.0,
+                                                "Expression": "3.321e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Hydrogen",
+                                        "value": {
                                             "IP_m1": {
                                                 "Value": 7.03,
                                                 "Expression": "7.03",
@@ -96,26 +116,6 @@
                                             "IP_q1": {
                                                 "Value": 13440.0,
                                                 "Expression": "1.344e+04",
-                                                "DisplayUnitIndex": 0
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "key": "CarbonDioxide",
-                                        "value": {
-                                            "IP_m1": {
-                                                "Value": 7.03,
-                                                "Expression": "7.03",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_b1": {
-                                                "Value": 1.021e-10,
-                                                "Expression": "1.021e-10",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_q1": {
-                                                "Value": 33210.0,
-                                                "Expression": "3.321e+04",
                                                 "DisplayUnitIndex": 0
                                             }
                                         }
