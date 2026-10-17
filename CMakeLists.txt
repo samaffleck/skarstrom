@@ -175,6 +175,12 @@ add_subdirectory(external/sundials)
 
 # -- CoolProp --
 set(COOLPROP_STATIC_LIBRARY ON CACHE BOOL "Build CoolProp as a static library")
+# Build CoolProp for the native architecture. Without this, CoolProp adds
+# -m64 to its compile and link flags on every non-MSVC 64-bit host; GCC on
+# aarch64 (Linux ARM wheels) rejects that flag ("unrecognized command-line
+# option '-m64'"). Apple clang happens to ignore it, and on x86-64 it is a
+# no-op, so native is correct everywhere we build.
+set(FORCE_BITNESS_NATIVE ON CACHE BOOL "Build CoolProp for the native architecture")
 add_subdirectory(external/CoolProp)
 # CoolProp bundles its own Eigen (externals/Eigen). Hold it to the MPL-2.0-only
 # subset too, so an LGPL Eigen header can never be compiled in (see
