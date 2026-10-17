@@ -67,13 +67,13 @@ The inlet temperature of a stream (or of a Pressure inlet) can change during the
 - **Linear** — from the **Start Temperature** $T_0$ to the **Final Temperature** $T_1$ over the **Ramp Time** $t_r$, then held at $T_1$ (it never extrapolates past the end of the ramp):
 
 $$
-T_{\text{in}}(t) = T_0 + \left(T_1 - T_0\right)\frac{\min(t,\,t_r)}{t_r}
+T_{\text{in}}(t) = T_0 + \left(T_1 - T_0\right)\frac{\min(t,\thinspace t_r)}{t_r}
 $$
 
 - **Exponential** — a first-order approach from $T_0$ to $T_1$ that has covered 99 % of the change after the ramp time $t_r$:
 
 $$
-T_{\text{in}}(t) = T_1 + \left(T_0 - T_1\right)e^{-\ln(100)\,t/t_r}
+T_{\text{in}}(t) = T_1 + \left(T_0 - T_1\right)e^{-\ln(100)\thinspace t/t_r}
 $$
 
 $t$ is the time since the start of the step, so the ramp restarts every time the step runs. A ramp time of zero is an immediate step to $T_1$, and a ramp longer than the step simply ends part-way. Switching from Constant starts both temperatures at the current value with a ramp time equal to the step time.
@@ -98,10 +98,10 @@ Ramps are the natural way to model gradual pressurisation or blowdown. The ramp 
 
 ## Valves
 
-Set a stream's **Boundary Device Type** to **Valve** to make its flow **pressure-driven** rather than prescribed. You enter a **Valve Flow Coefficient (Cv)** and a pressure profile; the flow through the valve is driven by the pressure difference between the valve's set pressure and the bed. The valve is linear in the pressure difference (`Valve::GetMolarFlowRate` in `adsim/src/objects/valve.cpp`):
+Set a stream's **Boundary Device Type** to **Valve** to make its flow **pressure-driven** rather than prescribed. You enter a **Valve Flow Coefficient (Cv)** and a pressure profile; the flow through the valve is driven by the pressure difference between the valve's set pressure and the bed. The valve is linear in the pressure difference (`Valve::GetMolarFlowRate` in `core/src/objects/valve.cpp`):
 
 $$
-\dot n = C_v\,\frac{P_{\text{up}} - P_{\text{down}}}{10^{5}\ \text{Pa}}
+\dot n = C_v\thinspace \frac{P_{\text{up}} - P_{\text{down}}}{10^{5}\ \text{Pa}}
 $$
 
 so $C_v$ is in mol s⁻¹ bar⁻¹: a valve with $C_v = 10$ passes 10 mol/s for a 1 bar difference. Gas flows from the higher to the lower pressure, and the flow reverses if the pressures cross.

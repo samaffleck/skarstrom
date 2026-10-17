@@ -9,20 +9,20 @@ import pytest
 
 import skarstrom
 
-PEREZ = "Perez2019_A.json"   # four-step CO2 VSA, CO2 tracked: ~0.2 s per cycle
-WARD = "Ward_2022_Q=100[ccm].json"  # one-step breakthrough: < 1 s
+PEREZ = skarstrom.examples.Perez2019_A      # four-step CO2 VSA, CO2 tracked: ~0.2 s per cycle
+WARD = skarstrom.examples.Ward2022_Q100ccm  # one-step breakthrough: < 1 s
 
 
 @pytest.fixture
 def perez():
-    sim = skarstrom.Simulation(skarstrom.example_path(PEREZ))
+    sim = skarstrom.Simulation(PEREZ)
     sim["cycle.number_of_cycles"] = 3
     return sim
 
 
 @pytest.fixture(scope="module")
 def perez_run():
-    sim = skarstrom.Simulation(skarstrom.example_path(PEREZ))
+    sim = skarstrom.Simulation(PEREZ)
     sim["cycle.number_of_cycles"] = 3
     result = sim.run()
     assert result.ok, result.message
@@ -31,14 +31,13 @@ def perez_run():
 
 def test_version_and_examples(tmp_path):
     assert skarstrom.__version__.count(".") == 2
-    names = skarstrom.examples()
-    assert PEREZ in names and WARD in names
+    names = skarstrom.examples.names()
+    assert PEREZ.name in names and WARD.name in names
     assert len(names) >= 30, "every deck in examples/decks/ ships with the package"
-    assert skarstrom.example_path(PEREZ[:-5]) == skarstrom.example_path(PEREZ)
-    with pytest.raises(FileNotFoundError):
-        skarstrom.example_path("nope.json")
-    copy = skarstrom.copy_example(WARD, tmp_path)
-    assert os.path.basename(copy) == WARD and os.path.isfile(copy)
+    with pytest.raises(KeyError):
+        skarstrom.examples.get("nope")
+    copy = WARD.copy_to(tmp_path)
+    assert os.path.basename(copy) == "Ward2022_Q100ccm.json" and os.path.isfile(copy)
 
 
 def test_adsorbent_library_ships_with_the_package():
@@ -55,7 +54,7 @@ def test_adsorbent_library_ships_with_the_package():
 
 
 def test_structural_edits():
-    sim = skarstrom.Simulation(skarstrom.example_path(PEREZ))
+    sim = skarstrom.Simulation(PEREZ)
     sim.add_component("Argon")
     assert "Argon" in sim.components
     assert any("y[Argon]" in p.path for p in sim.parameters())
@@ -81,11 +80,11 @@ def test_licences_ship_with_the_package():
 
 
 def test_load_from_path_and_json(tmp_path):
-    a = skarstrom.Simulation(skarstrom.example_path(WARD))
+    a = skarstrom.Simulation(WARD)
     b = skarstrom.Simulation(a.to_json())
-    c = skarstrom.Simulation.from_file(skarstrom.example_path(WARD))
+    c = skarstrom.Simulation.from_file(WARD)
     assert a.components == b.components == c.components == ["CarbonDioxide", "Air"]
-    assert a.steps == b.steps == ["Feed"]
+    assert a.steps.names == b.steps.names == ["Feed"]
     a["settings.reltol"] = 2e-6
     out = tmp_path / "deck.json"
     a.save(out)
@@ -105,7 +104,7 @@ def test_parameters_list_get_set(perez):
     assert tunable and all(p.tunable and p.bounds is not None for p in tunable)
     assert all(p.kind in ("real", "expression") for p in tunable)
 
-    feed = perez.steps[0]
+    feed = perez.steps[0].name
     assert perez["step[1].time"] == perez[f"step[{feed}].time"]
     perez["step[1].time"] = 50
     assert perez["step[1].time"] == 50.0

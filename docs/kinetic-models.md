@@ -51,7 +51,7 @@ Input: **Mass transfer coefficient** [s⁻¹].
 The coefficient is derived from macropore molecular diffusion only:
 
 $$
-k_i = \frac{60 \, D_{m,\text{eff}}}{d_p^2}, \qquad D_{m,\text{eff}} = D_m \frac{\epsilon_p}{\tau}
+k_i = \frac{60 \thinspace D_{m,\text{eff}}}{d_p^2}, \qquad D_{m,\text{eff}} = D_m \frac{\epsilon_p}{\tau}
 $$
 
 Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$. The molecular diffusivity $D_m$ is computed from the gas properties, and the particle diameter $d_p$ comes from the layer.
@@ -69,7 +69,7 @@ $$
 with the Knudsen diffusivity evaluated from kinetic theory using the pore radius $r_p$ and molar mass $M$:
 
 $$
-D_k = \frac{2}{3}\, r_p \sqrt{\frac{8 R T}{\pi M}}, \qquad k_i = \frac{60 \, D_{\text{eff}}}{d_p^2}
+D_k = \frac{2}{3}\thinspace r_p \sqrt{\frac{8 R T}{\pi M}}, \qquad k_i = \frac{60 \thinspace D_{\text{eff}}}{d_p^2}
 $$
 
 Inputs: **Pore radius** $r_p$, **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$.
@@ -79,7 +79,7 @@ Inputs: **Pore radius** $r_p$, **Tortuosity** $\tau$, **Macropore Void Fraction*
 Combines an external gas-film resistance and an internal macropore resistance in series (Haynes & Sarma, 1973):
 
 $$
-k_i = \left(\frac{r_p}{3 k_f} + \frac{\tau \, r_p^2}{15 \, \epsilon_p D_m}\right)^{-1}, \qquad k_f = \frac{\mathrm{Sh}\, D_m}{d_p}
+k_i = \left(\frac{r_p}{3 k_f} + \frac{\tau \thinspace r_p^2}{15 \thinspace \epsilon_p D_m}\right)^{-1}, \qquad k_f = \frac{\mathrm{Sh}\thinspace D_m}{d_p}
 $$
 
 where $r_p = d_p/2$ and the film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$. Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$.
@@ -89,7 +89,7 @@ where $r_p = d_p/2$ and the film coefficient $k_f$ uses the Sherwood number $\ma
 An activation-energy form for temperature-dependent kinetics:
 
 $$
-k_i = k_0 \, \exp\!\left(-\frac{E_a}{R T}\right)
+k_i = k_0 \thinspace \exp\negthinspace \left(-\frac{E_a}{R T}\right)
 $$
 
 Inputs: **Pre-exponential factor** $k_0$ [s⁻¹], **Activation energy** $E_a$ [J mol⁻¹].

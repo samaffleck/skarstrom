@@ -111,7 +111,7 @@
         "heat_capacity": {"value": 1172.0, "provenance": "source", "ref": "Table 2"},
         "particle_voidage": {"value": 0.33, "provenance": "source", "ref": "Table 2, particle porosity"},
         "particle_diameter": {"value": 0.035, "provenance": "source", "ref": "SI model-input table (value as printed)"},
-        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by core/test/unit/test_adsorbents.cpp"}
       },
       "example_decks": ["Arora2021_LiLSX_PSA.json", "Arora2021_LiLSX_PVSA.json"],
       "deck_checks": [{"deck": "Arora2021_LiLSX_PSA.json", "adsorbent": "LiLSX Zeolite"}],
@@ -143,7 +143,7 @@
         "heat_capacity": {"value": 1172.0, "provenance": "source", "ref": "Table 2"},
         "particle_voidage": {"value": 0.33, "provenance": "source", "ref": "Table 2, particle porosity"},
         "particle_diameter": {"value": 0.035, "provenance": "source", "ref": "SI model-input table (value as printed)"},
-        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by core/test/unit/test_adsorbents.cpp"}
       },
       "example_decks": ["Arora2021_LiLSX_PSA.json", "Arora2021_LiLSX_PVSA.json"],
       "deck_checks": [{"deck": "Arora2021_LiLSX_PSA.json", "adsorbent": "LiX Zeolite"}],
@@ -174,7 +174,7 @@
         "heat_capacity": {"value": 1338.9, "provenance": "source", "ref": "Table 2"},
         "particle_voidage": {"value": 0.65, "provenance": "source", "ref": "Table 2, particle porosity"},
         "particle_diameter": {"value": 0.035, "provenance": "source", "ref": "SI model-input table (value as printed)"},
-        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by core/test/unit/test_adsorbents.cpp"}
       },
       "example_decks": ["Arora2021_LiLSX_PSA.json", "Arora2021_LiLSX_PVSA.json"],
       "deck_checks": [{"deck": "Arora2021_LiLSX_PSA.json", "adsorbent": "Zeolite 5A"}],
@@ -206,7 +206,7 @@
         "heat_capacity": {"value": 900.0, "provenance": "source", "ref": "Table 1"},
         "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 1, pellet porosity"},
         "particle_diameter": {"value": 0.002, "provenance": "source", "ref": "Table 1, pellet radius 1e-3 m"},
-        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by core/test/unit/test_adsorbents.cpp"}
       },
       "example_decks": ["Ward2024.json"],
       "deck_checks": [{"deck": "Ward2024.json", "adsorbent": "Mg-MOF-74"}],
@@ -238,7 +238,7 @@
         "heat_capacity": {"value": 1040.0, "provenance": "source", "ref": "Table 1"},
         "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 1, pellet porosity"},
         "particle_diameter": {"value": 0.002, "provenance": "source", "ref": "Table 1, pellet radius 1e-3 m"},
-        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by core/test/unit/test_adsorbents.cpp"}
       },
       "example_decks": [],
       "deck_checks": [],
@@ -299,7 +299,7 @@
           "ref": "Schell 2012 Table 3 refit to the Casas 2012 Table 4 form",
           "T_range_K": [298.15, 413.15],
           "P_range_Pa": [10000, 21200000],
-          "range_note": "Measured 25-140 C, 0.01-21.2 MPa (Schell Table 1). The constants are the repo's refit of Schell Table 3 (adsim/test/papers/casas_2012/casas_2012.h); they reproduce Casas Table 4 to 3-4 significant figures.",
+          "range_note": "Measured 25-140 C, 0.01-21.2 MPa (Schell Table 1). The constants are the repo's refit of Schell Table 3 (core/test/papers/casas_2012/casas_2012.h); they reproduce Casas Table 4 to 3-4 significant figures.",
           "source_points": {
             "kind": "measured",
             "quantity": "excess",
@@ -366,7 +366,7 @@
         {"component": "Methane", "ref": "SI Table S2", "T_range_K": [298, 338], "P_range_Pa": null, "range_note": "Fitted at 298, 318, 338 K (SI Table S3); selection required data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
-        "CarbonDioxide": {"value": 27028.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from adsim/test/papers/ferre_2026/ferre_2026.cpp (DSL isosteric heat at the feed loading), also used by the Ferre2026_NaYF deck"},
+        "CarbonDioxide": {"value": 27028.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from core/test/papers/ferre_2026/ferre_2026.cpp (DSL isosteric heat at the feed loading), also used by the Ferre2026_NaYF deck"},
         "Methane": {"value": 12896.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp / Ferre2026_NaYF deck"}
       },
       "properties": {
@@ -655,7 +655,7 @@
       "status": "sourced",
       "applications": ["post-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen"],
-      "sources": [{"id": "nguyen2022", "refs": "Table 3 (ESS/extended DSL parameters) per the repo fixture adsim/test/papers/nguyen_2022/nguyen_2022.h"}],
+      "sources": [{"id": "nguyen2022", "refs": "Table 3 (ESS/extended DSL parameters) per the repo fixture core/test/papers/nguyen_2022/nguyen_2022.h"}],
       "isotherms": [
         {"component": "CarbonDioxide", "ref": "Table 3 (via the Nguyen_2022 decks)", "T_range_K": null, "P_range_Pa": null, "range_note": "Values copied verbatim from the repo's Nguyen_2022 decks, which cite Table 3; the paper itself was not available to this PR, so the fit range is not recorded."},
         {"component": "Nitrogen", "ref": "Table 3 (via the Nguyen_2022 decks)", "T_range_K": null, "P_range_Pa": null, "range_note": "Values copied verbatim from the repo's Nguyen_2022 decks, which cite Table 3; fit range not recorded."}
@@ -671,8 +671,8 @@
         "particle_diameter": {"value": null, "provenance": "repo", "ref": "Not in the paper according to the repo fixture (the deck assumes 1.5 mm)"},
         "thermal_conductivity": {"value": 0.63, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks"}
       },
-      "example_decks": ["Nguyen_2022_Fig4.json", "Nguyen_2022_Fig5.json"],
-      "deck_checks": [{"deck": "Nguyen_2022_Fig4.json", "adsorbent": "CALF-20"}],
+      "example_decks": ["Nguyen2022_Fig4.json", "Nguyen2022_Fig5.json"],
+      "deck_checks": [{"deck": "Nguyen2022_Fig4.json", "adsorbent": "CALF-20"}],
       "notes": [
         "Extended concentration-form DSL with equal-energy-site N2 (repo fixture comment: 'ESS model in Table 3').",
         "Includes the decks' macropore-controlled LDF (tortuosity 3, eps_p 0.35)."
@@ -741,8 +741,8 @@
         "particle_diameter": {"value": 0.0018, "provenance": "source", "ref": "Table 1"},
         "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value used by the streb_2021 decks"}
       },
-      "example_decks": ["streb_2021_A1.json", "streb_2021_A3.json"],
-      "deck_checks": [{"deck": "streb_2021_A1.json", "adsorbent": "13X"}],
+      "example_decks": ["Streb2021_A1.json", "Streb2021_A3.json"],
+      "deck_checks": [{"deck": "Streb2021_A1.json", "adsorbent": "13X"}],
       "notes": [
         "Extended Sips with temperature-dependent capacity, affinity and exponent (engine kind 'Extended Sips 2'); B1 converted from 1e-4 1/bar to 1/Pa, T_ref = 298 K as in the repo decks (paper: 25 C).",
         "Includes the decks' fitted LDF constants (Table 4: CO2 0.06 1/s, CH4 0.2 1/s); H2 uses the engine default."
@@ -798,8 +798,8 @@
         "particle_diameter": {"value": 0.003, "provenance": "source", "ref": "Table 1, particle radius 1.5e-3 m"},
         "thermal_conductivity": {"value": 0.63, "provenance": "source", "ref": "Table 1, k_s"}
       },
-      "example_decks": ["Ward_2022_Q=50[ccm].json", "Ward_2022_Q=100[ccm].json", "Ward_2022_Q=200[ccm].json"],
-      "deck_checks": [{"deck": "Ward_2022_Q=50[ccm].json", "adsorbent": "Activated Carbon"}],
+      "example_decks": ["Ward2022_Q50ccm.json", "Ward2022_Q100ccm.json", "Ward2022_Q200ccm.json"],
+      "deck_checks": [{"deck": "Ward2022_Q50ccm.json", "adsorbent": "Activated Carbon"}],
       "notes": [
         "Concentration-form DSL from Table 2.",
         "Includes the decks' Haynes-type macropore LDF model."
@@ -1038,7 +1038,7 @@
       "example_decks": [],
       "example_deck_note": "No bundled example deck uses this entry.",
       "notes": [
-        "CO2 uses the engine's temperature-dependent Toth (TOTH_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see adsim/test/unit/test_adsorbent_library_sources.cpp).",
+        "CO2 uses the engine's temperature-dependent Toth (TOTH_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see core/test/unit/test_adsorbent_library_sources.cpp).",
         "N2 is a non-competitive single-site Langmuir (unary fit as reported); CO2-N2 competition is not modelled.",
         "H2O (GAB, Table 9) is not included: the engine has no GAB isotherm."
       ]
@@ -1107,7 +1107,7 @@
       "example_decks": [],
       "example_deck_note": "No bundled example deck uses this entry.",
       "notes": [
-        "CO2 uses the engine's temperature-dependent Toth (TOTH_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see adsim/test/unit/test_adsorbent_library_sources.cpp).",
+        "CO2 uses the engine's temperature-dependent Toth (TOTH_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see core/test/unit/test_adsorbent_library_sources.cpp).",
         "N2 is a non-competitive single-site Langmuir (unary fit as reported); CO2-N2 competition is not modelled.",
         "H2O (GAB, Table 9) is not included: the engine has no GAB isotherm."
       ]

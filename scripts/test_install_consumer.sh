@@ -2,7 +2,7 @@
 # Prove the adsim install/export works end to end:
 #   1. configure + build the library (no tests) with ADSIM_INSTALL=ON,
 #   2. install it into a throw-away prefix,
-#   3. configure + build adsim/install_consumer against ONLY that prefix
+#   3. configure + build core/install_consumer against ONLY that prefix
 #      (find_package(Adsim)), and
 #   4. run the consumer on an example deck.
 #
@@ -20,7 +20,7 @@ cd "$ROOT"
 
 BUILD_DIR="${BUILD_DIR:-build_install}"
 JOBS="${JOBS:-2}"
-DECK="${1:-examples/decks/Ward_2022_Q=50[ccm].json}"
+DECK="${1:-examples/decks/Ward2022_Q50ccm.json}"
 WORK="$(mktemp -d)"
 PREFIX="${PREFIX:-$WORK/prefix}"
 trap 'rm -rf "$WORK"' EXIT
@@ -44,7 +44,7 @@ test -f "$PREFIX/lib/cmake/Adsim/AdsimConfig.cmake" \
 
 echo "== [3/4] Configure + build the consumer against the install tree only =="
 # CMAKE_FIND_USE_PACKAGE_REGISTRY etc. off: the package must come from PREFIX.
-cmake -S adsim/install_consumer -B "$WORK/consumer" "${GEN[@]}" \
+cmake -S core/install_consumer -B "$WORK/consumer" "${GEN[@]}" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$PREFIX" \
   -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF \

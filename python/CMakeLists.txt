@@ -24,7 +24,7 @@ install(FILES
     ${ADSIM_SOURCE_DIR}/THIRD_PARTY_NOTICES.md
     DESTINATION skarstrom/licenses COMPONENT python)
 
-# Package data: every example deck (skarstrom.examples(), `skarstrom examples`)
+# Package data: every example deck (skarstrom.examples, `skarstrom examples`)
 # and the curated adsorbent library (skarstrom.adsorbent_library()).
 install(DIRECTORY ${ADSIM_SOURCE_DIR}/examples/decks/
     DESTINATION skarstrom/data/decks COMPONENT python

@@ -21,11 +21,11 @@ runs it at build time) and, recommended, Ninja. Forgot `--recursive`? Run
 ## Running the tests
 
 ```bash
-# C++ (working directory adsim/; ~670 tests, ~10 minutes on 4 cores)
+# C++ (working directory core/; ~670 tests, ~10 minutes on 4 cores)
 ctest --preset linux-release -j3
 # fast subset (what CI runs on pull requests): everything but the paper replications
 ctest --preset linux-release -j3 -E "^(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)Test\.|^CSSAcceleration\."
-rm -rf adsim/Results                 # the suite writes ~4 GB of output there
+rm -rf core/Results                 # the suite writes ~4 GB of output there
 
 # Python package, CLI and example smoke tests
 pip install . pytest
@@ -48,7 +48,7 @@ it with Emscripten; `bash scripts/test_install_consumer.sh` checks
 - Open an issue first for anything large, so we can agree on the approach.
 - Keep pull requests focused; add or update tests with every behaviour change.
   Physics changes need a test whose expected value is derived from physics
-  (`adsim/test/validation/`) or a published reference (`adsim/test/papers/`),
+  (`core/test/validation/`) or a published reference (`core/test/papers/`),
   not one recorded from the current output.
 - Changes to a serialised class must bump its `cereal_class_version` and keep
   older decks loading.
@@ -56,7 +56,7 @@ it with Emscripten; `bash scripts/test_install_consumer.sh` checks
   adsorbent files; small changes to their embedded numbers are expected —
   commit them with your change.
 - Update the docs (`docs/`) and `CHANGELOG.md` (under *Unreleased*).
-- Keep the engine front-end free: no GUI, web or JSON-schema code in `adsim/`;
+- Keep the engine front-end free: no GUI, web or JSON-schema code in `core/`;
   it must keep building as a subproject and with Emscripten.
 
 ## Data integrity (adsorbent and validation data)
@@ -75,14 +75,14 @@ negotiable:
 - **Reference values are printed numbers.** `reference_values.csv` in a paper
   folder holds only numbers printed in the paper (tables, values stated in the
   text), each with its table/figure/page. Anything derived is marked as such.
-  Never eyeball values off a plot; digitised curves go in `adsim/data/<paper>/`
+  Never eyeball values off a plot; digitised curves go in `core/data/<paper>/`
   and say so.
 - **Tolerances are regression bounds.** Set each from the measured error,
   rounded up modestly, with a comment giving the measured value. Never loosen a
   tolerance to hide a disagreement: document it in the paper's README.
 - **No copyrighted paper material.** Do not commit PDFs, supplementary
   documents, figure images or full-text extractions (`.gitignore` blocks the
-  usual culprits under `adsim/test/papers/`).
+  usual culprits under `core/test/papers/`).
 - **Generated pages stay generated.** After running the paper tests, update the
   validation page with
   `python scripts/docs/gen_validation_page.py --merge build/linux-release/validation`;

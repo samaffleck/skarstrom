@@ -10,7 +10,9 @@ pre-1.0; older minor versions are not maintained.
 Please **do not open a public issue** for a security problem. Report it
 privately through GitHub's
 [private vulnerability reporting](https://github.com/samaffleck/skarstrom/security/advisories/new)
-(Security tab → "Report a vulnerability"), or by email to sam@skarstrom.co.uk.
+(Security tab → "Report a vulnerability"). If you cannot use that, send a
+message to [Sam Affleck on LinkedIn](https://www.linkedin.com/in/sam-affleck) asking for a private channel, without
+the details of the issue.
 
 Include what you found, how to reproduce it (a deck file or code snippet helps)
 and the version or commit you tested. You should get an acknowledgement within

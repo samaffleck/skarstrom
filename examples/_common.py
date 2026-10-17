@@ -1,8 +1,8 @@
 """Shared helpers for the example scripts in this folder.
 
 Not part of the ``skarstrom`` package: the scripts import it as a sibling
-module. It finds the decks, the digitised experimental data (adsim/data/) and
-the published reference values (adsim/test/papers/*/reference_values.csv) of a
+module. It finds the decks, the digitised experimental data (core/data/) and
+the published reference values (core/test/papers/*/reference_values.csv) of a
 repository checkout, and falls back to the decks bundled with the installed
 package when the scripts are run outside the repository (without the
 comparison data).
@@ -16,7 +16,7 @@ import math
 import os
 import time
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -25,8 +25,8 @@ import skarstrom
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 DECKS = REPO / "examples" / "decks"
-DATA = REPO / "adsim" / "data"
-PAPERS = REPO / "adsim" / "test" / "papers"
+DATA = REPO / "core" / "data"
+PAPERS = REPO / "core" / "test" / "papers"
 OUTPUT = Path(os.environ.get("SKARSTROM_EXAMPLES_OUTPUT", HERE / "output"))
 
 
@@ -37,13 +37,13 @@ def deck_path(name: str) -> str:
     p = DECKS / name
     if p.is_file():
         return str(p)
-    return skarstrom.example_path(name)
+    return skarstrom.examples.get(name).path
 
 
 def load(name: str, cycles: Optional[int] = None) -> skarstrom.Simulation:
     sim = skarstrom.Simulation(deck_path(name))
     if cycles is not None:
-        sim["cycle.number_of_cycles"] = int(cycles)
+        sim.cycle.number_of_cycles = int(cycles)
     return sim
 
 
@@ -109,7 +109,7 @@ def load_csv(path: Path) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def reference(paper: str, case: str, quantity: str) -> Optional[float]:
-    """A published value from adsim/test/papers/<paper>/reference_values.csv."""
+    """A published value from core/test/papers/<paper>/reference_values.csv."""
     p = PAPERS / paper / "reference_values.csv"
     if not p.is_file():
         return None
@@ -182,7 +182,7 @@ def evacuation_product_kpis(sim: skarstrom.Simulation, component: str = "CarbonD
     configuration that also counts a light-product-pressurisation inlet as
     (negative) product, this purity is always defined.
     """
-    steps = sim.steps
+    steps = sim.steps.names
     evac = steps.index("Evacuation")
     feeds = [i for i, n in enumerate(steps) if n.startswith("Feed")]
     if "Pressurisation" in steps:
@@ -256,12 +256,13 @@ def save(fig, name: str) -> Path:
     return p
 
 
-def cyclic_family(argv, doc: str, paper: str, cases: Dict[str, Tuple[str, str]],
+def cyclic_family(argv, doc: str, paper: str, cases: Dict[str, Union[str, Tuple[str, str]]],
                   quantities: Sequence[Tuple[str, str, str]], plot_component: str, plot_name: str,
-                  default: Optional[Sequence[str]] = None, values=None) -> int:
-    """Run cyclic decks to CSS and compare their final KPIs with published values.
+                  default: Optional[Sequence[str]] = None, values=None, build=None) -> int:
+    """Run cyclic cases to CSS and compare their final KPIs with published values.
 
-    cases: name -> (deck file, case name in reference_values.csv).
+    cases: name -> case name in reference_values.csv, with ``build(name)``
+    returning the simulation; or name -> (deck file, case name) to load decks.
     quantities, values: see compare_kpis. The plot shows purity and recovery of
     plot_component from the deck's KPI configuration against the cycle number
     (the last logged cycles) for every case run; it is skipped for decks without
@@ -272,8 +273,14 @@ def cyclic_family(argv, doc: str, paper: str, cases: Dict[str, Tuple[str, str]],
     fig, axes = (plt.subplots(1, 2, figsize=(10, 4)) if plt else (None, None))
     plotted = False
     for name in selected(args):
-        deck, ref_case = cases[name]
-        sim = load(deck, args.cycles)
+        if build is not None:
+            ref_case = cases[name]
+            sim = build(name)
+            if args.cycles is not None:
+                sim.cycle.number_of_cycles = int(args.cycles)
+        else:
+            deck, ref_case = cases[name]
+            sim = load(deck, args.cycles)
         run(sim, f"{paper} {name}", args.quiet)
         print(f"  {css_status(sim)}")
         compare_kpis(sim, paper, ref_case, quantities, values)

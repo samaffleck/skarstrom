@@ -13,8 +13,11 @@ Before KPIs can be computed, the solver needs to know where fresh feed enters an
 
 - **Feed** endpoints count the moles of the component that *enter* the bed through them.
 - **Product** endpoints count the **net** moles that *leave* the bed through them: gas leaving counts positive, gas entering counts negative.
+- **Recycle** endpoints are inlets that return product to the bed, such as a purge or a [light-product pressurisation](light-product-pressurization.md) inlet fed from the product. They count the moles of the component that *enter* the bed through them.
 
-**Recycled product.** Because product endpoints are summed with their sign, ticking **Product** on an inlet that returns product to the bed, such as a purge or a [light-product pressurisation](light-product-pressurization.md) inlet, subtracts that recycled gas from the product. That gives a *net* recovery, $(\text{product} - \text{recycled})/\text{feed}$. Leaving the inlet unticked ignores it. If more gas is recycled than collected, the net total product can be zero or negative and **purity becomes undefined (shown as —) or exceeds 100 %**; read purity with only the product step ticked, as the [O₂ PSA tutorial](arora-2021-o2-psa.md) shows. The KPI helper in the workspace shows these definitions as equations.
+**Recycled product.** Recycled gas is product the process uses itself, so it is subtracted from the product for recovery, productivity, production rate and specific energy: a *net* recovery, $(\text{product} - \text{recycled})/\text{feed}$. Purity is the purity of the gas collected at the product endpoints and does not depend on the recycle. In Python, pass the recycle endpoints to `sim.kpi.track(..., recycle=[...])`; in a deck they are the `Recycle_Endpoints` of the KPI configuration. The browser interface does not show the recycle role yet.
+
+Do not tick a recycle inlet as **Product** as well: the signed sum would subtract it from the purity too, and when more gas is recycled than collected the "purity" becomes undefined (shown as —) or exceeds 100 %.
 
 ## The metrics
 
@@ -32,24 +35,24 @@ $$
 \text{Recovery} = \frac{n_{\text{product, out}} - n_{\text{product, recycled}}}{n_{\text{product, fed}}}
 $$
 
-where the recycled term is the gas entering through endpoints ticked as Product. Recovery can be negative if more product is recycled than is collected, and above 100 % if the product endpoints include gas that was not counted as feed.
+where the recycled term is the product component entering through the recycle endpoints. Recovery can be negative if more product is recycled than is collected, and above 100 % if the product endpoints include gas that was not counted as feed.
 
 **Productivity (mass)** — net product mass produced per unit mass of adsorbent per unit time:
 
 $$
-\text{Productivity}_{\text{mass}} = \frac{n_{\text{product}}\, M}{t_{\text{cycle}}\; m_{\text{adsorbent}}} \quad \left[\frac{\text{kg}}{\text{kg}\cdot\text{s}}\right]
+\text{Productivity}_{\text{mass}} = \frac{n_{\text{product}}\thinspace M}{t_{\text{cycle}}\thickspace m_{\text{adsorbent}}} \quad \left[\frac{\text{kg}}{\text{kg}\cdot\text{s}}\right]
 $$
 
 **Productivity (volume)** — the same but per unit bed volume:
 
 $$
-\text{Productivity}_{\text{vol}} = \frac{n_{\text{product}}\, M}{t_{\text{cycle}}\; V_{\text{bed}}} \quad \left[\frac{\text{kg}}{\text{m}^3\cdot\text{s}}\right]
+\text{Productivity}_{\text{vol}} = \frac{n_{\text{product}}\thinspace M}{t_{\text{cycle}}\thickspace V_{\text{bed}}} \quad \left[\frac{\text{kg}}{\text{m}^3\cdot\text{s}}\right]
 $$
 
-**Energy Consumption** — the specific energy: total compression work over the cycle per unit mass of product:
+**Energy Consumption** — the specific energy: total compression work over the cycle per unit mass of net product:
 
 $$
-\text{Energy Consumption} = \frac{E_{\text{total}}}{n_{\text{product}}\, M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
+\text{Energy Consumption} = \frac{E_{\text{total}}}{n_{\text{product}}\thinspace M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
 $$
 
 where $E_{\text{total}}$ is the sum over all steps of the time-integrated compressor/pump power. Step [energy sources](energy-balance.md#energy-source-heating-cooling) (heaters and coolers, as in a TSA cycle) are **not** included; compute their duty per kilogram of product yourself, as in the [TSA tutorial](tsa-regeneration.md).
@@ -60,7 +63,7 @@ $$
 \text{Production Rate} = \frac{n_{\text{product, out}} - n_{\text{product, recycled}}}{t_{\text{cycle}}} \quad \left[\frac{\text{mol}}{\text{s}}\right]
 $$
 
-where $M$ is the product molar mass, $t_{\text{cycle}}$ the cycle time, $m_{\text{adsorbent}}$ the total adsorbent mass, and $V_{\text{bed}}$ the total bed volume.
+where $n_{\text{product}} = n_{\text{product, out}} - n_{\text{product, recycled}}$ is the net product, $M$ is the product molar mass, $t_{\text{cycle}}$ the cycle time, $m_{\text{adsorbent}}$ the total adsorbent mass, and $V_{\text{bed}}$ the total bed volume.
 
 > **Energy Consumption requires compression power.** For the energy KPI to be non-zero, enable **Calculate pump power** (or use a pump device) on the [boundary conditions](boundary-conditions.md#pumps-compressors-and-vacuum-pumps) that do work — pressurisation, blowdown, evacuation — and set their efficiency and energy models.
 

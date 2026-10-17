@@ -1401,7 +1401,7 @@
             "cereal_class_version": 3,
             "Per_Component": [
                 {
-                    "cereal_class_version": 1,
+                    "cereal_class_version": 2,
                     "Product_Component": "CarbonDioxide",
                     "Tracked": true,
                     "Feed_Endpoints": [
@@ -1429,13 +1429,15 @@
                             "Step_ID": 0,
                             "Endpoint_ID": 0
                         }
-                    ]
+                    ],
+                    "Recycle_Endpoints": []
                 },
                 {
                     "Product_Component": "Nitrogen",
                     "Tracked": false,
                     "Feed_Endpoints": [],
-                    "Product_Endpoints": []
+                    "Product_Endpoints": [],
+                    "Recycle_Endpoints": []
                 }
             ]
         },

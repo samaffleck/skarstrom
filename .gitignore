@@ -1,6 +1,7 @@
 # ---- Build trees ------------------------------------------------------------
 /build/
 /build_*/
+/build-*/
 /out/
 /cmake-build-*/
 CMakeUserPresets.json
@@ -8,9 +9,9 @@ compile_commands.json
 .cache/
 
 # ---- C++ test output ----------------------------------------------------------
-# The GoogleTest suite runs with cwd adsim/ and writes ~4 GB of CSV/JSON into
-# adsim/Results/ (recreated on every run). Never commit it.
-adsim/Results/
+# The GoogleTest suite runs with cwd core/ and writes ~4 GB of CSV/JSON into
+# core/Results/ (recreated on every run). Never commit it.
+core/Results/
 /Results/
 Results/
 
@@ -61,24 +62,24 @@ examples/output/
 
 # ---- Copyrighted paper material -------------------------------------------------
 # Paper PDFs, supplementary documents, figure images and full-text extractions
-# must never be committed (see adsim/test/papers/README.md). Keep them locally
+# must never be committed (see core/test/papers/README.md). Keep them locally
 # in each paper's assets/ folder (ignored as a whole). Only the transcribed
 # numbers (reference_values.csv), our own READMEs/tests and the digitised curves
-# in adsim/data/ belong in the repository.
+# in core/data/ belong in the repository.
 # Extensionless files (e.g. a PDF saved without its suffix) under papers/:
 # ignore every name without a dot, then re-include dotted names and directories.
-adsim/test/papers/**/[!.]*
-!adsim/test/papers/**/*.*
-!adsim/test/papers/**/
-adsim/test/papers/**/assets/
-adsim/test/papers/**/*.pdf
-adsim/test/papers/**/*.PDF
-adsim/test/papers/**/*.docx
-adsim/test/papers/**/*.doc
-adsim/test/papers/**/*.xlsx
-adsim/test/papers/**/*.xls
-adsim/test/papers/**/*.pptx
-adsim/test/papers/**/*.epub
-adsim/test/papers/**/*.png
-adsim/test/papers/**/*.jpg
-adsim/test/papers/**/*_artifacts/
+core/test/papers/**/[!.]*
+!core/test/papers/**/*.*
+!core/test/papers/**/
+core/test/papers/**/assets/
+core/test/papers/**/*.pdf
+core/test/papers/**/*.PDF
+core/test/papers/**/*.docx
+core/test/papers/**/*.doc
+core/test/papers/**/*.xlsx
+core/test/papers/**/*.xls
+core/test/papers/**/*.pptx
+core/test/papers/**/*.epub
+core/test/papers/**/*.png
+core/test/papers/**/*.jpg
+core/test/papers/**/*_artifacts/

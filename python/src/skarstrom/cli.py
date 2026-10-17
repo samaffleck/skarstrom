@@ -16,10 +16,11 @@ import csv
 import json
 import math
 import os
+import re
 import sys
 from typing import List, Optional, Sequence, Tuple
 
-from . import Simulation, __version__, copy_example, example_path, examples
+from . import Simulation, __version__, examples
 
 
 def _fmt(x) -> str:
@@ -37,9 +38,10 @@ def _fmt(x) -> str:
 def _resolve_deck(path: str) -> str:
     if os.path.isfile(path):
         return path
-    names = examples()
-    if path in names or path + ".json" in names:
-        return example_path(path)
+    try:
+        return examples.get(path).path
+    except KeyError:
+        pass
     raise SystemExit(f"skarstrom: no such deck: {path} (not a file, nor a bundled example; see 'skarstrom examples')")
 
 
@@ -237,25 +239,25 @@ def cmd_params(args: argparse.Namespace) -> int:
 
 
 def _example_family(name: str) -> str:
-    """The paper / study an example deck belongs to, from its file name."""
-    stem = name[:-5] if name.endswith(".json") else name
-    for sep in ("_Exp_", "_Fig", "_Q=", "_PSA", "_PVSA", "_TSA"):
-        if sep in stem:
-            return stem.split(sep)[0].rstrip("_")
-    if stem.startswith("Perez2019"):
-        return "Perez2019"
-    if stem.startswith("streb_2021"):
-        return "Streb2021"
-    return stem
+    """The paper / study an example deck belongs to: its AuthorYear prefix."""
+    m = re.match(r"[A-Za-z]+\d{4}", name)
+    return m.group(0) if m else name.split("_")[0]
+
+
+def _example(name: str) -> "examples.Example":
+    try:
+        return examples.get(name)
+    except KeyError as e:
+        raise SystemExit(f"skarstrom: {e.args[0]}") from None
 
 
 def cmd_examples(args: argparse.Namespace) -> int:
     action = getattr(args, "action", None) or "list"
     if action == "list":
-        names = examples()
+        names = examples.names()
         if args.json:
-            print(json.dumps([{"name": n, "family": _example_family(n), "path": example_path(n)} for n in names],
-                             indent=2))
+            print(json.dumps([{"name": e.name, "title": e.title, "family": _example_family(e.name), "path": e.path}
+                              for e in examples.ALL], indent=2))
             return 0
         for name in names:
             print(name)
@@ -264,10 +266,10 @@ def cmd_examples(args: argparse.Namespace) -> int:
             return 1
         return 0
     if action == "path":
-        print(example_path(args.name))
+        print(_example(args.name).path)
         return 0
     if action == "copy":
-        print(copy_example(args.name, args.dest))
+        print(_example(args.name).copy_to(args.dest))
         return 0
     if action == "run":
         args.deck = args.name

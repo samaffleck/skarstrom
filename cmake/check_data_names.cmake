@@ -17,16 +17,11 @@
 #   cmake "-DASSET_DIRS=<dir1>;<dir2>" -P cmake/check_data_names.cmake
 # or include() it and call adsim_check_data_names(<dir>).
 
-# Grandfathered names that are shell-safe enough in practice (unquoted [...] is
-# only a glob, and matches nothing here) and are referenced by published links,
-# tests and validation records, so renaming them would break those references.
-# Entries are relative to the checked directory.
-# Do NOT add to this list; give new files a safe name instead.
-set(ADSIM_DATA_NAME_ALLOWLIST
-    "Ward_2022_Q=50[ccm].json"
-    "Ward_2022_Q=100[ccm].json"
-    "Ward_2022_Q=200[ccm].json"
-)
+# Grandfathered names that are exempt from the check. Empty: the last ones
+# (Ward_2022_Q=*[ccm].json) were renamed so every example deck name is also a
+# Python identifier (skarstrom.examples.<name>). Entries are relative to the
+# checked directory. Do NOT add to this list; give new files a safe name instead.
+set(ADSIM_DATA_NAME_ALLOWLIST "")
 
 function(adsim_check_data_names data_dir)
     file(GLOB_RECURSE _files LIST_DIRECTORIES false RELATIVE "${data_dir}" "${data_dir}/*")

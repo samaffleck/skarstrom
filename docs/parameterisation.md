@@ -1,6 +1,6 @@
 # Parametric Studies and Parameterisation
 
-Every settable deck value is a parameter with a stable path ([Python and the Command Line](python.md#parameters)), so studies are ordinary Python loops around `sim.set(...)` and `sim.run()`. This page shows the three common patterns: a **parametric study** (sweep one input and watch a KPI), an **optimisation** (search inputs for the best KPI), and a **parameterisation** (fit deck parameters to measured data). If you only need isotherm parameters from equilibrium uptake data, use [Isotherm Fitting](isotherm-fitting.md) instead: it fits the isotherm directly, with no column simulation, and is far faster.
+Every settable deck value is a parameter with a stable path ([Python and the Command Line](python.md#parameter-paths)), so studies are ordinary Python loops around `sim.set(...)` and `sim.run()`. This page shows the three common patterns: a **parametric study** (sweep one input and watch a KPI), an **optimisation** (search inputs for the best KPI), and a **parameterisation** (fit deck parameters to measured data). If you only need isotherm parameters from equilibrium uptake data, use [Isotherm Fitting](isotherm-fitting.md) instead: it fits the isotherm directly, with no column simulation, and is far faster.
 
 Each trial is a full cycle simulation. Start from a copy of the deck (`sim.copy()`) so every trial begins from the same inputs, and keep the number of trials small.
 
@@ -9,12 +9,12 @@ Each trial is a full cycle simulation. Start from a copy of the deck (`sim.copy(
 ```python
 import skarstrom
 
-base = skarstrom.Simulation(skarstrom.example_path("Perez2019_A.json"))
+base = skarstrom.examples.Perez2019_A.load()
 for p in base.parameters(tunable_only=True, search="time"):
     print(p.path, p.alias, p.value, p.unit, p.bounds)
 ```
 
-`tunable_only=True` keeps the numeric model values that can be varied, each with suggested search bounds (`p.bounds`, by default ±50 % of the current value). Parameters are in SI base units. A parameter written as a formula is not tunable, because setting a number would replace the formula; vary the [global variable](global-variables.md) it refers to instead (`variable[<name>]`).
+`tunable_only=True` keeps the numeric model values that can be varied, each with suggested search bounds (`p.bounds`, by default ±50 % of the current value). Parameters are in SI base units (give another unit as a string, `"2 min"`, or with `unit=`; see [Units](python.md#units)). A parameter written as a formula is not tunable, because setting a number would replace the formula; vary the [global variable](global-variables.md) it refers to instead (`variable[<name>]`).
 
 ## Parametric study
 
@@ -26,7 +26,7 @@ import numpy as np
 rows = []
 for t_feed in np.linspace(30, 90, 5):
     sim = base.copy()
-    sim["step[Feed].time"] = t_feed
+    sim.steps["Feed"].time = t_feed            # seconds
     r = sim.run()
     k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")
     rows.append((t_feed, k.purity, k.recovery, r.css_cycle))
@@ -53,7 +53,39 @@ def objective(x):
 res = minimize(objective, x0=[60.0, 120.0], method="Nelder-Mead", options={"maxfev": 30})
 ```
 
-The C++ engine also has a derivative-free global optimiser for this purpose (`adsim/solver/optimisation.h`: dlib's MaxLIPO with a trust region, over the registry's tunable parameters), which front ends use; it is not wrapped in Python.
+### Multi-objective optimisation (NSGA-II)
+
+Purity and recovery pull against each other, so a design study usually wants the whole trade-off (the Pareto front) rather than one optimum. `examples/optimise_nsga2.py` does this with [pymoo](https://pymoo.org)'s NSGA-II (`pip install pymoo`): two decision variables (feed time and evacuation pressure of `Perez2019_A`), two objectives (CO₂ purity and recovery at cyclic steady state), and every generation's candidates run in parallel processes. The core of it:
+
+```python
+from concurrent.futures import ProcessPoolExecutor
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.problem import Problem
+from pymoo.optimize import minimize
+
+def evaluate(x):                                   # one candidate, in a worker process
+    sim = base.copy()
+    sim.set("step[Feed].time", x[0], unit="s")
+    sim.set("step[Evacuation].bottom.pressure_exponential_end", x[1], unit="kPa")
+    if not sim.run().ok:
+        return [1.0, 1.0]                          # a failed run scores worst
+    k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")
+    return [-k.purity, -k.recovery]                # pymoo minimises
+
+class CycleDesign(Problem):
+    def __init__(self):
+        super().__init__(n_var=2, n_obj=2, xl=[60, 2], xu=[150, 6])
+    def _evaluate(self, X, out, *args, **kwargs):
+        out["F"] = list(pool.map(evaluate, X))
+
+with ProcessPoolExecutor() as pool:
+    res = minimize(CycleDesign(), NSGA2(pop_size=24), ("n_gen", 20))
+res.X, -res.F                                      # Pareto-optimal designs and their KPIs
+```
+
+Each run is single-threaded, so a population evaluates on as many cores as you give it. Constraints (a purity floor, a power limit) go in pymoo's `G` output; other optimisers (SciPy, Optuna, BoTorch) wrap the same `evaluate` function. Use the per-component CSS check for the KPIs a search compares ([Cyclic steady state](cyclic-steady-state.md)).
+
+The C++ engine also has a derivative-free global optimiser (`adsim/solver/optimisation.h`: dlib's MaxLIPO with a trust region), which front ends use; from Python, use any Python optimiser as above.
 
 ## Fitting parameters to measured data
 
@@ -69,9 +101,9 @@ with $y_{sim}$ interpolated linearly at each data time $x_k$:
 import numpy as np
 from scipy.optimize import minimize_scalar
 
-base = skarstrom.Simulation(skarstrom.example_path("Ward_2022_Q=100[ccm].json"))
+base = skarstrom.examples.Ward2022_Q100ccm.load()
 t_data, y_data = np.loadtxt(
-    "adsim/data/ward_2022/Qin=100/outlet_CO2_mole_fraction[-]_Qin=100[ccm].csv",
+    "core/data/ward_2022/Qin=100/outlet_CO2_mole_fraction[-]_Qin=100[ccm].csv",
     delimiter=",", skiprows=1, unpack=True)
 
 path = "adsorbent[1].isotherm[CarbonDioxide].m2"     # see base.parameters(tunable_only=True)

@@ -1,12 +1,19 @@
-"""Six-step CO2/N2 VSA with product purge (template deck, no literature source).
+"""CO2/N2 VSA with product purge (template cycle, no literature source).
 
-Feed, blowdown, evacuation, pressurisation and product purge on a 13X-type
-isotherm. The deck comes from an integration test and has no KPI
-configuration, so the script reports the run statistics, the CSS check and
-the outlet CO2 mole fraction over the last cycle. Use it as a starting point
-for your own cycles, not as data.
+Builds the cycle from scratch in code: a 13X-type adsorbent, the column and
+the five cycle steps (feed, blowdown, evacuation, pressurisation and product
+purge). The feed is split into two sub-steps (Feed1, Feed2) so that each
+light-product connection draws from its own part of it: Feed1's light product
+pressurises the bed and Feed2's purges it, hence six steps in the deck. Every value is set explicitly, with its unit. The cycle comes
+from an integration test (core/test/integration/test_fluid_solver.cpp) and has
+no KPI configuration, so the script reports the run statistics, the CSS check
+and the CO2 mole fraction at both ends over the last cycle. Use it as a
+starting point for your own cycles, not as data.
 
     python examples/five_step_product_purge.py
+
+``build()`` returns the configured simulation without running it
+(python/tests/test_examples_build.py checks it against examples/decks/).
 """
 
 from __future__ import annotations
@@ -14,13 +21,172 @@ from __future__ import annotations
 import sys
 
 import _common as c
+import skarstrom as sk
+from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
+
+FEED = {"CarbonDioxide": 0.15, "Nitrogen": 0.85}   # flue gas, mole fractions
+N2 = {"CarbonDioxide": 0.0, "Nitrogen": 1.0}        # pressurisation/purge gas and backflow composition
+
+
+def add_13x(sim: sk.Simulation) -> None:
+    """A 13X-type adsorbent: dual-site Langmuir in partial pressure, constant LDF coefficients."""
+    ads = sim.add_adsorbent("13X", solid_density=1200 * u.kg / u.m**3, heat_capacity=500 * u.J / (u.kg * u.K),
+                            thermal_conductivity=0.5 * u.W / (u.m * u.K), particle_void_fraction=0.37)
+    ads.set_isotherm("dual_site_langmuir_p", {
+        "CarbonDioxide": {"m1": 3.16 * u.mol / u.kg, "b1": 9.23e-13 / u.Pa, "q1": 47612.86 * u.J / u.mol,
+                          "m2": 3.16 * u.mol / u.kg, "b2": 4.88e-13 / u.Pa, "q2": 38545.63 * u.J / u.mol},
+        "Nitrogen":      {"m1": 1.2 * u.mol / u.kg, "b1": 5.85e-8 / u.Pa, "q1": 16059.73 * u.J / u.mol,
+                          "m2": 1.2 * u.mol / u.kg, "b2": 5.85e-8 / u.Pa, "q2": 16059.73 * u.J / u.mol},
+    }, components=["CarbonDioxide", "Nitrogen"])
+    ads.set_rate_model("CarbonDioxide", "ldf", "constant", k=0.1 / u.s)
+    ads.set_rate_model("Nitrogen", "ldf", "constant", k=0.1 / u.s)
+    ads.heat_of_adsorption["CarbonDioxide"] = 40 * u.kJ / u.mol
+    ads.heat_of_adsorption["Nitrogen"] = 0 * u.J / u.mol
+
+
+def build(case: str = "FiveStepProductPurge") -> sk.Simulation:
+    """The template cycle (the only case), ready to run."""
+    if case != "FiveStepProductPurge":
+        raise KeyError(f"no case {case!r}; the only case is 'FiveStepProductPurge'")
+    sim = sk.Simulation.new(
+        title='Five-step CO2/N2 VSA with product purge (template)',
+        description=("Template cycle, no literature source: a CO2/N2 vacuum swing cycle on a 13X-type adsorbent "
+                     "with five steps: feed, blowdown, evacuation, pressurisation and product purge. The feed is "
+                     "split into two sub-steps (Feed1, Feed2) so that each light-product connection draws from "
+                     "its own part of it: Feed1's light product pressurises the bed and Feed2's purges it. "
+                     "Six steps in the deck, five in the cycle."),
+        author='Skarstrom examples',
+    )
+
+    # ---- fluid ------------------------------------------------------------------------------
+    sim.add_component("CarbonDioxide")
+    sim.add_component("Nitrogen")
+    sim.fluid.adsorbed_heat_capacity_mode = "constant"
+    sim.fluid.heat_of_adsorption_convention = "isosteric"
+    sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 0 * u.J / (u.mol * u.K)
+    sim.fluid.adsorbed_heat_capacity["Nitrogen"] = 0 * u.J / (u.mol * u.K)
+
+    # ---- adsorbent ----------------------------------------------------------------------------
+    add_13x(sim)
+
+    # ---- column: 1 m x 10 cm, the wall held at 293 K -------------------------------------------
+    sim.bed.set_shape("cylinder", diameter=0.1 * u.m)
+    sim.bed.ambient_temperature = 293 * u.K
+    sim.bed.set_thermal_equilibrium("lte")                     # gas and solid at one temperature
+    sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
+    for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
+        void.enabled = False
+        void.volume = 1e-4 * u.m**3
+        void.resistance_coefficient = 0 * u.Pa * u.s / u.m
+    sim.wall.set_material("ss316l", density=7800 * u.kg / u.m**3, heat_capacity=537 * u.J / (u.kg * u.K),
+                          thermal_conductivity=16.2 * u.W / (u.m * u.K))
+    sim.wall.thickness = 17.5 * u.mm
+    sim.wall.set_boundary("fixed", fixed_temperature=293 * u.K)
+
+    layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman",
+                          length=1 * u.m, cells=20, bed_void_fraction=0.37, particle_diameter=1.1 * u.mm)
+    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
+    layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
+    layer.set_internal_heat_transfer("constant", internal_htc=59.1 * u.W / (u.m**2 * u.K))
+    layer.set_external_heat_transfer("constant", external_htc=0 * u.W / (u.m**2 * u.K))
+
+    # ---- initial state: the bed full of N2 at 1 atm ---------------------------------------------
+    sim.initial_conditions.pressure = 1 * u.atm
+    sim.initial_conditions.temperature = 298 * u.K
+    sim.initial_conditions.wall_temperature = 298 * u.K
+    sim.initial_conditions.velocity = 0 * u.m / u.s
+    sim.initial_conditions.y["Nitrogen"] = 1.0
+    sim.initial_conditions.y["CarbonDioxide"] = 0.0
+
+    # ---- cycle (100 s per step) ----------------------------------------------------------------
+    sim.cycle.number_of_cycles = 5
+    sim.cycle.step_time_mode = "time"
+    step_time = 100 * u.s
+
+    def feed_step(n: int, draw: str) -> sk.Step:
+        """Feed at the bottom; light product to the atmosphere through a valve, plus a draw stream."""
+        step = sim.add_step(f"Feed{n}", time=step_time)
+        step.bottom.set_streams("inlet", [
+            sk.Stream(f"Feed {n} inlet", flow=sk.velocity(0.5 * u.m / u.s), y=FEED, temperature=298 * u.K),
+        ])
+        step.top.set_streams("outlet", [
+            sk.ValveStream("Ambient Stream", pressure=1 * u.atm, cv=100.0, xt=0.53, y={}, temperature=293 * u.K),
+            # The draw's flow is whatever the connected step takes from it.
+            sk.Stream(draw, flow=sk.velocity(0 * u.m / u.s), y={}, temperature=293 * u.K),
+        ])
+        return step
+
+    # 1-2. Feed: the first feed step supplies the pressurisation gas, the second the purge gas.
+    feed1 = feed_step(1, "Feed 1 Press Stream")
+    feed2 = feed_step(2, "Feed 2 Purge Stream")
+
+    # 3. Blowdown through a valve at the top to 0.4 bar.
+    blowdown = sim.add_step("Blowdown", time=step_time)
+    blowdown.bottom.set_closed()
+    blowdown.top.set_streams("outlet", [
+        sk.ValveStream("Blowdown waste", pressure=0.4 * u.bar, cv=1.0, xt=0.53, y={}, temperature=293 * u.K),
+    ])
+
+    # 4. Evacuation through a valve at the bottom to 0.1 bar: the CO2 product.
+    evacuation = sim.add_step("Evacuation", time=step_time)
+    evacuation.bottom.set_streams("outlet", [
+        sk.ValveStream("Product stream", pressure=0.1 * u.bar, cv=1.0, xt=0.53, y={}, temperature=293 * u.K),
+    ])
+    evacuation.top.set_closed()
+
+    # 5. Pressurisation from the top with light product from Feed1.
+    press = sim.add_step("Press", time=step_time)
+    press.bottom.set_closed()
+    press.top.set_pressure("inlet", sk.exponential(1 * u.atm), y=N2, temperature=298 * u.K)
+
+    # 6. Product purge: light product from Feed2 in at the top, out of the bottom at 1 atm.
+    purge = sim.add_step("Purge", time=step_time)
+    purge.bottom.set_pressure("outlet", 1 * u.atm, y=N2, temperature=293 * u.K)
+    purge.top.set_streams("inlet", [
+        sk.Stream("Purge stream", flow=sk.molar_flow(0 * u.mol / u.s), y=N2, temperature=298 * u.K),
+    ])
+
+    # Connections: each draw stream supplies the matching inlet.
+    sim.connect(feed1.top["Feed 1 Press Stream"], press.top)
+    sim.connect(feed2.top["Feed 2 Purge Stream"], purge.top["Purge stream"])
+
+    # ---- solver (SUNDIALS IDA), cyclic steady state, energy balance --------------------------------
+    sim.settings.init_step = 1e-10 * u.s
+    sim.settings.min_step = 1e-15 * u.s
+    sim.settings.max_step = 0 * u.s                              # no limit
+    sim.settings.reltol = 1e-6
+    sim.settings.nonlin_conv_coef = 0.1
+    sim.settings.max_order = 5
+    sim.settings.max_nonlin_iters = 15
+    sim.settings.max_conv_fails = 200
+    sim.settings.max_err_test_fails = 40
+    sim.settings.max_num_steps = 100000
+    sim.settings.max_iters_per_step = 50000
+    sim.settings.advection_scheme = "upwind"
+    sim.settings.max_cycles_to_keep = 10
+    sim.settings.max_log_points_per_step = 200
+    sim.settings.acceleration_method = "none"
+    sim.css.method = "none"                                    # run all cycles
+    sim.css.min_cycles = 5
+    sim.css.molar_absolute_tolerance = 1e-4
+    sim.css.molar_relative_tolerance = 1e-4
+    sim.css.mass_balance_tolerance = 0.005
+    sim.energy_balance.energy_balance_mode = "non_isothermal"
+    sim.energy_balance.isothermal_use_initial_temperature = True
+    sim.energy_balance.isothermal_temperature = 298.15 * u.K
+    return sim
+
+
+DECKS = {"FiveStepProductPurge": "FiveStepProductPurge"}   # the shipped deck
 
 
 def main(argv=None) -> int:
     args = c.parser(__doc__.splitlines()[0], ["FiveStepProductPurge"]).parse_args(argv)
-    sim = c.load("FiveStepProductPurge.json", args.cycles)
+    sim = build()
+    if args.cycles is not None:
+        sim.cycle.number_of_cycles = int(args.cycles)
     result = c.run(sim, "FiveStepProductPurge", args.quiet)
-    print(f"  steps: {', '.join(sim.steps)}")
+    print(f"  steps: {', '.join(sim.steps.names)}")
     print(f"  {c.css_status(sim)}")
     print(f"  integrator: {result.stats['steps']} steps, {result.stats['residual_evaluations']} residual evaluations")
     c.print_kpis(sim)

@@ -6,10 +6,10 @@
     python scripts/docs/gen_validation_page.py --check         # fail if docs/validation.md is stale
 
 1. With --merge, reads every <paper>__<case>.json written by
-   adsim/test/fixtures/validation_metrics.h (ctest points the paper tests at
-   <build>/validation) and rewrites adsim/test/papers/validation_summary.json.
+   core/test/fixtures/validation_metrics.h (ctest points the paper tests at
+   <build>/validation) and rewrites core/test/papers/validation_summary.json.
 2. Renders docs/validation.md (GENERATED - never edit it by hand) from the
-   summary and adsim/test/papers/papers.json.
+   summary and core/test/papers/papers.json.
 
 Standard library only.
 """
@@ -26,8 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _fmt import fmt, is_fraction_metric  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-SUMMARY = ROOT / "adsim/test/papers/validation_summary.json"
-MANIFEST = ROOT / "adsim/test/papers/papers.json"
+SUMMARY = ROOT / "core/test/papers/validation_summary.json"
+MANIFEST = ROOT / "core/test/papers/papers.json"
 PAGE = ROOT / "docs/validation.md"
 REPO_URL = "https://github.com/samaffleck/skarstrom"
 
@@ -145,13 +145,13 @@ def render(summary: dict, manifest: list) -> str:
     L: list = []
     out = L.append
     out("<!-- GENERATED — do not edit. Built by scripts/docs/gen_validation_page.py from")
-    out("     adsim/test/papers/validation_summary.json, which the paper tests in adsim/test/papers/ write.")
+    out("     core/test/papers/validation_summary.json, which the paper tests in core/test/papers/ write.")
     out("     Regenerate: run the paper tests (ctest), then")
     out("     python scripts/docs/gen_validation_page.py --merge <build>/validation -->")
     out("")
     out("# Validation")
     out("")
-    out(f"Skarstrom is checked against published adsorption studies by automated tests. Every comparison on this page is produced by a test in [`adsim/test/papers/`]({REPO_URL}/tree/main/adsim/test/papers) that runs the bundled input deck, computes an explicit error metric against numbers transcribed from the paper (`reference_values.csv` in each paper folder) or digitised from its figures (`adsim/data/`), and writes the result to a machine-readable summary. This page is generated from that summary — it is never edited by hand.")
+    out(f"Skarstrom is checked against published adsorption studies by automated tests. Every comparison on this page is produced by a test in [`core/test/papers/`]({REPO_URL}/tree/main/core/test/papers) that runs the bundled input deck, computes an explicit error metric against numbers transcribed from the paper (`reference_values.csv` in each paper folder) or digitised from its figures (`core/data/`), and writes the result to a machine-readable summary. This page is generated from that summary — it is never edited by hand.")
     out("")
     out("**How to read the tables.**")
     out("")
@@ -225,7 +225,7 @@ def render(summary: dict, manifest: list) -> str:
             for n in notes:
                 out(f"    - {cell(n)}")
             out("")
-        out(f"Input decks, assumptions and known discrepancies: [`adsim/test/papers/{p['id']}/README.md`]({REPO_URL}/blob/main/adsim/test/papers/{p['id']}/README.md).")
+        out(f"Input decks, assumptions and known discrepancies: [`core/test/papers/{p['id']}/README.md`]({REPO_URL}/blob/main/core/test/papers/{p['id']}/README.md).")
         out("")
 
     out("## Reproducing this page")
@@ -237,7 +237,7 @@ def render(summary: dict, manifest: list) -> str:
     out("python scripts/docs/gen_validation_page.py --merge build/linux-release/validation")
     out("```")
     out("")
-    out("Each test writes `<build>/validation/<paper>__<case>.json`; the script merges them into `adsim/test/papers/validation_summary.json` and regenerates this page. The test suite also writes about 4 GB of results to `adsim/Results/`; delete it afterwards.")
+    out("Each test writes `<build>/validation/<paper>__<case>.json`; the script merges them into `core/test/papers/validation_summary.json` and regenerates this page. The test suite also writes about 4 GB of results to `core/Results/`; delete it afterwards.")
     out("")
     return "\n".join(L)
 

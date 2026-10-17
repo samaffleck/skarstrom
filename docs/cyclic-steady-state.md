@@ -15,7 +15,7 @@ No CSS test — the solver runs the full **Number of Cycles**. Use this when you
 Compares the **total molar-concentration profile** over all cells at the end of the **first step** of the current cycle with the same profile one cycle earlier. Convergence is declared when
 
 $$
-\lVert \mathbf{c}_{\text{curr}} - \mathbf{c}_{\text{prev}} \rVert \;\le\; \varepsilon_{abs} + \varepsilon_{rel}\,\lVert \mathbf{c}_{\text{curr}} \rVert
+\lVert \mathbf{c}_{\text{curr}} - \mathbf{c}_{\text{prev}} \rVert \thickspace \le\thickspace \varepsilon_{abs} + \varepsilon_{rel}\thinspace \lVert \mathbf{c}_{\text{curr}} \rVert
 $$
 
 where the norm is taken over all cells. You set the **Molar profile absolute tolerance** $\varepsilon_{abs}$ (default 1×10⁻⁴) and the **Molar profile relative tolerance** $\varepsilon_{rel}$ (default 1×10⁻⁴). This is a direct, profile-based test of whether the bed state has stopped changing from cycle to cycle.
@@ -25,7 +25,7 @@ where the norm is taken over all cells. You set the **Molar profile absolute tol
 Checks that, over a whole cycle, the moles entering the bed equal the moles leaving:
 
 $$
-\frac{\lvert n_{\text{in}} - n_{\text{out}} \rvert}{n_{\text{in}}} \;\le\; \varepsilon_{mb}
+\frac{\lvert n_{\text{in}} - n_{\text{out}} \rvert}{n_{\text{in}}} \thickspace \le\thickspace \varepsilon_{mb}
 $$
 
 summed over all steps and all faces. You set the **Mass balance tolerance** $\varepsilon_{mb}$ (default 0.005, i.e. 0.5%). At CSS there is no net accumulation, so the closing mass balance is a robust convergence indicator.
@@ -35,7 +35,7 @@ summed over all steps and all faces. You set the **Mass balance tolerance** $\va
 The same as above but evaluated **per component**, using the worst-offending component:
 
 $$
-\max_i \frac{\lvert n_{\text{in},i} - n_{\text{out},i} \rvert}{n_{\text{in},i}} \;\le\; \varepsilon_{mb}
+\max_i \frac{\lvert n_{\text{in},i} - n_{\text{out},i} \rvert}{n_{\text{in},i}} \thickspace \le\thickspace \varepsilon_{mb}
 $$
 
 Components that are never fed are skipped. This is the strictest test and the safest choice when component-level purity and recovery are the outputs you care about.
@@ -51,6 +51,6 @@ The approach to CSS is often a slow geometric decay. Setting **CSS acceleration 
 ## Practical guidance
 
 - Set a generous **Number of Cycles** (an upper bound) and let a CSS method stop the run when converged.
-- The **Molar Profile** method is a good general default; switch to **Mass Balance (Per-Component)** when you need confidence in component-level KPIs.
+- The **Molar Profile** method is a quick check; use **Mass Balance (Per-Component)** whenever you report purity or recovery. The gas profiles and the total balance can settle long before the adsorbed inventory of one component does: in `Perez2019_E` the total balance closes within 0.5 % after 91 cycles, the CO₂ balance only after 449, and the CO₂ purity rises from 80 % to 87 % in between.
 - If a run reaches the cycle limit without converging, either increase the limit or loosen the tolerance — and check that the cycle actually *can* close (e.g. that feed, product and purge flows are balanced).
 - Keep enough cycles logged (**Maximum Number of Cycles to Log** in the [solver settings](solver-settings.md)) to plot the approach to CSS and confirm the last cycles overlay.

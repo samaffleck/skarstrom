@@ -6,7 +6,9 @@
 // these classes with a friendlier surface; nothing here is part of the public
 // API except through it.
 
+#include <algorithm>
 #include <atomic>
+#include <map>
 #include <chrono>
 #include <cmath>
 #include <optional>
@@ -22,6 +24,8 @@
 #include "adsim/version.h"
 
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/math/unit_parser.h"
+#include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_edit.h"
 #include "adsim/solver/isotherm_fit.h"
 
@@ -241,6 +245,8 @@ PYBIND11_MODULE(_core, m) {
           d["subcategory"] = i.subcategory;
           d["name"] = i.name;
           d["unit"] = i.unit;
+          d["unit_checked"] = i.unit_checked;
+          d["choices"] = i.choices;
           d["kind"] = adsim::ParameterKindName(i.kind);
           d["tunable"] = i.tunable;
           d["lower"] = i.lower;
@@ -373,6 +379,35 @@ PYBIND11_MODULE(_core, m) {
       .def("endpoint_series", &adsim::Simulation::EndpointSeries, py::arg("endpoint_id"), py::arg("variable"),
            py::arg("component") = "", py::arg("cycle") = -1)
       .def("save_logs", &adsim::Simulation::SaveLogs, py::arg("directory"))
+      // ---- experimental data stored in the deck (adsim/solver/experimental_data.h) ----
+      .def("experimental_data", [](adsim::Simulation& s) {
+        py::list out;
+        for (const auto& xy : s.Data().exp_data_.GetAllData()) {
+          py::dict d;
+          d["name"] = xy.name;
+          d["x"] = py::array_t<double>(xy.x.size(), xy.x.data());
+          d["y"] = py::array_t<double>(xy.y.size(), xy.y.data());
+          d["x_label"] = xy.x_label;
+          d["y_label"] = xy.y_label;
+          out.append(d);
+        }
+        return out;
+      })
+      .def("add_experimental_data", [](adsim::Simulation& s, const std::string& name, std::vector<double> x,
+                                       std::vector<double> y, const std::string& x_label, const std::string& y_label) {
+        if (x.size() != y.size()) throw py::value_error("x and y differ in length");
+        if (x.empty()) throw py::value_error("no data points");
+        adsim::XYData xy;
+        xy.name = name;
+        xy.x = std::move(x);
+        xy.y = std::move(y);
+        xy.x_label = x_label;
+        xy.y_label = y_label;
+        s.Data().exp_data_.GetAllData().push_back(std::move(xy));
+      }, py::arg("name"), py::arg("x"), py::arg("y"), py::arg("x_label") = "", py::arg("y_label") = "")
+      .def("remove_experimental_data", [](adsim::Simulation& s, size_t index) {
+        if (!s.Data().exp_data_.DeleteDataByIndex(index)) throw py::index_error("no experimental data set " + std::to_string(index));
+      }, py::arg("index"))
       // ---- structural deck edits (adsim/objects/deck_edit.h) ----------------
       .def("add_component", [](adsim::Simulation& s, const std::string& name) {
         std::string err;
@@ -389,7 +424,311 @@ PYBIND11_MODULE(_core, m) {
         if (!adsim::AddLibraryAdsorbent(s.Data(), library_dir, key, id, err)) throw py::value_error(err);
         s.RefreshParameters();
         return static_cast<long long>(id);
-      }, py::arg("library_dir"), py::arg("key"));
+      }, py::arg("library_dir"), py::arg("key"))
+      // ---- building a deck from scratch (adsim/objects/deck_builder.h) ----------
+      // Each call changes the structure, so the registry is refreshed after it.
+      .def("build", [](adsim::Simulation& s, const std::string& op, const py::list& args) -> py::object {
+        namespace b = adsim::build;
+        auto& d = s.Data();
+        auto str = [&](size_t i) { return args[i].cast<std::string>(); };
+        auto id = [&](size_t i) { return args[i].cast<size_t>(); };
+        py::object out = py::none();
+        if (op == "add_component") b::AddComponent(d, str(0));
+        else if (op == "add_adsorbent") out = py::int_(b::AddAdsorbent(d, str(0)));
+        else if (op == "set_isotherm") b::SetIsotherm(d, id(0), str(1), args[2].cast<std::vector<std::string>>());
+        else if (op == "set_rate_model") b::SetRateModel(d, id(0), str(1), str(2), str(3));
+        else if (op == "set_bed_shape") b::SetBedShape(d, str(0));
+        else if (op == "set_wall_material") b::SetWallMaterial(d, str(0));
+        else if (op == "set_wall_boundary") b::SetWallBoundary(d, str(0));
+        else if (op == "set_thermal_equilibrium") b::SetThermalEquilibrium(d, str(0));
+        else if (op == "set_particle_heat_transfer") b::SetParticleHeatTransfer(d, str(0));
+        else if (op == "add_layer") out = py::int_(b::AddLayer(d, str(0)));
+        else if (op == "set_layer_composition")
+          b::SetLayerComposition(d, id(0), args[1].cast<std::vector<std::pair<adsim::AdsorbentID, double>>>());
+        else if (op == "set_momentum") b::SetMomentum(d, id(0), str(1));
+        else if (op == "set_dispersion") b::SetDispersion(d, id(0), str(1));
+        else if (op == "set_heat_dispersion") b::SetHeatDispersion(d, id(0), str(1));
+        else if (op == "set_internal_heat_transfer") b::SetInternalHeatTransfer(d, id(0), str(1));
+        else if (op == "set_external_heat_transfer") b::SetExternalHeatTransfer(d, id(0), str(1));
+        else if (op == "add_step") out = py::int_(b::AddStep(d, str(0)));
+        else if (op == "set_closed") b::SetClosed(d, id(0), str(1));
+        else if (op == "set_pressure_boundary") out = py::int_(b::SetPressureBoundary(d, id(0), str(1), str(2), str(3)));
+        else if (op == "set_flow_boundary") b::SetFlowBoundary(d, id(0), str(1), str(2));
+        else if (op == "add_stream") out = py::int_(b::AddStream(d, id(0), str(1), str(2), str(3), str(4)));
+        else if (op == "add_valve_stream") out = py::int_(b::AddValveStream(d, id(0), str(1), str(2), str(3)));
+        else if (op == "add_pump_stream")
+          out = py::int_(b::AddPumpStream(d, id(0), str(1), str(2), str(3), str(4), str(5)));
+        else if (op == "set_buffer_tank") b::SetBufferTank(d, id(0), id(1));
+        else if (op == "set_temperature_profile") b::SetTemperatureProfile(d, id(0), str(1));
+        else if (op == "set_pump") b::SetPump(d, id(0), str(1), str(2), str(3));
+        else if (op == "connect") b::Connect(d, id(0), id(1));
+        else if (op == "set_energy_source") b::SetEnergySource(d, id(0), id(1), args[2].cast<bool>());
+        else if (op == "set_kpi")
+          b::SetKPI(d, str(0), args[1].cast<std::vector<size_t>>(), args[2].cast<std::vector<size_t>>(),
+                    args.size() > 3 ? args[3].cast<std::vector<size_t>>() : std::vector<size_t>{});
+        else if (op == "add_variable") b::AddVariable(d, str(0), str(1), str(2), str(3));
+        else throw py::value_error("unknown build operation '" + op + "'");
+        s.RefreshParameters();
+        return out;
+      }, py::arg("op"), py::arg("args"))
+      // The deck's structure in builder vocabulary: which model kind each
+      // object uses, how the steps' ends are set up, the connections and the
+      // KPI configuration. Values are read from the parameter registry.
+      .def("describe", [](adsim::Simulation& s) {
+        namespace b = adsim::build;
+        using namespace adsim;
+        auto& d = s.Data();
+        d.cycle.EnsureIds();
+        d.cycle.ResolveBufferTankReferences();
+        auto kind = [](const std::vector<std::string>& kinds, int i) -> std::string {
+          return i >= 0 && i < static_cast<int>(kinds.size()) ? kinds[static_cast<size_t>(i)] : std::string("?");
+        };
+        py::dict out;
+        out["components"] = d.fluid.components_;
+
+        py::list adsorbents;
+        std::vector<AdsorbentID> ids;
+        for (const auto& [id, ads] : d.adsorbent_directory.GetAll()) ids.push_back(id);
+        std::sort(ids.begin(), ids.end());
+        for (AdsorbentID id : ids) {
+          auto& ads = d.adsorbent_directory.Get(id);
+          auto& src = ads.adsorption_source_;
+          py::dict a;
+          a["id"] = id;
+          a["name"] = ads.name_;
+          std::map<std::string, std::vector<std::string>> by_kind;
+          for (const auto& c : d.fluid.components_) {
+            auto it = src.IsothermMap().find(c);
+            if (it != src.IsothermMap().end()) by_kind[IsothermKindString(it->second)].push_back(c);
+          }
+          py::list isotherms;
+          for (auto& [k, comps] : by_kind) {
+            py::dict iso;
+            iso["kind"] = k;
+            iso["components"] = comps;
+            isotherms.append(iso);
+          }
+          a["isotherms"] = isotherms;
+          py::dict rates;
+          for (const auto& c : d.fluid.components_) {
+            auto it = src.mass_transfer_models_.find(c);
+            if (it == src.mass_transfer_models_.end() || !it->second || !it->second->mtc_model_) continue;
+            py::dict r;
+            r["model"] = kind(b::RateModelKinds(), static_cast<int>(it->second->GetModelType()));
+            r["coefficient"] = kind(b::RateCoefficientKinds(), static_cast<int>(it->second->mtc_model_->GetModelType()));
+            rates[py::str(c)] = r;
+          }
+          a["rate_models"] = rates;
+          adsorbents.append(a);
+        }
+        out["adsorbents"] = adsorbents;
+
+        py::dict bed;
+        bed["shape"] = kind(b::BedShapeKinds(), static_cast<int>(d.bed.shape_.index()));
+        bed["wall_material"] = kind(b::WallMaterialKinds(), static_cast<int>(d.bed.wall_.material));
+        auto& eqs = d.bed.equations_;
+        bed["wall_boundary"] = eqs.wall_temperature_boundary_condition_
+            ? kind(b::WallBoundaryKinds(), static_cast<int>(eqs.wall_temperature_boundary_condition_->GetModelType()))
+            : std::string("zero_flux");
+        bed["thermal_equilibrium"] = kind(b::ThermalEquilibriumKinds(), static_cast<int>(eqs.thermal_equilibrium_mode_));
+        bed["particle_heat_transfer"] = eqs.particle_heat_transfer_model_
+            ? kind(b::ParticleHeatTransferKinds(), static_cast<int>(eqs.particle_heat_transfer_model_->GetModelType()))
+            : std::string("constant");
+        out["bed"] = bed;
+
+        py::list layers;
+        for (auto& layer : d.bed.layers_.layers_) {
+          py::dict l;
+          l["id"] = layer.id_;
+          l["name"] = layer.name_;
+          l["momentum"] = kind(b::MomentumKinds(), static_cast<int>(layer.momentum_model_));
+          auto& le = layer.equations_;
+          l["dispersion"] = kind(b::DispersionKinds(), static_cast<int>(le.dispersion_model_->GetModelType()));
+          l["heat_dispersion"] = kind(b::HeatDispersionKinds(), static_cast<int>(le.heat_dispersion_model_->GetModelType()));
+          l["internal_heat_transfer"] =
+              kind(b::InternalHeatTransferKinds(), static_cast<int>(le.internal_heat_transfer_model_->GetModelType()));
+          l["external_heat_transfer"] =
+              kind(b::ExternalHeatTransferKinds(), static_cast<int>(le.external_heat_transfer_model_->GetModelType()));
+          py::list comp;
+          for (const auto& [id, f] : layer.composition_) comp.append(py::make_tuple(id, f));
+          l["composition"] = comp;
+          layers.append(l);
+        }
+        out["layers"] = layers;
+
+        auto pump_of = [&](IPump* p) -> py::object {
+          if (!p || !p->use_pump_) return py::none();
+          py::dict q;
+          q["kind"] = kind(b::PumpKinds(), static_cast<int>(p->GetType()) + 1);
+          q["energy"] = p->energy_eq_ ? kind(b::PumpEnergyKinds(), static_cast<int>(p->energy_eq_->GetType()))
+                                      : std::string("isothermal");
+          q["efficiency"] = p->efficiency_model_
+              ? kind(b::PumpEfficiencyKinds(), static_cast<int>(p->efficiency_model_->GetType()))
+              : std::string("constant");
+          return q;
+        };
+        auto tank_of = [](const BufferTankSource& t) -> py::object {
+          if (!t.IsActive() || t.source_endpoint_id_ == 0) return py::none();
+          return py::int_(t.source_endpoint_id_);
+        };
+        auto tprofile = [&](IBoundaryValue* v) -> std::string {
+          return v ? kind(b::ProfileKinds(), static_cast<int>(v->GetType())) : std::string("constant");
+        };
+        auto end_of = [&](IBoundaryCondition* bc) -> py::dict {
+          py::dict e;
+          const char* dir = bc && bc->direction_ == BoundaryDirection::INLET ? "inlet" : "outlet";
+          if (auto* p = dynamic_cast<PressureBoundaryCondition*>(bc)) {
+            e["kind"] = "pressure";
+            e["direction"] = dir;
+            e["endpoint"] = p->endpoint_id_;
+            e["profile"] = tprofile(p->pressure_.get());
+            e["temperature_profile"] = tprofile(p->temperature_profile_.get());
+            e["pump"] = pump_of(p->pump_.get());
+            e["buffer_tank"] = tank_of(p->buffer_tank_);
+          } else if (auto* f = dynamic_cast<FlowBoundaryCondition*>(bc)) {
+            e["kind"] = "flow";
+            e["direction"] = dir;
+            py::list streams;
+            for (auto& st : f->streams_) {
+              if (!st) continue;
+              py::dict sd;
+              sd["name"] = st->name_;
+              sd["endpoint"] = st->endpoint_id_;
+              sd["temperature_profile"] = tprofile(st->temperature_profile_.get());
+              sd["buffer_tank"] = tank_of(st->buffer_tank_);
+              if (auto* bs = dynamic_cast<BoundaryStream*>(st.get())) {
+                sd["type"] = "stream";
+                sd["flow"] = kind(b::FlowKinds(), static_cast<int>(bs->boundary_flow_->GetType()));
+                IBoundaryValue* prof = nullptr;
+                if (auto* fv = dynamic_cast<VelocityBoundaryValue*>(bs->boundary_flow_.get())) prof = fv->profile_.get();
+                else if (auto* fv = dynamic_cast<VolumetricFlowBoundaryValue*>(bs->boundary_flow_.get())) prof = fv->profile_.get();
+                else if (auto* fv = dynamic_cast<MolarFlowBoundaryValue*>(bs->boundary_flow_.get())) prof = fv->profile_.get();
+                else if (auto* fv = dynamic_cast<MassFlowBoundaryValue*>(bs->boundary_flow_.get())) prof = fv->profile_.get();
+                sd["profile"] = tprofile(prof);
+                sd["pump"] = pump_of(bs->pump_.get());
+              } else if (auto* vs = dynamic_cast<ValveBoundaryStream*>(st.get())) {
+                sd["type"] = "valve";
+                sd["profile"] = tprofile(vs->boundary_value_.get());
+                sd["pump"] = py::none();
+              } else if (auto* ps = dynamic_cast<PumpBoundaryStream*>(st.get())) {
+                sd["type"] = "pump";
+                sd["power"] = ps->power_ ? kind(b::PumpPowerKinds(), static_cast<int>(ps->power_->GetType()))
+                                         : std::string("constant");
+                sd["pump"] = pump_of(ps->pump_.get());
+              } else {
+                sd["type"] = "unsupported";
+              }
+              streams.append(sd);
+            }
+            e["streams"] = streams;
+          } else {
+            e["kind"] = "closed";
+          }
+          return e;
+        };
+        py::list steps;
+        for (auto& st : d.cycle.step_list_) {
+          py::dict sd;
+          sd["id"] = st.id_;
+          sd["name"] = st.step_name_;
+          sd["bottom"] = end_of(st.bottom_boundary_condition_.get());
+          sd["top"] = end_of(st.top_boundary_condition_.get());
+          py::list energy;
+          for (const auto& [layer_id, src] : st.energy_sources_) energy.append(layer_id);
+          sd["energy_sources"] = energy;
+          steps.append(sd);
+        }
+        out["steps"] = steps;
+
+        // Connected pairs, by endpoint ID (each pair once).
+        std::map<size_t, std::vector<size_t>> by_pair;
+        for (auto& h : d.cycle.Endpoints()) {
+          const Connection* c = h.stream ? &h.stream->connection_ : (h.pressure ? &h.pressure->connection_ : nullptr);
+          if (c && c->IsConnected()) by_pair[c->GetID()].push_back(h.id);
+        }
+        py::list connections;
+        for (auto& [pair, eps] : by_pair)
+          if (eps.size() == 2) connections.append(py::make_tuple(eps[0], eps[1]));
+        out["connections"] = connections;
+
+        py::list kpis;
+        for (auto& cfg : d.kpi_config.per_component) {
+          if (!cfg.tracked) continue;
+          auto ids_of = [&](std::vector<KPIEndpointRef> refs) {
+            std::vector<size_t> v;
+            for (auto& r : refs)
+              if (r.Resolve(d.cycle.step_list_)) v.push_back(r.endpoint_id);
+            return v;
+          };
+          py::dict k;
+          k["component"] = cfg.product_component;
+          k["feed"] = ids_of(cfg.feed_endpoints);
+          k["product"] = ids_of(cfg.product_endpoints);
+          k["recycle"] = ids_of(cfg.recycle_endpoints);
+          kpis.append(k);
+        }
+        out["kpis"] = kpis;
+
+        py::list variables;
+        for (const auto& v : d.variable_registry.GetAll()) {
+          py::dict vd;
+          vd["name"] = v.name;
+          vd["category"] = b::VariableCategoryKind(v.unit_category);
+          vd["formula"] = v.value_expr;
+          vd["description"] = v.description;
+          variables.append(vd);
+        }
+        out["variables"] = variables;
+        return out;
+      });
+
+  m.def("build_kinds", []() {
+    namespace b = adsim::build;
+    py::dict k;
+    k["isotherm"] = b::IsothermKinds();
+    k["variable_category"] = b::VariableCategoryKinds();
+    k["rate_model"] = b::RateModelKinds();
+    k["rate_coefficient"] = b::RateCoefficientKinds();
+    k["momentum"] = b::MomentumKinds();
+    k["dispersion"] = b::DispersionKinds();
+    k["heat_dispersion"] = b::HeatDispersionKinds();
+    k["internal_heat_transfer"] = b::InternalHeatTransferKinds();
+    k["external_heat_transfer"] = b::ExternalHeatTransferKinds();
+    k["particle_heat_transfer"] = b::ParticleHeatTransferKinds();
+    k["thermal_equilibrium"] = b::ThermalEquilibriumKinds();
+    k["bed_shape"] = b::BedShapeKinds();
+    k["wall_material"] = b::WallMaterialKinds();
+    k["wall_boundary"] = b::WallBoundaryKinds();
+    k["profile"] = b::ProfileKinds();
+    k["flow"] = b::FlowKinds();
+    k["pump"] = b::PumpKinds();
+    k["pump_energy"] = b::PumpEnergyKinds();
+    k["pump_efficiency"] = b::PumpEfficiencyKinds();
+    k["pump_power"] = b::PumpPowerKinds();
+    return k;
+  });
+
+  // Units: the engine's unit parser (adsim/math/unit_parser.h), so Python
+  // accepts exactly the units decks and the CLI do.
+  m.def("parse_unit", [](const std::string& text) {
+    adsim::UnitInfo u;
+    std::string why;
+    if (!adsim::ParseUnitExpression(text, u, &why)) throw py::value_error("unknown unit '" + text + "': " + why);
+    py::dict d;
+    d["factor"] = u.factor;
+    d["offset"] = u.offset;
+    d["dimension"] = py::make_tuple(u.dimension.length, u.dimension.mass, u.dimension.time,
+                                    u.dimension.temperature, u.dimension.amount);
+    d["dimension_name"] = adsim::DimensionName(u.dimension);
+    return d;
+  }, py::arg("unit"));
+  m.def("convert_unit", &adsim::ConvertUnit, py::arg("value"), py::arg("from_unit"), py::arg("to_unit"));
+  m.def("split_quantity", [](const std::string& text) -> py::object {
+    double number = 0.0;
+    std::string unit;
+    if (!adsim::SplitQuantity(text, number, unit)) return py::none();
+    return py::make_tuple(number, unit);
+  }, py::arg("text"));
 
   m.def("bulk_variables", &adsim::BulkVariableNames);
   m.def("component_variables", &adsim::ComponentVariableNames);

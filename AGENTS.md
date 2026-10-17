@@ -22,7 +22,7 @@ CLI with machine-readable output (exit code 0 = completed or cyclic steady state
 
 ```bash
 skarstrom examples --json                                   # [{name, family, path}, ...]
-skarstrom examples run "Ward_2022_Q=100[ccm]" --json -q     # run a bundled deck
+skarstrom examples run "Ward2022_Q100ccm" --json -q     # run a bundled deck
 skarstrom run path/to/deck.json --cycles 20 --set "step[Feed].time=120" --json -q
 skarstrom run deck.json --csv out/                          # kpis.csv, css.csv, run.json, logs/
 ```
@@ -34,20 +34,46 @@ Python:
 ```python
 import skarstrom
 
-sim = skarstrom.Simulation(skarstrom.example_path("Perez2019_A.json"))   # or a path / JSON text
+sim = skarstrom.examples.Perez2019_A.load()   # or skarstrom.Simulation(path | JSON text | Example)
 result = sim.run()                       # blocking; run(cycles=N, progress=f, log_level=..., on_message=f)
 result.status, result.ok, result.css_cycle, result.message
 ```
 
-### Parameters (the registry)
+### Parameters: objects
 
-Every settable value has a stable **path** (ID-based, survives renames) and an **alias** (display names):
+The deck's parts are typed objects over the parameter registry (`python/src/skarstrom/model.py`):
 
 ```python
+from skarstrom import ureg as u
+sim.steps["Feed"].time = 2 * u.min             # steps by name or position; .by_id(n) by deck ID
+sim.steps[0].bottom.temperature = 298.15     # step end -> its stream/boundary (end[name|i] if several)
+sim.steps["Feed"].bottom.y["CO2"] = 0.15     # components: CoolProp names or formulas
+sim.layers[0].length; sim.adsorbents["13X"].isotherm["CO2"].b1; sim.adsorbents[0].kinetics["CO2"]
+sim.variables["t_feed"]; sim.cycle.number_of_cycles; sim.bed; sim.wall; sim.settings; sim.css
+sim.energy_balance; sim.info
+node.fields; node.get(name, unit="min"); node.set(name, 2, unit="min"); node.path(name); node.parameters()
+```
+
+Units: a bare number is SI (the unit is in each field's docstring and `Parameter.unit`). Give another
+unit with a pint Quantity (`2 * u.min`, `u.Quantity(25, "degC")`; `from skarstrom import ureg as u`) or
+`node.set(name, 2, "min")`. Text is an expression or a deck-syntax quantity (`"2 [min]"`), for decks and
+the CLI; unit text is parsed by the engine with LLNL units. The dimension is checked (`2 * u.bar` for a
+time raises ValueError). `Simulation(deck, require_units=True)` rejects bare numbers for dimensional fields. Misspelt or absent fields raise AttributeError (never create attributes).
+`skarstrom.examples.<Name>` lists the bundled decks (`.load()`, `.path`, `.title`, `.copy_to()`).
+
+### Parameters: paths (the registry)
+
+Every settable value also has a stable **path** (ID-based, survives renames) and an **alias** (display names);
+use paths for sweeps, optimisers and the CLI:
+
+```python
+from skarstrom import ureg as u
 for p in sim.parameters(tunable_only=True, search="time"):
     print(p.path, p.alias, p.value, p.unit, p.kind, p.bounds)
 sim["step[1].time"] = 45.0               # number -> value (SI units)
-sim["step[Feed].time"] = "2 * t_feed"    # string -> expression (may use variables and units, "1.5 [bar]")
+sim["step[1].time"] = 2 * u.min            # quantity -> converted, dimension-checked
+sim["step[Feed].time"] = "2 * t_feed"    # string -> expression (may use variables and a trailing [unit])
+sim.set("step[1].time", 2, unit="min"); sim.get("step[1].time", unit="min")
 sim.get("step[1].time"); sim.get_text("step[1].time")
 sim.update({"css.min_cycles": 3, "settings.reltol": 1e-6})
 sim.save("modified.json")
@@ -55,7 +81,31 @@ sim.save("modified.json")
 
 CLI: `skarstrom params deck.json [--all] [--search TEXT] [--json]`; `--set PATH=VALUE` on `run` (repeatable). Path families: `cycle.*`, `step[ID].time|fraction`, `endpoint[ID].<field>` (flows, pressures, temperatures, `y[Component]`, pump settings), `bed.*`, `wall.*`, `layer[ID].*`, `adsorbent[ID].<property>|isotherm[C].<param>|kinetics[C].<param>|heat_of_adsorption[C]`, `variable[name]`, `settings.*`, `css.*`, `energy_balance.*`, `info.*`. Unknown paths raise `KeyError` (CLI: exit with "unknown parameter").
 
-Structural edits: `sim.add_component(name)`, `sim.remove_component(name)`, `sim.add_library_adsorbent(key)` (returns the adsorbent ID).
+Structural edits: `sim.add_component(name)`, `sim.remove_component(name)`, `sim.add_library_adsorbent(key)` (returns the adsorbent ID), and the builder below.
+
+### Building a simulation in Python
+
+Structure is created by kind name in C++ (`core/include/adsim/objects/deck_builder.h`, Python `sim._sim.build(op, args)`); values then go through the registry. `skarstrom.build_kinds()` lists every family's kinds; unknown kinds raise ValueError listing the valid ones.
+
+```python
+sim = sk.Simulation.new(title="...")
+sim.add_component("CarbonDioxide")
+ads = sim.add_adsorbent("13X", solid_density=1138, heat_capacity=900, thermal_conductivity=0.63, particle_void_fraction=0.35)
+ads.set_isotherm("extended_dual_site_langmuir_c", {"CO2": {"m1": ..., ...}, "N2": {...}})   # components given together are coupled
+ads.set_rate_model("CO2", "ldf", "macropore", tortuosity=3, macropore_void_fraction=0.35); ads.heat_of_adsorption["CO2"] = 30850
+sim.bed.set_shape("cylinder", diameter=0.032); sim.wall.set_material("ss316l"); sim.wall.set_boundary("zero_flux")
+layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman", length=0.3, cells=30, bed_void_fraction=0.41, particle_diameter=1.5e-3)
+layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5)   # + set_heat_dispersion / set_internal_heat_transfer / set_external_heat_transfer
+sim.initial_conditions.pressure = 1e5; sim.initial_conditions.y["N2"] = 1.0
+feed = sim.add_step("Feed", time=99)                                     # both ends closed until set
+feed.bottom.set_streams("inlet", [sk.Stream("Feed inlet", flow=sk.velocity(0.085), y={"CO2": 0.15, "N2": 0.85}, temperature=298)])
+feed.top.set_pressure("outlet", 1e5)                                     # or sk.linear(end) / sk.exponential(end); pump=sk.Pump(...)
+step.top.set_streams("outlet", [sk.ValveStream("Vent", pressure=1e5, cv=10, xt=0.53)]); step.bottom.set_closed()
+sim.connect(feed.top["LPP out"], other.top["LPP in"]); step.add_energy_source(layer, power=500)
+sim.kpi.track("CO2", feed=[feed.bottom], product=[evac.bottom])
+```
+
+Flows: `sk.velocity|volumetric_flow|molar_flow|mass_flow(value or profile)`; profiles `sk.constant|linear|exponential(end, start=, time=)` (pressure ramps take only the end). `sim.describe()` gives the structure; `sk.to_script(sim)` writes builder code for any deck. Every example script `examples/<family>.py` builds its cases from scratch (`build(case)`); `python/tests/test_examples_build.py` checks each reproduces its deck in `examples/decks/`. User variables: `sim.add_variable("t_feed", 60 * u.s, category="time")`, then `time="t_feed"`; `formula="t_feed / 3"` defines one from others. Pump-driven streams: `sk.PumpStream(name, power=, pump=)` (power constant or `sk.polynomial_power(a, b, ...)`). Buffer tanks: `inlet.set_buffer_tank(source, percentage=)`. Measured data in the deck: `sim.experimental_data` (`add`, `load_csv`, `[name].compare(x, y)`). Not created by the builder: cost data.
 
 ### Results
 
@@ -93,12 +143,12 @@ Decks are cereal JSON archives of `adsim::UserData` (root `value0` for files, `s
 ### Layout
 
 ```
-adsim/include/adsim/   public C++ API (source of truth): simulation.h, objects/, equations/, solver/, parameters/
-adsim/src/             implementations (mirrors include/)
-adsim/test/            GoogleTest: unit/, integration/, validation/ (analytic verification), papers/ (literature)
-adsim/data/            digitised experimental curves used by the paper tests
-adsim/bench/           bench_solver timing tool
-adsim/install_consumer/, adsim/subproject_consumer/   find_package / add_subdirectory smoke projects
+core/include/adsim/   public C++ API (source of truth): simulation.h, objects/, equations/, solver/, parameters/
+core/src/             implementations (mirrors include/)
+core/test/            GoogleTest: unit/, integration/, validation/ (analytic verification), papers/ (literature)
+core/data/            digitised experimental curves used by the paper tests
+core/bench/           bench_solver timing tool
+core/install_consumer/, core/subproject_consumer/   find_package / add_subdirectory smoke projects
 python/                pybind11 bindings (src/bindings.cpp), the skarstrom package, pytest tests
 examples/              decks/ (bundled decks), one script per deck family, notebooks/
 data/adsorbents/       curated adsorbent library: library.json + <key>.json
@@ -114,22 +164,22 @@ external/              submodules (sundials, CoolProp, cereal, muparser, dlib, g
 git submodule update --init --recursive
 cmake --preset linux-release            # macos-release, windows; tests are on in the presets
 cmake --build --preset linux-release
-ctest --preset linux-release -j3        # full suite ~10 min; adsim/ is the working directory
+ctest --preset linux-release -j3        # full suite ~10 min; core/ is the working directory
 ctest --preset linux-release -E "^(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)Test\.|^CSSAcceleration\."   # fast subset
-rm -rf adsim/Results                    # the suite writes ~4 GB there
+rm -rf core/Results                    # the suite writes ~4 GB there
 pip install . && pytest python/tests    # Python package + example smoke tests
 pip install -r requirements-docs.txt && mkdocs build --strict
 ```
 
 ### Conventions
 
-- **Never commit `adsim/Results/`** (test output, git-ignored) or build trees.
-- **Keep generated docs generated.** `docs/validation.md` comes from `adsim/test/papers/validation_summary.json` (`python scripts/docs/gen_validation_page.py`, `--merge <build>/validation` after running the paper tests); `docs/adsorbent-library.md` from `data/adsorbents/library.json` (`python scripts/docs/gen_adsorbent_library.py`, which also validates the catalogue). Never edit the generated pages; CI runs both with `--check`.
+- **Never commit `core/Results/`** (test output, git-ignored) or build trees.
+- **Keep generated docs generated.** `docs/validation.md` comes from `core/test/papers/validation_summary.json` (`python scripts/docs/gen_validation_page.py`, `--merge <build>/validation` after running the paper tests); `docs/adsorbent-library.md` from `data/adsorbents/library.json` (`python scripts/docs/gen_adsorbent_library.py`, which also validates the catalogue). Never edit the generated pages; CI runs both with `--check`.
 - **Cite every adsorbent parameter.** A library entry needs a DOI and table/figure reference for each value, or an explicit `Not stated in source (checked: ...)`. Paper reference values (`reference_values.csv`) must be numbers printed in the paper; never eyeball values off a plot, never commit PDFs or full-text extractions.
 - **Tolerances in paper tests are regression bounds** set from the measured error; never loosen one to hide a disagreement — document it in the paper's README.
 - **Regenerated example decks are expected.** The test suite re-saves `examples/decks/*.json` and some `data/adsorbents/*.json`; embedded result numbers move in the last digits. Commit those changes with the code change that caused them.
 - **Data file names must be shell-safe** (`[A-Za-z0-9._,=+@-]`; checked by the `DataFileNamesAreShellSafe` test).
 - **Bump `cereal_class_version`** for any change to a serialised class and handle older versions on load.
-- **The engine stays front-end free:** no GUI, web or JSON-schema code in `adsim/`; it must keep building as a subproject and with Emscripten (`scripts/test_subproject_consumer.sh [--emscripten]`).
+- **The engine stays front-end free:** no GUI, web or JSON-schema code in `core/`; it must keep building as a subproject and with Emscripten (`scripts/test_subproject_consumer.sh [--emscripten]`).
 - Licence headers point to the root `LICENSE`; do not add per-file licence text. Leave third-party code in `external/` untouched.
 - Commits need a DCO sign-off (`git commit -s`); see CONTRIBUTING.md.

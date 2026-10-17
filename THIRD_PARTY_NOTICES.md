@@ -33,6 +33,7 @@ submodules in `external/`, except Eigen 3.4.0, which is vendored in
 | [cereal](https://github.com/USCiLab/cereal) | Randolph Voorhies, Shane Grant | BSD-3-Clause |
 | base64 (bundled with cereal) | René Nyffenegger | Zlib |
 | [muparser](https://github.com/beltoforion/muparser) | Ingo Berg | BSD-2-Clause |
+| [LLNL units](https://github.com/LLNL/units) (unit parsing and conversion) | Lawrence Livermore National Security, LLC | BSD-3-Clause |
 | [dlib](https://github.com/davisking/dlib) | Davis E. King | Boost Software License 1.0 |
 | [pybind11](https://github.com/pybind/pybind11) ‡ | Wenzel Jakob | BSD-3-Clause |
 
@@ -41,7 +42,7 @@ submodules in `external/`, except Eigen 3.4.0, which is vendored in
 | Component | Copyright | Licence |
 |---|---|---|
 | [GoogleTest](https://github.com/google/googletest) | Google LLC | BSD-3-Clause |
-| Eigen debugger visualisers (`adsim/Eigen.natvis`, `adsim/tools/eigenlldb.py`, from Eigen's `debug/` folder) | Eigen contributors; Huang Zhaoquan (`eigenlldb.py`) | MPL-2.0 |
+| Eigen debugger visualiser (`core/Eigen.natvis`, from Eigen's `debug/` folder) | Eigen contributors | MPL-2.0 |
 
 ## Appendix: licence texts
 
@@ -69,7 +70,7 @@ Applies to: CoolProp, fmt, RapidJSON, IF97.
 
 ### BSD 3-Clause License
 
-Applies to: SUNDIALS, cereal, pybind11, GoogleTest.
+Applies to: SUNDIALS, cereal, LLNL units, pybind11, GoogleTest.
 
 > Redistribution and use in source and binary forms, with or without
 > modification, are permitted provided that the following conditions are met:

@@ -11,7 +11,7 @@ import pytest
 import skarstrom
 from skarstrom.cli import main
 
-PEREZ = "Perez2019_A.json"
+PEREZ = "Perez2019_A"
 
 
 def run_cli(capsys, *argv):
@@ -39,7 +39,7 @@ def test_examples(capsys, tmp_path):
     code, out, _ = run_cli(capsys, "examples", "path", "Perez2019_A")
     assert code == 0 and os.path.isfile(out.strip())
     code, out, _ = run_cli(capsys, "examples", "copy", PEREZ, str(tmp_path))
-    assert code == 0 and (tmp_path / PEREZ).is_file()
+    assert code == 0 and (tmp_path / (PEREZ + ".json")).is_file()
 
 
 def test_examples_run(capsys):
@@ -50,7 +50,7 @@ def test_examples_run(capsys):
 
 
 def test_params_lists_tunable_and_all(capsys):
-    deck = skarstrom.example_path(PEREZ)
+    deck = skarstrom.examples.get(PEREZ).path
     code, out, _ = run_cli(capsys, "params", deck)
     assert code == 0
     assert "step[1].time" in out and "settings.reltol" not in out

@@ -3,7 +3,7 @@
 #
 # Test scope (ctest):
 #   * pull requests and pushes to other branches run the FAST subset: every
-#     test except the paper replications (adsim/test/papers/, about 25 minutes
+#     test except the paper replications (core/test/papers/, about 25 minutes
 #     of CPU) and the slow CSS-acceleration test. That is ~600 tests in a few
 #     minutes.
 #   * pushes to main, the nightly schedule and manual runs (workflow_dispatch)
@@ -133,7 +133,7 @@ jobs:
 
       - name: Remove test output
         if: always()
-        run: rm -rf adsim/Results
+        run: rm -rf core/Results
 
   python:
     name: Python wheel (Linux)
@@ -163,7 +163,7 @@ jobs:
       - name: Install into a fresh venv and test
         run: |
           python -m venv /tmp/venv
-          /tmp/venv/bin/pip install dist/*.whl pytest matplotlib
+          /tmp/venv/bin/pip install dist/*.whl pytest matplotlib pint
           cd /tmp && /tmp/venv/bin/skarstrom --version && /tmp/venv/bin/skarstrom examples | head -3
           cd "$GITHUB_WORKSPACE" && /tmp/venv/bin/python -m pytest python/tests -q
       - uses: actions/upload-artifact@v4
@@ -228,6 +228,7 @@ jobs:
         run: |
           python scripts/docs/gen_validation_page.py --check
           python scripts/docs/gen_adsorbent_library.py --check
+          python scripts/gen_examples_module.py --check
       - name: mkdocs build --strict
         run: |
           python -m pip install -r requirements-docs.txt

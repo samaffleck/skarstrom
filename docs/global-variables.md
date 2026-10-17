@@ -54,7 +54,7 @@ End an expression with a unit in square brackets to enter it in that unit:
 (2 + 3) [bar]      ->  500000 Pa
 ```
 
-The rules, from `adsim/src/math/unit_parser.cpp`:
+The rules, from `core/src/math/unit_parser.cpp`:
 
 - The bracket must be the **last thing** in the expression. `2 [bar] + 1` is an error.
 - The unit applies to the **whole** result: the formula is evaluated first and the result is converted from that unit to SI (`base = value × factor + offset`, the offset being for °C and °F).
@@ -90,7 +90,7 @@ Global variables are evaluated **from the top of the list down, in one pass**, b
 - Circular references (`A = B + 1`, `B = A + 1`) are not detected; they produce values that change with every evaluation.
 - A reference to an undefined name is an error and the deck is not runnable.
 
-So **keep the list in dependency order**: define base quantities first and derived ones after them. This is the engine's current behaviour (`ResolveVariableExpressions` in `adsim/src/objects/user_data.cpp`).
+So **keep the list in dependency order**: define base quantities first and derived ones after them. This is the engine's current behaviour (`ResolveVariableExpressions` in `core/src/objects/user_data.cpp`).
 
 ### Then every other field
 
@@ -105,7 +105,7 @@ The names `T`, `P`, `c`, `y` and `v` stand for the local temperature [K], pressu
 | **Constant** mass-transfer coefficient (Adsorbent → rate model) | in every cell, at every residual evaluation | `T` = gas temperature of the cell, `P` = cell pressure, `y` = mole fraction of the component the coefficient belongs to; `c` = 0 and `v` = 0 |
 | **Arrhenius** mass-transfer coefficient: pre-exponential factor and activation energy | same | same |
 
-So `0.05*(P/1e5)^0.5` is a valid pressure-dependent constant-LDF coefficient, but `c` and `v` evaluate to zero there. (`MassTransferCoefficientConstant` and `MassTransferCoefficientArrhenius` in `adsim/src/equations/mass_transfer_model.cpp`.)
+So `0.05*(P/1e5)^0.5` is a valid pressure-dependent constant-LDF coefficient, but `c` and `v` evaluate to zero there. (`MassTransferCoefficientConstant` and `MassTransferCoefficientArrhenius` in `core/src/equations/mass_transfer_model.cpp`.)
 
 **Everywhere else**, including inside global variables, a state variable is evaluated **once** with placeholder values, `T` = 298.15 K, `P` = 10⁵ Pa, `c` = 40 mol/m³, `y` = 0 and `v` = 0, and the result is used as a constant for the whole run. For example a variable `A = T*2` is 596.3, whatever the bed temperature. Use the dedicated models (temperature-dependent isotherms, the Arrhenius coefficient, transport correlations, inlet temperature profiles) for real state dependence.
 

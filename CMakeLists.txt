@@ -11,7 +11,7 @@ set(ADSIM_VERSION_SUFFIX "")
 
 # Minimum macOS version. It must be set before project(). 13.3 is the lowest
 # release whose system libc++ ships floating-point std::to_chars, which
-# adsim/src/solver/log.cpp uses; std::filesystem only needs 10.15. Without a
+# core/src/solver/log.cpp uses; std::filesystem only needs 10.15. Without a
 # value the compiler targets the build machine's own macOS version, so a binary
 # built on macOS 15 would refuse to start on 14.
 # Pass -DCMAKE_OSX_DEPLOYMENT_TARGET=... or set MACOSX_DEPLOYMENT_TARGET to
@@ -145,7 +145,7 @@ endif()
 # Third-party dependencies (git submodules in external/, plus the vendored
 # external/eigen-3.4.0)
 # ============================================================
-foreach(_adsim_dep sundials CoolProp cereal muparser dlib)
+foreach(_adsim_dep sundials CoolProp cereal muparser dlib units)
     if(NOT EXISTS "${ADSIM_SOURCE_DIR}/external/${_adsim_dep}/CMakeLists.txt"
        AND NOT EXISTS "${ADSIM_SOURCE_DIR}/external/${_adsim_dep}/include")
         message(FATAL_ERROR
@@ -213,7 +213,7 @@ add_subdirectory(external/dlib/dlib)
 # ============================================================
 # Core solver library
 # ============================================================
-add_subdirectory(adsim)
+add_subdirectory(core)
 
 # ============================================================
 # Python extension module (optional; see python/ and pyproject.toml)
@@ -233,8 +233,8 @@ if(ADSIM_BUILD_TESTS)
         add_subdirectory(external/googletest)
     endif()
     include(CTest)
-    add_subdirectory(adsim/test)
+    add_subdirectory(core/test)
 endif()
 if(ADSIM_BUILD_BENCH)
-    add_subdirectory(adsim/bench)
+    add_subdirectory(core/bench)
 endif()

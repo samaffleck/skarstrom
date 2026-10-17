@@ -27,7 +27,7 @@ $$
 The linear (low-coverage) limit, with a temperature-dependent Henry constant.
 
 $$
-q_i^* = k \, \exp\!\left(\frac{Q}{R T}\right) P_i
+q_i^* = k \thinspace \exp\negthinspace \left(\frac{Q}{R T}\right) P_i
 $$
 
 | Symbol | Description | Unit |
@@ -46,13 +46,13 @@ The classic monolayer model, available on a partial-pressure or concentration ba
 **Partial pressure form** (`Single Site Langmuir`):
 
 $$
-q_i^* = \frac{m_1 \, b_1 \exp\!\left(\frac{q_1}{R T}\right) P_i}{1 + b_1 \exp\!\left(\frac{q_1}{R T}\right) P_i}
+q_i^* = \frac{m_1 \thinspace b_1 \exp\negthinspace \left(\frac{q_1}{R T}\right) P_i}{1 + b_1 \exp\negthinspace \left(\frac{q_1}{R T}\right) P_i}
 $$
 
 **Concentration form** (`Single Site Langmuir (Concentration)`) — replace $P_i$ with $C_i = P_i/(RT)$:
 
 $$
-q_i^* = \frac{m_1 \, b_1 \exp\!\left(\frac{q_1}{R T}\right) C_i}{1 + b_1 \exp\!\left(\frac{q_1}{R T}\right) C_i}
+q_i^* = \frac{m_1 \thinspace b_1 \exp\negthinspace \left(\frac{q_1}{R T}\right) C_i}{1 + b_1 \exp\negthinspace \left(\frac{q_1}{R T}\right) C_i}
 $$
 
 | Symbol | Description | Unit (P-form / C-form) |
@@ -70,7 +70,7 @@ Two independent Langmuir sites, for heterogeneous surfaces. Available on a parti
 **Partial pressure form** (`Dual Site Langmuir`):
 
 $$
-q_i^* = \frac{m_1 \, b_1 \exp\!\left(\frac{q_1}{R T}\right) P_i}{1 + b_1 \exp\!\left(\frac{q_1}{R T}\right) P_i} + \frac{m_2 \, b_2 \exp\!\left(\frac{q_2}{R T}\right) P_i}{1 + b_2 \exp\!\left(\frac{q_2}{R T}\right) P_i}
+q_i^* = \frac{m_1 \thinspace b_1 \exp\negthinspace \left(\frac{q_1}{R T}\right) P_i}{1 + b_1 \exp\negthinspace \left(\frac{q_1}{R T}\right) P_i} + \frac{m_2 \thinspace b_2 \exp\negthinspace \left(\frac{q_2}{R T}\right) P_i}{1 + b_2 \exp\negthinspace \left(\frac{q_2}{R T}\right) P_i}
 $$
 
 The concentration form (`Dual Site Langmuir (Concentration)`) substitutes $C_i$ for $P_i$ in both terms.
@@ -90,10 +90,10 @@ The **Extended** variants make adsorption *competitive*: the loading of each com
 Extended single-site (partial-pressure), with the sum running over every adsorbing component $j$:
 
 $$
-q_i^* = \frac{m_{1,i} \, b_{1,i} \exp\!\left(\frac{q_{1,i}}{R T}\right) P_i}{1 + \sum_{j} b_{1,j} \exp\!\left(\frac{q_{1,j}}{R T}\right) P_j}
+q_i^* = \frac{m_{1,i} \thinspace b_{1,i} \exp\negthinspace \left(\frac{q_{1,i}}{R T}\right) P_i}{1 + \sum_{j} b_{1,j} \exp\negthinspace \left(\frac{q_{1,j}}{R T}\right) P_j}
 $$
 
-The dual-site extended form adds a second competitive term with its own denominator $1 + \sum_j b_{2,j}\exp(q_{2,j}/RT)\,P_j$. Parameters are entered per component exactly as for the ordinary Langmuir models; the coupling between components is applied automatically.
+The dual-site extended form adds a second competitive term with its own denominator $1 + \sum_j b_{2,j}\exp(q_{2,j}/RT)\thinspace P_j$. Parameters are entered per component exactly as for the ordinary Langmuir models; the coupling between components is applied automatically.
 
 ---
 
@@ -102,7 +102,7 @@ The dual-site extended form adds a second competitive term with its own denomina
 For systems where loading accelerates with concentration (e.g. some cooperative-adsorption cases).
 
 $$
-q_i^* = \frac{a \, P_i}{1 - b \, P_i}
+q_i^* = \frac{a \thinspace P_i}{1 - b \thinspace P_i}
 $$
 
 | Symbol | Description | Unit |
@@ -117,7 +117,7 @@ $$
 An empirical power-law model.
 
 $$
-q_i^* = \left(a \, P_i\right)^{1/v}
+q_i^* = \left(a \thinspace P_i\right)^{1/v}
 $$
 
 | Symbol | Description | Unit |
@@ -132,7 +132,7 @@ $$
 A Langmuir–Freundlich hybrid with a heterogeneity exponent.
 
 $$
-q_i^* = q_{sat}\,\frac{\left(b \, P_i\right)^{1/v}}{1 + \left(b \, P_i\right)^{1/v}}
+q_i^* = q_{sat}\thinspace \frac{\left(b \thinspace P_i\right)^{1/v}}{1 + \left(b \thinspace P_i\right)^{1/v}}
 $$
 
 | Symbol | Description | Unit |
@@ -148,13 +148,13 @@ $$
 A Sips form with explicit temperature dependence built into the capacity, affinity and exponent, referenced to a temperature $T_{ref}$.
 
 $$
-b_i = B_1 \exp\!\left(\frac{B_2}{R T}\right), \qquad
-s_i = C_1 + C_2\!\left(\frac{T}{T_{ref}} - 1\right), \qquad
-q_{max} = A_1 \exp\!\left[A_2\!\left(\frac{T}{T_{ref}} - 1\right)\right]
+b_i = B_1 \exp\negthinspace \left(\frac{B_2}{R T}\right), \qquad
+s_i = C_1 + C_2\negthinspace \left(\frac{T}{T_{ref}} - 1\right), \qquad
+q_{max} = A_1 \exp\negthinspace \left[A_2\negthinspace \left(\frac{T}{T_{ref}} - 1\right)\right]
 $$
 
 $$
-q_i^* = q_{max}\,\frac{\left(b_i P_i\right)^{s_i}}{1 + \left(b_i P_i\right)^{s_i}}
+q_i^* = q_{max}\thinspace \frac{\left(b_i P_i\right)^{s_i}}{1 + \left(b_i P_i\right)^{s_i}}
 $$
 
 | Symbol | Description | Unit |
@@ -175,7 +175,7 @@ An **Extended Sips 2** competitive multi-component form is also available; it sh
 Two independent Sips sites.
 
 $$
-q_i^* = q_{sat,1}\,\frac{\left(b_1 P_i\right)^{1/v_1}}{1 + \left(b_1 P_i\right)^{1/v_1}} + q_{sat,2}\,\frac{\left(b_2 P_i\right)^{1/v_2}}{1 + \left(b_2 P_i\right)^{1/v_2}}
+q_i^* = q_{sat,1}\thinspace \frac{\left(b_1 P_i\right)^{1/v_1}}{1 + \left(b_1 P_i\right)^{1/v_1}} + q_{sat,2}\thinspace \frac{\left(b_2 P_i\right)^{1/v_2}}{1 + \left(b_2 P_i\right)^{1/v_2}}
 $$
 
 | Symbol | Description | Unit |
@@ -191,7 +191,7 @@ $$
 A three-parameter model bridging Henry and Langmuir behaviour.
 
 $$
-q_i^* = \frac{a \, P_i}{1 + \left(b \, P_i\right)^{v}}
+q_i^* = \frac{a \thinspace P_i}{1 + \left(b \thinspace P_i\right)^{v}}
 $$
 
 | Symbol | Description | Unit |
@@ -207,7 +207,7 @@ $$
 A widely used heterogeneous model that reduces to Langmuir when $v = 1$.
 
 $$
-q_i^* = \frac{q_{sat}\, b \, P_i}{\left[1 + \left(b \, P_i\right)^{v}\right]^{1/v}}
+q_i^* = \frac{q_{sat}\thinspace b \thinspace P_i}{\left[1 + \left(b \thinspace P_i\right)^{v}\right]^{1/v}}
 $$
 
 | Symbol | Description | Unit |
@@ -223,13 +223,13 @@ $$
 A Toth form in which the capacity, affinity and exponent all vary with temperature about a reference $T_0$.
 
 $$
-q_{s} = q_{sat}\exp\!\left[x\left(1 - \frac{T}{T_0}\right)\right], \qquad
-b = b_0 \exp\!\left[\frac{\Delta H_0}{R T_0}\left(\frac{T_0}{T} - 1\right)\right], \qquad
+q_{s} = q_{sat}\exp\negthinspace \left[x\left(1 - \frac{T}{T_0}\right)\right], \qquad
+b = b_0 \exp\negthinspace \left[\frac{\Delta H_0}{R T_0}\left(\frac{T_0}{T} - 1\right)\right], \qquad
 w = w_0 + \alpha\left(1 - \frac{T_0}{T}\right)
 $$
 
 $$
-q_i^* = \frac{q_{s}\, b \, P_i}{\left[1 + \left(b \, P_i\right)^{w}\right]^{1/w}}
+q_i^* = \frac{q_{s}\thinspace b \thinspace P_i}{\left[1 + \left(b \thinspace P_i\right)^{w}\right]^{1/w}}
 $$
 
 | Symbol | Description | Unit |

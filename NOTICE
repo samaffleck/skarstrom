@@ -10,7 +10,7 @@ own licences (SUNDIALS, CoolProp, Eigen, cereal, muparser, dlib, pybind11 and
 the components they bundle). See THIRD_PARTY_NOTICES.md for the list, their
 copyright holders and licence texts.
 
-The digitised experimental curves in adsim/data/ and the reference values in
-adsim/test/papers/*/reference_values.csv are numbers transcribed or digitised
+The digitised experimental curves in core/data/ and the reference values in
+core/test/papers/*/reference_values.csv are numbers transcribed or digitised
 from the cited publications for validation; each folder's README gives the
 citation.
