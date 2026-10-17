@@ -106,6 +106,10 @@ void ReplaceEnd(UserData& data, Step& step, BoundaryLocation location, std::shar
   auto& slot = location == BoundaryLocation::TOP ? step.top_boundary_condition_ : step.bottom_boundary_condition_;
   if (slot) DisconnectBoundary(data, slot.get());
   slot = std::move(bc);
+  // KPI refs to the endpoints just removed would otherwise stay in the deck,
+  // pointing at nothing.
+  data.cycle.EnsureIds();
+  data.kpi_config.Prune(data.cycle.step_list_);
 }
 
 std::shared_ptr<IBoundaryCondition>& EndOf(Step& step, BoundaryLocation location) {

@@ -245,6 +245,11 @@ TEST(DeckBuilder, ReplacingAnEndDropsItsStreamsAndConnections) {
   EXPECT_EQ(b.sim.Parameters().Find("step[Feed].top[Purge out].molar_flow"), nullptr);
   std::string error;
   EXPECT_TRUE(b.sim.Check(error)) << error;  // the purge inlet is no longer connected to anything
+  // The KPI product was the evacuation boundary; replacing that end drops the ref.
+  ASSERT_EQ(d.kpi_config.FindByComponent("CarbonDioxide")->product_endpoints.size(), 1u);
+  build::SetFlowBoundary(d, b.evacuation, "bottom", "outlet");
+  EXPECT_TRUE(d.kpi_config.FindByComponent("CarbonDioxide")->product_endpoints.empty());
+  EXPECT_EQ(d.kpi_config.FindByComponent("CarbonDioxide")->feed_endpoints.size(), 2u);
   // An isotherm reassignment moves components between isotherm objects.
   build::SetIsotherm(d, b.zeolite, "henry", {"Nitrogen"});
   const auto& map = d.adsorbent_directory.Get(b.zeolite).adsorption_source_.IsothermMap();
