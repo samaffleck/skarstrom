@@ -50,6 +50,13 @@ root `CMakeLists.txt`.
   `examples` command lists names without `.json`.
 
 ### Fixed
+- The KPI configurations of the light-product-pressurisation decks
+  (Perez2019_E, _F, Nguyen2023_Exp_VI–X) listed the pressurisation inlet as
+  product. That stream is N2-rich gas moving within the cycle, not CO2
+  product, and its negative contribution made the CO2 purity NaN. The product
+  is now the evacuation stream alone, as in Perez2019_D1 and the papers
+  (Perez E at CSS: 80 % CO2 purity instead of NaN). The validation numbers
+  were already computed this way and do not change.
 - A value with an inline unit of the wrong dimension (`step time = "2 [bar]"`)
   was converted silently (to 200 000 s); it is now rejected.
 - Competitive isotherms summed their per-component terms in `std::unordered_map`

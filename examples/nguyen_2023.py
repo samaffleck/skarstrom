@@ -246,9 +246,10 @@ def add_lpp_cycle(sim: sk.Simulation, exp: dict) -> None:
     # Light-product pressurisation: the LPP stream of Feed 1 supplies the pressurisation inlet.
     sim.connect(feed_1.top["LPP Stream"], pressurisation.top)
 
-    # The recycled light product (pressurisation inlet) is counted as negative product.
+    # CO2 is fed in both feed steps and recovered by evacuation. The LPP stream is N2-rich
+    # gas moving within the cycle, not CO2 product, so it is not a KPI endpoint.
     sim.kpi.track("CarbonDioxide", feed=[feed_1.bottom["Feed 1 inlet"], feed_2.bottom["Feed 2 inlet"]],
-                  product=[evacuation.bottom, pressurisation.top])
+                  product=[evacuation.bottom])
 
 
 NUMERALS = list(EXPERIMENTS)

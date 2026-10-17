@@ -301,7 +301,10 @@ namespace adsim {
     ConfigureCycle(250);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
     data.settings.css.min_cycles_ = 100;
-    ConfigureKPI(0, {0, 1}, {BoundaryLocation::BOTTOM, BoundaryLocation::BOTTOM}, {3}, {BoundaryLocation::BOTTOM}, {4}, {BoundaryLocation::TOP});
+    // KPI: CO2 fed in Feed1(0), Feed2(1) @ bottom; product = Evacuation(3) @ bottom. The
+    // light-product pressurisation stream is N2-rich gas moving within the cycle, not
+    // CO2 product, so it is not a KPI endpoint (as in ConfigD1).
+    ConfigureKPI(0, {0, 1}, {BoundaryLocation::BOTTOM, BoundaryLocation::BOTTOM}, {3}, {BoundaryLocation::BOTTOM});
     data.settings.max_step = 2.0;
 
     CoupledSolver solver{data};
@@ -324,9 +327,7 @@ namespace adsim {
     kpi.product_endpoints = KpiEndpointsForFaces(data.cycle,
       { { 3, BoundaryLocation::BOTTOM } });
     // Validation KPIs follow the papers: purity of the evacuation product, recovery
-    // = CO2 in that product / CO2 fed in the feed steps. (Folding the light-product
-    // pressurisation stream into the product, as the deck's KPI config does,
-    // makes the product-total moles nearly cancel and the purity meaningless.)
+    // = CO2 in that product / CO2 fed in the feed steps (the deck's KPI config is the same).
     double purity = CalculatePurity(kpi) * 100.0;
     double recovery = CalculateRecovery(kpi) * 100.0;
     std::cout << "\n[KPI] Perez 2019 " << title << " | cycles run = " << (last_cycle + 1)

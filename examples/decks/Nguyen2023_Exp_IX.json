@@ -1801,13 +1801,6 @@
                             "Location": 1,
                             "Step_ID": 0,
                             "Endpoint_ID": 0
-                        },
-                        {
-                            "Step": 4,
-                            "Endpoint": "Pressurisation Pressure Boundary Top",
-                            "Location": 0,
-                            "Step_ID": 0,
-                            "Endpoint_ID": 0
                         }
                     ]
                 },

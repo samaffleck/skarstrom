@@ -48,16 +48,13 @@ CONFIGURATIONS = {
                evacuation_pressure="3200 Pa", pressurisation_time="30 s", high_pressure="1 bar"),
     "D1": dict(lpp=True, feed_times=("27.5 s", "117 s"), feed_velocity="0.032799999999999996 m/s",
                blowdown_time="21 s", blowdown_pressure="7200 Pa", evacuation_time="167 s",
-               evacuation_pressure="3000 Pa", pressurisation_time="27.5 s", high_pressure="1 atm",
-               lpp_counted_as_product=False),
+               evacuation_pressure="3000 Pa", pressurisation_time="27.5 s", high_pressure="1 atm"),
     "E":  dict(lpp=True, feed_times=("27.5 s", "112.5 s"), feed_velocity="0.024189999999999996 m/s",
                blowdown_time="21 s", blowdown_pressure="9100 Pa", evacuation_time="167 s",
-               evacuation_pressure="3100 Pa", pressurisation_time="27.5 s", high_pressure="1 bar",
-               lpp_counted_as_product=True),
+               evacuation_pressure="3100 Pa", pressurisation_time="27.5 s", high_pressure="1 bar"),
     "F":  dict(lpp=True, feed_times=("27.5 s", "89.5 s"), feed_velocity="0.025009999999999998 m/s",
                blowdown_time="21 s", blowdown_pressure="13400 Pa", evacuation_time="167 s",
-               evacuation_pressure="3200 Pa", pressurisation_time="27.5 s", high_pressure="1 bar",
-               lpp_counted_as_product=True),
+               evacuation_pressure="3200 Pa", pressurisation_time="27.5 s", high_pressure="1 bar"),
 }
 
 FEED = {"CarbonDioxide": 0.15, "Nitrogen": 0.85}       # flue gas, mole fractions
@@ -238,11 +235,10 @@ def add_lpp_cycle(sim: sk.Simulation, cfg: dict) -> None:
     # Light-product pressurisation: the LPP stream of Feed 1 supplies the pressurisation inlet.
     sim.connect(feed_1.top["LPP Stream"], pressurisation.top)
 
-    product = [evacuation.bottom]
-    if cfg["lpp_counted_as_product"]:
-        product.append(pressurisation.top)   # the recycled light product enters negatively
+    # CO2 is fed in both feed steps and recovered by evacuation. The LPP stream is N2-rich
+    # gas moving within the cycle, not CO2 product, so it is not a KPI endpoint.
     sim.kpi.track("CarbonDioxide", feed=[feed_1.bottom["Feed 1 inlet"], feed_2.bottom["Feed 2 inlet"]],
-                  product=product)
+                  product=[evacuation.bottom])
 
 
 CASES = {name: f"Config{name}" for name in CONFIGURATIONS}   # case -> reference_values.csv case
