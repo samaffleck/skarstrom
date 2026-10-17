@@ -96,8 +96,14 @@ parameters fitted to the 50/50 reference case."""
 Ferre2026_NaYF = Example('Ferre2026_NaYF', 'Ferre 2026 - NaY(F)', '')
 """Ferre 2026 - NaY(F)"""
 
-FiveStepProductPurge = Example('FiveStepProductPurge', '', '')
-"""FiveStepProductPurge"""
+FiveStepProductPurge = Example('FiveStepProductPurge', 'Five-step CO2/N2 VSA with product purge (template)', "Template cycle, no literature source: a CO2/N2 vacuum swing cycle on a 13X-type adsorbent with five steps: feed, blowdown, evacuation, pressurisation and product purge. The feed is split into two sub-steps (Feed1, Feed2) so that each light-product connection draws from its own part of it: Feed1's light product pressurises the bed and Feed2's purges it. Six steps in the deck, five in the cycle.")
+"""Five-step CO2/N2 VSA with product purge (template)
+
+Template cycle, no literature source: a CO2/N2 vacuum swing cycle on a 13X-type
+adsorbent with five steps: feed, blowdown, evacuation, pressurisation and product purge.
+The feed is split into two sub-steps (Feed1, Feed2) so that each light-product
+connection draws from its own part of it: Feed1's light product pressurises the bed and
+Feed2's purges it. Six steps in the deck, five in the cycle."""
 
 Illustrative_TSA_13X = Example('Illustrative_TSA_13X', 'Illustrative TSA - CO2/N2 on 13X', "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, electric heating with CO2 product at the feed end, cooling, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.")
 """Illustrative TSA - CO2/N2 on 13X

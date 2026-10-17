@@ -381,6 +381,9 @@ namespace adsim {
 
 
   TEST_F(UserDataTest, FiveStepProductPurge) {
+    data.info.title = "Five-step CO2/N2 VSA with product purge (template)";
+    data.info.description = "Template cycle, no literature source: a CO2/N2 vacuum swing cycle on a 13X-type adsorbent with five steps: feed, blowdown, evacuation, pressurisation and product purge. The feed is split into two sub-steps (Feed1, Feed2) so that each light-product connection draws from its own part of it: Feed1's light product pressurises the bed and Feed2's purges it. Six steps in the deck, five in the cycle.";
+    data.info.author = "Skarstrom examples";
     AddComponents({ "CarbonDioxide", "Nitrogen" });
 
     auto [layer_id, ads_id] = AddLayer("13X");

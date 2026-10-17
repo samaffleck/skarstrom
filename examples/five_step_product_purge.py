@@ -1,9 +1,10 @@
 """CO2/N2 VSA with product purge (template cycle, no literature source).
 
 Builds the cycle from scratch in code: a 13X-type adsorbent, the column and
-six steps (feed 1, feed 2, blowdown, evacuation, pressurisation and product
-purge), two of them fed from another step's light product through endpoint
-connections. Every value is set explicitly, with its unit. The cycle comes
+the five cycle steps (feed, blowdown, evacuation, pressurisation and product
+purge). The feed is split into two sub-steps (Feed1, Feed2) so that each
+light-product connection draws from its own part of it: Feed1's light product
+pressurises the bed and Feed2's purges it, hence six steps in the deck. Every value is set explicitly, with its unit. The cycle comes
 from an integration test (core/test/integration/test_fluid_solver.cpp) and has
 no KPI configuration, so the script reports the run statistics, the CSS check
 and the CO2 mole fraction at both ends over the last cycle. Use it as a
@@ -46,7 +47,15 @@ def build(case: str = "FiveStepProductPurge") -> sk.Simulation:
     """The template cycle (the only case), ready to run."""
     if case != "FiveStepProductPurge":
         raise KeyError(f"no case {case!r}; the only case is 'FiveStepProductPurge'")
-    sim = sk.Simulation.new(title="", description="", author="")
+    sim = sk.Simulation.new(
+        title='Five-step CO2/N2 VSA with product purge (template)',
+        description=("Template cycle, no literature source: a CO2/N2 vacuum swing cycle on a 13X-type adsorbent "
+                     "with five steps: feed, blowdown, evacuation, pressurisation and product purge. The feed is "
+                     "split into two sub-steps (Feed1, Feed2) so that each light-product connection draws from "
+                     "its own part of it: Feed1's light product pressurises the bed and Feed2's purges it. "
+                     "Six steps in the deck, five in the cycle."),
+        author='Skarstrom examples',
+    )
 
     # ---- fluid ------------------------------------------------------------------------------
     sim.add_component("CarbonDioxide")
