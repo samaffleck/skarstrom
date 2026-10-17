@@ -23,6 +23,12 @@ Adsorption processes such as PSA, VSA and TSA are central to gas separation, car
 
 Skarstrom aims to be the shared, open, tested foundation. A standard engine, deck format and cited adsorbent library let the community reproduce published work, compare like with like, and build on each other's models instead of starting again.
 
+## Browser interface
+
+[![The Skarstrom web interface: the simulation tree, solver settings and a plotted pressure profile of the Arora (2021) PSA example](docs/assets/skarstrom-web.png)](https://www.skarstrom.co.uk/)
+
+The [Skarstrom website](https://www.skarstrom.co.uk/) is a browser-based user interface that runs this engine. You can create simulations or import them as JSON deck files, visualise the results, and run optimisation and parameterisation studies.
+
 ## Install
 
 Once published on PyPI (Linux, macOS 13.3+ and Windows wheels for Python 3.10–3.13):

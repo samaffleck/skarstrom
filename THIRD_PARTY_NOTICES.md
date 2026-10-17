@@ -41,7 +41,7 @@ submodules in `external/`, except Eigen 3.4.0, which is vendored in
 | Component | Copyright | Licence |
 |---|---|---|
 | [GoogleTest](https://github.com/google/googletest) | Google LLC | BSD-3-Clause |
-| Eigen debugger visualisers (`adsim/Eigen.natvis`, `adsim/tools/eigenlldb.py`, from Eigen's `debug/` folder) | Eigen contributors; Huang Zhaoquan (`eigenlldb.py`) | MPL-2.0 |
+| Eigen debugger visualiser (`adsim/Eigen.natvis`, from Eigen's `debug/` folder) | Eigen contributors | MPL-2.0 |
 
 ## Appendix: licence texts
 
