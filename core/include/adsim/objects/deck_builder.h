@@ -78,6 +78,7 @@ const std::vector<std::string>& FlowKinds();
 const std::vector<std::string>& PumpKinds();
 const std::vector<std::string>& PumpEnergyKinds();
 const std::vector<std::string>& PumpEfficiencyKinds();
+const std::vector<std::string>& PumpPowerKinds();
 // Unit categories of a user variable (UnitCategory, snake_case).
 const std::vector<std::string>& VariableCategoryKinds();
 std::string VariableCategoryKind(UnitCategory category);
@@ -140,6 +141,19 @@ size_t AddValveStream(UserData& data, size_t step, const std::string& location, 
 // The inlet temperature of a stream or pressure boundary: "constant" (no
 // ramp), "linear" or "exponential".
 void SetTemperatureProfile(UserData& data, size_t endpoint, const std::string& profile);
+// A flow stream driven by a pump of given shaft power: a compressor on an
+// inlet, a vacuum pump on an outlet. `power` is "constant" (a fixed power) or
+// "polynomial" (power a fifth-order polynomial of the boundary pressure);
+// `energy` and `efficiency` as SetPump. Returns its endpoint ID.
+size_t AddPumpStream(UserData& data, size_t step, const std::string& location, const std::string& name,
+                     const std::string& power, const std::string& energy, const std::string& efficiency);
+// Feed an inlet (a stream or a pressure boundary) from a buffer tank: it
+// draws a percentage (endpoint[N].buffer_tank.percentage, 100 % by default)
+// of the moles endpoint `source` produced in its step's last run, spread over
+// this step, at their average temperature and composition. Until the source
+// has run, the inlet uses its own values. `source` 0 removes the tank. An
+// endpoint with a connection cannot also have a buffer tank.
+void SetBufferTank(UserData& data, size_t endpoint, size_t source);
 // The pump of a flow stream or pressure boundary ("none" removes it).
 void SetPump(UserData& data, size_t endpoint, const std::string& kind, const std::string& energy,
              const std::string& efficiency);

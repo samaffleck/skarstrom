@@ -379,6 +379,35 @@ PYBIND11_MODULE(_core, m) {
       .def("endpoint_series", &adsim::Simulation::EndpointSeries, py::arg("endpoint_id"), py::arg("variable"),
            py::arg("component") = "", py::arg("cycle") = -1)
       .def("save_logs", &adsim::Simulation::SaveLogs, py::arg("directory"))
+      // ---- experimental data stored in the deck (adsim/solver/experimental_data.h) ----
+      .def("experimental_data", [](adsim::Simulation& s) {
+        py::list out;
+        for (const auto& xy : s.Data().exp_data_.GetAllData()) {
+          py::dict d;
+          d["name"] = xy.name;
+          d["x"] = py::array_t<double>(xy.x.size(), xy.x.data());
+          d["y"] = py::array_t<double>(xy.y.size(), xy.y.data());
+          d["x_label"] = xy.x_label;
+          d["y_label"] = xy.y_label;
+          out.append(d);
+        }
+        return out;
+      })
+      .def("add_experimental_data", [](adsim::Simulation& s, const std::string& name, std::vector<double> x,
+                                       std::vector<double> y, const std::string& x_label, const std::string& y_label) {
+        if (x.size() != y.size()) throw py::value_error("x and y differ in length");
+        if (x.empty()) throw py::value_error("no data points");
+        adsim::XYData xy;
+        xy.name = name;
+        xy.x = std::move(x);
+        xy.y = std::move(y);
+        xy.x_label = x_label;
+        xy.y_label = y_label;
+        s.Data().exp_data_.GetAllData().push_back(std::move(xy));
+      }, py::arg("name"), py::arg("x"), py::arg("y"), py::arg("x_label") = "", py::arg("y_label") = "")
+      .def("remove_experimental_data", [](adsim::Simulation& s, size_t index) {
+        if (!s.Data().exp_data_.DeleteDataByIndex(index)) throw py::index_error("no experimental data set " + std::to_string(index));
+      }, py::arg("index"))
       // ---- structural deck edits (adsim/objects/deck_edit.h) ----------------
       .def("add_component", [](adsim::Simulation& s, const std::string& name) {
         std::string err;
@@ -427,6 +456,9 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "set_flow_boundary") b::SetFlowBoundary(d, id(0), str(1), str(2));
         else if (op == "add_stream") out = py::int_(b::AddStream(d, id(0), str(1), str(2), str(3), str(4)));
         else if (op == "add_valve_stream") out = py::int_(b::AddValveStream(d, id(0), str(1), str(2), str(3)));
+        else if (op == "add_pump_stream")
+          out = py::int_(b::AddPumpStream(d, id(0), str(1), str(2), str(3), str(4), str(5)));
+        else if (op == "set_buffer_tank") b::SetBufferTank(d, id(0), id(1));
         else if (op == "set_temperature_profile") b::SetTemperatureProfile(d, id(0), str(1));
         else if (op == "set_pump") b::SetPump(d, id(0), str(1), str(2), str(3));
         else if (op == "connect") b::Connect(d, id(0), id(1));
@@ -447,6 +479,7 @@ PYBIND11_MODULE(_core, m) {
         using namespace adsim;
         auto& d = s.Data();
         d.cycle.EnsureIds();
+        d.cycle.ResolveBufferTankReferences();
         auto kind = [](const std::vector<std::string>& kinds, int i) -> std::string {
           return i >= 0 && i < static_cast<int>(kinds.size()) ? kinds[static_cast<size_t>(i)] : std::string("?");
         };
@@ -534,6 +567,10 @@ PYBIND11_MODULE(_core, m) {
               : std::string("constant");
           return q;
         };
+        auto tank_of = [](const BufferTankSource& t) -> py::object {
+          if (!t.IsActive() || t.source_endpoint_id_ == 0) return py::none();
+          return py::int_(t.source_endpoint_id_);
+        };
         auto tprofile = [&](IBoundaryValue* v) -> std::string {
           return v ? kind(b::ProfileKinds(), static_cast<int>(v->GetType())) : std::string("constant");
         };
@@ -547,6 +584,7 @@ PYBIND11_MODULE(_core, m) {
             e["profile"] = tprofile(p->pressure_.get());
             e["temperature_profile"] = tprofile(p->temperature_profile_.get());
             e["pump"] = pump_of(p->pump_.get());
+            e["buffer_tank"] = tank_of(p->buffer_tank_);
           } else if (auto* f = dynamic_cast<FlowBoundaryCondition*>(bc)) {
             e["kind"] = "flow";
             e["direction"] = dir;
@@ -557,6 +595,7 @@ PYBIND11_MODULE(_core, m) {
               sd["name"] = st->name_;
               sd["endpoint"] = st->endpoint_id_;
               sd["temperature_profile"] = tprofile(st->temperature_profile_.get());
+              sd["buffer_tank"] = tank_of(st->buffer_tank_);
               if (auto* bs = dynamic_cast<BoundaryStream*>(st.get())) {
                 sd["type"] = "stream";
                 sd["flow"] = kind(b::FlowKinds(), static_cast<int>(bs->boundary_flow_->GetType()));
@@ -571,6 +610,11 @@ PYBIND11_MODULE(_core, m) {
                 sd["type"] = "valve";
                 sd["profile"] = tprofile(vs->boundary_value_.get());
                 sd["pump"] = py::none();
+              } else if (auto* ps = dynamic_cast<PumpBoundaryStream*>(st.get())) {
+                sd["type"] = "pump";
+                sd["power"] = ps->power_ ? kind(b::PumpPowerKinds(), static_cast<int>(ps->power_->GetType()))
+                                         : std::string("constant");
+                sd["pump"] = pump_of(ps->pump_.get());
               } else {
                 sd["type"] = "unsupported";
               }
@@ -660,6 +704,7 @@ PYBIND11_MODULE(_core, m) {
     k["pump"] = b::PumpKinds();
     k["pump_energy"] = b::PumpEnergyKinds();
     k["pump_efficiency"] = b::PumpEfficiencyKinds();
+    k["pump_power"] = b::PumpPowerKinds();
     return k;
   });
 

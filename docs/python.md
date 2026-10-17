@@ -283,11 +283,12 @@ What each part takes:
 | `sim.add_layer(name, composition=, momentum=, **values)` | composition by adsorbent name; momentum `ergun` or `kozeny_carman`; `length`, `cells`, `bed_void_fraction`, `particle_diameter` |
 | `layer.set_dispersion`, `set_heat_dispersion`, `set_internal_heat_transfer`, `set_external_heat_transfer` | `constant` or a correlation (`ruthven`, `yagi_kunii`, `dixon`, `leva`, `holman`) with its values |
 | `sim.add_step(name, time=)` or `fraction=` | appended to the cycle |
-| `end.set_streams(direction, [streams])` | `"inlet"` or `"outlet"`; `sk.Stream(name, flow=, y=, temperature=, pump=)` or `sk.ValveStream(name, pressure=, cv=, xt=)` |
+| `end.set_streams(direction, [streams])` | `"inlet"` or `"outlet"`; `sk.Stream(name, flow=, y=, temperature=, pump=)`, `sk.ValveStream(name, pressure=, cv=, xt=)` or `sk.PumpStream(name, power=, pump=, y=, temperature=)` |
 | `end.set_pressure(direction, pressure, temperature=, y=, pump=)` | a value or a profile |
 | `end.set_closed()` | no flow |
 | `step.add_energy_source(layer, power=)` | heats (positive) or cools a layer during the step [W] |
 | `sim.connect(a, b)` | two endpoints (an outlet stream feeding an inlet stream or pressure boundary of another step) |
+| `inlet.set_buffer_tank(source, percentage=)` | an inlet fed, time-averaged, with `percentage` % of what endpoint `source` produced in its last run; `None` removes it |
 | `sim.kpi.track(component, feed=, product=, recycle=)` | endpoints or step ends (all their streams); `recycle` is optional |
 
 Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)` and `sk.exponential(end, start=, time=)`; a pressure ramp starts from the bed pressure and lasts the step, so it takes only its end. `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. `y` and `temperature` of an outlet are the gas that enters if the flow reverses.
@@ -296,7 +297,47 @@ Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`
 
 `skarstrom.to_script(sim)` writes the builder code for any deck, every value explicit, so you can turn a deck into a script and edit it from there; `python/tests/test_build.py` checks that this round trip reproduces every example deck parameter for parameter and, for five of them, that a run gives the same KPIs and series. The [example scripts](examples.md) build every bundled case this way, written by hand with units and comments.
 
-What the builder does not create: buffer tanks, pump streams whose flow follows a power model (`PumpBoundaryStream`), experimental data and cost data. Load a deck that has them, or add them in a front end.
+### Pump-driven streams and buffer tanks
+
+A `sk.PumpStream` is a stream whose flow follows from a pump's shaft power instead of being set: a vacuum pump on an outlet, a compressor on an inlet. The power is constant or a polynomial of the boundary pressure, and `pump=` gives the compression and efficiency models:
+
+```python
+from skarstrom import ureg as u
+
+evac = sim.steps["Evacuation"]
+(vacuum,) = evac.bottom.set_streams("outlet", [
+    sk.PumpStream("Vacuum pump", power=40 * u.W,
+                  pump=sk.Pump(efficiency_model="vacuum_pump", eta_max=0.7, alpha=19.55, discharge_pressure=1 * u.bar)),
+])
+vacuum.power = 60 * u.W                                    # endpoint[N].power in paths
+# power = a + b P + ... + f P^5 with P the boundary pressure [Pa]
+sk.PumpStream("Compressor", power=sk.polynomial_power(a=20.0, b=1e-3), pump=sk.Pump(energy="adiabatic", efficiency=0.75))
+```
+
+A **buffer tank** feeds an inlet with a share of what another endpoint produced in its step's last run, spread evenly over the inlet's step at the source's average temperature and composition: a well-mixed surge tank between beds ([Light reflux and recycle](light-reflux-recycle.md#buffer-tank-averaging)). Until the source step has run once, the inlet uses its own values.
+
+```python
+press = sim.steps["Pressurisation"].bottom
+press.set_buffer_tank(sim.steps["Feed"].top, percentage=40 * u.percent)
+press.buffer_tank.percentage, press.buffer_tank.source.name
+press.set_buffer_tank(None)                                # remove it
+```
+
+### Experimental data
+
+`sim.experimental_data` holds measured curves in the deck, so a case and the data it is checked against travel together:
+
+```python
+data = sim.experimental_data
+data.load_csv("outlet_CO2.csv")                            # two columns; a header row gives the labels
+data.add("T at 7 cm", time_s, temperature_K, "time [s]", "T [K]")
+data.names(), data["T at 7 cm"].x, data["T at 7 cm"].y     # NumPy arrays
+y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=0)
+data["outlet_CO2"].compare(y.time, y.values)               # rmse, nrmse, max_abs_error, points
+data.remove("T at 7 cm"); data.clear()
+```
+
+What the builder does not create: cost data. Load a deck that has it, or add it in a front end.
 
 ## Results
 

@@ -43,8 +43,10 @@ from ._example import Example
 from .build import (
     Flow,
     KPIConfig,
+    PolynomialPower,
     Profile,
     Pump,
+    PumpStream,
     Stream,
     ValveStream,
     build_kinds,
@@ -53,6 +55,7 @@ from .build import (
     linear,
     mass_flow,
     molar_flow,
+    polynomial_power,
     to_script,
     velocity,
     volumetric_flow,
@@ -61,6 +64,7 @@ from .model import (
     CSS,
     Adsorbent,
     Bed,
+    BufferTank,
     Collection,
     Cycle,
     EnergyBalance,
@@ -90,12 +94,15 @@ __all__ = [
     "Adsorbent",
     "AxialProfile",
     "Bed",
+    "BufferTank",
     "CSS",
     "CSSRecord",
     "Collection",
     "Cycle",
     "EnergyBalance",
     "EnergySource",
+    "ExperimentalData",
+    "ExperimentalSeries",
     "Endpoint",
     "Example",
     "Flow",
@@ -109,8 +116,10 @@ __all__ = [
     "Layer",
     "NodeMap",
     "Parameter",
+    "PolynomialPower",
     "Profile",
     "Pump",
+    "PumpStream",
     "Quantity",
     "RunResult",
     "Settings",
@@ -142,6 +151,7 @@ __all__ = [
     "linear",
     "mass_flow",
     "molar_flow",
+    "polynomial_power",
     "stream_component_variables",
     "stream_variables",
     "to_script",
@@ -235,6 +245,141 @@ def _dimensional(unit: str) -> bool:
 
 def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool)
+
+
+@dataclass(frozen=True)
+class ExperimentalSeries:
+    """One set of measured (x, y) points stored in the deck."""
+
+    name: str
+    x: np.ndarray
+    y: np.ndarray
+    x_label: str = ""
+    y_label: str = ""
+
+    def compare(self, x: Any, y: Any, normalise: Optional[float] = None) -> Dict[str, float]:
+        """Compare a simulated curve (``x``, ``y``, e.g. a :class:`TimeSeries`'s ``time`` and
+        ``values``) with these points.
+
+        The simulation is interpolated linearly at the measured x values that it
+        covers. Returns ``rmse``, ``nrmse`` (the RMSE over ``normalise``, by
+        default the range of the measured y), ``max_abs_error`` and ``points``
+        (how many measured points were compared).
+        """
+        xs = np.asarray(x, dtype=float)
+        ys = np.asarray(y, dtype=float)
+        inside = (self.x >= xs.min()) & (self.x <= xs.max())
+        if not inside.any():
+            raise ValueError(f"the simulated x range [{xs.min()}, {xs.max()}] does not cover '{self.name}'")
+        err = np.interp(self.x[inside], xs, ys) - self.y[inside]
+        rmse = float(np.sqrt(np.mean(err**2)))
+        scale = float(normalise) if normalise is not None else float(np.ptp(self.y))
+        return {"rmse": rmse, "nrmse": rmse / scale if scale > 0 else math.nan,
+                "max_abs_error": float(np.max(np.abs(err))), "points": int(inside.sum())}
+
+
+class ExperimentalData:
+    """Measured data stored in the deck (``sim.experimental_data``): breakthrough
+    curves, temperature histories, KPIs per cycle... It is saved with the deck,
+    so a case and the data it is checked against travel together.
+
+    Index by name or position; ``add``, ``load_csv``, ``remove`` and ``clear``
+    change it.
+    """
+
+    def __init__(self, sim: "Simulation") -> None:
+        self._sim = sim
+
+    def _all(self) -> List[ExperimentalSeries]:
+        return [ExperimentalSeries(d["name"], np.asarray(d["x"]), np.asarray(d["y"]), d["x_label"], d["y_label"])
+                for d in self._sim._sim.experimental_data()]
+
+    def add(self, name: str, x: Sequence[float], y: Sequence[float], x_label: str = "",
+            y_label: str = "") -> ExperimentalSeries:
+        """Store a set of points; ``x_label`` and ``y_label`` describe the columns (e.g. ``"time [s]"``)."""
+        self._sim._sim.add_experimental_data(name, [float(v) for v in x], [float(v) for v in y], x_label, y_label)
+        return self[-1]
+
+    def load_csv(self, path: PathLike, name: Optional[str] = None, x_column: Union[int, str] = 0,
+                 y_column: Union[int, str] = 1, delimiter: Optional[str] = None) -> ExperimentalSeries:
+        """Read two columns of a delimited text file (comma, semicolon, tab or
+        whitespace; a header row is detected and gives the labels).
+
+        Columns are chosen by position or by header name. ``name`` defaults to
+        the file name without its extension.
+        """
+        import csv
+
+        text = open(os.fspath(path), newline="").read()
+        if delimiter is None:
+            try:
+                delimiter = csv.Sniffer().sniff(text.splitlines()[0], delimiters=",;\t ").delimiter
+            except (csv.Error, IndexError):
+                delimiter = ","
+        rows = [r for r in csv.reader(text.splitlines(), delimiter=delimiter, skipinitialspace=True) if r]
+
+        def number(cell: str) -> Optional[float]:
+            try:
+                return float(cell)
+            except ValueError:
+                return None
+
+        header = rows[0] if rows and any(number(c) is None for c in rows[0]) else None
+        body = rows[1:] if header else rows
+
+        def index(column: Union[int, str]) -> int:
+            if isinstance(column, int):
+                return column
+            if header is None or column not in header:
+                raise KeyError(f"no column {column!r} in {os.fspath(path)}")
+            return header.index(column)
+
+        ix, iy = index(x_column), index(y_column)
+        pts = [(number(r[ix]), number(r[iy])) for r in body if len(r) > max(ix, iy)]
+        pts = [(a, b) for a, b in pts if a is not None and b is not None]
+        if not pts:
+            raise ValueError(f"no numeric rows in {os.fspath(path)}")
+        label = (lambda i: header[i] if header else "")
+        return self.add(name or os.path.splitext(os.path.basename(os.fspath(path)))[0],
+                        [a for a, _ in pts], [b for _, b in pts], label(ix), label(iy))
+
+    def remove(self, key: Union[int, str]) -> None:
+        """Delete one set (by name or position)."""
+        self._sim._sim.remove_experimental_data(self._index(key))
+
+    def clear(self) -> None:
+        for _ in range(len(self)):
+            self._sim._sim.remove_experimental_data(0)
+
+    def names(self) -> List[str]:
+        return [s.name for s in self._all()]
+
+    def _index(self, key: Union[int, str]) -> int:
+        items = self._all()
+        if isinstance(key, int):
+            if not -len(items) <= key < len(items):
+                raise IndexError(f"experimental data has {len(items)} sets")
+            return key % len(items)
+        for i, s in enumerate(items):
+            if s.name == key:
+                return i
+        raise KeyError(f"no experimental data named {key!r}; have {[s.name for s in items]}")
+
+    def __getitem__(self, key: Union[int, str]) -> ExperimentalSeries:
+        return self._all()[self._index(key)]
+
+    def __iter__(self):
+        return iter(self._all())
+
+    def __len__(self) -> int:
+        return len(self._sim._sim.experimental_data())
+
+    def __contains__(self, name: object) -> bool:
+        return name in self.names()
+
+    def __repr__(self) -> str:
+        rows = [f"  {s.name!r}: {len(s.x)} points ({s.x_label or 'x'} vs {s.y_label or 'y'})" for s in self._all()]
+        return "<experimental data" + (":\n" + "\n".join(rows) if rows else ": none") + ">"
 
 
 class Simulation:
@@ -368,6 +513,11 @@ class Simulation:
     def fluid(self) -> Fluid:
         """Gas and adsorbed-phase properties (adsorbed-phase heat capacity, heat of adsorption convention)."""
         return _model._group(self, Fluid, "fluid")
+
+    @property
+    def experimental_data(self) -> ExperimentalData:
+        """Measured data stored in the deck (see :class:`ExperimentalData`)."""
+        return ExperimentalData(self)
 
     @property
     def kpi(self) -> KPIConfig:

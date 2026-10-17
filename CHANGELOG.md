@@ -27,6 +27,17 @@ root `CMakeLists.txt`.
   now do, instead of unit strings. Strings still accept deck-syntax
   quantities (`"2 [min]"`) and expressions.
 
+### Added (Python)
+- Pump-driven streams, whose flow follows from a shaft power (constant, or a
+  polynomial of the boundary pressure): `sk.PumpStream(name, power=, pump=)`,
+  `adsim::build::AddPumpStream`, and registry entries `endpoint[N].power`,
+  `power_poly_a..f` and the pump's settings.
+- Buffer tanks: `inlet.set_buffer_tank(source, percentage=)`,
+  `adsim::build::SetBufferTank`, `endpoint[N].buffer_tank.percentage` [%].
+- Experimental data stored in the deck: `sim.experimental_data` (`add`,
+  `load_csv`, `remove`, `clear`, `[name].compare(x, y)` for RMSE / NRMSE).
+- `to_script` and `describe()` cover pump-driven streams and buffer tanks.
+
 ### Added (KPIs)
 - A **recycle** role in the KPI configuration (`Recycle_Endpoints` in the
   deck, `recycle=` in `sim.kpi.track` and `adsim::build::SetKPI`): inlets that

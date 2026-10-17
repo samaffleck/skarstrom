@@ -74,6 +74,7 @@ __all__ = [
     "Settings",
     "Step",
     "StepEnd",
+    "BufferTank",
     "Valve",
     "ValueMap",
     "VoidRegion",
@@ -840,6 +841,29 @@ class Pump(_Node):
     """Efficiency polynomial coefficient e [-]."""
 
 
+class BufferTank(_Node):
+    """The buffer tank an inlet draws from (:meth:`Endpoint.set_buffer_tank`)."""
+
+    __slots__ = ("_source_of",)
+
+    percentage = Real()
+    """Share of the source endpoint's moles (from its step's last run) the inlet draws [%]."""
+
+    def _refetch(self) -> Optional[_Node]:
+        return _endpoint(self._sim, self._source_of).buffer_tank
+
+    @property
+    def source(self) -> "Endpoint":
+        """The endpoint whose product fills the tank."""
+        for s in self._sim.describe()["steps"]:
+            for loc in ("bottom", "top"):
+                end = s[loc]
+                for e in [end] + end.get("streams", []):
+                    if e.get("endpoint") == self._source_of and e.get("buffer_tank"):
+                        return self._sim._endpoint(e["buffer_tank"])
+        raise AttributeError(f"{self._label} has no source")
+
+
 class Valve(_Node):
     """The valve of a valve stream."""
 
@@ -930,6 +954,20 @@ class Endpoint(_Node):
     """Boundary pressure at the end of a linear ramp [Pa]."""
     pressure_exponential_end = Real()
     """Boundary pressure at the end of an exponential ramp [Pa]."""
+    power = Real()
+    """Shaft power of a pump-driven stream (constant power model) [W]."""
+    power_poly_a = Real()
+    """Pump power polynomial a, in a + b P + ... + f P^5 with P the boundary pressure [W]."""
+    power_poly_b = Real()
+    """Pump power polynomial b [W/Pa]."""
+    power_poly_c = Real()
+    """Pump power polynomial c [W/Pa^2]."""
+    power_poly_d = Real()
+    """Pump power polynomial d [W/Pa^3]."""
+    power_poly_e = Real()
+    """Pump power polynomial e [W/Pa^4]."""
+    power_poly_f = Real()
+    """Pump power polynomial f [W/Pa^5]."""
 
     def __init__(self, sim: "Simulation", tree: Optional[_Tree], label: str, id: int, name: str,
                  location: str, step: str) -> None:
@@ -981,6 +1019,31 @@ class Endpoint(_Node):
         if tree is None:
             raise AttributeError(self._missing("valve"))
         return Valve(self._sim, tree, f"{self._label}.valve")
+
+    @property
+    def buffer_tank(self) -> Optional[BufferTank]:
+        """The buffer tank this inlet draws from, or ``None``."""
+        tree = self._tree_or_raise().groups.get("buffer_tank")
+        if tree is None:
+            return None
+        tank = BufferTank(self._sim, tree, f"{self._label}.buffer_tank")
+        object.__setattr__(tank, "_source_of", self._id)
+        return tank
+
+    def set_buffer_tank(self, source: Optional["Endpoint"], percentage: Any = 100) -> "Endpoint":
+        """Feed this inlet from a buffer tank holding what ``source`` (another
+        endpoint, usually a product outlet) produced in its step's last run.
+
+        The inlet draws ``percentage`` % of those moles, spread evenly over its
+        own step, at their average temperature and composition: a well-mixed
+        surge tank between two beds. Until the source step has run once, the
+        inlet uses its own temperature, composition and flow. ``None`` removes
+        the tank. An endpoint with a connection cannot have a buffer tank.
+        """
+        self._sim._build("set_buffer_tank", self._id, 0 if source is None else int(getattr(source, "id", source)))
+        if source is not None:
+            self._sim.set(f"endpoint[{self._id}].buffer_tank.percentage", percentage)
+        return self._sim._endpoint(self._id)
 
     def set_pump(self, pump: Any) -> "Endpoint":
         """Fit a pump (a :class:`skarstrom.Pump`) to this stream or boundary; ``None`` removes it."""

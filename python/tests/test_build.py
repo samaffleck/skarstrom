@@ -320,3 +320,97 @@ def test_generated_scripts_run_like_their_decks(name):
     ns = {}
     exec(compile(sk.to_script(deck), name, "exec"), ns)
     assert_same_run(deck, ns["sim"], cycles=min(2, deck.cycle.number_of_cycles))
+
+
+# ---- pump-driven streams, buffer tanks, experimental data ----------------------------
+
+
+def test_pump_stream_sets_the_flow_from_the_power():
+    from skarstrom import ureg as u
+
+    sim = sk.examples.Perez2019_A.load()
+    feed, evac = sim.steps["Feed"], sim.steps["Evacuation"]
+    (vac,) = evac.bottom.set_streams("outlet", [
+        sk.PumpStream("Vacuum pump", power=40 * u.W,
+                      pump=sk.Pump(efficiency_model="vacuum_pump", eta_max=0.7, alpha=19.55,
+                                   discharge_pressure=1 * u.bar)),
+    ])
+    assert vac.power == 40.0 and vac.pump.eta_max == 0.7 and vac.pump.discharge_pressure == 1e5
+    st = sim.describe()["steps"][2]["bottom"]["streams"][0]
+    assert st["type"] == "pump" and st["power"] == "constant"
+    assert st["pump"] == {"kind": "vacuum_pump", "energy": "isothermal", "efficiency": "vacuum_pump"}
+    sim.kpi.track("CO2", feed=[feed.bottom], product=[vac])
+    r = sim.run(cycles=2)
+    assert r.ok, r.message
+    out = sim.endpoint_series(vac.id, "molar_flow_rate")
+    assert np.all(out.values < 0) and out.values.min() < -1e-5  # gas leaves through the bottom
+    (kpi,) = sim.kpis(cycle=-1)
+    assert kpi.valid and kpi.energy_consumption > 0
+
+    rebuilt = {}
+    exec(compile(sk.to_script(sim), "<pump>", "exec"), rebuilt)
+    assert_same_deck(sim, rebuilt["sim"])
+
+
+def test_pump_stream_with_a_power_polynomial():
+    sim = sk.examples.Perez2019_A.load()
+    (vac,) = sim.steps["Evacuation"].bottom.set_streams("outlet", [
+        sk.PumpStream("Vacuum pump", power=sk.polynomial_power(a=20.0, b=1e-3), pump=sk.Pump(efficiency=0.6)),
+    ])
+    assert (vac.power_poly_a, vac.power_poly_b, vac.power_poly_f) == (20.0, 1e-3, 0.0)
+    assert vac.pump.efficiency == 0.6
+    assert sim.describe()["steps"][2]["bottom"]["streams"][0]["power"] == "polynomial"
+    sim.kpi.track("CO2", feed=[sim.steps["Feed"].bottom], product=[vac])
+    assert sim.check()[0], sim.check()
+    with pytest.raises(ValueError, match="always has a pump"):
+        vac.set_pump(None)
+    rebuilt = {}
+    exec(compile(sk.to_script(sim), "<poly>", "exec"), rebuilt)
+    assert_same_deck(sim, rebuilt["sim"])
+
+
+def test_buffer_tank_feeds_an_inlet_from_another_steps_product():
+    from skarstrom import ureg as u
+
+    sim = sk.examples.Perez2019_A.load()
+    product = sim.steps["Feed"].top                       # the N2 product outlet
+    press = sim.steps["Pressurisation"].bottom
+    assert press.buffer_tank is None
+    press.set_buffer_tank(product, percentage=40 * u.percent)
+    tank = sim.steps["Pressurisation"].bottom.buffer_tank
+    assert tank.percentage == pytest.approx(40.0) and tank.source.id == product.id
+    assert sim.describe()["steps"][3]["bottom"]["buffer_tank"] == product.id
+    with pytest.raises(ValueError, match="only an inlet"):
+        sim.steps["Blowdown"].top.set_buffer_tank(product)
+    assert sim.run(cycles=2).ok
+
+    rebuilt = {}
+    script = sk.to_script(sim)
+    assert ".set_buffer_tank(" in script
+    exec(compile(script, "<tank>", "exec"), rebuilt)
+    assert_same_deck(sim, rebuilt["sim"])
+
+    sim.steps["Pressurisation"].bottom.set_buffer_tank(None)
+    assert sim.steps["Pressurisation"].bottom.buffer_tank is None
+
+
+def test_experimental_data_is_stored_in_the_deck(tmp_path):
+    sim = sk.examples.Ward2022_Q100ccm.load()
+    sim.experimental_data.clear()
+    assert len(sim.experimental_data) == 0
+    csv = tmp_path / "outlet.csv"
+    csv.write_text("time [s],y_CO2 [-]\n0,0\n1000,0.2\n2000,0.9\n3000,1.0\n")
+    s = sim.experimental_data.load_csv(csv)
+    assert s.name == "outlet" and s.x_label == "time [s]" and list(s.y) == [0, 0.2, 0.9, 1.0]
+    sim.experimental_data.add("T at 7 cm", [0, 60], [291.4, 300.0], "time [s]", "T [K]")
+    assert sim.experimental_data.names() == ["outlet", "T at 7 cm"]
+
+    copy = sk.Simulation.from_json(sim.to_json())          # saved with the deck
+    assert copy.experimental_data["T at 7 cm"].y.tolist() == [291.4, 300.0]
+
+    assert sim.run().ok
+    y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=0)
+    fit = sim.experimental_data["outlet"].compare(y.time, y.values)
+    assert fit["points"] == 4 and 0 <= fit["nrmse"] < 1
+    sim.experimental_data.remove("outlet")
+    assert "outlet" not in sim.experimental_data and len(sim.experimental_data) == 1

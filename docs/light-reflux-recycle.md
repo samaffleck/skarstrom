@@ -28,6 +28,8 @@ Configure it on an inlet under **Inlet Source**:
 
 The inlet then receives that fraction of the source's total moles, spread uniformly over the consumer step's duration, at the source's molar-flow-weighted **average temperature and composition** from its last completed run.
 
+In Python, `inlet.set_buffer_tank(source, percentage=40 * u.percent)` sets the same thing (`source` is the producing endpoint, such as `sim.steps["Feed"].top`); see [the Python guide](python.md#pump-driven-streams-and-buffer-tanks).
+
 > The buffer tank is a **time-averaging re-injection model**, not a vessel with its own volume or pressure dynamics. It and a live [interacting-step connection](connecting-beds.md) are mutually exclusive on the same endpoint — use one or the other. Until the source step has completed a run, the inlet falls back to the temperature, composition and flow you entered (the first-cycle assumption).
 
 ## Accounting for recycle in KPIs

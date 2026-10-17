@@ -223,6 +223,10 @@ const std::vector<std::string>& PumpEfficiencyKinds() {
   static const std::vector<std::string> k{"constant", "vacuum_pump", "polynomial"};
   return k;
 }
+const std::vector<std::string>& PumpPowerKinds() {
+  static const std::vector<std::string> k{"constant", "polynomial"};
+  return k;
+}
 
 namespace {
 // UnitCategory values are not contiguous (Custom = 8 sits in the middle).
@@ -450,6 +454,41 @@ void SetTemperatureProfile(UserData& data, size_t endpoint, const std::string& p
   else h.pressure->temperature_profile_ = std::move(value);
 }
 
+size_t AddPumpStream(UserData& data, size_t step, const std::string& location, const std::string& name,
+                     const std::string& power, const std::string& energy, const std::string& efficiency) {
+  auto& fbc = FlowEnd(data, step, location);
+  auto stream = std::make_unique<PumpBoundaryStream>();
+  stream->power_ = CreatePumpPowerModel(KindEnum<PumpPowerType>(PumpPowerKinds(), power, "pump power"));
+  auto pump = CreatePump(fbc.direction_ == BoundaryDirection::INLET ? PumpType::COMPRESSOR : PumpType::VACUUM_PUMP);
+  pump->use_pump_ = true;
+  pump->energy_eq_ = CreateCompressorEnergyModel(KindEnum<CompressorEnergyType>(PumpEnergyKinds(), energy, "pump energy"));
+  pump->efficiency_model_ =
+      CreatePumpEfficiencyModel(KindEnum<PumpEfficiencyType>(PumpEfficiencyKinds(), efficiency, "pump efficiency"));
+  stream->pump_ = std::move(pump);
+  return AddStreamTo(data, fbc, std::move(stream), name);
+}
+
+void SetBufferTank(UserData& data, size_t endpoint, size_t source) {
+  auto h = FindEndpoint(data, endpoint);
+  BufferTankSource& tank = h.stream ? h.stream->buffer_tank_ : h.pressure->buffer_tank_;
+  const Connection& connection = h.stream ? h.stream->connection_ : h.pressure->connection_;
+  if (source == 0) {
+    tank.Deactivate();
+    return;
+  }
+  if (h.boundary->direction_ != BoundaryDirection::INLET)
+    throw std::invalid_argument("endpoint " + std::to_string(endpoint) + " ('" + h.log_name +
+                                "') is an outlet; only an inlet can draw from a buffer tank");
+  if (connection.IsConnected())
+    throw std::invalid_argument("endpoint " + std::to_string(endpoint) + " ('" + h.log_name +
+                                "') is connected to another endpoint; it cannot also have a buffer tank");
+  auto src = FindEndpoint(data, source);
+  if (source == endpoint) throw std::invalid_argument("an endpoint cannot be its own buffer-tank source");
+  tank.Activate(src.step->step_name_, src.summary_name);
+  tank.source_step_id_ = src.step->id_;
+  tank.source_endpoint_id_ = src.id;
+}
+
 void SetPump(UserData& data, size_t endpoint, const std::string& kind, const std::string& energy,
              const std::string& efficiency) {
   auto h = FindEndpoint(data, endpoint);
@@ -458,6 +497,11 @@ void SetPump(UserData& data, size_t endpoint, const std::string& kind, const std
     slot = &h.pressure->pump_;
   } else if (auto* s = dynamic_cast<BoundaryStream*>(h.stream)) {
     slot = &s->pump_;
+  } else if (auto* p = dynamic_cast<PumpBoundaryStream*>(h.stream)) {
+    if (KindIndex(PumpKinds(), kind, "pump") == 0)
+      throw std::invalid_argument("endpoint " + std::to_string(endpoint) + " ('" + h.log_name +
+                                  "') is a pump-driven stream, which always has a pump");
+    slot = &p->pump_;
   } else {
     throw std::invalid_argument("endpoint " + std::to_string(endpoint) + " ('" + h.log_name +
                                 "') is a valve stream, which has no pump");

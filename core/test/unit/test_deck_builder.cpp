@@ -254,4 +254,61 @@ TEST(DeckBuilder, ReplacingAnEndDropsItsStreamsAndConnections) {
   EXPECT_EQ(b.sim.Parameters().Find("adsorbent[13X].isotherm[Nitrogen].m1"), nullptr);
 }
 
+// A pump-driven stream takes its flow from a shaft power: a vacuum pump on an
+// outlet, a compressor on an inlet; its power model and pump are in the registry.
+TEST(DeckBuilder, PumpStreamsAreDrivenByAPower) {
+  Built b;
+  Build(b);
+  UserData& d = b.sim.Data();
+  build::SetFlowBoundary(d, b.evacuation, "bottom", "outlet");
+  const size_t vac = build::AddPumpStream(d, b.evacuation, "bottom", "Vacuum pump", "constant", "isothermal",
+                                          "vacuum_pump");
+  build::SetKPI(d, "CarbonDioxide", {b.feed_in, b.press_end}, {vac});
+  b.sim.RefreshParameters();
+  b.sim.SetParameterText("step[Evacuation].bottom[Vacuum pump].power", "40");
+  b.sim.SetParameterText("step[Evacuation].bottom[Vacuum pump].pump.eta_max", "0.7");
+  b.sim.SetParameterText("step[Evacuation].bottom[Vacuum pump].pump.discharge_pressure", "1e5");
+  std::string error;
+  ASSERT_TRUE(b.sim.Check(error)) << error;
+  RunOptions options;
+  options.cycles = 1;
+  const RunResult r = b.sim.Run(options);
+  ASSERT_TRUE(r.Ok()) << r.message;
+  EXPECT_GT(b.sim.KPIs(-1).at(0).energy_consumption, 0.0);
+
+  // A power polynomial of the boundary pressure, and the pump cannot be removed.
+  build::SetFlowBoundary(d, b.pressurisation, "bottom", "inlet");
+  const size_t comp = build::AddPumpStream(d, b.pressurisation, "bottom", "Compressor", "polynomial", "adiabatic",
+                                           "constant");
+  b.sim.RefreshParameters();
+  EXPECT_NE(b.sim.Parameters().Find("endpoint[" + std::to_string(comp) + "].power_poly_f"), nullptr);
+  EXPECT_NE(b.sim.Parameters().Find("endpoint[" + std::to_string(comp) + "].pump.suction_pressure"), nullptr);
+  EXPECT_NE(ThrowMessage([&] { build::SetPump(d, comp, "none", "isothermal", "constant"); }).find("always has a pump"),
+            std::string::npos);
+}
+
+// A buffer tank feeds an inlet with a share of another endpoint's product.
+TEST(DeckBuilder, BufferTanksDrawFromAnotherEndpoint) {
+  Built b;
+  Build(b);
+  UserData& d = b.sim.Data();
+  build::SetBufferTank(d, b.press_end, b.product);
+  b.sim.RefreshParameters();
+  b.sim.SetParameterText("step[Pressurisation].bottom.buffer_tank.percentage", "40 [%]");
+  EXPECT_DOUBLE_EQ(b.sim.GetParameter("step[Pressurisation].bottom.buffer_tank.percentage"), 40.0);
+  std::string error;
+  ASSERT_TRUE(b.sim.Check(error)) << error;
+  RunOptions options;
+  options.cycles = 2;
+  ASSERT_TRUE(b.sim.Run(options).Ok());
+
+  EXPECT_NE(ThrowMessage([&] { build::SetBufferTank(d, b.evac_end, b.product); }).find("only an inlet"),
+            std::string::npos);
+  EXPECT_NE(ThrowMessage([&] { build::SetBufferTank(d, b.purge_in, b.product); }).find("connected"),
+            std::string::npos);
+  build::SetBufferTank(d, b.press_end, 0);
+  b.sim.RefreshParameters();
+  EXPECT_EQ(b.sim.Parameters().Find("step[Pressurisation].bottom.buffer_tank.percentage"), nullptr);
+}
+
 }  // namespace adsim

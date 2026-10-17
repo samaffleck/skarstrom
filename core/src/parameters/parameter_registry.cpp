@@ -556,6 +556,7 @@ namespace adsim {
         AddInletTemperature(bc->temperature_, bc->temperature_profile_.get(), ep, inlet);
         AddMoleFractions(bc->mole_fraction_, ep, inlet);
         AddPump(bc->pump_.get(), ep);
+        AddBufferTank(bc->buffer_tank_, ep);
       } else if (auto* bc = dynamic_cast<FlowBoundaryCondition*>(boundary)) {
         for (auto& stream : bc->streams_) {
           if (!stream) continue;
@@ -579,7 +580,37 @@ namespace adsim {
                 "valve flow coefficient (Cv, US gpm/psi^0.5)", "-", v->valve_.cv_, 1e-3, 1e3);
         Emplace(ep.path + ".valve.xt", ep.alias + ".valve.xt", "cycle", ep.subcategory,
                 "valve pressure-drop ratio factor (xT)", "-", v->valve_.xt_, 0.1, 1.0);
+      } else if (auto* p = dynamic_cast<PumpBoundaryStream*>(stream)) {
+        AddPumpPower(p->power_.get(), ep);
+        AddPump(p->pump_.get(), ep);
       }
+      AddBufferTank(stream->buffer_tank_, ep);
+    }
+
+    // The shaft power that drives a pump stream: a constant, or a polynomial
+    // of the boundary pressure P [Pa], a + b P + ... + f P^5.
+    void AddPumpPower(IPumpPowerModel* power, const EndpointScope& ep) {
+      auto E = [&](const std::string& leaf, const std::string& name, const std::string& unit, ExpressionParam& v,
+                   double lo, double hi) {
+        Emplace(ep.path + "." + leaf, ep.alias + "." + leaf, "cycle", ep.subcategory, name, unit, v, lo, hi);
+      };
+      if (auto* c = dynamic_cast<ConstantPumpPowerModel*>(power)) {
+        E("power", "pump shaft power", "W", c->power_, 0.0, 1e6);
+      } else if (auto* poly = dynamic_cast<PolyPumpPowerModel*>(power)) {
+        E("power_poly_a", "pump power polynomial a", "W", poly->poly_.a, -1e6, 1e6);
+        E("power_poly_b", "pump power polynomial b (x P)", "W/Pa", poly->poly_.b, -1e3, 1e3);
+        E("power_poly_c", "pump power polynomial c (x P^2)", "W/Pa^2", poly->poly_.c, -1.0, 1.0);
+        E("power_poly_d", "pump power polynomial d (x P^3)", "W/Pa^3", poly->poly_.d, -1e-3, 1e-3);
+        E("power_poly_e", "pump power polynomial e (x P^4)", "W/Pa^4", poly->poly_.e, -1e-6, 1e-6);
+        E("power_poly_f", "pump power polynomial f (x P^5)", "W/Pa^5", poly->poly_.f, -1e-9, 1e-9);
+      }
+    }
+
+    // The share of its source's moles an inlet draws from a buffer tank.
+    void AddBufferTank(BufferTankSource& tank, const EndpointScope& ep) {
+      if (!tank.IsActive()) return;
+      Emplace(ep.path + ".buffer_tank.percentage", ep.alias + ".buffer_tank.percentage", "cycle", ep.subcategory,
+              "buffer tank: share of the source endpoint's moles drawn", "%", tank.percentage_, 0.0, 100.0);
     }
 
     void AddMoleFractions(std::unordered_map<std::string, double>& y, const EndpointScope& ep, bool inlet) {

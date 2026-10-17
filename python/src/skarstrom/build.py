@@ -56,8 +56,10 @@ if TYPE_CHECKING:
 __all__ = [
     "Flow",
     "KPIConfig",
+    "PolynomialPower",
     "Profile",
     "Pump",
+    "PumpStream",
     "Stream",
     "ValveStream",
     "build_kinds",
@@ -66,6 +68,7 @@ __all__ = [
     "linear",
     "mass_flow",
     "molar_flow",
+    "polynomial_power",
     "to_script",
     "velocity",
     "volumetric_flow",
@@ -182,6 +185,45 @@ class Stream:
     pump: Optional[Pump] = None
 
 
+@dataclass(frozen=True)
+class PolynomialPower:
+    """Pump shaft power as a polynomial of the boundary pressure P [Pa]:
+    ``a + b P + c P**2 + d P**3 + e P**4 + f P**5`` [W]."""
+
+    a: Any = 0.0
+    b: Any = 0.0
+    c: Any = 0.0
+    d: Any = 0.0
+    e: Any = 0.0
+    f: Any = 0.0
+
+
+def polynomial_power(a: Any = 0.0, b: Any = 0.0, c: Any = 0.0, d: Any = 0.0, e: Any = 0.0,
+                     f: Any = 0.0) -> PolynomialPower:
+    """Pump power that depends on the boundary pressure (see :class:`PolynomialPower`)."""
+    return PolynomialPower(a, b, c, d, e, f)
+
+
+@dataclass
+class PumpStream:
+    """A stream driven by a pump of given shaft power: a compressor on an inlet,
+    a vacuum pump on an outlet. The flow follows from the power, the pump's
+    efficiency and the pressures.
+
+    ``power`` is a constant power (W, or a pint quantity) or a
+    :func:`polynomial_power` of the boundary pressure. ``pump`` gives the
+    compression model and efficiency (a :class:`Pump`; its ``kind`` follows
+    the direction and is ignored). ``y`` and ``temperature`` are the gas a
+    compressor delivers.
+    """
+
+    name: str
+    power: Any
+    pump: Optional[Pump] = None
+    y: Optional[Dict[str, Any]] = None
+    temperature: Any = None
+
+
 @dataclass
 class ValveStream:
     """A stream through a valve against a pressure (a value or a :class:`Profile`)."""
@@ -248,7 +290,7 @@ def _set_pressure(sim: "Simulation", step_id: int, location: str, direction: str
 
 
 def _set_streams(sim: "Simulation", step_id: int, location: str, direction: str,
-                 streams: Iterable[Union[Stream, ValveStream]]) -> List["Endpoint"]:
+                 streams: Iterable[Union[Stream, ValveStream, PumpStream]]) -> List["Endpoint"]:
     sim._build("set_flow_boundary", step_id, location, direction)
     ids = []
     for st in streams:
@@ -263,8 +305,21 @@ def _set_streams(sim: "Simulation", step_id: int, location: str, direction: str,
             _apply_profile(sim, eid, st.flow.kind, st.flow.profile)
             if st.pump is not None:
                 _apply_pump(sim, eid, st.pump)
+        elif isinstance(st, PumpStream):
+            pump = st.pump or Pump()
+            poly = isinstance(st.power, PolynomialPower)
+            eid = sim._build("add_pump_stream", step_id, location, st.name, "polynomial" if poly else "constant",
+                             pump.energy, pump.efficiency_model)
+            if poly:
+                for coefficient in "abcdef":
+                    _set_endpoint(sim, eid, f"power_poly_{coefficient}", getattr(st.power, coefficient))
+            else:
+                _set_endpoint(sim, eid, "power", st.power)
+            for name, value in pump.values.items():
+                _set_endpoint(sim, eid, f"pump.{name}", value)
         else:
-            raise TypeError(f"streams are skarstrom.Stream or skarstrom.ValveStream, not {type(st).__name__}")
+            raise TypeError("streams are skarstrom.Stream, skarstrom.ValveStream or skarstrom.PumpStream, "
+                            f"not {type(st).__name__}")
         _apply_inlet(sim, eid, st.temperature, st.y)
         ids.append(eid)
     return [sim._endpoint(e) for e in ids]
@@ -511,6 +566,15 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                         items.append(f"    sk.Stream({st['name']!r}, flow={flow}"
                                      f"{_inlet_src(sim, eid, st['temperature_profile'])}"
                                      f"{_pump_src(sim, eid, st['pump'])}),")
+                    elif st["type"] == "pump":
+                        if st["power"] == "polynomial":
+                            coeffs = ", ".join(f"{c}={_literal(sim, f'endpoint[{eid}].power_poly_{c}')}" for c in "abcdef")
+                            power = f"sk.polynomial_power({coeffs})"
+                        else:
+                            power = _literal(sim, f"endpoint[{eid}].power")
+                        items.append(f"    sk.PumpStream({st['name']!r}, power={power}"
+                                     f"{_inlet_src(sim, eid, st['temperature_profile'])}"
+                                     f"{_pump_src(sim, eid, st['pump'])}),")
                     else:
                         items.append(f"    # stream {st['name']!r}: a type the builder does not create")
                 w(f"{v}.{loc}.set_streams({end['direction']!r}, [")
@@ -522,6 +586,13 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
               f"enabled={_literal(sim, base + '.enabled')})")
     for a_id, b_id in d["connections"]:
         w(f"{name}.connect({ep_expr.get(a_id, a_id)}, {ep_expr.get(b_id, b_id)})")
+    for s in d["steps"]:
+        for loc in ("bottom", "top"):
+            for e in [s[loc]] + s[loc].get("streams", []):
+                if e.get("buffer_tank"):
+                    eid = e["endpoint"]
+                    w(f"{ep_expr.get(eid, eid)}.set_buffer_tank({ep_expr.get(e['buffer_tank'], e['buffer_tank'])}, "
+                      f"percentage={_literal(sim, f'endpoint[{eid}].buffer_tank.percentage')})")
     for k in d["kpis"]:
         feed = "[" + ", ".join(ep_expr.get(e, str(e)) for e in k["feed"]) + "]"
         product = "[" + ", ".join(ep_expr.get(e, str(e)) for e in k["product"]) + "]"
