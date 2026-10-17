@@ -23,6 +23,28 @@ Adsorption processes such as PSA, VSA and TSA are central to gas separation, car
 
 Skarstrom aims to be the shared, open, tested foundation. A standard engine, deck format and cited adsorbent library let the community reproduce published work, compare like with like, and build on each other's models instead of starting again.
 
+## Performance
+
+Skarstrom is built for speed. Optimisation, parameter fitting and sensitivity studies run a cycle to cyclic steady state (CSS) hundreds or thousands of times, so the time to CSS decides what is practical. A full four-step CO₂/N₂ vacuum swing cycle with light-product pressurisation reaches CSS in about **10–17 seconds** on a single core: one core evaluates roughly 200–350 cycle designs an hour, and independent runs parallelise across cores.
+
+| Case (bundled example) | Grid | Cycles to CSS | Time to CSS |
+|---|---|---|---|
+| 4-step VSA with light-product pressurisation, 15 % CO₂ / N₂ on zeolite 13X (`Perez2019_E`) | 30 cells, 5 steps (feed split in two) | 91 (54 with Aitken acceleration) | 17.4 s (10.1 s) |
+| Basic 4-step VSA, 15 % CO₂ / N₂ on zeolite 13X (`Perez2019_A`) | 30 cells, 4 steps | 34 (27) | 6.6 s (5.9 s) |
+| 4-step VPSA with light-product pressurisation, CO₂ / N₂ on CALF-20 (`Nguyen2023_Exp_VI`) | 100 cells, 5 steps | 52 (49) | 28.9 s (27.5 s) |
+| CO₂ breakthrough on activated carbon (`Ward2022_Q100ccm`) | 60 cells | single run | 0.67 s |
+| CO₂ / CH₄ breakthrough on 13X with thermal effects (`Streb2021_A1`) | 60 cells | single run | 2.95 s |
+
+*Non-isothermal model (mass, momentum, energy and wall energy balances) with real-gas properties. CSS when the total mass balance over a cycle closes within 0.5 % (at least 5 cycles). Median of 3 runs, one core of a 2.1 GHz Intel Xeon cloud VM (4 cores), Release build; reproduce with `python scripts/benchmark_css.py`.*
+
+The speed comes from modern C++20 and SUNDIALS:
+
+- **SUNDIALS IDA**, a variable-order, variable-step BDF integrator, solves the discretised column as one differential-algebraic system, taking large steps when the bed is quiet and small ones at step switches.
+- **A narrow banded system.** Unknowns are ordered cell by cell, so each Newton iteration solves a banded linear system rather than a general sparse one.
+- **A coloured Jacobian.** The Jacobian is built by difference quotients over a sparsity pattern the solver learns and audits, which needs 2.3× fewer residual evaluations than SUNDIALS' default banded Jacobian. That makes the light-product-pressurisation cycle above 1.6× faster.
+- **Compiled residuals.** The balances, isotherms and transport correlations are evaluated in compiled C++, and user expressions are compiled once per run instead of being re-parsed at every evaluation.
+- **Cyclic steady state acceleration.** Aitken (Graves–Morris) extrapolation of the end-of-cycle state cuts the cycle count further.
+
 ## Browser interface
 
 [![The Skarstrom web interface: the simulation tree, solver settings and a plotted pressure profile of the Arora (2021) PSA example](docs/assets/skarstrom-web.png)](https://www.skarstrom.co.uk/)
