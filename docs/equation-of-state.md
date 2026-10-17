@@ -1,6 +1,6 @@
 ## Equation of State and Gas Properties
 
-The gas phase is treated as an **ideal-gas mixture**. This page lists exactly how each gas property in the model is obtained, following `adsim/src/objects/fluid.cpp`, `adsim/include/adsim/objects/fluid.h` and the property updates in `adsim/src/equations/adsorbent_equations.cpp`.
+The gas phase is treated as an **ideal-gas mixture**. This page lists exactly how each gas property in the model is obtained, following `core/src/objects/fluid.cpp`, `core/include/adsim/objects/fluid.h` and the property updates in `core/src/equations/adsorbent_equations.cpp`.
 
 ### Ideal gas law
 

@@ -2,7 +2,7 @@
 
 Runs the three single-step breakthrough decks (pure CO2 into a bed initially
 full of air) and compares the outlet CO2 mole fraction and the thermocouple
-at z = 0.0715 m with the digitised experiments (adsim/data/ward_2022/). The
+at z = 0.0715 m with the digitised experiments (core/data/ward_2022/). The
 breakthrough time (outlet y_CO2 = 0.5) is set against the 95 % credibility
 interval of the paper's own model (Table 10).
 

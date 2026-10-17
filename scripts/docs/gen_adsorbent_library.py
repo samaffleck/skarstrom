@@ -41,7 +41,7 @@ CATALOG = LIB_DIR / "library.json"
 DECK_DIR = ROOT / "examples" / "decks"
 DOCS_OUT = ROOT / "docs" / "adsorbent-library.md"
 
-# adsim::IsothermType enum order (adsim/include/adsim/equations/isotherm.h) ->
+# adsim::IsothermType enum order (core/include/adsim/equations/isotherm.h) ->
 # kind tag (adsim::IsothermKindString in adsim/equations/isotherm_kinds.h).
 ISOTHERM_KINDS = [
     "single_site_langmuir_p", "dual_site_langmuir_p", "inert", "henry",

@@ -22,12 +22,12 @@ command -v ninja >/dev/null 2>&1 && GEN=(-G Ninja)
 
 if [ "$EMSCRIPTEN" = 1 ]; then
   BUILD_DIR="${BUILD_DIR:-build_subproject_emscripten}"
-  emcmake cmake -S adsim/subproject_consumer -B "$BUILD_DIR" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release
+  emcmake cmake -S core/subproject_consumer -B "$BUILD_DIR" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release
   cmake --build "$BUILD_DIR" -j "$JOBS" --target frontend
   node "$BUILD_DIR/frontend.js" "$DECK"
 else
   BUILD_DIR="${BUILD_DIR:-build_subproject}"
-  cmake -S adsim/subproject_consumer -B "$BUILD_DIR" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release
+  cmake -S core/subproject_consumer -B "$BUILD_DIR" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release
   cmake --build "$BUILD_DIR" -j "$JOBS" --target frontend --config Release
   EXE="$BUILD_DIR/frontend"
   [ -x "$EXE" ] || EXE="$BUILD_DIR/Release/frontend.exe"

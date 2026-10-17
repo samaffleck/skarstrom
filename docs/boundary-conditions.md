@@ -98,7 +98,7 @@ Ramps are the natural way to model gradual pressurisation or blowdown. The ramp 
 
 ## Valves
 
-Set a stream's **Boundary Device Type** to **Valve** to make its flow **pressure-driven** rather than prescribed. You enter a **Valve Flow Coefficient (Cv)** and a pressure profile; the flow through the valve is driven by the pressure difference between the valve's set pressure and the bed. The valve is linear in the pressure difference (`Valve::GetMolarFlowRate` in `adsim/src/objects/valve.cpp`):
+Set a stream's **Boundary Device Type** to **Valve** to make its flow **pressure-driven** rather than prescribed. You enter a **Valve Flow Coefficient (Cv)** and a pressure profile; the flow through the valve is driven by the pressure difference between the valve's set pressure and the bed. The valve is linear in the pressure difference (`Valve::GetMolarFlowRate` in `core/src/objects/valve.cpp`):
 
 $$
 \dot n = C_v\,\frac{P_{\text{up}} - P_{\text{down}}}{10^{5}\ \text{Pa}}

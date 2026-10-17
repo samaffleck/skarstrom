@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`adsim/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/adsim/test/validation) and run with the rest of the test suite (`ctest -R "EnergyBalance|Analytic|Numerical|Invariant|Thermodynamic|Compressor|Shock|LDF|LTNE|Adiabatic|ExtendedLangmuir|CyclicSteadyState|Robustness"`).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "EnergyBalance|Analytic|Numerical|Invariant|Thermodynamic|Compressor|Shock|LDF|LTNE|Adiabatic|ExtendedLangmuir|CyclicSteadyState|Robustness"`).
 
 The rest of this page is the suite's README.
 
@@ -22,7 +22,7 @@ This complements the existing coverage rather than duplicating it:
 
 ### Design rules
 
-1. **The reference is written from the physics, not from `adsim/src`.** The
+1. **The reference is written from the physics, not from `core/src`.** The
    helpers in `validation_helpers.h` re-derive cylinder geometry, energy
    inventories and heat fluxes from textbook forms. Do not refactor them to
    share code with the solver — that would make the tests self-confirming.

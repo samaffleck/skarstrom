@@ -11,4 +11,4 @@
 - [ ] Adsorbent/validation data: every value cited; generated pages regenerated (`scripts/docs/`), not hand-edited
 - [ ] Regenerated example decks (`examples/decks/`) committed if the tests changed them
 - [ ] Docs (`docs/`) and `CHANGELOG.md` updated
-- [ ] `adsim/Results/` not committed
+- [ ] `core/Results/` not committed

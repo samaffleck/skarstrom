@@ -1,6 +1,6 @@
 ## Numerics
 
-This page describes how the solver turns the [governing equations](equations.md) into numbers: the spatial discretisation, the time integrator and its settings, how the Jacobian is built, and how cyclic steady state is detected and accelerated. Everything here is taken from the code: `adsim/src/equations/adsorbent_equations.cpp` (residuals), `adsim/src/equations/equation.cpp` (unknowns and layout), `adsim/src/solver/coupled_solver.cpp` and `adsim/include/adsim/solver/ida_settings.h` (integration), `adsim/src/solver/jacobian.cpp` (Jacobian) and `adsim/src/solver/cyclic_steady_state.cpp` (CSS).
+This page describes how the solver turns the [governing equations](equations.md) into numbers: the spatial discretisation, the time integrator and its settings, how the Jacobian is built, and how cyclic steady state is detected and accelerated. Everything here is taken from the code: `core/src/equations/adsorbent_equations.cpp` (residuals), `core/src/equations/equation.cpp` (unknowns and layout), `core/src/solver/coupled_solver.cpp` and `core/include/adsim/solver/ida_settings.h` (integration), `core/src/solver/jacobian.cpp` (Jacobian) and `core/src/solver/cyclic_steady_state.cpp` (CSS).
 
 ---
 

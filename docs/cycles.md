@@ -2,7 +2,7 @@
 
 A **cycle** is the sequence of operating steps a bed repeats — feed, blowdown, purge, pressurisation, and so on. In Skarstrom a cycle is a list of **steps**, each with its own duration and its own pair of [boundary conditions](boundary-conditions.md), executed in order and then repeated. A deck's cycle also holds the [connections between steps](connecting-beds.md) for multi-bed processes and the KPI configuration for the [performance metrics](performance-metrics.md).
 
-> **Start from a template.** `data/cycles/` holds ready-made cycles: `breakthrough.json`, `4_step_vpsa.json`, `4_step_vpsa_lpp.json` (with light-product pressurisation), `skarstrom_cycle.json` and `6_step_vpsa_rinse.json`. They are written by `adsim/test/unit/test_cycle_designs.cpp`, which is also the clearest example of building a cycle in C++, and load with `adsim::LoadCycleFromJSON`. The [example decks](examples.md) are complete processes to adapt.
+> **Start from a template.** `data/cycles/` holds ready-made cycles: `breakthrough.json`, `4_step_vpsa.json`, `4_step_vpsa_lpp.json` (with light-product pressurisation), `skarstrom_cycle.json` and `6_step_vpsa_rinse.json`. They are written by `core/test/unit/test_cycle_designs.cpp`, which is also the clearest example of building a cycle in C++, and load with `adsim::LoadCycleFromJSON`. The [example decks](examples.md) are complete processes to adapt.
 
 ---
 

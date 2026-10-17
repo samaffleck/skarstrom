@@ -3,8 +3,8 @@
 One runnable Python script per family of example decks. Each script loads its
 decks (from `decks/`, or from the installed package when run elsewhere), runs
 them, prints the KPIs or the cyclic-steady-state status, compares the result
-with the paper's published values (`adsim/test/papers/*/reference_values.csv`)
-or digitised curves (`adsim/data/`), and saves a plot to `examples/output/`
+with the paper's published values (`core/test/papers/*/reference_values.csv`)
+or digitised curves (`core/data/`), and saves a plot to `examples/output/`
 when matplotlib is installed.
 
 ```bash
@@ -41,7 +41,7 @@ them as approximate. Every script completed. `python/tests/test_examples.py`
 imports all scripts and runs each with fast options (`pytest python/tests`).
 
 How the comparisons are made: purity and recovery are those of the validation
-tests in `adsim/test/papers/` (for the VSA decks, the evacuation product; for
+tests in `core/test/papers/` (for the VSA decks, the evacuation product; for
 the Arora decks, the collected product purity and the net recovery), so the
 numbers printed here match the [validation page](../docs/validation.md). The
 published values are mostly the authors' optimised **model** results or

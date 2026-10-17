@@ -1,6 +1,6 @@
 # Using the C++ Library
 
-The engine is the static library `adsim` (CMake target `Adsim::adsim`), written in C++20. Its public headers are in `adsim/include/adsim/`; the most useful entry points are:
+The engine is the static library `adsim` (CMake target `Adsim::adsim`), written in C++20. Its public headers are in `core/include/adsim/`; the most useful entry points are:
 
 | Header | What it gives you |
 |---|---|
@@ -42,7 +42,7 @@ find_package(Adsim 0.1 CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE Adsim::adsim)
 ```
 
-The install tree contains the static libraries (adsim, SUNDIALS, muparser, dlib, CoolProp), the public headers with the third-party headers they include (under `include/adsim/third_party`), the CMake package files and the licence texts. `scripts/test_install_consumer.sh` builds `adsim/install_consumer/` against a fresh install to prove it works.
+The install tree contains the static libraries (adsim, SUNDIALS, muparser, dlib, CoolProp), the public headers with the third-party headers they include (under `include/adsim/third_party`), the CMake package files and the licence texts. `scripts/test_install_consumer.sh` builds `core/install_consumer/` against a fresh install to prove it works.
 
 ## As a subproject (`add_subdirectory`)
 
@@ -59,7 +59,7 @@ target_link_libraries(my_frontend PRIVATE Adsim::adsim)
 - The engine's targets (`adsim`, `CoolProp`, `dlib`, `muparser`, the `sundials_*` libraries) must not clash with targets of the same name in the parent.
 - The bundled data are at `examples/decks/`, `data/adsorbents/` and `data/cycles/` of the checkout, for front ends that ship them as assets. File names there are shell-safe (checked by the `DataFileNamesAreShellSafe` test).
 
-`adsim/subproject_consumer/` is a minimal front end built this way, and `scripts/test_subproject_consumer.sh` builds and runs it.
+`core/subproject_consumer/` is a minimal front end built this way, and `scripts/test_subproject_consumer.sh` builds and runs it.
 
 ## WebAssembly (Emscripten)
 

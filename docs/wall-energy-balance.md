@@ -1,6 +1,6 @@
 ## Wall Energy Balance
 
-The column wall is a separate thermal body with its own temperature $T_w(z,t)$. It stores heat, conducts it along the column, exchanges heat with the packed bed on the inside and with the surroundings on the outside. The wall model is set on **Column Properties → Wall**, and the heat transfer coefficients on each layer's **Internal HTC** and **External HTC** tabs. The implementation is `UpdateWallTemperature` in `adsim/src/equations/adsorbent_equations.cpp` and the wall data in `adsim/include/adsim/objects/wall.h`.
+The column wall is a separate thermal body with its own temperature $T_w(z,t)$. It stores heat, conducts it along the column, exchanges heat with the packed bed on the inside and with the surroundings on the outside. The wall model is set on **Column Properties → Wall**, and the heat transfer coefficients on each layer's **Internal HTC** and **External HTC** tabs. The implementation is `UpdateWallTemperature` in `core/src/equations/adsorbent_equations.cpp` and the wall data in `core/include/adsim/objects/wall.h`.
 
 ### Governing equation
 

@@ -1,11 +1,11 @@
 <!-- GENERATED — do not edit. Built by scripts/docs/gen_validation_page.py from
-     adsim/test/papers/validation_summary.json, which the paper tests in adsim/test/papers/ write.
+     core/test/papers/validation_summary.json, which the paper tests in core/test/papers/ write.
      Regenerate: run the paper tests (ctest), then
      python scripts/docs/gen_validation_page.py --merge <build>/validation -->
 
 # Validation
 
-Skarstrom is checked against published adsorption studies by automated tests. Every comparison on this page is produced by a test in [`adsim/test/papers/`](https://github.com/samaffleck/skarstrom/tree/main/adsim/test/papers) that runs the bundled input deck, computes an explicit error metric against numbers transcribed from the paper (`reference_values.csv` in each paper folder) or digitised from its figures (`adsim/data/`), and writes the result to a machine-readable summary. This page is generated from that summary — it is never edited by hand.
+Skarstrom is checked against published adsorption studies by automated tests. Every comparison on this page is produced by a test in [`core/test/papers/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/papers) that runs the bundled input deck, computes an explicit error metric against numbers transcribed from the paper (`reference_values.csv` in each paper folder) or digitised from its figures (`core/data/`), and writes the result to a machine-readable summary. This page is generated from that summary — it is never edited by hand.
 
 **How to read the tables.**
 
@@ -55,7 +55,7 @@ A. Arora, M.M.F. Hasan, Flexible oxygen concentrators for medical applications, 
     - paper's optimised model result (simulation, not experiment)
     - paper's optimised model result; recovery net of the O2 product recycled to purge and pressurisation
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/arora_hasan_2021/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/arora_hasan_2021/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/arora_hasan_2021/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/arora_hasan_2021/README.md).
 
 ## Casas et al. (2012) / Schell et al. (2012) {#casas-2012}
 
@@ -88,7 +88,7 @@ N. Casas, J. Schell, R. Pini, M. Mazzotti, Fixed bed adsorption of CO2/H2 mixtur
     - approximate experimental value: 'the temperature peak at 110 cm is measured at about 110 s, which corresponds to the H2 breakthrough time observed in Fig. 4'; text value is approximate ('about 110 s')
     - ArrheniusSipsIsotherm with the casas_2012.h constants vs the paper's per-temperature Sips fits
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/casas_2012/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/casas_2012/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/casas_2012/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/casas_2012/README.md).
 
 ## Ferré et al. (2026) {#ferre-2026}
 
@@ -132,7 +132,7 @@ A. Ferré, C. Wedler, A. Ward, J. Burger, R. Pini, C. Petit, Co-production of hi
     - paper's optimised detailed-model result (simulation)
     - CH4 produced per bed volume per total cycle time (Sect. 4.2)
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/ferre_2026/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/ferre_2026/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/ferre_2026/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/ferre_2026/README.md).
 
 ## Nguyen et al. (2022) {#nguyen-2022}
 
@@ -175,7 +175,7 @@ T.T.T. Nguyen, J.-B. Lin, G.K.H. Shimizu, A. Rajendran, Separation of CO2 and N2
     - RMSE over 16 digitised points; normalised by 0.05 -
     - first time the curve reaches 0.025 (reference time interpolated from the digitised points)
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/nguyen_2022/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/nguyen_2022/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/nguyen_2022/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/nguyen_2022/README.md).
 
 ## Nguyen et al. (2023) {#nguyen-2023}
 
@@ -265,7 +265,7 @@ T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, CO2/N2 separation by vacuum swing a
     - repeat VII.b: 0.13
     - repeat experiment; repeat run of VII
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/nguyen_2023/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/nguyen_2023/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/nguyen_2023/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/nguyen_2023/README.md).
 
 ## Estupiñan Perez et al. (2019) {#perez-2019}
 
@@ -320,7 +320,7 @@ L. Estupiñan Perez, P. Sarkar, A. Rajendran, Experimental validation of multi-o
     - repeat D2: 83.4 %
     - repeat of D1; repeat run
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/perez_2019/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/perez_2019/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/perez_2019/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/perez_2019/README.md).
 
 ## Streb & Mazzotti (2021) {#streb-2021}
 
@@ -417,7 +417,7 @@ A. Streb, M. Mazzotti, Adsorption for efficient low carbon hydrogen production: 
     - RMSE over 17 digitised points; normalised by 0.05 -
     - RMSE pooled over 160 digitised points of the centre-line thermocouples at z = 10, 35, 60, 85, 110 cm
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/streb_2021/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/streb_2021/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/streb_2021/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/streb_2021/README.md).
 
 ## Vysyaraju et al. (2024) {#vysyarajua-2024}
 
@@ -450,7 +450,7 @@ R. Vysyaraju, J.A. Sawada, L. Estupiñan Perez, A. Rajendran, Simulation and exp
     - measured at CSS (3-bed rig); single-bed model with self-equalisation vs the paper's 3-bed rig; recovery by He conservation
     - paper's detailed model; single-bed model with self-equalisation vs the paper's 3-bed model
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/vysyarajua_2024/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/vysyarajua_2024/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/vysyarajua_2024/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/vysyarajua_2024/README.md).
 
 ## Ward & Pini (2022) {#ward-2022}
 
@@ -497,7 +497,7 @@ A. Ward, R. Pini, Integrated uncertainty quantification and sensitivity analysis
     - 95% credibility interval of the paper's MODEL prediction (not a measurement); t_br definition (Table 9) is only partly legible in the extraction; reference = CI midpoint; simulated value inside the paper's 95% CI [2132, 2949]; t_br read as the time y_CO2,out reaches 0.5 (Table 9 only partly legible)
     - 95% credibility interval of the paper's model prediction; reference = CI midpoint; simulated value outside the paper's 95% CI [7.36, 9.53]; simulated = max T at the thermocouple minus initial T
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/ward_2022/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/ward_2022/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/ward_2022/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/ward_2022/README.md).
 
 ## Ward & Pini (2024) {#ward-pini-2024}
 
@@ -522,7 +522,7 @@ A. Ward, R. Pini, Design and Performance Evaluation of Multisorbent Vacuum-Swing
     - paper's detailed-model result
     - CO2 from the evacuation step per bed volume (V_bed = L A) per total cycle time (Sect. 4.2)
 
-Input decks, assumptions and known discrepancies: [`adsim/test/papers/ward_pini_2024/README.md`](https://github.com/samaffleck/skarstrom/blob/main/adsim/test/papers/ward_pini_2024/README.md).
+Input decks, assumptions and known discrepancies: [`core/test/papers/ward_pini_2024/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/ward_pini_2024/README.md).
 
 ## Reproducing this page
 
@@ -533,4 +533,4 @@ ctest --preset linux-release -R "(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguye
 python scripts/docs/gen_validation_page.py --merge build/linux-release/validation
 ```
 
-Each test writes `<build>/validation/<paper>__<case>.json`; the script merges them into `adsim/test/papers/validation_summary.json` and regenerates this page. The test suite also writes about 4 GB of results to `adsim/Results/`; delete it afterwards.
+Each test writes `<build>/validation/<paper>__<case>.json`; the script merges them into `core/test/papers/validation_summary.json` and regenerates this page. The test suite also writes about 4 GB of results to `core/Results/`; delete it afterwards.

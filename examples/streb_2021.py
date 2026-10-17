@@ -3,7 +3,7 @@
 Experiments A1 (1 bar) and A3 (10 bar, the reference experiment) feed a
 50:50 CO2/CH4 mixture into a helium-filled column. The outlet mole fractions
 and the five centre-line thermocouples (z = 10, 35, 60, 85, 110 cm) are
-compared with the digitised experiments (adsim/data/streb_2021/).
+compared with the digitised experiments (core/data/streb_2021/).
 
     python examples/streb_2021.py
     python examples/streb_2021.py --case A3

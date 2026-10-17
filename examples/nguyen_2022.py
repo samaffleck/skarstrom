@@ -2,7 +2,7 @@
 
 Fig. 4 is a 70 % CO2 feed and Fig. 5 a 15 % CO2 feed (balance helium) into a
 bed initially full of helium. The outlet CO2 mole fraction is compared with the
-digitised experiments (adsim/data/nguyen_2022/): NRMSE normalised by the feed
+digitised experiments (core/data/nguyen_2022/): NRMSE normalised by the feed
 mole fraction, and the time at which the outlet reaches half the feed value.
 
     python examples/nguyen_2022.py

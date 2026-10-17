@@ -81,7 +81,7 @@ Build the C++ library and tests with the CMake presets:
 ```bash
 cmake --preset linux-release        # or macos-release / windows
 cmake --build --preset linux-release
-ctest --preset linux-release -j3    # ~670 tests; writes ~4 GB to adsim/Results (delete afterwards)
+ctest --preset linux-release -j3    # ~670 tests; writes ~4 GB to core/Results (delete afterwards)
 ```
 
 ## Validation
@@ -101,7 +101,7 @@ Every bundled paper deck is an automated test that computes an explicit error me
 | Ward & Pini (2022), activated carbon breakthrough | experiment | 37.9 % NRMSE, 3.54 K | 38.2 % NRMSE, 4.21 K |
 | Ward & Pini (2024), Mg-MOF-74 VSA | paper model | 1.79 pp | 2.3 pp |
 
-Caveats: the tolerances are **regression bounds** set from the current model's measured error, not acceptance criteria, so a passing test can still be a large, documented disagreement (Arora 2021 net recovery, Streb 2021 curves). Many comparisons are against the authors' **own models** rather than measurements. Every deck is a prediction with the paper's published parameters — nothing is refitted per experiment — and the sampling lines between column and detector are not modelled. Each paper folder in `adsim/test/papers/` documents its inputs and the known causes of disagreement.
+Caveats: the tolerances are **regression bounds** set from the current model's measured error, not acceptance criteria, so a passing test can still be a large, documented disagreement (Arora 2021 net recovery, Streb 2021 curves). Many comparisons are against the authors' **own models** rather than measurements. Every deck is a prediction with the paper's published parameters — nothing is refitted per experiment — and the sampling lines between column and detector are not modelled. Each paper folder in `core/test/papers/` documents its inputs and the known causes of disagreement.
 
 ## Citing
 

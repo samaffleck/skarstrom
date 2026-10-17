@@ -95,7 +95,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat capacity | 1172 J/(kg K) | source | Table 2 |
 | Particle voidage | 0.33 | source | Table 2, particle porosity |
 | Particle diameter | 0.035 m | source | SI model-input table (value as printed) |
-| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by adsim/test/unit/test\_adsorbents.cpp |
+| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by core/test/unit/test\_adsorbents.cpp |
 
 *No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
 
@@ -129,7 +129,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat capacity | 1172 J/(kg K) | source | Table 2 |
 | Particle voidage | 0.33 | source | Table 2, particle porosity |
 | Particle diameter | 0.035 m | source | SI model-input table (value as printed) |
-| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by adsim/test/unit/test\_adsorbents.cpp |
+| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by core/test/unit/test\_adsorbents.cpp |
 
 *No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
 
@@ -162,7 +162,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat capacity | 1338.9 J/(kg K) | source | Table 2 |
 | Particle voidage | 0.65 | source | Table 2, particle porosity |
 | Particle diameter | 0.035 m | source | SI model-input table (value as printed) |
-| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by adsim/test/unit/test\_adsorbents.cpp |
+| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by core/test/unit/test\_adsorbents.cpp |
 
 *No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
 
@@ -196,7 +196,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat capacity | 900 J/(kg K) | source | Table 1 |
 | Particle voidage | 0.35 | source | Table 1, pellet porosity |
 | Particle diameter | 0.002 m | source | Table 1, pellet radius 1e-3 m |
-| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by adsim/test/unit/test\_adsorbents.cpp |
+| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by core/test/unit/test\_adsorbents.cpp |
 
 *No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
 
@@ -230,7 +230,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat capacity | 1040 J/(kg K) | source | Table 1 |
 | Particle voidage | 0.35 | source | Table 1, pellet porosity |
 | Particle diameter | 0.002 m | source | Table 1, pellet radius 1e-3 m |
-| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by adsim/test/unit/test\_adsorbents.cpp |
+| Thermal conductivity | 0.15 W/(m K) | repo deck/test | Not in source; value set by core/test/unit/test\_adsorbents.cpp |
 
 *No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
 
@@ -289,7 +289,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | CarbonDioxide | Arrhenius Sips (Schell 2012) | n\_inf\_a = 1.38286; n\_inf\_b = 5625.93; k\_A = 1.6814e-8; k\_B = 9160.22; c\_ref = 0.832365; c\_amp = 0.116571; c\_beta = 0.0928714; c\_Tref = 330.129 | 298.15–413.15 K | 0.1–212 bar | Schell 2012 Table 3 refit to the Casas 2012 Table 4 form |
 | Hydrogen | Arrhenius Sips (Schell 2012) | n\_inf\_a = 6.66; n\_inf\_b = 0; k\_A = 6.6886e-10; k\_B = 9954.73; c\_ref = 0.96; c\_amp = 0; c\_beta = 0; c\_Tref = 298.15 | 298.15–338.15 K | 0.4–141 bar | Schell 2012 Table 3 refit to the Casas 2012 Table 4 form |
 
-*Fit ranges.* CarbonDioxide: Measured 25-140 C, 0.01-21.2 MPa (Schell Table 1). The constants are the repo's refit of Schell Table 3 (adsim/test/papers/casas\_2012/casas\_2012.h); they reproduce Casas Table 4 to 3-4 significant figures. Hydrogen: Measured 25-65 C, 0.04-14.1 MPa (Schell Table 1). Repo refit; the H2 constants differ from Casas Table 4 by a few percent (k: 6.69e-10 vs 0.70e-9 1/Pa; exponent 0.96 vs 0.9556).
+*Fit ranges.* CarbonDioxide: Measured 25-140 C, 0.01-21.2 MPa (Schell Table 1). The constants are the repo's refit of Schell Table 3 (core/test/papers/casas\_2012/casas\_2012.h); they reproduce Casas Table 4 to 3-4 significant figures. Hydrogen: Measured 25-65 C, 0.04-14.1 MPa (Schell Table 1). Repo refit; the H2 constants differ from Casas Table 4 by a few percent (k: 6.69e-10 vs 0.70e-9 1/Pa; exponent 0.96 vs 0.9556).
 
 | Quantity | Value | Provenance | Reference |
 |---|---|---|---|
@@ -337,7 +337,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 
 | Quantity | Value | Provenance | Reference |
 |---|---|---|---|
-| Heat of adsorption, CarbonDioxide | 27.028 kJ/mol | repo deck/test | Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from adsim/test/papers/ferre\_2026/ferre\_2026.cpp (DSL isosteric heat at the feed loading), also used by the Ferre2026\_NaYF deck |
+| Heat of adsorption, CarbonDioxide | 27.028 kJ/mol | repo deck/test | Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from core/test/papers/ferre\_2026/ferre\_2026.cpp (DSL isosteric heat at the feed loading), also used by the Ferre2026\_NaYF deck |
 | Heat of adsorption, Methane | 12.896 kJ/mol | repo deck/test | Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre\_2026.cpp / Ferre2026\_NaYF deck |
 | Particle density | 1330 kg/m3 | source | SI Table S3 |
 | Heat capacity | 1070 J/(kg K) | source | Table 2 |
@@ -631,7 +631,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 
 **Sources**
 
-- Nguyen, T.T.T., Lin, J.-B., Shimizu, G.K.H., Rajendran, A. (2022). Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20. Chemical Engineering Journal 442, 136263. [doi:10.1016/j.cej.2022.136263](https://doi.org/10.1016/j.cej.2022.136263) — Table 3 (ESS/extended DSL parameters) per the repo fixture adsim/test/papers/nguyen\_2022/nguyen\_2022.h
+- Nguyen, T.T.T., Lin, J.-B., Shimizu, G.K.H., Rajendran, A. (2022). Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20. Chemical Engineering Journal 442, 136263. [doi:10.1016/j.cej.2022.136263](https://doi.org/10.1016/j.cej.2022.136263) — Table 3 (ESS/extended DSL parameters) per the repo fixture core/test/papers/nguyen\_2022/nguyen\_2022.h
 
 | Component | Isotherm | Parameters | T range of fit | P range of fit | Ref. |
 |---|---|---|---|---|---|
@@ -1006,7 +1006,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 
 **Used by example decks:** none. No bundled example deck uses this entry.
 
-- CO2 uses the engine's temperature-dependent Toth (TOTH\_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0\_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see adsim/test/unit/test\_adsorbent\_library\_sources.cpp).
+- CO2 uses the engine's temperature-dependent Toth (TOTH\_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0\_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see core/test/unit/test\_adsorbent\_library\_sources.cpp).
 - N2 is a non-competitive single-site Langmuir (unary fit as reported); CO2-N2 competition is not modelled.
 - H2O (GAB, Table 9) is not included: the engine has no GAB isotherm.
 
@@ -1051,7 +1051,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 
 **Used by example decks:** none. No bundled example deck uses this entry.
 
-- CO2 uses the engine's temperature-dependent Toth (TOTH\_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0\_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see adsim/test/unit/test\_adsorbent\_library\_sources.cpp).
+- CO2 uses the engine's temperature-dependent Toth (TOTH\_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0\_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see core/test/unit/test\_adsorbent\_library\_sources.cpp).
 - N2 is a non-competitive single-site Langmuir (unary fit as reported); CO2-N2 competition is not modelled.
 - H2O (GAB, Table 9) is not included: the engine has no GAB isotherm.
 

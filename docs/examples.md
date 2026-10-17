@@ -6,7 +6,7 @@ Every paper-based deck is also an automated validation test; the [Validation](va
 
 ## Example scripts
 
-`examples/` has one runnable script per deck family. Each loads its decks, runs them, prints the KPIs or the cyclic-steady-state status, compares the result with the paper's published values (`adsim/test/papers/*/reference_values.csv`) or digitised curves (`adsim/data/`) when run from a repository checkout, and saves a plot to `examples/output/` when matplotlib is installed (`--no-plot` to skip). Common options: `--case NAME` (repeatable) to run a subset, `--cycles N` for a quick look.
+`examples/` has one runnable script per deck family. Each loads its decks, runs them, prints the KPIs or the cyclic-steady-state status, compares the result with the paper's published values (`core/test/papers/*/reference_values.csv`) or digitised curves (`core/data/`) when run from a repository checkout, and saves a plot to `examples/output/` when matplotlib is installed (`--no-plot` to skip). Common options: `--case NAME` (repeatable) to run a subset, `--cycles N` for a quick look.
 
 ```bash
 pip install "skarstrom[examples]"        # or pip install . && pip install matplotlib
@@ -55,7 +55,7 @@ Three executed notebooks are in `examples/notebooks/`: a parametric study of the
 | **Illustrative** | `Illustrative_TSA_13X` | **Not a reproduction.** A four-step indirectly heated TSA for CO₂ on zeolite 13X, built for the [TSA tutorial](tsa-regeneration.md) |
 | **Other** | `FiveStepProductPurge` | A CO₂/N₂ VSA cycle with feed, blowdown, evacuation, pressurisation and product purge on a 13X-type isotherm. It comes from an integration test, has no KPI configuration and no literature source; use it as a template, not as data |
 
-Several decks also carry the experimental curves digitised from their paper (the deck's experimental-data section), the same data as `adsim/data/`.
+Several decks also carry the experimental curves digitised from their paper (the deck's experimental-data section), the same data as `core/data/`.
 
 ## Working with an example
 

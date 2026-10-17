@@ -71,7 +71,7 @@ from scipy.optimize import minimize_scalar
 
 base = skarstrom.examples.Ward2022_Q100ccm.load()
 t_data, y_data = np.loadtxt(
-    "adsim/data/ward_2022/Qin=100/outlet_CO2_mole_fraction[-]_Qin=100[ccm].csv",
+    "core/data/ward_2022/Qin=100/outlet_CO2_mole_fraction[-]_Qin=100[ccm].csv",
     delimiter=",", skiprows=1, unpack=True)
 
 path = "adsorbent[1].isotherm[CarbonDioxide].m2"     # see base.parameters(tunable_only=True)

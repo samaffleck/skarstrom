@@ -3,7 +3,7 @@
 #
 # Test scope (ctest):
 #   * pull requests and pushes to other branches run the FAST subset: every
-#     test except the paper replications (adsim/test/papers/, about 25 minutes
+#     test except the paper replications (core/test/papers/, about 25 minutes
 #     of CPU) and the slow CSS-acceleration test. That is ~600 tests in a few
 #     minutes.
 #   * pushes to main, the nightly schedule and manual runs (workflow_dispatch)
@@ -133,7 +133,7 @@ jobs:
 
       - name: Remove test output
         if: always()
-        run: rm -rf adsim/Results
+        run: rm -rf core/Results
 
   python:
     name: Python wheel (Linux)

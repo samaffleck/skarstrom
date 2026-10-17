@@ -89,8 +89,8 @@ cmake --build --preset linux-release  # (windows: --preset windows-release)
 ctest --preset linux-release -j3
 ```
 
-- The full suite (about 670 tests) includes the paper replications. It takes around 10 minutes on four cores and writes about 4 GB of results to `adsim/Results/`; delete that folder afterwards. `ctest -R` runs a subset, e.g. `ctest --preset linux-release -R "Isotherm|AdsorbentLibrary|Version"`.
-- `build/linux-release/adsim/bench/bench_solver deck.json` solves any deck and prints the wall time and solver statistics. Add `--log medium` to see the per-cycle log, including the cycle at which cyclic steady state was reached.
+- The full suite (about 670 tests) includes the paper replications. It takes around 10 minutes on four cores and writes about 4 GB of results to `core/Results/`; delete that folder afterwards. `ctest -R` runs a subset, e.g. `ctest --preset linux-release -R "Isotherm|AdsorbentLibrary|Version"`.
+- `build/linux-release/core/bench/bench_solver deck.json` solves any deck and prints the wall time and solver statistics. Add `--log medium` to see the per-cycle log, including the cycle at which cyclic steady state was reached.
 - Without presets: `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DADSIM_BUILD_TESTS=ON`.
 
 [Using the C++ library](cpp-library.md) explains how to use the engine from your own C++ project, and [Numerics](numerics.md) what the solver does with a deck.

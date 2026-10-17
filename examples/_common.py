@@ -1,8 +1,8 @@
 """Shared helpers for the example scripts in this folder.
 
 Not part of the ``skarstrom`` package: the scripts import it as a sibling
-module. It finds the decks, the digitised experimental data (adsim/data/) and
-the published reference values (adsim/test/papers/*/reference_values.csv) of a
+module. It finds the decks, the digitised experimental data (core/data/) and
+the published reference values (core/test/papers/*/reference_values.csv) of a
 repository checkout, and falls back to the decks bundled with the installed
 package when the scripts are run outside the repository (without the
 comparison data).
@@ -25,8 +25,8 @@ import skarstrom
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 DECKS = REPO / "examples" / "decks"
-DATA = REPO / "adsim" / "data"
-PAPERS = REPO / "adsim" / "test" / "papers"
+DATA = REPO / "core" / "data"
+PAPERS = REPO / "core" / "test" / "papers"
 OUTPUT = Path(os.environ.get("SKARSTROM_EXAMPLES_OUTPUT", HERE / "output"))
 
 
@@ -109,7 +109,7 @@ def load_csv(path: Path) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def reference(paper: str, case: str, quantity: str) -> Optional[float]:
-    """A published value from adsim/test/papers/<paper>/reference_values.csv."""
+    """A published value from core/test/papers/<paper>/reference_values.csv."""
     p = PAPERS / paper / "reference_values.csv"
     if not p.is_file():
         return None

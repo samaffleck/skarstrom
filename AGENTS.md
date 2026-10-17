@@ -116,12 +116,12 @@ Decks are cereal JSON archives of `adsim::UserData` (root `value0` for files, `s
 ### Layout
 
 ```
-adsim/include/adsim/   public C++ API (source of truth): simulation.h, objects/, equations/, solver/, parameters/
-adsim/src/             implementations (mirrors include/)
-adsim/test/            GoogleTest: unit/, integration/, validation/ (analytic verification), papers/ (literature)
-adsim/data/            digitised experimental curves used by the paper tests
-adsim/bench/           bench_solver timing tool
-adsim/install_consumer/, adsim/subproject_consumer/   find_package / add_subdirectory smoke projects
+core/include/adsim/   public C++ API (source of truth): simulation.h, objects/, equations/, solver/, parameters/
+core/src/             implementations (mirrors include/)
+core/test/            GoogleTest: unit/, integration/, validation/ (analytic verification), papers/ (literature)
+core/data/            digitised experimental curves used by the paper tests
+core/bench/           bench_solver timing tool
+core/install_consumer/, core/subproject_consumer/   find_package / add_subdirectory smoke projects
 python/                pybind11 bindings (src/bindings.cpp), the skarstrom package, pytest tests
 examples/              decks/ (bundled decks), one script per deck family, notebooks/
 data/adsorbents/       curated adsorbent library: library.json + <key>.json
@@ -137,22 +137,22 @@ external/              submodules (sundials, CoolProp, cereal, muparser, dlib, g
 git submodule update --init --recursive
 cmake --preset linux-release            # macos-release, windows; tests are on in the presets
 cmake --build --preset linux-release
-ctest --preset linux-release -j3        # full suite ~10 min; adsim/ is the working directory
+ctest --preset linux-release -j3        # full suite ~10 min; core/ is the working directory
 ctest --preset linux-release -E "^(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)Test\.|^CSSAcceleration\."   # fast subset
-rm -rf adsim/Results                    # the suite writes ~4 GB there
+rm -rf core/Results                    # the suite writes ~4 GB there
 pip install . && pytest python/tests    # Python package + example smoke tests
 pip install -r requirements-docs.txt && mkdocs build --strict
 ```
 
 ### Conventions
 
-- **Never commit `adsim/Results/`** (test output, git-ignored) or build trees.
-- **Keep generated docs generated.** `docs/validation.md` comes from `adsim/test/papers/validation_summary.json` (`python scripts/docs/gen_validation_page.py`, `--merge <build>/validation` after running the paper tests); `docs/adsorbent-library.md` from `data/adsorbents/library.json` (`python scripts/docs/gen_adsorbent_library.py`, which also validates the catalogue). Never edit the generated pages; CI runs both with `--check`.
+- **Never commit `core/Results/`** (test output, git-ignored) or build trees.
+- **Keep generated docs generated.** `docs/validation.md` comes from `core/test/papers/validation_summary.json` (`python scripts/docs/gen_validation_page.py`, `--merge <build>/validation` after running the paper tests); `docs/adsorbent-library.md` from `data/adsorbents/library.json` (`python scripts/docs/gen_adsorbent_library.py`, which also validates the catalogue). Never edit the generated pages; CI runs both with `--check`.
 - **Cite every adsorbent parameter.** A library entry needs a DOI and table/figure reference for each value, or an explicit `Not stated in source (checked: ...)`. Paper reference values (`reference_values.csv`) must be numbers printed in the paper; never eyeball values off a plot, never commit PDFs or full-text extractions.
 - **Tolerances in paper tests are regression bounds** set from the measured error; never loosen one to hide a disagreement — document it in the paper's README.
 - **Regenerated example decks are expected.** The test suite re-saves `examples/decks/*.json` and some `data/adsorbents/*.json`; embedded result numbers move in the last digits. Commit those changes with the code change that caused them.
 - **Data file names must be shell-safe** (`[A-Za-z0-9._,=+@-]`; checked by the `DataFileNamesAreShellSafe` test).
 - **Bump `cereal_class_version`** for any change to a serialised class and handle older versions on load.
-- **The engine stays front-end free:** no GUI, web or JSON-schema code in `adsim/`; it must keep building as a subproject and with Emscripten (`scripts/test_subproject_consumer.sh [--emscripten]`).
+- **The engine stays front-end free:** no GUI, web or JSON-schema code in `core/`; it must keep building as a subproject and with Emscripten (`scripts/test_subproject_consumer.sh [--emscripten]`).
 - Licence headers point to the root `LICENSE`; do not add per-file licence text. Leave third-party code in `external/` untouched.
 - Commits need a DCO sign-off (`git commit -s`); see CONTRIBUTING.md.
