@@ -186,7 +186,7 @@ T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, CO2/N2 separation by vacuum swing a
 **Findings.**
 
 - Four-step cycles (I-V): CO2 purity within 1.7-4.9 pp and recovery within 1.2-2.7 pp of the experiments; productivity within 5-9 %.
-- LPP cycles (VI-X): purity within 0.1-2.7 pp of the experiments, but recovery is 6-10 pp high and exceeds 100 % for IX and X. The single-bed emulation couples the light-product pressurisation to the feed step by composition, not by moles, so CO2 enters through the LPP stream that is not drawn from the raffinate; this is a limitation of the deck/connection model, recorded rather than hidden.
+- LPP cycles (VI-X): purity within 0.2-2.7 pp of the experiments, but recovery is 7-10 pp high and exceeds 100 % for IX and X, at the cyclic steady state of the per-component mass balance (VIII-X need about 300-500 cycles to reach it). The single-bed emulation couples the light-product pressurisation to the feed step by composition, not by moles, so CO2 enters through the LPP stream that is not drawn from the raffinate; this is a limitation of the deck/connection model, recorded rather than hidden.
 - The decks now use the competitive DSL form (as the paper's ref. [10]); the paper's column length (0.267 m) is inconsistent with its adsorbent mass and particle density, and the deck keeps the mass (L = 0.304 m).
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
@@ -275,7 +275,7 @@ L. Estupiñan Perez, P. Sarkar, A. Rajendran, Experimental validation of multi-o
 
 **Findings.**
 
-- Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 3-9 pp low and recovery 3-4 pp high.
+- Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 1.9-3.4 pp low and recovery 2.7-4.1 pp high, at the cyclic steady state of the per-component mass balance (E and F need about 450 and 1000 cycles to reach it).
 - adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K).
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
