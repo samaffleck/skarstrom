@@ -1,5 +1,10 @@
 """Nguyen et al. (2022): CO2 breakthrough on CALF-20 (Figs. 4 and 5).
 
+Builds each case from scratch in code: the CO2/N2/He fluid, CALF-20 with the
+paper's dual-site Langmuir isotherm, the column (sized to hold 16.7 g of
+adsorbent), the single feed step and the solver settings. Every value is set
+explicitly, with its unit.
+
 Fig. 4 is a 70 % CO2 feed and Fig. 5 a 15 % CO2 feed (balance helium) into a
 bed initially full of helium. The outlet CO2 mole fraction is compared with the
 digitised experiments (core/data/nguyen_2022/): NRMSE normalised by the feed
@@ -8,17 +13,146 @@ mole fraction, and the time at which the outlet reaches half the feed value.
     python examples/nguyen_2022.py
     python examples/nguyen_2022.py --case Fig4
 
+``build("Fig4")`` returns the configured simulation without running it
+(python/tests/test_examples_build.py checks it against examples/decks/).
+
 Reference: T.T.T. Nguyen, J.-B. Lin, G.K.H. Shimizu, A. Rajendran, Chemical
 Engineering Journal 442 (2022) 136263. doi:10.1016/j.cej.2022.136263
 """
 
 from __future__ import annotations
 
+import math
 import sys
 
 import _common as c
+import skarstrom as sk
 
-CASES = {"Fig4": ("Nguyen2022_Fig4.json", 70), "Fig5": ("Nguyen2022_Fig5.json", 15)}
+# The two figures differ only in the feed: composition, flow rate and how long it runs.
+FIGURES = {
+    "Fig4": dict(title="Nguyen 2022 - Fig. 4", feed_co2=0.70, feed_flow="50 mL/min", feed_time="6000 s",
+                 description="Binary CO2/He breakthrough on CALF-20 (Fig. 4), inlet CO2 mole fraction 0.7."),
+    "Fig5": dict(title="Nguyen 2022 - Fig. 5", feed_co2=0.15, feed_flow="100 mL/min", feed_time="12000 s",
+                 description="Ternary CO2/N2/He breakthrough on CALF-20 (Fig. 5), inlet CO2 mole fraction 0.15."),
+}
+
+# Column geometry (core/test/papers/nguyen_2022/nguyen_2022.h): the bed length
+# is chosen so that it holds exactly 16.7 g of CALF-20, with rho_b = rho_p (1 - eb).
+ADSORBENT_MASS = 16.7e-3        # [kg]
+INNER_DIAMETER = 0.0282         # [m]
+OUTER_DIAMETER = 0.0318         # [m]
+PARTICLE_DENSITY = 570.0        # [kg/m3]
+BED_VOID_FRACTION = 0.4
+BED_LENGTH = ADSORBENT_MASS / (PARTICLE_DENSITY * (1 - BED_VOID_FRACTION)) / (math.pi / 4 * INNER_DIAMETER**2)
+WALL_THICKNESS = (OUTER_DIAMETER - INNER_DIAMETER) / 2
+
+
+def build(case: str) -> sk.Simulation:
+    """The simulation of one figure ("Fig4" or "Fig5"), ready to run."""
+    fig = FIGURES[case]
+    sim = sk.Simulation.new(title=fig["title"], description=fig["description"], author="Skarstrom examples")
+
+    # ---- fluid: CO2 and N2 adsorb, helium is the inert carrier ---------------------
+    for component in ("CarbonDioxide", "Nitrogen", "Helium"):
+        sim.add_component(component)
+    sim.fluid.adsorbed_heat_capacity_mode = "constant"
+    sim.fluid.heat_of_adsorption_convention = "isosteric"
+    sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = "37.435 J/(mol*K)"
+    sim.fluid.adsorbed_heat_capacity["Nitrogen"] = "29.171 J/(mol*K)"
+    sim.fluid.adsorbed_heat_capacity["Helium"] = "0 J/(mol*K)"
+
+    # ---- adsorbent: CALF-20, dual-site Langmuir from the ESS model of Table 3 ---------
+    calf20 = sim.add_adsorbent("CALF-20", solid_density=f"{PARTICLE_DENSITY} kg/m3",
+                               heat_capacity="1371 J/(kg*K)", thermal_conductivity="0.63 W/(m*K)",
+                               particle_void_fraction=0.35)
+    calf20.set_isotherm("extended_dual_site_langmuir_c", {
+        "CarbonDioxide": {"m1": "2.387 mol/kg", "b1": "5.519e-7 m3/mol", "q1": "35.06 kJ/mol",
+                          "m2": "3.271 mol/kg", "b2": "5.187e-8 m3/mol", "q2": "28.95 kJ/mol"},
+        "Nitrogen":      {"m1": "2.387 mol/kg", "b1": "8.139e-7 m3/mol", "q1": "17.96 kJ/mol",
+                          "m2": "3.271 mol/kg", "b2": "8.139e-7 m3/mol", "q2": "17.96 kJ/mol"},
+    }, components=["CarbonDioxide", "Nitrogen"])
+    calf20.set_isotherm("inert", components=["Helium"])
+    calf20.set_rate_model("CarbonDioxide", "ldf", "macropore", tortuosity=3.0, macropore_void_fraction=0.35)
+    calf20.set_rate_model("Nitrogen", "ldf", "macropore", tortuosity=3.0, macropore_void_fraction=0.35)
+    calf20.set_rate_model("Helium", "ldf", "constant", k="0.5 1/s")
+    calf20.heat_of_adsorption["CarbonDioxide"] = "38 kJ/mol"
+    calf20.heat_of_adsorption["Nitrogen"] = "15 kJ/mol"
+    calf20.heat_of_adsorption["Helium"] = "0 kJ/mol"
+
+    # ---- column ------------------------------------------------------------------------
+    sim.bed.set_shape("cylinder", diameter=f"{INNER_DIAMETER} m")
+    # Not stated in the material available: 295 K is the initial thermocouple
+    # reading of the digitised experiments (core/data/nguyen_2022/Fig*/T_CO2_*.csv).
+    sim.bed.ambient_temperature = "295 K"
+    sim.bed.set_thermal_equilibrium("lte")
+    sim.bed.set_particle_heat_transfer("constant", particle_htc="100 W/(m^2*K)")
+    for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
+        void.enabled = False
+        void.volume = "1e-4 m3"
+        void.resistance_coefficient = "0 Pa*s/m"
+    sim.wall.set_material("ss316l", density="7800 kg/m3", heat_capacity="502 J/(kg*K)",
+                          thermal_conductivity="16 W/(m*K)")
+    sim.wall.thickness = f"{WALL_THICKNESS!r} m"
+    sim.wall.set_boundary("zero_flux")
+
+    # Particle diameter: not stated in the material available; 1.5 mm is the deck author's assumption.
+    layer = sim.add_layer("CALF-20", composition={"CALF-20": 1.0}, momentum="kozeny_carman",
+                          length=f"{BED_LENGTH!r} m", cells=30, bed_void_fraction=BED_VOID_FRACTION,
+                          particle_diameter="1.5 mm")
+    layer.set_dispersion("ruthven", molecular_diffusion_coefficient="1.6e-5 m2/s")
+    layer.set_heat_dispersion("constant", heat_dispersion_coefficient="0.4 W/(m*K)")
+    layer.set_internal_heat_transfer("constant", internal_htc="6.963 W/(m^2*K)")
+    layer.set_external_heat_transfer("constant", external_htc="14 W/(m^2*K)")
+
+    # ---- initial state: the bed full of helium at 0.97 bar ---------------------------------
+    sim.initial_conditions.pressure = "0.97 bar"
+    sim.initial_conditions.temperature = "295 K"
+    sim.initial_conditions.wall_temperature = "295 K"
+    sim.initial_conditions.velocity = "0 m/s"
+    sim.initial_conditions.y["Helium"] = 1.0
+    sim.initial_conditions.y["Nitrogen"] = 0.0
+    sim.initial_conditions.y["CarbonDioxide"] = 0.0
+
+    # ---- one feed step: breakthrough --------------------------------------------------------
+    sim.cycle.number_of_cycles = 1
+    sim.cycle.step_time_mode = "time"
+    feed = sim.add_step("Feed", time=fig["feed_time"])
+    feed_gas = {"Helium": 1.0 - fig["feed_co2"], "Nitrogen": 0.0, "CarbonDioxide": fig["feed_co2"]}
+    feed.bottom.set_streams("inlet", [
+        sk.Stream("CO2 Inlet", flow=sk.volumetric_flow(fig["feed_flow"]), y=feed_gas, temperature="295 K"),
+    ])
+    feed.top.set_pressure("outlet", "0.97 bar", y={"CarbonDioxide": 0.0, "Nitrogen": 0.0, "Helium": 1.0},
+                          temperature="293 K")
+
+    # ---- solver (SUNDIALS IDA); a single step, so no cyclic-steady-state check ----------------
+    sim.settings.init_step = "1e-10 s"
+    sim.settings.min_step = "1e-15 s"
+    sim.settings.max_step = "0 s"                 # 0: no limit on the integrator step
+    sim.settings.reltol = 1e-6
+    sim.settings.nonlin_conv_coef = 0.1
+    sim.settings.max_order = 5
+    sim.settings.max_nonlin_iters = 15
+    sim.settings.max_conv_fails = 200
+    sim.settings.max_err_test_fails = 40
+    sim.settings.max_num_steps = 100000
+    sim.settings.max_iters_per_step = 50000
+    sim.settings.advection_scheme = "upwind"
+    sim.settings.max_cycles_to_keep = 10
+    sim.settings.max_log_points_per_step = 200
+    sim.settings.acceleration_method = "none"
+    sim.css.method = "none"
+    sim.css.min_cycles = 5
+    sim.css.molar_absolute_tolerance = 1e-4
+    sim.css.molar_relative_tolerance = 1e-4
+    sim.css.mass_balance_tolerance = 0.005
+    sim.energy_balance.energy_balance_mode = "non_isothermal"
+    sim.energy_balance.isothermal_use_initial_temperature = True
+    sim.energy_balance.isothermal_temperature = "298.15 K"
+    return sim
+
+
+CASES = {"Fig4": 70, "Fig5": 15}                                 # case -> feed CO2 [%] (digitised data file)
+DECKS = {"Fig4": "Nguyen2022_Fig4", "Fig5": "Nguyen2022_Fig5"}   # the shipped deck of each case
 
 
 def main(argv=None) -> int:
@@ -27,9 +161,11 @@ def main(argv=None) -> int:
     fig, ax = (plt.subplots(figsize=(6, 4)) if plt else (None, None))
     rows = []
     for name in c.selected(args):
-        deck, feed_pct = CASES[name]
+        feed_pct = CASES[name]
         y_feed = feed_pct / 100.0
-        sim = c.load(deck, args.cycles)
+        sim = build(name)
+        if args.cycles is not None:
+            sim.cycle.number_of_cycles = int(args.cycles)
         c.run(sim, f"Nguyen 2022 {name}", args.quiet)
         y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=0)
         t50 = c.crossing_time(y.time, y.values, 0.5 * y_feed)
