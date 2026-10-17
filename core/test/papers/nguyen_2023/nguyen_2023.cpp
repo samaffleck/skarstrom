@@ -60,12 +60,12 @@ namespace adsim {
       { "ExperimentVI",   { 1.3, 7.8, 0.076, 0.74, 5.9, 0.011 } },
       // measured: 0.70128 pp, 7.74829 pp, 0.139047 rel | 1.90128 pp, 8.04829 pp, 0.139047 rel
       { "ExperimentVII",  { 1.1, 9, 0.16, 2.3, 9.3, 0.16 } },
-      // measured: 2.6684 pp, 9.21778 pp, 0.0790468 rel | 3.5684 pp, 7.11778 pp, 0.0214872 rel
-      { "ExperimentVIII", { 3.1, 11, 0.091, 4.2, 8.2, 0.032 } },
-      // measured: 1.32558 pp, 9.75953 pp, 0.115661 rel | 3.95558 pp, 8.65953 pp, 0.0359711 rel
-      { "ExperimentIX",   { 1.7, 12, 0.14, 4.6, 10, 0.046 } },
-      // measured: 0.0701674 pp, 8.26968 pp, 0.0171134 rel | 0.0701674 pp, 7.06968 pp, 0.173592 rel
-      { "ExperimentX",    { 0.38, 9.6, 0.028, 0.38, 8.2, 0.2 } },
+      // measured: 2.62136 pp, 9.23821 pp, 0.0788527 rel | 3.52136 pp, 7.13821 pp, 0.021281 rel
+      { "ExperimentVIII", { 3.1, 11, 0.091, 4.1, 8.3, 0.032 } },
+      // measured: 0.981537 pp, 9.84982 pp, 0.116667 rel | 3.61154 pp, 8.74982 pp, 0.0369047 rel
+      { "ExperimentIX",   { 1.3, 12, 0.14, 4.2, 11, 0.047 } },
+      // measured: 0.236556 pp, 8.37753 pp, 0.0182035 rel | 0.236556 pp, 7.17753 pp, 0.17485 rel
+      { "ExperimentX",    { 0.54, 9.7, 0.029, 0.54, 8.3, 0.21 } },
     };
 
     void ValidateNguyen2023(const std::string& experiment_name, const UserData& data,
@@ -430,7 +430,10 @@ namespace adsim {
 
     // CONFIGURE CYCLE
     // Run to cyclic steady state (paper's mass-balance criterion), minimum 100 cycles.
-    test_fixture.ConfigureCycle(250); // hard cap on cycle count
+    // The CO2 inventory of the light-product pressurisation cycles settles slowly:
+    // the per-component balance reaches 0.5 % at about cycle 300-500 (VIII-X), so
+    // the cap is well above that.
+    test_fixture.ConfigureCycle(1000); // hard cap on cycle count
     test_fixture.data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
     test_fixture.data.settings.css.min_cycles_ = 100;
 

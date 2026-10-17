@@ -532,7 +532,7 @@
         },
         "Cycle": {
             "cereal_class_version": 2,
-            "Number_Of_Cycles": 250,
+            "Number_Of_Cycles": 1000,
             "Step_List": [
                 {
                     "cereal_class_version": 5,

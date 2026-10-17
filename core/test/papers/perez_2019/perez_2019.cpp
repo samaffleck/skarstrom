@@ -44,8 +44,8 @@ namespace adsim {
       { "ConfigB",  { 0.41, 9.9, 1.1, 7.2 } },  // measured 0.103064, 8.52423, 0.796936, 6.22423 pp
       { "ConfigC1", { 1.6, 9.5, 4.1, 5.3 } },  // measured 1.21589, 8.18045, 3.48411, 4.58045 pp
       { "ConfigD1", { 3.9, 4.8, 2.8, 4 } },  // measured 3.37943, 4.12065, 2.37943, 3.42065 pp
-      { "ConfigE",  { 5.8, 5, 8, 5.7 } },  // measured 4.99608, 4.276, 6.89608, 4.876 pp
-      { "ConfigF",  { 11, 3.9, 13, 5 } },  // measured 8.85068, 3.31355, 11.0507, 4.31355 pp
+      { "ConfigE",  { 2.3, 3.7, 4.5, 4.4 } },  // measured 1.93719, 3.17014, 3.83719, 3.77014 pp
+      { "ConfigF",  { 2.7, 3.2, 5.2, 4.3 } },  // measured 2.293, 2.72992, 4.493, 3.72992 pp
     };
 
     void ValidatePerez(const std::string& id, double purity, double recovery) {
@@ -297,8 +297,11 @@ namespace adsim {
     press_closed->location_ = BoundaryLocation::BOTTOM;
     step_press.bottom_boundary_condition_ = std::move(press_closed);
 
-    // Run to CSS, min 100 cycles
-    ConfigureCycle(250);
+    // Run to CSS, min 100 cycles. The CO2 inventory of these light-product
+    // pressurisation cycles settles slowly: the per-component balance reaches
+    // 0.5 % at about cycle 450 (E) and 1030 (F), long after the gas profiles
+    // stop changing, so the cap is well above that.
+    ConfigureCycle(1500);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
     data.settings.css.min_cycles_ = 100;
     // KPI: CO2 fed in Feed1(0), Feed2(1) @ bottom; product = Evacuation(3) @ bottom. The

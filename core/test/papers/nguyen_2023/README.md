@@ -59,5 +59,5 @@ value in a comment next to it. Results of the last run:
 (generated from `../validation_summary.json`).
 
 - Four-step cycles (I-V): CO2 purity within 1.7-4.9 pp and recovery within 1.2-2.7 pp of the experiments; productivity within 5-9 %.
-- LPP cycles (VI-X): purity within 0.1-2.7 pp of the experiments, but recovery is 6-10 pp high and exceeds 100 % for IX and X. The single-bed emulation couples the light-product pressurisation to the feed step by composition, not by moles, so CO2 enters through the LPP stream that is not drawn from the raffinate; this is a limitation of the deck/connection model, recorded rather than hidden.
+- LPP cycles (VI-X): purity within 0.2-2.7 pp of the experiments, but recovery is 7-10 pp high and exceeds 100 % for IX and X, at the cyclic steady state of the per-component mass balance (VIII-X need about 300-500 cycles to reach it). The single-bed emulation couples the light-product pressurisation to the feed step by composition, not by moles, so CO2 enters through the LPP stream that is not drawn from the raffinate; this is a limitation of the deck/connection model, recorded rather than hidden.
 - The decks now use the competitive DSL form (as the paper's ref. [10]); the paper's column length (0.267 m) is inconsistent with its adsorbent mass and particle density, and the deck keeps the mass (L = 0.304 m).

@@ -137,7 +137,8 @@ def build(case: str) -> sk.Simulation:
     sim.initial_conditions.y["CarbonDioxide"] = 0.0
 
     # ---- cycle -------------------------------------------------------------------------
-    sim.cycle.number_of_cycles = 250
+    # E and F need about 450 and 1000 cycles to close the CO2 balance (CSS below).
+    sim.cycle.number_of_cycles = 1500 if case in ("E", "F") else 250
     sim.cycle.step_time_mode = "time"
     if cfg["lpp"]:
         add_lpp_cycle(sim, cfg)

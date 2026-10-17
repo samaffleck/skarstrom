@@ -134,7 +134,9 @@ def build(case: str) -> sk.Simulation:
     sim.initial_conditions.y["CarbonDioxide"] = 0.0
 
     # ---- cycle -------------------------------------------------------------------------
-    sim.cycle.number_of_cycles = 250
+    # The light-product pressurisation cycles need up to about 500 cycles to close the
+    # CO2 balance (CSS below).
+    sim.cycle.number_of_cycles = 1000 if exp["lpp"] else 250
     sim.cycle.step_time_mode = "time"
     if exp["lpp"]:
         add_lpp_cycle(sim, exp)
