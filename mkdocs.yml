@@ -8,6 +8,8 @@ copyright: Copyright &copy; 2024-2026 Sam Affleck and contributors
 
 theme:
   name: material
+  logo: assets/icon-white.png
+  favicon: assets/icon.png
   features:
     - navigation.sections
     - navigation.top

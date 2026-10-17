@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.png">
+    <img src="docs/assets/logo.png" alt="Skarstrom" width="480">
+  </picture>
+</p>
+
 # Skarstrom
 
 [![CI](https://github.com/samaffleck/skarstrom/actions/workflows/ci.yml/badge.svg)](https://github.com/samaffleck/skarstrom/actions/workflows/ci.yml)
@@ -9,6 +16,12 @@
 - **Engine:** a C++20 library (`adsim`) with a CMake package (`find_package(Adsim)`), usable as a subproject and buildable with Emscripten.
 - **Python:** the `skarstrom` package and command-line tool (pybind11), with NumPy results, a parameter registry, and the engine's isotherm fitter.
 - **Data:** 33 example decks reproducing published studies, a curated and cited adsorbent library, and automated validation against the literature.
+
+## Why Skarstrom
+
+Adsorption processes such as PSA, VSA and TSA are central to gas separation, carbon capture and gas purification, but there has been no good open-source tool for simulating them. Researchers and engineers write their own column models from scratch, or work in closed commercial packages. That costs time, and it makes results hard to compare: two groups modelling the same cycle rarely share an implementation, a set of parameters or a way to check one another's numbers.
+
+Skarstrom aims to be the shared, open, tested foundation. A standard engine, deck format and cited adsorbent library let the community reproduce published work, compare like with like, and build on each other's models instead of starting again.
 
 ## Install
 
@@ -87,6 +100,10 @@ Caveats: the tolerances are **regression bounds** set from the current model's m
 ## Citing
 
 If you use Skarstrom in published work, please cite it using [`CITATION.cff`](CITATION.cff) (GitHub shows a "Cite this repository" button), and cite the original sources of any adsorbent data or validation case you rely on.
+
+## Get involved
+
+We are forming a **steering committee** to guide Skarstrom's direction: which models and features come next, how validation cases and adsorbent data are curated, and how the project is governed as it grows. People from **academia and industry** are both welcome. If you would like to join, contact [Sam Affleck on LinkedIn](https://www.linkedin.com/in/sam-affleck).
 
 ## Contributing
 

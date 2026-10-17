@@ -9,6 +9,9 @@ root `CMakeLists.txt`.
 ## [Unreleased]
 
 ### Changed
+- Contact is through LinkedIn instead of email (README "Get involved",
+  SECURITY.md, CODE_OF_CONDUCT.md); the README and docs gain the logo, a
+  "Why Skarstrom" introduction and a call for steering-committee members.
 - Example decks renamed so every name is a Python identifier:
   `Ward_2022_Q=50[ccm]` → `Ward2022_Q50ccm` (and `Q100ccm`, `Q200ccm`),
   `Nguyen_2022_Fig4`/`Fig5` → `Nguyen2022_Fig4`/`Fig5`, `streb_2021_A1`/`A3`
