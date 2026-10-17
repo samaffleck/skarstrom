@@ -19,7 +19,7 @@ import sys
 
 import _common as c
 
-CASES = {"50": "Ward_2022_Q=50[ccm].json", "100": "Ward_2022_Q=100[ccm].json", "200": "Ward_2022_Q=200[ccm].json"}
+CASES = {"50": "Ward2022_Q50ccm.json", "100": "Ward2022_Q100ccm.json", "200": "Ward2022_Q200ccm.json"}
 Z_TC = 0.0715  # thermocouple position [m]
 
 

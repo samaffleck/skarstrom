@@ -652,7 +652,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 
 *No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
 
-**Used by example decks:** `Nguyen_2022_Fig4.json`, `Nguyen_2022_Fig5.json`
+**Used by example decks:** `Nguyen2022_Fig4.json`, `Nguyen2022_Fig5.json`
 
 > **Incomplete entry.** Missing or unverified: T\_range\_K (CarbonDioxide), P\_range\_Pa (CarbonDioxide), T\_range\_K (Nitrogen), P\_range\_Pa (Nitrogen), heat\_of\_adsorption (CarbonDioxide), heat\_of\_adsorption (Nitrogen), particle\_density, heat\_capacity, particle\_diameter. The paper (Elsevier, subscription) was not accessible to PR #137 or to this update; the isotherm parameters, properties and heat of adsorption are copied from the repo's Nguyen\_2022 decks, which cite its Table 3. The listed fields could therefore not be checked against the source.
 
@@ -726,7 +726,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 
 *No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
 
-**Used by example decks:** `streb_2021_A1.json`, `streb_2021_A3.json`
+**Used by example decks:** `Streb2021_A1.json`, `Streb2021_A3.json`
 
 - Extended Sips with temperature-dependent capacity, affinity and exponent (engine kind 'Extended Sips 2'); B1 converted from 1e-4 1/bar to 1/Pa, T\_ref = 298 K as in the repo decks (paper: 25 C).
 - Includes the decks' fitted LDF constants (Table 4: CO2 0.06 1/s, CH4 0.2 1/s); H2 uses the engine default.
@@ -791,7 +791,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 
 *No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
 
-**Used by example decks:** `Ward_2022_Q=50[ccm].json`, `Ward_2022_Q=100[ccm].json`, `Ward_2022_Q=200[ccm].json`
+**Used by example decks:** `Ward2022_Q50ccm.json`, `Ward2022_Q100ccm.json`, `Ward2022_Q200ccm.json`
 
 - Concentration-form DSL from Table 2.
 - Includes the decks' Haynes-type macropore LDF model.

@@ -1,6 +1,6 @@
 # Parametric Studies and Parameterisation
 
-Every settable deck value is a parameter with a stable path ([Python and the Command Line](python.md#parameters)), so studies are ordinary Python loops around `sim.set(...)` and `sim.run()`. This page shows the three common patterns: a **parametric study** (sweep one input and watch a KPI), an **optimisation** (search inputs for the best KPI), and a **parameterisation** (fit deck parameters to measured data). If you only need isotherm parameters from equilibrium uptake data, use [Isotherm Fitting](isotherm-fitting.md) instead: it fits the isotherm directly, with no column simulation, and is far faster.
+Every settable deck value is a parameter with a stable path ([Python and the Command Line](python.md#parameter-paths)), so studies are ordinary Python loops around `sim.set(...)` and `sim.run()`. This page shows the three common patterns: a **parametric study** (sweep one input and watch a KPI), an **optimisation** (search inputs for the best KPI), and a **parameterisation** (fit deck parameters to measured data). If you only need isotherm parameters from equilibrium uptake data, use [Isotherm Fitting](isotherm-fitting.md) instead: it fits the isotherm directly, with no column simulation, and is far faster.
 
 Each trial is a full cycle simulation. Start from a copy of the deck (`sim.copy()`) so every trial begins from the same inputs, and keep the number of trials small.
 
@@ -9,12 +9,12 @@ Each trial is a full cycle simulation. Start from a copy of the deck (`sim.copy(
 ```python
 import skarstrom
 
-base = skarstrom.Simulation(skarstrom.example_path("Perez2019_A.json"))
+base = skarstrom.examples.Perez2019_A.load()
 for p in base.parameters(tunable_only=True, search="time"):
     print(p.path, p.alias, p.value, p.unit, p.bounds)
 ```
 
-`tunable_only=True` keeps the numeric model values that can be varied, each with suggested search bounds (`p.bounds`, by default ±50 % of the current value). Parameters are in SI base units. A parameter written as a formula is not tunable, because setting a number would replace the formula; vary the [global variable](global-variables.md) it refers to instead (`variable[<name>]`).
+`tunable_only=True` keeps the numeric model values that can be varied, each with suggested search bounds (`p.bounds`, by default ±50 % of the current value). Parameters are in SI base units (give another unit as a string, `"2 min"`, or with `unit=`; see [Units](python.md#units)). A parameter written as a formula is not tunable, because setting a number would replace the formula; vary the [global variable](global-variables.md) it refers to instead (`variable[<name>]`).
 
 ## Parametric study
 
@@ -26,7 +26,7 @@ import numpy as np
 rows = []
 for t_feed in np.linspace(30, 90, 5):
     sim = base.copy()
-    sim["step[Feed].time"] = t_feed
+    sim.steps["Feed"].time = t_feed            # seconds
     r = sim.run()
     k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")
     rows.append((t_feed, k.purity, k.recovery, r.css_cycle))
@@ -69,7 +69,7 @@ with $y_{sim}$ interpolated linearly at each data time $x_k$:
 import numpy as np
 from scipy.optimize import minimize_scalar
 
-base = skarstrom.Simulation(skarstrom.example_path("Ward_2022_Q=100[ccm].json"))
+base = skarstrom.examples.Ward2022_Q100ccm.load()
 t_data, y_data = np.loadtxt(
     "adsim/data/ward_2022/Qin=100/outlet_CO2_mole_fraction[-]_Qin=100[ccm].csv",
     delimiter=",", skiprows=1, unpack=True)

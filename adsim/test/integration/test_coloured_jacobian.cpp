@@ -38,11 +38,11 @@ namespace adsim {
   } // namespace
 
   TEST(ColouredJacobian, MatchesBandDQ_Nguyen2022Fig5) {
-    ExpectColouredMatchesBand("Nguyen_2022_Fig5.json");
+    ExpectColouredMatchesBand("Nguyen2022_Fig5.json");
   }
 
   TEST(ColouredJacobian, MatchesBandDQ_Streb2021A1) {
-    ExpectColouredMatchesBand("streb_2021_A1.json");
+    ExpectColouredMatchesBand("Streb2021_A1.json");
   }
 
 } // end adsim namespace

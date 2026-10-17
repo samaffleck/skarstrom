@@ -20,7 +20,7 @@ def main(argv=None) -> int:
     args = c.parser(__doc__.splitlines()[0], ["FiveStepProductPurge"]).parse_args(argv)
     sim = c.load("FiveStepProductPurge.json", args.cycles)
     result = c.run(sim, "FiveStepProductPurge", args.quiet)
-    print(f"  steps: {', '.join(sim.steps)}")
+    print(f"  steps: {', '.join(sim.steps.names)}")
     print(f"  {c.css_status(sim)}")
     print(f"  integrator: {result.stats['steps']} steps, {result.stats['residual_evaluations']} residual evaluations")
     c.print_kpis(sim)

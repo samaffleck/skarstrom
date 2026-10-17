@@ -671,8 +671,8 @@
         "particle_diameter": {"value": null, "provenance": "repo", "ref": "Not in the paper according to the repo fixture (the deck assumes 1.5 mm)"},
         "thermal_conductivity": {"value": 0.63, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks"}
       },
-      "example_decks": ["Nguyen_2022_Fig4.json", "Nguyen_2022_Fig5.json"],
-      "deck_checks": [{"deck": "Nguyen_2022_Fig4.json", "adsorbent": "CALF-20"}],
+      "example_decks": ["Nguyen2022_Fig4.json", "Nguyen2022_Fig5.json"],
+      "deck_checks": [{"deck": "Nguyen2022_Fig4.json", "adsorbent": "CALF-20"}],
       "notes": [
         "Extended concentration-form DSL with equal-energy-site N2 (repo fixture comment: 'ESS model in Table 3').",
         "Includes the decks' macropore-controlled LDF (tortuosity 3, eps_p 0.35)."
@@ -741,8 +741,8 @@
         "particle_diameter": {"value": 0.0018, "provenance": "source", "ref": "Table 1"},
         "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value used by the streb_2021 decks"}
       },
-      "example_decks": ["streb_2021_A1.json", "streb_2021_A3.json"],
-      "deck_checks": [{"deck": "streb_2021_A1.json", "adsorbent": "13X"}],
+      "example_decks": ["Streb2021_A1.json", "Streb2021_A3.json"],
+      "deck_checks": [{"deck": "Streb2021_A1.json", "adsorbent": "13X"}],
       "notes": [
         "Extended Sips with temperature-dependent capacity, affinity and exponent (engine kind 'Extended Sips 2'); B1 converted from 1e-4 1/bar to 1/Pa, T_ref = 298 K as in the repo decks (paper: 25 C).",
         "Includes the decks' fitted LDF constants (Table 4: CO2 0.06 1/s, CH4 0.2 1/s); H2 uses the engine default."
@@ -798,8 +798,8 @@
         "particle_diameter": {"value": 0.003, "provenance": "source", "ref": "Table 1, particle radius 1.5e-3 m"},
         "thermal_conductivity": {"value": 0.63, "provenance": "source", "ref": "Table 1, k_s"}
       },
-      "example_decks": ["Ward_2022_Q=50[ccm].json", "Ward_2022_Q=100[ccm].json", "Ward_2022_Q=200[ccm].json"],
-      "deck_checks": [{"deck": "Ward_2022_Q=50[ccm].json", "adsorbent": "Activated Carbon"}],
+      "example_decks": ["Ward2022_Q50ccm.json", "Ward2022_Q100ccm.json", "Ward2022_Q200ccm.json"],
+      "deck_checks": [{"deck": "Ward2022_Q50ccm.json", "adsorbent": "Activated Carbon"}],
       "notes": [
         "Concentration-form DSL from Table 2.",
         "Includes the decks' Haynes-type macropore LDF model."

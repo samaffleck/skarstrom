@@ -1,64 +1,107 @@
 """Skarstrom: pressure and temperature swing adsorption cycle simulation.
 
-Load a deck (a JSON simulation file; see :func:`examples` for the bundled
-ones), change parameters, run it to cyclic steady state and read the results::
+Load a deck (a JSON simulation file; :mod:`skarstrom.examples` holds the
+bundled ones), change it, run it to cyclic steady state and read the results::
 
     import skarstrom
 
-    sim = skarstrom.Simulation("deck.json")
-    sim["cycle.number_of_cycles"] = 20
-    sim["step[Feed].time"] = 120.0          # by name, or by ID path: "step[1].time"
+    sim = skarstrom.examples.Perez2019_A.load()   # or skarstrom.Simulation("deck.json")
+    sim.cycle.number_of_cycles = 20
+    sim.steps["Feed"].time = "2 min"               # a step by name; units are explicit...
+    sim.steps["Feed"].bottom.temperature = 298.15  # ...or SI (K, s, Pa, m, mol/s)
+    sim.layers[0].length = "1.2 m"
     result = sim.run()
     print(result.status, result.css_cycle)
     for k in sim.kpis(cycle=-1):
         print(k.component, k.purity, k.recovery)
     y = sim.series("mole_fraction", "CarbonDioxide", location="top")
-    y.time, y.values                         # NumPy arrays
+    y.time, y.values                               # NumPy arrays
 
-Parameters are addressed by stable paths from the engine's parameter
-registry; ``sim.parameters()`` lists them. See
-https://samaffleck.github.io/skarstrom/python/ for the full guide.
+Every value also has a stable string path (``sim["step[Feed].time"] = 120``)
+for sweeps, the optimiser and the CLI; ``sim.parameters()`` lists them. A bare
+number is always in SI units; see :mod:`skarstrom.units`. Full guide:
+https://samaffleck.github.io/skarstrom/python/
 """
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 import os
-import shutil
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
-from . import _core
+from . import _core, examples, units
 from ._core import AxialProfile, CSSRecord, KPIRecord, RunResult, TimeSeries
+from ._example import Example
+from .model import (
+    CSS,
+    Adsorbent,
+    Bed,
+    Collection,
+    Cycle,
+    EnergyBalance,
+    Endpoint,
+    Info,
+    Isotherm,
+    Kinetics,
+    Layer,
+    NodeMap,
+    Pump,
+    Settings,
+    Step,
+    StepEnd,
+    ValueMap,
+    Wall,
+)
+from . import model as _model
 
 __version__: str = _core.__version__
 
 __all__ = [
+    "Adsorbent",
     "AxialProfile",
+    "Bed",
+    "CSS",
     "CSSRecord",
+    "Collection",
+    "Cycle",
+    "EnergyBalance",
+    "Endpoint",
+    "Example",
+    "Info",
+    "Isotherm",
     "KPIRecord",
+    "Kinetics",
+    "Layer",
+    "NodeMap",
     "Parameter",
+    "Pump",
     "RunResult",
+    "Settings",
     "Simulation",
+    "Step",
+    "StepEnd",
     "TimeSeries",
+    "ValueMap",
+    "Wall",
     "__version__",
     "adsorbent_library",
     "adsorbent_library_dir",
     "adsorbent_path",
     "bulk_variables",
-    "copy_example",
     "component_variables",
     "evaluate_isotherm",
-    "example_path",
     "examples",
     "fit_isotherm",
     "isotherm_kinds",
     "isotherm_parameters",
     "stream_component_variables",
     "stream_variables",
+    "units",
 ]
 
 PathLike = Union[str, "os.PathLike[str]"]
@@ -78,13 +121,14 @@ class Parameter:
     category: str
     subcategory: str
     name: str
-    unit: str
+    unit: str  # SI unit ("-" dimensionless); bare numbers are in this unit
     kind: str  # "real", "expression", "integer", "boolean" or "string"
     tunable: bool
     lower: float
     upper: float
     value: Union[float, bool, str]
     text: str
+    unit_checked: bool = True  # False: a custom-unit user variable (units are not checked)
 
     @property
     def bounds(self) -> Optional[tuple]:
@@ -96,50 +140,6 @@ class Parameter:
 
 def _data_dir() -> str:
     return os.path.join(os.path.dirname(__file__), "data")
-
-
-def _examples_dir() -> str:
-    return os.path.join(_data_dir(), "decks")
-
-
-def examples() -> List[str]:
-    """File names of the example decks shipped with the package (sorted).
-
-    The decks reproduce published PSA/VSA/TSA studies (see the examples page of
-    the documentation); every one is an ordinary deck file that
-    :class:`Simulation` loads.
-    """
-    d = _examples_dir()
-    if not os.path.isdir(d):
-        return []
-    return sorted(f for f in os.listdir(d) if f.endswith(".json"))
-
-
-def example_path(name: str) -> str:
-    """Absolute path of a shipped example deck (see :func:`examples`).
-
-    ``name`` may omit the ``.json`` suffix.
-    """
-    names = examples()
-    if name not in names and name + ".json" in names:
-        name += ".json"
-    p = os.path.join(_examples_dir(), name)
-    if not os.path.isfile(p):
-        raise FileNotFoundError(f"no example deck {name!r}; available: {', '.join(names)}")
-    return p
-
-
-def copy_example(name: str, destination: PathLike = ".") -> str:
-    """Copy a shipped example deck to ``destination`` (a directory or file path).
-
-    Returns the path of the copy, which you can edit and run.
-    """
-    src = example_path(name)
-    dst = os.fspath(destination)
-    if os.path.isdir(dst):
-        dst = os.path.join(dst, os.path.basename(src))
-    shutil.copyfile(src, dst)
-    return dst
 
 
 def adsorbent_library_dir() -> str:
@@ -171,15 +171,46 @@ def adsorbent_path(key: str) -> str:
     raise KeyError(f"no adsorbent {key!r} in the library")
 
 
+_NUMERIC_KINDS = ("real", "expression")
+
+
+@functools.lru_cache(maxsize=256)
+def _dimensional(unit: str) -> bool:
+    """Whether a parameter unit has a physical dimension (so a bare number is ambiguous)."""
+    if unit in ("", "-"):
+        return False
+    try:
+        return not units.parse(unit).dimensionless
+    except ValueError:
+        return True
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool)
+
+
 class Simulation:
     """One deck and its solver.
 
-    ``Simulation(deck)`` accepts a path to a deck file, the deck's JSON text,
-    or nothing (an empty deck, mainly useful with :meth:`load`).
+    ``Simulation(deck)`` accepts a path to a deck file, an :class:`Example`
+    (``skarstrom.examples.Perez2019_A``), the deck's JSON text, or nothing (an
+    empty deck, mainly useful with :meth:`load`).
+
+    The deck's parts are objects: :attr:`steps`, :attr:`layers`,
+    :attr:`adsorbents`, :attr:`variables`, :attr:`cycle`, :attr:`bed`,
+    :attr:`wall`, :attr:`settings`, :attr:`css`, :attr:`energy_balance` and
+    :attr:`info` (see :mod:`skarstrom.model`). Every value also has a string
+    path for :meth:`get` / :meth:`set` and ``sim[path]``.
+
+    With ``require_units=True`` a bare number for a dimensional parameter is
+    rejected (``TypeError``): every time, temperature, pressure... must carry
+    its unit (``"120 s"``, ``2 * ureg.minute`` or ``unit=``).
     """
 
-    def __init__(self, deck: Optional[Union[PathLike, str]] = None) -> None:
+    def __init__(self, deck: Optional[Union[PathLike, str, Example]] = None, require_units: bool = False) -> None:
         self._sim = _core.Simulation()
+        self._index_cache: Optional[_model._Index] = None
+        self.require_units = require_units
         if deck is not None:
             text = os.fspath(deck)
             if text.lstrip().startswith("{"):
@@ -189,19 +220,20 @@ class Simulation:
 
     # ---- deck --------------------------------------------------------------
     @classmethod
-    def from_file(cls, path: PathLike) -> "Simulation":
-        sim = cls()
+    def from_file(cls, path: PathLike, require_units: bool = False) -> "Simulation":
+        sim = cls(require_units=require_units)
         sim._sim.load(os.fspath(path))
         return sim
 
     @classmethod
-    def from_json(cls, text: str) -> "Simulation":
-        sim = cls()
+    def from_json(cls, text: str, require_units: bool = False) -> "Simulation":
+        sim = cls(require_units=require_units)
         sim._sim.load_json(text)
         return sim
 
     def load(self, path: PathLike) -> None:
         self._sim.load(os.fspath(path))
+        self._invalidate()
 
     def save(self, path: PathLike) -> None:
         """Write the deck (with any parameter changes) as a deck file."""
@@ -212,13 +244,77 @@ class Simulation:
 
     def copy(self) -> "Simulation":
         """An independent copy of the deck (results are not copied)."""
-        return Simulation.from_json(self.to_json())
+        return Simulation.from_json(self.to_json(), require_units=self.require_units)
 
     def check(self) -> tuple:
         """(ok, message): evaluates every expression and runs the deck checks."""
         return self._sim.check()
 
-    # ---- parameters ----------------------------------------------------------
+    # ---- the deck as objects ---------------------------------------------------
+    def _index(self) -> "_model._Index":
+        if self._index_cache is None:
+            self._index_cache = _model._Index(self.parameters(), self._sim.steps, self._sim.streams())
+        return self._index_cache
+
+    def _invalidate(self) -> None:
+        self._index_cache = None
+
+    @property
+    def steps(self) -> Collection[Step]:
+        """The cycle's steps in order: ``sim.steps["Feed"]``, ``sim.steps[0]``."""
+        return _model._steps(self)
+
+    @property
+    def layers(self) -> Collection[Layer]:
+        """The bed's adsorbent layers, feed end first."""
+        return _model._layers(self)
+
+    @property
+    def adsorbents(self) -> Collection[Adsorbent]:
+        """The adsorbents the layers use: ``sim.adsorbents["13X"].isotherm["CO2"].b1``."""
+        return _model._adsorbents(self)
+
+    @property
+    def variables(self) -> ValueMap:
+        """User variables by name (the names expressions refer to)."""
+        return _model._variables(self)
+
+    @property
+    def cycle(self) -> Cycle:
+        """Cycle-level values: number of cycles, total cycle time."""
+        return _model._group(self, Cycle, "cycle")
+
+    @property
+    def bed(self) -> Bed:
+        """Column geometry and ambient temperature."""
+        return _model._group(self, Bed, "bed")
+
+    @property
+    def wall(self) -> Wall:
+        """Column wall properties."""
+        return _model._group(self, Wall, "wall")
+
+    @property
+    def settings(self) -> Settings:
+        """Integrator and logging settings."""
+        return _model._group(self, Settings, "settings")
+
+    @property
+    def css(self) -> CSS:
+        """Cyclic-steady-state detection settings."""
+        return _model._group(self, CSS, "css")
+
+    @property
+    def energy_balance(self) -> EnergyBalance:
+        """Energy-balance switches (isothermal or not)."""
+        return _model._group(self, EnergyBalance, "energy_balance")
+
+    @property
+    def info(self) -> Info:
+        """Title, description and author of the deck."""
+        return _model._group(self, Info, "info")
+
+    # ---- parameters by path ------------------------------------------------------
     def parameters(self, tunable_only: bool = False, search: Optional[str] = None) -> List[Parameter]:
         """Every settable parameter of this deck.
 
@@ -232,15 +328,22 @@ class Simulation:
             out = [p for p in out if s in p.path.lower() or s in p.alias.lower() or s in p.name.lower()]
         return out
 
-    def get(self, path: str) -> Union[float, int, str]:
-        """A parameter's value (float, int for integers, str for text).
+    def get(self, path: str, unit: Optional[str] = None) -> Union[float, int, str]:
+        """A parameter's value: float in its SI unit (or converted to ``unit``),
+        int for integers, bool for switches, str for text.
 
         Raises KeyError for a path the deck does not have.
         """
         try:
-            return self._sim.get(path)
+            value = self._sim.get(path)
         except IndexError as e:
             raise KeyError(str(e)) from None
+        if unit is None:
+            return value
+        info = self._index().find(path)
+        if info is None or info.kind not in _NUMERIC_KINDS or not info.unit_checked:
+            raise TypeError(f"{path} has no unit to convert from")
+        return units.convert(float(value), info.unit, unit)
 
     def get_text(self, path: str) -> str:
         """A parameter's text: the expression for expression parameters."""
@@ -249,33 +352,77 @@ class Simulation:
         except IndexError as e:
             raise KeyError(str(e)) from None
 
-    def set(self, path: str, value: Union[float, int, str]) -> None:
+    def set(self, path: str, value: Union[float, int, str, Any], unit: Optional[str] = None) -> None:
         """Set a parameter.
 
-        A number sets the value. A string sets an expression (``"2*feed"``,
-        ``"5 [bar]"``) for expression parameters, or the text for text ones.
+        * a number is in the parameter's SI unit (``unit="min"`` says otherwise);
+        * a string is a quantity (``"2 min"``, ``"25 degC"``, ``"1.5 [bar]"``)
+          or an expression of user variables (``"2*feed_time"``), or the text
+          of a text parameter;
+        * a pint Quantity is converted with pint.
+
+        A unit of the wrong dimension raises ValueError, as does an invalid
+        expression (the old value is kept).
         """
-        if isinstance(value, bool):
-            value = int(value)
+        info = self._index().find(path)
         try:
-            if isinstance(value, (int, float, np.integer, np.floating)):
-                self._sim.set_value(path, float(value))
-            elif isinstance(value, str):
-                self._sim.set_text(path, value)
-            else:
-                raise TypeError(f"cannot set {path} to a {type(value).__name__}")
+            self._set(path, info, value, unit)
         except IndexError as e:
             raise KeyError(str(e)) from None
+        if info is None or info.kind not in _NUMERIC_KINDS:
+            self._invalidate()  # a model switch or a renamed object can change the deck's structure
 
-    def update(self, values: Mapping[str, Union[float, int, str]]) -> None:
-        """Set several parameters: ``sim.update({"step[1].time": 50, ...})``."""
+    def _set(self, path: str, info: Optional[Parameter], value: Any, unit: Optional[str]) -> None:
+        if isinstance(value, bool):
+            value = int(value)
+        if unit is not None:
+            if not _is_number(value):
+                raise TypeError(f"unit= gives the unit of a plain number; got {type(value).__name__} for {path}")
+            self._sim.set_text(path, f"{float(value)!r} [{unit}]")
+        elif units.is_quantity(value):
+            if info is None:
+                raise KeyError(f"unknown parameter: {path}")
+            if info.kind not in _NUMERIC_KINDS:
+                raise TypeError(f"{path} is {info.kind}, not a dimensional value")
+            if info.unit_checked:
+                number = units._quantity_to(value, info.unit, path)
+            else:
+                number = float(value.to_base_units().magnitude)
+            self._sim.set_value(path, number)
+        elif isinstance(value, str):
+            if self.require_units and info is not None and self._needs_unit(info):
+                try:
+                    float(value)
+                except ValueError:
+                    pass
+                else:
+                    raise TypeError(self._unit_required(info, value))
+            self._sim.set_text(path, value)
+        elif _is_number(value):
+            if self.require_units and info is not None and self._needs_unit(info):
+                raise TypeError(self._unit_required(info, value))
+            self._sim.set_value(path, float(value))
+        else:
+            raise TypeError(f"cannot set {path} to a {type(value).__name__}")
+
+    @staticmethod
+    def _needs_unit(info: Parameter) -> bool:
+        return info.kind in _NUMERIC_KINDS and info.unit_checked and _dimensional(info.unit)
+
+    @staticmethod
+    def _unit_required(info: Parameter, value: Any) -> str:
+        return (f"{info.path} is a {units.dimension_name(info.unit)} [{info.unit}]; with require_units=True "
+                f"give the unit, e.g. '{value} {info.unit}' or set(..., unit='{info.unit}')")
+
+    def update(self, values: Mapping[str, Union[float, int, str, Any]]) -> None:
+        """Set several parameters: ``sim.update({"step[1].time": "50 s", ...})``."""
         for k, v in values.items():
             self.set(k, v)
 
     def __getitem__(self, path: str) -> Union[float, int, str]:
         return self.get(path)
 
-    def __setitem__(self, path: str, value: Union[float, int, str]) -> None:
+    def __setitem__(self, path: str, value: Union[float, int, str, Any]) -> None:
         self.set(path, value)
 
     # ---- run -------------------------------------------------------------------
@@ -314,10 +461,12 @@ class Simulation:
         isotherm, LDF rate model, zero heat of adsorption) for you to set.
         """
         self._sim.add_component(name)
+        self._invalidate()
 
     def remove_component(self, name: str) -> None:
         """Remove a component from the fluid, every adsorbent and every mole-fraction map."""
         self._sim.remove_component(name)
+        self._invalidate()
 
     def add_library_adsorbent(self, key: str) -> int:
         """Add an adsorbent from the bundled library by its key; returns its adsorbent ID.
@@ -327,16 +476,15 @@ class Simulation:
         assign it to a layer in C++ (its parameters appear in
         :meth:`parameters` once a layer uses it). See :func:`adsorbent_library`.
         """
-        return int(self._sim.add_library_adsorbent(adsorbent_library_dir(), key))
+        adsorbent_id = int(self._sim.add_library_adsorbent(adsorbent_library_dir(), key))
+        self._invalidate()
+        return adsorbent_id
 
     # ---- structure -------------------------------------------------------------
     @property
     def components(self) -> List[str]:
+        """Fluid components (CoolProp names), in deck order."""
         return self._sim.components
-
-    @property
-    def steps(self) -> List[str]:
-        return self._sim.steps
 
     def streams(self) -> List[Dict[str, Any]]:
         """Boundary endpoints: dicts with step (index), step_name, name, endpoint_id and location."""

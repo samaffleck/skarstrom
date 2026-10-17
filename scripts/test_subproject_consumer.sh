@@ -15,7 +15,7 @@ cd "$ROOT"
 
 EMSCRIPTEN=0
 if [ "${1:-}" = "--emscripten" ]; then EMSCRIPTEN=1; shift; fi
-DECK="${1:-examples/decks/Ward_2022_Q=100[ccm].json}"
+DECK="${1:-examples/decks/Ward2022_Q100ccm.json}"
 JOBS="${JOBS:-2}"
 GEN=()
 command -v ninja >/dev/null 2>&1 && GEN=(-G Ninja)

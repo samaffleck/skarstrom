@@ -205,8 +205,8 @@ namespace adsim {
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
 
-    SaveTest("Ward_2022_Q=100[ccm]", solver);
-    SaveResultsAsExample("Ward_2022_Q=100[ccm]", solver);
+    SaveTest("Ward2022_Q100ccm", solver);
+    SaveResultsAsExample("Ward2022_Q100ccm", solver);
 
     ValidateWard(solver, "Q100ccm", 100, kTolY_100, kTolT_100, kTolT50_100);
   }
@@ -329,8 +329,8 @@ namespace adsim {
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
     // solver.PrintStatistics();
-    SaveTest("Ward_2022_Q=50[ccm]", solver);
-    SaveResultsAsExample("Ward_2022_Q=50[ccm]", solver);
+    SaveTest("Ward2022_Q50ccm", solver);
+    SaveResultsAsExample("Ward2022_Q50ccm", solver);
 
     ValidateWard(solver, "Q50ccm", 50, kTolY_50, kTolT_50, kTolT50_50);
   }
@@ -454,8 +454,8 @@ namespace adsim {
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
     // solver.PrintStatistics();
-    SaveTest("Ward_2022_Q=200[ccm]", solver);
-    SaveResultsAsExample("Ward_2022_Q=200[ccm]", solver);
+    SaveTest("Ward2022_Q200ccm", solver);
+    SaveResultsAsExample("Ward2022_Q200ccm", solver);
 
     ValidateWard(solver, "Q200ccm", 200, kTolY_200, kTolT_200, kTolT50_200);
   }

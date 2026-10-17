@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "adsim/math/unit_parser.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/cyclic_steady_state.h"
 
@@ -232,7 +233,54 @@ namespace adsim {
     return {};
   }
 
+  namespace {
+    // The unit text of a quantity ("2 min", "2 [min]") or of a formula with a
+    // trailing "[unit]" ("2*t_feed [min]"); false when `text` has no unit.
+    bool UnitOfText(const std::string& text, std::string& unit, bool& is_quantity, double& number) {
+      if (SplitQuantity(text, number, unit)) {
+        is_quantity = true;
+        return true;
+      }
+      is_quantity = false;
+      const size_t close = text.find_last_not_of(" \t");
+      if (close == std::string::npos || text[close] != ']') return false;
+      const size_t open = text.rfind('[', close);
+      if (open == std::string::npos) return false;
+      unit = text.substr(open + 1, close - open - 1);
+      return true;
+    }
+  }  // namespace
+
   void Parameter::SetText(const std::string& text) {
+    const bool numeric = info_.kind == ParameterKind::Real || info_.kind == ParameterKind::Expression;
+    std::string unit;
+    bool is_quantity = false;
+    double number = 0.0;
+    UnitInfo target, given;
+    if (numeric && info_.unit_checked && UnitOfText(text, unit, is_quantity, number) &&
+        ParseUnitExpression(info_.unit, target) && ParseUnitExpression(unit, given)) {
+      if (!(given.dimension == target.dimension)) {
+        const std::string want = DimensionName(target.dimension);
+        const std::string got = DimensionName(given.dimension);
+        throw std::invalid_argument("parameter " + info_.path + " is " +
+                                    (target.dimension.IsDimensionless() ? std::string("dimensionless")
+                                                                        : "a " + want + " [" + info_.unit + "]") +
+                                    "; '" + text + "' is " +
+                                    (given.dimension.IsDimensionless() ? std::string("dimensionless") : "a " + got));
+      }
+      const bool coherent = target.factor == 1.0 && target.offset == 0.0;
+      if (info_.kind == ParameterKind::Expression && coherent) {
+        // The expression evaluates "[unit]" to SI, which is this parameter's unit.
+        expr_->SetExpr(is_quantity ? ExpressionParam::FormatScalar(number) + " [" + unit + "]" : text);
+        return;
+      }
+      if (!is_quantity)
+        throw std::invalid_argument("parameter " + info_.path + " is stored in " + info_.unit +
+                                    ", not SI; give a number in " + info_.unit + " or a single quantity such as '1 [" +
+                                    info_.unit + "]'");
+      SetValue(ConvertUnit(number, unit, info_.unit));
+      return;
+    }
     switch (info_.kind) {
       case ParameterKind::String:     set_str_(text); return;
       case ParameterKind::Expression: expr_->SetExpr(text); return;
@@ -835,6 +883,7 @@ namespace adsim {
         const std::string path = "variable[" + var.name + "]";
         Emplace(path, path, "User Parameters", "Parameters", var.name, UnitCategorySymbol(var.unit_category),
                 var.value, lo, hi);
+        if (var.unit_category == UnitCategory::Custom) out.back().info_.unit_checked = false;
         // A variable defined by an expression is recomputed from it, so a
         // number written into var.value would not stick.
         if (!var.value_expr.empty()) out.back().info_.tunable = false;

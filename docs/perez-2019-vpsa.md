@@ -13,8 +13,8 @@ Reference: [Estupiñan Perez, L., Sarkar, P., Rajendran, A. Experimental validat
 ```python
 import skarstrom
 
-sim = skarstrom.Simulation(skarstrom.example_path("Perez2019_D1.json"))
-print(sim.components, sim.steps)
+sim = skarstrom.examples.Perez2019_D1.load()
+print(sim.components, sim.steps.names)
 # ['CarbonDioxide', 'Nitrogen'] ['Feed 1', 'Feed 2', 'Blowdown', 'Evacuation', 'Pressurisation']
 ```
 

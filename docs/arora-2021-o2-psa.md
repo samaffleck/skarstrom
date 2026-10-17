@@ -14,8 +14,8 @@ Reference: [Arora, A., Hasan, M.M.F. Flexible oxygen concentrators for medical a
 import numpy as np
 import skarstrom
 
-sim = skarstrom.Simulation(skarstrom.example_path("Arora2021_LiLSX_PSA.json"))
-print(sim.components, sim.steps)
+sim = skarstrom.examples.Arora2021_LiLSX_PSA.load()
+print(sim.components, sim.steps.names)
 # ['Oxygen', 'Nitrogen'] ['Production', 'Depressurization', 'Purge', 'Pressurization']
 ```
 

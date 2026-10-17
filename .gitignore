@@ -1,6 +1,7 @@
 # ---- Build trees ------------------------------------------------------------
 /build/
 /build_*/
+/build-*/
 /out/
 /cmake-build-*/
 CMakeUserPresets.json

@@ -104,7 +104,7 @@ jobs:
           python -m venv /tmp/venv
           CMAKE_BUILD_PARALLEL_LEVEL=4 /tmp/venv/bin/pip install dist/*.tar.gz pytest
           cd /tmp && /tmp/venv/bin/skarstrom --version
-          /tmp/venv/bin/skarstrom examples run "Ward_2022_Q=100[ccm]" --json -q > /dev/null
+          /tmp/venv/bin/skarstrom examples run "Ward2022_Q100ccm" --json -q > /dev/null
       - uses: actions/upload-artifact@v4
         with:
           name: dist-sdist

@@ -8,7 +8,19 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed
+- Example decks renamed so every name is a Python identifier:
+  `Ward_2022_Q=50[ccm]` → `Ward2022_Q50ccm` (and `Q100ccm`, `Q200ccm`),
+  `Nguyen_2022_Fig4`/`Fig5` → `Nguyen2022_Fig4`/`Fig5`, `streb_2021_A1`/`A3`
+  → `Streb2021_A1`/`A3`. The shell-safe-name allowlist is now empty.
+- Python: `Simulation.steps` is a collection of step objects (names:
+  `sim.steps.names`); `skarstrom.examples()`, `example_path()` and
+  `copy_example()` are replaced by the `skarstrom.examples` module; the CLI's
+  `examples` command lists names without `.json`.
+
 ### Fixed
+- A value with an inline unit of the wrong dimension (`step time = "2 [bar]"`)
+  was converted silently (to 200 000 s); it is now rejected.
 - Competitive isotherms summed their per-component terms in `std::unordered_map`
   order, which depends on the order of the entries in the deck file and on the
   standard library. A deck and its re-saved copy could therefore run to
@@ -19,6 +31,29 @@ root `CMakeLists.txt`.
   (shellcheck SC2015) and also fails when the test suite deletes a file.
 
 ### Added
+- Python: the deck as typed objects (`skarstrom.model`). `sim.steps["Feed"].time`,
+  `sim.steps[0].bottom.temperature`, `sim.steps["Feed"].bottom.y["CO2"]`,
+  `sim.layers[0].length`, `sim.adsorbents["13X"].isotherm["CO2"].b1`,
+  `sim.variables[...]`, `sim.cycle`, `sim.bed`, `sim.wall`, `sim.settings`,
+  `sim.css`, `sim.energy_balance`, `sim.info`. They are views onto the
+  parameter registry (string paths keep working); misspelt or absent fields
+  raise `AttributeError` with suggestions; editors complete the fields and
+  show their SI units. A test checks every registry parameter of every
+  example deck is reachable this way.
+- Python: `skarstrom.examples`, one attribute per bundled deck
+  (`skarstrom.examples.Perez2019_A.load()`, `.path`, `.title`, `.copy_to()`),
+  generated from `examples/decks/` by `scripts/gen_examples_module.py`
+  (checked in CI).
+- Units. A bare number is SI, as before; a value can now carry its unit as a
+  string (`"2 min"`, `"25 degC"`, `"35 kJ/mol"`, also `"2 [min]"`), as a pint
+  Quantity, or with `unit=`; `get(..., unit=...)` reads in any unit;
+  `Simulation(deck, require_units=True)` rejects bare numbers for dimensional
+  values; `skarstrom.units.convert()`. In the engine: `ParseUnitExpression`
+  reads compound units (`W/(m^2*K)`, `W/m2-K`, `kJ/(kg-K)`, `1/bar`,
+  `Nm3/h`...), `ConvertUnit` and `SplitQuantity`; `Parameter::SetText` (and
+  so the CLI's `--set`) takes `"<number> <unit>"` and checks the unit's
+  dimension against the parameter's. `ParseUnitSuffix` falls back to unit
+  expressions for symbols missing from its dictionary.
 - `DeckRoundTrip` tests: every example deck's numbers parse exactly and
   survive save/reload bit for bit, and a run is unchanged when every map in
   the deck is listed in reverse order.

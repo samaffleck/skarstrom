@@ -369,7 +369,7 @@ TEST(DeckRoundTrip, RunDoesNotDependOnMapOrderInTheDeck) {
   // Two- and three-component decks with competitive isotherms. One cycle is
   // enough: before the fix Perez2019_A differed at ~2e-6 after one cycle in a
   // clang/libc++ build with FMA contraction.
-  for (const char* name : {"Perez2019_A.json", "Casas2012_Fig4_50_50_15bar_25C.json", "streb_2021_A1.json"}) {
+  for (const char* name : {"Perez2019_A.json", "Casas2012_Fig4_50_50_15bar_25C.json", "Streb2021_A1.json"}) {
     SCOPED_TRACE(name);
     const std::string deck = (kExamples / name).string();
     const std::string reversed_json = WithMapsReversed(ReadFile(deck));

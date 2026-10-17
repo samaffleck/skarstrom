@@ -20,7 +20,7 @@ cd "$ROOT"
 
 BUILD_DIR="${BUILD_DIR:-build_install}"
 JOBS="${JOBS:-2}"
-DECK="${1:-examples/decks/Ward_2022_Q=50[ccm].json}"
+DECK="${1:-examples/decks/Ward2022_Q50ccm.json}"
 WORK="$(mktemp -d)"
 PREFIX="${PREFIX:-$WORK/prefix}"
 trap 'rm -rf "$WORK"' EXIT

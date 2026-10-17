@@ -81,6 +81,11 @@ namespace adsim {
     std::string subcategory;  // display names of the owning objects, e.g. "Feed, Stream 1"
     std::string name;         // leaf display name, e.g. "inlet temperature"
     std::string unit;         // SI unit symbol; "-" when dimensionless, "" when not numeric
+                              // (a few model constants keep their literature unit, e.g. 1/bar)
+    // Whether a value given with a unit ("2 min", "25 [degC]") is checked
+    // against `unit` and converted. False for user variables of a custom
+    // unit category, whose unit the registry does not know.
+    bool unit_checked = true;
     ParameterKind kind = ParameterKind::Real;
     // A numeric model value the optimiser and parametric studies may vary.
     // False for solver settings, integers, text, and values written as a
@@ -146,6 +151,15 @@ namespace adsim {
     // String parameter takes the text. A Boolean takes true/false/1/0. Real
     // and Integer parameters parse a number (std::invalid_argument when it is
     // not one).
+    //
+    // Units: Real and Expression parameters also take a quantity, a number
+    // with a unit written "2 min" or "2 [min]" (an Expression parameter also
+    // takes a formula with a trailing "[unit]"). The unit's dimension must
+    // match the parameter's (std::invalid_argument naming both otherwise:
+    // "2 bar" is not a time). An Expression parameter keeps the quantity as
+    // its text ("2 [min]"), so a saved deck shows what was typed; a Real
+    // parameter, or one whose unit is not coherent SI, stores the converted
+    // number.
     void SetText(const std::string& text);
 
     // Raw access for the optimiser adapter: the backing double (Real and

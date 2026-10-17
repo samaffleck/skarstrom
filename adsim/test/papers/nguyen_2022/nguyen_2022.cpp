@@ -157,8 +157,8 @@ namespace adsim {
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
-    SaveTest("Nguyen_2022_Fig5", solver);
-    SaveResultsAsExample("Nguyen_2022_Fig5", solver);
+    SaveTest("Nguyen2022_Fig5", solver);
+    SaveResultsAsExample("Nguyen2022_Fig5", solver);
 
     ValidateNguyen2022(solver, "Fig5_TernaryBreakthrough", "Fig5", 15, 0.097, 0.059);  // measured NRMSE 0.0842158, front-time error 0.0488449
   }
@@ -233,8 +233,8 @@ namespace adsim {
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
-    SaveTest("Nguyen_2022_Fig4", solver);
-    SaveResultsAsExample("Nguyen_2022_Fig4", solver);
+    SaveTest("Nguyen2022_Fig4", solver);
+    SaveResultsAsExample("Nguyen2022_Fig4", solver);
 
     ValidateNguyen2022(solver, "Fig4_BinaryBreakthrough", "Fig4", 70, 0.1, 0.027);  // measured NRMSE 0.0861904, front-time error 0.0169452
   }

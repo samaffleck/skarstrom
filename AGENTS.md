@@ -22,7 +22,7 @@ CLI with machine-readable output (exit code 0 = completed or cyclic steady state
 
 ```bash
 skarstrom examples --json                                   # [{name, family, path}, ...]
-skarstrom examples run "Ward_2022_Q=100[ccm]" --json -q     # run a bundled deck
+skarstrom examples run "Ward2022_Q100ccm" --json -q     # run a bundled deck
 skarstrom run path/to/deck.json --cycles 20 --set "step[Feed].time=120" --json -q
 skarstrom run deck.json --csv out/                          # kpis.csv, css.csv, run.json, logs/
 ```
@@ -34,20 +34,43 @@ Python:
 ```python
 import skarstrom
 
-sim = skarstrom.Simulation(skarstrom.example_path("Perez2019_A.json"))   # or a path / JSON text
+sim = skarstrom.examples.Perez2019_A.load()   # or skarstrom.Simulation(path | JSON text | Example)
 result = sim.run()                       # blocking; run(cycles=N, progress=f, log_level=..., on_message=f)
 result.status, result.ok, result.css_cycle, result.message
 ```
 
-### Parameters (the registry)
+### Parameters: objects
 
-Every settable value has a stable **path** (ID-based, survives renames) and an **alias** (display names):
+The deck's parts are typed objects over the parameter registry (`python/src/skarstrom/model.py`):
+
+```python
+sim.steps["Feed"].time = "2 min"             # steps by name or position; .by_id(n) by deck ID
+sim.steps[0].bottom.temperature = 298.15     # step end -> its stream/boundary (end[name|i] if several)
+sim.steps["Feed"].bottom.y["CO2"] = 0.15     # components: CoolProp names or formulas
+sim.layers[0].length; sim.adsorbents["13X"].isotherm["CO2"].b1; sim.adsorbents[0].kinetics["CO2"]
+sim.variables["t_feed"]; sim.cycle.number_of_cycles; sim.bed; sim.wall; sim.settings; sim.css
+sim.energy_balance; sim.info
+node.fields; node.get(name, unit="min"); node.set(name, 2, unit="min"); node.path(name); node.parameters()
+```
+
+Units: a bare number is SI (the unit is in each field's docstring and `Parameter.unit`); strings carry
+units (`"2 min"`, `"25 degC"`, `"1.5 [bar]"`, `"35 kJ/mol"`), as do pint Quantities. The dimension is
+checked (`"2 bar"` for a time raises ValueError). `Simulation(deck, require_units=True)` rejects bare
+numbers for dimensional fields. Misspelt or absent fields raise AttributeError (never create attributes).
+`skarstrom.examples.<Name>` lists the bundled decks (`.load()`, `.path`, `.title`, `.copy_to()`).
+
+### Parameters: paths (the registry)
+
+Every settable value also has a stable **path** (ID-based, survives renames) and an **alias** (display names);
+use paths for sweeps, optimisers and the CLI:
 
 ```python
 for p in sim.parameters(tunable_only=True, search="time"):
     print(p.path, p.alias, p.value, p.unit, p.kind, p.bounds)
 sim["step[1].time"] = 45.0               # number -> value (SI units)
-sim["step[Feed].time"] = "2 * t_feed"    # string -> expression (may use variables and units, "1.5 [bar]")
+sim["step[1].time"] = "2 min"            # quantity -> converted, dimension-checked
+sim["step[Feed].time"] = "2 * t_feed"    # string -> expression (may use variables and a trailing [unit])
+sim.set("step[1].time", 2, unit="min"); sim.get("step[1].time", unit="min")
 sim.get("step[1].time"); sim.get_text("step[1].time")
 sim.update({"css.min_cycles": 3, "settings.reltol": 1e-6})
 sim.save("modified.json")

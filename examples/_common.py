@@ -37,13 +37,13 @@ def deck_path(name: str) -> str:
     p = DECKS / name
     if p.is_file():
         return str(p)
-    return skarstrom.example_path(name)
+    return skarstrom.examples.get(name).path
 
 
 def load(name: str, cycles: Optional[int] = None) -> skarstrom.Simulation:
     sim = skarstrom.Simulation(deck_path(name))
     if cycles is not None:
-        sim["cycle.number_of_cycles"] = int(cycles)
+        sim.cycle.number_of_cycles = int(cycles)
     return sim
 
 
@@ -182,7 +182,7 @@ def evacuation_product_kpis(sim: skarstrom.Simulation, component: str = "CarbonD
     configuration that also counts a light-product-pressurisation inlet as
     (negative) product, this purity is always defined.
     """
-    steps = sim.steps
+    steps = sim.steps.names
     evac = steps.index("Evacuation")
     feeds = [i for i, n in enumerate(steps) if n.startswith("Feed")]
     if "Pressurisation" in steps:

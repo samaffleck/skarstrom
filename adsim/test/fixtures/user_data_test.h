@@ -1,6 +1,8 @@
 #pragma once
 
 // STL includes
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <unordered_map>
 #include <vector>
@@ -451,6 +453,17 @@ namespace adsim {
     }
 
     void SaveResultsAsExample(const std::string& test_name, CoupledSolver& solver) {
+      // Example deck names are attribute names of the Python module
+      // skarstrom.examples (scripts/gen_examples_module.py), so they must be
+      // identifiers: AuthorYear_Case, letters, digits and underscores.
+      const bool identifier = !test_name.empty() && std::isalpha(static_cast<unsigned char>(test_name[0])) &&
+                              std::all_of(test_name.begin(), test_name.end(), [](char c) {
+                                return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+                              });
+      if (!identifier) {
+        ADD_FAILURE() << "example deck name '" << test_name << "' is not a Python identifier";
+        return;
+      }
       std::filesystem::path dir_path = test_path / test_name;
       std::filesystem::path examples_path = std::filesystem::current_path() / "../examples/decks";
       

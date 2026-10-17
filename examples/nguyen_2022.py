@@ -18,7 +18,7 @@ import sys
 
 import _common as c
 
-CASES = {"Fig4": ("Nguyen_2022_Fig4.json", 70), "Fig5": ("Nguyen_2022_Fig5.json", 15)}
+CASES = {"Fig4": ("Nguyen2022_Fig4.json", 70), "Fig5": ("Nguyen2022_Fig5.json", 15)}
 
 
 def main(argv=None) -> int:

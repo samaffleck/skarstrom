@@ -152,7 +152,7 @@ namespace adsim {
   } // namespace
 
   TEST(JacobianBand, ResidualWithinBand_Nguyen2022Fig5) {
-    ExpectResidualWithinBand("Nguyen_2022_Fig5.json");  // 3 components
+    ExpectResidualWithinBand("Nguyen2022_Fig5.json");  // 3 components
   }
 
   TEST(JacobianBand, ResidualWithinBand_Arora2021PSA) {

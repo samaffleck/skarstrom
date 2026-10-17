@@ -44,12 +44,12 @@ Simulation ShortPerez() {
 }  // namespace
 
 TEST(SimulationFacade, LoadsBothJsonRootsAndRoundTrips) {
-  Simulation a = Simulation::FromFile(Deck("Ward_2022_Q=100[ccm].json"));  // "value0" root
+  Simulation a = Simulation::FromFile(Deck("Ward2022_Q100ccm.json"));  // "value0" root
   const std::string json = a.ToJson();                                      // "simulation" root
   ASSERT_NE(json.find("\"simulation\""), std::string::npos);
 
   Simulation b = Simulation::FromJson(json);
-  Simulation c = Simulation::FromJson(ReadFile(Deck("Ward_2022_Q=100[ccm].json")));
+  Simulation c = Simulation::FromJson(ReadFile(Deck("Ward2022_Q100ccm.json")));
   for (Simulation* s : {&b, &c}) {
     EXPECT_EQ(s->Components(), a.Components());
     EXPECT_EQ(s->StepNames(), a.StepNames());
@@ -67,7 +67,7 @@ TEST(SimulationFacade, LoadsBothJsonRootsAndRoundTrips) {
 }
 
 TEST(SimulationFacade, SaveWritesALoadableDeck) {
-  Simulation a = Simulation::FromFile(Deck("Ward_2022_Q=100[ccm].json"));
+  Simulation a = Simulation::FromFile(Deck("Ward2022_Q100ccm.json"));
   a.SetParameter("settings.reltol", 2e-6);
   const auto path = std::filesystem::temp_directory_path() / "adsim_facade_save.json";
   a.Save(path.string());
@@ -105,6 +105,45 @@ TEST(SimulationFacade, ParametersGetSetAndValidate) {
 
   EXPECT_THROW(sim.GetParameter("no.such.parameter"), std::out_of_range);
   EXPECT_THROW(sim.SetParameterText("cycle.number_of_cycles", "three"), std::invalid_argument);
+}
+
+TEST(SimulationFacade, ParametersTakeQuantitiesInCheckedUnits) {
+  Simulation sim = Simulation::FromFile(Deck("Perez2019_A.json"));
+  const std::string time = "step[1].time";
+  // "<number> <unit>" and "<number> [<unit>]" convert; the expression keeps
+  // the quantity so a saved deck shows what was typed.
+  sim.SetParameterText(time, "2 min");
+  EXPECT_DOUBLE_EQ(sim.GetParameter(time), 120.0);
+  EXPECT_EQ(sim.GetParameterText(time), "2 [min]");
+  sim.SetParameterText("endpoint[1].temperature", "25 degC");
+  EXPECT_DOUBLE_EQ(sim.GetParameter("endpoint[1].temperature"), 298.15);
+  sim.SetParameterText("endpoint[2].pressure", "1.2 bar");
+  EXPECT_DOUBLE_EQ(sim.GetParameter("endpoint[2].pressure"), 1.2e5);
+  sim.SetParameterText("adsorbent[1].heat_capacity", "0.92 kJ/(kg-K)");
+  EXPECT_DOUBLE_EQ(sim.GetParameter("adsorbent[1].heat_capacity"), 920.0);
+
+  // A Real parameter (a mole fraction) converts to a number.
+  sim.SetParameterText("endpoint[1].y[CarbonDioxide]", "15 %");
+  EXPECT_DOUBLE_EQ(sim.GetParameter("endpoint[1].y[CarbonDioxide]"), 0.15);
+
+  // The wrong dimension is an error that names both, and changes nothing.
+  try {
+    sim.SetParameterText(time, "2 bar");
+    FAIL() << "a pressure was accepted as a step time";
+  } catch (const std::invalid_argument& e) {
+    const std::string what = e.what();
+    EXPECT_NE(what.find("time [s]"), std::string::npos) << what;
+    EXPECT_NE(what.find("pressure"), std::string::npos) << what;
+  }
+  EXPECT_DOUBLE_EQ(sim.GetParameter(time), 120.0);
+  EXPECT_THROW(sim.SetParameterText("endpoint[1].y[CarbonDioxide]", "3 K"), std::invalid_argument);
+  EXPECT_THROW(sim.SetParameterText("endpoint[1].temperature", "2*1 [bar]"), std::invalid_argument);
+
+  // Plain numbers and formulas are untouched.
+  sim.SetParameterText(time, "90");
+  EXPECT_DOUBLE_EQ(sim.GetParameter(time), 90.0);
+  sim.SetParameterText(time, "1.5 * 60 [s]");
+  EXPECT_DOUBLE_EQ(sim.GetParameter(time), 90.0);
 }
 
 TEST(SimulationFacade, BlockingRunMatchesTheEngine) {
@@ -245,7 +284,7 @@ TEST(SimulationFacade, CyclesOptionAndFailedChecks) {
 }
 
 TEST(SimulationFacade, ChunkedRunCompletes) {
-  Simulation sim = Simulation::FromFile(Deck("Ward_2022_Q=100[ccm].json"));
+  Simulation sim = Simulation::FromFile(Deck("Ward2022_Q100ccm.json"));
   ASSERT_TRUE(sim.Start());
   EXPECT_TRUE(sim.IsRunning());
   EXPECT_THROW(sim.SetParameter("settings.reltol", 1e-5), std::logic_error);

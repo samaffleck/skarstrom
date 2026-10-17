@@ -7,7 +7,8 @@ The engine (`adsim`) is a C++20 library. The `skarstrom` Python package and comm
 ```python
 import skarstrom
 
-sim = skarstrom.Simulation(skarstrom.example_path("Perez2019_A.json"))
+sim = skarstrom.examples.Perez2019_A.load()
+sim.steps["Feed"].time = "2 min"
 result = sim.run()                                   # to cyclic steady state
 print(result.status, result.css_cycle)
 for k in sim.kpis(cycle=-1):
@@ -19,7 +20,7 @@ for k in sim.kpis(cycle=-1):
 ## Start here
 
 - [Getting Started](getting-started.md) — install the Python package or build from source, run a first deck from Python and from the command line.
-- [Python and the Command Line](python.md) — parameters, results, isotherms, the CLI and JSON output.
+- [Python and the Command Line](python.md) — the deck as objects, units, parameter paths, results, isotherms, the CLI and JSON output.
 - [Examples](examples.md) — a runnable script for every bundled deck family, each compared with its paper.
 - Tutorials: the [O₂ PSA (Arora 2021)](arora-2021-o2-psa.md), the [CO₂ VPSA with light-product pressurisation (Perez 2019)](perez-2019-vpsa.md) and the illustrative [TSA regeneration](tsa-regeneration.md).
 - [Using the C++ library](cpp-library.md) — `find_package(Adsim)`, `add_subdirectory`, and the public headers.

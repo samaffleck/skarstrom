@@ -21,7 +21,7 @@ import numpy as np
 
 import _common as c
 
-CASES = {"A1": "streb_2021_A1.json", "A3": "streb_2021_A3.json"}
+CASES = {"A1": "Streb2021_A1.json", "A3": "Streb2021_A3.json"}
 Z_CM = [10, 35, 60, 85, 110]
 
 

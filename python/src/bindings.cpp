@@ -22,6 +22,7 @@
 #include "adsim/version.h"
 
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/math/unit_parser.h"
 #include "adsim/objects/deck_edit.h"
 #include "adsim/solver/isotherm_fit.h"
 
@@ -241,6 +242,7 @@ PYBIND11_MODULE(_core, m) {
           d["subcategory"] = i.subcategory;
           d["name"] = i.name;
           d["unit"] = i.unit;
+          d["unit_checked"] = i.unit_checked;
           d["kind"] = adsim::ParameterKindName(i.kind);
           d["tunable"] = i.tunable;
           d["lower"] = i.lower;
@@ -390,6 +392,28 @@ PYBIND11_MODULE(_core, m) {
         s.RefreshParameters();
         return static_cast<long long>(id);
       }, py::arg("library_dir"), py::arg("key"));
+
+  // Units: the engine's unit parser (adsim/math/unit_parser.h), so Python
+  // accepts exactly the units decks and the CLI do.
+  m.def("parse_unit", [](const std::string& text) {
+    adsim::UnitInfo u;
+    std::string why;
+    if (!adsim::ParseUnitExpression(text, u, &why)) throw py::value_error("unknown unit '" + text + "': " + why);
+    py::dict d;
+    d["factor"] = u.factor;
+    d["offset"] = u.offset;
+    d["dimension"] = py::make_tuple(u.dimension.length, u.dimension.mass, u.dimension.time,
+                                    u.dimension.temperature, u.dimension.amount);
+    d["dimension_name"] = adsim::DimensionName(u.dimension);
+    return d;
+  }, py::arg("unit"));
+  m.def("convert_unit", &adsim::ConvertUnit, py::arg("value"), py::arg("from_unit"), py::arg("to_unit"));
+  m.def("split_quantity", [](const std::string& text) -> py::object {
+    double number = 0.0;
+    std::string unit;
+    if (!adsim::SplitQuantity(text, number, unit)) return py::none();
+    return py::make_tuple(number, unit);
+  }, py::arg("text"));
 
   m.def("bulk_variables", &adsim::BulkVariableNames);
   m.def("component_variables", &adsim::ComponentVariableNames);

@@ -9,8 +9,9 @@ read KPIs, time series and axial profiles as NumPy arrays.
 ```python
 import skarstrom
 
-sim = skarstrom.Simulation(skarstrom.example_path("Perez2019_A.json"))
-sim["cycle.number_of_cycles"] = 10
+sim = skarstrom.examples.Perez2019_A.load()          # or skarstrom.Simulation("deck.json")
+sim.cycle.number_of_cycles = 10
+sim.steps["Feed"].time = "2 min"                     # bare numbers are SI; strings carry units
 result = sim.run()
 print(result.status, result.message)
 for k in sim.kpis(cycle=-1):
@@ -22,12 +23,12 @@ Command line:
 
 ```bash
 skarstrom examples                                     # the bundled decks
-skarstrom examples run "Ward_2022_Q=100[ccm]" --json   # run one, JSON summary
+skarstrom examples run "Ward2022_Q100ccm" --json   # run one, JSON summary
 skarstrom run deck.json --cycles 20 --set "step[Feed].time=120" --csv out/
 skarstrom params deck.json                             # settable parameters
 ```
 
-The package bundles every example deck of the repository (`skarstrom.examples()`)
+The package bundles every example deck of the repository (`skarstrom.examples`)
 and the curated adsorbent library (`skarstrom.adsorbent_library()`), and it
 exposes the engine's isotherm evaluation and fitter
 (`skarstrom.evaluate_isotherm`, `skarstrom.fit_isotherm`).

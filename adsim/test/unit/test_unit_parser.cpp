@@ -452,4 +452,108 @@ TEST(ParseUnitSuffix, CategoryOut_NullptrIsAllowed) {
     EXPECT_TRUE(ParseUnitSuffix("1 [Pa]", math, xf, nullptr));
 }
 
+// ─── ParseUnitExpression — compound units ───────────────────────────────────
+
+static UnitInfo Unit(const std::string& text) {
+    UnitInfo u;
+    std::string why;
+    EXPECT_TRUE(ParseUnitExpression(text, u, &why)) << text << ": " << why;
+    return u;
+}
+
+TEST(ParseUnitExpression, SymbolsPrefixesAndNamedUnits) {
+    EXPECT_DOUBLE_EQ(Unit("s").factor, 1.0);
+    EXPECT_DOUBLE_EQ(Unit("min").factor, 60.0);
+    EXPECT_DOUBLE_EQ(Unit("h").factor, 3600.0);
+    EXPECT_DOUBLE_EQ(Unit("ms").factor, 1e-3);
+    EXPECT_DOUBLE_EQ(Unit("mm").factor, 1e-3);
+    EXPECT_DOUBLE_EQ(Unit("kPa").factor, 1e3);
+    EXPECT_DOUBLE_EQ(Unit("mbar").factor, 100.0);
+    EXPECT_DOUBLE_EQ(Unit("hPa").factor, 100.0);
+    EXPECT_DOUBLE_EQ(Unit("kg").factor, 1.0);
+    EXPECT_DOUBLE_EQ(Unit("mmol").factor, 1e-3);
+    EXPECT_DOUBLE_EQ(Unit("\xC2\xB5m").factor, 1e-6);
+    EXPECT_EQ(Unit("bar").dimension, Unit("Pa").dimension);
+    EXPECT_EQ(DimensionName(Unit("atm").dimension), "pressure");
+    EXPECT_EQ(DimensionName(Unit("min").dimension), "time");
+}
+
+TEST(ParseUnitExpression, CompoundUnitsInEveryNotationTheRegistryUses) {
+    const Dimension htc = Unit("W/(m^2*K)").dimension;
+    EXPECT_EQ(DimensionName(htc), "heat transfer coefficient");
+    // Everything after '/' is in the denominator: W/m2-K is W/(m²·K).
+    EXPECT_EQ(Unit("W/m2-K").dimension, htc);
+    EXPECT_EQ(Unit("W/(m2.K)").dimension, htc);
+    EXPECT_EQ(Unit("W m^-2 K^-1").dimension, htc);
+    EXPECT_EQ(Unit("J/(kg-K)").dimension, Unit("J/(kg\xC2\xB7K)").dimension);
+    EXPECT_EQ(Unit("kg/m3").dimension, Unit("kg m**-3").dimension);
+    EXPECT_EQ(Unit("m\xC2\xB2/s").dimension, Unit("m2/s").dimension);
+    EXPECT_DOUBLE_EQ(Unit("cm^2/s").factor, 1e-4);
+    EXPECT_DOUBLE_EQ(Unit("kJ/mol").factor, 1e3);
+    EXPECT_DOUBLE_EQ(Unit("mmol/g").factor, 1.0);
+    EXPECT_DOUBLE_EQ(Unit("L/min").factor, 1e-3 / 60.0);
+    EXPECT_DOUBLE_EQ(Unit("1/bar").factor, 1e-5);
+    EXPECT_EQ(DimensionName(Unit("1/Pa").dimension), "inverse pressure");
+    EXPECT_EQ(DimensionName(Unit("Nm3/h").dimension), "molar flow");
+    EXPECT_NEAR(Unit("Nm3/h").factor, 1.0 / 22.414e-3 / 3600.0, 1e-15);
+    EXPECT_TRUE(Unit("mol/mol").dimension.IsDimensionless());
+    EXPECT_TRUE(Unit("-").dimension.IsDimensionless());
+    EXPECT_DOUBLE_EQ(Unit("%").factor, 0.01);
+}
+
+TEST(ParseUnitExpression, OffsetTemperaturesAreAbsoluteOnlyAlone) {
+    EXPECT_DOUBLE_EQ(Unit("degC").offset, 273.15);
+    EXPECT_DOUBLE_EQ(Unit("\xC2\xB0" "C").offset, 273.15);
+    // Inside a compound unit a degree is a temperature difference.
+    EXPECT_DOUBLE_EQ(Unit("J/(kg-degC)").offset, 0.0);
+    EXPECT_EQ(Unit("J/(kg-degC)").dimension, Unit("J/(kg-K)").dimension);
+}
+
+TEST(ParseUnitExpression, RejectsWhatItCannotRead) {
+    UnitInfo u;
+    for (const char* bad : {"xyz", "megafoo", "s-1", "m^", "kg/", "(m", "m)", "m /"}) {
+        std::string why;
+        EXPECT_FALSE(ParseUnitExpression(bad, u, &why)) << bad;
+        EXPECT_FALSE(why.empty()) << bad;
+    }
+}
+
+TEST(ConvertUnit, ConvertsWithinADimensionAndRefusesAcross) {
+    EXPECT_DOUBLE_EQ(ConvertUnit(2.0, "min", "s"), 120.0);
+    EXPECT_DOUBLE_EQ(ConvertUnit(25.0, "degC", "K"), 298.15);
+    EXPECT_NEAR(ConvertUnit(298.15, "K", "degC"), 25.0, 1e-12);
+    EXPECT_DOUBLE_EQ(ConvertUnit(1.0, "1/kPa", "1/bar"), 100.0);
+    EXPECT_THROW(ConvertUnit(1.0, "bar", "s"), std::invalid_argument);
+    EXPECT_THROW(ConvertUnit(1.0, "furlong", "m"), std::invalid_argument);
+}
+
+TEST(SplitQuantity, ANumberFollowedByAUnit) {
+    double n = 0.0;
+    std::string u;
+    EXPECT_TRUE(SplitQuantity("120 s", n, u));
+    EXPECT_DOUBLE_EQ(n, 120.0);
+    EXPECT_EQ(u, "s");
+    EXPECT_TRUE(SplitQuantity(" 2 [min] ", n, u));
+    EXPECT_EQ(u, "min");
+    EXPECT_TRUE(SplitQuantity("-5 degC", n, u));
+    EXPECT_DOUBLE_EQ(n, -5.0);
+    EXPECT_TRUE(SplitQuantity("1.5e5 Pa", n, u));
+    EXPECT_DOUBLE_EQ(n, 1.5e5);
+    EXPECT_TRUE(SplitQuantity("2 W/(m^2*K)", n, u));
+    for (const char* not_quantity : {"120", "2*x", "2 + 3", "2 x", "feed [min]", "0x10 s", ""})
+        EXPECT_FALSE(SplitQuantity(not_quantity, n, u)) << not_quantity;
+}
+
+TEST(ParseUnitSuffix, FallsBackToUnitExpressions) {
+    std::string math;
+    UnitXform xf;
+    UnitCategory cat = UnitCategory::Dimensionless;
+    ASSERT_TRUE(ParseUnitSuffix("5 [kJ/(kg-K)]", math, xf, &cat));
+    EXPECT_EQ(math, "5");
+    EXPECT_DOUBLE_EQ(xf.mul, 1e3);
+    EXPECT_EQ(cat, UnitCategory::HeatCapacity);
+    ASSERT_TRUE(ParseUnitSuffix("2 [W/(m^2*K)]", math, xf, &cat));
+    EXPECT_DOUBLE_EQ(xf.ToBase(2.0), 2.0);
+}
+
 } // namespace adsim

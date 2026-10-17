@@ -24,7 +24,7 @@ Check the install:
 ```bash
 skarstrom --version
 skarstrom examples                  # the bundled decks
-skarstrom run Perez2019_A.json --cycles 3
+skarstrom run Perez2019_A --cycles 3
 ```
 
 The package bundles every example deck of the repository and the curated adsorbent library (see [Bundled data](#bundled-data)). Any deck file written by `sim.save()`, by the C++ API or by a front end built on the engine also works.
@@ -34,8 +34,9 @@ The package bundles every example deck of the repository and the curated adsorbe
 ```python
 import skarstrom
 
-sim = skarstrom.Simulation("my_deck.json")      # or skarstrom.example_path("Perez2019_A.json")
-sim["cycle.number_of_cycles"] = 20
+sim = skarstrom.examples.Perez2019_A.load()     # a bundled deck; or skarstrom.Simulation("my_deck.json")
+sim.cycle.number_of_cycles = 20
+sim.steps["Feed"].time = "2 min"                # units are explicit; a bare number is SI (seconds)
 result = sim.run()
 
 print(result.status, result.message)            # e.g. "reached_css", "cyclic steady state reached at cycle 14"
@@ -56,9 +57,104 @@ for k in sim.kpis(cycle=-1):                    # KPIs at the last cycle
 
 Options: `run(cycles=N)` overrides the number of cycles. `progress=f` calls `f(info)` after every step with a dict holding `cycle`, `step`, `total_cycles`, `total_steps` and `fraction`. Return `False` from it to cancel. `log_level="medium"` and `on_message=f` pass the solver's log messages to `f(level, text)`. Ctrl-C cancels a run and raises `KeyboardInterrupt`.
 
-## Parameters
+## Example decks
 
-Every value you can set is addressed by a **path**. `sim.parameters()` lists them, and `skarstrom params deck.json` prints the same list:
+`skarstrom.examples` has one attribute per bundled deck, so your editor completes the names and shows each deck's title and description:
+
+```python
+ex = skarstrom.examples.Ward2022_Q100ccm
+ex.title, ex.description, ex.path
+sim = ex.load()                                 # same as skarstrom.Simulation(ex)
+ex.copy_to("my_deck.json")                      # an editable copy
+skarstrom.examples.names()                      # every name; skarstrom.examples.ALL holds the objects
+skarstrom.examples.get("Perez2019_A")           # by name, when the name is in a variable
+```
+
+The decks are those of `examples/decks/` in the repository ([Examples](examples.md)).
+
+## The deck as objects
+
+A `Simulation` exposes the parts of its deck as objects. Reading an attribute reads the deck and assigning one sets it:
+
+```python
+sim = skarstrom.examples.Perez2019_A.load()
+sim.steps                                       # the cycle's steps, in order
+sim.steps["Feed"].time = 120                    # a step by name...
+sim.steps[0].time                               # ...or by position (0-based)
+sim.steps["Feed"].bottom.temperature = "25 degC"  # the feed-end stream of that step
+sim.steps["Feed"].bottom.y["CO2"] = 0.15        # inlet mole fractions by component
+sim.steps["Blowdown"].top.pressure_exponential_end = "0.1 bar"
+sim.layers[0].length = "1.2 m"                  # adsorbent layers, feed end first
+sim.layers[0].bed_void_fraction = 0.37
+ads = sim.adsorbents["13X"]
+ads.heat_of_adsorption["CO2"] = "35 kJ/mol"
+ads.isotherm["CO2"].b1 = 3.9e-7                 # isotherm parameters (fields depend on the isotherm kind)
+ads.kinetics["CO2"].tortuosity = 3.0           # rate-model parameters (fields depend on the model)
+sim.variables                                   # user variables by name: sim.variables["feed_flow"] = "2 L/min"
+sim.bed.diameter, sim.wall.thickness
+sim.settings.reltol = 1e-6                      # solver, CSS and energy-balance settings
+sim.css.min_cycles = 3
+sim.energy_balance.energy_balance_mode = 1      # isothermal
+sim.info.title = "my variant"
+```
+
+The rules:
+
+- **Attributes are the fields every object of that kind has** (`time`, `length`, `temperature`). **Brackets select things that are named in the deck**: steps, streams, layers and adsorbents by name, and components. An integer in brackets is a position; `sim.steps.by_id(3)` selects by the ID stored in the deck.
+- **Each step has a `bottom` (feed end, z = 0) and a `top`.** When that end has one stream or pressure boundary, its fields are available directly (`step.bottom.temperature`). When it has several, choose one: `step.top["Purge stream"]` or `step.top[0]`.
+- **Typos fail loudly.** A misspelt field, or one this deck does not have (`fraction` when the steps are timed, `velocity` on a pressure boundary), raises `AttributeError` with the fields it does have. Assigning never creates a new attribute.
+- **Components** are CoolProp names (`"CarbonDioxide"`); the usual formulas (`"CO2"`, `"N2"`, `"CH4"`, `"He"`...) work too.
+- **Printing an object** lists its values with units and string paths:
+
+```text
+>>> sim.steps["Feed"].bottom
+<steps['Feed'].bottom['Feed inlet'] (endpoint id 1)>
+  temperature         298 K        endpoint[1].temperature
+  velocity            0.08487 m/s  endpoint[1].velocity
+  y['Nitrogen']       0.85         endpoint[1].y[Nitrogen]
+  y['CarbonDioxide']  0.15         endpoint[1].y[CarbonDioxide]
+```
+
+Each object also has `fields` (its field names), `get(name, unit=None)`, `set(name, value, unit=None)`, `text(name)` (the expression behind a value), `path(name)` (the string path, below) and `parameters()` (its entries of `sim.parameters()`, with units and bounds). The objects are typed, so editors complete the fields and show each one's unit.
+
+## Units
+
+**A bare number is in the field's SI unit**: seconds, kelvin, pascal, metre, m/s, mol/s, kg/m³, J/mol and so on. The unit is in each field's documentation, in the printed objects, and in `Parameter.unit`. To use another unit, say so:
+
+```python
+step = sim.steps["Feed"]
+step.time = 120                       # 120 s
+step.time = "2 min"                   # a quantity: number and unit
+step.time = "2 [min]"                 # the same, in the deck's own syntax
+step.set("time", 2, unit="min")       # an explicit unit argument
+step.get("time", unit="min")          # 2.0: read back in any unit
+
+import pint
+ureg = pint.UnitRegistry()
+step.time = 2 * ureg.minute           # pint Quantities work too
+step.bottom.temperature = ureg.Quantity(25, ureg.degC)
+```
+
+The unit is checked against the field's dimension, so a mistake is an error rather than a silently wrong number:
+
+```text
+>>> step.time = "2 bar"
+ValueError: parameter step[1].time is a time [s]; '2 bar' is a pressure
+```
+
+String units are read by the engine, the same parser decks and `skarstrom run --set` use: SI symbols with prefixes (`kPa`, `mmol`, `cm`, `kJ`), compound units (`kJ/mol`, `W/(m^2*K)`, `mmol/g`, `kg/m3`, `1/bar`) and common named units (`bar`, `atm`, `psi`, `degC`, `degF`, `min`, `h`, `L/min`, `SCCM`, `Nm3/h`, `%`, `ppm`). Everything after a `/` is in the denominator, so `W/m2-K` means W/(m²·K). A temperature in `degC` is absolute on its own and a temperature difference inside a compound unit (`J/(kg*degC)`). pint Quantities are converted by pint itself, so any unit pint knows works. `skarstrom.units.convert(25, "degC", "K")` converts plain numbers.
+
+To make units mandatory, create the simulation with `require_units=True`. A bare number for a dimensional field then raises `TypeError` (dimensionless values, counts and switches still take plain numbers):
+
+```python
+sim = skarstrom.Simulation(skarstrom.examples.Perez2019_A, require_units=True)
+sim.steps["Feed"].time = 120          # TypeError: step[1].time is a time [s]; ... give the unit
+sim.steps["Feed"].time = "120 s"      # fine
+```
+
+## Parameter paths
+
+Every value also has a stable string **path**, which is what the object layer uses underneath. Paths are the right tool when the parameter is data: sweeps, sensitivity studies, the optimiser, configuration files and the command line. `sim.parameters()` lists them, and `skarstrom params deck.json` prints the same list:
 
 ```python
 for p in sim.parameters(tunable_only=True):
@@ -83,17 +179,18 @@ Paths look like this:
 | `layer[1].momentum_model`, `energy_balance.energy_balance_mode`, `energy_balance.isothermal_temperature` | model switches (integers or true/false) and the isothermal temperature |
 | `settings.reltol`, `css.min_cycles`, `info.title` | solver settings, CSS settings, deck information |
 
-The numbers in brackets are IDs stored in the deck, so a path keeps working when you rename a step, stream, layer or adsorbent. Each parameter also has an **alias** that uses the display names instead, for example `step[Feed].time`, `step[Feed].bottom[Feed gas].temperature` or `layer[Layer 1].length`. You can use either form. An alias that matches two objects with the same name is rejected, and you then need the ID path.
+The numbers in brackets are IDs stored in the deck, so a path keeps working when you rename a step, stream, layer or adsorbent. Each parameter also has an **alias** that uses the display names instead, for example `step[Feed].time`, `step[Feed].bottom[Feed gas].temperature` or `layer[Layer 1].length`. You can use either form. An alias that matches two objects with the same name is rejected, and you then need the ID path. `obj.path("time")` gives the path of any object's field.
 
 ```python
-sim["step[Feed].time"] = 120.0                # a number
-sim["endpoint[3].pressure"] = "1.5 [bar]"     # an expression, with an inline unit
-sim["layer[1].length"] = "2 * bed_length"     # an expression of user variables
+sim["step[Feed].time"] = 120.0                # a number (SI)
+sim["endpoint[2].pressure"] = "1.5 bar"       # a quantity
+sim["step[2].time"] = "0.2 * 95"              # an expression (it may use the deck's user variables)
+sim.set("step[1].time", 2, unit="min")
 sim.update({"css.min_cycles": 3, "settings.reltol": 1e-6})
-print(sim["step[Feed].time"], sim.get_text("endpoint[3].pressure"))
+print(sim["step[Feed].time"], sim.get("step[1].time", unit="min"), sim.get_text("endpoint[2].pressure"))
 ```
 
-Values are in SI base units. A string sets the parameter's expression, which is evaluated straight away; an invalid expression raises `ValueError` and leaves the old value in place. `tunable_only=True` keeps the numeric model values that the optimiser can vary, each with suggested search bounds. A value written as a formula is not tunable, because setting a number would replace the formula. `sim.save("new_deck.json")` writes the deck with your changes.
+Values follow the same unit rules as the objects. A string sets the parameter's expression, which is evaluated straight away; an invalid expression raises `ValueError` and leaves the old value in place. `tunable_only=True` keeps the numeric model values that the optimiser can vary, each with suggested search bounds. A value written as a formula is not tunable, because setting a number would replace the formula. `sim.save("new_deck.json")` writes the deck with your changes.
 
 ### Structural edits
 
@@ -160,10 +257,10 @@ skarstrom examples path NAME                # where it is installed
 skarstrom examples copy NAME [DEST]         # copy it to edit
 ```
 
-`skarstrom run` prints the run status, the CSS outcome and the KPIs at the last cycle. The deck may be a file or the name of a bundled example (with or without `.json`). `--set` takes the same paths and values as Python and can be repeated, for example `--set "step[Feed].time=120" --set "endpoint[3].pressure=1.5 [bar]"`. `--csv DIR` writes `kpis.csv` (every cycle), `css.csv`, `run.json` and the solver's CSV logs. `--json` prints the summary as JSON (status, message, CSS, cycles, wall time, integrator statistics, KPIs per cycle with `null` for undefined values, and the CSS history), which is the easiest way to drive the engine from another program:
+`skarstrom run` prints the run status, the CSS outcome and the KPIs at the last cycle. The deck may be a file or the name of a bundled example (with or without `.json`). `--set` takes the same paths and values as Python, units included, and can be repeated, for example `--set "step[Feed].time=2 min" --set "endpoint[3].pressure=1.5 bar"`. `--csv DIR` writes `kpis.csv` (every cycle), `css.csv`, `run.json` and the solver's CSV logs. `--json` prints the summary as JSON (status, message, CSS, cycles, wall time, integrator statistics, KPIs per cycle with `null` for undefined values, and the CSS history), which is the easiest way to drive the engine from another program:
 
 ```bash
-skarstrom examples run "Ward_2022_Q=100[ccm]" --json -q | jq '.status, .css_reached'
+skarstrom examples run "Ward2022_Q100ccm" --json -q | jq '.status, .css_reached'
 ```
 
 The exit code is 0 when the run completes or reaches CSS, 1 when it fails and 130 when it is interrupted.
@@ -173,9 +270,7 @@ The exit code is 0 when the run completes or reaches CSS, 1 when it fails and 13
 ## Bundled data
 
 ```python
-skarstrom.examples()                       # file names of the bundled decks
-skarstrom.example_path("Perez2019_A")      # absolute path (".json" optional)
-skarstrom.copy_example("Perez2019_A", ".") # a copy you can edit
+skarstrom.examples.Perez2019_A.path        # the example decks (see Example decks above)
 lib = skarstrom.adsorbent_library()        # data/adsorbents/library.json as a dict
 skarstrom.adsorbent_path("zeolite_13x_perez2019")
 ```

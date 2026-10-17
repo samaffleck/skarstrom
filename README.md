@@ -31,8 +31,9 @@ pip install .              # builds the engine (several minutes the first time)
 ```python
 import skarstrom
 
-sim = skarstrom.Simulation(skarstrom.example_path("Perez2019_A.json"))
-sim["step[Feed].time"] = 120.0            # any deck value, by stable path or alias
+sim = skarstrom.examples.Perez2019_A.load()   # 33 bundled decks; or skarstrom.Simulation("deck.json")
+sim.steps["Feed"].time = "2 min"          # units are explicit; a bare number is SI
+sim.steps["Feed"].bottom.y["CO2"] = 0.15  # the feed stream's CO2 mole fraction
 result = sim.run()                        # to cyclic steady state
 print(result.status, result.css_cycle)
 
@@ -47,7 +48,7 @@ fit = skarstrom.fit_isotherm("sips", p_pa, q_molkg, temperature=298.15)
 
 ```bash
 skarstrom examples                                     # list the bundled decks
-skarstrom examples run "Ward_2022_Q=100[ccm]" --json   # run one; JSON summary on stdout
+skarstrom examples run "Ward2022_Q100ccm" --json   # run one; JSON summary on stdout
 skarstrom run deck.json --cycles 20 --set "step[Feed].time=120" --csv out/
 skarstrom params deck.json [--all] [--json]            # settable parameters and their paths
 ```
