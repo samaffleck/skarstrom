@@ -2,9 +2,12 @@
 """Time to cyclic steady state for the bundled examples (the README's Performance table).
 
 Runs each case three times and prints the median wall time. Cyclic steady
-state is declared when the total mass balance over a cycle closes within
-0.5 % (css.method "mass_balance_total", at least 5 cycles), with and without
-Aitken (Graves-Morris) acceleration. Needs the skarstrom package
+state is declared when the mass balance of every component over a cycle
+closes within 0.5 % (css.method "mass_balance_component", at least 5 cycles),
+with and without Aitken (Graves-Morris) acceleration. The per-component
+balance is the strict test: on the light-product pressurisation cycles the
+gas profiles and the total balance settle hundreds of cycles before the CO2
+inventory does. Needs the skarstrom package
 (pip install . from the repository root).
 
     python scripts/benchmark_css.py
@@ -35,15 +38,17 @@ def main() -> None:
             times = []
             for _ in range(REPEATS):
                 sim = sk.examples.get(name).load()
-                sim.css.method = "mass_balance_total"
+                sim.css.method = "mass_balance_component"
                 sim.css.min_cycles = 5
                 sim.css.mass_balance_tolerance = 0.005
                 sim.settings.acceleration_method = acceleration
                 dt, result = timed(sim)
                 times.append(dt)
             cells = sum(layer.cells for layer in sim.layers)
+            kpi = sim.kpis(cycle=-1)[0]
             print(f"{name:20s} {cells:4d} cells  acceleration={acceleration:6s}  {result.status:12s} "
-                  f"CSS at cycle {result.css_cycle + 1:3d}  {statistics.median(times):6.2f} s")
+                  f"CSS at cycle {result.css_cycle + 1:4d}  {statistics.median(times):6.2f} s  "
+                  f"{kpi.component} purity {kpi.purity:.4f} recovery {kpi.recovery:.4f}")
     for name in BREAKTHROUGH:
         times = []
         for _ in range(REPEATS):

@@ -25,17 +25,19 @@ Skarstrom aims to be the shared, open, tested foundation. A standard engine, dec
 
 ## Performance
 
-Skarstrom is built for speed. Optimisation, parameter fitting and sensitivity studies run a cycle to cyclic steady state (CSS) hundreds or thousands of times, so the time to CSS decides what is practical. A full four-step CO₂/N₂ vacuum swing cycle with light-product pressurisation reaches CSS in about **10–17 seconds** on a single core: one core evaluates roughly 200–350 cycle designs an hour, and independent runs parallelise across cores.
+Skarstrom is built for speed. Optimisation, parameter fitting and sensitivity studies run a cycle to cyclic steady state (CSS) hundreds or thousands of times, so the time to CSS decides what is practical. One cycle of a 30-cell, four-step CO₂/N₂ vacuum swing cycle takes about **0.2 seconds** on a single core, and a basic cycle reaches CSS in about **10 seconds**: one core evaluates over 300 such designs an hour, and independent runs parallelise across cores.
 
 | Case (bundled example) | Grid | Cycles to CSS | Time to CSS |
 |---|---|---|---|
-| 4-step VSA with light-product pressurisation, 15 % CO₂ / N₂ on zeolite 13X (`Perez2019_E`) | 30 cells, 5 steps (feed split in two) | 91 (54 with Aitken acceleration) | 17.4 s (10.1 s) |
-| Basic 4-step VSA, 15 % CO₂ / N₂ on zeolite 13X (`Perez2019_A`) | 30 cells, 4 steps | 34 (27) | 6.6 s (5.9 s) |
-| 4-step VPSA with light-product pressurisation, CO₂ / N₂ on CALF-20 (`Nguyen2023_Exp_VI`) | 100 cells, 5 steps | 52 (49) | 28.9 s (27.5 s) |
-| CO₂ breakthrough on activated carbon (`Ward2022_Q100ccm`) | 60 cells | single run | 0.67 s |
-| CO₂ / CH₄ breakthrough on 13X with thermal effects (`Streb2021_A1`) | 60 cells | single run | 2.95 s |
+| Basic 4-step VSA, 15 % CO₂ / N₂ on zeolite 13X (`Perez2019_A`) | 30 cells, 4 steps | 50 (46 with Aitken acceleration) | 11.0 s (10.1 s) |
+| 4-step VSA with light-product pressurisation, 15 % CO₂ / N₂ on zeolite 13X (`Perez2019_E`) | 30 cells, 5 steps (feed split in two) | 449 (383) | 79.5 s (67.7 s) |
+| 4-step VPSA with light-product pressurisation, CO₂ / N₂ on CALF-20 (`Nguyen2023_Exp_VI`) | 100 cells, 5 steps | 68 (66) | 38.3 s (37.1 s) |
+| CO₂ breakthrough on activated carbon (`Ward2022_Q100ccm`) | 60 cells | single run | 0.68 s |
+| CO₂ / CH₄ breakthrough on 13X with thermal effects (`Streb2021_A1`) | 60 cells | single run | 3.18 s |
 
-*Non-isothermal model (mass, momentum, energy and wall energy balances) with real-gas properties. CSS when the total mass balance over a cycle closes within 0.5 % (at least 5 cycles). Median of 3 runs, one core of a 2.1 GHz Intel Xeon cloud VM (4 cores), Release build; reproduce with `python scripts/benchmark_css.py`.*
+*Non-isothermal model (mass, momentum, energy and wall energy balances) with real-gas properties. CSS when the mass balance of every component over a cycle closes within 0.5 % (at least 5 cycles). Median of 3 runs, one core of a 2.1 GHz Intel Xeon cloud VM (4 cores), Release build; reproduce with `python scripts/benchmark_css.py`.*
+
+The light-product pressurisation cycle of `Perez2019_E` shows why the CSS test matters: its total mass balance closes within 0.5 % after 91 cycles, but the CO₂ held in the bed keeps drifting for several hundred more, and the CO₂ purity moves from 80 % to 87 % on the way. Check CSS on the per-component balance (`css.method = "mass_balance_component"`), as the bundled decks do.
 
 The speed comes from modern C++20 and SUNDIALS:
 

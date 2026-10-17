@@ -51,6 +51,6 @@ The approach to CSS is often a slow geometric decay. Setting **CSS acceleration 
 ## Practical guidance
 
 - Set a generous **Number of Cycles** (an upper bound) and let a CSS method stop the run when converged.
-- The **Molar Profile** method is a good general default; switch to **Mass Balance (Per-Component)** when you need confidence in component-level KPIs.
+- The **Molar Profile** method is a quick check; use **Mass Balance (Per-Component)** whenever you report purity or recovery. The gas profiles and the total balance can settle long before the adsorbed inventory of one component does: in `Perez2019_E` the total balance closes within 0.5 % after 91 cycles, the CO₂ balance only after 449, and the CO₂ purity rises from 80 % to 87 % in between.
 - If a run reaches the cycle limit without converging, either increase the limit or loosen the tolerance — and check that the cycle actually *can* close (e.g. that feed, product and purge flows are balanced).
 - Keep enough cycles logged (**Maximum Number of Cycles to Log** in the [solver settings](solver-settings.md)) to plot the approach to CSS and confirm the last cycles overlay.
