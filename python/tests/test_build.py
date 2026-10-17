@@ -1,6 +1,5 @@
 """Tests for building a simulation from scratch (skarstrom.build and the builder methods)."""
 
-import runpy
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +8,6 @@ import pytest
 import skarstrom as sk
 from deck_compare import connections, diff, normalise, parameter_diff
 
-SEEDS = Path(__file__).resolve().parents[2] / "examples" / "_build"
 RUN_CHECKED = ["Perez2019_A", "Perez2019_E", "Ward2022_Q100ccm", "Illustrative_TSA_13X", "Arora2021_LiLSX_PSA"]
 
 
@@ -297,17 +295,9 @@ def test_every_example_round_trips_through_to_script(example):
     assert_same_deck(deck, ns["sim"])
 
 
-@pytest.mark.skipif(not SEEDS.is_dir(), reason="examples/_build not found (not a repository checkout)")
-@pytest.mark.parametrize("example", sk.examples.ALL, ids=lambda e: e.name)
-def test_seed_scripts_reproduce_their_decks(example):
-    seed = SEEDS / f"{example.name}.py"
-    assert seed.is_file(), "run scripts/gen_build_seeds.py"
-    assert_same_deck(example.load(), runpy.run_path(str(seed))["sim"])
-
-
-@pytest.mark.skipif(not SEEDS.is_dir(), reason="examples/_build not found (not a repository checkout)")
 @pytest.mark.parametrize("name", RUN_CHECKED)
-def test_seed_scripts_run_like_their_decks(name):
+def test_generated_scripts_run_like_their_decks(name):
     deck = sk.examples.get(name).load()
-    rebuilt = runpy.run_path(str(SEEDS / f"{name}.py"))["sim"]
-    assert_same_run(deck, rebuilt, cycles=min(2, deck.cycle.number_of_cycles))
+    ns = {}
+    exec(compile(sk.to_script(deck), name, "exec"), ns)
+    assert_same_run(deck, ns["sim"], cycles=min(2, deck.cycle.number_of_cycles))

@@ -43,3 +43,17 @@ def test_example_builds_its_deck(family, case, deck):
     assert differences == [], f"{family}.build({case!r}) differs from {deck}: {differences[:8]}"
     params = [d for d in parameter_diff(built, shipped) if not d[0].startswith("info.")]
     assert params == [], params[:8]
+
+
+@pytest.mark.parametrize("family,deck", [("perez_2019", "Perez2019_E"), ("ward_2022", "Ward2022_Q100ccm"),
+                                         ("tsa_illustrative", "Illustrative_TSA_13X")], ids=lambda x: str(x))
+def test_example_runs_like_its_deck(family, deck):
+    """Built and shipped simulations give the same results (2 cycles)."""
+    from test_build import assert_same_run
+
+    module = importlib.import_module(family)
+    if not hasattr(module, "DECKS"):
+        pytest.skip(f"{family} does not build its cases yet")
+    case = next(c for c, d in module.DECKS.items() if d == deck)
+    shipped = skarstrom.examples.get(deck).load()
+    assert_same_run(shipped, module.build(case), cycles=min(2, shipped.cycle.number_of_cycles))

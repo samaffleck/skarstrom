@@ -70,9 +70,12 @@ root `CMakeLists.txt`.
   `add_energy_source`, `sim.kpi.track`, with `skarstrom.velocity`,
   `molar_flow`, `linear`, `exponential`, `Stream`, `ValveStream`, `Pump`;
   `skarstrom.build_kinds()`, `sim.describe()` and `skarstrom.to_script(sim)`,
-  which writes the builder code for any deck. `examples/_build/` holds that
-  code for all 33 example decks (`scripts/gen_build_seeds.py`); a test checks
-  each reproduces its deck and that five run to identical results.
+  which writes the builder code for any deck; a test checks that this round
+  trip reproduces all 33 example decks and that five run to identical results.
+- Every example script (`examples/*.py`) builds its cases from scratch in
+  code, every value explicit with its unit, instead of loading a deck;
+  `build(case)` returns the simulation and a test checks it reproduces the
+  shipped deck.
 - Parameter registry: every value of the example decks is now settable —
   initial conditions (`initial.*`), `fluid.*` (adsorbed-phase heat
   capacities), `layer[ID].cells` and `mass_fraction[...]`, profile ramps of

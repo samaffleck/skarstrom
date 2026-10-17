@@ -288,7 +288,7 @@ Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`
 
 `set_*` replaces what was there: setting an end's streams removes its old streams and their connections, and a new model kind starts from that model's defaults. Objects held in variables (a step, a layer, `sim.bed`) follow these changes. `sim.describe()` returns the structure (the kind of every model, how each step end is set up, connections and KPI endpoints), and `sim.check()` runs the deck checks without running it.
 
-`skarstrom.to_script(sim)` writes the builder code for any deck, every value explicit. `examples/_build/` holds that code for every example deck; `python/tests/test_build.py` checks that each script reproduces its deck parameter for parameter and, for five of them, that a run gives the same KPIs and series. Copy one to start a deck of your own; `python scripts/gen_build_seeds.py` regenerates them.
+`skarstrom.to_script(sim)` writes the builder code for any deck, every value explicit, so you can turn a deck into a script and edit it from there; `python/tests/test_build.py` checks that this round trip reproduces every example deck parameter for parameter and, for five of them, that a run gives the same KPIs and series. The [example scripts](examples.md) build every bundled case this way, written by hand with units and comments.
 
 What the builder does not create: buffer tanks, pump streams whose flow follows a power model (`PumpBoundaryStream`), experimental data and cost data. Load a deck that has them, or add them in a front end.
 
