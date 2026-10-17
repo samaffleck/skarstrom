@@ -246,6 +246,7 @@ PYBIND11_MODULE(_core, m) {
           d["name"] = i.name;
           d["unit"] = i.unit;
           d["unit_checked"] = i.unit_checked;
+          d["choices"] = i.choices;
           d["kind"] = adsim::ParameterKindName(i.kind);
           d["tunable"] = i.tunable;
           d["lower"] = i.lower;

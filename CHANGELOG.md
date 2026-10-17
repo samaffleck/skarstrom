@@ -18,6 +18,22 @@ root `CMakeLists.txt`.
 - README: a "Browser interface" section introducing the Skarstrom website
   (https://www.skarstrom.co.uk/), the browser front end built on this engine.
 
+### Fixed (registry)
+- `layer[ID].heat_dispersion_coefficient` (constant model) was declared in
+  m²/s; it is the energy balance's effective axial thermal conductivity, in
+  W/(m·K). Its unit, name and suggested bounds are corrected (values are
+  unchanged).
+
+### Added (choices)
+- Model and mode switches are named: the registry lists `choices` for
+  enum-valued integers (`css.method`, `settings.acceleration_method`,
+  `settings.advection_scheme`, `energy_balance.energy_balance_mode`,
+  `cycle.step_time_mode`, `bed.thermal_equilibrium_mode`, the fluid modes,
+  `layer[ID].momentum_model`); `SetText` (Python strings, `--set`) accepts the
+  name, e.g. `sim.css.method = "mass_balance_component"`, and the Python
+  object layer reads names back. Numbers still work; out-of-range numbers are
+  rejected.
+
 ### Removed
 - `adsim/tools/eigenlldb.py`, Eigen's LLDB pretty-printer (unused).
 - Example decks renamed so every name is a Python identifier:

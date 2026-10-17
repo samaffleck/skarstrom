@@ -302,7 +302,7 @@ def _declared_field_docs():
         body = cls.body
         for a, b in zip(body, body[1:]):
             if (isinstance(a, ast.Assign) and isinstance(a.value, ast.Call)
-                    and isinstance(a.value.func, ast.Name) and a.value.func.id in ("Real", "Integer", "Boolean", "Text")):
+                    and isinstance(a.value.func, ast.Name) and a.value.func.id in ("Real", "Integer", "Boolean", "Text", "Choice")):
                 doc = b.value.value if isinstance(b, ast.Expr) and isinstance(b.value, ast.Constant) else ""
                 out[(cls.name, a.targets[0].id)] = doc
     return out

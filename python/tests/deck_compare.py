@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from typing import Any, Dict, List, Tuple
 
 DROP = {
@@ -26,6 +27,9 @@ RUNTIME_PROFILE_FIELDS = {"Start_Value", "Ramp_Time", "Step_Time"}
 # Per-component maps where a missing component means 0 (the engine fills it in).
 ZERO_DEFAULT_MAPS = {"Boundary_Mole_Fraction", "Adsorbed_Heat_Capacity"}
 ZERO_DEFAULT_PATHS = (".y[", "adsorbed_heat_capacity[")
+
+
+_QUANTITY = re.compile(r"^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*\[[^\]]+\]\s*$")
 
 
 def _root(text: str) -> Dict[str, Any]:
@@ -59,6 +63,8 @@ class _Normaliser:
                     float(text)
                     return o["Value"]
                 except (TypeError, ValueError):
+                    if _QUANTITY.match(text):  # "30.85 [kJ/mol]": a number written with a unit
+                        return o["Value"]
                     return ("expr", text)
             if set(o) == {"index", "data"}:  # std::variant
                 return {"variant": o["index"], **(self.value(o["data"]) or {})}
@@ -91,9 +97,14 @@ class _Normaliser:
         return k
 
 
-def normalise(text: str) -> Dict[str, Any]:
-    """A deck's JSON with the bookkeeping removed (see the module docstring)."""
-    root = _root(text)
+def normalise(text: str, ignore_info: bool = False) -> Dict[str, Any]:
+    """A deck's JSON with the bookkeeping removed (see the module docstring).
+
+    ``ignore_info`` also drops the deck's title, description and author.
+    """
+    root = dict(_root(text))
+    if ignore_info:
+        root.pop("System_Information", None)
     n = _Normaliser()
     for entry in root.get("Adsorbent_Directory", {}).get("Adsorbents", []):
         n.adsorbent_names[entry["key"]] = entry["value"]["Name"]

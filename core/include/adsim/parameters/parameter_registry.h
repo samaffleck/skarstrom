@@ -95,6 +95,10 @@ namespace adsim {
     // against `unit` and converted. False for user variables of a custom
     // unit category, whose unit the registry does not know.
     bool unit_checked = true;
+    // For an Integer that selects a model or mode (an enum): the name of each
+    // value, in value order ("none", "molar_profile", ...). SetText accepts a
+    // name as well as the number. Empty for a plain integer (a count).
+    std::vector<std::string> choices;
     ParameterKind kind = ParameterKind::Real;
     // A numeric model value the optimiser and parametric studies may vary.
     // False for solver settings, integers, text, and values written as a
@@ -127,6 +131,9 @@ namespace adsim {
     bool (*get_bool)(const UserData&) = nullptr;
     void (*set_bool)(UserData&, bool) = nullptr;
     const char* web_unit = nullptr;
+    // Integer fields that select an enum value: the value names, comma
+    // separated in value order (ParameterInfo::choices); nullptr otherwise.
+    const char* choices = nullptr;
   };
 
   // Every static field, grouped by section in a fixed order (info, settings,

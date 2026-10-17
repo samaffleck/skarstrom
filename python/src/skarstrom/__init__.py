@@ -171,6 +171,7 @@ class Parameter:
     value: Union[float, bool, str]
     text: str
     unit_checked: bool = True  # False: a custom-unit user variable (units are not checked)
+    choices: Sequence[str] = ()  # names of a model/mode switch's values (assign a name or its number)
 
     @property
     def bounds(self) -> Optional[tuple]:

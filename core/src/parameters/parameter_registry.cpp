@@ -70,6 +70,22 @@ namespace adsim {
 
   namespace {
 
+    // "none,aitken" -> {"none", "aitken"}
+    std::vector<std::string> SplitChoices(const char* list) {
+      std::vector<std::string> out;
+      std::string item;
+      for (const char* c = list; ; ++c) {
+        if (*c == ',' || *c == '\0') {
+          out.push_back(item);
+          item.clear();
+          if (*c == '\0') break;
+        } else {
+          item += *c;
+        }
+      }
+      return out;
+    }
+
     StaticField ExprField(const char* section, const char* key, const char* unit, const char* name,
                           ExpressionParam& (*expr)(UserData&), const char* web_unit = nullptr) {
       StaticField f{section, key, ParameterKind::Expression, unit, name};
@@ -85,10 +101,12 @@ namespace adsim {
       return f;
     }
     StaticField IntField(const char* section, const char* key, const char* name,
-                         long long (*get)(const UserData&), void (*set)(UserData&, long long)) {
+                         long long (*get)(const UserData&), void (*set)(UserData&, long long),
+                         const char* choices = nullptr) {
       StaticField f{section, key, ParameterKind::Integer, "-", name};
       f.get_int = get;
       f.set_int = set;
+      f.choices = choices;
       return f;
     }
     StaticField StrField(const char* section, const char* key, const char* name,
@@ -146,7 +164,8 @@ namespace adsim {
                [](UserData& u, long long x) { u.settings.max_iters_per_step = (long int)x; }),
       IntField("settings", "advection_scheme", "advection scheme",
                [](const UserData& u) { return (long long)static_cast<int>(u.settings.advection_scheme_); },
-               [](UserData& u, long long x) { u.settings.advection_scheme_ = static_cast<AdvectionScheme>((int)x); }),
+               [](UserData& u, long long x) { u.settings.advection_scheme_ = static_cast<AdvectionScheme>((int)x); },
+               "upwind,weno,van_leer"),
       IntField("settings", "max_cycles_to_keep", "cycles kept in the log",
                [](const UserData& u) { return (long long)u.settings.max_cycles_to_keep_; },
                [](UserData& u, long long x) { u.settings.max_cycles_to_keep_ = (int)x; }),
@@ -156,12 +175,14 @@ namespace adsim {
                [](UserData& u, long long x) { u.settings.max_log_points_per_step_ = (int)x; }),
       IntField("settings", "acceleration_method", "CSS acceleration method",
                [](const UserData& u) { return (long long)static_cast<int>(u.settings.acc_css.method_); },
-               [](UserData& u, long long x) { u.settings.acc_css.method_ = static_cast<AccelerationMethod>((int)x); }),
+               [](UserData& u, long long x) { u.settings.acc_css.method_ = static_cast<AccelerationMethod>((int)x); },
+               "none,aitken"),
 
       // css (cyclic steady state)
       IntField("css", "method", "CSS method",
                [](const UserData& u) { return (long long)static_cast<int>(u.settings.css.method_); },
-               [](UserData& u, long long x) { u.settings.css.method_ = static_cast<CSSMethod>((int)x); }),
+               [](UserData& u, long long x) { u.settings.css.method_ = static_cast<CSSMethod>((int)x); },
+               "none,molar_profile,mass_balance_total,mass_balance_component"),
       IntField("css", "min_cycles", "minimum cycles",
                [](const UserData& u) { return (long long)u.settings.css.min_cycles_; },
                [](UserData& u, long long x) { u.settings.css.min_cycles_ = (int)x; }),
@@ -177,7 +198,8 @@ namespace adsim {
       // 0 = non-isothermal (solve the energy balance), 1 = isothermal.
       IntField("energy_balance", "energy_balance_mode", "energy balance mode",
                [](const UserData& u) { return (long long)static_cast<int>(u.bed.equations_.energy_balance_mode_); },
-               [](UserData& u, long long x) { u.bed.equations_.energy_balance_mode_ = static_cast<EnergyBalanceMode>((int)x); }),
+               [](UserData& u, long long x) { u.bed.equations_.energy_balance_mode_ = static_cast<EnergyBalanceMode>((int)x); },
+               "non_isothermal,isothermal"),
       // true: T_iso is the initial-condition temperature; false: isothermal_temperature.
       BoolField("energy_balance", "isothermal_use_initial_temperature",
                 "isothermal temperature from initial conditions",
@@ -216,7 +238,15 @@ namespace adsim {
     switch (info_.kind) {
       case ParameterKind::Real:       *value_ = v; return;
       case ParameterKind::Expression: *expr_ = v; return;  // keeps the expression text in sync
-      case ParameterKind::Integer:    set_int_(static_cast<long long>(std::llround(v))); return;
+      case ParameterKind::Integer: {
+        const long long n = static_cast<long long>(std::llround(v));
+        if (!info_.choices.empty() && (n < 0 || n >= static_cast<long long>(info_.choices.size())))
+          throw std::invalid_argument("parameter " + info_.path + " takes 0.." +
+                                      std::to_string(info_.choices.size() - 1) + " (or a name); got " +
+                                      std::to_string(n));
+        set_int_(n);
+        return;
+      }
       case ParameterKind::Boolean:    set_bool_(v != 0.0); return;
       case ParameterKind::String:     break;
     }
@@ -296,6 +326,27 @@ namespace adsim {
       }
       case ParameterKind::Real:
       case ParameterKind::Integer: {
+        if (info_.kind == ParameterKind::Integer && !info_.choices.empty()) {
+          // A choice by name ("mass_balance_component", "Ergun", "van-leer").
+          std::string key;
+          for (char c : text) {
+            if (std::isspace(static_cast<unsigned char>(c))) continue;
+            key += (c == '-' || c == ' ') ? '_' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+          }
+          for (size_t i = 0; i < info_.choices.size(); ++i) {
+            if (key == info_.choices[i]) {
+              set_int_(static_cast<long long>(i));
+              return;
+            }
+          }
+          bool numeric = !key.empty();
+          for (char c : key) numeric = numeric && (std::isdigit(static_cast<unsigned char>(c)) || c == '.');
+          if (!numeric) {
+            std::string list;
+            for (const auto& c : info_.choices) list += (list.empty() ? "" : ", ") + c;
+            throw std::invalid_argument("parameter " + info_.path + " is one of: " + list + "; got '" + text + "'");
+          }
+        }
         size_t used = 0;
         double v = 0.0;
         try {
@@ -390,9 +441,10 @@ namespace adsim {
     // An integer switch stored as an enum (or any int-like field).
     template <class E>
     void EmplaceEnum(const std::string& path, const std::string& alias, const std::string& category,
-                     const std::string& subcategory, const std::string& name, E& value) {
+                     const std::string& subcategory, const std::string& name, E& value, const char* choices) {
       auto& p = Add(Info(path, alias, category, subcategory, name, "-", ParameterKind::Integer,
                          std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+      p.info_.choices = SplitChoices(choices);
       E* ptr = &value;
       p.get_int_ = [ptr] { return static_cast<long long>(static_cast<int>(*ptr)); };
       p.set_int_ = [ptr](long long x) { *ptr = static_cast<E>(static_cast<int>(x)); };
@@ -413,6 +465,7 @@ namespace adsim {
         const std::string path = std::string(f.section) + "." + f.key;
         auto& p = Add(Info(path, path, f.section, f.section, f.name, f.unit, f.kind,
                            std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+        if (f.choices) p.info_.choices = SplitChoices(f.choices);
         UserData* u = &data;
         switch (f.kind) {
           case ParameterKind::Expression:
@@ -453,7 +506,8 @@ namespace adsim {
       cycle.EnsureIds();
       EmplaceInt("cycle.number_of_cycles", "cycle", "cycle", "number of cycles", cycle.number_of_cycles_);
       // 0 = step times in seconds, 1 = fractions of cycle.total_time.
-      EmplaceEnum("cycle.step_time_mode", "", "cycle", "cycle", "step time mode", cycle.step_time_mode_);
+      EmplaceEnum("cycle.step_time_mode", "", "cycle", "cycle", "step time mode", cycle.step_time_mode_,
+                  "time,fraction");
       if (cycle.step_time_mode_ == StepTimeMode::FRACTION) {
         Emplace("cycle.total_time", "", "cycle", "cycle", "total cycle time", "s",
                 cycle.total_cycle_time_, 1.0, 10000.0);
@@ -665,7 +719,7 @@ namespace adsim {
 
       // 0 = local thermal equilibrium (LTE), 1 = non-equilibrium (LTNE).
       EmplaceEnum("bed.thermal_equilibrium_mode", "", "bed", "thermal", "thermal equilibrium mode",
-                  bed.equations_.thermal_equilibrium_mode_);
+                  bed.equations_.thermal_equilibrium_mode_, "lte,ltne");
       if (auto* h = dynamic_cast<ConstantParticleHeatTransferModel*>(bed.equations_.particle_heat_transfer_model_.get()))
         Emplace("bed.particle_htc", "", "bed", "thermal", "gas-to-particle heat transfer coefficient", "W/m2-K",
                 h->heat_transfer_coefficient_, 1.0, 1e5);
@@ -694,10 +748,10 @@ namespace adsim {
     void AddFluid(Fluid& fluid) {
       // 0 = constant (fluid.adsorbed_heat_capacity), 1 = equal to the gas-phase value.
       EmplaceEnum("fluid.adsorbed_heat_capacity_mode", "", "fluid", "fluid", "adsorbed-phase heat capacity mode",
-                  fluid.adsorbed_heat_capacity_mode_);
+                  fluid.adsorbed_heat_capacity_mode_, "constant,gas_phase");
       // 0 = isosteric heat of adsorption, 1 = internal-energy convention.
       EmplaceEnum("fluid.heat_of_adsorption_convention", "", "fluid", "fluid", "heat of adsorption convention",
-                  fluid.heat_of_adsorption_convention_);
+                  fluid.heat_of_adsorption_convention_, "isosteric,internal_energy");
       for (const auto& component : fluid.components_) {
         auto it = fluid.adsorbed_heat_capacity_.find(component);
         if (it == fluid.adsorbed_heat_capacity_.end()) continue;
@@ -728,6 +782,7 @@ namespace adsim {
         auto& p = Add(Info(lp + ".momentum_model", la + ".momentum_model", "layer", ln, "momentum model", "-",
                            ParameterKind::Integer, std::numeric_limits<double>::quiet_NaN(),
                            std::numeric_limits<double>::quiet_NaN()));
+        p.info_.choices = {"kozeny_carman", "ergun"};
         MixedAdsorbentLayer* l = &layer;
         p.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->momentum_model_)); };
         p.set_int_ = [l](long long x) { l->momentum_model_ = static_cast<MomentumModel>(static_cast<int>(x)); };
@@ -740,8 +795,10 @@ namespace adsim {
         E("molecular_diffusion_coefficient", "molecular diffusion coefficient", "m2/s", d->Dm, 1e-8, 1e-4);
       }
       if (auto* d = dynamic_cast<HeatDispersionModelConstant*>(eqs.heat_dispersion_model_.get())) {
-        E("heat_dispersion_coefficient", "heat dispersion coefficient", "m2/s", d->dispersion_coefficient_,
-          1e-8, 1e-2);
+        // The effective axial thermal conductivity lambda of the energy balance
+        // (HeatDispersionModelConstant::Update), so W/(m K), not a diffusivity.
+        E("heat_dispersion_coefficient", "axial thermal conductivity", "W/(m-K)", d->dispersion_coefficient_,
+          1e-3, 100.0);
       }
       if (auto* h = dynamic_cast<ConstantInternalHeatTransferModel*>(eqs.internal_heat_transfer_model_.get())) {
         E("internal_htc", "internal heat transfer coefficient", "W/m2-K", h->heat_transfer_coefficient_, 1.0, 1e4);

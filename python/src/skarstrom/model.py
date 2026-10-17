@@ -256,6 +256,11 @@ class Text(_Field[str]):
     """Free text."""
 
 
+class Choice(_Field[str]):
+    """One of a fixed set of names (a model or mode switch). Reads give the
+    name; assign the name (or its number). ``parameters()`` lists the choices."""
+
+
 def _format(value: Any, unit: str) -> str:
     if isinstance(value, bool) or isinstance(value, str):
         return repr(value)
@@ -337,7 +342,15 @@ class _Node:
         return path
 
     def _read(self, name: str) -> Any:
-        return self._sim.get(self._path_of(name))
+        return self._value(self._path_of(name))
+
+    def _value(self, path: str) -> Any:
+        """A registry value; the name for a choice (an enum-valued integer)."""
+        value = self._sim.get(path)
+        info = self._sim._index().by_path.get(path)
+        if info is not None and info.choices and isinstance(value, int) and 0 <= value < len(info.choices):
+            return info.choices[value]
+        return value
 
     def _write(self, name: str, value: Value) -> None:
         self._sim.set(self._path_of(name), value)
@@ -347,7 +360,7 @@ class _Node:
             raise AttributeError(name)
         tree = self._tree_or_raise()
         if name in tree.leaves:
-            return self._sim.get(tree.leaves[name])
+            return self._value(tree.leaves[name])
         if name in tree.maps:
             return ValueMap(self._sim, tree.maps[name], f"{self._label}.{name}")
         if name in tree.groups:
@@ -390,6 +403,8 @@ class _Node:
 
     def get(self, name: str, unit: Optional[str] = None) -> Any:
         """A field's value, in its SI unit or converted to ``unit`` (``get("time", unit="min")``)."""
+        if unit is None:
+            return self._read(name)
         return self._sim.get(self._path_of(name), unit=unit)
 
     def set(self, name: str, value: Value, unit: Optional[str] = None) -> None:
@@ -748,21 +763,21 @@ class Settings(_Node):
     """Maximum internal steps per call."""
     max_iters_per_step = Integer()
     """Maximum iterations per step."""
-    advection_scheme = Integer()
-    """Advection discretisation scheme (an integer switch)."""
+    advection_scheme = Choice()
+    """Advection discretisation: "upwind", "weno" or "van_leer"."""
     max_cycles_to_keep = Integer()
     """Cycles kept in the log."""
     max_log_points_per_step = Integer()
     """Maximum logged points per step."""
-    acceleration_method = Integer()
-    """CSS acceleration method (an integer switch)."""
+    acceleration_method = Choice()
+    """Cyclic-steady-state acceleration: "none" or "aitken" (Graves-Morris extrapolation)."""
 
 
 class CSS(_Node):
     """Cyclic-steady-state detection."""
 
-    method = Integer()
-    """CSS criterion (an integer switch)."""
+    method = Choice()
+    """CSS criterion: "none", "molar_profile", "mass_balance_total" or "mass_balance_component"."""
     min_cycles = Integer()
     """Minimum number of cycles before CSS can be declared."""
     molar_absolute_tolerance = Real()
@@ -776,8 +791,8 @@ class CSS(_Node):
 class EnergyBalance(_Node):
     """Energy-balance switches."""
 
-    energy_balance_mode = Integer()
-    """0 = non-isothermal (full energy balance), 1 = isothermal."""
+    energy_balance_mode = Choice()
+    """"non_isothermal" (solve the energy balances) or "isothermal"."""
     isothermal_use_initial_temperature = Boolean()
     """Isothermal runs take their temperature from the initial conditions."""
     isothermal_temperature = Real()
@@ -789,8 +804,8 @@ class Cycle(_Node):
 
     number_of_cycles = Integer()
     """Number of cycles to run."""
-    step_time_mode = Integer()
-    """0 = each step has a time in seconds, 1 = steps are fractions of total_time."""
+    step_time_mode = Choice()
+    """"time" (each step has a duration in seconds) or "fraction" (steps are fractions of total_time)."""
     total_time = Real()
     """Total cycle time when steps are given as fractions [s]."""
 
@@ -1156,8 +1171,8 @@ class Bed(_Node):
     """Depth of a rectangular column [m] (bed length is per layer: layers[i].length)."""
     ambient_temperature = Real()
     """Ambient temperature outside the wall [K]."""
-    thermal_equilibrium_mode = Integer()
-    """0 = local thermal equilibrium (gas and solid at one temperature), 1 = non-equilibrium."""
+    thermal_equilibrium_mode = Choice()
+    """"lte" (gas and solid at one temperature) or "ltne" (separate gas and solid temperatures)."""
     particle_htc = Real()
     """Gas-to-particle heat transfer coefficient (non-equilibrium model) [W/m2-K]."""
 
@@ -1251,10 +1266,10 @@ class InitialConditions(_Node):
 class Fluid(_Node):
     """Properties of the gas and the adsorbed phase."""
 
-    adsorbed_heat_capacity_mode = Integer()
-    """0 = constant adsorbed-phase heat capacity (adsorbed_heat_capacity), 1 = equal to the gas phase."""
-    heat_of_adsorption_convention = Integer()
-    """0 = heats of adsorption are isosteric heats, 1 = internal-energy convention."""
+    adsorbed_heat_capacity_mode = Choice()
+    """"constant" (adsorbed_heat_capacity per component) or "gas_phase" (equal to the gas phase)."""
+    heat_of_adsorption_convention = Choice()
+    """Heats of adsorption are "isosteric" heats or follow the "internal_energy" convention."""
 
     @property
     def adsorbed_heat_capacity(self) -> ValueMap:
@@ -1276,14 +1291,14 @@ class Layer(_Node):
     """Interparticle (bed) void fraction [-]."""
     particle_diameter = Real()
     """Particle diameter [m]."""
-    momentum_model = Integer()
-    """Pressure-drop model (an integer switch: Ergun, Carman-Kozeny...)."""
+    momentum_model = Choice()
+    """Pressure-drop model: "kozeny_carman" (Darcy) or "ergun"."""
     dispersion_coefficient = Real()
     """Constant axial dispersion coefficient [m2/s]."""
     molecular_diffusion_coefficient = Real()
     """Molecular diffusivity used by the dispersion correlation [m2/s]."""
     heat_dispersion_coefficient = Real()
-    """Constant axial heat dispersion coefficient [m2/s]."""
+    """Constant effective axial thermal conductivity lambda of the energy balance [W/(m-K)]."""
     internal_htc = Real()
     """Constant bed-to-wall heat transfer coefficient [W/m2-K]."""
     leva_eta1 = Real()

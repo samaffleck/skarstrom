@@ -309,6 +309,9 @@ def _literal(sim: "Simulation", path: str) -> str:
     """The value at ``path`` as Python source: a number, a bool, or the expression text."""
     p = sim._index().by_path.get(path)
     value = sim.get(path)
+    if p is not None and p.choices and isinstance(value, int) and not isinstance(value, bool) \
+            and 0 <= value < len(p.choices):
+        return repr(p.choices[value])  # a model or mode switch, by name
     if isinstance(value, bool) or isinstance(value, int):
         return repr(value)
     if isinstance(value, str):

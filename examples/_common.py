@@ -16,7 +16,7 @@ import math
 import os
 import time
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -256,12 +256,13 @@ def save(fig, name: str) -> Path:
     return p
 
 
-def cyclic_family(argv, doc: str, paper: str, cases: Dict[str, Tuple[str, str]],
+def cyclic_family(argv, doc: str, paper: str, cases: Dict[str, Union[str, Tuple[str, str]]],
                   quantities: Sequence[Tuple[str, str, str]], plot_component: str, plot_name: str,
-                  default: Optional[Sequence[str]] = None, values=None) -> int:
-    """Run cyclic decks to CSS and compare their final KPIs with published values.
+                  default: Optional[Sequence[str]] = None, values=None, build=None) -> int:
+    """Run cyclic cases to CSS and compare their final KPIs with published values.
 
-    cases: name -> (deck file, case name in reference_values.csv).
+    cases: name -> case name in reference_values.csv, with ``build(name)``
+    returning the simulation; or name -> (deck file, case name) to load decks.
     quantities, values: see compare_kpis. The plot shows purity and recovery of
     plot_component from the deck's KPI configuration against the cycle number
     (the last logged cycles) for every case run; it is skipped for decks without
@@ -272,8 +273,14 @@ def cyclic_family(argv, doc: str, paper: str, cases: Dict[str, Tuple[str, str]],
     fig, axes = (plt.subplots(1, 2, figsize=(10, 4)) if plt else (None, None))
     plotted = False
     for name in selected(args):
-        deck, ref_case = cases[name]
-        sim = load(deck, args.cycles)
+        if build is not None:
+            ref_case = cases[name]
+            sim = build(name)
+            if args.cycles is not None:
+                sim.cycle.number_of_cycles = int(args.cycles)
+        else:
+            deck, ref_case = cases[name]
+            sim = load(deck, args.cycles)
         run(sim, f"{paper} {name}", args.quiet)
         print(f"  {css_status(sim)}")
         compare_kpis(sim, paper, ref_case, quantities, values)
