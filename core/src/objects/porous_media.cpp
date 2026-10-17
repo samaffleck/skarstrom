@@ -9,6 +9,8 @@
 #include "adsim/objects/fluid.h"
 #include "adsim/objects/reactor.h"
 #include "adsim/equations/isotherm.h"
+#include "adsim/equations/isotherm_kinds.h"
+#include <algorithm>
 #include "adsim/math/constants.h"
 
 
@@ -87,6 +89,28 @@ namespace adsim {
 		}
 
 		isotherm_map_[component] = isotherm_type;
+	}
+
+	void AdsorptionSource::AssignIsotherm(const std::vector<std::string>& components, IsothermType type) {
+		if (components.empty()) return;
+		for (const auto& c : components) {
+			auto it = isotherm_map_.find(c);
+			if (it == isotherm_map_.end() || it->second == type) continue;
+			auto old = isotherms_.find(it->second);
+			if (old != isotherms_.end() && old->second) old->second->RemoveComponent(c);
+		}
+		auto& iso = isotherms_[type];
+		if (!iso) iso = CreateIsotherm(type, components.front());
+		for (const auto& c : components) {
+			EnsureIsothermComponent(iso.get(), c);
+			isotherm_map_[c] = type;
+		}
+		for (auto it = isotherms_.begin(); it != isotherms_.end();) {
+			const IsothermType t = it->first;
+			const bool used = std::any_of(isotherm_map_.begin(), isotherm_map_.end(),
+			                              [t](const auto& m) { return m.second == t; });
+			it = used ? std::next(it) : isotherms_.erase(it);
+		}
 	}
 
 	void AdsorptionSource::AddIsotherm(const std::vector<std::string>& components, std::unique_ptr<IIsotherm> isotherm) {

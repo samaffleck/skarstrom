@@ -37,6 +37,23 @@ import numpy as np
 from . import _core, examples, units
 from ._core import AxialProfile, CSSRecord, KPIRecord, RunResult, TimeSeries
 from ._example import Example
+from .build import (
+    Flow,
+    KPIConfig,
+    Profile,
+    Pump,
+    Stream,
+    ValveStream,
+    build_kinds,
+    constant,
+    exponential,
+    linear,
+    mass_flow,
+    molar_flow,
+    to_script,
+    velocity,
+    volumetric_flow,
+)
 from .model import (
     CSS,
     Adsorbent,
@@ -44,19 +61,24 @@ from .model import (
     Collection,
     Cycle,
     EnergyBalance,
+    EnergySource,
     Endpoint,
+    Fluid,
     Info,
+    InitialConditions,
     Isotherm,
     Kinetics,
     Layer,
     NodeMap,
-    Pump,
     Settings,
     Step,
     StepEnd,
+    Valve,
     ValueMap,
+    VoidRegion,
     Wall,
 )
+from . import build
 from . import model as _model
 
 __version__: str = _core.__version__
@@ -70,38 +92,58 @@ __all__ = [
     "Collection",
     "Cycle",
     "EnergyBalance",
+    "EnergySource",
     "Endpoint",
     "Example",
+    "Flow",
+    "Fluid",
     "Info",
+    "InitialConditions",
     "Isotherm",
+    "KPIConfig",
     "KPIRecord",
     "Kinetics",
     "Layer",
     "NodeMap",
     "Parameter",
+    "Profile",
     "Pump",
     "RunResult",
     "Settings",
     "Simulation",
     "Step",
     "StepEnd",
+    "Stream",
     "TimeSeries",
+    "Valve",
     "ValueMap",
+    "ValveStream",
+    "VoidRegion",
     "Wall",
     "__version__",
     "adsorbent_library",
     "adsorbent_library_dir",
     "adsorbent_path",
+    "build",
+    "build_kinds",
     "bulk_variables",
     "component_variables",
+    "constant",
     "evaluate_isotherm",
     "examples",
+    "exponential",
     "fit_isotherm",
     "isotherm_kinds",
     "isotherm_parameters",
+    "linear",
+    "mass_flow",
+    "molar_flow",
     "stream_component_variables",
     "stream_variables",
+    "to_script",
     "units",
+    "velocity",
+    "volumetric_flow",
 ]
 
 PathLike = Union[str, "os.PathLike[str]"]
@@ -210,6 +252,7 @@ class Simulation:
     def __init__(self, deck: Optional[Union[PathLike, str, Example]] = None, require_units: bool = False) -> None:
         self._sim = _core.Simulation()
         self._index_cache: Optional[_model._Index] = None
+        self._epoch = 0  # bumped by every structural change; deck objects re-read themselves
         self.require_units = require_units
         if deck is not None:
             text = os.fspath(deck)
@@ -258,6 +301,7 @@ class Simulation:
 
     def _invalidate(self) -> None:
         self._index_cache = None
+        self._epoch += 1
 
     @property
     def steps(self) -> Collection[Step]:
@@ -308,6 +352,21 @@ class Simulation:
     def energy_balance(self) -> EnergyBalance:
         """Energy-balance switches (isothermal or not)."""
         return _model._group(self, EnergyBalance, "energy_balance")
+
+    @property
+    def initial_conditions(self) -> InitialConditions:
+        """The state of the bed at the start of the first cycle."""
+        return _model._group(self, InitialConditions, "initial")
+
+    @property
+    def fluid(self) -> Fluid:
+        """Gas and adsorbed-phase properties (adsorbed-phase heat capacity, heat of adsorption convention)."""
+        return _model._group(self, Fluid, "fluid")
+
+    @property
+    def kpi(self) -> KPIConfig:
+        """KPI configuration: ``sim.kpi.track("CO2", feed=[...], product=[...])``."""
+        return KPIConfig(self)
 
     @property
     def info(self) -> Info:
@@ -453,6 +512,110 @@ class Simulation:
         return self._sim.messages
 
     # ---- structural edits ---------------------------------------------------------
+    # ---- building from scratch (skarstrom.build) --------------------------------------
+    @classmethod
+    def new(cls, title: str = "", description: str = "", author: str = "",
+            require_units: bool = False) -> "Simulation":
+        """An empty deck to build in code: add components, adsorbents, layers and steps."""
+        sim = cls(require_units=require_units)
+        for key, value in (("title", title), ("description", description), ("author", author)):
+            if value:
+                sim.set(f"info.{key}", value)
+        return sim
+
+    def _build(self, op: str, *args: Any) -> Any:
+        try:
+            result = self._sim.build(op, list(args))
+        finally:
+            self._invalidate()
+        return result
+
+    def _component(self, name: str) -> str:
+        return _model._resolve_key(name, self.components, "components")
+
+    def _adsorbent_id(self, adsorbent: Any) -> int:
+        if isinstance(adsorbent, Adsorbent):
+            return adsorbent.id
+        if isinstance(adsorbent, int):
+            return adsorbent
+        return self.adsorbents[adsorbent].id
+
+    def _layer_id(self, layer: Any) -> int:
+        if isinstance(layer, Layer):
+            return layer.id
+        if isinstance(layer, int):
+            return layer
+        return self.layers[layer].id
+
+    def _endpoint(self, endpoint_id: int) -> Endpoint:
+        return _model._endpoint(self, endpoint_id)
+
+    def describe(self) -> Dict[str, Any]:
+        """The deck's structure: the model kind of every object, how each step end is set up,
+        connections and KPI endpoints (endpoint IDs). Values are in :meth:`parameters`."""
+        return self._sim.describe()
+
+    def add_adsorbent(self, name: str, **values: Any) -> Adsorbent:
+        """A new adsorbent (default physics for every component: inert isotherm, LDF with a
+        constant coefficient); ``values`` set its fields (solid_density, heat_capacity,
+        thermal_conductivity, particle_void_fraction)."""
+        adsorbent_id = self._build("add_adsorbent", name)
+        ads = self.adsorbents.by_id(adsorbent_id)
+        _model._apply(ads, values)
+        return ads
+
+    def add_layer(self, name: str, composition: Optional[Mapping[Any, float]] = None, momentum: str = "ergun",
+                  **values: Any) -> Layer:
+        """A new layer at the product end of the bed.
+
+        ``composition`` maps adsorbents (names, IDs or Adsorbent objects) to
+        mass fractions; ``momentum`` is ``"ergun"`` or ``"kozeny_carman"``;
+        ``values`` set its fields (length, cells, bed_void_fraction,
+        particle_diameter...). The transport models start as constant
+        dispersion and constant heat transfer; change them with
+        ``layer.set_dispersion(...)`` and the like.
+        """
+        layer_id = self._build("add_layer", name)
+        if composition:
+            pairs = [[self._adsorbent_id(a), float(f)] for a, f in composition.items()]
+            self._build("set_layer_composition", layer_id, pairs)
+        self._build("set_momentum", layer_id, momentum)
+        layer = self.layers.by_id(layer_id)
+        _model._apply(layer, values)
+        return layer
+
+    def add_step(self, name: str, time: Any = None, fraction: Any = None) -> Step:
+        """A new step at the end of the cycle, both ends closed until set
+        (``step.bottom.set_streams(...)``, ``step.top.set_pressure(...)``)."""
+        step_id = self._build("add_step", name)
+        step = self.steps.by_id(step_id)
+        if time is not None:
+            step.time = time
+        if fraction is not None:
+            step.fraction = fraction
+        return step
+
+    def connect(self, a: Any, b: Any) -> None:
+        """Connect two endpoints so one supplies the other (light-product pressurisation, a purge
+        drawn from another step's product). Each is an Endpoint, a single-endpoint step end, or an ID."""
+        ids = build._endpoint_ids(a) + build._endpoint_ids(b)
+        if len(ids) != 2:
+            raise ValueError("connect() takes exactly two endpoints (choose one stream of a multi-stream end)")
+        self._build("connect", ids[0], ids[1])
+
+    def add_variable(self, name: str, value: Any = None, category: str = "dimensionless",
+                     formula: Optional[str] = None, description: str = "") -> None:
+        """A user variable that other values' expressions can use (``sim.steps["Feed"].time = "2 * t_feed"``).
+
+        ``category`` is its unit category (``skarstrom.build_kinds()["variable_category"]``:
+        ``"time"``, ``"pressure"``...), which fixes the SI unit of ``value`` and lets a
+        quantity (``"30 s"``) be converted. Give a ``value`` or a ``formula`` of other
+        variables. A variable of the same name is replaced.
+        """
+        self._build("add_variable", name, category, formula or "", description)
+        if value is not None:
+            self.set(f"variable[{name}]", value)
+
     def add_component(self, name: str) -> None:
         """Add a fluid component (a CoolProp name such as ``"Argon"``).
 
@@ -460,8 +623,7 @@ class Simulation:
         initial condition, and default physics on every adsorbent (inert
         isotherm, LDF rate model, zero heat of adsorption) for you to set.
         """
-        self._sim.add_component(name)
-        self._invalidate()
+        self._build("add_component", name)
 
     def remove_component(self, name: str) -> None:
         """Remove a component from the fluid, every adsorbent and every mole-fraction map."""

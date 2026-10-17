@@ -61,6 +61,13 @@ namespace adsim {
     void RemoveComponent(const std::string& component);
     void SetIsothermType(const std::string& component, IsothermType isotherm_type);
     void AddIsotherm(const std::vector<std::string>& components, std::unique_ptr<IIsotherm> isotherm);
+    // Give `components` one isotherm of `type` (created with default
+    // parameters if this source has none of that type yet). The components
+    // leave their previous isotherm, and an isotherm no component uses any
+    // more is removed.
+    void AssignIsotherm(const std::vector<std::string>& components, IsothermType type);
+    // Which isotherm type each component uses.
+    const std::unordered_map<std::string, IsothermType>& IsothermMap() const { return isotherm_map_; }
     void UpdateIsotherm(Equations& state, AdsorbentID ads_id, const std::string& component, int start_index, int end_index, const UserVariableRegistry* registry);
     // Update every component's isotherm in one pass for a single adsorbent.
     // Components sharing a competitive (extended) isotherm reuse its per-cell

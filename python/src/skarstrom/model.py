@@ -58,8 +58,11 @@ __all__ = [
     "Collection",
     "Cycle",
     "EnergyBalance",
+    "EnergySource",
     "Endpoint",
+    "Fluid",
     "Info",
+    "InitialConditions",
     "Isotherm",
     "Kinetics",
     "Layer",
@@ -68,7 +71,9 @@ __all__ = [
     "Settings",
     "Step",
     "StepEnd",
+    "Valve",
     "ValueMap",
+    "VoidRegion",
     "Wall",
 ]
 
@@ -278,14 +283,38 @@ def _suggest(name: str, options: List[str]) -> str:
 class _Node:
     """Base of every deck object: attribute access to its registry fields."""
 
-    __slots__ = ("_sim", "_tree", "_label")
+    __slots__ = ("_sim", "_t", "_label", "_epoch")
 
     def __init__(self, sim: "Simulation", tree: Optional[_Tree], label: str) -> None:
         object.__setattr__(self, "_sim", sim)
-        object.__setattr__(self, "_tree", tree)
+        object.__setattr__(self, "_t", tree)
         object.__setattr__(self, "_label", label)
+        object.__setattr__(self, "_epoch", sim._epoch)
 
     # ---- lookup ---------------------------------------------------------------
+    @property
+    def _tree(self) -> Optional[_Tree]:
+        """The object's fields, refreshed when a structural edit changed the deck
+        (a step, layer or adsorbent held in a variable stays usable)."""
+        if self._epoch != self._sim._epoch:
+            object.__setattr__(self, "_epoch", self._sim._epoch)
+            try:
+                fresh = self._refetch()
+            except KeyError:  # the object was removed: keep what it had
+                fresh = None
+            if fresh is not None:
+                for cls in type(self).__mro__:
+                    for slot in getattr(cls, "__slots__", ()):
+                        if slot not in ("_sim", "_epoch"):
+                            object.__setattr__(self, slot, getattr(fresh, slot))
+        return self._t
+
+    def _refetch(self) -> Optional["_Node"]:
+        """This object, read again from the current deck (None: keep the old fields)."""
+        if type(self) in _TOP_LEVEL:
+            return _group(self._sim, type(self), self._label)
+        return None
+
     def _tree_or_raise(self) -> _Tree:
         tree = self._tree
         if tree is None:
@@ -420,6 +449,50 @@ class _Node:
 
 class Group(_Node):
     """A group of values with no fixed fields (fields depend on the model)."""
+
+
+def _alias_key(alias: str, head: str) -> str:
+    """The display name in ``...<head>[<name>]...`` of an alias (the last such bracket)."""
+    i = alias.rfind(head + "[")
+    if i < 0:
+        return alias
+    j, depth = i + len(head) + 1, 1
+    k = j
+    while k < len(alias) and depth:
+        depth += {"[": 1, "]": -1}.get(alias[k], 0)
+        k += 1
+    return alias[j : k - 1]
+
+
+def _named_paths(sim: "Simulation", paths: Dict[str, str], head: str) -> Dict[str, str]:
+    """``paths`` (keyed by ID) re-keyed by the display name in each path's alias."""
+    index = sim._index()
+    out: Dict[str, str] = {}
+    for key, path in paths.items():
+        p = index.by_path.get(path)
+        out[_alias_key(p.alias, head) if p is not None else key] = path
+    return out
+
+
+def _named_trees(sim: "Simulation", trees: Dict[str, "_Tree"], head: str) -> Dict[str, "_Tree"]:
+    index = sim._index()
+    out: Dict[str, _Tree] = {}
+    for key, tree in trees.items():
+        name = key
+        for path in tree.paths():
+            p = index.by_path.get(path)
+            if p is not None:
+                name = _alias_key(p.alias, head)
+            break
+        out[name] = tree
+    return out
+
+
+def _apply(node: "_Node", values: Dict[str, Any]) -> None:
+    """Set several fields of a node (``None`` values are skipped)."""
+    for name, value in values.items():
+        if value is not None:
+            node.set(name, value)
 
 
 # ---------------------------------------------------------------------------
@@ -716,6 +789,8 @@ class Cycle(_Node):
 
     number_of_cycles = Integer()
     """Number of cycles to run."""
+    step_time_mode = Integer()
+    """0 = each step has a time in seconds, 1 = steps are fractions of total_time."""
     total_time = Real()
     """Total cycle time when steps are given as fractions [s]."""
 
@@ -724,11 +799,36 @@ class Pump(_Node):
     """The pump, compressor or vacuum pump on a stream or boundary."""
 
     efficiency = Real()
-    """Isentropic efficiency [-]."""
+    """Isentropic efficiency [-] (constant efficiency model)."""
+    polytropic_index = Real()
+    """Polytropic index of the compression [-]."""
     suction_pressure = Real()
     """Compressor suction pressure [Pa]."""
     discharge_pressure = Real()
     """Vacuum-pump discharge pressure [Pa]."""
+    eta_max = Real()
+    """Peak efficiency of the vacuum-pump efficiency curve [-]."""
+    alpha = Real()
+    """Decay coefficient of the vacuum-pump efficiency curve [-]."""
+    poly_a = Real()
+    """Efficiency polynomial coefficient a [-]."""
+    poly_b = Real()
+    """Efficiency polynomial coefficient b [-]."""
+    poly_c = Real()
+    """Efficiency polynomial coefficient c [-]."""
+    poly_d = Real()
+    """Efficiency polynomial coefficient d [-]."""
+    poly_e = Real()
+    """Efficiency polynomial coefficient e [-]."""
+
+
+class Valve(_Node):
+    """The valve of a valve stream."""
+
+    cv = Real()
+    """Flow coefficient Cv (US gpm per psi^0.5) [-]."""
+    xt = Real()
+    """Pressure-drop ratio factor xT [-]."""
 
 
 class Endpoint(_Node):
@@ -746,6 +846,58 @@ class Endpoint(_Node):
     """Inlet temperature at the start of an exponential ramp [K]."""
     temperature_exponential_end = Real()
     """Inlet temperature at the end of an exponential ramp [K]."""
+    temperature_linear_time = Real()
+    """Duration of the inlet temperature linear ramp [s]."""
+    temperature_exponential_time = Real()
+    """Duration of the inlet temperature exponential ramp [s]."""
+    velocity_linear_start = Real()
+    """Superficial velocity at the start of a linear ramp [m/s]."""
+    velocity_linear_end = Real()
+    """Superficial velocity at the end of a linear ramp [m/s]."""
+    velocity_linear_time = Real()
+    """Duration of the velocity linear ramp [s]."""
+    velocity_exponential_start = Real()
+    """Superficial velocity at the start of an exponential ramp [m/s]."""
+    velocity_exponential_end = Real()
+    """Superficial velocity at the end of an exponential ramp [m/s]."""
+    velocity_exponential_time = Real()
+    """Duration of the velocity exponential ramp [s]."""
+    molar_flow_linear_start = Real()
+    """Molar flow at the start of a linear ramp [mol/s]."""
+    molar_flow_linear_end = Real()
+    """Molar flow at the end of a linear ramp [mol/s]."""
+    molar_flow_linear_time = Real()
+    """Duration of the molar flow linear ramp [s]."""
+    molar_flow_exponential_start = Real()
+    """Molar flow at the start of an exponential ramp [mol/s]."""
+    molar_flow_exponential_end = Real()
+    """Molar flow at the end of an exponential ramp [mol/s]."""
+    molar_flow_exponential_time = Real()
+    """Duration of the molar flow exponential ramp [s]."""
+    volumetric_flow_linear_start = Real()
+    """Volumetric flow at the start of a linear ramp [m3/s]."""
+    volumetric_flow_linear_end = Real()
+    """Volumetric flow at the end of a linear ramp [m3/s]."""
+    volumetric_flow_linear_time = Real()
+    """Duration of the volumetric flow linear ramp [s]."""
+    volumetric_flow_exponential_start = Real()
+    """Volumetric flow at the start of an exponential ramp [m3/s]."""
+    volumetric_flow_exponential_end = Real()
+    """Volumetric flow at the end of an exponential ramp [m3/s]."""
+    volumetric_flow_exponential_time = Real()
+    """Duration of the volumetric flow exponential ramp [s]."""
+    mass_flow_linear_start = Real()
+    """Mass flow at the start of a linear ramp [kg/s]."""
+    mass_flow_linear_end = Real()
+    """Mass flow at the end of a linear ramp [kg/s]."""
+    mass_flow_linear_time = Real()
+    """Duration of the mass flow linear ramp [s]."""
+    mass_flow_exponential_start = Real()
+    """Mass flow at the start of an exponential ramp [kg/s]."""
+    mass_flow_exponential_end = Real()
+    """Mass flow at the end of an exponential ramp [kg/s]."""
+    mass_flow_exponential_time = Real()
+    """Duration of the mass flow exponential ramp [s]."""
     velocity = Real()
     """Inlet superficial velocity [m/s]."""
     molar_flow = Real()
@@ -774,6 +926,9 @@ class Endpoint(_Node):
         """The endpoint ID stored in the deck (``endpoint[<id>]`` in string paths)."""
         return self._id
 
+    def _refetch(self) -> Optional[_Node]:
+        return _endpoint(self._sim, self._id)
+
     @property
     def name(self) -> str:
         return self._name
@@ -801,6 +956,21 @@ class Endpoint(_Node):
             raise AttributeError(self._missing("pump"))
         return Pump(self._sim, tree, f"{self._label}.pump")
 
+    @property
+    def valve(self) -> Valve:
+        """The valve of a valve stream."""
+        tree = self._tree_or_raise().groups.get("valve")
+        if tree is None:
+            raise AttributeError(self._missing("valve"))
+        return Valve(self._sim, tree, f"{self._label}.valve")
+
+    def set_pump(self, pump: Any) -> "Endpoint":
+        """Fit a pump (a :class:`skarstrom.Pump`) to this stream or boundary; ``None`` removes it."""
+        from . import build
+
+        build._apply_pump(self._sim, self._id, pump)
+        return self._sim._endpoint(self._id)
+
     def _map(self, name: str) -> ValueMap:
         paths = self._tree_or_raise().maps.get(name)
         if paths is None:
@@ -818,13 +988,49 @@ class StepEnd(Endpoint):
     exactly one, its fields are available directly: ``step.bottom.temperature``.
     """
 
-    __slots__ = ("_endpoints",)
+    __slots__ = ("_eps", "_step_id")
 
-    def __init__(self, sim: "Simulation", endpoints: List[Endpoint], label: str, step: str, location: str) -> None:
+    def __init__(self, sim: "Simulation", endpoints: List[Endpoint], label: str, step: str, location: str,
+                 step_id: int = -1) -> None:
         only = endpoints[0] if len(endpoints) == 1 else None
         super().__init__(sim, only._tree if only else None, label, only.id if only else -1,
                          only.name if only else "", location, step)
-        object.__setattr__(self, "_endpoints", endpoints)
+        object.__setattr__(self, "_eps", endpoints)
+        object.__setattr__(self, "_step_id", step_id)
+
+    def _refetch(self) -> Optional[_Node]:
+        return _steps(self._sim).by_id(self._step_id)._end(self._location)
+
+    @property
+    def _endpoints(self) -> List[Endpoint]:
+        self._tree  # re-read after a structural edit
+        return self._eps
+
+    # ---- building ----------------------------------------------------------------
+    def set_closed(self) -> None:
+        """Close this end of the step (no flow)."""
+        self._sim._build("set_closed", self._step_id, self._location)
+
+    def set_pressure(self, direction: str, pressure: Any, temperature: Any = None, y: Optional[Dict[str, Any]] = None,
+                     pump: Any = None) -> Endpoint:
+        """Make this end a pressure boundary.
+
+        ``direction`` is ``"inlet"`` or ``"outlet"``; ``pressure`` a value or a
+        profile (:func:`skarstrom.constant`, :func:`skarstrom.linear`,
+        :func:`skarstrom.exponential`). ``temperature`` and ``y`` are the gas
+        that enters (for an outlet, when the flow reverses); ``pump`` a
+        :class:`skarstrom.Pump`. Returns the new boundary.
+        """
+        from . import build
+
+        return build._set_pressure(self._sim, self._step_id, self._location, direction, pressure, temperature, y, pump)
+
+    def set_streams(self, direction: str, streams: List[Any]) -> List[Endpoint]:
+        """Make this end a flow boundary with these streams (:class:`skarstrom.Stream`,
+        :class:`skarstrom.ValveStream`). Returns the new streams, in order."""
+        from . import build
+
+        return build._set_streams(self._sim, self._step_id, self._location, direction, streams)
 
     def _no_tree(self) -> str:
         if not self._endpoints:
@@ -877,6 +1083,9 @@ class Step(_Node):
         """The step ID stored in the deck (``step[<id>]`` in string paths)."""
         return self._id
 
+    def _refetch(self) -> Optional[_Node]:
+        return _steps(self._sim).by_id(self._id)
+
     @property
     def name(self) -> str:
         return self._name
@@ -897,7 +1106,7 @@ class Step(_Node):
             label = f"steps[{self._name!r}].{location}[{s['name']!r}]"
             endpoints.append(Endpoint(self._sim, root.get(str(eid), _Tree()), label, eid, s["name"], location,
                                       self._name))
-        return StepEnd(self._sim, endpoints, f"steps[{self._name!r}].{location}", self._name, location)
+        return StepEnd(self._sim, endpoints, f"steps[{self._name!r}].{location}", self._name, location, self._id)
 
     @property
     def bottom(self) -> StepEnd:
@@ -909,8 +1118,31 @@ class Step(_Node):
         """The product end (z = L): its stream(s) or pressure boundary."""
         return self._end("top")
 
+    @property
+    def energy_sources(self) -> "NodeMap[EnergySource]":
+        """Heaters and coolers acting on a layer during this step, by layer name."""
+        trees = self._tree_or_raise().keyed.get("energy", {})
+        return NodeMap(self._sim, _named_trees(self._sim, trees, "energy"), f"{self._label}.energy_sources",
+                       EnergySource)
+
+    def add_energy_source(self, layer: Union["Layer", str, int], power: Value = None, enabled: bool = True) -> None:
+        """Heat (positive ``power``) or cool (negative) a layer during this step [W]."""
+        layer_id = self._sim._layer_id(layer)
+        self._sim._build("set_energy_source", self._id, layer_id, bool(enabled))
+        if power is not None:
+            self._sim.set(f"step[{self._id}].energy[{layer_id}].power", power)
+
     def _header(self) -> str:
         return f"<{self._label} (position {self._index}, id {self._id})>"
+
+
+class EnergySource(_Node):
+    """A heater or cooler acting on one layer during one step."""
+
+    enabled = Boolean()
+    """Whether the source is on."""
+    power = Real()
+    """Total power into the layer [W] (negative = cooling)."""
 
 
 class Bed(_Node):
@@ -924,6 +1156,47 @@ class Bed(_Node):
     """Depth of a rectangular column [m] (bed length is per layer: layers[i].length)."""
     ambient_temperature = Real()
     """Ambient temperature outside the wall [K]."""
+    thermal_equilibrium_mode = Integer()
+    """0 = local thermal equilibrium (gas and solid at one temperature), 1 = non-equilibrium."""
+    particle_htc = Real()
+    """Gas-to-particle heat transfer coefficient (non-equilibrium model) [W/m2-K]."""
+
+    @property
+    def bottom_void(self) -> "VoidRegion":
+        """The empty volume below the bed."""
+        return VoidRegion(self._sim, self._tree_or_raise().groups.get("bottom_void", _Tree()), "bed.bottom_void")
+
+    @property
+    def top_void(self) -> "VoidRegion":
+        """The empty volume above the bed."""
+        return VoidRegion(self._sim, self._tree_or_raise().groups.get("top_void", _Tree()), "bed.top_void")
+
+    def set_shape(self, kind: str, **values: Value) -> "Bed":
+        """``"cylinder"`` (diameter), ``"square"`` (width) or ``"rectangle"`` (width, length)."""
+        self._sim._build("set_bed_shape", kind)
+        bed = self._sim.bed
+        _apply(bed, values)
+        return bed
+
+    def set_thermal_equilibrium(self, kind: str) -> None:
+        """``"lte"`` (gas and solid at one temperature) or ``"ltne"``."""
+        self._sim._build("set_thermal_equilibrium", kind)
+
+    def set_particle_heat_transfer(self, kind: str = "constant", **values: Value) -> None:
+        """The gas-to-particle heat transfer model (``"constant"``: particle_htc)."""
+        self._sim._build("set_particle_heat_transfer", kind)
+        _apply(self._sim.bed, values)
+
+
+class VoidRegion(_Node):
+    """An empty volume at one end of the bed."""
+
+    enabled = Boolean()
+    """Whether the void volume is modelled."""
+    volume = Real()
+    """Void volume [m3]."""
+    resistance_coefficient = Real()
+    """Flow resistance through the void [Pa.s/m]."""
 
 
 class Wall(_Node):
@@ -940,6 +1213,55 @@ class Wall(_Node):
     fixed_temperature = Real()
     """Wall temperature when it is held fixed [K]."""
 
+    def set_material(self, kind: str, **values: Value) -> "Wall":
+        """A wall material (``"ss316l"``, ``"carbon_steel_a106"``...; ``"custom"``): sets its
+        density, heat capacity and conductivity, which ``values`` may then override."""
+        self._sim._build("set_wall_material", kind)
+        wall = self._sim.wall
+        _apply(wall, values)
+        return wall
+
+    def set_boundary(self, kind: str, **values: Value) -> "Wall":
+        """The outside of the wall: ``"zero_flux"`` (insulated by the ambient model) or ``"fixed"``
+        (``fixed_temperature``)."""
+        self._sim._build("set_wall_boundary", kind)
+        wall = self._sim.wall
+        _apply(wall, values)
+        return wall
+
+
+class InitialConditions(_Node):
+    """The state of the bed at the start of the first cycle."""
+
+    pressure = Real()
+    """Initial pressure [Pa]."""
+    temperature = Real()
+    """Initial gas and solid temperature [K]."""
+    wall_temperature = Real()
+    """Initial wall temperature [K]."""
+    velocity = Real()
+    """Initial superficial velocity [m/s]."""
+
+    @property
+    def y(self) -> ValueMap:
+        """Initial gas mole fractions by component [-]."""
+        return ValueMap(self._sim, self._tree_or_raise().maps.get("y", {}), f"{self._label}.y")
+
+
+class Fluid(_Node):
+    """Properties of the gas and the adsorbed phase."""
+
+    adsorbed_heat_capacity_mode = Integer()
+    """0 = constant adsorbed-phase heat capacity (adsorbed_heat_capacity), 1 = equal to the gas phase."""
+    heat_of_adsorption_convention = Integer()
+    """0 = heats of adsorption are isosteric heats, 1 = internal-energy convention."""
+
+    @property
+    def adsorbed_heat_capacity(self) -> ValueMap:
+        """Adsorbed-phase molar heat capacity by component [J/(mol-K)]."""
+        return ValueMap(self._sim, self._tree_or_raise().maps.get("adsorbed_heat_capacity", {}),
+                        f"{self._label}.adsorbed_heat_capacity")
+
 
 class Layer(_Node):
     """An adsorbent layer of the bed (feed end first)."""
@@ -948,6 +1270,8 @@ class Layer(_Node):
 
     length = Real()
     """Layer length [m]."""
+    cells = Integer()
+    """Number of finite-volume cells."""
     bed_void_fraction = Real()
     """Interparticle (bed) void fraction [-]."""
     particle_diameter = Real()
@@ -988,6 +1312,54 @@ class Layer(_Node):
     def id(self) -> int:
         """The layer ID stored in the deck (``layer[<id>]`` in string paths)."""
         return self._id
+
+    @property
+    def composition(self) -> ValueMap:
+        """Mass fraction of each adsorbent in the layer, by adsorbent name [-]."""
+        paths = self._tree_or_raise().maps.get("mass_fraction", {})
+        return ValueMap(self._sim, _named_paths(self._sim, paths, "mass_fraction"), f"{self._label}.composition")
+
+    # ---- building ----------------------------------------------------------------
+    def _fresh(self) -> "Layer":
+        return self._sim.layers.by_id(self._id)
+
+    _refetch = _fresh
+
+    def set_composition(self, composition: Dict[Any, float]) -> "Layer":
+        """The layer's adsorbents (names, IDs or Adsorbent objects) and their mass fractions."""
+        pairs = [[self._sim._adsorbent_id(a), float(f)] for a, f in composition.items()]
+        self._sim._build("set_layer_composition", self._id, pairs)
+        return self._fresh()
+
+    def set_momentum(self, kind: str) -> "Layer":
+        """The pressure-drop model: ``"ergun"`` or ``"kozeny_carman"``."""
+        self._sim._build("set_momentum", self._id, kind)
+        return self._fresh()
+
+    def _set_model(self, op: str, kind: str, values: Dict[str, Value]) -> "Layer":
+        self._sim._build(op, self._id, kind)
+        layer = self._fresh()
+        _apply(layer, values)
+        return layer
+
+    def set_dispersion(self, kind: str, **values: Value) -> "Layer":
+        """Axial dispersion: ``"constant"`` (dispersion_coefficient) or ``"ruthven"``
+        (molecular_diffusion_coefficient)."""
+        return self._set_model("set_dispersion", kind, values)
+
+    def set_heat_dispersion(self, kind: str, **values: Value) -> "Layer":
+        """Axial heat dispersion: ``"constant"`` (heat_dispersion_coefficient), ``"ruthven"`` or ``"yagi_kunii"``."""
+        return self._set_model("set_heat_dispersion", kind, values)
+
+    def set_internal_heat_transfer(self, kind: str, **values: Value) -> "Layer":
+        """Bed-to-wall heat transfer: ``"constant"`` (internal_htc), ``"dixon"`` or ``"leva"``
+        (leva_eta1, leva_eta2, leva_exp_coeff)."""
+        return self._set_model("set_internal_heat_transfer", kind, values)
+
+    def set_external_heat_transfer(self, kind: str, **values: Value) -> "Layer":
+        """Wall-to-ambient heat transfer: ``"constant"`` (external_htc) or ``"holman"``
+        (holman_c, holman_m, holman_n, external_velocity)."""
+        return self._set_model("set_external_heat_transfer", kind, values)
 
     @property
     def name(self) -> str:
@@ -1068,6 +1440,41 @@ class Adsorbent(_Node):
         return NodeMap(self._sim, self._tree_or_raise().keyed.get("kinetics", {}), f"{self._label}.kinetics",
                        Kinetics)
 
+    # ---- building ----------------------------------------------------------------
+    def _fresh(self) -> "Adsorbent":
+        return self._sim.adsorbents.by_id(self._id)
+
+    _refetch = _fresh
+
+    def set_isotherm(self, kind: str, params: Optional[Dict[str, Dict[str, Value]]] = None,
+                     components: Optional[List[str]] = None) -> "Adsorbent":
+        """One isotherm of ``kind`` (see ``skarstrom.isotherm_kinds()``) for several components.
+
+        ``params`` maps each component to its parameter values
+        (``{"CO2": {"m1": 3.1, "b1": "2e-7 m3/mol", ...}}``); ``components``
+        defaults to the keys of ``params``. A competitive kind couples the
+        components given together.
+        """
+        params = params or {}
+        names = [self._sim._component(c) for c in (components if components is not None else params)]
+        self._sim._build("set_isotherm", self._id, kind, names)
+        ads = self._fresh()
+        for component, values in params.items():
+            _apply(ads.isotherm[self._sim._component(component)], values)
+        return ads
+
+    def set_rate_model(self, component: str, model: str = "ldf", coefficient: str = "constant",
+                       **values: Value) -> "Adsorbent":
+        """The mass-transfer model of one component: ``model`` ``"ldf"`` or ``"ldf2"``, with a
+        ``coefficient`` model ``"constant"`` (k), ``"arrhenius"`` (pre_exp_factor, activation_energy),
+        ``"macropore"`` / ``"haynes"`` (tortuosity, macropore_void_fraction) or
+        ``"macropore_knudsen"`` (+ pore_radius)."""
+        name = self._sim._component(component)
+        self._sim._build("set_rate_model", self._id, name, model, coefficient)
+        ads = self._fresh()
+        _apply(ads.kinetics[name], values)
+        return ads
+
     def _header(self) -> str:
         return f"<{self._label} (id {self._id})>"
 
@@ -1075,6 +1482,9 @@ class Adsorbent(_Node):
 # ---------------------------------------------------------------------------
 # Builders used by Simulation
 # ---------------------------------------------------------------------------
+
+# The deck-wide groups (sim.bed, sim.cycle...), read again by name when stale.
+_TOP_LEVEL = (Info, Settings, CSS, EnergyBalance, Cycle, Bed, Wall, InitialConditions, Fluid)
 
 
 def _group(sim: "Simulation", cls: Callable[..., N], name: str) -> N:
@@ -1110,6 +1520,16 @@ def _adsorbents(sim: "Simulation") -> Collection[Adsorbent]:
         name = index.names.get(("adsorbent", key), key)
         items.append(Adsorbent(sim, tree, f"adsorbents[{name!r}]", int(key), name))
     return Collection(items, "adsorbents")
+
+
+def _endpoint(sim: "Simulation", endpoint_id: int) -> Endpoint:
+    """The endpoint (stream or pressure boundary) with this deck ID."""
+    for step in _steps(sim):
+        for end in (step.bottom, step.top):
+            for e in end:
+                if e.id == endpoint_id:
+                    return e
+    raise KeyError(f"no stream or pressure boundary with endpoint ID {endpoint_id}")
 
 
 def _variables(sim: "Simulation") -> ValueMap:

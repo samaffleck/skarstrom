@@ -6,6 +6,7 @@
  */
 #include "adsim/parameters/parameter_registry.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <set>
@@ -377,13 +378,33 @@ namespace adsim {
     }
 
     void EmplaceInt(const std::string& path, const std::string& category, const std::string& subcategory,
-                    const std::string& name, int& value) {
-      auto& p = Add(Info(path, path, category, subcategory, name, "-", ParameterKind::Integer,
+                    const std::string& name, int& value, const std::string& alias = "") {
+      auto& p = Add(Info(path, alias, category, subcategory, name, "-", ParameterKind::Integer,
                          std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
       int* ptr = &value;
       p.int_value_ = ptr;
       p.get_int_ = [ptr] { return static_cast<long long>(*ptr); };
       p.set_int_ = [ptr](long long x) { *ptr = static_cast<int>(x); };
+    }
+
+    // An integer switch stored as an enum (or any int-like field).
+    template <class E>
+    void EmplaceEnum(const std::string& path, const std::string& alias, const std::string& category,
+                     const std::string& subcategory, const std::string& name, E& value) {
+      auto& p = Add(Info(path, alias, category, subcategory, name, "-", ParameterKind::Integer,
+                         std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+      E* ptr = &value;
+      p.get_int_ = [ptr] { return static_cast<long long>(static_cast<int>(*ptr)); };
+      p.set_int_ = [ptr](long long x) { *ptr = static_cast<E>(static_cast<int>(x)); };
+    }
+
+    void EmplaceBool(const std::string& path, const std::string& alias, const std::string& category,
+                     const std::string& subcategory, const std::string& name, bool& value) {
+      auto& p = Add(Info(path, alias, category, subcategory, name, "-", ParameterKind::Boolean,
+                         std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+      bool* ptr = &value;
+      p.get_bool_ = [ptr] { return *ptr; };
+      p.set_bool_ = [ptr](bool b) { *ptr = b; };
     }
 
     // ---- static fields ---------------------------------------------------
@@ -426,9 +447,13 @@ namespace adsim {
     }
 
     // ---- cycle -----------------------------------------------------------
+    const Bed* bed_ = nullptr;  // layer names for energy-source aliases
+
     void AddCycle(Cycle& cycle) {
       cycle.EnsureIds();
       EmplaceInt("cycle.number_of_cycles", "cycle", "cycle", "number of cycles", cycle.number_of_cycles_);
+      // 0 = step times in seconds, 1 = fractions of cycle.total_time.
+      EmplaceEnum("cycle.step_time_mode", "", "cycle", "cycle", "step time mode", cycle.step_time_mode_);
       if (cycle.step_time_mode_ == StepTimeMode::FRACTION) {
         Emplace("cycle.total_time", "", "cycle", "cycle", "total cycle time", "s",
                 cycle.total_cycle_time_, 1.0, 10000.0);
@@ -454,19 +479,28 @@ namespace adsim {
       }
       AddBoundary(step.bottom_boundary_condition_.get(), step.step_name_, sa + ".bottom");
       AddBoundary(step.top_boundary_condition_.get(), step.step_name_, sa + ".top");
+      // Energy sources (heaters and coolers) acting on a layer during this step.
+      for (auto& [layer_id, source] : step.energy_sources_) {
+        std::string layer_name = std::to_string(layer_id);
+        if (bed_)
+          for (const auto& l : bed_->layers_.layers_)
+            if (l.id_ == layer_id) layer_name = l.name_;
+        const std::string ep = sp + ".energy[" + std::to_string(layer_id) + "]";
+        const std::string ea = sa + ".energy[" + layer_name + "]";
+        const std::string sub = step.step_name_ + ", " + layer_name;
+        EmplaceBool(ep + ".enabled", ea + ".enabled", "cycle", sub, "energy source enabled", source.enabled_);
+        Emplace(ep + ".power", ea + ".power", "cycle", sub, "energy source power", "W", source.power_, -1e4, 1e4);
+      }
     }
 
     void AddBoundary(IBoundaryCondition* boundary, const std::string& step_name, const std::string& side_alias) {
       if (auto* bc = dynamic_cast<PressureBoundaryCondition*>(boundary)) {
         EndpointScope ep{Bracket("endpoint", std::to_string(bc->endpoint_id_)), side_alias, step_name};
         AddPressureProfile(bc->pressure_.get(), ep);
-        if (bc->direction_ == BoundaryDirection::INLET) {
-          AddInletTemperature(bc->temperature_, bc->temperature_profile_.get(), ep);
-          for (auto& [component, yi] : bc->mole_fraction_) {
-            Emplace(ep.path + ".y[" + component + "]", ep.alias + ".y[" + component + "]", "cycle",
-                    ep.subcategory, component + " inlet mole fraction", "-", yi, 0.0, 1.0);
-          }
-        }
+        // An outlet's temperature and composition apply when the flow reverses.
+        const bool inlet = bc->direction_ == BoundaryDirection::INLET;
+        AddInletTemperature(bc->temperature_, bc->temperature_profile_.get(), ep, inlet);
+        AddMoleFractions(bc->mole_fraction_, ep, inlet);
         AddPump(bc->pump_.get(), ep);
       } else if (auto* bc = dynamic_cast<FlowBoundaryCondition*>(boundary)) {
         for (auto& stream : bc->streams_) {
@@ -479,65 +513,93 @@ namespace adsim {
     }
 
     void AddStream(IBoundaryStream* stream, BoundaryDirection direction, const EndpointScope& ep) {
-      if (direction == BoundaryDirection::INLET) {
-        AddInletTemperature(stream->temperature_, stream->temperature_profile_.get(), ep);
-        for (auto& [component, yi] : stream->mole_fraction) {
-          Emplace(ep.path + ".y[" + component + "]", ep.alias + ".y[" + component + "]", "cycle",
-                  ep.subcategory, component + " inlet mole fraction", "-", yi, 0.0, 1.0);
-        }
-      }
+      const bool inlet = direction == BoundaryDirection::INLET;
+      AddInletTemperature(stream->temperature_, stream->temperature_profile_.get(), ep, inlet);
+      AddMoleFractions(stream->mole_fraction, ep, inlet);
       if (auto* s = dynamic_cast<BoundaryStream*>(stream)) {
         AddFlow(s->boundary_flow_.get(), ep);
         AddPump(s->pump_.get(), ep);
+      } else if (auto* v = dynamic_cast<ValveBoundaryStream*>(stream)) {
+        AddPressureProfile(v->boundary_value_.get(), ep);
+        Emplace(ep.path + ".valve.cv", ep.alias + ".valve.cv", "cycle", ep.subcategory,
+                "valve flow coefficient (Cv, US gpm/psi^0.5)", "-", v->valve_.cv_, 1e-3, 1e3);
+        Emplace(ep.path + ".valve.xt", ep.alias + ".valve.xt", "cycle", ep.subcategory,
+                "valve pressure-drop ratio factor (xT)", "-", v->valve_.xt_, 0.1, 1.0);
+      }
+    }
+
+    void AddMoleFractions(std::unordered_map<std::string, double>& y, const EndpointScope& ep, bool inlet) {
+      for (auto& [component, yi] : y) {
+        Emplace(ep.path + ".y[" + component + "]", ep.alias + ".y[" + component + "]", "cycle", ep.subcategory,
+                component + (inlet ? " inlet mole fraction" : " backflow mole fraction"), "-", yi, 0.0, 1.0);
+      }
+    }
+
+    // The start, end and duration of a linear or exponential profile, as
+    // <head>_linear_start/_end/_time (or _exponential_...); a constant one as <head>.
+    void AddProfile(IBoundaryValue* value, const EndpointScope& ep, const std::string& head,
+                    const std::string& name, const std::string& unit, double lo, double hi) {
+      auto E = [&](const std::string& leaf, const std::string& label, const std::string& u, ExpressionParam& v,
+                   double l, double h) {
+        Emplace(ep.path + "." + leaf, ep.alias + "." + leaf, "cycle", ep.subcategory, label, u, v, l, h);
+      };
+      if (auto* c = dynamic_cast<ConstantBoundaryValue*>(value)) {
+        E(head, name, unit, c->constant_value_, lo, hi);
+      } else if (auto* lin = dynamic_cast<LinearBoundaryValue*>(value)) {
+        E(head + "_linear_start", name + " (linear start)", unit, lin->start_value_, lo, hi);
+        E(head + "_linear_end", name + " (linear end)", unit, lin->end_value_, lo, hi);
+        E(head + "_linear_time", name + " (linear ramp time)", "s", lin->ramp_time_, 0.0, 1e4);
+      } else if (auto* ex = dynamic_cast<ExponentialBoundaryValue*>(value)) {
+        E(head + "_exponential_start", name + " (exponential start)", unit, ex->start_value_, lo, hi);
+        E(head + "_exponential_end", name + " (exponential end)", unit, ex->end_value_, lo, hi);
+        E(head + "_exponential_time", name + " (exponential time)", "s", ex->step_time_, 0.0, 1e4);
       }
     }
 
     // A constant inlet temperature, or the start and end of a ramp (the ramp
     // replaces the constant value, so the constant is not listed then).
-    void AddInletTemperature(ExpressionParam& constant, IBoundaryValue* profile, const EndpointScope& ep) {
-      auto E = [&](const std::string& leaf, const std::string& name, ExpressionParam& value) {
-        Emplace(ep.path + "." + leaf, ep.alias + "." + leaf, "cycle", ep.subcategory, name, "K", value,
-                273.0, 473.0);
-      };
-      if (auto* lin = dynamic_cast<LinearBoundaryValue*>(profile)) {
-        E("temperature_linear_start", "inlet temperature (linear start)", lin->start_value_);
-        E("temperature_linear_end", "inlet temperature (linear end)", lin->end_value_);
-      } else if (auto* ex = dynamic_cast<ExponentialBoundaryValue*>(profile)) {
-        E("temperature_exponential_start", "inlet temperature (exponential start)", ex->start_value_);
-        E("temperature_exponential_end", "inlet temperature (exponential end)", ex->end_value_);
+    void AddInletTemperature(ExpressionParam& constant, IBoundaryValue* profile, const EndpointScope& ep,
+                             bool inlet = true) {
+      const std::string name = inlet ? "inlet temperature" : "backflow temperature";
+      if (profile && !dynamic_cast<ConstantBoundaryValue*>(profile)) {
+        AddProfile(profile, ep, "temperature", name, "K", 273.0, 473.0);
       } else {
-        E("temperature", "inlet temperature", constant);
+        Emplace(ep.path + ".temperature", ep.alias + ".temperature", "cycle", ep.subcategory, name, "K", constant,
+                273.0, 473.0);
       }
     }
 
     void AddFlow(IFlowBoundaryValue* flow, const EndpointScope& ep) {
-      auto constant = [](const std::unique_ptr<IBoundaryValue>& profile) {
-        return dynamic_cast<ConstantBoundaryValue*>(profile.get());
-      };
       if (auto* fb = dynamic_cast<VelocityBoundaryValue*>(flow)) {
-        if (auto* c = constant(fb->profile_))
-          Emplace(ep.path + ".velocity", ep.alias + ".velocity", "cycle", ep.subcategory,
-                  "inlet velocity", "m/s", c->constant_value_, 0.0, 10.0);
+        AddProfile(fb->profile_.get(), ep, "velocity", "velocity", "m/s", 0.0, 10.0);
       } else if (auto* fb = dynamic_cast<MolarFlowBoundaryValue*>(flow)) {
-        if (auto* c = constant(fb->profile_))
-          Emplace(ep.path + ".molar_flow", ep.alias + ".molar_flow", "cycle", ep.subcategory,
-                  "inlet molar flow", "mol/s", c->constant_value_, 0.0, 100.0);
+        AddProfile(fb->profile_.get(), ep, "molar_flow", "molar flow", "mol/s", 0.0, 100.0);
       } else if (auto* fb = dynamic_cast<VolumetricFlowBoundaryValue*>(flow)) {
-        if (auto* c = constant(fb->profile_))
-          Emplace(ep.path + ".volumetric_flow", ep.alias + ".volumetric_flow", "cycle", ep.subcategory,
-                  "inlet volumetric flow", "m3/s", c->constant_value_, 0.0, 1.0);
+        AddProfile(fb->profile_.get(), ep, "volumetric_flow", "volumetric flow", "m3/s", 0.0, 1.0);
       } else if (auto* fb = dynamic_cast<MassFlowBoundaryValue*>(flow)) {
-        if (auto* c = constant(fb->profile_))
-          Emplace(ep.path + ".mass_flow", ep.alias + ".mass_flow", "cycle", ep.subcategory,
-                  "inlet mass flow", "kg/s", c->constant_value_, 0.0, 10.0);
+        AddProfile(fb->profile_.get(), ep, "mass_flow", "mass flow", "kg/s", 0.0, 10.0);
       }
     }
 
     void AddPump(IPump* pump, const EndpointScope& ep) {
       if (!pump || !pump->use_pump_) return;
-      if (auto* eff = dynamic_cast<ConstantPumpEfficiencyModel*>(pump->efficiency_model_.get()))
-        Emplace(ep.path + ".pump.efficiency", ep.alias + ".pump.efficiency", "cycle", ep.subcategory,
-                "pump efficiency", "-", eff->efficiency_, 0.01, 1.0);
+      auto E = [&](const std::string& leaf, const std::string& name, const std::string& unit, ExpressionParam& v,
+                   double lo, double hi) {
+        Emplace(ep.path + ".pump." + leaf, ep.alias + ".pump." + leaf, "cycle", ep.subcategory, name, unit, v, lo, hi);
+      };
+      E("polytropic_index", "pump polytropic index", "-", pump->poly_index_, 1.0, 1.7);
+      if (auto* eff = dynamic_cast<ConstantPumpEfficiencyModel*>(pump->efficiency_model_.get())) {
+        E("efficiency", "pump efficiency", "-", eff->efficiency_, 0.01, 1.0);
+      } else if (auto* eff = dynamic_cast<VacuumPumpEfficiencyModel*>(pump->efficiency_model_.get())) {
+        E("eta_max", "vacuum pump peak efficiency", "-", eff->eta_max_, 0.01, 1.0);
+        E("alpha", "vacuum pump efficiency decay", "-", eff->alpha_, 0.0, 100.0);
+      } else if (auto* eff = dynamic_cast<PolyPumpEfficiencyModel*>(pump->efficiency_model_.get())) {
+        E("poly_a", "pump efficiency polynomial a", "-", eff->a_, -1e3, 1e3);
+        E("poly_b", "pump efficiency polynomial b", "-", eff->b_, -1e3, 1e3);
+        E("poly_c", "pump efficiency polynomial c", "-", eff->c_, -1e3, 1e3);
+        E("poly_d", "pump efficiency polynomial d", "-", eff->d_, -1e3, 1e3);
+        E("poly_e", "pump efficiency polynomial e", "-", eff->e_, -1e3, 1e3);
+      }
       if (auto* c = dynamic_cast<Compressor*>(pump)) {
         Emplace(ep.path + ".pump.suction_pressure", ep.alias + ".pump.suction_pressure", "cycle",
                 ep.subcategory, "compressor suction pressure", "Pa", c->suction_pressure_, 1e3, 1e7);
@@ -575,6 +637,17 @@ namespace adsim {
 
       emitted_adsorbents.clear();
       for (auto& layer : bed.layers_.layers_) AddLayer(layer, dir);
+      // Adsorbents no layer uses yet (a deck being built, or spare materials).
+      std::vector<AdsorbentID> spare;
+      for (auto& [id, ads] : dir.GetAll()) {
+        (void)ads;
+        if (!emitted_adsorbents.count(id)) spare.push_back(id);
+      }
+      std::sort(spare.begin(), spare.end());
+      for (AdsorbentID id : spare) {
+        emitted_adsorbents.insert(id);
+        AddAdsorbent(id, dir.Get(id), "");
+      }
 
       Emplace("bed.ambient_temperature", "", "bed", "environment", "ambient temperature", "K",
               bed.ambient_temperature_, 273.0, 373.0);
@@ -589,6 +662,48 @@ namespace adsim {
         Emplace("wall.fixed_temperature", "", "bed", "wall", "fixed wall temperature", "K",
                 fixed->temperature_, 273.0, 473.0);
       }
+
+      // 0 = local thermal equilibrium (LTE), 1 = non-equilibrium (LTNE).
+      EmplaceEnum("bed.thermal_equilibrium_mode", "", "bed", "thermal", "thermal equilibrium mode",
+                  bed.equations_.thermal_equilibrium_mode_);
+      if (auto* h = dynamic_cast<ConstantParticleHeatTransferModel*>(bed.equations_.particle_heat_transfer_model_.get()))
+        Emplace("bed.particle_htc", "", "bed", "thermal", "gas-to-particle heat transfer coefficient", "W/m2-K",
+                h->heat_transfer_coefficient_, 1.0, 1e5);
+      auto void_region = [&](const std::string& head, VoidRegion& v, const std::string& where) {
+        EmplaceBool(head + ".enabled", "", "bed", where, where + " enabled", v.enabled_);
+        Emplace(head + ".volume", "", "bed", where, where + " volume", "m3", v.volume_, 1e-7, 1.0);
+        Emplace(head + ".resistance_coefficient", "", "bed", where, where + " flow resistance coefficient",
+                "Pa.s/m", v.resistance_coefficient_, 0.0, 1e6);
+      };
+      void_region("bed.bottom_void", bed.bottom_void_, "bottom void");
+      void_region("bed.top_void", bed.top_void_, "top void");
+    }
+
+    // ---- initial conditions and fluid -------------------------------------
+    void AddInitialConditions(InitialConditions& ic) {
+      Emplace("initial.pressure", "", "initial", "initial", "initial pressure", "Pa", ic.pressure, 1e3, 1e7);
+      Emplace("initial.temperature", "", "initial", "initial", "initial temperature", "K", ic.temperature, 200.0, 800.0);
+      Emplace("initial.wall_temperature", "", "initial", "initial", "initial wall temperature", "K",
+              ic.wall_temperature, 200.0, 800.0);
+      Emplace("initial.velocity", "", "initial", "initial", "initial velocity", "m/s", ic.velocity, -10.0, 10.0);
+      for (auto& [component, yi] : ic.mole_fraction)
+        Emplace("initial.y[" + component + "]", "", "initial", "initial", component + " initial mole fraction", "-",
+                yi, 0.0, 1.0);
+    }
+
+    void AddFluid(Fluid& fluid) {
+      // 0 = constant (fluid.adsorbed_heat_capacity), 1 = equal to the gas-phase value.
+      EmplaceEnum("fluid.adsorbed_heat_capacity_mode", "", "fluid", "fluid", "adsorbed-phase heat capacity mode",
+                  fluid.adsorbed_heat_capacity_mode_);
+      // 0 = isosteric heat of adsorption, 1 = internal-energy convention.
+      EmplaceEnum("fluid.heat_of_adsorption_convention", "", "fluid", "fluid", "heat of adsorption convention",
+                  fluid.heat_of_adsorption_convention_);
+      for (const auto& component : fluid.components_) {
+        auto it = fluid.adsorbed_heat_capacity_.find(component);
+        if (it == fluid.adsorbed_heat_capacity_.end()) continue;
+        Emplace("fluid.adsorbed_heat_capacity[" + component + "]", "", "fluid", "fluid",
+                component + " adsorbed-phase heat capacity", "J/(mol-K)", it->second, 0.0, 500.0);
+      }
     }
 
     void AddLayer(MixedAdsorbentLayer& layer, AdsorbentDirectory& dir) {
@@ -600,6 +715,12 @@ namespace adsim {
         Emplace(lp + "." + leaf, la + "." + leaf, "layer", ln, name, unit, value, lo, hi);
       };
       E("length", "length", "m", layer.domain_.length, 0.01, 10.0);
+      EmplaceInt(lp + ".cells", "layer", ln, "number of cells", layer.domain_.n_cells, la + ".cells");
+      for (auto& [ads_id, fraction] : layer.composition_) {
+        const std::string an = dir.Contains(ads_id) ? dir.Get(ads_id).name_ : std::to_string(ads_id);
+        Emplace(lp + ".mass_fraction[" + std::to_string(ads_id) + "]", la + ".mass_fraction[" + an + "]", "layer", ln,
+                an + " mass fraction", "-", fraction, 0.0, 1.0);
+      }
       E("bed_void_fraction", "bed void fraction", "-", layer.eb_, 0.2, 0.8);
       E("particle_diameter", "particle diameter", "m", layer.particle_diameter_, 1e-5, 0.01);
       {
@@ -652,7 +773,7 @@ namespace adsim {
     void AddAdsorbent(AdsorbentID id, Adsorbent& ads, const std::string& layer_name) {
       const std::string ap = Bracket("adsorbent", std::to_string(id));
       const std::string aa = Bracket("adsorbent", ads.name_);
-      const std::string an = layer_name + ", " + ads.name_;
+      const std::string an = layer_name.empty() ? ads.name_ : layer_name + ", " + ads.name_;
       auto E = [&](const std::string& leaf, const std::string& category, const std::string& sub,
                    const std::string& name, const std::string& unit, auto& value, double lo, double hi) {
         Emplace(ap + "." + leaf, aa + "." + leaf, category, sub, name, unit, value, lo, hi);
@@ -901,8 +1022,11 @@ namespace adsim {
     parameters_.clear();
     ParameterBuilder b{parameters_};
     b.AddStatic(data_);
+    b.bed_ = &data_.bed;
     b.AddCycle(data_.cycle);
     b.AddBed(data_.bed, data_.adsorbent_directory);
+    b.AddInitialConditions(data_.ic);
+    b.AddFluid(data_.fluid);
     b.AddUserVariables(data_.variable_registry);
 
     // Paths are unique by construction once every owner has an ID; this guard

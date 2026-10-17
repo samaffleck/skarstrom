@@ -204,7 +204,93 @@ ads = sim.add_library_adsorbent("zeolite_13x_perez2019")   # returns the new ads
 
 A library adsorbent is added to the deck's adsorbent directory; it is used (and its values appear in `sim.parameters()`) once a layer contains it — automatically for a layer that had no adsorbent yet.
 
-Other structural changes (steps, boundary types, layers, connections) are made in C++ or by a front end, and saved in the deck.
+Every other structural change (models, steps, boundary types, layers, connections) is made with the builder methods of the next section, which work on a loaded deck as well as on a new one.
+
+## Building a simulation in Python
+
+A deck can be written entirely in code. `Simulation.new()` starts an empty one; methods named `add_*` and `set_*` create the structure, each model chosen by a kind name; every value is then set like any other field, with the same unit rules. `skarstrom.build_kinds()` lists the kinds of every model family, and an unknown kind raises `ValueError` listing the valid ones.
+
+```python
+import skarstrom as sk
+
+sim = sk.Simulation.new(title="CO2/N2 VSA")
+sim.add_component("CarbonDioxide")
+sim.add_component("Nitrogen")
+
+ads = sim.add_adsorbent("13X", solid_density="1138 kg/m3", heat_capacity="900 J/(kg*K)",
+                        thermal_conductivity="0.63 W/(m*K)", particle_void_fraction=0.35)
+ads.set_isotherm("extended_dual_site_langmuir_c", {
+    "CO2": {"m1": 2.768, "b1": 3.934e-7, "q1": "40.98 kJ/mol", "m2": 2.758, "b2": 1.256e-7, "q2": "34.19 kJ/mol"},
+    "N2":  {"m1": 2.768, "b1": 3.134e-6, "q1": "15.71 kJ/mol", "m2": 2.758, "b2": 3.134e-6, "q2": "15.72 kJ/mol"},
+})
+ads.set_rate_model("CO2", "ldf", "macropore", tortuosity=3, macropore_void_fraction=0.35)
+ads.set_rate_model("N2", "ldf", "macropore", tortuosity=3, macropore_void_fraction=0.35)
+ads.heat_of_adsorption["CO2"] = "30.85 kJ/mol"
+ads.heat_of_adsorption["N2"] = "15.93 kJ/mol"
+
+sim.bed.set_shape("cylinder", diameter="3.2 cm")
+sim.wall.set_material("ss316l")                       # library properties; or "custom" with your own
+sim.wall.thickness = "3.1 mm"
+sim.wall.set_boundary("zero_flux")                    # or "fixed", fixed_temperature=...
+
+layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman",
+                      length="0.3 m", cells=30, bed_void_fraction=0.41, particle_diameter="1.5 mm")
+layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5)
+layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0.0903)
+layer.set_internal_heat_transfer("constant", internal_htc=8.6)
+layer.set_external_heat_transfer("constant", external_htc=10)
+
+sim.initial_conditions.pressure = "1 bar"
+sim.initial_conditions.temperature = 298
+sim.initial_conditions.y["N2"] = 1.0
+
+feed = sim.add_step("Feed", time="99 s")              # a new step has both ends closed
+feed.bottom.set_streams("inlet", [
+    sk.Stream("Feed inlet", flow=sk.velocity("8.5 cm/s"), y={"CO2": 0.15, "N2": 0.85}, temperature=298),
+])
+feed.top.set_pressure("outlet", "1 bar")
+blowdown = sim.add_step("Blowdown", time=19)
+blowdown.top.set_pressure("outlet", sk.exponential("0.06 bar"))
+evacuation = sim.add_step("Evacuation", time=57)
+evacuation.bottom.set_pressure("outlet", sk.exponential("0.032 bar"),
+                               pump=sk.Pump("vacuum_pump", efficiency=0.72, discharge_pressure="1 bar"))
+pressurisation = sim.add_step("Pressurisation", time=30)
+pressurisation.bottom.set_pressure("inlet", sk.linear("1 bar"), y={"CO2": 0.15, "N2": 0.85}, temperature=298)
+
+sim.kpi.track("CO2", feed=[feed.bottom, pressurisation.bottom], product=[evacuation.bottom])
+sim.cycle.number_of_cycles = 50
+result = sim.run()
+```
+
+What each part takes:
+
+| Call | Kinds and values |
+|---|---|
+| `sim.add_variable(name, value, category=, formula=, description=)` | a user variable other values can use in expressions (`time="2 * t_feed"`); `category` is its unit category (`build_kinds()["variable_category"]`); a `value` or a `formula` of other variables |
+| `sim.add_component(name)` | a CoolProp name or formula |
+| `sim.add_adsorbent(name, **values)` | `solid_density`, `heat_capacity`, `thermal_conductivity`, `particle_void_fraction`; new components get an inert isotherm and a constant LDF rate |
+| `ads.set_isotherm(kind, {component: {param: value}}, components=None)` | `build_kinds()["isotherm"]`; the parameters are those of `skarstrom.isotherm_parameters(kind)`. Components given together share one (competitive) isotherm |
+| `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf` or `ldf2`; coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes` |
+| `sim.bed.set_shape(kind, **values)` | `cylinder` (diameter), `square` (width), `rectangle` (width, length) |
+| `sim.bed.set_thermal_equilibrium(kind)`, `sim.bed.set_particle_heat_transfer("constant", particle_htc=...)` | `lte` or `ltne` |
+| `sim.wall.set_material(kind, **values)`, `sim.wall.set_boundary(kind, **values)` | a library material or `custom`; `zero_flux` or `fixed` |
+| `sim.add_layer(name, composition=, momentum=, **values)` | composition by adsorbent name; momentum `ergun` or `kozeny_carman`; `length`, `cells`, `bed_void_fraction`, `particle_diameter` |
+| `layer.set_dispersion`, `set_heat_dispersion`, `set_internal_heat_transfer`, `set_external_heat_transfer` | `constant` or a correlation (`ruthven`, `yagi_kunii`, `dixon`, `leva`, `holman`) with its values |
+| `sim.add_step(name, time=)` or `fraction=` | appended to the cycle |
+| `end.set_streams(direction, [streams])` | `"inlet"` or `"outlet"`; `sk.Stream(name, flow=, y=, temperature=, pump=)` or `sk.ValveStream(name, pressure=, cv=, xt=)` |
+| `end.set_pressure(direction, pressure, temperature=, y=, pump=)` | a value or a profile |
+| `end.set_closed()` | no flow |
+| `step.add_energy_source(layer, power=)` | heats (positive) or cools a layer during the step [W] |
+| `sim.connect(a, b)` | two endpoints (an outlet stream feeding an inlet stream or pressure boundary of another step) |
+| `sim.kpi.track(component, feed=, product=)` | endpoints or step ends (all their streams) |
+
+Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)` and `sk.exponential(end, start=, time=)`; a pressure ramp starts from the bed pressure and lasts the step, so it takes only its end. `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. `y` and `temperature` of an outlet are the gas that enters if the flow reverses.
+
+`set_*` replaces what was there: setting an end's streams removes its old streams and their connections, and a new model kind starts from that model's defaults. Objects held in variables (a step, a layer, `sim.bed`) follow these changes. `sim.describe()` returns the structure (the kind of every model, how each step end is set up, connections and KPI endpoints), and `sim.check()` runs the deck checks without running it.
+
+`skarstrom.to_script(sim)` writes the builder code for any deck, every value explicit. `examples/_build/` holds that code for every example deck; `python/tests/test_build.py` checks that each script reproduces its deck parameter for parameter and, for five of them, that a run gives the same KPIs and series. Copy one to start a deck of your own; `python scripts/gen_build_seeds.py` regenerates them.
+
+What the builder does not create: buffer tanks, pump streams whose flow follows a power model (`PumpBoundaryStream`), experimental data and cost data. Load a deck that has them, or add them in a front end.
 
 ## Results
 

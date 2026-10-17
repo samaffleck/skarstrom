@@ -9,6 +9,9 @@ root `CMakeLists.txt`.
 ## [Unreleased]
 
 ### Changed
+- Python: `skarstrom.Pump` is now the pump specification the builder takes
+  (`sk.Pump("vacuum_pump", efficiency=0.7)`); the deck object behind
+  `endpoint.pump` is `skarstrom.model.Pump`.
 - Contact is through LinkedIn instead of email (README "Get involved",
   SECURITY.md, CODE_OF_CONDUCT.md); the README and docs gain the logo, a
   "Why Skarstrom" introduction and a call for steering-committee members.
@@ -39,6 +42,30 @@ root `CMakeLists.txt`.
   (shellcheck SC2015) and also fails when the test suite deletes a file.
 
 ### Added
+- Building a simulation from scratch. In the engine, `adsim/objects/deck_builder.h`
+  creates components, adsorbents (isotherms by kind, rate models), the bed
+  shape, wall, layers and their models, steps, pressure and flow boundaries,
+  streams and valve streams, profiles, pumps, connections, energy sources,
+  KPI endpoints and user variables, each model chosen by a snake_case kind
+  name. In Python, `Simulation.new()`, `add_variable`, `add_component`,
+  `add_adsorbent`, `add_layer`, `add_step`, `connect`, `set_isotherm`,
+  `set_rate_model`, `set_shape`,
+  `set_material`, `step.bottom.set_streams` / `set_pressure` / `set_closed`,
+  `add_energy_source`, `sim.kpi.track`, with `skarstrom.velocity`,
+  `molar_flow`, `linear`, `exponential`, `Stream`, `ValveStream`, `Pump`;
+  `skarstrom.build_kinds()`, `sim.describe()` and `skarstrom.to_script(sim)`,
+  which writes the builder code for any deck. `examples/_build/` holds that
+  code for all 33 example decks (`scripts/gen_build_seeds.py`); a test checks
+  each reproduces its deck and that five run to identical results.
+- Parameter registry: every value of the example decks is now settable —
+  initial conditions (`initial.*`), `fluid.*` (adsorbed-phase heat
+  capacities), `layer[ID].cells` and `mass_fraction[...]`, profile ramps of
+  inlet temperatures and flows, valve coefficients, the other pump
+  efficiency models, energy sources (`step[ID].energy[layer].power`), void
+  regions, particle heat transfer, `cycle.step_time_mode`, and inlet and
+  backflow compositions of every endpoint.
+- Python: deck objects held in variables (a step, a layer, `sim.bed`) follow
+  structural edits instead of going stale.
 - Python: the deck as typed objects (`skarstrom.model`). `sim.steps["Feed"].time`,
   `sim.steps[0].bottom.temperature`, `sim.steps["Feed"].bottom.y["CO2"]`,
   `sim.layers[0].length`, `sim.adsorbents["13X"].isotherm["CO2"].b1`,

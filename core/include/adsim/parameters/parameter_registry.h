@@ -33,6 +33,15 @@
 //   adsorbent[1].kinetics[CarbonDioxide].k variable[feed_flow]
 //   settings.reltol   css.min_cycles       info.title
 //   energy_balance.isothermal_temperature  layer[1].momentum_model
+//   layer[1].cells    layer[1].mass_fraction[2]
+//   endpoint[4].velocity_linear_start      endpoint[4].temperature_exponential_time
+//   endpoint[6].valve.cv                   step[2].energy[1].power
+//   initial.pressure  initial.y[Nitrogen]  fluid.adsorbed_heat_capacity[Nitrogen]
+//   bed.particle_htc  bed.top_void.volume  cycle.step_time_mode
+//
+// Together with the builder (objects/deck_builder.h), which creates the
+// structure these paths address, the registry covers every value of the
+// example decks, so a deck can be written entirely in code.
 //
 // An endpoint is a flow stream or a pressure boundary (the same thing the KPI
 // configuration calls an endpoint). Each entry also has an `alias` that uses

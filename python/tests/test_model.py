@@ -282,7 +282,8 @@ def _walk(node, seen):
 def test_every_registry_parameter_is_reachable_as_an_attribute(example):
     sim = example.load()
     seen = set()
-    for group in (sim.cycle, sim.settings, sim.css, sim.energy_balance, sim.info, sim.bed, sim.wall):
+    for group in (sim.cycle, sim.settings, sim.css, sim.energy_balance, sim.info, sim.bed, sim.wall,
+                  sim.initial_conditions, sim.fluid):
         _walk(group, seen)
     for coll in (sim.steps, sim.layers, sim.adsorbents):
         for item in coll:
