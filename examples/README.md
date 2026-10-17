@@ -22,7 +22,8 @@ python examples/ward_2022.py --case 100 # about a second
 python examples/perez_2019.py --case D1 # one VSA configuration to cyclic steady state
 ```
 
-Options common to every script: `--case NAME` (repeatable) to run a subset,
+Options common to every script (`optimise_nsga2.py` has `--pop`, `--gen` and
+`--workers` instead of `--case`; it needs `pip install pymoo`): `--case NAME` (repeatable) to run a subset,
 `--cycles N` to override the number of cycles for a quick look, `--no-plot`,
 and `-q`. `_common.py` holds the shared helpers (deck lookup, reference data,
 NRMSE, KPI tables, stream-log integration for decks without a KPI
@@ -42,6 +43,7 @@ configuration).
 | [`ward_pini_2024.py`](ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 18 s |
 | [`tsa_illustrative.py`](tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA with heater and cooler, to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
 | [`five_step_product_purge.py`](five_step_product_purge.py) | `FiveStepProductPurge` | CO₂/N₂ VSA template with product purge | — (CSS status, integrator statistics) | 2 s |
+| [`optimise_nsga2.py`](optimise_nsga2.py) | `Perez2019_A` | NSGA-II search (pymoo) of feed time and evacuation pressure, each candidate run to CSS in a process pool | — (the CO₂ purity / recovery Pareto front) | 2.5 min (60 runs, 4 cores) |
 
 Runtimes: wall-clock time of a full run of each script (all cases, to cyclic
 steady state where the deck checks it), measured on one core of a shared

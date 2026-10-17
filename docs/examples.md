@@ -27,6 +27,7 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 | [`ward_pini_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 18 s |
 | [`tsa_illustrative.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA with heater and cooler, to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
 | [`five_step_product_purge.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/five_step_product_purge.py) | `FiveStepProductPurge` | CO₂/N₂ VSA template with product purge | — (CSS status, integrator statistics) | 2 s |
+| [`optimise_nsga2.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/optimise_nsga2.py) | `Perez2019_A` | NSGA-II search (pymoo) of feed time and evacuation pressure, each candidate run to CSS in a process pool | — (the CO₂ purity / recovery Pareto front) | 2.5 min (60 runs, 4 cores) |
 
 Runtimes are wall-clock times of a full run of the script (all its cases, to cyclic steady state where the deck checks it) on one core of a shared 4-core Linux machine, measured for the 0.1.0 release. `python/tests/test_examples.py` imports every script and runs each once with fast options (one breakthrough case, or two cycles of one cyclic case).
 
