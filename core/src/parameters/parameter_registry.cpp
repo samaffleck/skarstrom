@@ -934,7 +934,8 @@ namespace adsim {
           if (!p) return;
           E("A1", "mol/kg", p->A1, 0.01, 50.0);
           E("A2", "-", p->A2, -5.0, 5.0);
-          E("B1", "1/bar", p->B1, 1e-8, 1.0);
+          // b_i = B1 exp(B2/RT) multiplies the partial pressure in Pa (IsothermFunction::Sips2).
+          E("B1", "1/Pa", p->B1, 1e-13, 1e-5);
           E("B2", "J/mol", p->B2, 0.0, 1e5);
           E("C1", "-", p->C1, 0.1, 5.0);
           E("C2", "-", p->C2, -5.0, 5.0);

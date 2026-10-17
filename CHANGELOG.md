@@ -23,6 +23,10 @@ root `CMakeLists.txt`.
   m²/s; it is the energy balance's effective axial thermal conductivity, in
   W/(m·K). Its unit, name and suggested bounds are corrected (values are
   unchanged).
+- The extended-Sips `B1` parameter was declared in 1/bar; the isotherm
+  multiplies it by the pressure in Pa, so it is 1/Pa (unit and bounds fixed,
+  values unchanged). A value written with a unit, e.g. Table 3's
+  `"1.129e-4 1/bar"`, now converts correctly.
 
 ### Added (choices)
 - Model and mode switches are named: the registry lists `choices` for

@@ -66,11 +66,11 @@ def build(case: str) -> sk.Simulation:
     zeolite = sim.add_adsorbent("13X", solid_density=f"{PARTICLE_DENSITY} kg/m3",
                                 heat_capacity="1100 J/(kg*K)", thermal_conductivity="0.15 W/(m*K)",
                                 particle_void_fraction=PARTICLE_VOID_FRACTION)
-    # B1 is given as a plain number: it is stored in 1/Pa (Table 3's 1e-4 1/bar values converted).
+    # Extended Sips with temperature-dependent capacity and exponent (Table 3).
     zeolite.set_isotherm("extended_sips_2", {
-        "CarbonDioxide": {"A1": "7.268 mol/kg", "A2": -0.6168, "B1": 1.129e-9, "B2": "28.389 kJ/mol",
+        "CarbonDioxide": {"A1": "7.268 mol/kg", "A2": -0.6168, "B1": "1.129e-4 1/bar", "B2": "28.389 kJ/mol",
                           "C1": 0.425, "C2": 0.7238, "T_ref": "298 K"},
-        "Methane":       {"A1": "4.473 mol/kg", "A2": -0.6569, "B1": 3.605e-9, "B2": "15.561 kJ/mol",
+        "Methane":       {"A1": "4.473 mol/kg", "A2": -0.6569, "B1": "3.605e-4 1/bar", "B2": "15.561 kJ/mol",
                           "C1": 1.073, "C2": 0.0, "T_ref": "298 K"},
     }, components=["CarbonDioxide", "Methane"])
     zeolite.set_isotherm("inert", components=["Helium"])
