@@ -9,6 +9,7 @@
 // STL includes
 #include <string>
 #include <vector>
+#include <map>
 #include <unordered_map>
 #include <memory>
 #include <iterator>
@@ -18,6 +19,7 @@
 
 // Cereal includes
 #include <cereal/types/vector.hpp>
+#include <cereal/types/map.hpp>
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/memory.hpp>
 #include <cereal/types/string.hpp>
@@ -454,6 +456,21 @@ namespace adsim {
     const UserVariableRegistry* registry = nullptr;
   };
 
+  // Per-component isotherm parameters, keyed by component name.
+  //
+  // An ordered map, not std::unordered_map: competitive isotherms sum over
+  // every component (the 1 + sum_j b_j c_j denominators), so iteration order
+  // is summation order. An unordered_map's order depends on the standard
+  // library's hash and on insertion history (the order of the entries in the
+  // deck file, itself the iteration order of whichever library saved it), so a
+  // deck and its re-saved copy could run to different numbers. With FMA
+  // contraction (Apple clang on arm64 by default) even a two-component sum
+  // depends on the order: fma(x2, c2, x1*c1) != fma(x1, c1, x2*c2). std::map
+  // iterates in key order whatever the history; cereal writes both map kinds
+  // identically ({key, value} arrays), so decks are unaffected.
+  template <class P>
+  using ParamMap = std::map<std::string, P>;
+
   // Keys of a per-component parameter map (used by IIsotherm::GetComponents).
   template <class Map>
   std::vector<std::string> ComponentKeys(const Map& params) {
@@ -500,7 +517,7 @@ namespace adsim {
     IsothermType GetIsothermType() override { return IsothermType::INERT; }
     void EvaluateExpressions(const EvalContext&) override {}
 
-    std::unordered_map<std::string, InertIsothermParameters> params_{};
+    ParamMap<InertIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -525,7 +542,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, HenryIsothermParameters> params_{};
+    ParamMap<HenryIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -554,7 +571,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, LangmuirIsothermParameters> params_{};
+    ParamMap<LangmuirIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -583,7 +600,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, AntiLangmuirIsothermParameters> params_{};
+    ParamMap<AntiLangmuirIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -608,7 +625,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, FreundlichIsothermParameters> params_{};
+    ParamMap<FreundlichIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -633,7 +650,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, SipsIsothermParameters> params_{};
+    ParamMap<SipsIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -658,7 +675,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, Sips2IsothermParameters> params_{};
+    ParamMap<Sips2IsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -684,7 +701,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, Sips2IsothermParameters> params_{};
+    ParamMap<Sips2IsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -714,7 +731,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, ArrheniusSipsIsothermParameters> params_{};
+    ParamMap<ArrheniusSipsIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -739,7 +756,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, DualSiteSipsIsothermParameters> params_{};
+    ParamMap<DualSiteSipsIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -764,7 +781,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, RedlichPetersonIsothermParameters> params_{};
+    ParamMap<RedlichPetersonIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -789,7 +806,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, TothIsothermParameters> params_{};
+    ParamMap<TothIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -814,7 +831,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, Toth2IsothermParameters> params_{};
+    ParamMap<Toth2IsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -840,7 +857,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, LangmuirIsothermParameters> params_{};
+    ParamMap<LangmuirIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -869,7 +886,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, LangmuirIsothermParametersConcentration> params_{};
+    ParamMap<LangmuirIsothermParametersConcentration> params_{};
 
   private:
     friend class cereal::access;
@@ -898,7 +915,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, DualSiteLangmuirIsothermParameters> params_{};
+    ParamMap<DualSiteLangmuirIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -928,7 +945,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, DualSiteLangmuirIsothermParameters> params_{};
+    ParamMap<DualSiteLangmuirIsothermParameters> params_{};
 
   private:
     friend class cereal::access;
@@ -957,7 +974,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, DualSiteLangmuirIsothermParametersConcentration> params_{};
+    ParamMap<DualSiteLangmuirIsothermParametersConcentration> params_{};
 
   private:
     friend class cereal::access;
@@ -986,7 +1003,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, LangmuirIsothermParametersConcentration> params_{};
+    ParamMap<LangmuirIsothermParametersConcentration> params_{};
 
   private:
     friend class cereal::access;
@@ -1015,7 +1032,7 @@ namespace adsim {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    std::unordered_map<std::string, DualSiteLangmuirIsothermParametersConcentration> params_{};
+    ParamMap<DualSiteLangmuirIsothermParametersConcentration> params_{};
   
   private:
     friend class cereal::access;

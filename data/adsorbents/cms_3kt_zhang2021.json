@@ -60,9 +60,29 @@
                                 "value0": {},
                                 "Isotherm_Params": [
                                     {
-                                        "key": "Nitrogen",
+                                        "key": "Methane",
                                         "value": {
                                             "cereal_class_version": 0,
+                                            "IP_q_sat": {
+                                                "Value": 3.73,
+                                                "Expression": "3.73",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b": {
+                                                "Value": 0.00000126,
+                                                "Expression": "1.26e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_v": {
+                                                "Value": 1.37,
+                                                "Expression": "1.37",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
                                             "IP_q_sat": {
                                                 "Value": 1.63,
                                                 "Expression": "1.63",
@@ -96,26 +116,6 @@
                                             "IP_v": {
                                                 "Value": 1.03,
                                                 "Expression": "1.03",
-                                                "DisplayUnitIndex": 0
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "key": "Methane",
-                                        "value": {
-                                            "IP_q_sat": {
-                                                "Value": 3.73,
-                                                "Expression": "3.73",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_b": {
-                                                "Value": 0.00000126,
-                                                "Expression": "1.26e-06",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_v": {
-                                                "Value": 1.37,
-                                                "Expression": "1.37",
                                                 "DisplayUnitIndex": 0
                                             }
                                         }

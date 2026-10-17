@@ -187,44 +187,9 @@
                                                 "value0": {},
                                                 "Isotherm_Params": [
                                                     {
-                                                        "key": "Nitrogen",
-                                                        "value": {
-                                                            "cereal_class_version": 0,
-                                                            "IP_m1": {
-                                                                "Value": 2.387,
-                                                                "Expression": "2.387",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_b1": {
-                                                                "Value": 8.139e-7,
-                                                                "Expression": "8.139e-07",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_q1": {
-                                                                "Value": 17960.0,
-                                                                "Expression": "1.796e+04",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_m2": {
-                                                                "Value": 3.271,
-                                                                "Expression": "3.271",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_b2": {
-                                                                "Value": 8.139e-7,
-                                                                "Expression": "8.139e-07",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_q2": {
-                                                                "Value": 17960.0,
-                                                                "Expression": "1.796e+04",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        }
-                                                    },
-                                                    {
                                                         "key": "CarbonDioxide",
                                                         "value": {
+                                                            "cereal_class_version": 0,
                                                             "IP_m1": {
                                                                 "Value": 2.387,
                                                                 "Expression": "2.387",
@@ -253,6 +218,41 @@
                                                             "IP_q2": {
                                                                 "Value": 28950.0,
                                                                 "Expression": "2.895e+04",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "key": "Nitrogen",
+                                                        "value": {
+                                                            "IP_m1": {
+                                                                "Value": 2.387,
+                                                                "Expression": "2.387",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_b1": {
+                                                                "Value": 8.139e-7,
+                                                                "Expression": "8.139e-07",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_q1": {
+                                                                "Value": 17960.0,
+                                                                "Expression": "1.796e+04",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_m2": {
+                                                                "Value": 3.271,
+                                                                "Expression": "3.271",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_b2": {
+                                                                "Value": 8.139e-7,
+                                                                "Expression": "8.139e-07",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_q2": {
+                                                                "Value": 17960.0,
+                                                                "Expression": "1.796e+04",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
