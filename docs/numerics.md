@@ -114,7 +114,7 @@ After the last step of every cycle the solver applies the deck's [cyclic steady 
 | Method | Test |
 |---|---|
 | None | never; the run does every cycle |
-| Molar Profile | $\lVert \mathbf{C}_{\text{curr}} - \mathbf{C}_{\text{prev}}\rVert_2 \le \varepsilon_{abs} + \varepsilon_{rel}\lVert \mathbf{C}_{\text{curr}}\rVert_2$, where $\mathbf{C}$ is the total-concentration profile over all cells at the end of the **first step** of the current and the previous cycle |
+| Molar Profile | $\lVert \mathbf{C}^{\text{curr}} - \mathbf{C}^{\text{prev}}\rVert_2 \le \varepsilon_{abs} + \varepsilon_{rel}\lVert \mathbf{C}^{\text{curr}}\rVert_2$, where $\mathbf{C}$ is the total-concentration profile over all cells at the end of the **first step** of the current and the previous cycle |
 | Mass Balance (Total) | $\lvert n_{in} - n_{out}\rvert / n_{in} \le \varepsilon_{mb}$ over the whole cycle, summing every face of every step by the sign of its net flow |
 | Mass Balance (Per-Component) | the same for each component that is fed, taking the worst |
 

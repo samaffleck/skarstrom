@@ -30,7 +30,7 @@ i.e. $A = \mu / K$ and $B = 0$. The pressure drop is linear in the velocity. Thi
 $$
 -\frac{\partial P}{\partial z} =
 \frac{150\thinspace \mu\thinspace (1-\epsilon_b)^2}{\epsilon_b^3\thinspace d_p^2}\thinspace u
-+ \frac{1.75\thinspace \rho\thinspace (1-\epsilon_b)}{\epsilon_b^3\thinspace d_p}\thinspace \lvert u\rvert\thinspace u
+{}+ \frac{1.75\thinspace \rho\thinspace (1-\epsilon_b)}{\epsilon_b^3\thinspace d_p}\thinspace \lvert u\rvert\thinspace u
 $$
 
 The first (Blake–Kozeny) term dominates at low Reynolds number; the second (Burke–Plummer) term adds the kinetic-energy losses that become important at the higher velocities of fast cycles and large particles (Ergun, *Chem. Eng. Prog.* 48 (1952) 89–94). It is the pressure-drop model used in most of the PSA literature, e.g. Haghpanah *et al.* (2013), and is therefore the default for newly created layers. $\rho = \sum_i c_i M_i$ is the local gas density, so the inertial resistance follows the pressure and composition of the gas.

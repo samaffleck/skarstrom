@@ -9,8 +9,8 @@ Every term is written per unit volume of wall. For an annular wall of inner diam
 $$
 \rho_w C_{p,w}\frac{\partial T_w}{\partial t}
 = k_w\frac{\partial^2 T_w}{\partial z^2}
-+ \frac{4\thinspace d_i\thinspace h_i}{d_o^2 - d_i^2}\left(T - T_w\right)
-- \frac{4\thinspace d_o\thinspace h_o}{d_o^2 - d_i^2}\left(T_w - T_{amb}\right)
+{}+ \frac{4\thinspace d_i\thinspace h_i}{d_o^2 - d_i^2}\left(T - T_w\right)
+{}- \frac{4\thinspace d_o\thinspace h_o}{d_o^2 - d_i^2}\left(T_w - T_{amb}\right)
 $$
 
 With local thermal non-equilibrium, the bed side of the exchange is split between the gas and the solid in proportion to the bed voidage:
