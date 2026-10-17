@@ -94,8 +94,8 @@ def build(case: str) -> sk.Simulation:
         void.enabled = False
         void.volume = "1e-4 m3"
         void.resistance_coefficient = "0 Pa*s/m"
-    # The tube's properties are set explicitly (the deck keeps the SS316L material label).
-    sim.wall.set_material("ss316l", density="2700 kg/m3", heat_capacity="902 J/(kg*K)",
+    # Aluminium tube: pure aluminium's properties (not a preset alloy), so a custom material.
+    sim.wall.set_material("custom", density="2700 kg/m3", heat_capacity="902 J/(kg*K)",
                           thermal_conductivity="205 W/(m*K)")
     sim.wall.thickness = "3.25 mm"
     sim.wall.set_boundary("zero_flux")

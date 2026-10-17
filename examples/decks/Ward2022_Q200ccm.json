@@ -224,7 +224,7 @@
             },
             "Wall": {
                 "cereal_class_version": 0,
-                "Material": 1,
+                "Material": 0,
                 "Density": {
                     "Value": 2700.0,
                     "Expression": "2.7e+03",

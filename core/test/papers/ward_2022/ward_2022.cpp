@@ -115,6 +115,8 @@ namespace adsim {
     AC_ads.thermal_conductivity_ = 0.63;
     AC_ads.ep_ = 0.0; // 0.59
 
+    // Aluminium column: pure aluminium's properties, not a preset alloy, so a Custom material.
+    data.bed.wall_.ApplyMaterial(WallMaterial::Custom);
     data.bed.wall_.heat_capacity_ = 902;
     data.bed.wall_.density_ = 2700;
     data.bed.wall_.thermal_conductivity_ = 205;
@@ -239,6 +241,8 @@ namespace adsim {
     AC_ads.thermal_conductivity_ = 0.63;
     AC_ads.ep_ = 0.0;
 
+    // Aluminium column: pure aluminium's properties, not a preset alloy, so a Custom material.
+    data.bed.wall_.ApplyMaterial(WallMaterial::Custom);
     data.bed.wall_.heat_capacity_ = 902;
     data.bed.wall_.density_ = 2700;
     data.bed.wall_.thermal_conductivity_ = 205;
@@ -364,6 +368,8 @@ namespace adsim {
     AC_ads.thermal_conductivity_ = 0.63;
     AC_ads.ep_ = 0.0;
 
+    // Aluminium column: pure aluminium's properties, not a preset alloy, so a Custom material.
+    data.bed.wall_.ApplyMaterial(WallMaterial::Custom);
     data.bed.wall_.heat_capacity_ = 902;
     data.bed.wall_.density_ = 2700;
     data.bed.wall_.thermal_conductivity_ = 205;
@@ -491,7 +497,9 @@ namespace adsim {
       AC_ads.thermal_conductivity_ = 0.63;
       AC_ads.ep_ = 0.0;
 
-      data.bed.wall_.heat_capacity_ = 902;
+      // Aluminium column: pure aluminium's properties, not a preset alloy, so a Custom material.
+    data.bed.wall_.ApplyMaterial(WallMaterial::Custom);
+    data.bed.wall_.heat_capacity_ = 902;
       data.bed.wall_.density_ = 2700;
       data.bed.wall_.thermal_conductivity_ = 205;
       data.bed.wall_.thickness_ = 3.25e-3;
