@@ -23,7 +23,7 @@ Input: **Dispersion coefficient** [m² s⁻¹].
 Combines molecular diffusion and mechanical (eddy) dispersion:
 
 $$
-D_{ax} = 0.7\, D_m + 0.5\, \frac{|u|}{\epsilon_b}\, d_p
+D_{ax} = 0.7\thinspace D_m + 0.5\thinspace \frac{|u|}{\epsilon_b}\thinspace d_p
 $$
 
 | Symbol | Description | Unit |
@@ -50,7 +50,7 @@ $$
 The thermal analogue of the mechanical dispersion term:
 
 $$
-\lambda = 0.5\, \frac{|u|}{\epsilon_b}\, d_p\, \rho_g\, C_{p,g}
+\lambda = 0.5\thinspace \frac{|u|}{\epsilon_b}\thinspace d_p\thinspace \rho_g\thinspace C_{p,g}
 $$
 
 ### Yagi and Kunii (1957)
@@ -58,12 +58,12 @@ $$
 A stagnant-plus-flow correlation that accounts for the solid/gas conductivity ratio:
 
 $$
-\lambda = \lambda_{z}^{0} + 0.75\, k_g\, \mathrm{Pr}\, \mathrm{Re}
+\lambda = \lambda_{z}^{0} + 0.75\thinspace k_g\thinspace \mathrm{Pr}\thinspace \mathrm{Re}
 $$
 
 $$
 \lambda_{z}^{0} = k_g \left(\frac{k_s}{k_g}\right)^{n}, \qquad
-n = 0.28 - 0.757 \log_{10}(\epsilon_b) - 0.057 \log_{10}\!\left(\frac{k_s}{k_g}\right)
+n = 0.28 - 0.757 \log_{10}(\epsilon_b) - 0.057 \log_{10}\negthinspace \left(\frac{k_s}{k_g}\right)
 $$
 
 | Symbol | Description | Unit |
@@ -91,13 +91,13 @@ Input: **Heat transfer coefficient** [W m⁻² K⁻¹]. This is the most common 
 An apparent wall coefficient derived from a two-dimensional pseudo-homogeneous model, folding the near-wall resistance and the effective radial bed conductivity into a single 1-D coefficient. First the wall film and stagnant contributions,
 
 $$
-h_w = \frac{k_g}{d_p}\left[2\epsilon_b + \frac{1-\epsilon_b}{\tfrac{1}{3}(k_g/k_s) + \theta_w}\right] + \frac{k_g}{d_p}\left(0.0835\,\mathrm{Re}^{0.91}\right), \qquad \theta_w = 0.0024\left(\frac{D_c}{d_p}\right)^{1.58}
+h_w = \frac{k_g}{d_p}\left[2\epsilon_b + \frac{1-\epsilon_b}{\tfrac{1}{3}(k_g/k_s) + \theta_w}\right] + \frac{k_g}{d_p}\left(0.0835\thinspace \mathrm{Re}^{0.91}\right), \qquad \theta_w = 0.0024\left(\frac{D_c}{d_p}\right)^{1.58}
 $$
 
 then the effective radial conductivity,
 
 $$
-k_e = k_g\left[\epsilon_b + \frac{1-\epsilon_b}{\tfrac{2}{3}(k_g/k_s) + 0.22\,\epsilon_b^2}\right] + \frac{|u|\,\rho_g C_{p,g}\, d_p}{\mathrm{Pe}_H}, \qquad \mathrm{Pe}_H = 8.65\left[1 + 19.4\left(\frac{d_p}{D_c}\right)^2\right]
+k_e = k_g\left[\epsilon_b + \frac{1-\epsilon_b}{\tfrac{2}{3}(k_g/k_s) + 0.22\thinspace \epsilon_b^2}\right] + \frac{|u|\thinspace \rho_g C_{p,g}\thinspace d_p}{\mathrm{Pe}_H}, \qquad \mathrm{Pe}_H = 8.65\left[1 + 19.4\left(\frac{d_p}{D_c}\right)^2\right]
 $$
 
 and finally the apparent internal coefficient via the wall Biot number $\mathrm{Bi} = h_w D_c / (2 k_e)$,
@@ -125,7 +125,7 @@ $$
 Forced convection over the outside of the column from a cross-flow of air:
 
 $$
-h_o = \frac{\mathrm{Nu}\, k_{air}}{d_e}, \qquad \mathrm{Nu} = c\,\mathrm{Re}_{air}^{\,m}\,\mathrm{Pr}_{air}^{\,n}, \qquad \mathrm{Re}_{air} = \frac{d_e\, v_{ext}\, \rho_{air}}{\mu_{air}}
+h_o = \frac{\mathrm{Nu}\thinspace k_{air}}{d_e}, \qquad \mathrm{Nu} = c\thinspace \mathrm{Re}_{air}^{\thinspace m}\thinspace \mathrm{Pr}_{air}^{\thinspace n}, \qquad \mathrm{Re}_{air} = \frac{d_e\thinspace v_{ext}\thinspace \rho_{air}}{\mu_{air}}
 $$
 
 Input: **External air flow velocity** $v_{ext}$. The air properties ($k_{air}$, $\rho_{air}$, $\mu_{air}$, $c_{p,air}$) and the correlation constants $c$, $m$, $n$ are built in; $d_e$ is the external column diameter.
@@ -137,7 +137,7 @@ Input: **External air flow velocity** $v_{ext}$. The air properties ($k_{air}$, 
 When the [energy balance](energy-balance.md) uses **local thermal non-equilibrium (LTNE)**, a gas–particle coefficient is needed. The **Constant** model converts an entered coefficient into a volumetric value using the specific surface area of the packing:
 
 $$
-h_p^{vol} = h_p\, a_v, \qquad a_v = \frac{6(1-\epsilon_b)}{d_p}
+h_p^{vol} = h_p\thinspace a_v, \qquad a_v = \frac{6(1-\epsilon_b)}{d_p}
 $$
 
 Input: **Heat transfer coefficient** $h_p$ [W m⁻² K⁻¹]. Under local thermal equilibrium (LTE, the default) this model is not used.

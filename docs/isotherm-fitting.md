@@ -4,7 +4,7 @@ Skarstrom fits [isotherm models](isotherms.md) to measured equilibrium points wi
 
 ## Data
 
-Each point is a pressure $p$ [Pa], a loading $q$ [mol/kg] and a temperature $T$ [K], optionally with a mole fraction $y$ (the component's partial pressure is then $p\,y$; pure-component data use $y = 1$). Everything is in SI base units: convert first (1 bar = 10⁵ Pa, 1 mmol/g = 1 mol/kg; 22.414 cm³(STP)/g = 1 mmol/g at 0 °C and 1 atm).
+Each point is a pressure $p$ [Pa], a loading $q$ [mol/kg] and a temperature $T$ [K], optionally with a mole fraction $y$ (the component's partial pressure is then $p\thinspace y$; pure-component data use $y = 1$). Everything is in SI base units: convert first (1 bar = 10⁵ Pa, 1 mmol/g = 1 mol/kg; 22.414 cm³(STP)/g = 1 mmol/g at 0 °C and 1 atm).
 
 ```python
 import numpy as np
@@ -42,7 +42,7 @@ fit = skarstrom.fit_isotherm(
 ```
 
 - **Bounds** span several decades around what the data can resolve. Positive scale parameters, such as capacities and affinities, are searched on a log scale; exponents and energies on a linear scale.
-- **Arrhenius pairs.** For terms of the form $b\,e^{Q/RT}$ (Henry $k$/$Q$, Langmuir $b_k$/$q_k$, Sips 2 $B_1$/$B_2$), the pre-exponential is searched as its value at the reference temperature, $b\,e^{Q/(R T_{ref})}$, and its bounds apply to that value. $T_{ref}$ is the mean data temperature (returned as `t_ref`). This separates the affinity from the heat and makes the search much better conditioned.
+- **Arrhenius pairs.** For terms of the form $b\thinspace e^{Q/RT}$ (Henry $k$/$Q$, Langmuir $b_k$/$q_k$, Sips 2 $B_1$/$B_2$), the pre-exponential is searched as its value at the reference temperature, $b\thinspace e^{Q/(R T_{ref})}$, and its bounds apply to that value. $T_{ref}$ is the mean data temperature (returned as `t_ref`). This separates the affinity from the heat and makes the search much better conditioned.
 - **Single temperature.** With data at one temperature the temperature-dependence parameters ($Q$, $q_k$, $B_2$, $A_2$, $C_2$, $x$, $\Delta H_0$, $\alpha$) cannot be determined, so they are fixed at 0, which makes the affinity at the data temperature equal to the fitted pre-exponential. If you know the heat from elsewhere, pass it in `fixed`.
 - The reference temperatures `T_ref` (Sips 2) and `T_0` (Toth 2) are fixed at the mean data temperature.
 

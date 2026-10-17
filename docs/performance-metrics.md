@@ -37,19 +37,19 @@ where the recycled term is the gas entering through endpoints ticked as Product.
 **Productivity (mass)** — net product mass produced per unit mass of adsorbent per unit time:
 
 $$
-\text{Productivity}_{\text{mass}} = \frac{n_{\text{product}}\, M}{t_{\text{cycle}}\; m_{\text{adsorbent}}} \quad \left[\frac{\text{kg}}{\text{kg}\cdot\text{s}}\right]
+\text{Productivity}_{\text{mass}} = \frac{n_{\text{product}}\thinspace M}{t_{\text{cycle}}\thickspace m_{\text{adsorbent}}} \quad \left[\frac{\text{kg}}{\text{kg}\cdot\text{s}}\right]
 $$
 
 **Productivity (volume)** — the same but per unit bed volume:
 
 $$
-\text{Productivity}_{\text{vol}} = \frac{n_{\text{product}}\, M}{t_{\text{cycle}}\; V_{\text{bed}}} \quad \left[\frac{\text{kg}}{\text{m}^3\cdot\text{s}}\right]
+\text{Productivity}_{\text{vol}} = \frac{n_{\text{product}}\thinspace M}{t_{\text{cycle}}\thickspace V_{\text{bed}}} \quad \left[\frac{\text{kg}}{\text{m}^3\cdot\text{s}}\right]
 $$
 
 **Energy Consumption** — the specific energy: total compression work over the cycle per unit mass of product:
 
 $$
-\text{Energy Consumption} = \frac{E_{\text{total}}}{n_{\text{product}}\, M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
+\text{Energy Consumption} = \frac{E_{\text{total}}}{n_{\text{product}}\thinspace M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
 $$
 
 where $E_{\text{total}}$ is the sum over all steps of the time-integrated compressor/pump power. Step [energy sources](energy-balance.md#energy-source-heating-cooling) (heaters and coolers, as in a TSA cycle) are **not** included; compute their duty per kilogram of product yourself, as in the [TSA tutorial](tsa-regeneration.md).
