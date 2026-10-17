@@ -1,5 +1,9 @@
 #include "adsim/math/unit_parser.h"
 
+#include <units/units.hpp>
+
+namespace llnl = UNITS_NAMESPACE;  // "units": LLNL units, compiled into adsim
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -10,257 +14,20 @@
 
 namespace adsim {
 
-// Each entry pairs the numeric transform with the dimensional category the
-// symbol belongs to. Units that don't fit any UnitCategory enum (power,
-// inverse pressure, etc.) are tagged Custom — they are only accepted when the
-// variable's own category is Custom.
-struct UnitEntry {
-    UnitXform    xform;
-    UnitCategory category;
-};
-
-// ---------------------------------------------------------------------------
-// Unit dictionary — symbol/alias  →  UnitEntry  (base = ui * mul + add)
-// Covers the unit symbols the front ends display, plus ASCII-friendly aliases.
-// ---------------------------------------------------------------------------
-static const std::unordered_map<std::string, UnitEntry>& UnitMap() {
-    static const std::unordered_map<std::string, UnitEntry> kMap = {
-
-        // ---- PRESSURE (base: Pa) ----
-        {"Pa",      {{1.0,                0.0}, UnitCategory::Pressure}},
-        {"kPa",     {{1e3,                0.0}, UnitCategory::Pressure}},
-        {"MPa",     {{1e6,                0.0}, UnitCategory::Pressure}},
-        {"bar",     {{1e5,                0.0}, UnitCategory::Pressure}},
-        {"atm",     {{101325.0,           0.0}, UnitCategory::Pressure}},
-        {"psi",     {{6894.757293168,     0.0}, UnitCategory::Pressure}},
-        {"Torr",    {{133.32236842105263, 0.0}, UnitCategory::Pressure}},
-        {"torr",    {{133.32236842105263, 0.0}, UnitCategory::Pressure}},
-
-        // ---- TEMPERATURE (base: K) ----
-        {"K",       {{1.0,    0.0},                  UnitCategory::Temperature}},
-        {"degK",    {{1.0,    0.0},                  UnitCategory::Temperature}},
-        {"°C",      {{1.0,    273.15},               UnitCategory::Temperature}},
-        {"degC",    {{1.0,    273.15},               UnitCategory::Temperature}},
-        {"C",       {{1.0,    273.15},               UnitCategory::Temperature}}, // alias; ambiguous
-        {"°F",      {{5.0/9.0, 255.37222222222223},  UnitCategory::Temperature}},
-        {"degF",    {{5.0/9.0, 255.37222222222223},  UnitCategory::Temperature}},
-        {"F",       {{5.0/9.0, 255.37222222222223},  UnitCategory::Temperature}},
-
-        // ---- LENGTH (base: m) ----
-        {"m",       {{1.0,    0.0}, UnitCategory::Length}},
-        {"cm",      {{1e-2,   0.0}, UnitCategory::Length}},
-        {"mm",      {{1e-3,   0.0}, UnitCategory::Length}},
-        {"um",      {{1e-6,   0.0}, UnitCategory::Length}},
-        {"µm",      {{1e-6,   0.0}, UnitCategory::Length}},
-        {"nm",      {{1e-9,   0.0}, UnitCategory::Length}},
-        {"A",       {{1e-10,  0.0}, UnitCategory::Length}},
-        {"in",      {{0.0254, 0.0}, UnitCategory::Length}},
-        {"ft",      {{0.3048, 0.0}, UnitCategory::Length}},
-
-        // ---- TIME (base: s) ----
-        {"s",       {{1.0,     0.0}, UnitCategory::Time}},
-        {"ms",      {{1e-3,    0.0}, UnitCategory::Time}},
-        {"µs",      {{1e-6,    0.0}, UnitCategory::Time}},
-        {"us",      {{1e-6,    0.0}, UnitCategory::Time}},
-        {"min",     {{60.0,    0.0}, UnitCategory::Time}},
-        {"h",       {{3600.0,  0.0}, UnitCategory::Time}},
-        {"hr",      {{3600.0,  0.0}, UnitCategory::Time}},
-        {"d",       {{86400.0, 0.0}, UnitCategory::Time}},
-
-        // ---- MASS (base: kg) ----
-        {"kg",      {{1.0,        0.0}, UnitCategory::Mass}},
-        {"g",       {{1e-3,       0.0}, UnitCategory::Mass}},
-        {"mg",      {{1e-6,       0.0}, UnitCategory::Mass}},
-        {"t",       {{1000.0,     0.0}, UnitCategory::Mass}},
-        {"tonne",   {{1000.0,     0.0}, UnitCategory::Mass}},
-        {"lb",      {{0.45359237, 0.0}, UnitCategory::Mass}},
-
-        // ---- ENERGY (base: J) ----
-        {"J",       {{1.0,    0.0}, UnitCategory::Energy}},
-        {"kJ",      {{1e3,    0.0}, UnitCategory::Energy}},
-        {"MJ",      {{1e6,    0.0}, UnitCategory::Energy}},
-        {"cal",     {{4.184,  0.0}, UnitCategory::Energy}},
-        {"kcal",    {{4184.0, 0.0}, UnitCategory::Energy}},
-        {"Btu",     {{1055.06, 0.0}, UnitCategory::Energy}},
-
-        // ---- SPECIFIC MOLAR ENERGY (base: J/mol) ----
-        {"J/mol",       {{1.0,     0.0}, UnitCategory::SpecificMolarEnergy}},
-        {"kJ/mol",      {{1e3,     0.0}, UnitCategory::SpecificMolarEnergy}},
-        {"MJ/mol",      {{1e6,     0.0}, UnitCategory::SpecificMolarEnergy}},
-        {"cal/mol",     {{4.184,   0.0}, UnitCategory::SpecificMolarEnergy}},
-        {"kcal/mol",    {{4184.0,  0.0}, UnitCategory::SpecificMolarEnergy}},
-        {"Btu/mol",     {{1055.06, 0.0}, UnitCategory::SpecificMolarEnergy}},
-
-        // ---- POWER (no matching UnitCategory — usable only in Custom variables) ----
-        {"W",       {{1.0,   0.0}, UnitCategory::Custom}},
-        {"kW",      {{1e3,   0.0}, UnitCategory::Custom}},
-        {"MW",      {{1e6,   0.0}, UnitCategory::Custom}},
-        {"GW",      {{1e9,   0.0}, UnitCategory::Custom}},
-        {"mW",      {{1e-3,  0.0}, UnitCategory::Custom}},
-
-        // ---- MOLAR AMOUNT (base: mol) ----
-        {"mol",     {{1.0,   0.0}, UnitCategory::MolarAmount}},
-        {"mmol",    {{1e-3,  0.0}, UnitCategory::MolarAmount}},
-        {"kmol",    {{1e3,   0.0}, UnitCategory::MolarAmount}},
-
-        // ---- VOLUME (base: m³) ----
-        {"m^3",     {{1.0,           0.0}, UnitCategory::Volume}},
-        {"m³",      {{1.0,           0.0}, UnitCategory::Volume}},
-        {"L",       {{1e-3,          0.0}, UnitCategory::Volume}},
-        {"l",       {{1e-3,          0.0}, UnitCategory::Volume}},
-        {"mL",      {{1e-6,          0.0}, UnitCategory::Volume}},
-        {"ml",      {{1e-6,          0.0}, UnitCategory::Volume}},
-        {"ft^3",    {{0.028316846592, 0.0}, UnitCategory::Volume}},
-        {"ft³",     {{0.028316846592, 0.0}, UnitCategory::Volume}},
-
-        // ---- VOLUMETRIC FLOW (base: m³/s) ----
-        {"m^3/s",   {{1.0,                   0.0}, UnitCategory::VolumetricFlowRate}},
-        {"m³/s",    {{1.0,                   0.0}, UnitCategory::VolumetricFlowRate}},
-        {"L/s",     {{1e-3,                  0.0}, UnitCategory::VolumetricFlowRate}},
-        {"cm^3/s",  {{1e-6,                  0.0}, UnitCategory::VolumetricFlowRate}},
-        {"m^3/h",   {{1.0/3600.0,            0.0}, UnitCategory::VolumetricFlowRate}},
-        {"m³/h",    {{1.0/3600.0,            0.0}, UnitCategory::VolumetricFlowRate}},
-        {"L/min",   {{1e-3/60.0,             0.0}, UnitCategory::VolumetricFlowRate}},
-        {"ccm",     {{1e-6/60.0,             0.0}, UnitCategory::VolumetricFlowRate}},
-        {"mL/min",  {{1e-6/60.0,             0.0}, UnitCategory::VolumetricFlowRate}},
-        {"ft^3/min",{{0.028316846592/60.0,   0.0}, UnitCategory::VolumetricFlowRate}},
-
-        // ---- MASS FLOW (base: kg/s) ----
-        {"kg/s",    {{1.0,           0.0}, UnitCategory::MassFlowRate}},
-        {"g/s",     {{1e-3,          0.0}, UnitCategory::MassFlowRate}},
-        {"mg/s",    {{1e-6,          0.0}, UnitCategory::MassFlowRate}},
-        {"kg/min",  {{1.0/60.0,      0.0}, UnitCategory::MassFlowRate}},
-        {"kg/h",    {{1.0/3600.0,    0.0}, UnitCategory::MassFlowRate}},
-        {"g/min",   {{1e-3/60.0,     0.0}, UnitCategory::MassFlowRate}},
-        {"g/h",     {{1e-3/3600.0,   0.0}, UnitCategory::MassFlowRate}},
-        {"t/h",     {{1000.0/3600.0, 0.0}, UnitCategory::MassFlowRate}},
-
-        // ---- MOLAR FLOW (base: mol/s) ----
-        // Normal/standard gas units assume 0°C (273.15 K), 1 atm (101325 Pa):
-        // molar volume V_m = 22.414e-3 m³/mol, so 1 Nm³ = 1/22.414e-3 ≈ 44.6149 mol.
-        {"mol/s",   {{1.0,           0.0}, UnitCategory::MolarFlowRate}},
-        {"mol/min", {{1.0/60.0,      0.0}, UnitCategory::MolarFlowRate}},
-        {"mol/h",   {{1.0/3600.0,    0.0}, UnitCategory::MolarFlowRate}},
-        {"mmol/s",  {{1e-3,          0.0}, UnitCategory::MolarFlowRate}},
-        {"umol/s",  {{1e-6,          0.0}, UnitCategory::MolarFlowRate}},
-        {"kmol/h",  {{1000.0/3600.0, 0.0}, UnitCategory::MolarFlowRate}},
-        {"kmol/s",  {{1000.0,        0.0}, UnitCategory::MolarFlowRate}},
-        {"Nm^3/s",  {{1.0/22.414e-3,            0.0}, UnitCategory::MolarFlowRate}},
-        {"Nm³/s",   {{1.0/22.414e-3,            0.0}, UnitCategory::MolarFlowRate}},
-        {"Nm^3/h",  {{1.0/22.414e-3/3600.0,     0.0}, UnitCategory::MolarFlowRate}},
-        {"Nm³/h",   {{1.0/22.414e-3/3600.0,     0.0}, UnitCategory::MolarFlowRate}},
-        {"SCCM",    {{1e-6/22.414e-3/60.0,      0.0}, UnitCategory::MolarFlowRate}},
-        {"SCFM",    {{0.028316846592/22.414e-3/60.0, 0.0}, UnitCategory::MolarFlowRate}},
-
-        // ---- VELOCITY (base: m/s) ----
-        {"m/s",     {{1.0,           0.0}, UnitCategory::Velocity}},
-        {"cm/s",    {{1e-2,          0.0}, UnitCategory::Velocity}},
-        {"mm/s",    {{1e-3,          0.0}, UnitCategory::Velocity}},
-        {"m/min",   {{1.0/60.0,      0.0}, UnitCategory::Velocity}},
-        {"km/h",    {{1000.0/3600.0, 0.0}, UnitCategory::Velocity}},
-        {"ft/s",    {{0.3048,        0.0}, UnitCategory::Velocity}},
-        {"mph",     {{0.44704,       0.0}, UnitCategory::Velocity}},
-
-        // ---- INVERSE TIME (base: 1/s) ----
-        {"1/s",     {{1.0,       0.0}, UnitCategory::InverseTime}},
-        {"1/min",   {{1.0/60.0,  0.0}, UnitCategory::InverseTime}},
-        {"1/h",     {{1.0/3600.0, 0.0}, UnitCategory::InverseTime}},
-
-        // ---- DENSITY (base: kg/m³) ----
-        {"kg/m^3",  {{1.0,       0.0}, UnitCategory::Density}},
-        {"kg/m³",   {{1.0,       0.0}, UnitCategory::Density}},
-        {"g/L",     {{1.0,       0.0}, UnitCategory::Density}},
-        {"kg/L",    {{1000.0,    0.0}, UnitCategory::Density}},
-        {"g/mL",    {{1000.0,    0.0}, UnitCategory::Density}},
-        {"g/cm^3",  {{1000.0,    0.0}, UnitCategory::Density}},
-        {"g/cm³",   {{1000.0,    0.0}, UnitCategory::Density}},
-        {"lb/ft^3", {{16.018463, 0.0}, UnitCategory::Density}},
-
-        // ---- MOLAR CONCENTRATION (base: mol/m³) ----
-        {"mol/m^3", {{1.0,    0.0}, UnitCategory::MolarConcentration}},
-        {"mol/m³",  {{1.0,    0.0}, UnitCategory::MolarConcentration}},
-        {"mol/L",   {{1000.0, 0.0}, UnitCategory::MolarConcentration}},
-        {"mmol/L",  {{1.0,    0.0}, UnitCategory::MolarConcentration}},
-        {"umol/L",  {{1e-3,   0.0}, UnitCategory::MolarConcentration}},
-        {"kmol/m^3",{{1000.0, 0.0}, UnitCategory::MolarConcentration}},
-        {"kmol/m³", {{1000.0, 0.0}, UnitCategory::MolarConcentration}},
-
-        // ---- ADSORBED CONCENTRATION (base: mol/kg) ----
-        {"mol/kg",  {{1.0,    0.0}, UnitCategory::AdsorbedConcentration}},
-        {"mmol/g",  {{1.0,    0.0}, UnitCategory::AdsorbedConcentration}},
-        {"mol/g",   {{1000.0, 0.0}, UnitCategory::AdsorbedConcentration}},
-        {"mmol/kg", {{1e-3,   0.0}, UnitCategory::AdsorbedConcentration}},
-        {"umol/g",  {{1e-3,   0.0}, UnitCategory::AdsorbedConcentration}},
-
-        // ---- PRESSURE INVERSE (no matching UnitCategory — Custom only) ----
-        {"1/Pa",    {{1.0,                       0.0}, UnitCategory::Custom}},
-        {"1/kPa",   {{1.0/1e3,                   0.0}, UnitCategory::Custom}},
-        {"1/MPa",   {{1.0/1e6,                   0.0}, UnitCategory::Custom}},
-        {"1/bar",   {{1.0/1e5,                   0.0}, UnitCategory::Custom}},
-        {"1/atm",   {{1.0/101325.0,              0.0}, UnitCategory::Custom}},
-        {"1/psi",   {{1.0/6894.757293168,        0.0}, UnitCategory::Custom}},
-        {"1/Torr",  {{1.0/133.32236842105263,    0.0}, UnitCategory::Custom}},
-
-        // ---- HEAT CAPACITY (base: J/(kg·K)) ----
-        {"J/(kg·K)",    {{1.0,    0.0}, UnitCategory::HeatCapacity}},
-        {"kJ/(kg·K)",   {{1e3,    0.0}, UnitCategory::HeatCapacity}},
-        {"cal/(g·K)",   {{4184.0, 0.0}, UnitCategory::HeatCapacity}},
-
-        // ---- THERMAL CONDUCTIVITY (base: W/(m·K)) ----
-        {"W/(m·K)",     {{1.0,     0.0}, UnitCategory::ThermalConductivity}},
-        {"mW/(m·K)",    {{1e-3,    0.0}, UnitCategory::ThermalConductivity}},
-        {"W/(cm·K)",    {{100.0,   0.0}, UnitCategory::ThermalConductivity}},
-
-        // ---- MOLAR MASS (base: kg/mol) ----
-        {"kg/mol",  {{1.0,   0.0}, UnitCategory::MolarMass}},
-        {"g/mol",   {{1e-3,  0.0}, UnitCategory::MolarMass}},
-        {"kg/kmol", {{1e-3,  0.0}, UnitCategory::MolarMass}},
-
-        // ---- SPECIFIC ENERGY (base: J/kg) ----
-        {"J/kg",        {{1.0,   0.0}, UnitCategory::SpecificEnergy}},
-        {"kJ/kg",       {{1e3,   0.0}, UnitCategory::SpecificEnergy}},
-        {"MJ/kg",       {{1e6,   0.0}, UnitCategory::SpecificEnergy}},
-        {"kWh/kg",      {{3.6e6, 0.0}, UnitCategory::SpecificEnergy}},
-        {"kWh/tonne",   {{3.6e3, 0.0}, UnitCategory::SpecificEnergy}},
-
-        // ---- DIFFUSIVITY (base: m²/s) ----
-        {"m^2/s",   {{1.0,   0.0}, UnitCategory::Diffusivity}},
-        {"m²/s",    {{1.0,   0.0}, UnitCategory::Diffusivity}},
-        {"cm^2/s",  {{1e-4,  0.0}, UnitCategory::Diffusivity}},
-        {"cm²/s",   {{1e-4,  0.0}, UnitCategory::Diffusivity}},
-        {"mm^2/s",  {{1e-6,  0.0}, UnitCategory::Diffusivity}},
-        {"mm²/s",   {{1e-6,  0.0}, UnitCategory::Diffusivity}},
-
-        // ---- AREA (base: m²) ----
-        {"m^2",     {{1.0,   0.0}, UnitCategory::Area}},
-        {"m²",      {{1.0,   0.0}, UnitCategory::Area}},
-        {"cm^2",    {{1e-4,  0.0}, UnitCategory::Area}},
-        {"cm²",     {{1e-4,  0.0}, UnitCategory::Area}},
-        {"mm^2",    {{1e-6,  0.0}, UnitCategory::Area}},
-        {"mm²",     {{1e-6,  0.0}, UnitCategory::Area}},
-
-        // ---- PRESSURE GRADIENT (base: Pa/m) ----
-        {"Pa/m",    {{1.0,      0.0}, UnitCategory::PressureGradient}},
-        {"kPa/m",   {{1e3,      0.0}, UnitCategory::PressureGradient}},
-        {"MPa/m",   {{1e6,      0.0}, UnitCategory::PressureGradient}},
-        {"bar/m",   {{1e5,      0.0}, UnitCategory::PressureGradient}},
-        {"atm/m",   {{101325.0, 0.0}, UnitCategory::PressureGradient}},
-
-        // ---- DIMENSIONLESS / MOLE FRACTION ----
-        // % and ppm are tagged as MoleFraction since that's their main use here;
-        // bare "-" stays Dimensionless. Empty key is unreachable via the regex
-        // but kept for direct lookup parity.
-        {"-",       {{1.0, 0.0},   UnitCategory::Dimensionless}},
-        {"",        {{1.0, 0.0},   UnitCategory::Dimensionless}},
-        {"mol/mol", {{1.0, 0.0},   UnitCategory::MoleFraction}},
-        {"%",       {{0.01, 0.0},  UnitCategory::MoleFraction}},
-        {"ppm",     {{1e-6, 0.0},  UnitCategory::MoleFraction}},
-    };
-    return kMap;
-}
-
 // ---------------------------------------------------------------------------
 // Unit expressions (ParseUnitExpression)
+//
+// The syntax is ours: the separators, exponent forms and the engineering
+// reading of '/' (everything after it, up to the next '/', is in the
+// denominator) are what decks and the front ends have always written. Each
+// unit symbol, its prefixes and the arithmetic come from the LLNL units
+// library (https://github.com/LLNL/units), parsed strictly so that a typo is
+// an error rather than some obscure unit. A few symbols mean something else
+// in process engineering than in LLNL's default reading and are overridden
+// (Overrides below): C, F and A are degrees Celsius / Fahrenheit and the
+// ångström, not coulomb, farad and ampere; ccm, SCCM, SCFM and Nm³ are the
+// usual gas-flow units, with standard conditions of 0 °C and 1 atm
+// (V_m = 22.414e-3 m³/mol).
 // ---------------------------------------------------------------------------
 
 namespace {
@@ -281,102 +48,57 @@ constexpr Dimension kInverseTime{0, 0, -1, 0, 0};
 constexpr Dimension kVolumetricFlow{3, 0, -1, 0, 0};
 constexpr Dimension kMolarFlow{0, 0, -1, 0, 1};
 
-Dimension Combine(const Dimension& a, const Dimension& b, int power) {
-    return {a.length + power * b.length, a.mass + power * b.mass, a.time + power * b.time,
-            a.temperature + power * b.temperature, a.amount + power * b.amount};
+constexpr double kStandardMolarVolume = 22.414e-3;  // m³/mol at 0 °C, 1 atm
+
+// Strict parsing of a single symbol: no splitting of unknown words into
+// smaller units, no commodities ("kg{CO2}"), locality ("US gal") or
+// "per"/"of" phrases.
+constexpr std::uint64_t kStrict = llnl::skip_partition_check | llnl::no_commodities |
+                                  llnl::no_locality_modifiers | llnl::no_of_operator |
+                                  llnl::no_per_operators | llnl::no_addition;
+
+const std::unordered_map<std::string, llnl::precise_unit>& Overrides() {
+    using namespace units;
+    static const std::unordered_map<std::string, precise_unit> kOverrides = {
+        {"C",    precise::degC},
+        {"F",    precise::degF},
+        {"A",    precise::distance::angstrom},
+        {"ccm",  precise::cm.pow(3) / precise::minute},
+        {"SCCM", precise_unit(1e-6 / kStandardMolarVolume / 60.0, precise::mol / precise::s)},
+        {"sccm", precise_unit(1e-6 / kStandardMolarVolume / 60.0, precise::mol / precise::s)},
+        {"SCFM", precise_unit(0.028316846592 / kStandardMolarVolume / 60.0, precise::mol / precise::s)},
+        {"ppm",  precise_unit(1e-6, precise::one)},
+    };
+    return kOverrides;
+}
+
+// The engine's five base dimensions; false for a unit outside them (current,
+// luminosity, currency, angles, equation units such as dB or pH).
+bool ToDimension(const llnl::precise_unit& u, Dimension& out) {
+    const auto b = u.base_units();
+    if (b.ampere() != 0 || b.candela() != 0 || b.currency() != 0 || b.radian() != 0 || b.is_equation() ||
+        b.is_per_unit())
+        return false;
+    out = {b.meter(), b.kg(), b.second(), b.kelvin(), b.mole()};
+    return true;
 }
 
 struct Atom {
-    double factor = 1.0;
-    double offset = 0.0;
-    Dimension dimension;
+    llnl::precise_unit unit = llnl::precise::one;
+    bool offset_unit = false;  // degC / degF: has an offset when it stands alone
 };
 
-// Units written as a whole word, never with a prefix.
-const std::unordered_map<std::string, Atom>& NamedAtoms() {
-    static const std::unordered_map<std::string, Atom> kAtoms = {
-        {"min",   {60.0, 0.0, kTime}},
-        {"h",     {3600.0, 0.0, kTime}},
-        {"hr",    {3600.0, 0.0, kTime}},
-        {"d",     {86400.0, 0.0, kTime}},
-        {"day",   {86400.0, 0.0, kTime}},
-        {"atm",   {101325.0, 0.0, kPressure}},
-        {"psi",   {6894.757293168, 0.0, kPressure}},
-        {"Torr",  {133.32236842105263, 0.0, kPressure}},
-        {"torr",  {133.32236842105263, 0.0, kPressure}},
-        {"degC",  {1.0, 273.15, kTemperature}},
-        {"\xC2\xB0" "C", {1.0, 273.15, kTemperature}},
-        {"C",     {1.0, 273.15, kTemperature}},
-        {"degF",  {5.0 / 9.0, 255.37222222222223, kTemperature}},
-        {"\xC2\xB0" "F", {5.0 / 9.0, 255.37222222222223, kTemperature}},
-        {"F",     {5.0 / 9.0, 255.37222222222223, kTemperature}},
-        {"degK",  {1.0, 0.0, kTemperature}},
-        {"in",    {0.0254, 0.0, kLength}},
-        {"ft",    {0.3048, 0.0, kLength}},
-        {"A",     {1e-10, 0.0, kLength}},
-        {"\xC3\x85", {1e-10, 0.0, kLength}},
-        {"lb",    {0.45359237, 0.0, kMass}},
-        {"t",     {1000.0, 0.0, kMass}},
-        {"tonne", {1000.0, 0.0, kMass}},
-        {"Btu",   {1055.06, 0.0, kEnergy}},
-        {"Wh",    {3600.0, 0.0, kEnergy}},
-        {"kWh",   {3.6e6, 0.0, kEnergy}},
-        {"mph",   {0.44704, 0.0, kVelocity}},
-        {"ccm",   {1e-6 / 60.0, 0.0, kVolumetricFlow}},
-        // Standard gas flows: 0 °C and 1 atm, V_m = 22.414e-3 m³/mol (as the dictionary).
-        {"SCCM",  {1e-6 / 22.414e-3 / 60.0, 0.0, kMolarFlow}},
-        {"SCFM",  {0.028316846592 / 22.414e-3 / 60.0, 0.0, kMolarFlow}},
-        {"%",     {0.01, 0.0, kNone}},
-        {"ppm",   {1e-6, 0.0, kNone}},
-    };
-    return kAtoms;
-}
-
-// SI (and SI-style) units that take a prefix: kPa, mmol, cm, kJ, mbar, mL...
-const std::unordered_map<std::string, Atom>& PrefixableAtoms() {
-    static const std::unordered_map<std::string, Atom> kAtoms = {
-        {"m",   {1.0, 0.0, kLength}},
-        {"g",   {1e-3, 0.0, kMass}},
-        {"s",   {1.0, 0.0, kTime}},
-        {"K",   {1.0, 0.0, kTemperature}},
-        {"mol", {1.0, 0.0, kAmount}},
-        {"Pa",  {1.0, 0.0, kPressure}},
-        {"bar", {1e5, 0.0, kPressure}},
-        {"J",   {1.0, 0.0, kEnergy}},
-        {"cal", {4.184, 0.0, kEnergy}},
-        {"W",   {1.0, 0.0, kPower}},
-        {"N",   {1.0, 0.0, kForce}},
-        {"L",   {1e-3, 0.0, kVolume}},
-        {"l",   {1e-3, 0.0, kVolume}},
-        {"Hz",  {1.0, 0.0, kInverseTime}},
-    };
-    return kAtoms;
-}
-
 bool LookupAtom(const std::string& name, Atom& out) {
-    if (auto it = NamedAtoms().find(name); it != NamedAtoms().end()) {
-        out = it->second;
-        return true;
+    if (auto it = Overrides().find(name); it != Overrides().end()) {
+        out.unit = it->second;
+    } else {
+        out.unit = llnl::unit_from_string(name, kStrict);
+        if (!llnl::is_valid(out.unit)) return false;
     }
-    const auto& prefixable = PrefixableAtoms();
-    if (auto it = prefixable.find(name); it != prefixable.end()) {
-        out = it->second;
-        return true;
-    }
-    static const std::pair<const char*, double> kPrefixes[] = {
-        {"G", 1e9}, {"M", 1e6}, {"k", 1e3}, {"h", 1e2}, {"d", 1e-1}, {"c", 1e-2},
-        {"m", 1e-3}, {"u", 1e-6}, {"\xC2\xB5", 1e-6}, {"\xCE\xBC", 1e-6}, {"n", 1e-9},
-    };
-    for (const auto& [prefix, scale] : kPrefixes) {
-        const std::string p = prefix;
-        if (name.size() <= p.size() || name.compare(0, p.size(), p) != 0) continue;
-        if (auto it = prefixable.find(name.substr(p.size())); it != prefixable.end()) {
-            out = it->second;
-            out.factor *= scale;
-            return true;
-        }
-    }
-    return false;
+    Dimension d;
+    if (!ToDimension(out.unit, d)) return false;
+    out.offset_unit = out.unit.base_units().has_e_flag() && d == kTemperature;
+    return true;
 }
 
 std::string Trim(const std::string& s) {
@@ -391,7 +113,7 @@ public:
     explicit UnitExpressionParser(const std::string& text) : s_(text) {}
 
     bool Parse(UnitInfo& out, std::string& error) {
-        Atom result;
+        llnl::precise_unit result;
         if (!Quotient(result)) {
             error = error_;
             return false;
@@ -401,10 +123,20 @@ public:
             error = "unexpected '" + s_.substr(i_) + "'";
             return false;
         }
-        out.factor = result.factor;
-        out.dimension = result.dimension;
-        // An offset (°C, °F) is absolute only when the unit is that atom alone.
-        out.offset = (atoms_ == 1 && lone_offset_) ? offset_ : 0.0;
+        if (!ToDimension(result, out.dimension)) {
+            error = "'" + s_ + "' is not a unit of length, mass, time, temperature or amount of substance";
+            return false;
+        }
+        // A temperature with an offset (°C, °F) is absolute only when the unit
+        // is that atom alone; inside a compound unit it is a difference, which
+        // the multiplier alone describes.
+        if (atoms_ == 1 && lone_offset_) {
+            out.offset = llnl::convert(0.0, result, llnl::precise::K);
+            out.factor = llnl::convert(1.0, result, llnl::precise::K) - out.offset;
+        } else {
+            out.offset = 0.0;
+            out.factor = result.multiplier();
+        }
         return true;
     }
 
@@ -414,7 +146,6 @@ private:
     std::string error_;
     int atoms_ = 0;
     bool lone_offset_ = false;
-    double offset_ = 0.0;
 
     void SkipSpaces() {
         while (i_ < s_.size() && s_[i_] == ' ') ++i_;
@@ -440,23 +171,22 @@ private:
     }
 
     // quotient := product ('/' product)*
-    bool Quotient(Atom& out) {
+    bool Quotient(llnl::precise_unit& out) {
         if (!Product(out)) return false;
         for (;;) {
             SkipSpaces();
             if (i_ >= s_.size() || s_[i_] != '/') return true;
             ++i_;
-            Atom denominator;
+            llnl::precise_unit denominator;
             if (!Product(denominator)) return false;
-            out.factor /= denominator.factor;
-            out.dimension = Combine(out.dimension, denominator.dimension, -1);
+            out = out / denominator;
         }
     }
 
     // product := factor (separator factor)*, separator = '*' '.' '·' '-' or spaces.
     // Only the first factor of a product may be a number ("1/s"), so "s-1" is
     // rejected rather than read as s·1.
-    bool Product(Atom& out) {
+    bool Product(llnl::precise_unit& out) {
         SkipSpaces();
         if (!Factor(out, /*allow_number=*/true)) return false;
         for (;;) {
@@ -478,10 +208,9 @@ private:
                 i_ = before;  // the product ends here ('/', ')' or the end)
                 return true;
             }
-            Atom next;
+            llnl::precise_unit next;
             if (!Factor(next, /*allow_number=*/false)) return false;
-            out.factor *= next.factor;
-            out.dimension = Combine(out.dimension, next.dimension, 1);
+            out = out * next;
         }
     }
 
@@ -514,7 +243,7 @@ private:
     }
 
     // factor := (atom | number | '(' quotient ')') exponent?
-    bool Factor(Atom& out, bool allow_number) {
+    bool Factor(llnl::precise_unit& out, bool allow_number) {
         if (i_ >= s_.size()) return Fail("missing unit at the end of '" + s_ + "'");
         const unsigned char c = static_cast<unsigned char>(s_[i_]);
         if (c == '(') {
@@ -531,7 +260,7 @@ private:
             if (end == begin || !(value > 0.0) || !std::isfinite(value))
                 return Fail("bad number in '" + s_ + "'");
             i_ += static_cast<size_t>(end - begin);
-            out = Atom{value, 0.0, kNone};
+            out = llnl::precise_unit(value, llnl::precise::one);
             atoms_ += 2;  // "1 degC" is not an absolute temperature unit either
             return true;  // no exponent on a number
         } else {
@@ -543,45 +272,61 @@ private:
             if (!Exponent(power)) return false;
             if (name == "Nm" && power == 3) {
                 // Normal cubic metre: the gas amount in 1 m³ at 0 °C, 1 atm.
-                out = Atom{1.0 / 22.414e-3, 0.0, kAmount};
+                out = llnl::precise_unit(1.0 / kStandardMolarVolume, llnl::precise::mol);
                 ++atoms_;
                 return true;
             }
             Atom atom;
             if (!LookupAtom(name, atom)) return Fail("unknown unit '" + name + "'");
             ++atoms_;
-            lone_offset_ = atom.offset != 0.0 && power == 1;
-            offset_ = atom.offset;
-            out.factor = std::pow(atom.factor, power);
-            out.dimension = Combine(kNone, atom.dimension, power);
+            lone_offset_ = atom.offset_unit && power == 1;
+            out = power == 1 ? atom.unit : atom.unit.pow(power);
             return true;
         }
         int power = 1;
         if (!Exponent(power)) return false;
-        out.factor = std::pow(out.factor, power);
-        out.dimension = Combine(kNone, out.dimension, power);
+        if (power != 1) out = out.pow(power);
         return true;
     }
 };
 
 
-// The UnitCategory of a dimension, for units found by ParseUnitExpression
-// rather than the dictionary: the lowest-numbered non-Custom category with a
-// dictionary symbol of that dimension (Dimensionless for no dimension).
-UnitCategory CategoryOf(const Dimension& dimension) {
-    if (dimension.IsDimensionless()) return UnitCategory::Dimensionless;
-    static const std::vector<std::pair<Dimension, UnitCategory>> kCategories = [] {
-        std::vector<std::pair<Dimension, UnitCategory>> v;
-        for (const auto& [symbol, entry] : UnitMap()) {
-            UnitInfo info;
-            if (entry.category == UnitCategory::Custom || !ParseUnitExpression(symbol, info)) continue;
-            v.emplace_back(info.dimension, entry.category);
-        }
-        std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) {
-            return static_cast<int>(a.second) < static_cast<int>(b.second);
-        });
-        return v;
-    }();
+// The UnitCategory of a unit: by its dimension, with %, ppm and mol/mol as
+// mole fractions. Dimensions no category describes (power, inverse
+// pressure...) are Custom.
+UnitCategory CategoryOf(const std::string& symbol, const Dimension& dimension) {
+    if (dimension.IsDimensionless()) {
+        const std::string t = Trim(symbol);
+        return (t == "%" || t == "ppm" || t == "mol/mol") ? UnitCategory::MoleFraction : UnitCategory::Dimensionless;
+    }
+    static const std::pair<Dimension, UnitCategory> kCategories[] = {
+        {kTime, UnitCategory::Time},
+        {kLength, UnitCategory::Length},
+        {kTemperature, UnitCategory::Temperature},
+        {kPressure, UnitCategory::Pressure},
+        {kEnergy, UnitCategory::Energy},
+        {{2, 1, -2, 0, -1}, UnitCategory::SpecificMolarEnergy},
+        {kInverseTime, UnitCategory::InverseTime},
+        {kVelocity, UnitCategory::Velocity},
+        {kVolumetricFlow, UnitCategory::VolumetricFlowRate},
+        {kMolarFlow, UnitCategory::MolarFlowRate},
+        {{0, 1, -1, 0, 0}, UnitCategory::MassFlowRate},
+        {{-1, 1, -1, 0, 0}, UnitCategory::Viscosity},
+        {{-3, 1, 0, 0, 0}, UnitCategory::Density},
+        {{-3, 0, 0, 0, 1}, UnitCategory::MolarConcentration},
+        {{2, 0, -2, -1, 0}, UnitCategory::HeatCapacity},
+        {{0, 1, 0, 0, -1}, UnitCategory::MolarMass},
+        {{1, 1, -3, -1, 0}, UnitCategory::ThermalConductivity},
+        {{0, 1, -3, -1, 0}, UnitCategory::HeatTransferCoefficient},
+        {{-2, 1, -2, 0, 0}, UnitCategory::PressureGradient},
+        {{0, -1, 0, 0, 1}, UnitCategory::AdsorbedConcentration},
+        {kMass, UnitCategory::Mass},
+        {kVolume, UnitCategory::Volume},
+        {kAmount, UnitCategory::MolarAmount},
+        {{2, 0, 0, 0, 0}, UnitCategory::Area},
+        {{2, 0, -1, 0, 0}, UnitCategory::Diffusivity},
+        {{2, 0, -2, 0, 0}, UnitCategory::SpecificEnergy},
+    };
     for (const auto& [dim, category] : kCategories)
         if (dim == dimension) return category;
     return UnitCategory::Custom;
@@ -595,10 +340,26 @@ bool ParseUnitExpression(const std::string& text, UnitInfo& out, std::string* er
         out = UnitInfo{};
         return true;
     }
+    // Expressions re-parse their unit suffix on every evaluation; cache the
+    // result per thread (the set of unit strings in a run is small).
+    thread_local std::unordered_map<std::string, std::pair<bool, UnitInfo>> cache;
+    thread_local std::unordered_map<std::string, std::string> errors;
+    if (auto it = cache.find(t); it != cache.end()) {
+        if (!it->second.first && error) *error = errors[t];
+        if (it->second.first) out = it->second.second;
+        return it->second.first;
+    }
     UnitExpressionParser parser(t);
     std::string why;
     UnitInfo parsed;
-    if (!parser.Parse(parsed, why)) {
+    const bool ok = parser.Parse(parsed, why);
+    if (cache.size() > 4096) {
+        cache.clear();
+        errors.clear();
+    }
+    cache.emplace(t, std::make_pair(ok, parsed));
+    if (!ok) {
+        errors[t] = why;
         if (error) *error = why;
         return false;
     }
@@ -706,35 +467,18 @@ bool ParseUnitSuffix(const std::string& expr,
     }
 
     const std::string symbol = m[1].str();
-    const auto& map = UnitMap();
-    auto it = map.find(symbol);
-    UnitXform xform;
-    UnitCategory category = UnitCategory::Custom;
-    if (it != map.end()) {
-        xform = it->second.xform;
-        category = it->second.category;
-    } else {
-        UnitInfo info;
-        if (!ParseUnitExpression(symbol, info)) {
-            return false;  // unknown symbol — do not apply conversion
-        }
-        xform = {info.factor, info.offset};
-        category = CategoryOf(info.dimension);
+    UnitInfo info;
+    if (!ParseUnitExpression(symbol, info)) {
+        return false;  // unknown symbol — do not apply conversion
     }
+    const UnitXform xform{info.factor, info.offset};
+    const UnitCategory category = CategoryOf(symbol, info.dimension);
 
     // math_out is everything before the [symbol] bracket
     math_out  = expr.substr(0, static_cast<size_t>(m.position(0)));
     xform_out = xform;
     if (category_out) *category_out = category;
     return true;
-}
-
-const char* LookupUnitSymbol(const std::string& key) {
-    const auto& map = UnitMap();
-    auto it = map.find(key);
-    // Return a pointer into the static map's stored key (program lifetime),
-    // not into the caller-supplied argument (which may be a temporary).
-    return (it != map.end()) ? it->first.c_str() : nullptr;
 }
 
 } // namespace adsim

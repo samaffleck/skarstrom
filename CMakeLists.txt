@@ -145,7 +145,7 @@ endif()
 # Third-party dependencies (git submodules in external/, plus the vendored
 # external/eigen-3.4.0)
 # ============================================================
-foreach(_adsim_dep sundials CoolProp cereal muparser dlib)
+foreach(_adsim_dep sundials CoolProp cereal muparser dlib units)
     if(NOT EXISTS "${ADSIM_SOURCE_DIR}/external/${_adsim_dep}/CMakeLists.txt"
        AND NOT EXISTS "${ADSIM_SOURCE_DIR}/external/${_adsim_dep}/include")
         message(FATAL_ERROR

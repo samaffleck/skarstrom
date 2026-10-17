@@ -524,7 +524,37 @@ TEST(ConvertUnit, ConvertsWithinADimensionAndRefusesAcross) {
     EXPECT_NEAR(ConvertUnit(298.15, "K", "degC"), 25.0, 1e-12);
     EXPECT_DOUBLE_EQ(ConvertUnit(1.0, "1/kPa", "1/bar"), 100.0);
     EXPECT_THROW(ConvertUnit(1.0, "bar", "s"), std::invalid_argument);
-    EXPECT_THROW(ConvertUnit(1.0, "furlong", "m"), std::invalid_argument);
+    EXPECT_THROW(ConvertUnit(1.0, "flurgle", "m"), std::invalid_argument);
+}
+
+// Unit symbols come from the LLNL units library: far more units than a
+// hand-kept table, read strictly, with process-engineering overrides.
+TEST(ParseUnitExpression, UsesTheLlnlUnitsLibrary) {
+    EXPECT_NEAR(ConvertUnit(1.0, "furlong", "m"), 201.17, 0.01);
+    EXPECT_NEAR(ConvertUnit(1.0, "inHg", "Pa"), 3386.39, 0.01);
+    EXPECT_NEAR(ConvertUnit(1.0, "BTU/(lb*degF)", "J/(kg*K)"), 4186.8, 0.5);
+    EXPECT_DOUBLE_EQ(ConvertUnit(1.0, "GJ/t", "kJ/kg"), 1e3);
+    // C, F and A are degrees and the ångström here, not coulomb, farad, ampere.
+    EXPECT_DOUBLE_EQ(Unit("C").offset, 273.15);
+    EXPECT_EQ(DimensionName(Unit("F").dimension), "temperature");
+    EXPECT_DOUBLE_EQ(Unit("A").factor, 1e-10);
+    EXPECT_NEAR(ConvertUnit(60.0, "ccm", "m3/s"), 1e-6, 1e-18);
+    // Units outside length, mass, time, temperature and amount are refused.
+    UnitInfo u;
+    for (const char* other : {"V", "ohm", "cd", "rad", "dB", "USD"})
+        EXPECT_FALSE(ParseUnitExpression(other, u)) << other;
+}
+
+TEST(ParseUnitSuffix, CategoryFollowsTheDimension) {
+    std::string math; UnitXform xf; UnitCategory cat = UnitCategory::Custom;
+    ASSERT_TRUE(ParseUnitSuffix("10 [W/(m^2*K)]", math, xf, &cat));
+    EXPECT_EQ(cat, UnitCategory::HeatTransferCoefficient);
+    ASSERT_TRUE(ParseUnitSuffix("1.8e-5 [Pa*s]", math, xf, &cat));
+    EXPECT_EQ(cat, UnitCategory::Viscosity);
+    ASSERT_TRUE(ParseUnitSuffix("15 [%]", math, xf, &cat));
+    EXPECT_EQ(cat, UnitCategory::MoleFraction);
+    ASSERT_TRUE(ParseUnitSuffix("3 [1/bar]", math, xf, &cat));
+    EXPECT_EQ(cat, UnitCategory::Custom);
 }
 
 TEST(SplitQuantity, ANumberFollowedByAUnit) {

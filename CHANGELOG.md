@@ -8,6 +8,19 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed (units)
+- Unit strings are parsed and converted with the LLNL units library
+  (BSD-3-Clause, new submodule `external/units`, compiled into the engine)
+  instead of a hand-kept table. Any unit LLNL units knows works, with SI
+  prefixes, and typos are still errors (strict parsing). The engineering
+  conventions are kept: everything after `/` is in the denominator
+  (`W/m2-K` = W/(m²·K)), a lone `degC` is absolute, `C`, `F` and `A` are
+  °C, °F and the ångström, and `ccm`, `SCCM`, `SCFM` and `Nm3` are gas-flow
+  units at 0 °C and 1 atm. Only units of length, mass, time, temperature and
+  amount of substance are accepted. `LookupUnitSymbol` is removed.
+- An inline `[unit]` now gets the unit category of its dimension: heat
+  transfer coefficients and viscosities were Custom before.
+
 ### Added (KPIs)
 - A **recycle** role in the KPI configuration (`Recycle_Endpoints` in the
   deck, `recycle=` in `sim.kpi.track` and `adsim::build::SetKPI`): inlets that

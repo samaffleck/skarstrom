@@ -25,17 +25,13 @@ struct UnitXform {
 // to the conversion from that unit to SI base, optionally writes the unit's
 // dimensional category to `category_out`, and returns true.
 // If not found or symbol is unknown: leaves outputs unchanged, returns false.
-// A symbol missing from the dictionary is tried as a unit expression
-// (ParseUnitExpression), so "[W/(m^2*K)]" and "[kJ/(kg-K)]" work too; those
-// get UnitCategory::Custom unless the dimension matches a category's.
+// The symbol is any unit expression (ParseUnitExpression), so "[W/(m^2*K)]"
+// and "[kJ/(kg-K)]" work too. The category follows from the dimension
+// (Custom when no category has it); %, ppm and mol/mol are MoleFraction.
 bool ParseUnitSuffix(const std::string& expr,
                      std::string&       math_out,
                      UnitXform&         xform_out,
                      UnitCategory*      category_out = nullptr);
-
-// Returns the display symbol for a unit given its string key (used in error messages).
-// Returns nullptr if the symbol is not in the dictionary.
-const char* LookupUnitSymbol(const std::string& key);
 
 // Physical dimension as exponents of the SI base quantities the engine uses:
 // length, mass, time, temperature and amount of substance.
@@ -59,8 +55,11 @@ struct UnitInfo {
 
 // Parses a unit expression such as "kJ/mol", "W/(m^2*K)", "W/m2-K",
 // "J/(kg·K)", "kg m^-3", "1/bar", "mmol/g" or "Nm3/h".
-//   * Atoms: SI symbols with an optional prefix (G M k h d c m u µ n), and the
-//     named units of the ParseUnitSuffix dictionary (bar, atm, min, h, degC...).
+//   * Atoms: any unit symbol the LLNL units library knows, with SI prefixes
+//     (kPa, mbar, µm, min, h, atm, psi, degC, kWh...), read strictly so a typo
+//     is an error. C, F and A are °C, °F and the ångström; ccm, SCCM, SCFM and
+//     Nm3 are gas-flow units at 0 °C and 1 atm. Only units of length, mass,
+//     time, temperature and amount of substance are accepted.
 //   * Exponents: m2, m^2, m**2, m², s^-1.
 //   * Multiplication: '*', '.', '·', '-' or a space. Division: everything after
 //     a '/' up to the next '/' is in the denominator, the engineering reading

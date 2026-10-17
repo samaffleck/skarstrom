@@ -63,6 +63,22 @@ target_sources(adsim PRIVATE ${ADS_SRC})
 # Enable precompiled headers
 target_precompile_headers(adsim PRIVATE src/pch.h)
 
+# LLNL units (BSD-3-Clause, external/units): parses and converts the unit
+# strings in decks and the registry (src/math/unit_parser.cpp). Its two
+# translation units are compiled into adsim, without the X12/R20 unit-code
+# tables. (Its UNITS_NAMESPACE option does not compile in v0.13.1, so the
+# symbols stay in namespace units.)
+set(_adsim_units_src
+    ${ADSIM_SOURCE_DIR}/external/units/units/units.cpp
+    ${ADSIM_SOURCE_DIR}/external/units/units/commodities.cpp)
+target_sources(adsim PRIVATE ${_adsim_units_src})
+# Its conversion tables use u8"" literals as const char*, the pre-C++20 type.
+set_source_files_properties(${_adsim_units_src} PROPERTIES
+    SKIP_PRECOMPILE_HEADERS ON
+    COMPILE_OPTIONS "$<IF:$<CXX_COMPILER_ID:MSVC>,/Zc:char8_t-,-fno-char8_t>")
+target_include_directories(adsim PRIVATE ${ADSIM_SOURCE_DIR}/external/units)
+target_compile_definitions(adsim PRIVATE UNITS_DISABLE_EXTRA_UNIT_STANDARDS=1)
+
 # Link dependencies. CoolProp has no CMake export of its own (and its include
 # paths point into the source tree), so the installed package re-creates it as
 # the imported target Adsim::CoolProp (see cmake/AdsimConfig.cmake.in).
@@ -165,6 +181,8 @@ if(ADSIM_INSTALL)
     install(FILES ${ADSIM_SOURCE_DIR}/external/CoolProp/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/CoolProp)
     install(FILES ${ADSIM_SOURCE_DIR}/external/CoolProp/externals/fmtlib/LICENSE.rst DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/fmt)
     install(FILES ${ADSIM_SOURCE_DIR}/external/dlib/LICENSE.txt DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/dlib)
+    install(FILES ${ADSIM_SOURCE_DIR}/external/units/LICENSE ${ADSIM_SOURCE_DIR}/external/units/NOTICE
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/units)
 
     install(EXPORT AdsimTargets
         FILE AdsimTargets.cmake
