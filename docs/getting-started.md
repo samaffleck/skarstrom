@@ -50,6 +50,7 @@ skarstrom params Perez2019_A.json                           # the parameters you
 
 ```python
 import skarstrom
+from skarstrom import ureg as u
 
 sim = skarstrom.examples.Ward2022_Q100ccm.load()
 result = sim.run()
@@ -59,7 +60,7 @@ y = sim.series("mole_fraction", "CarbonDioxide", location="top")   # outlet brea
 print(y.time[-1], y.values[-1])
 
 sim = skarstrom.examples.Perez2019_A.load()
-sim.steps["Feed"].time = "2 min"        # a bare number would be seconds (SI)
+sim.steps["Feed"].time = 2 * u.min        # a bare number would be seconds (SI)
 result = sim.run()                      # to cyclic steady state
 for k in sim.kpis(cycle=-1):
     print(k.component, f"purity {k.purity:.3f}", f"recovery {k.recovery:.3f}")

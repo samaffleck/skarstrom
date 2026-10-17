@@ -29,14 +29,15 @@ import numpy as np
 
 import _common as c
 import skarstrom as sk
+from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 
 # The two experiments differ only in the column pressure (Table 2); both run at
 # 25 C with the same 20 cm3/s feed (at column conditions) for 4100 s.
 EXPERIMENTS = {
-    "A1": dict(pressure="1 bar", title="Streb 2021 - Experiment A1",
+    "A1": dict(pressure=1 * u.bar, title="Streb 2021 - Experiment A1",
                description="Binary CO2/CH4 breakthrough on zeolite 13X at 1 bar (Streb & Mazzotti 2021, "
                            "experiment A1); the bed is initially full of helium."),
-    "A3": dict(pressure="10 bar", title="Streb 2021 - Experiment A3",
+    "A3": dict(pressure=10 * u.bar, title="Streb 2021 - Experiment A3",
                description="Binary CO2/CH4 breakthrough on zeolite 13X at 10 bar, the reference experiment "
                            "(Streb & Mazzotti 2021, experiment A3); the bed is initially full of helium."),
 }
@@ -60,56 +61,56 @@ def build(case: str) -> sk.Simulation:
     sim.fluid.adsorbed_heat_capacity_mode = "constant"
     sim.fluid.heat_of_adsorption_convention = "isosteric"
     for component in ("CarbonDioxide", "Methane", "Helium"):
-        sim.fluid.adsorbed_heat_capacity[component] = "0 J/(mol*K)"
+        sim.fluid.adsorbed_heat_capacity[component] = 0 * u.J / (u.mol * u.K)
 
     # ---- adsorbent: zeolite 13X, extended-Sips competitive isotherm (Table 3) ---------
-    zeolite = sim.add_adsorbent("13X", solid_density=f"{PARTICLE_DENSITY} kg/m3",
-                                heat_capacity="1100 J/(kg*K)", thermal_conductivity="0.15 W/(m*K)",
+    zeolite = sim.add_adsorbent("13X", solid_density=PARTICLE_DENSITY * u.kg / u.m**3,
+                                heat_capacity=1100 * u.J / (u.kg * u.K), thermal_conductivity=0.15 * u.W / (u.m * u.K),
                                 particle_void_fraction=PARTICLE_VOID_FRACTION)
     # Extended Sips with temperature-dependent capacity and exponent (Table 3).
     zeolite.set_isotherm("extended_sips_2", {
-        "CarbonDioxide": {"A1": "7.268 mol/kg", "A2": -0.6168, "B1": "1.129e-4 1/bar", "B2": "28.389 kJ/mol",
-                          "C1": 0.425, "C2": 0.7238, "T_ref": "298 K"},
-        "Methane":       {"A1": "4.473 mol/kg", "A2": -0.6569, "B1": "3.605e-4 1/bar", "B2": "15.561 kJ/mol",
-                          "C1": 1.073, "C2": 0.0, "T_ref": "298 K"},
+        "CarbonDioxide": {"A1": 7.268 * u.mol / u.kg, "A2": -0.6168, "B1": 1.129e-4 / u.bar, "B2": 28.389 * u.kJ / u.mol,
+                          "C1": 0.425, "C2": 0.7238, "T_ref": 298 * u.K},
+        "Methane":       {"A1": 4.473 * u.mol / u.kg, "A2": -0.6569, "B1": 3.605e-4 / u.bar, "B2": 15.561 * u.kJ / u.mol,
+                          "C1": 1.073, "C2": 0.0, "T_ref": 298 * u.K},
     }, components=["CarbonDioxide", "Methane"])
     zeolite.set_isotherm("inert", components=["Helium"])
     # LDF coefficients estimated on A3 (Table 4).
-    zeolite.set_rate_model("CarbonDioxide", "ldf", "constant", k="0.06 1/s")
-    zeolite.set_rate_model("Methane", "ldf", "constant", k="0.2 1/s")
-    zeolite.set_rate_model("Helium", "ldf", "constant", k="0.5 1/s")
+    zeolite.set_rate_model("CarbonDioxide", "ldf", "constant", k=0.06 / u.s)
+    zeolite.set_rate_model("Methane", "ldf", "constant", k=0.2 / u.s)
+    zeolite.set_rate_model("Helium", "ldf", "constant", k=0.5 / u.s)
     # Loading-averaged isosteric heats (Sect. 4.1).
-    zeolite.heat_of_adsorption["CarbonDioxide"] = "36.3 kJ/mol"
-    zeolite.heat_of_adsorption["Methane"] = "18.8 kJ/mol"
-    zeolite.heat_of_adsorption["Helium"] = "0 kJ/mol"
+    zeolite.heat_of_adsorption["CarbonDioxide"] = 36.3 * u.kJ / u.mol
+    zeolite.heat_of_adsorption["Methane"] = 18.8 * u.kJ / u.mol
+    zeolite.heat_of_adsorption["Helium"] = 0 * u.kJ / u.mol
 
     # ---- column: 1.2 m x 2.5 cm, thermostatted at 25 C --------------------------------
-    sim.bed.set_shape("cylinder", diameter="2.5 cm")
-    sim.bed.ambient_temperature = "298 K"
+    sim.bed.set_shape("cylinder", diameter=2.5 * u.cm)
+    sim.bed.ambient_temperature = 298 * u.K
     sim.bed.set_thermal_equilibrium("lte")
-    sim.bed.set_particle_heat_transfer("constant", particle_htc="100 W/(m^2*K)")
+    sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
     for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
         void.enabled = False
-        void.volume = "1e-4 m3"
-        void.resistance_coefficient = "0 Pa*s/m"
+        void.volume = 1e-4 * u.m**3
+        void.resistance_coefficient = 0 * u.Pa * u.s / u.m
     # The paper does not model wall conduction, so the wall conductivity is 0.
-    sim.wall.set_material("ss316l", density="8000 kg/m3", heat_capacity="500 J/(kg*K)",
-                          thermal_conductivity="0 W/(m*K)")
-    sim.wall.thickness = "2.5 mm"
+    sim.wall.set_material("ss316l", density=8000 * u.kg / u.m**3, heat_capacity=500 * u.J / (u.kg * u.K),
+                          thermal_conductivity=0 * u.W / (u.m * u.K))
+    sim.wall.thickness = 2.5 * u.mm
     sim.wall.set_boundary("zero_flux")
 
     layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman",
-                          length="1.2 m", cells=60, bed_void_fraction=BED_VOID_FRACTION, particle_diameter="1.8 mm")
-    layer.set_dispersion("constant", dispersion_coefficient="0 m2/s")         # no axial dispersion
-    layer.set_heat_dispersion("constant", heat_dispersion_coefficient="0 W/(m*K)")
+                          length=1.2 * u.m, cells=60, bed_void_fraction=BED_VOID_FRACTION, particle_diameter=1.8 * u.mm)
+    layer.set_dispersion("constant", dispersion_coefficient=0 * u.m**2 / u.s)         # no axial dispersion
+    layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
     layer.set_internal_heat_transfer("dixon")                                  # Dixon (1996) correlation
-    layer.set_external_heat_transfer("constant", external_htc="220 W/(m^2*K)")
+    layer.set_external_heat_transfer("constant", external_htc=220 * u.W / (u.m**2 * u.K))
 
     # ---- initial state: the column full of helium at the experiment's pressure -----------
     sim.initial_conditions.pressure = exp["pressure"]
-    sim.initial_conditions.temperature = "298 K"
-    sim.initial_conditions.wall_temperature = "298 K"
-    sim.initial_conditions.velocity = "0 m/s"
+    sim.initial_conditions.temperature = 298 * u.K
+    sim.initial_conditions.wall_temperature = 298 * u.K
+    sim.initial_conditions.velocity = 0 * u.m / u.s
     sim.initial_conditions.y["Helium"] = 1.0
     sim.initial_conditions.y["Methane"] = 0.0
     sim.initial_conditions.y["CarbonDioxide"] = 0.0
@@ -117,18 +118,18 @@ def build(case: str) -> sk.Simulation:
     # ---- one feed step: 50:50 CO2/CH4 breakthrough ---------------------------------------
     sim.cycle.number_of_cycles = 1
     sim.cycle.step_time_mode = "time"
-    feed = sim.add_step("Feed", time="4100 s")
+    feed = sim.add_step("Feed", time=4100 * u.s)
     feed.bottom.set_streams("inlet", [
-        sk.Stream("Binary Feed", flow=sk.volumetric_flow("20 cm^3/s"),
-                  y={"Helium": 0.0, "Methane": 0.5, "CarbonDioxide": 0.5}, temperature="298 K"),
+        sk.Stream("Binary Feed", flow=sk.volumetric_flow(20 * u.cm**3 / u.s),
+                  y={"Helium": 0.0, "Methane": 0.5, "CarbonDioxide": 0.5}, temperature=298 * u.K),
     ])
     feed.top.set_pressure("outlet", exp["pressure"], y={"CarbonDioxide": 0.0, "Methane": 0.0, "Helium": 1.0},
-                          temperature="293 K")
+                          temperature=293 * u.K)
 
     # ---- solver (SUNDIALS IDA); a single step, so no cyclic-steady-state check --------------
-    sim.settings.init_step = "1e-10 s"
-    sim.settings.min_step = "1e-15 s"
-    sim.settings.max_step = "0 s"                 # 0: no limit on the integrator step
+    sim.settings.init_step = 1e-10 * u.s
+    sim.settings.min_step = 1e-15 * u.s
+    sim.settings.max_step = 0 * u.s                 # 0: no limit on the integrator step
     sim.settings.reltol = 1e-6
     sim.settings.nonlin_conv_coef = 0.1
     sim.settings.max_order = 5
@@ -148,7 +149,7 @@ def build(case: str) -> sk.Simulation:
     sim.css.mass_balance_tolerance = 0.005
     sim.energy_balance.energy_balance_mode = "non_isothermal"
     sim.energy_balance.isothermal_use_initial_temperature = True
-    sim.energy_balance.isothermal_temperature = "298.15 K"
+    sim.energy_balance.isothermal_temperature = 298.15 * u.K
     return sim
 
 

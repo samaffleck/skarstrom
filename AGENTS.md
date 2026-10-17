@@ -44,7 +44,8 @@ result.status, result.ok, result.css_cycle, result.message
 The deck's parts are typed objects over the parameter registry (`python/src/skarstrom/model.py`):
 
 ```python
-sim.steps["Feed"].time = "2 min"             # steps by name or position; .by_id(n) by deck ID
+from skarstrom import ureg as u
+sim.steps["Feed"].time = 2 * u.min             # steps by name or position; .by_id(n) by deck ID
 sim.steps[0].bottom.temperature = 298.15     # step end -> its stream/boundary (end[name|i] if several)
 sim.steps["Feed"].bottom.y["CO2"] = 0.15     # components: CoolProp names or formulas
 sim.layers[0].length; sim.adsorbents["13X"].isotherm["CO2"].b1; sim.adsorbents[0].kinetics["CO2"]
@@ -53,10 +54,11 @@ sim.energy_balance; sim.info
 node.fields; node.get(name, unit="min"); node.set(name, 2, unit="min"); node.path(name); node.parameters()
 ```
 
-Units: a bare number is SI (the unit is in each field's docstring and `Parameter.unit`); strings carry
-units (`"2 min"`, `"25 degC"`, `"1.5 [bar]"`, `"35 kJ/mol"`), as do pint Quantities. The dimension is
-checked (`"2 bar"` for a time raises ValueError). `Simulation(deck, require_units=True)` rejects bare
-numbers for dimensional fields. Misspelt or absent fields raise AttributeError (never create attributes).
+Units: a bare number is SI (the unit is in each field's docstring and `Parameter.unit`). Give another
+unit with a pint Quantity (`2 * u.min`, `u.Quantity(25, "degC")`; `from skarstrom import ureg as u`) or
+`node.set(name, 2, "min")`. Text is an expression or a deck-syntax quantity (`"2 [min]"`), for decks and
+the CLI; unit text is parsed by the engine with LLNL units. The dimension is checked (`2 * u.bar` for a
+time raises ValueError). `Simulation(deck, require_units=True)` rejects bare numbers for dimensional fields. Misspelt or absent fields raise AttributeError (never create attributes).
 `skarstrom.examples.<Name>` lists the bundled decks (`.load()`, `.path`, `.title`, `.copy_to()`).
 
 ### Parameters: paths (the registry)
@@ -65,10 +67,11 @@ Every settable value also has a stable **path** (ID-based, survives renames) and
 use paths for sweeps, optimisers and the CLI:
 
 ```python
+from skarstrom import ureg as u
 for p in sim.parameters(tunable_only=True, search="time"):
     print(p.path, p.alias, p.value, p.unit, p.kind, p.bounds)
 sim["step[1].time"] = 45.0               # number -> value (SI units)
-sim["step[1].time"] = "2 min"            # quantity -> converted, dimension-checked
+sim["step[1].time"] = 2 * u.min            # quantity -> converted, dimension-checked
 sim["step[Feed].time"] = "2 * t_feed"    # string -> expression (may use variables and a trailing [unit])
 sim.set("step[1].time", 2, unit="min"); sim.get("step[1].time", unit="min")
 sim.get("step[1].time"); sim.get_text("step[1].time")
@@ -102,7 +105,7 @@ sim.connect(feed.top["LPP out"], other.top["LPP in"]); step.add_energy_source(la
 sim.kpi.track("CO2", feed=[feed.bottom], product=[evac.bottom])
 ```
 
-Flows: `sk.velocity|volumetric_flow|molar_flow|mass_flow(value or profile)`; profiles `sk.constant|linear|exponential(end, start=, time=)` (pressure ramps take only the end). `sim.describe()` gives the structure; `sk.to_script(sim)` writes builder code for any deck. Every example script `examples/<family>.py` builds its cases from scratch (`build(case)`); `python/tests/test_examples_build.py` checks each reproduces its deck in `examples/decks/`. User variables: `sim.add_variable("t_feed", "60 s", category="time")`, then `time="t_feed"`; `formula="t_feed / 3"` defines one from others. Not created by the builder: buffer tanks, power-model pump streams (`PumpBoundaryStream`), experimental and cost data.
+Flows: `sk.velocity|volumetric_flow|molar_flow|mass_flow(value or profile)`; profiles `sk.constant|linear|exponential(end, start=, time=)` (pressure ramps take only the end). `sim.describe()` gives the structure; `sk.to_script(sim)` writes builder code for any deck. Every example script `examples/<family>.py` builds its cases from scratch (`build(case)`); `python/tests/test_examples_build.py` checks each reproduces its deck in `examples/decks/`. User variables: `sim.add_variable("t_feed", 60 * u.s, category="time")`, then `time="t_feed"`; `formula="t_feed / 3"` defines one from others. Not created by the builder: buffer tanks, power-model pump streams (`PumpBoundaryStream`), experimental and cost data.
 
 ### Results
 

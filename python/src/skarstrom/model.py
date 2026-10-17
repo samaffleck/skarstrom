@@ -7,12 +7,14 @@ an attribute reads the deck; assigning one sets it, with the same checks.
 Nothing is copied, so a view stays valid while the deck changes (and the IDs
 it holds survive renames)::
 
-    sim.steps["Feed"].time = "2 min"                  # a step, by name
-    sim.steps[0].bottom.temperature = "25 degC"       # its feed-end stream
+    from skarstrom import ureg as u                   # pint's unit registry
+
+    sim.steps["Feed"].time = 2 * u.min                # a step, by name
+    sim.steps[0].bottom.set("temperature", 25, "degC")  # its feed-end stream
     sim.steps["Feed"].bottom.y["CO2"] = 0.15          # a mole fraction
     sim.layers[0].length = 1.2                        # metres (SI)
     sim.adsorbents["13X"].isotherm["CO2"].b1          # an isotherm parameter
-    sim.variables["feed_flow"] = "2 L/min"            # a user variable
+    sim.variables["feed_flow"] = 2 * u.L / u.min      # a user variable
     sim.settings.reltol = 1e-6
 
 Rules:
@@ -22,7 +24,8 @@ Rules:
   adsorbents) or components. An integer in brackets is a position (0-based);
   ``.by_id(n)`` selects by the ID stored in the deck.
 * A bare number is in the field's SI unit (see :mod:`skarstrom.units`); give
-  a quantity (``"2 min"``, a pint Quantity) to use another unit.
+  a pint Quantity (``2 * u.min``) or ``set(name, 2, "min")`` to use another
+  unit. Text is an expression (``"2 * t_feed"``) or a deck-syntax quantity.
 * A field the deck does not have (``fraction`` when steps are timed, ``velocity``
   on a pressure boundary) raises ``AttributeError`` naming what it does have;
   so does a misspelling, so a typo never creates a new attribute silently.
@@ -77,8 +80,8 @@ __all__ = [
     "Wall",
 ]
 
-#: What a field accepts: a number (SI), a string (a quantity such as "2 min",
-#: or an expression such as "2*feed_time"), or a pint Quantity.
+#: What a field accepts: a number (SI), a pint Quantity, or a string (an
+#: expression such as "2*feed_time", or a deck-syntax quantity such as "2 [min]").
 Value = Union[float, int, str, Any]
 
 # Formula-style names for the CoolProp components decks use most.
@@ -1466,7 +1469,7 @@ class Adsorbent(_Node):
         """One isotherm of ``kind`` (see ``skarstrom.isotherm_kinds()``) for several components.
 
         ``params`` maps each component to its parameter values
-        (``{"CO2": {"m1": 3.1, "b1": "2e-7 m3/mol", ...}}``); ``components``
+        (``{"CO2": {"m1": 3.1, "b1": 2e-7 * u.m**3 / u.mol, ...}}``); ``components``
         defaults to the keys of ``params``. A competitive kind couples the
         components given together.
         """

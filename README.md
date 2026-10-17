@@ -73,9 +73,10 @@ pip install .              # builds the engine (several minutes the first time)
 
 ```python
 import skarstrom
+from skarstrom import ureg as u
 
 sim = skarstrom.examples.Perez2019_A.load()   # 33 bundled decks; or skarstrom.Simulation("deck.json")
-sim.steps["Feed"].time = "2 min"          # units are explicit; a bare number is SI
+sim.steps["Feed"].time = 2 * u.min          # units are explicit; a bare number is SI
 sim.steps["Feed"].bottom.y["CO2"] = 0.15  # the feed stream's CO2 mole fraction
 result = sim.run()                        # to cyclic steady state
 print(result.status, result.css_cycle)

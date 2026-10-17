@@ -4,35 +4,37 @@ Everything a deck holds can be created in code, so a script can state every
 choice and every value explicitly::
 
     import skarstrom as sk
+    from skarstrom import ureg as u
 
     sim = sk.Simulation.new(title="CO2/N2 VSA")
     sim.add_component("CarbonDioxide")
     sim.add_component("Nitrogen")
 
-    ads = sim.add_adsorbent("13X", solid_density="1138 kg/m3", heat_capacity="900 J/(kg*K)",
-                            thermal_conductivity="0.63 W/(m*K)", particle_void_fraction=0.35)
+    ads = sim.add_adsorbent("13X", solid_density=1138 * u.kg / u.m**3, heat_capacity=900 * u.J / (u.kg * u.K),
+                            thermal_conductivity=0.63 * u.W / (u.m * u.K), particle_void_fraction=0.35)
     ads.set_isotherm("extended_dual_site_langmuir_c", {
-        "CO2": {"m1": 2.768, "b1": 3.934e-7, "q1": "40.98 kJ/mol", "m2": 2.758, "b2": 1.256e-7, "q2": "34.19 kJ/mol"},
-        "N2":  {"m1": 2.768, "b1": 3.134e-6, "q1": "15.71 kJ/mol", "m2": 2.758, "b2": 3.134e-6, "q2": "15.72 kJ/mol"},
+        "CO2": {"m1": 2.768, "b1": 3.934e-7, "q1": 40.98 * u.kJ / u.mol, "m2": 2.758, "b2": 1.256e-7, "q2": 34.19 * u.kJ / u.mol},
+        "N2":  {"m1": 2.768, "b1": 3.134e-6, "q1": 15.71 * u.kJ / u.mol, "m2": 2.758, "b2": 3.134e-6, "q2": 15.72 * u.kJ / u.mol},
     })
     ads.set_rate_model("CO2", "ldf", "macropore", tortuosity=3, macropore_void_fraction=0.35)
-    ads.heat_of_adsorption["CO2"] = "30.85 kJ/mol"
+    ads.heat_of_adsorption["CO2"] = 30.85 * u.kJ / u.mol
 
-    sim.bed.set_shape("cylinder", diameter="3.2 cm")
-    layer = sim.add_layer("13X", composition={"13X": 1.0}, length="0.3 m", cells=30,
-                          bed_void_fraction=0.41, particle_diameter="1.5 mm")
+    sim.bed.set_shape("cylinder", diameter=3.2 * u.cm)
+    layer = sim.add_layer("13X", composition={"13X": 1.0}, length=0.3 * u.m, cells=30,
+                          bed_void_fraction=0.41, particle_diameter=1.5 * u.mm)
 
-    feed = sim.add_step("Feed", time="99 s")
-    feed.bottom.set_streams("inlet", [sk.Stream("Feed inlet", flow=sk.velocity("8.5 cm/s"),
-                                                y={"CO2": 0.15, "N2": 0.85}, temperature="298 K")])
-    feed.top.set_pressure("outlet", "1 bar")
+    feed = sim.add_step("Feed", time=99 * u.s)
+    feed.bottom.set_streams("inlet", [sk.Stream("Feed inlet", flow=sk.velocity(8.5 * u.cm / u.s),
+                                                y={"CO2": 0.15, "N2": 0.85}, temperature=298 * u.K)])
+    feed.top.set_pressure("outlet", 1 * u.bar)
     ...
     sim.kpi.track("CO2", feed=[feed.bottom], product=[evacuation.bottom])
 
 Structure is created in the engine (core/include/adsim/objects/deck_builder.h), each model
 chosen by a kind name (``skarstrom.build_kinds()`` lists them); values are
 then set through the parameter registry, with the usual unit handling: a bare
-number is SI, a string or pint Quantity carries its unit.
+number is SI, a pint Quantity carries its unit (a string is an expression or a
+deck-syntax quantity such as "2 [min]").
 
 :func:`to_script` writes this code for any deck, e.g. one made in a front end.
 """

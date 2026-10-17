@@ -26,6 +26,7 @@ import sys
 
 import _common as c
 import skarstrom as sk
+from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 
 FEED = {"Nitrogen": 0.9, "Helium": 0.1}                # He/N2 feed, mole fractions
 NO_GAS = {"Nitrogen": 0.0, "Helium": 0.0}              # outlet stream: no backflow composition
@@ -35,23 +36,23 @@ def add_zeolite_5a(sim: sk.Simulation) -> sk.Adsorbent:
     """Binderless zeolite 5A: N2 adsorbs (dual-site Langmuir, Table 2), He is inert."""
     ads = sim.add_adsorbent(
         "Zeolite5A",
-        solid_density="1183.6 kg/m3",                  # particle density
-        heat_capacity="960 J/(kg*K)",
-        thermal_conductivity="0.15 W/(m*K)",
+        solid_density=1183.6 * u.kg / u.m**3,                  # particle density
+        heat_capacity=960 * u.J / (u.kg * u.K),
+        thermal_conductivity=0.15 * u.W / (u.m * u.K),
         particle_void_fraction=0.33,
     )
     ads.set_isotherm("dual_site_langmuir_c", {
-        "Nitrogen": {"m1": "3.072 mol/kg", "b1": "1.576e-6 m3/mol", "q1": "18.09 kJ/mol",
-                     "m2": "0.646 mol/kg", "b2": "9.195e-6 m3/mol", "q2": "19.36 kJ/mol"},
+        "Nitrogen": {"m1": 3.072 * u.mol / u.kg, "b1": 1.576e-6 * u.m**3 / u.mol, "q1": 18.09 * u.kJ / u.mol,
+                     "m2": 0.646 * u.mol / u.kg, "b2": 9.195e-6 * u.m**3 / u.mol, "q2": 19.36 * u.kJ / u.mol},
     }, components=["Nitrogen"])
     ads.set_isotherm("inert", components=["Helium"])
     # Macropore-diffusion-controlled constant LDF coefficient, k = 15 ep Dm / (tau rp^2)
     # (core/test/papers/vysyarajua_2024/README.md); He's coefficient is irrelevant (inert).
-    ads.set_rate_model("Nitrogen", "ldf", "constant", k="104.98161937977187 1/s")
-    ads.set_rate_model("Helium", "ldf", "constant", k="0.5 1/s")
+    ads.set_rate_model("Nitrogen", "ldf", "constant", k=104.98161937977187 / u.s)
+    ads.set_rate_model("Helium", "ldf", "constant", k=0.5 / u.s)
     # The full isosteric heat is released (isosteric convention, see the README).
-    ads.heat_of_adsorption["Nitrogen"] = "18.7 kJ/mol"
-    ads.heat_of_adsorption["Helium"] = "0 J/mol"
+    ads.heat_of_adsorption["Nitrogen"] = 18.7 * u.kJ / u.mol
+    ads.heat_of_adsorption["Helium"] = 0 * u.J / u.mol
     return ads
 
 
@@ -71,38 +72,38 @@ def build(case: str = "PSA_Exp1") -> sk.Simulation:
     sim.add_component("Helium")
     sim.fluid.adsorbed_heat_capacity_mode = "constant"
     sim.fluid.heat_of_adsorption_convention = "isosteric"
-    sim.fluid.adsorbed_heat_capacity["Nitrogen"] = "29.1 J/(mol*K)"
-    sim.fluid.adsorbed_heat_capacity["Helium"] = "0 J/(mol*K)"
+    sim.fluid.adsorbed_heat_capacity["Nitrogen"] = 29.1 * u.J / (u.mol * u.K)
+    sim.fluid.adsorbed_heat_capacity["Helium"] = 0 * u.J / (u.mol * u.K)
 
     # ---- adsorbent -------------------------------------------------------------------
     add_zeolite_5a(sim)
 
     # ---- column: 0.305 m x 3.4 cm stainless-steel tube --------------------------------------
-    sim.bed.set_shape("cylinder", diameter="3.4 cm")
-    sim.bed.ambient_temperature = "298 K"
+    sim.bed.set_shape("cylinder", diameter=3.4 * u.cm)
+    sim.bed.ambient_temperature = 298 * u.K
     sim.bed.set_thermal_equilibrium("lte")                     # gas and solid at one temperature
-    sim.bed.set_particle_heat_transfer("constant", particle_htc="100 W/(m^2*K)")
+    sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
     for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
         void.enabled = False
-        void.volume = "1e-4 m3"
-        void.resistance_coefficient = "0 Pa*s/m"
-    sim.wall.set_material("ss316l", density="7800 kg/m3", heat_capacity="502 J/(kg*K)",
-                          thermal_conductivity="16 W/(m*K)")
-    sim.wall.thickness = "2 mm"
+        void.volume = 1e-4 * u.m**3
+        void.resistance_coefficient = 0 * u.Pa * u.s / u.m
+    sim.wall.set_material("ss316l", density=7800 * u.kg / u.m**3, heat_capacity=502 * u.J / (u.kg * u.K),
+                          thermal_conductivity=16 * u.W / (u.m * u.K))
+    sim.wall.thickness = 2 * u.mm
     sim.wall.set_boundary("zero_flux")
 
     layer = sim.add_layer("Zeolite5A", composition={"Zeolite5A": 1.0}, momentum="kozeny_carman",
-                          length="0.305 m", cells=30, bed_void_fraction=0.35, particle_diameter="2.06 mm")
-    layer.set_dispersion("ruthven", molecular_diffusion_coefficient="1.6e-5 m2/s")
-    layer.set_heat_dispersion("constant", heat_dispersion_coefficient="0 W/(m*K)")
-    layer.set_internal_heat_transfer("constant", internal_htc="15 W/(m^2*K)")
-    layer.set_external_heat_transfer("constant", external_htc="15 W/(m^2*K)")
+                          length=0.305 * u.m, cells=30, bed_void_fraction=0.35, particle_diameter=2.06 * u.mm)
+    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
+    layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
+    layer.set_internal_heat_transfer("constant", internal_htc=15 * u.W / (u.m**2 * u.K))
+    layer.set_external_heat_transfer("constant", external_htc=15 * u.W / (u.m**2 * u.K))
 
     # ---- initial state: the bed full of He at 14.043 bar and 298 K --------------------------
-    sim.initial_conditions.pressure = "14.043 bar"
-    sim.initial_conditions.temperature = "298 K"
-    sim.initial_conditions.wall_temperature = "298 K"
-    sim.initial_conditions.velocity = "0 m/s"
+    sim.initial_conditions.pressure = 14.043 * u.bar
+    sim.initial_conditions.temperature = 298 * u.K
+    sim.initial_conditions.wall_temperature = 298 * u.K
+    sim.initial_conditions.velocity = 0 * u.m / u.s
     sim.initial_conditions.y["Nitrogen"] = 0.0
     sim.initial_conditions.y["Helium"] = 1.0
 
@@ -111,43 +112,43 @@ def build(case: str = "PSA_Exp1") -> sk.Simulation:
     sim.cycle.step_time_mode = "time"
 
     # 1. PRES: feed gas through a valve from the 15.1 bar supply, top closed.
-    pres = sim.add_step("PRES", time="30 s")
+    pres = sim.add_step("PRES", time=30 * u.s)
     pres.bottom.set_streams("inlet", [
-        sk.ValveStream("", pressure="15.1 bar", cv=0.012, xt=0.53, y=FEED, temperature="298 K"),
+        sk.ValveStream("", pressure=15.1 * u.bar, cv=0.012, xt=0.53, y=FEED, temperature=298 * u.K),
     ])
     pres.top.set_closed()
 
     # 2. ADS: feed at a set velocity, He-rich product leaves the top at 15.1 bar.
-    adsorption = sim.add_step("ADS", time="15 s")
+    adsorption = sim.add_step("ADS", time=15 * u.s)
     adsorption.bottom.set_streams("inlet", [
-        sk.Stream("", flow=sk.velocity("0.005 m/s"), y=FEED, temperature="298 K"),
+        sk.Stream("", flow=sk.velocity(0.005 * u.m / u.s), y=FEED, temperature=298 * u.K),
     ])
-    adsorption.top.set_pressure("outlet", "15.1 bar", y=FEED, temperature="293 K")
+    adsorption.top.set_pressure("outlet", 15.1 * u.bar, y=FEED, temperature=293 * u.K)
 
     # 3. PED: pressure-equalisation depressurisation; gas leaves the top through a valve.
-    ped = sim.add_step("PED", time="30 s")
+    ped = sim.add_step("PED", time=30 * u.s)
     ped.bottom.set_closed()
     ped.top.set_streams("outlet", [
-        sk.ValveStream("PE stream", pressure="7 bar", cv=0.2, xt=0.53, y=NO_GAS, temperature="293 K"),
+        sk.ValveStream("PE stream", pressure=7 * u.bar, cv=0.2, xt=0.53, y=NO_GAS, temperature=293 * u.K),
     ])
 
     # 4. BLO: blowdown of the N2-rich gas from the bottom down to 1 bar.
-    blo = sim.add_step("BLO", time="30 s")
-    blo.bottom.set_pressure("outlet", sk.exponential("1 bar"), y=FEED, temperature="293 K")
+    blo = sim.add_step("BLO", time=30 * u.s)
+    blo.bottom.set_pressure("outlet", sk.exponential(1 * u.bar), y=FEED, temperature=293 * u.K)
     blo.top.set_closed()
 
     # 5. PER: pressure-equalisation repressurisation; its inflow is the PED stream.
-    per = sim.add_step("PER", time="30 s")
+    per = sim.add_step("PER", time=30 * u.s)
     per.bottom.set_closed()
     per.top.set_streams("inlet", [
-        sk.Stream("PE stream", flow=sk.velocity("0 m/s"), y=FEED, temperature="298 K"),
+        sk.Stream("PE stream", flow=sk.velocity(0 * u.m / u.s), y=FEED, temperature=298 * u.K),
     ])
     sim.connect(ped.top["PE stream"], per.top["PE stream"])
 
     # ---- solver (SUNDIALS IDA), cyclic steady state, energy balance ----------------------
-    sim.settings.init_step = "1e-10 s"
-    sim.settings.min_step = "1e-15 s"
-    sim.settings.max_step = "1 s"
+    sim.settings.init_step = 1e-10 * u.s
+    sim.settings.min_step = 1e-15 * u.s
+    sim.settings.max_step = 1 * u.s
     sim.settings.reltol = 1e-6
     sim.settings.nonlin_conv_coef = 0.1
     sim.settings.max_order = 5
@@ -167,7 +168,7 @@ def build(case: str = "PSA_Exp1") -> sk.Simulation:
     sim.css.mass_balance_tolerance = 0.005
     sim.energy_balance.energy_balance_mode = "non_isothermal"
     sim.energy_balance.isothermal_use_initial_temperature = True
-    sim.energy_balance.isothermal_temperature = "298.15 K"
+    sim.energy_balance.isothermal_temperature = 298.15 * u.K
     return sim
 
 

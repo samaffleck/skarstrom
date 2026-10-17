@@ -31,30 +31,31 @@ import sys
 
 import _common as c
 import skarstrom as sk
+from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 
 # Operating conditions of the six configurations. Pressures are the end
 # values of the blowdown and evacuation ramps; velocities are superficial at
 # the feed end.
 CONFIGURATIONS = {
     #       cycle   feed step(s)        feed velocity                    blowdown          evacuation         pressurisation
-    "A":  dict(lpp=False, feed_time="99 s", feed_velocity="0.08486999999999999 m/s",
-               blowdown_time="19 s", blowdown_pressure="6000 Pa", evacuation_time="57 s",
-               evacuation_pressure="3200 Pa", pressurisation_time="30 s", high_pressure="1 bar"),
-    "B":  dict(lpp=False, feed_time="99 s", feed_velocity="0.05985999999999999 m/s",
-               blowdown_time="19 s", blowdown_pressure="7200 Pa", evacuation_time="57 s",
-               evacuation_pressure="3200 Pa", pressurisation_time="30 s", high_pressure="1 bar"),
-    "C1": dict(lpp=False, feed_time="114 s", feed_velocity="0.03198 m/s",
-               blowdown_time="19 s", blowdown_pressure="10700 Pa", evacuation_time="57 s",
-               evacuation_pressure="3200 Pa", pressurisation_time="30 s", high_pressure="1 bar"),
-    "D1": dict(lpp=True, feed_times=("27.5 s", "117 s"), feed_velocity="0.032799999999999996 m/s",
-               blowdown_time="21 s", blowdown_pressure="7200 Pa", evacuation_time="167 s",
-               evacuation_pressure="3000 Pa", pressurisation_time="27.5 s", high_pressure="1 atm"),
-    "E":  dict(lpp=True, feed_times=("27.5 s", "112.5 s"), feed_velocity="0.024189999999999996 m/s",
-               blowdown_time="21 s", blowdown_pressure="9100 Pa", evacuation_time="167 s",
-               evacuation_pressure="3100 Pa", pressurisation_time="27.5 s", high_pressure="1 bar"),
-    "F":  dict(lpp=True, feed_times=("27.5 s", "89.5 s"), feed_velocity="0.025009999999999998 m/s",
-               blowdown_time="21 s", blowdown_pressure="13400 Pa", evacuation_time="167 s",
-               evacuation_pressure="3200 Pa", pressurisation_time="27.5 s", high_pressure="1 bar"),
+    "A":  dict(lpp=False, feed_time=99 * u.s, feed_velocity=0.08486999999999999 * u.m / u.s,
+               blowdown_time=19 * u.s, blowdown_pressure=6000 * u.Pa, evacuation_time=57 * u.s,
+               evacuation_pressure=3200 * u.Pa, pressurisation_time=30 * u.s, high_pressure=1 * u.bar),
+    "B":  dict(lpp=False, feed_time=99 * u.s, feed_velocity=0.05985999999999999 * u.m / u.s,
+               blowdown_time=19 * u.s, blowdown_pressure=7200 * u.Pa, evacuation_time=57 * u.s,
+               evacuation_pressure=3200 * u.Pa, pressurisation_time=30 * u.s, high_pressure=1 * u.bar),
+    "C1": dict(lpp=False, feed_time=114 * u.s, feed_velocity=0.03198 * u.m / u.s,
+               blowdown_time=19 * u.s, blowdown_pressure=10700 * u.Pa, evacuation_time=57 * u.s,
+               evacuation_pressure=3200 * u.Pa, pressurisation_time=30 * u.s, high_pressure=1 * u.bar),
+    "D1": dict(lpp=True, feed_times=(27.5 * u.s, 117 * u.s), feed_velocity=0.032799999999999996 * u.m / u.s,
+               blowdown_time=21 * u.s, blowdown_pressure=7200 * u.Pa, evacuation_time=167 * u.s,
+               evacuation_pressure=3000 * u.Pa, pressurisation_time=27.5 * u.s, high_pressure=1 * u.atm),
+    "E":  dict(lpp=True, feed_times=(27.5 * u.s, 112.5 * u.s), feed_velocity=0.024189999999999996 * u.m / u.s,
+               blowdown_time=21 * u.s, blowdown_pressure=9100 * u.Pa, evacuation_time=167 * u.s,
+               evacuation_pressure=3100 * u.Pa, pressurisation_time=27.5 * u.s, high_pressure=1 * u.bar),
+    "F":  dict(lpp=True, feed_times=(27.5 * u.s, 89.5 * u.s), feed_velocity=0.025009999999999998 * u.m / u.s,
+               blowdown_time=21 * u.s, blowdown_pressure=13400 * u.Pa, evacuation_time=167 * u.s,
+               evacuation_pressure=3200 * u.Pa, pressurisation_time=27.5 * u.s, high_pressure=1 * u.bar),
 }
 
 FEED = {"CarbonDioxide": 0.15, "Nitrogen": 0.85}       # flue gas, mole fractions
@@ -66,23 +67,23 @@ def add_zeolite_13x(sim: sk.Simulation) -> sk.Adsorbent:
     """Zeolite 13X with the paper's competitive dual-site Langmuir isotherm (Table 2)."""
     ads = sim.add_adsorbent(
         "13X",
-        solid_density="1138.0252816422599 kg/m3",      # particle density
-        heat_capacity="900 J/(kg*K)",
-        thermal_conductivity="0.63 W/(m*K)",
+        solid_density=1138.0252816422599 * u.kg / u.m**3,      # particle density
+        heat_capacity=900 * u.J / (u.kg * u.K),
+        thermal_conductivity=0.63 * u.W / (u.m * u.K),
         particle_void_fraction=0.35,
     )
     # Extended dual-site Langmuir in concentration form: b_i(T) = b0_i exp(q_i / RT).
     ads.set_isotherm("extended_dual_site_langmuir_c", {
-        "CarbonDioxide": {"m1": "2.768 mol/kg", "b1": "3.934e-7 m3/mol", "q1": "40.98 kJ/mol",
-                          "m2": "2.758 mol/kg", "b2": "1.256e-7 m3/mol", "q2": "34.19 kJ/mol"},
-        "Nitrogen":      {"m1": "2.768 mol/kg", "b1": "3.134e-6 m3/mol", "q1": "15.71 kJ/mol",
-                          "m2": "2.758 mol/kg", "b2": "3.134e-6 m3/mol", "q2": "15.72 kJ/mol"},
+        "CarbonDioxide": {"m1": 2.768 * u.mol / u.kg, "b1": 3.934e-7 * u.m**3 / u.mol, "q1": 40.98 * u.kJ / u.mol,
+                          "m2": 2.758 * u.mol / u.kg, "b2": 1.256e-7 * u.m**3 / u.mol, "q2": 34.19 * u.kJ / u.mol},
+        "Nitrogen":      {"m1": 2.768 * u.mol / u.kg, "b1": 3.134e-6 * u.m**3 / u.mol, "q1": 15.71 * u.kJ / u.mol,
+                          "m2": 2.758 * u.mol / u.kg, "b2": 3.134e-6 * u.m**3 / u.mol, "q2": 15.72 * u.kJ / u.mol},
     }, components=["CarbonDioxide", "Nitrogen"])
     # Linear driving force with a macropore-diffusion-controlled coefficient.
     for component in ("CarbonDioxide", "Nitrogen"):
         ads.set_rate_model(component, "ldf", "macropore", tortuosity=3.0, macropore_void_fraction=0.35)
-    ads.heat_of_adsorption["CarbonDioxide"] = "30.85 kJ/mol"
-    ads.heat_of_adsorption["Nitrogen"] = "15.93 kJ/mol"
+    ads.heat_of_adsorption["CarbonDioxide"] = 30.85 * u.kJ / u.mol
+    ads.heat_of_adsorption["Nitrogen"] = 15.93 * u.kJ / u.mol
     return ads
 
 
@@ -101,38 +102,38 @@ def build(case: str) -> sk.Simulation:
     sim.add_component("Nitrogen")
     sim.fluid.adsorbed_heat_capacity_mode = "constant"
     sim.fluid.heat_of_adsorption_convention = "isosteric"
-    sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = "30.7 J/(mol*K)"
-    sim.fluid.adsorbed_heat_capacity["Nitrogen"] = "30.7 J/(mol*K)"
+    sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 30.7 * u.J / (u.mol * u.K)
+    sim.fluid.adsorbed_heat_capacity["Nitrogen"] = 30.7 * u.J / (u.mol * u.K)
 
     # ---- adsorbent -------------------------------------------------------------------
     add_zeolite_13x(sim)
 
     # ---- column: 0.30 m x 3.2 cm stainless-steel tube (Table 1) ------------------------
-    sim.bed.set_shape("cylinder", diameter="3.2 cm")
-    sim.bed.ambient_temperature = "293 K"
+    sim.bed.set_shape("cylinder", diameter=3.2 * u.cm)
+    sim.bed.ambient_temperature = 293 * u.K
     sim.bed.set_thermal_equilibrium("lte")                     # gas and solid at one temperature
-    sim.bed.set_particle_heat_transfer("constant", particle_htc="100 W/(m^2*K)")
+    sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
     for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
         void.enabled = False
-        void.volume = "1e-4 m3"
-        void.resistance_coefficient = "0 Pa*s/m"
-    sim.wall.set_material("ss316l", density="7800 kg/m3", heat_capacity="502 J/(kg*K)",
-                          thermal_conductivity="16 W/(m*K)")
-    sim.wall.thickness = "3.1 mm"
+        void.volume = 1e-4 * u.m**3
+        void.resistance_coefficient = 0 * u.Pa * u.s / u.m
+    sim.wall.set_material("ss316l", density=7800 * u.kg / u.m**3, heat_capacity=502 * u.J / (u.kg * u.K),
+                          thermal_conductivity=16 * u.W / (u.m * u.K))
+    sim.wall.thickness = 3.1 * u.mm
     sim.wall.set_boundary("zero_flux")
 
     layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman",
-                          length="0.3 m", cells=30, bed_void_fraction=0.41, particle_diameter="1.5 mm")
-    layer.set_dispersion("ruthven", molecular_diffusion_coefficient="1.6e-5 m2/s")
-    layer.set_heat_dispersion("constant", heat_dispersion_coefficient="0.0903 W/(m*K)")
-    layer.set_internal_heat_transfer("constant", internal_htc="8.6 W/(m^2*K)")
-    layer.set_external_heat_transfer("constant", external_htc="10 W/(m^2*K)")
+                          length=0.3 * u.m, cells=30, bed_void_fraction=0.41, particle_diameter=1.5 * u.mm)
+    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
+    layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0.0903 * u.W / (u.m * u.K))
+    layer.set_internal_heat_transfer("constant", internal_htc=8.6 * u.W / (u.m**2 * u.K))
+    layer.set_external_heat_transfer("constant", external_htc=10 * u.W / (u.m**2 * u.K))
 
     # ---- initial state: the bed full of N2 at 1 bar and 298 K --------------------------
-    sim.initial_conditions.pressure = "1 bar"
-    sim.initial_conditions.temperature = "298 K"
-    sim.initial_conditions.wall_temperature = "298 K"
-    sim.initial_conditions.velocity = "0 m/s"
+    sim.initial_conditions.pressure = 1 * u.bar
+    sim.initial_conditions.temperature = 298 * u.K
+    sim.initial_conditions.wall_temperature = 298 * u.K
+    sim.initial_conditions.velocity = 0 * u.m / u.s
     sim.initial_conditions.y["Nitrogen"] = 1.0
     sim.initial_conditions.y["CarbonDioxide"] = 0.0
 
@@ -146,9 +147,9 @@ def build(case: str) -> sk.Simulation:
         add_basic_cycle(sim, cfg)
 
     # ---- solver (SUNDIALS IDA), cyclic steady state, energy balance ----------------------
-    sim.settings.init_step = "1e-10 s"
-    sim.settings.min_step = "1e-15 s"
-    sim.settings.max_step = "2 s"
+    sim.settings.init_step = 1e-10 * u.s
+    sim.settings.min_step = 1e-15 * u.s
+    sim.settings.max_step = 2 * u.s
     sim.settings.reltol = 1e-6
     sim.settings.nonlin_conv_coef = 0.1
     sim.settings.max_order = 5
@@ -168,7 +169,7 @@ def build(case: str) -> sk.Simulation:
     sim.css.mass_balance_tolerance = 0.005
     sim.energy_balance.energy_balance_mode = "non_isothermal"
     sim.energy_balance.isothermal_use_initial_temperature = True
-    sim.energy_balance.isothermal_temperature = "298.15 K"
+    sim.energy_balance.isothermal_temperature = 298.15 * u.K
     return sim
 
 
@@ -176,21 +177,21 @@ def add_basic_cycle(sim: sk.Simulation, cfg: dict) -> None:
     """Feed, blowdown (top), evacuation (bottom), pressurisation with feed gas (bottom)."""
     feed = sim.add_step("Feed", time=cfg["feed_time"])
     feed.bottom.set_streams("inlet", [
-        sk.Stream("Feed inlet", flow=sk.velocity(cfg["feed_velocity"]), y=FEED, temperature="298 K"),
+        sk.Stream("Feed inlet", flow=sk.velocity(cfg["feed_velocity"]), y=FEED, temperature=298 * u.K),
     ])
-    feed.top.set_pressure("outlet", cfg["high_pressure"], y=BACKFLOW, temperature="293 K")
+    feed.top.set_pressure("outlet", cfg["high_pressure"], y=BACKFLOW, temperature=293 * u.K)
 
     blowdown = sim.add_step("Blowdown", time=cfg["blowdown_time"])
     blowdown.bottom.set_closed()
-    blowdown.top.set_pressure("outlet", sk.exponential(cfg["blowdown_pressure"]), y=BACKFLOW, temperature="293 K")
+    blowdown.top.set_pressure("outlet", sk.exponential(cfg["blowdown_pressure"]), y=BACKFLOW, temperature=293 * u.K)
 
     evacuation = sim.add_step("Evacuation", time=cfg["evacuation_time"])
     evacuation.bottom.set_pressure("outlet", sk.exponential(cfg["evacuation_pressure"]), y=BACKFLOW,
-                                   temperature="293 K")
+                                   temperature=293 * u.K)
     evacuation.top.set_closed()
 
     pressurisation = sim.add_step("Pressurisation", time=cfg["pressurisation_time"])
-    pressurisation.bottom.set_pressure("inlet", sk.linear(cfg["high_pressure"]), y=FEED, temperature="298 K")
+    pressurisation.bottom.set_pressure("inlet", sk.linear(cfg["high_pressure"]), y=FEED, temperature=298 * u.K)
     pressurisation.top.set_closed()
 
     # CO2 is fed in the feed and pressurisation steps and recovered by evacuation.
@@ -202,36 +203,36 @@ def add_lpp_cycle(sim: sk.Simulation, cfg: dict) -> None:
     """Feed split in two steps; part of the first one's light product pressurises the bed from the top."""
     feed_times = cfg["feed_times"]
     # Light product leaves through a valve (flow coefficient Cv, pressure-drop ratio factor xT) to 1 bar.
-    ambient = dict(pressure="1 bar", cv=10.0, xt=0.53, y=NO_GAS, temperature="293 K")
+    ambient = dict(pressure=1 * u.bar, cv=10.0, xt=0.53, y=NO_GAS, temperature=293 * u.K)
 
     feed_1 = sim.add_step("Feed 1", time=feed_times[0])
     feed_1.bottom.set_streams("inlet", [
-        sk.Stream("Feed 1 inlet", flow=sk.velocity(cfg["feed_velocity"]), y=FEED, temperature="298 K"),
+        sk.Stream("Feed 1 inlet", flow=sk.velocity(cfg["feed_velocity"]), y=FEED, temperature=298 * u.K),
     ])
     feed_1.top.set_streams("outlet", [
         sk.ValveStream("Feed 1 ambient Stream", **ambient),           # light product to the atmosphere
         # The LPP draw: its flow is whatever the connected pressurisation step takes.
-        sk.Stream("LPP Stream", flow=sk.velocity("0 m/s"), y=NO_GAS, temperature="293 K"),
+        sk.Stream("LPP Stream", flow=sk.velocity(0 * u.m / u.s), y=NO_GAS, temperature=293 * u.K),
     ])
 
     feed_2 = sim.add_step("Feed 2", time=feed_times[1])
     feed_2.bottom.set_streams("inlet", [
-        sk.Stream("Feed 2 inlet", flow=sk.velocity(cfg["feed_velocity"]), y=FEED, temperature="298 K"),
+        sk.Stream("Feed 2 inlet", flow=sk.velocity(cfg["feed_velocity"]), y=FEED, temperature=298 * u.K),
     ])
     feed_2.top.set_streams("outlet", [sk.ValveStream("Feed 2 ambient Stream", **ambient)])
 
     blowdown = sim.add_step("Blowdown", time=cfg["blowdown_time"])
     blowdown.bottom.set_closed()
-    blowdown.top.set_pressure("outlet", sk.exponential(cfg["blowdown_pressure"]), y=BACKFLOW, temperature="293 K")
+    blowdown.top.set_pressure("outlet", sk.exponential(cfg["blowdown_pressure"]), y=BACKFLOW, temperature=293 * u.K)
 
     evacuation = sim.add_step("Evacuation", time=cfg["evacuation_time"])
     evacuation.bottom.set_pressure("outlet", sk.exponential(cfg["evacuation_pressure"]), y=BACKFLOW,
-                                   temperature="293 K")
+                                   temperature=293 * u.K)
     evacuation.top.set_closed()
 
     pressurisation = sim.add_step("Pressurisation", time=cfg["pressurisation_time"])
     pressurisation.bottom.set_closed()
-    pressurisation.top.set_pressure("inlet", sk.linear(cfg["high_pressure"]), y=BACKFLOW, temperature="298 K")
+    pressurisation.top.set_pressure("inlet", sk.linear(cfg["high_pressure"]), y=BACKFLOW, temperature=298 * u.K)
 
     # Light-product pressurisation: the LPP stream of Feed 1 supplies the pressurisation inlet.
     sim.connect(feed_1.top["LPP Stream"], pressurisation.top)

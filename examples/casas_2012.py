@@ -27,6 +27,7 @@ import sys
 
 import _common as c
 import skarstrom as sk
+from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 
 # Feed CO2 mole fraction (the rest is H2) and the reference case name of each experiment.
 EXPERIMENTS = {
@@ -34,8 +35,8 @@ EXPERIMENTS = {
     "Fig6_25_75": dict(y_co2=0.25, ref="Fig6_25_75_15bar_25C", figure="Fig. 6 (25/75, 15 bar, 25 C)"),
     "Fig6_75_25": dict(y_co2=0.75, ref="Fig6_75_25_15bar_25C", figure="Fig. 6 (75/25, 15 bar, 25 C)"),
 }
-PRESSURE = "15 bar"          # total pressure, held at the outlet
-TEMPERATURE = "298.15 K"     # feed, initial and ambient temperature (25 C)
+PRESSURE = 15 * u.bar          # total pressure, held at the outlet
+TEMPERATURE = 298.15 * u.K     # feed, initial and ambient temperature (25 C)
 COMPONENTS = ("CarbonDioxide", "Hydrogen", "Helium")
 
 
@@ -45,29 +46,29 @@ def add_ap3_60(sim: sk.Simulation) -> None:
     skeletal_density = 1970.0    # [kg/m3] (He pycnometry, 1.97 g/cm3)
     ads = sim.add_adsorbent(
         "AP3-60",
-        solid_density=f"{particle_density} kg/m3",
-        heat_capacity="1000 J/(kg*K)",
-        thermal_conductivity="0.15 W/(m*K)",      # not tabulated; nominal (core/test/papers/casas_2012/README.md)
+        solid_density=particle_density * u.kg / u.m**3,
+        heat_capacity=1000 * u.J / (u.kg * u.K),
+        thermal_conductivity=0.15 * u.W / (u.m * u.K),      # not tabulated; nominal (core/test/papers/casas_2012/README.md)
         particle_void_fraction=1.0 - particle_density / skeletal_density,
     )
     # Sips with temperature-dependent saturation capacity, affinity and exponent:
     # n_inf = a exp(b / RT), K = A exp(B / RT), c = c_ref + c_amp tanh(c_beta (T - c_Tref)).
     ads.set_isotherm("arrhenius_sips", {
-        "CarbonDioxide": {"n_inf_a": "1.38286 mol/kg", "n_inf_b": "5625.93 J/mol", "k_A": "1.6814e-8 1/Pa",
-                          "k_B": "9160.22 J/mol", "c_ref": 0.832365, "c_amp": 0.116571, "c_beta": "0.0928714 1/K",
-                          "c_Tref": "330.129 K"},
-        "Hydrogen":      {"n_inf_a": "6.66 mol/kg", "n_inf_b": "0 J/mol", "k_A": "6.6886e-10 1/Pa",
-                          "k_B": "9954.73 J/mol", "c_ref": 0.96, "c_amp": 0.0, "c_beta": "0 1/K", "c_Tref": "298.15 K"},
+        "CarbonDioxide": {"n_inf_a": 1.38286 * u.mol / u.kg, "n_inf_b": 5625.93 * u.J / u.mol, "k_A": 1.6814e-8 / u.Pa,
+                          "k_B": 9160.22 * u.J / u.mol, "c_ref": 0.832365, "c_amp": 0.116571, "c_beta": 0.0928714 / u.K,
+                          "c_Tref": 330.129 * u.K},
+        "Hydrogen":      {"n_inf_a": 6.66 * u.mol / u.kg, "n_inf_b": 0 * u.J / u.mol, "k_A": 6.6886e-10 / u.Pa,
+                          "k_B": 9954.73 * u.J / u.mol, "c_ref": 0.96, "c_amp": 0.0, "c_beta": 0 / u.K, "c_Tref": 298.15 * u.K},
     }, components=["CarbonDioxide", "Hydrogen"])
     ads.set_isotherm("inert", components=["Helium"])        # helium does not adsorb
     # Lumped LDF coefficients fitted in the paper (Table 3); helium keeps the default.
-    ads.set_rate_model("CarbonDioxide", "ldf", "constant", k="0.15 1/s")
-    ads.set_rate_model("Hydrogen", "ldf", "constant", k="1 1/s")
-    ads.set_rate_model("Helium", "ldf", "constant", k="0.5 1/s")
+    ads.set_rate_model("CarbonDioxide", "ldf", "constant", k=0.15 / u.s)
+    ads.set_rate_model("Hydrogen", "ldf", "constant", k=1 / u.s)
+    ads.set_rate_model("Helium", "ldf", "constant", k=0.5 / u.s)
     # Isosteric heats (Table 2, Clausius-Clapeyron).
-    ads.heat_of_adsorption["CarbonDioxide"] = "26 kJ/mol"
-    ads.heat_of_adsorption["Hydrogen"] = "9.8 kJ/mol"
-    ads.heat_of_adsorption["Helium"] = "0 J/mol"
+    ads.heat_of_adsorption["CarbonDioxide"] = 26 * u.kJ / u.mol
+    ads.heat_of_adsorption["Hydrogen"] = 9.8 * u.kJ / u.mol
+    ads.heat_of_adsorption["Helium"] = 0 * u.J / u.mol
 
 
 def build(case: str) -> sk.Simulation:
@@ -88,42 +89,42 @@ def build(case: str) -> sk.Simulation:
     sim.fluid.adsorbed_heat_capacity_mode = "constant"
     sim.fluid.heat_of_adsorption_convention = "isosteric"
     for component in COMPONENTS:
-        sim.fluid.adsorbed_heat_capacity[component] = "0 J/(mol*K)"
+        sim.fluid.adsorbed_heat_capacity[component] = 0 * u.J / (u.mol * u.K)
 
     # ---- adsorbent ---------------------------------------------------------------------------
     add_ap3_60(sim)
 
     # ---- column: 1.20 m x 2.5 cm (Table 2) -----------------------------------------------------
     inner_diameter = 0.025                                     # [m]
-    sim.bed.set_shape("cylinder", diameter=f"{inner_diameter} m")
+    sim.bed.set_shape("cylinder", diameter=inner_diameter * u.m)
     sim.bed.ambient_temperature = TEMPERATURE
     sim.bed.set_thermal_equilibrium("lte")                     # gas and solid at one temperature
-    sim.bed.set_particle_heat_transfer("constant", particle_htc="100 W/(m^2*K)")
+    sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
     for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
         void.enabled = False
-        void.volume = "1e-4 m3"
-        void.resistance_coefficient = "0 Pa*s/m"
+        void.volume = 1e-4 * u.m**3
+        void.resistance_coefficient = 0 * u.Pa * u.s / u.m
     # The wall and its copper/brass heating shells, lumped (Table 2): volumetric heat
     # capacity 8000 kg/m3 x 500 J/(kg K) = 4e6 J/(m3 K) out to R_o = 0.02 m; no axial conduction.
-    sim.wall.set_material("ss316l", density="8000 kg/m3", heat_capacity="500 J/(kg*K)",
-                          thermal_conductivity="0 W/(m*K)")
-    sim.wall.thickness = f"{0.02 - 0.5 * inner_diameter!r} m"
+    sim.wall.set_material("ss316l", density=8000 * u.kg / u.m**3, heat_capacity=500 * u.J / (u.kg * u.K),
+                          thermal_conductivity=0 * u.W / (u.m * u.K))
+    sim.wall.thickness = (0.02 - 0.5 * inner_diameter) * u.m
     sim.wall.set_boundary("zero_flux")
 
     layer = sim.add_layer("AP3-60", composition={"AP3-60": 1.0}, momentum="kozeny_carman",
-                          length="1.2 m", cells=60, bed_void_fraction=0.403, particle_diameter="3 mm")
-    layer.set_dispersion("ruthven", molecular_diffusion_coefficient="1.6e-5 m2/s")
-    layer.set_heat_dispersion("constant", heat_dispersion_coefficient="0 W/(m*K)")
+                          length=1.2 * u.m, cells=60, bed_void_fraction=0.403, particle_diameter=3 * u.mm)
+    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
+    layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
     # Gas-to-wall coefficient: Leva (1947) with the coefficient and exponent fitted by
     # Casas (Table 3; Leva's own values are 0.813 and 0.90). Wall-to-ambient: fitted constant.
     layer.set_internal_heat_transfer("leva", leva_eta1=41.13, leva_eta2=0.32, leva_exp_coeff=6.0)
-    layer.set_external_heat_transfer("constant", external_htc="5 W/(m^2*K)")
+    layer.set_external_heat_transfer("constant", external_htc=5 * u.W / (u.m**2 * u.K))
 
     # ---- initial state: the column pressurised with helium -----------------------------------
     sim.initial_conditions.pressure = PRESSURE
     sim.initial_conditions.temperature = TEMPERATURE
     sim.initial_conditions.wall_temperature = TEMPERATURE
-    sim.initial_conditions.velocity = "0 m/s"
+    sim.initial_conditions.velocity = 0 * u.m / u.s
     sim.initial_conditions.y["Helium"] = 1.0
     sim.initial_conditions.y["Hydrogen"] = 0.0
     sim.initial_conditions.y["CarbonDioxide"] = 0.0
@@ -131,18 +132,18 @@ def build(case: str) -> sk.Simulation:
     # ---- one feed step: CO2/H2 at a constant 10 cm3/s, the outlet held at 15 bar ---------------
     sim.cycle.number_of_cycles = 1
     sim.cycle.step_time_mode = "time"
-    feed = sim.add_step("Feed", time="1800 s")
+    feed = sim.add_step("Feed", time=1800 * u.s)
     feed.bottom.set_streams("inlet", [
-        sk.Stream("CO2/H2 Feed", flow=sk.volumetric_flow("10 cm^3/s"),
+        sk.Stream("CO2/H2 Feed", flow=sk.volumetric_flow(10 * u.cm**3 / u.s),
                   y={"Helium": 0.0, "Hydrogen": 1.0 - y_co2, "CarbonDioxide": y_co2}, temperature=TEMPERATURE),
     ])
     feed.top.set_pressure("outlet", PRESSURE, y={"CarbonDioxide": 0.0, "Hydrogen": 0.0, "Helium": 1.0},
-                          temperature="293 K")
+                          temperature=293 * u.K)
 
     # ---- solver (SUNDIALS IDA), cyclic steady state, energy balance ------------------------------
-    sim.settings.init_step = "1e-10 s"
-    sim.settings.min_step = "1e-15 s"
-    sim.settings.max_step = "0 s"                              # no limit
+    sim.settings.init_step = 1e-10 * u.s
+    sim.settings.min_step = 1e-15 * u.s
+    sim.settings.max_step = 0 * u.s                              # no limit
     sim.settings.reltol = 1e-6
     sim.settings.nonlin_conv_coef = 0.1
     sim.settings.max_order = 5
@@ -162,7 +163,7 @@ def build(case: str) -> sk.Simulation:
     sim.css.mass_balance_tolerance = 0.005
     sim.energy_balance.energy_balance_mode = "non_isothermal"
     sim.energy_balance.isothermal_use_initial_temperature = True
-    sim.energy_balance.isothermal_temperature = "298.15 K"
+    sim.energy_balance.isothermal_temperature = 298.15 * u.K
     return sim
 
 

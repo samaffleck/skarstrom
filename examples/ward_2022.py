@@ -27,13 +27,14 @@ import sys
 
 import _common as c
 import skarstrom as sk
+from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 
 # The three experiments differ only in the CO2 feed flow and in the bed-to-wall
 # heat transfer coefficient fitted for each flow (core/test/papers/ward_2022/ward_2022.cpp).
 FLOW_RATES = {
-    "50":  dict(feed_flow="50 ccm",  internal_htc="77.5 W/(m^2*K)"),
-    "100": dict(feed_flow="100 ccm", internal_htc="57.9 W/(m^2*K)"),
-    "200": dict(feed_flow="200 ccm", internal_htc="45.2 W/(m^2*K)"),
+    "50":  dict(feed_flow=50 * u.cm**3 / u.min,  internal_htc=77.5 * u.W / (u.m**2 * u.K)),
+    "100": dict(feed_flow=100 * u.cm**3 / u.min, internal_htc=57.9 * u.W / (u.m**2 * u.K)),
+    "200": dict(feed_flow=200 * u.cm**3 / u.min, internal_htc=45.2 * u.W / (u.m**2 * u.K)),
 }
 DECKS = {q: f"Ward2022_Q{q}ccm" for q in FLOW_RATES}   # the shipped deck of each case
 Z_TC = 0.0715  # thermocouple position [m]
@@ -45,22 +46,22 @@ def add_activated_carbon(sim: sk.Simulation) -> sk.Adsorbent:
     """The activated carbon of the lab-scale rig (Tables 1, 2 and 6 of the paper)."""
     ads = sim.add_adsorbent(
         "Activated Carbon",
-        solid_density="799 kg/m3",                     # particle density
-        heat_capacity="1040 J/(kg*K)",
-        thermal_conductivity="0.63 W/(m*K)",
+        solid_density=799 * u.kg / u.m**3,                     # particle density
+        heat_capacity=1040 * u.J / (u.kg * u.K),
+        thermal_conductivity=0.63 * u.W / (u.m * u.K),
         particle_void_fraction=0.0,
     )
     # Dual-site Langmuir in concentration form for CO2; air does not adsorb.
     ads.set_isotherm("dual_site_langmuir_c", {
-        "CarbonDioxide": {"m1": "0.418 mol/kg", "b1": "2.05e-6 m3/mol", "q1": "29.98 kJ/mol",
-                          "m2": "6.04 mol/kg",  "b2": "3.32e-6 m3/mol", "q2": "20.367 kJ/mol"},
+        "CarbonDioxide": {"m1": 0.418 * u.mol / u.kg, "b1": 2.05e-6 * u.m**3 / u.mol, "q1": 29.98 * u.kJ / u.mol,
+                          "m2": 6.04 * u.mol / u.kg,  "b2": 3.32e-6 * u.m**3 / u.mol, "q2": 20.367 * u.kJ / u.mol},
     }, components=["CarbonDioxide"])
     ads.set_isotherm("inert", components=["Air"])
     # Linear driving force; the CO2 coefficient from the Haynes (1973) macropore correlation.
     ads.set_rate_model("CarbonDioxide", "ldf", "haynes", tortuosity=3.0, macropore_void_fraction=0.59)
-    ads.set_rate_model("Air", "ldf", "constant", k="0 1/s")
-    ads.heat_of_adsorption["CarbonDioxide"] = "29.98 kJ/mol"
-    ads.heat_of_adsorption["Air"] = "0 J/mol"
+    ads.set_rate_model("Air", "ldf", "constant", k=0 / u.s)
+    ads.heat_of_adsorption["CarbonDioxide"] = 29.98 * u.kJ / u.mol
+    ads.heat_of_adsorption["Air"] = 0 * u.J / u.mol
     return ads
 
 
@@ -79,58 +80,58 @@ def build(case: str) -> sk.Simulation:
     sim.add_component("Air")
     sim.fluid.adsorbed_heat_capacity_mode = "constant"
     sim.fluid.heat_of_adsorption_convention = "isosteric"
-    sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = "36.96 J/(mol*K)"
-    sim.fluid.adsorbed_heat_capacity["Air"] = "0 J/(mol*K)"
+    sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 36.96 * u.J / (u.mol * u.K)
+    sim.fluid.adsorbed_heat_capacity["Air"] = 0 * u.J / (u.mol * u.K)
 
     # ---- adsorbent -------------------------------------------------------------------
     add_activated_carbon(sim)
 
     # ---- column: 0.286 m x 18.9 mm tube ---------------------------------------------------
-    sim.bed.set_shape("cylinder", diameter="18.9 mm")
-    sim.bed.ambient_temperature = "291.4 K"                    # Table 1
+    sim.bed.set_shape("cylinder", diameter=18.9 * u.mm)
+    sim.bed.ambient_temperature = 291.4 * u.K                    # Table 1
     sim.bed.set_thermal_equilibrium("lte")                     # gas and solid at one temperature
-    sim.bed.set_particle_heat_transfer("constant", particle_htc="100 W/(m^2*K)")
+    sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
     for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
         void.enabled = False
-        void.volume = "1e-4 m3"
-        void.resistance_coefficient = "0 Pa*s/m"
+        void.volume = 1e-4 * u.m**3
+        void.resistance_coefficient = 0 * u.Pa * u.s / u.m
     # Aluminium tube: pure aluminium's properties (not a preset alloy), so a custom material.
-    sim.wall.set_material("custom", density="2700 kg/m3", heat_capacity="902 J/(kg*K)",
-                          thermal_conductivity="205 W/(m*K)")
-    sim.wall.thickness = "3.25 mm"
+    sim.wall.set_material("custom", density=2700 * u.kg / u.m**3, heat_capacity=902 * u.J / (u.kg * u.K),
+                          thermal_conductivity=205 * u.W / (u.m * u.K))
+    sim.wall.thickness = 3.25 * u.mm
     sim.wall.set_boundary("zero_flux")
 
     layer = sim.add_layer("Activated Carbon", composition={"Activated Carbon": 1.0}, momentum="kozeny_carman",
-                          length="0.286 m", cells=60, bed_void_fraction=0.456, particle_diameter="3 mm")
-    layer.set_dispersion("ruthven", molecular_diffusion_coefficient="1.6e-5 m2/s")
+                          length=0.286 * u.m, cells=60, bed_void_fraction=0.456, particle_diameter=3 * u.mm)
+    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
     layer.set_heat_dispersion("yagi_kunii")                    # axial conductivity from Yagi & Kunii
     layer.set_internal_heat_transfer("constant", internal_htc=cfg["internal_htc"])
     # Wall to ambient by natural convection, Holman correlation Nu = c Re^m Pr^n.
     layer.set_external_heat_transfer("holman", holman_c=0.027, holman_m=0.8, holman_n=1 / 3,
-                                     external_velocity="0.5 m/s")
+                                     external_velocity=0.5 * u.m / u.s)
 
     # ---- initial state: the bed full of air at 1 bar and 291.4 K --------------------------
-    sim.initial_conditions.pressure = "1 bar"
-    sim.initial_conditions.temperature = "291.4 K"
-    sim.initial_conditions.wall_temperature = "291.4 K"
-    sim.initial_conditions.velocity = "0 m/s"
+    sim.initial_conditions.pressure = 1 * u.bar
+    sim.initial_conditions.temperature = 291.4 * u.K
+    sim.initial_conditions.wall_temperature = 291.4 * u.K
+    sim.initial_conditions.velocity = 0 * u.m / u.s
     sim.initial_conditions.y["Air"] = 1.0
     sim.initial_conditions.y["CarbonDioxide"] = 0.0
 
     # ---- one feed step: pure CO2 in at the bottom, the top open at 1 bar -------------------
     sim.cycle.number_of_cycles = 1
     sim.cycle.step_time_mode = "time"
-    feed = sim.add_step("Feed", time="3000 s")
+    feed = sim.add_step("Feed", time=3000 * u.s)
     feed.bottom.set_streams("inlet", [
         sk.Stream("CO2 Inlet", flow=sk.volumetric_flow(cfg["feed_flow"]), y={"Air": 0.0, "CarbonDioxide": 1.0},
-                  temperature="293 K"),
+                  temperature=293 * u.K),
     ])
-    feed.top.set_pressure("outlet", "1 bar", y={"CarbonDioxide": 0.0, "Air": 1.0}, temperature="293 K")
+    feed.top.set_pressure("outlet", 1 * u.bar, y={"CarbonDioxide": 0.0, "Air": 1.0}, temperature=293 * u.K)
 
     # ---- solver (SUNDIALS IDA), cyclic steady state, energy balance ----------------------
-    sim.settings.init_step = "1e-10 s"
-    sim.settings.min_step = "1e-15 s"
-    sim.settings.max_step = "0 s"                              # no limit on the integrator step
+    sim.settings.init_step = 1e-10 * u.s
+    sim.settings.min_step = 1e-15 * u.s
+    sim.settings.max_step = 0 * u.s                              # no limit on the integrator step
     sim.settings.reltol = 1e-6
     sim.settings.nonlin_conv_coef = 0.1
     sim.settings.max_order = 5
@@ -150,7 +151,7 @@ def build(case: str) -> sk.Simulation:
     sim.css.mass_balance_tolerance = 0.005
     sim.energy_balance.energy_balance_mode = "non_isothermal"
     sim.energy_balance.isothermal_use_initial_temperature = True
-    sim.energy_balance.isothermal_temperature = "298.15 K"
+    sim.energy_balance.isothermal_temperature = 298.15 * u.K
     return sim
 
 

@@ -9,9 +9,10 @@ The engine (`adsim`) is a C++20 library. The `skarstrom` Python package and comm
 
 ```python
 import skarstrom
+from skarstrom import ureg as u
 
 sim = skarstrom.examples.Perez2019_A.load()
-sim.steps["Feed"].time = "2 min"
+sim.steps["Feed"].time = 2 * u.min
 result = sim.run()                                   # to cyclic steady state
 print(result.status, result.css_cycle)
 for k in sim.kpis(cycle=-1):

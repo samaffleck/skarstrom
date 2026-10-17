@@ -33,10 +33,11 @@ The package bundles every example deck of the repository and the curated adsorbe
 
 ```python
 import skarstrom
+from skarstrom import ureg as u                 # pint's unit registry
 
 sim = skarstrom.examples.Perez2019_A.load()     # a bundled deck; or skarstrom.Simulation("my_deck.json")
 sim.cycle.number_of_cycles = 20
-sim.steps["Feed"].time = "2 min"                # units are explicit; a bare number is SI (seconds)
+sim.steps["Feed"].time = 2 * u.min              # units are explicit; a bare number is SI (seconds)
 result = sim.run()
 
 print(result.status, result.message)            # e.g. "reached_css", "cyclic steady state reached at cycle 14"
@@ -77,20 +78,21 @@ The decks are those of `examples/decks/` in the repository ([Examples](examples.
 A `Simulation` exposes the parts of its deck as objects. Reading an attribute reads the deck and assigning one sets it:
 
 ```python
+from skarstrom import ureg as u
 sim = skarstrom.examples.Perez2019_A.load()
 sim.steps                                       # the cycle's steps, in order
 sim.steps["Feed"].time = 120                    # a step by name...
 sim.steps[0].time                               # ...or by position (0-based)
-sim.steps["Feed"].bottom.temperature = "25 degC"  # the feed-end stream of that step
+sim.steps["Feed"].bottom.temperature = 298.15   # the feed-end stream of that step
 sim.steps["Feed"].bottom.y["CO2"] = 0.15        # inlet mole fractions by component
-sim.steps["Blowdown"].top.pressure_exponential_end = "0.1 bar"
-sim.layers[0].length = "1.2 m"                  # adsorbent layers, feed end first
+sim.steps["Blowdown"].top.pressure_exponential_end = 0.1 * u.bar
+sim.layers[0].length = 1.2 * u.m                # adsorbent layers, feed end first
 sim.layers[0].bed_void_fraction = 0.37
 ads = sim.adsorbents["13X"]
-ads.heat_of_adsorption["CO2"] = "35 kJ/mol"
+ads.heat_of_adsorption["CO2"] = 35 * u.kJ / u.mol
 ads.isotherm["CO2"].b1 = 3.9e-7                 # isotherm parameters (fields depend on the isotherm kind)
 ads.kinetics["CO2"].tortuosity = 3.0           # rate-model parameters (fields depend on the model)
-sim.variables                                   # user variables by name: sim.variables["feed_flow"] = "2 L/min"
+sim.variables                                   # user variables by name: sim.variables["feed_flow"] = 2 * u.L / u.min
 sim.bed.diameter, sim.wall.thickness
 sim.settings.reltol = 1e-6                      # solver, CSS and energy-balance settings
 sim.css.min_cycles = 3
@@ -119,37 +121,39 @@ Each object also has `fields` (its field names), `get(name, unit=None)`, `set(na
 
 ## Units
 
-**A bare number is in the field's SI unit**: seconds, kelvin, pascal, metre, m/s, mol/s, kg/m³, J/mol and so on. The unit is in each field's documentation, in the printed objects, and in `Parameter.unit`. To use another unit, say so:
+**A bare number is in the field's SI unit**: seconds, kelvin, pascal, metre, m/s, mol/s, kg/m³, J/mol and so on. The unit is in each field's documentation, in the printed objects, and in `Parameter.unit`. To use another unit, give a [pint](https://pint.readthedocs.io) quantity, or the number and its unit:
 
 ```python
+from skarstrom import ureg as u       # pint's application registry (skarstrom installs pint)
+
 step = sim.steps["Feed"]
 step.time = 120                       # 120 s
-step.time = "2 min"                   # a quantity: number and unit
-step.time = "2 [min]"                 # the same, in the deck's own syntax
-step.set("time", 2, unit="min")       # an explicit unit argument
+step.time = 2 * u.min                 # a pint quantity
+step.set("time", 2, "min")            # a number and its unit
 step.get("time", unit="min")          # 2.0: read back in any unit
-
-import pint
-ureg = pint.UnitRegistry()
-step.time = 2 * ureg.minute           # pint Quantities work too
-step.bottom.temperature = ureg.Quantity(25, ureg.degC)
+step.bottom.temperature = u.Quantity(25, "degC")   # offset units (°C, °F) need Quantity()
+sim.layers[0].set("length", 1.2, "m")
+sim.adsorbents["13X"].heat_of_adsorption.set("CO2", 35, "kJ/mol")
 ```
 
 The unit is checked against the field's dimension, so a mistake is an error rather than a silently wrong number:
 
 ```text
->>> step.time = "2 bar"
-ValueError: parameter step[1].time is a time [s]; '2 bar' is a pressure
+>>> step.time = 2 * u.bar
+ValueError: step[1].time expects a time [s]; 2 bar is a pressure
 ```
 
-String units are read by the engine, the same parser decks and `skarstrom run --set` use: SI symbols with prefixes (`kPa`, `mmol`, `cm`, `kJ`), compound units (`kJ/mol`, `W/(m^2*K)`, `mmol/g`, `kg/m3`, `1/bar`) and common named units (`bar`, `atm`, `psi`, `degC`, `degF`, `min`, `h`, `L/min`, `SCCM`, `Nm3/h`, `%`, `ppm`). Everything after a `/` is in the denominator, so `W/m2-K` means W/(m²·K). A temperature in `degC` is absolute on its own and a temperature difference inside a compound unit (`J/(kg*degC)`). pint Quantities are converted by pint itself, so any unit pint knows works. `skarstrom.units.convert(25, "degC", "K")` converts plain numbers.
+pint quantities are converted with pint itself, so any unit pint knows works, and a quantity from your own `pint.UnitRegistry()` works too. A unit given as text (the `unit=` argument) is read by the engine with the [LLNL units](https://github.com/LLNL/units) library, as the units in decks and in `skarstrom run --set` are: SI symbols with prefixes (`kPa`, `mmol`, `cm`, `kJ`), compound units (`kJ/mol`, `W/(m^2*K)`, `mmol/g`, `kg/m3`, `1/bar`) and named units (`bar`, `atm`, `psi`, `degC`, `degF`, `min`, `h`, `L/min`, `SCCM`, `Nm3/h`, `%`, `ppm`). Everything after a `/` is in the denominator, so `W/m2-K` means W/(m²·K). A temperature in `degC` is absolute on its own and a temperature difference inside a compound unit (`J/(kg*degC)`). `skarstrom.units.convert(25, "degC", "K")` converts plain numbers.
+
+A field also accepts text, which is how decks store values: an expression (`"t_feed / 3"`, using the deck's [user variables](global-variables.md)) or a quantity in deck syntax (`"2 [min]"`, also `"2 min"`). Prefer pint or `set(value, unit)` in scripts; text is there for decks, the command line and expressions.
 
 To make units mandatory, create the simulation with `require_units=True`. A bare number for a dimensional field then raises `TypeError` (dimensionless values, counts and switches still take plain numbers):
 
 ```python
+from skarstrom import ureg as u
 sim = skarstrom.Simulation(skarstrom.examples.Perez2019_A, require_units=True)
 sim.steps["Feed"].time = 120          # TypeError: step[1].time is a time [s]; ... give the unit
-sim.steps["Feed"].time = "120 s"      # fine
+sim.steps["Feed"].time = 120 * u.s    # fine
 ```
 
 ## Parameter paths
@@ -182,8 +186,9 @@ Paths look like this:
 The numbers in brackets are IDs stored in the deck, so a path keeps working when you rename a step, stream, layer or adsorbent. Each parameter also has an **alias** that uses the display names instead, for example `step[Feed].time`, `step[Feed].bottom[Feed gas].temperature` or `layer[Layer 1].length`. You can use either form. An alias that matches two objects with the same name is rejected, and you then need the ID path. `obj.path("time")` gives the path of any object's field.
 
 ```python
+from skarstrom import ureg as u
 sim["step[Feed].time"] = 120.0                # a number (SI)
-sim["endpoint[2].pressure"] = "1.5 bar"       # a quantity
+sim["endpoint[2].pressure"] = 1.5 * u.bar     # a quantity
 sim["step[2].time"] = "0.2 * 95"              # an expression (it may use the deck's user variables)
 sim.set("step[1].time", 2, unit="min")
 sim.update({"css.min_cycles": 3, "settings.reltol": 1e-6})
@@ -212,50 +217,51 @@ A deck can be written entirely in code. `Simulation.new()` starts an empty one; 
 
 ```python
 import skarstrom as sk
+from skarstrom import ureg as u
 
 sim = sk.Simulation.new(title="CO2/N2 VSA")
 sim.add_component("CarbonDioxide")
 sim.add_component("Nitrogen")
 
-ads = sim.add_adsorbent("13X", solid_density="1138 kg/m3", heat_capacity="900 J/(kg*K)",
-                        thermal_conductivity="0.63 W/(m*K)", particle_void_fraction=0.35)
+ads = sim.add_adsorbent("13X", solid_density=1138 * u.kg / u.m**3, heat_capacity=900 * u.J / (u.kg * u.K),
+                        thermal_conductivity=0.63 * u.W / (u.m * u.K), particle_void_fraction=0.35)
 ads.set_isotherm("extended_dual_site_langmuir_c", {
-    "CO2": {"m1": 2.768, "b1": 3.934e-7, "q1": "40.98 kJ/mol", "m2": 2.758, "b2": 1.256e-7, "q2": "34.19 kJ/mol"},
-    "N2":  {"m1": 2.768, "b1": 3.134e-6, "q1": "15.71 kJ/mol", "m2": 2.758, "b2": 3.134e-6, "q2": "15.72 kJ/mol"},
+    "CO2": {"m1": 2.768, "b1": 3.934e-7, "q1": 40.98 * u.kJ / u.mol, "m2": 2.758, "b2": 1.256e-7, "q2": 34.19 * u.kJ / u.mol},
+    "N2":  {"m1": 2.768, "b1": 3.134e-6, "q1": 15.71 * u.kJ / u.mol, "m2": 2.758, "b2": 3.134e-6, "q2": 15.72 * u.kJ / u.mol},
 })
 ads.set_rate_model("CO2", "ldf", "macropore", tortuosity=3, macropore_void_fraction=0.35)
 ads.set_rate_model("N2", "ldf", "macropore", tortuosity=3, macropore_void_fraction=0.35)
-ads.heat_of_adsorption["CO2"] = "30.85 kJ/mol"
-ads.heat_of_adsorption["N2"] = "15.93 kJ/mol"
+ads.heat_of_adsorption["CO2"] = 30.85 * u.kJ / u.mol
+ads.heat_of_adsorption["N2"] = 15.93 * u.kJ / u.mol
 
-sim.bed.set_shape("cylinder", diameter="3.2 cm")
+sim.bed.set_shape("cylinder", diameter=3.2 * u.cm)
 sim.wall.set_material("ss316l")                       # library properties; or "custom" with your own
-sim.wall.thickness = "3.1 mm"
+sim.wall.thickness = 3.1 * u.mm
 sim.wall.set_boundary("zero_flux")                    # or "fixed", fixed_temperature=...
 
 layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman",
-                      length="0.3 m", cells=30, bed_void_fraction=0.41, particle_diameter="1.5 mm")
+                      length=0.3 * u.m, cells=30, bed_void_fraction=0.41, particle_diameter=1.5 * u.mm)
 layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5)
 layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0.0903)
 layer.set_internal_heat_transfer("constant", internal_htc=8.6)
 layer.set_external_heat_transfer("constant", external_htc=10)
 
-sim.initial_conditions.pressure = "1 bar"
+sim.initial_conditions.pressure = 1 * u.bar
 sim.initial_conditions.temperature = 298
 sim.initial_conditions.y["N2"] = 1.0
 
-feed = sim.add_step("Feed", time="99 s")              # a new step has both ends closed
+feed = sim.add_step("Feed", time=99 * u.s)              # a new step has both ends closed
 feed.bottom.set_streams("inlet", [
-    sk.Stream("Feed inlet", flow=sk.velocity("8.5 cm/s"), y={"CO2": 0.15, "N2": 0.85}, temperature=298),
+    sk.Stream("Feed inlet", flow=sk.velocity(8.5 * u.cm / u.s), y={"CO2": 0.15, "N2": 0.85}, temperature=298),
 ])
-feed.top.set_pressure("outlet", "1 bar")
+feed.top.set_pressure("outlet", 1 * u.bar)
 blowdown = sim.add_step("Blowdown", time=19)
-blowdown.top.set_pressure("outlet", sk.exponential("0.06 bar"))
+blowdown.top.set_pressure("outlet", sk.exponential(0.06 * u.bar))
 evacuation = sim.add_step("Evacuation", time=57)
-evacuation.bottom.set_pressure("outlet", sk.exponential("0.032 bar"),
-                               pump=sk.Pump("vacuum_pump", efficiency=0.72, discharge_pressure="1 bar"))
+evacuation.bottom.set_pressure("outlet", sk.exponential(0.032 * u.bar),
+                               pump=sk.Pump("vacuum_pump", efficiency=0.72, discharge_pressure=1 * u.bar))
 pressurisation = sim.add_step("Pressurisation", time=30)
-pressurisation.bottom.set_pressure("inlet", sk.linear("1 bar"), y={"CO2": 0.15, "N2": 0.85}, temperature=298)
+pressurisation.bottom.set_pressure("inlet", sk.linear(1 * u.bar), y={"CO2": 0.15, "N2": 0.85}, temperature=298)
 
 sim.kpi.track("CO2", feed=[feed.bottom, pressurisation.bottom], product=[evacuation.bottom])
 sim.cycle.number_of_cycles = 50

@@ -25,6 +25,7 @@ import sys
 
 import _common as c
 import skarstrom as sk
+from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 
 FEED = {"CarbonDioxide": 0.15, "Nitrogen": 0.85}       # flue gas, mole fractions
 BACKFLOW = {"CarbonDioxide": 0.0, "Nitrogen": 1.0}     # gas entering an outlet if the flow reverses
@@ -34,23 +35,23 @@ def add_mg_mof_74(sim: sk.Simulation) -> sk.Adsorbent:
     """Mg-MOF-74 with the extended (competitive) dual-site Langmuir isotherm of Table 1."""
     ads = sim.add_adsorbent(
         "Mg-MOF-74",
-        solid_density="910.4166666666667 kg/m3",       # particle density
-        heat_capacity="900 J/(kg*K)",
-        thermal_conductivity="0.5 W/(m*K)",
+        solid_density=910.4166666666667 * u.kg / u.m**3,       # particle density
+        heat_capacity=900 * u.J / (u.kg * u.K),
+        thermal_conductivity=0.5 * u.W / (u.m * u.K),
         particle_void_fraction=0.35,
     )
     ads.set_isotherm("extended_dual_site_langmuir_c", {
-        "CarbonDioxide": {"m1": "6.8 mol/kg", "b1": "1.81e-7 m3/mol", "q1": "39.3 kJ/mol",
-                          "m2": "9.9 mol/kg", "b2": "1.06e-6 m3/mol", "q2": "21.2 kJ/mol"},
+        "CarbonDioxide": {"m1": 6.8 * u.mol / u.kg, "b1": 1.81e-7 * u.m**3 / u.mol, "q1": 39.3 * u.kJ / u.mol,
+                          "m2": 9.9 * u.mol / u.kg, "b2": 1.06e-6 * u.m**3 / u.mol, "q2": 21.2 * u.kJ / u.mol},
         # N2 adsorbs on one site only.
-        "Nitrogen":      {"m1": "14 mol/kg",  "b1": "3.45e-6 m3/mol", "q1": "15.5 kJ/mol",
-                          "m2": "0 mol/kg",   "b2": "0 m3/mol",       "q2": "0 J/mol"},
+        "Nitrogen":      {"m1": 14 * u.mol / u.kg,  "b1": 3.45e-6 * u.m**3 / u.mol, "q1": 15.5 * u.kJ / u.mol,
+                          "m2": 0 * u.mol / u.kg,   "b2": 0 * u.m**3 / u.mol,       "q2": 0 * u.J / u.mol},
     }, components=["CarbonDioxide", "Nitrogen"])
     # Linear driving force with a constant coefficient.
     for component in ("CarbonDioxide", "Nitrogen"):
-        ads.set_rate_model(component, "ldf", "constant", k="1 1/s")
-    ads.heat_of_adsorption["CarbonDioxide"] = "30.85 kJ/mol"
-    ads.heat_of_adsorption["Nitrogen"] = "15.93 kJ/mol"
+        ads.set_rate_model(component, "ldf", "constant", k=1 / u.s)
+    ads.heat_of_adsorption["CarbonDioxide"] = 30.85 * u.kJ / u.mol
+    ads.heat_of_adsorption["Nitrogen"] = 15.93 * u.kJ / u.mol
     return ads
 
 
@@ -58,9 +59,9 @@ def add_activated_carbon(sim: sk.Simulation) -> sk.Adsorbent:
     """The paper's second material; defined in the deck but not packed in this single-adsorbent case."""
     return sim.add_adsorbent(
         "Activated Carbon",
-        solid_density="1200 kg/m3",
-        heat_capacity="500 J/(kg*K)",
-        thermal_conductivity="0.5 W/(m*K)",
+        solid_density=1200 * u.kg / u.m**3,
+        heat_capacity=500 * u.J / (u.kg * u.K),
+        thermal_conductivity=0.5 * u.W / (u.m * u.K),
         particle_void_fraction=0.35,
     )
 
@@ -80,61 +81,61 @@ def build(case: str = "FourStepPSA") -> sk.Simulation:
     sim.add_component("Nitrogen")
     sim.fluid.adsorbed_heat_capacity_mode = "constant"
     sim.fluid.heat_of_adsorption_convention = "internal_energy"
-    sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = "30.7 J/(mol*K)"
-    sim.fluid.adsorbed_heat_capacity["Nitrogen"] = "30.7 J/(mol*K)"
+    sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 30.7 * u.J / (u.mol * u.K)
+    sim.fluid.adsorbed_heat_capacity["Nitrogen"] = 30.7 * u.J / (u.mol * u.K)
 
     # ---- adsorbents ------------------------------------------------------------------
     add_mg_mof_74(sim)
     add_activated_carbon(sim)
 
     # ---- column: 1 m x 0.29 m, stainless steel ----------------------------------------------
-    sim.bed.set_shape("cylinder", diameter="0.29 m")
-    sim.bed.ambient_temperature = "293 K"
+    sim.bed.set_shape("cylinder", diameter=0.29 * u.m)
+    sim.bed.ambient_temperature = 293 * u.K
     sim.bed.set_thermal_equilibrium("lte")                     # gas and solid at one temperature
-    sim.bed.set_particle_heat_transfer("constant", particle_htc="100 W/(m^2*K)")
+    sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
     for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
         void.enabled = False
-        void.volume = "1e-4 m3"
-        void.resistance_coefficient = "0 Pa*s/m"
-    sim.wall.set_material("ss316l", density="7800 kg/m3", heat_capacity="502 J/(kg*K)",
-                          thermal_conductivity="16 W/(m*K)")
-    sim.wall.thickness = "17 mm"
+        void.volume = 1e-4 * u.m**3
+        void.resistance_coefficient = 0 * u.Pa * u.s / u.m
+    sim.wall.set_material("ss316l", density=7800 * u.kg / u.m**3, heat_capacity=502 * u.J / (u.kg * u.K),
+                          thermal_conductivity=16 * u.W / (u.m * u.K))
+    sim.wall.thickness = 17 * u.mm
     sim.wall.set_boundary("zero_flux")
 
     layer = sim.add_layer("Adsorbent", composition={"Mg-MOF-74": 1.0}, momentum="kozeny_carman",
-                          length="1 m", cells=30, bed_void_fraction=0.52, particle_diameter="2 mm")
-    layer.set_dispersion("ruthven", molecular_diffusion_coefficient="1.6e-5 m2/s")
-    layer.set_heat_dispersion("constant", heat_dispersion_coefficient="0 W/(m*K)")
-    layer.set_internal_heat_transfer("constant", internal_htc="8.6 W/(m^2*K)")
-    layer.set_external_heat_transfer("constant", external_htc="2.5 W/(m^2*K)")
+                          length=1 * u.m, cells=30, bed_void_fraction=0.52, particle_diameter=2 * u.mm)
+    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
+    layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
+    layer.set_internal_heat_transfer("constant", internal_htc=8.6 * u.W / (u.m**2 * u.K))
+    layer.set_external_heat_transfer("constant", external_htc=2.5 * u.W / (u.m**2 * u.K))
 
     # ---- initial state: the bed full of N2 at 1 bar and 298 K --------------------------
-    sim.initial_conditions.pressure = "1 bar"
-    sim.initial_conditions.temperature = "298 K"
-    sim.initial_conditions.wall_temperature = "298 K"
-    sim.initial_conditions.velocity = "0 m/s"
+    sim.initial_conditions.pressure = 1 * u.bar
+    sim.initial_conditions.temperature = 298 * u.K
+    sim.initial_conditions.wall_temperature = 298 * u.K
+    sim.initial_conditions.velocity = 0 * u.m / u.s
     sim.initial_conditions.y["Nitrogen"] = 1.0
     sim.initial_conditions.y["CarbonDioxide"] = 0.0
 
     # ---- cycle: feed, blowdown (top), evacuation (bottom), pressurisation with feed gas ----
     sim.cycle.number_of_cycles = 250
     sim.cycle.step_time_mode = "time"
-    feed = sim.add_step("Feed", time="57.6 s")
+    feed = sim.add_step("Feed", time=57.6 * u.s)
     feed.bottom.set_streams("inlet", [
-        sk.Stream("Feed inlet", flow=sk.velocity("0.7956 m/s"), y=FEED, temperature="298.15 K"),
+        sk.Stream("Feed inlet", flow=sk.velocity(0.7956 * u.m / u.s), y=FEED, temperature=298.15 * u.K),
     ])
-    feed.top.set_pressure("outlet", "1 bar", y=BACKFLOW, temperature="293 K")
+    feed.top.set_pressure("outlet", 1 * u.bar, y=BACKFLOW, temperature=293 * u.K)
 
-    blowdown = sim.add_step("Blowdown", time="60.7 s")
+    blowdown = sim.add_step("Blowdown", time=60.7 * u.s)
     blowdown.bottom.set_closed()
-    blowdown.top.set_pressure("outlet", sk.exponential("9050 Pa"), y=BACKFLOW, temperature="293 K")
+    blowdown.top.set_pressure("outlet", sk.exponential(9050 * u.Pa), y=BACKFLOW, temperature=293 * u.K)
 
-    evacuation = sim.add_step("Evacuation", time="200 s")
-    evacuation.bottom.set_pressure("outlet", sk.exponential("1000 Pa"), y=BACKFLOW, temperature="293 K")
+    evacuation = sim.add_step("Evacuation", time=200 * u.s)
+    evacuation.bottom.set_pressure("outlet", sk.exponential(1000 * u.Pa), y=BACKFLOW, temperature=293 * u.K)
     evacuation.top.set_closed()
 
-    pressurisation = sim.add_step("Pressurisation", time="30 s")
-    pressurisation.bottom.set_pressure("inlet", sk.linear("1 bar"), y=FEED, temperature="298.15 K")
+    pressurisation = sim.add_step("Pressurisation", time=30 * u.s)
+    pressurisation.bottom.set_pressure("inlet", sk.linear(1 * u.bar), y=FEED, temperature=298.15 * u.K)
     pressurisation.top.set_closed()
 
     # CO2 is fed in the feed and pressurisation steps and recovered by evacuation.
@@ -142,9 +143,9 @@ def build(case: str = "FourStepPSA") -> sk.Simulation:
                   product=[evacuation.bottom])
 
     # ---- solver (SUNDIALS IDA), cyclic steady state, energy balance ----------------------
-    sim.settings.init_step = "1e-10 s"
-    sim.settings.min_step = "1e-15 s"
-    sim.settings.max_step = "2 s"
+    sim.settings.init_step = 1e-10 * u.s
+    sim.settings.min_step = 1e-15 * u.s
+    sim.settings.max_step = 2 * u.s
     sim.settings.reltol = 1e-6
     sim.settings.nonlin_conv_coef = 0.1
     sim.settings.max_order = 5
@@ -164,7 +165,7 @@ def build(case: str = "FourStepPSA") -> sk.Simulation:
     sim.css.mass_balance_tolerance = 0.005
     sim.energy_balance.energy_balance_mode = "non_isothermal"
     sim.energy_balance.isothermal_use_initial_temperature = True
-    sim.energy_balance.isothermal_temperature = "298.15 K"
+    sim.energy_balance.isothermal_temperature = 298.15 * u.K
     return sim
 
 

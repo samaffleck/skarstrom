@@ -2,24 +2,28 @@
 
 A bare number is in the parameter's SI unit: seconds, kelvin, pascal, metre,
 mol/s and so on (the unit is in every docstring, in the repr of every object
-and in :attr:`skarstrom.Parameter.unit`). To use another unit, say so::
+and in :attr:`skarstrom.Parameter.unit`). To use another unit, give a pint
+Quantity or pass the unit next to the number::
 
-    sim.steps["Feed"].time = "2 min"              # a string quantity
-    sim.steps["Feed"].time = "2 [min]"            # the same, in deck syntax
-    sim.steps["Feed"].time = 2 * ureg.minute      # a pint Quantity
-    sim.set("step[Feed].time", 2, unit="min")     # an explicit unit argument
-    sim.steps["Feed"].get("time", unit="min")     # read back in minutes
+    from skarstrom import ureg as u                # pint's application registry
 
-Quantities are checked against the parameter's dimension, so ``"2 bar"`` on a
-step time raises ``ValueError`` instead of setting 200 000 s. String units are
-parsed by the engine (the same parser decks and the CLI use): SI symbols with
-prefixes (``kPa``, ``mmol``, ``cm``), compound units (``kJ/mol``,
-``W/(m^2*K)``, ``mmol/g``), and common named units (``bar``, ``atm``,
+    sim.steps["Feed"].time = 2 * u.min             # a pint Quantity
+    sim.steps["Feed"].set("time", 2, "min")        # a number and its unit
+    sim.set("step[Feed].time", 2, unit="min")      # the same, by path
+    sim.steps["Feed"].get("time", unit="min")      # read back in minutes
+    sim.bed.ambient_temperature = u.Quantity(25, "degC")  # offset units need Quantity()
+
+Quantities and units are checked against the parameter's dimension, so
+``2 * u.bar`` on a step time raises ``ValueError`` instead of setting
+200 000 s. pint Quantities are converted with pint itself
+(``to_base_units``), so any unit pint knows works, and a Quantity from another
+pint registry works too. Unit names given as text (the ``unit=`` argument, and
+the deck syntax ``"2 [min]"`` or ``"2 min"``, which strings still accept for
+decks and the command line) are parsed by the engine with the LLNL units
+library: SI symbols with prefixes (``kPa``, ``mmol``, ``cm``), compound units
+(``kJ/mol``, ``W/(m^2*K)``, ``mmol/g``) and named units (``bar``, ``atm``,
 ``degC``, ``min``, ``h``, ``L/min``, ``SCCM``, ``Nm3/h``, ``%``). Everything
 after a ``/`` is in the denominator, so ``W/m2-K`` is W/(m²·K).
-
-pint Quantities work without any setup: skarstrom converts them with pint
-itself (``to_base_units``), so any unit pint knows is accepted.
 
 To make units mandatory, create the simulation with
 ``Simulation(deck, require_units=True)``: a bare number for a dimensional
@@ -31,9 +35,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Tuple
 
+import pint
+
 from . import _core
 
-__all__ = ["Unit", "convert", "dimension_name", "is_quantity", "parse"]
+__all__ = ["Quantity", "Unit", "convert", "dimension_name", "is_quantity", "parse", "ureg"]
+
+#: pint's application registry: ``3.2 * ureg.cm``, ``ureg.Quantity(25, "degC")``.
+ureg = pint.get_application_registry()
+#: ``Quantity(value, unit)``, from :data:`ureg`.
+Quantity = ureg.Quantity
 
 # Exponents of (length, mass, time, temperature, amount of substance).
 Dimension = Tuple[int, int, int, int, int]

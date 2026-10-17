@@ -163,7 +163,9 @@ def test_units_module():
     with pytest.raises(ValueError):
         u.convert(1, "bar", "s")
     with pytest.raises(ValueError):
-        u.parse("furlong")
+        u.parse("flurgle")
+    assert u.convert(1, "furlong", "m") == pytest.approx(201.17, abs=0.01)  # LLNL units knows it
+    assert skarstrom.ureg is u.ureg and skarstrom.Quantity(2, "min").to("s").magnitude == 120
 
 
 # ---- step ends, streams, components -------------------------------------------------

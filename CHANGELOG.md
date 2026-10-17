@@ -20,6 +20,12 @@ root `CMakeLists.txt`.
   amount of substance are accepted. `LookupUnitSymbol` is removed.
 - An inline `[unit]` now gets the unit category of its dimension: heat
   transfer coefficients and viscosities were Custom before.
+- Python: pint is a dependency, and `skarstrom.ureg` / `skarstrom.Quantity`
+  give its application registry. Scripts set values with pint quantities
+  (`sim.wall.thickness = 3.1 * u.mm`) or a number and its unit
+  (`node.set("thickness", 3.1, "mm")`); every example script and the docs
+  now do, instead of unit strings. Strings still accept deck-syntax
+  quantities (`"2 [min]"`) and expressions.
 
 ### Added (KPIs)
 - A **recycle** role in the KPI configuration (`Recycle_Endpoints` in the

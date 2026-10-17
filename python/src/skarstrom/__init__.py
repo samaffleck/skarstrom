@@ -4,12 +4,14 @@ Load a deck (a JSON simulation file; :mod:`skarstrom.examples` holds the
 bundled ones), change it, run it to cyclic steady state and read the results::
 
     import skarstrom
+    from skarstrom import ureg as u                # pint's unit registry
 
     sim = skarstrom.examples.Perez2019_A.load()   # or skarstrom.Simulation("deck.json")
     sim.cycle.number_of_cycles = 20
-    sim.steps["Feed"].time = "2 min"               # a step by name; units are explicit...
-    sim.steps["Feed"].bottom.temperature = 298.15  # ...or SI (K, s, Pa, m, mol/s)
-    sim.layers[0].length = "1.2 m"
+    sim.steps["Feed"].time = 2 * u.min             # a step by name; a pint quantity...
+    sim.steps["Feed"].set("time", 2, "min")        # ...or a number and its unit...
+    sim.steps["Feed"].bottom.temperature = 298.15  # ...or a bare number, in SI (K, s, Pa, m, mol/s)
+    sim.layers[0].length = 1.2 * u.m
     result = sim.run()
     print(result.status, result.css_cycle)
     for k in sim.kpis(cycle=-1):
@@ -35,6 +37,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 import numpy as np
 
 from . import _core, examples, units
+from .units import Quantity, ureg
 from ._core import AxialProfile, CSSRecord, KPIRecord, RunResult, TimeSeries
 from ._example import Example
 from .build import (
@@ -108,6 +111,7 @@ __all__ = [
     "Parameter",
     "Profile",
     "Pump",
+    "Quantity",
     "RunResult",
     "Settings",
     "Simulation",
@@ -142,6 +146,7 @@ __all__ = [
     "stream_variables",
     "to_script",
     "units",
+    "ureg",
     "velocity",
     "volumetric_flow",
 ]
@@ -247,7 +252,7 @@ class Simulation:
 
     With ``require_units=True`` a bare number for a dimensional parameter is
     rejected (``TypeError``): every time, temperature, pressure... must carry
-    its unit (``"120 s"``, ``2 * ureg.minute`` or ``unit=``).
+    its unit (``2 * ureg.minute``, ``set(path, 2, unit="min")``).
     """
 
     def __init__(self, deck: Optional[Union[PathLike, str, Example]] = None, require_units: bool = False) -> None:
@@ -416,10 +421,10 @@ class Simulation:
         """Set a parameter.
 
         * a number is in the parameter's SI unit (``unit="min"`` says otherwise);
-        * a string is a quantity (``"2 min"``, ``"25 degC"``, ``"1.5 [bar]"``)
-          or an expression of user variables (``"2*feed_time"``), or the text
-          of a text parameter;
-        * a pint Quantity is converted with pint.
+        * a pint Quantity is converted with pint;
+        * a string is an expression of user variables (``"2*feed_time"``), a
+          deck-syntax quantity (``"2 [min]"``, also ``"2 min"``), or the text
+          of a text parameter.
 
         A unit of the wrong dimension raises ValueError, as does an invalid
         expression (the old value is kept).
@@ -475,7 +480,7 @@ class Simulation:
                 f"give the unit, e.g. '{value} {info.unit}' or set(..., unit='{info.unit}')")
 
     def update(self, values: Mapping[str, Union[float, int, str, Any]]) -> None:
-        """Set several parameters: ``sim.update({"step[1].time": "50 s", ...})``."""
+        """Set several parameters: ``sim.update({"step[1].time": 50 * ureg.s, ...})``."""
         for k, v in values.items():
             self.set(k, v)
 
@@ -610,7 +615,7 @@ class Simulation:
 
         ``category`` is its unit category (``skarstrom.build_kinds()["variable_category"]``:
         ``"time"``, ``"pressure"``...), which fixes the SI unit of ``value`` and lets a
-        quantity (``"30 s"``) be converted. Give a ``value`` or a ``formula`` of other
+        quantity (``30 * ureg.s``) be converted. Give a ``value`` or a ``formula`` of other
         variables. A variable of the same name is replaced.
         """
         self._build("add_variable", name, category, formula or "", description)

@@ -61,11 +61,12 @@ Several decks also carry the experimental curves digitised from their paper (the
 
 ```python
 import skarstrom
+from skarstrom import ureg as u
 
 path = skarstrom.examples.Perez2019_A.copy_to(".")   # an editable copy
 sim = skarstrom.Simulation(path)
 print(sim.steps["Feed"])                  # the step's values, with units and string paths
-sim.steps["Feed"].time = "80 s"
+sim.steps["Feed"].time = 80 * u.s
 sim.run()
 sim.save("Perez2019_A_80s.json")
 ```
