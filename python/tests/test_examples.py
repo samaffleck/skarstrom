@@ -27,7 +27,9 @@ FAST = {
     "ward_pini_2024": ["--cycles", "2"],
     "tsa_illustrative": ["--cycles", "2"],
     "five_step_product_purge": ["--cycles", "2"],
+    "optimise_nsga2": ["--pop", "4", "--gen", "1", "--workers", "2", "--cycles", "2"],
 }
+NEEDS = {"optimise_nsga2": "pymoo"}
 
 pytestmark = pytest.mark.skipif(not EXAMPLES.is_dir(), reason="examples/ not found (not a repository checkout)")
 
@@ -45,6 +47,8 @@ def test_every_script_is_covered():
 
 @pytest.mark.parametrize("name", sorted(FAST))
 def test_example_runs(name, capsys):
+    if name in NEEDS:
+        pytest.importorskip(NEEDS[name])
     sys.modules.pop("_common", None)
     mod = importlib.import_module(name)
     assert mod.main(FAST[name] + ["--no-plot", "-q"]) == 0

@@ -53,7 +53,39 @@ def objective(x):
 res = minimize(objective, x0=[60.0, 120.0], method="Nelder-Mead", options={"maxfev": 30})
 ```
 
-The C++ engine also has a derivative-free global optimiser for this purpose (`adsim/solver/optimisation.h`: dlib's MaxLIPO with a trust region, over the registry's tunable parameters), which front ends use; it is not wrapped in Python.
+### Multi-objective optimisation (NSGA-II)
+
+Purity and recovery pull against each other, so a design study usually wants the whole trade-off (the Pareto front) rather than one optimum. `examples/optimise_nsga2.py` does this with [pymoo](https://pymoo.org)'s NSGA-II (`pip install pymoo`): two decision variables (feed time and evacuation pressure of `Perez2019_A`), two objectives (CO₂ purity and recovery at cyclic steady state), and every generation's candidates run in parallel processes. The core of it:
+
+```python
+from concurrent.futures import ProcessPoolExecutor
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.problem import Problem
+from pymoo.optimize import minimize
+
+def evaluate(x):                                   # one candidate, in a worker process
+    sim = base.copy()
+    sim.set("step[Feed].time", x[0], unit="s")
+    sim.set("step[Evacuation].bottom.pressure_exponential_end", x[1], unit="kPa")
+    if not sim.run().ok:
+        return [1.0, 1.0]                          # a failed run scores worst
+    k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")
+    return [-k.purity, -k.recovery]                # pymoo minimises
+
+class CycleDesign(Problem):
+    def __init__(self):
+        super().__init__(n_var=2, n_obj=2, xl=[60, 2], xu=[150, 6])
+    def _evaluate(self, X, out, *args, **kwargs):
+        out["F"] = list(pool.map(evaluate, X))
+
+with ProcessPoolExecutor() as pool:
+    res = minimize(CycleDesign(), NSGA2(pop_size=24), ("n_gen", 20))
+res.X, -res.F                                      # Pareto-optimal designs and their KPIs
+```
+
+Each run is single-threaded, so a population evaluates on as many cores as you give it. Constraints (a purity floor, a power limit) go in pymoo's `G` output; other optimisers (SciPy, Optuna, BoTorch) wrap the same `evaluate` function. Use the per-component CSS check for the KPIs a search compares ([Cyclic steady state](cyclic-steady-state.md)).
+
+The C++ engine also has a derivative-free global optimiser (`adsim/solver/optimisation.h`: dlib's MaxLIPO with a trust region), which front ends use; from Python, use any Python optimiser as above.
 
 ## Fitting parameters to measured data
 
