@@ -205,6 +205,7 @@ namespace adsim {
         kpi.product_comp_ = kpi_cfg->product_component;
         kpi.feed_endpoints = kpi_cfg->feed_endpoints;
         kpi.product_endpoints = kpi_cfg->product_endpoints;
+        kpi.recycle_endpoints = kpi_cfg->recycle_endpoints;
       }
       return kpi;
     }
@@ -310,12 +311,13 @@ namespace adsim {
 
     auto kpi = BuildKPIParams(solver, data);
     ASSERT_EQ(kpi.product_comp_, O2);
-    // Feed: air in at step 0 @ BOTTOM. Product: O2 out at step 0 @ TOP, with the
-    // recycle purge/pressurisation (steps 2/3 @ TOP) folded into product.
+    // Feed: air in at step 0 @ BOTTOM. Product: O2 out at step 0 @ TOP.
+    // Recycle: the purge/pressurisation O2 (steps 2/3 @ TOP).
     ASSERT_TRUE(HasKpiFace(kpi.feed_endpoints, 0, BoundaryLocation::BOTTOM));
     ASSERT_TRUE(HasKpiFace(kpi.product_endpoints, 0, BoundaryLocation::TOP));
-    ASSERT_TRUE(HasKpiFace(kpi.product_endpoints, 2, BoundaryLocation::TOP));
-    ASSERT_TRUE(HasKpiFace(kpi.product_endpoints, 3, BoundaryLocation::TOP));
+    ASSERT_EQ(kpi.product_endpoints.size(), 1u);
+    ASSERT_TRUE(HasKpiFace(kpi.recycle_endpoints, 2, BoundaryLocation::TOP));
+    ASSERT_TRUE(HasKpiFace(kpi.recycle_endpoints, 3, BoundaryLocation::TOP));
 
     SaveTest("Arora2021_LiLSX_PSA", solver);
     SaveResultsAsExample("Arora2021_LiLSX_PSA", solver);
@@ -324,12 +326,9 @@ namespace adsim {
     ASSERT_GE(retval, 0) << "Solver did not complete";
 
     const double recovery = CalculateRecovery(kpi);
-    // O2 purity of the production-step product (Table 4 "O2 purity"). The KPI
-    // config folds the recycled purge/pressurisation streams into the product
-    // (for the paper's net recovery), which makes a product-total purity meaningless.
-    KPIParams kpi_prod = kpi;
-    kpi_prod.product_endpoints = KpiEndpointsForFaces(data.cycle, {{0, BoundaryLocation::TOP}});
-    double purity = CalculatePurity(kpi_prod);
+    // O2 purity of the production-step product (Table 4 "O2 purity"); the
+    // recycle endpoints only enter the (net) recovery.
+    double purity = CalculatePurity(kpi);
 
     // Manual net recovery (Arora 2021 definition):
     //   recovery = (O2_product_out - O2_purge_recycled - O2_press_recycled) / O2_air_in
@@ -460,12 +459,13 @@ namespace adsim {
     
     auto kpi = BuildKPIParams(solver, data);
     ASSERT_EQ(kpi.product_comp_, O2);
-    // Feed: air in at step 0 @ BOTTOM. Product: O2 out at step 0 @ TOP, with the
-    // recycle purge/pressurisation (steps 2/3 @ TOP) folded into product.
+    // Feed: air in at step 0 @ BOTTOM. Product: O2 out at step 0 @ TOP.
+    // Recycle: the purge/pressurisation O2 (steps 2/3 @ TOP).
     ASSERT_TRUE(HasKpiFace(kpi.feed_endpoints, 0, BoundaryLocation::BOTTOM));
     ASSERT_TRUE(HasKpiFace(kpi.product_endpoints, 0, BoundaryLocation::TOP));
-    ASSERT_TRUE(HasKpiFace(kpi.product_endpoints, 2, BoundaryLocation::TOP));
-    ASSERT_TRUE(HasKpiFace(kpi.product_endpoints, 3, BoundaryLocation::TOP));
+    ASSERT_EQ(kpi.product_endpoints.size(), 1u);
+    ASSERT_TRUE(HasKpiFace(kpi.recycle_endpoints, 2, BoundaryLocation::TOP));
+    ASSERT_TRUE(HasKpiFace(kpi.recycle_endpoints, 3, BoundaryLocation::TOP));
 
     SaveTest("Arora2021_LiLSX_PVSA", solver);
     SaveResultsAsExample("Arora2021_LiLSX_PVSA", solver);
@@ -474,12 +474,9 @@ namespace adsim {
     ASSERT_GE(retval, 0) << "Solver did not complete";
 
     const double recovery = CalculateRecovery(kpi);
-    // O2 purity of the production-step product (Table 4 "O2 purity"). The KPI
-    // config folds the recycled purge/pressurisation streams into the product
-    // (for the paper's net recovery), which makes a product-total purity meaningless.
-    KPIParams kpi_prod = kpi;
-    kpi_prod.product_endpoints = KpiEndpointsForFaces(data.cycle, {{0, BoundaryLocation::TOP}});
-    double purity = CalculatePurity(kpi_prod);
+    // O2 purity of the production-step product (Table 4 "O2 purity"); the
+    // recycle endpoints only enter the (net) recovery.
+    double purity = CalculatePurity(kpi);
 
     // Manual net recovery (Arora 2021 definition):
     //   recovery = (O2_product_out - O2_purge_recycled - O2_press_recycled) / O2_air_in

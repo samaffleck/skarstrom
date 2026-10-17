@@ -7,8 +7,9 @@ KPI definition. Every value is set explicitly, with its unit.
 
 Each cycle runs 50 cycles and the O2 purity of the collected product and the
 net O2 recovery are compared with the paper's optimised model results
-(Table 4). The KPI configuration subtracts the O2 product recycled to purge
-and pressurisation, so the recovery is net, as in the paper.
+(Table 4). The purge and pressurisation inlets are KPI recycle endpoints: the
+O2 they return is subtracted from the product for the recovery (net, as in
+the paper), while the purity is that of the collected product.
 
     python examples/arora_2021.py
     python examples/arora_2021.py --case LiLSX_PVSA
@@ -180,10 +181,10 @@ def add_cycle(sim: sk.Simulation, cfg: dict) -> None:
     pressurization.bottom.set_closed()
     pressurization.top.set_pressure("inlet", sk.linear(f"{p_high} Pa"), y=product, temperature="298 K")
 
-    # O2 KPIs: fed with the air; the product is the production outlet minus the O2
-    # recycled to purge and pressurisation (those inlets count negatively).
-    sim.kpi.track("Oxygen", feed=[production.bottom[0]],
-                  product=[production.top, purge.top[0], pressurization.top])
+    # O2 KPIs: fed with the air, collected at the production outlet; the O2
+    # recycled to purge and pressurisation is subtracted for the net recovery.
+    sim.kpi.track("Oxygen", feed=[production.bottom[0]], product=[production.top],
+                  recycle=[purge.top[0], pressurization.top])
 
 
 CASES = {name: name for name in CYCLES}                      # case -> reference_values.csv case
@@ -191,23 +192,9 @@ DECKS = {name: f"Arora2021_{name}" for name in CYCLES}       # the shipped deck 
 QUANTITIES = [("O2 purity", "Oxygen.purity", "O2_purity"), ("O2 recovery", "Oxygen.recovery", "O2_recovery")]
 
 
-def kpis(sim):
-    """Purity of the collected product, recovery net of the recycled oxygen.
-
-    The KPI configuration counts the purge and pressurisation inlets as
-    (negative) product, which gives the paper's net recovery but makes the
-    purity of that net product meaningless (undefined, or above 100 % for the
-    PVSA cycle). As in the validation test, the purity is that of the
-    production outlet (step 0, top), integrated over the last cycle.
-    """
-    o2 = c.endpoint_moles(sim, 0, "top", "Oxygen")
-    return {"Oxygen.purity": o2 / c.endpoint_moles(sim, 0, "top"),
-            "Oxygen.recovery": c.kpi(sim, "Oxygen").recovery}
-
-
 def main(argv=None) -> int:
     return c.cyclic_family(argv, __doc__, "arora_hasan_2021", CASES, QUANTITIES, "Oxygen", "arora_2021.png",
-                           values=kpis, build=build)
+                           build=build)
 
 
 if __name__ == "__main__":

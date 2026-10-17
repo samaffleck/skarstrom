@@ -316,7 +316,8 @@ namespace adsim {
     // Configure KPI settings for cyclic tests.
     // feed_steps / product_steps: step indices (0-based)
     // feed_locs / product_locs: BoundaryLocation for each corresponding step
-    // recycled_product_steps / recycled_product_locs: optional recycled product streams
+    // recycled_product_steps / recycled_product_locs: optional recycle endpoints
+    //   (inlets that return product to the bed: purge, light-product pressurisation)
     // product_comp_idx: index into the components vector for the product component
     void ConfigureKPI(
       int product_comp_idx,
@@ -342,16 +343,13 @@ namespace adsim {
       kpi->tracked = true;
       kpi->feed_endpoints.clear();
       kpi->product_endpoints.clear();
+      kpi->recycle_endpoints.clear();
       for (size_t i = 0; i < feed_steps.size(); ++i)
         AppendEndpointsAt(kpi->feed_endpoints, feed_steps[i], feed_locs[i]);
       for (size_t i = 0; i < product_steps.size(); ++i)
         AppendEndpointsAt(kpi->product_endpoints, product_steps[i], product_locs[i]);
-      // Recycled product streams are re-entry endpoints; fold them into the
-      // product list so the signed sum subtracts them (matches the historical
-      // "product - recycled product" recovery definition). Recycle is no longer
-      // a separate role.
       for (size_t i = 0; i < recycled_product_steps.size(); ++i)
-        AppendEndpointsAt(kpi->product_endpoints, recycled_product_steps[i], recycled_product_locs[i]);
+        AppendEndpointsAt(kpi->recycle_endpoints, recycled_product_steps[i], recycled_product_locs[i]);
     }
 
     // Append every KPI endpoint on `step`'s boundary at `loc` (all streams of a

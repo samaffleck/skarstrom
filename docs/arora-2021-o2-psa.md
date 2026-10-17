@@ -11,7 +11,6 @@ Reference: [Arora, A., Hasan, M.M.F. Flexible oxygen concentrators for medical a
 ## 1. Load the deck
 
 ```python
-import numpy as np
 import skarstrom
 
 sim = skarstrom.examples.Arora2021_LiLSX_PSA.load()
@@ -50,7 +49,12 @@ The purge flow is the paper's purge-to-feed velocity ratio (1.97) converted to a
 
 **Cyclic steady state.** The method is *None*, so the run always does the full 50 cycles.
 
-**KPI configuration.** Oxygen is tracked. The Feed is the air stream of Production. The Product boxes are ticked on three endpoints: the Production outlet, the Purge inlet and the Pressurization inlet. Product endpoints are summed as net outflow, so the two inlets *subtract* the O₂ sent back into the bed. That gives the net recovery the paper reports, but it also makes the total net product meaningless for purity (see below).
+**KPI configuration.** Oxygen is tracked. The feed is the air stream of Production and the product is the Production outlet. The Purge and Pressurization inlets are **recycle** endpoints: the O₂ they send back into the bed is subtracted from the product for the recovery, which gives the net recovery the paper reports, while the purity stays the purity of the oxygen collected at the Production outlet. `examples/arora_2021.py` sets it up as:
+
+```python
+sim.kpi.track("Oxygen", feed=[production.bottom[0]], product=[production.top],
+              recycle=[purge.top[0], pressurization.top])
+```
 
 **Solver.** The deck caps the integrator step at 0.01 s (`settings.max_step`), kept from the validation test.
 
@@ -70,31 +74,18 @@ The KPIs of the last logged cycle are cycle **49**: the solver numbers cycles fr
 
 ```python
 k = next(k for k in sim.kpis(cycle=-1) if k.component == "Oxygen")
-print(k.purity, k.recovery, k.production_rate)      # nan 0.0424 0.00096
+print(k.purity, k.recovery, k.production_rate)      # 0.8856 0.0424 0.00096
 ```
 
 | KPI (cycle 49) | Value |
 |---|---|
-| Purity | `nan` (undefined) |
+| Purity | 88.56 % |
 | Recovery | 4.24 % |
 | Production rate | 0.96 × 10⁻³ mol/s |
 
-**Why purity is undefined.** More gas goes back into the bed through the purge and pressurisation inlets than leaves through the production outlet, and that recycled gas is 15 % N₂ while the product is about 11 % N₂. The net nitrogen product is negative, the net total is not positive, and purity, the ratio of the two, is undefined. (In the PVSA deck the same configuration gives a "purity" above 100 %.) To read the purity of the oxygen you actually collect, integrate the production outlet over the last cycle from the stream logs:
+The purity is that of the oxygen collected at the Production outlet, 88.56 % against 84.72 % in the paper. The recovery and the production rate are net of the recycled oxygen, as the paper defines them. The Validation page uses these two numbers.
 
-```python
-def moles(step, location, component=None):
-    total = 0.0
-    for e in sim.streams():
-        if e["step"] == step and e["location"] == location:
-            s = (sim.stream_series(step, e["name"], "molar_flow", component) if component
-                 else sim.stream_series(step, e["name"], "molar_flow_rate"))
-            total += np.sum(0.5 * (s.values[1:] + s.values[:-1]) * np.diff(s.time))
-    return abs(total)
-
-print(moles(0, "top", "Oxygen") / moles(0, "top"))  # 0.8856
-```
-
-That is a purity of **88.56 %** at cycle 49, against 84.72 % in the paper. Take recovery from the KPI configuration (net of the recycled oxygen, as the paper defines it) and purity from the collected product. The Validation page uses exactly these two numbers.
+**Why recycle is its own role.** Ticking the purge and pressurisation inlets as *product* would give the same net recovery, because product endpoints are summed as net outflow. It would also subtract the recycled gas from the purity: more gas goes back into the bed through those inlets than leaves through the Production outlet, so the net total product is negative and the "purity" is undefined (above 100 % in the PVSA deck).
 
 **Is it converged?** Not quite. The net recovery was 4.61 % at cycle 39 and 4.24 % at cycle 49, still falling by about 0.04 points per cycle:
 
