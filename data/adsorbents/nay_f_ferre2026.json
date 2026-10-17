@@ -1,0 +1,207 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "NaY (F) (Ferre 2026)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 1330.0,
+            "Expression": "1.33e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 1070.0,
+            "Expression": "1.07e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.5,
+            "Expression": "0.5",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [
+                {
+                    "key": "Methane",
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::LinearDrivingForce",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2147483650,
+                                        "polymorphic_name": "adsim::MassTransferCoefficientConstant",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 3,
+                                                "value0": {},
+                                                "Mass_Transfer_Coefficient": {
+                                                    "Value": 46.666666666666667,
+                                                    "Expression": "46.666666666666664",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "polymorphic_id": 1,
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2,
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "value0": {},
+                                                "Mass_Transfer_Coefficient": {
+                                                    "Value": 46.666666666666667,
+                                                    "Expression": "46.666666666666664",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "Methane",
+                    "value": {
+                        "Value": 12896.0,
+                        "Expression": "12896",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 27028.0,
+                        "Expression": "27028",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 9,
+                    "value": {
+                        "polymorphic_id": 2147483651,
+                        "polymorphic_name": "adsim::ExtendedDualSiteLangmuirIsotherm_Concentration",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Methane",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 4.09,
+                                                "Expression": "4.09",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 0.00000816,
+                                                "Expression": "8.16e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 12963.0,
+                                                "Expression": "12963",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 2.85,
+                                                "Expression": "2.85",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 0.00000539,
+                                                "Expression": "5.39e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 12756.0,
+                                                "Expression": "12756",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 6.39,
+                                                "Expression": "6.39",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 0.00000123,
+                                                "Expression": "1.23e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 27028.0,
+                                                "Expression": "27028",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 0.0000021,
+                                                "Expression": "2.1e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 21169.0,
+                                                "Expression": "21169",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "Methane",
+                    "value": 9
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": 9
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.35,
+            "Expression": "0.35",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

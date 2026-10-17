@@ -1,0 +1,19 @@
+name: Feature request
+description: A new model, option, data set or API
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: For a new model or correlation, include the equations and a reference (DOI).
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

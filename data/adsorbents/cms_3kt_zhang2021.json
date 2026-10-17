@@ -1,0 +1,150 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "CMS-3KT (Zhang 2021)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 1200.0,
+            "Expression": "1.2e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 500.0,
+            "Expression": "5e+02",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.5,
+            "Expression": "0.5",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 19100.0,
+                        "Expression": "1.91e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Oxygen",
+                    "value": {
+                        "Value": 18100.0,
+                        "Expression": "1.81e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Methane",
+                    "value": {
+                        "Value": 20600.0,
+                        "Expression": "2.06e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 12,
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::SipsIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_q_sat": {
+                                                "Value": 1.63,
+                                                "Expression": "1.63",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b": {
+                                                "Value": 0.00000159,
+                                                "Expression": "1.59e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_v": {
+                                                "Value": 1.01,
+                                                "Expression": "1.01",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Oxygen",
+                                        "value": {
+                                            "IP_q_sat": {
+                                                "Value": 2.25,
+                                                "Expression": "2.25",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b": {
+                                                "Value": 0.0000017399999999999999,
+                                                "Expression": "1.7399999999999999e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_v": {
+                                                "Value": 1.03,
+                                                "Expression": "1.03",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Methane",
+                                        "value": {
+                                            "IP_q_sat": {
+                                                "Value": 3.73,
+                                                "Expression": "3.73",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b": {
+                                                "Value": 0.00000126,
+                                                "Expression": "1.26e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_v": {
+                                                "Value": 1.37,
+                                                "Expression": "1.37",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "Nitrogen",
+                    "value": 12
+                },
+                {
+                    "key": "Oxygen",
+                    "value": 12
+                },
+                {
+                    "key": "Methane",
+                    "value": 12
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.35,
+            "Expression": "0.35",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

@@ -1,0 +1,37 @@
+name: Bug report
+description: Something does not build, crashes, or gives a wrong result
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Commands or code, and the deck file if possible (attach it, or name a bundled example).
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`skarstrom --version`, or the git commit for a source build"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: OS, compiler and Python version
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Error messages or solver log (`skarstrom run deck.json --log medium`)
+      render: text

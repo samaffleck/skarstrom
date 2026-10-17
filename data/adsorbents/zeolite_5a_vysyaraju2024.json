@@ -1,0 +1,148 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "Binderless Zeolite 5A (Vysyaraju 2024)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 1183.6,
+            "Expression": "1183.6",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 960.0,
+            "Expression": "9.6e+02",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.15,
+            "Expression": "0.15",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::LinearDrivingForce",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2147483650,
+                                        "polymorphic_name": "adsim::MassTransferCoefficientConstant",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 3,
+                                                "value0": {},
+                                                "Mass_Transfer_Coefficient": {
+                                                    "Value": 104.98161937977187,
+                                                    "Expression": "104.98161937977187",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 18700.0,
+                        "Expression": "1.87e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 5,
+                    "value": {
+                        "polymorphic_id": 2147483651,
+                        "polymorphic_name": "adsim::DualSiteLangmuirIsotherm_Concentration",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 3.072,
+                                                "Expression": "3.072",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 0.000001576,
+                                                "Expression": "1.576e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 18090.0,
+                                                "Expression": "1.809e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 0.646,
+                                                "Expression": "0.646",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 0.000009195,
+                                                "Expression": "9.195e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 19360.0,
+                                                "Expression": "1.936e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 2,
+                    "value": {
+                        "polymorphic_id": 2147483652,
+                        "polymorphic_name": "adsim::InertIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "ISO_Params": []
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "Nitrogen",
+                    "value": 5
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.33,
+            "Expression": "0.33",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

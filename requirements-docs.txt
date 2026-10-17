@@ -1,0 +1,3 @@
+# Documentation build (mkdocs build --strict). Material for MkDocs 9 needs MkDocs 1.x.
+mkdocs>=1.6,<2
+mkdocs-material>=9.5,<10

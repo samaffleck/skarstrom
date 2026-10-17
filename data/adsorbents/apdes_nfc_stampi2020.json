@@ -1,0 +1,138 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "APDES-NFC (Stampi-Bombelli 2020)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 61.0,
+            "Expression": "61",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 2070.0,
+            "Expression": "2.07e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.5,
+            "Expression": "0.5",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::LinearDrivingForce",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2147483650,
+                                        "polymorphic_name": "adsim::MassTransferCoefficientConstant",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 3,
+                                                "value0": {},
+                                                "Mass_Transfer_Coefficient": {
+                                                    "Value": 0.0002,
+                                                    "Expression": "0.0002",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 57000.0,
+                        "Expression": "5.7e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 18,
+                    "value": {
+                        "polymorphic_id": 2147483651,
+                        "polymorphic_name": "adsim::Toth2Isotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_q_sat": {
+                                                "Value": 2.38,
+                                                "Expression": "2.38",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_x": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_T_0": {
+                                                "Value": 296.0,
+                                                "Expression": "296",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b0": {
+                                                "Value": 0.0707,
+                                                "Expression": "0.0707",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH0": {
+                                                "Value": 57047.0,
+                                                "Expression": "57047",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_w0": {
+                                                "Value": 0.4148,
+                                                "Expression": "0.4148",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_alpha": {
+                                                "Value": -1.606,
+                                                "Expression": "-1.606",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": 18
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.9616352201257862,
+            "Expression": "0.9616352201257862",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

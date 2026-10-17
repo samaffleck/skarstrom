@@ -1,0 +1,94 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "description": "Engine + tests + bench_solver, compile_commands.json. Build trees go to build/<preset>.",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "ADSIM_BUILD_TESTS": "ON"
+            }
+        },
+        { "name": "debug",   "hidden": true, "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
+        { "name": "release", "hidden": true, "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } },
+
+        {
+            "name": "linux-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Ninja",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+        },
+        {
+            "name": "linux-gcc",
+            "hidden": true,
+            "inherits": "linux-base",
+            "cacheVariables": { "CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++" }
+        },
+        {
+            "name": "linux-clang",
+            "hidden": true,
+            "inherits": "linux-base",
+            "cacheVariables": { "CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++" }
+        },
+        { "name": "linux-release",       "displayName": "Linux GCC Release",   "inherits": ["linux-gcc", "release"] },
+        { "name": "linux-debug",         "displayName": "Linux GCC Debug",     "inherits": ["linux-gcc", "debug"] },
+        { "name": "linux-clang-release", "displayName": "Linux Clang Release", "inherits": ["linux-clang", "release"] },
+        { "name": "linux-clang-debug",   "displayName": "Linux Clang Debug",   "inherits": ["linux-clang", "debug"] },
+
+        {
+            "name": "macos-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Ninja",
+            "description": "The system compiler (Apple clang). The deployment target defaults to macOS 13.3 (see CMakeLists.txt). For Homebrew LLVM, pass -DCMAKE_C_COMPILER/-DCMAKE_CXX_COMPILER on the first configure or add a CMakeUserPresets.json preset that inherits from this one.",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
+        },
+        { "name": "macos-release", "displayName": "macOS Release", "inherits": ["macos-base", "release"] },
+        {
+            "name": "macos-debug",
+            "displayName": "macOS Debug",
+            "inherits": ["macos-base", "debug"],
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS_DEBUG": "-O0 -g3 -fno-omit-frame-pointer",
+                "CMAKE_C_FLAGS_DEBUG":   "-O0 -g3 -fno-omit-frame-pointer"
+            }
+        },
+
+        {
+            "name": "windows",
+            "displayName": "Windows MSVC (x64)",
+            "inherits": "base",
+            "description": "Visual Studio 2022, x64 (multi-config: pick Debug/Release in the build and test presets).",
+            "generator": "Visual Studio 17 2022",
+            "architecture": { "value": "x64", "strategy": "set" },
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+        }
+    ],
+    "buildPresets": [
+        { "name": "linux-release",       "configurePreset": "linux-release" },
+        { "name": "linux-debug",         "configurePreset": "linux-debug" },
+        { "name": "linux-clang-release", "configurePreset": "linux-clang-release" },
+        { "name": "linux-clang-debug",   "configurePreset": "linux-clang-debug" },
+        { "name": "macos-release",       "configurePreset": "macos-release" },
+        { "name": "macos-debug",         "configurePreset": "macos-debug" },
+        { "name": "windows-release",     "configurePreset": "windows", "configuration": "Release" },
+        { "name": "windows-debug",       "configurePreset": "windows", "configuration": "Debug" }
+    ],
+    "testPresets": [
+        {
+            "name": "test-base",
+            "hidden": true,
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error" }
+        },
+        { "name": "linux-release",       "inherits": "test-base", "configurePreset": "linux-release" },
+        { "name": "linux-debug",         "inherits": "test-base", "configurePreset": "linux-debug" },
+        { "name": "linux-clang-release", "inherits": "test-base", "configurePreset": "linux-clang-release" },
+        { "name": "macos-release",       "inherits": "test-base", "configurePreset": "macos-release" },
+        { "name": "windows-release",     "inherits": "test-base", "configurePreset": "windows", "configuration": "Release" }
+    ]
+}

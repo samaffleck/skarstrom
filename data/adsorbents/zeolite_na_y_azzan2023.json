@@ -1,0 +1,150 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "Zeolite Na-Y (Azzan 2023)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 1200.0,
+            "Expression": "1.2e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 500.0,
+            "Expression": "5e+02",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.5,
+            "Expression": "0.5",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "Hydrogen",
+                    "value": {
+                        "Value": 10790.0,
+                        "Expression": "1.079e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 13440.0,
+                        "Expression": "1.344e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 33210.0,
+                        "Expression": "3.321e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 6,
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::ExtendedLangmuirIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Hydrogen",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 7.03,
+                                                "Expression": "7.03",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 1.03524e-9,
+                                                "Expression": "1.03524e-09",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 10790.0,
+                                                "Expression": "1.079e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 7.03,
+                                                "Expression": "7.03",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 1.3475899999999999e-9,
+                                                "Expression": "1.3475899999999999e-09",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 13440.0,
+                                                "Expression": "1.344e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 7.03,
+                                                "Expression": "7.03",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 1.021e-10,
+                                                "Expression": "1.021e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 33210.0,
+                                                "Expression": "3.321e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "Hydrogen",
+                    "value": 6
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": 6
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": 6
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.35,
+            "Expression": "0.35",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

@@ -1,0 +1,155 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "Purolite A110 (Low 2023)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 663.0,
+            "Expression": "663",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 1327.1447220953242,
+            "Expression": "1327.1447220953241",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.5,
+            "Expression": "0.5",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 18650.0,
+                        "Expression": "1.865e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 70100.0,
+                        "Expression": "7.01e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 0,
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::LangmuirIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 0.0419,
+                                                "Expression": "0.0419",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 7.560000000000001e-10,
+                                                "Expression": "7.560000000000001e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 18650.0,
+                                                "Expression": "1.865e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 18,
+                    "value": {
+                        "polymorphic_id": 2147483650,
+                        "polymorphic_name": "adsim::Toth2Isotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_q_sat": {
+                                                "Value": 3.74,
+                                                "Expression": "3.74",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_x": {
+                                                "Value": 0.3,
+                                                "Expression": "0.3",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_T_0": {
+                                                "Value": 298.15,
+                                                "Expression": "298.15",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b0": {
+                                                "Value": 0.0649333160133323,
+                                                "Expression": "0.0649333160133323",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH0": {
+                                                "Value": 70100.0,
+                                                "Expression": "7.01e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_w0": {
+                                                "Value": 0.401,
+                                                "Expression": "0.401",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_alpha": {
+                                                "Value": 0.000143,
+                                                "Expression": "0.000143",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "Nitrogen",
+                    "value": 0
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": 18
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.422,
+            "Expression": "0.422",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

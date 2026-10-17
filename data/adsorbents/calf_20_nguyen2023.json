@@ -1,0 +1,217 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "CALF-20 (Nguyen 2023)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 570.0,
+            "Expression": "5.7e+02",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 1350.0,
+            "Expression": "1.35e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.63,
+            "Expression": "0.63",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::LinearDrivingForce",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2147483650,
+                                        "polymorphic_name": "adsim::MassTransferCoefficientMacropore",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 2,
+                                                "value0": {},
+                                                "Tortuosity": {
+                                                    "Value": 3.0,
+                                                    "Expression": "3",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Macropore_Void_Fraction": {
+                                                    "Value": 0.35,
+                                                    "Expression": "0.35",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "polymorphic_id": 1,
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2,
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "value0": {},
+                                                "Tortuosity": {
+                                                    "Value": 3.0,
+                                                    "Expression": "3",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Macropore_Void_Fraction": {
+                                                    "Value": 0.35,
+                                                    "Expression": "0.35",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 38000.0,
+                        "Expression": "3.8e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 15000.0,
+                        "Expression": "1.5e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 9,
+                    "value": {
+                        "polymorphic_id": 2147483651,
+                        "polymorphic_name": "adsim::ExtendedDualSiteLangmuirIsotherm_Concentration",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 2.687,
+                                                "Expression": "2.687",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 5.742e-7,
+                                                "Expression": "5.742e-07",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 35180.0,
+                                                "Expression": "3.518e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 4.597,
+                                                "Expression": "4.597",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 3.684e-9,
+                                                "Expression": "3.684e-09",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 35030.0,
+                                                "Expression": "3.503e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 2.687,
+                                                "Expression": "2.687",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 7.466e-7,
+                                                "Expression": "7.466e-07",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 17910.0,
+                                                "Expression": "1.791e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 4.597,
+                                                "Expression": "4.597",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 7.466e-7,
+                                                "Expression": "7.466e-07",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 17910.0,
+                                                "Expression": "1.791e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": 9
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": 9
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.35,
+            "Expression": "0.35",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

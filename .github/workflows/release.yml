@@ -1,0 +1,201 @@
+# Release: on a version tag (v0.1.0, or a pre-release such as v0.2.0rc1),
+# build the Python wheels (cibuildwheel), an sdist that contains the submodule
+# sources, and a full source tarball; attach them to a GitHub Release; and,
+# when enabled, publish to PyPI (final tags) or TestPyPI (pre-release tags)
+# with trusted publishing (OpenID Connect, no API tokens).
+#
+# The tag must equal the version in CMakeLists.txt (ADSIM_PROJECT_VERSION +
+# ADSIM_VERSION_SUFFIX), e.g. tag v0.2.0rc1 for 0.2.0 + "rc1". See RELEASING.md.
+#
+# Publishing stays off until the repository owner sets up the trusted
+# publishers and environments (RELEASING.md) and sets the repository variables:
+#   PYPI_PUBLISH=true      final tags      -> PyPI      (environment "pypi")
+#   TESTPYPI_PUBLISH=true  pre-release tags -> TestPyPI (environment "testpypi")
+# A manual run (workflow_dispatch) only builds the artefacts.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Check version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Read the version and compare it with the tag
+        run: |
+          version="$(sed -n 's/^set(ADSIM_PROJECT_VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)"
+          suffix="$(sed -n 's/^set(ADSIM_VERSION_SUFFIX "\([a-z0-9]*\)").*/\1/p' CMakeLists.txt)"
+          full="${version}${suffix}"
+          echo "version=${full}" >> "$GITHUB_OUTPUT"
+          if [ -n "$suffix" ]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v${full}" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match the version in CMakeLists.txt (v${full})"
+            exit 1
+          fi
+          echo "version ${full} (pre-release: ${suffix:-no})"
+
+  wheels:
+    name: Wheels ${{ matrix.name }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: manylinux x86_64, runner: ubuntu-24.04, archs: x86_64 }
+          - { name: manylinux aarch64, runner: ubuntu-24.04-arm, archs: aarch64 }
+          - { name: macOS arm64, runner: macos-14, archs: arm64 }
+          - { name: macOS x86_64, runner: macos-15-intel, archs: x86_64 }
+          - { name: Windows x64, runner: windows-2022, archs: AMD64 }
+    steps:
+      - name: Enable long paths (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global core.longpaths true
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      # Build settings (Python versions, manylinux image, macOS deployment
+      # target 13.3, tests) live in [tool.cibuildwheel] in pyproject.toml.
+      - uses: pypa/cibuildwheel@v2.23.3
+        with:
+          package-dir: .
+          output-dir: wheelhouse
+        env:
+          CIBW_ARCHS: ${{ matrix.archs }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-wheels-${{ matrix.runner }}
+          path: wheelhouse/*.whl
+          retention-days: 30
+
+  sdist:
+    name: sdist (with submodule sources)
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --sdist --outdir dist .
+          ls -l dist
+      - name: Build and test a wheel from the sdist (offline source build)
+        run: |
+          sudo apt-get update && sudo apt-get install -y ninja-build
+          python -m venv /tmp/venv
+          CMAKE_BUILD_PARALLEL_LEVEL=4 /tmp/venv/bin/pip install dist/*.tar.gz pytest
+          cd /tmp && /tmp/venv/bin/skarstrom --version
+          /tmp/venv/bin/skarstrom examples run "Ward_2022_Q=100[ccm]" --json -q > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+          retention-days: 30
+
+  source-tarball:
+    name: Full source tarball
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Create the tarball
+        run: bash scripts/make_source_tarball.sh "${{ needs.version.outputs.version }}" source
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-tarball
+          path: source/*.tar.gz
+          retention-days: 30
+
+  github-release:
+    name: GitHub Release
+    needs: [version, wheels, sdist, source-tarball]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write  # create the release and upload its assets
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-tarball
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Skarstrom ${{ needs.version.outputs.version }}
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [version, wheels, sdist]
+    if: >-
+      github.ref_type == 'tag' && needs.version.outputs.prerelease == 'false' &&
+      vars.PYPI_PUBLISH == 'true'
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/skarstrom
+    permissions:
+      id-token: write  # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [version, wheels, sdist]
+    if: >-
+      github.ref_type == 'tag' && needs.version.outputs.prerelease == 'true' &&
+      vars.TESTPYPI_PUBLISH == 'true'
+    runs-on: ubuntu-24.04
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/skarstrom
+    permissions:
+      id-token: write  # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          repository-url: https://test.pypi.org/legacy/

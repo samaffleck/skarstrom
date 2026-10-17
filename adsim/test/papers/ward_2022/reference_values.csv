@@ -1,0 +1,18 @@
+case,quantity,value,unit,source,note
+Q50ccm,breakthrough_time_CI_low,2132,s,"Table 10, adsorption, f_in = 50 ccm, t_br 95% CI","95% credibility interval of the paper's MODEL prediction (not a measurement); t_br definition (Table 9) is only partly legible in the extraction"
+Q50ccm,breakthrough_time_CI_high,2949,s,"Table 10, adsorption, f_in = 50 ccm, t_br 95% CI",see above
+Q50ccm,temperature_rise_CI_low,7.36,K,"Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI",95% credibility interval of the paper's model prediction
+Q50ccm,temperature_rise_CI_high,9.53,K,"Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI",see above
+Q100ccm,breakthrough_time_CI_low,1048,s,"Table 10, adsorption, f_in = 100 ccm, t_br 95% CI",95% credibility interval of the paper's model prediction
+Q100ccm,breakthrough_time_CI_high,1451,s,"Table 10, adsorption, f_in = 100 ccm, t_br 95% CI",see above
+Q100ccm,temperature_rise_CI_low,12.9,K,"Table 10, adsorption, f_in = 100 ccm, Delta T_ads 95% CI",95% credibility interval of the paper's model prediction
+Q100ccm,temperature_rise_CI_high,17.2,K,"Table 10, adsorption, f_in = 100 ccm, Delta T_ads 95% CI",see above
+Q200ccm,breakthrough_time_CI_low,482,s,"Table 10, adsorption, f_in = 200 ccm, t_br 95% CI",95% credibility interval of the paper's model prediction
+Q200ccm,breakthrough_time_CI_high,668,s,"Table 10, adsorption, f_in = 200 ccm, t_br 95% CI",see above
+Q200ccm,temperature_rise_CI_low,20.0,K,"Table 10, adsorption, f_in = 200 ccm, Delta T_ads 95% CI",95% credibility interval of the paper's model prediction
+Q200ccm,temperature_rise_CI_high,27.2,K,"Table 10, adsorption, f_in = 200 ccm, Delta T_ads 95% CI",see above
+conditions,ambient_temperature,291.4,K,"Table 1",T_a
+conditions,feed_temperature,293,K,"Table 1",T_F
+conditions,h_in_50ccm,77.5,W/(m2 K),"Table 6 (adsorption, 50 ccm)",fitted inside heat transfer coefficient
+conditions,h_in_100ccm,57.9,W/(m2 K),"Table 6 (adsorption, 100 ccm)",fitted inside heat transfer coefficient
+conditions,h_in_200ccm,45.2,W/(m2 K),"Table 6 (adsorption, 200 ccm)",fitted inside heat transfer coefficient

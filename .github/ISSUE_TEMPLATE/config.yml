@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/samaffleck/skarstrom/security/advisories/new
+    about: Please report security problems privately (see SECURITY.md).
+  - name: Documentation
+    url: https://samaffleck.github.io/skarstrom/
+    about: Guides, the model equations and the validation results.

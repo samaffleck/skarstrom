@@ -1,0 +1,148 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "LiX Zeolite",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 1200.0,
+            "Expression": "1.2e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 1172.0,
+            "Expression": "1172",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.15,
+            "Expression": "0.15",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 23430.4,
+                        "Expression": "23430.4",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Oxygen",
+                    "value": {
+                        "Value": 13221.44,
+                        "Expression": "13221.44",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 1,
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::DualSiteLangmuirIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 1.5,
+                                                "Expression": "1.5",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 1e-10,
+                                                "Expression": "1e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 29195.0,
+                                                "Expression": "29195",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 1.5,
+                                                "Expression": "1.5",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 1e-10,
+                                                "Expression": "1e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 26260.5,
+                                                "Expression": "26260.5",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Oxygen",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 1.5,
+                                                "Expression": "1.5",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 1e-10,
+                                                "Expression": "1e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 21774.6,
+                                                "Expression": "21774.6",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 0.6075,
+                                                "Expression": "0.6075",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 1e-10,
+                                                "Expression": "1e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 24624.1,
+                                                "Expression": "24624.1",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "Nitrogen",
+                    "value": 1
+                },
+                {
+                    "key": "Oxygen",
+                    "value": 1
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.33,
+            "Expression": "0.33",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

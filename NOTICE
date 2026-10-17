@@ -1,0 +1,16 @@
+Skarstrom
+Copyright 2024-2026 Sam Affleck and contributors
+
+This product includes software developed by Sam Affleck and the Skarstrom
+contributors (https://github.com/samaffleck/skarstrom), licensed under the
+Apache License, Version 2.0 (see LICENSE).
+
+Skarstrom builds on third-party components that are distributed under their
+own licences (SUNDIALS, CoolProp, Eigen, cereal, muparser, dlib, pybind11 and
+the components they bundle). See THIRD_PARTY_NOTICES.md for the list, their
+copyright holders and licence texts.
+
+The digitised experimental curves in adsim/data/ and the reference values in
+adsim/test/papers/*/reference_values.csv are numbers transcribed or digitised
+from the cited publications for validation; each folder's README gives the
+citation.

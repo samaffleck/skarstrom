@@ -1,0 +1,25 @@
+case,quantity,value,unit,source,note
+NaY_F,CO2_purity,95.1,%,"Table 5, NaY (F), recovery-recovery (Re_CO2-Re_CH4) case, first row","paper's optimised detailed-model result (simulation)"
+NaY_F,CH4_purity,98.8,%,"Table 5, NaY (F), recovery-recovery case, first row",paper's detailed-model result
+NaY_F,CO2_recovery,97.8,%,"Table 5, NaY (F), recovery-recovery case, first row",paper's detailed-model result
+NaY_F,CH4_recovery,66.0,%,"Table 5, NaY (F), recovery-recovery case, first row",paper's detailed-model result
+NaY_F,specific_energy,886.4,kWh/tonne,"Table 5, NaY (F), recovery-recovery case, first row","per tonne CH4 (Sect. 4.2); transcribed only, not compared: deck has no compressor / vacuum-pump model"
+NaY_F,CH4_productivity,3.2,mol/(m3 s),"Table 5, NaY (F), recovery-recovery case, first row","CH4 produced per bed volume per total cycle time (Sect. 4.2)"
+NaY_W,CO2_purity,95.0,%,"Table 5, NaY (W), recovery-recovery case, first row",paper's detailed-model result
+NaY_W,CH4_purity,97.6,%,"Table 5, NaY (W), recovery-recovery case, first row",paper's detailed-model result
+NaY_W,CO2_recovery,95.9,%,"Table 5, NaY (W), recovery-recovery case, first row",paper's detailed-model result
+NaY_W,CH4_recovery,65.4,%,"Table 5, NaY (W), recovery-recovery case, first row",paper's detailed-model result
+NaY_W,specific_energy,963.2,kWh/tonne,"Table 5, NaY (W), recovery-recovery case, first row","transcribed only, not compared: deck has no compressor / vacuum-pump model"
+NaY_W,CH4_productivity,3.1,mol/(m3 s),"Table 5, NaY (W), recovery-recovery case, first row",CH4 per bed volume per cycle time
+Zeolite13X,CO2_purity,95.0,%,"Table 5, 13X, recovery-recovery case, first row",paper's detailed-model result
+Zeolite13X,CH4_purity,98.0,%,"Table 5, 13X, recovery-recovery case, first row",paper's detailed-model result
+Zeolite13X,CO2_recovery,95.9,%,"Table 5, 13X, recovery-recovery case, first row",paper's detailed-model result
+Zeolite13X,CH4_recovery,48.6,%,"Table 5, 13X, recovery-recovery case, first row",paper's detailed-model result
+Zeolite13X,specific_energy,1254.2,kWh/tonne,"Table 5, 13X, recovery-recovery case, first row","transcribed only, not compared: deck has no compressor / vacuum-pump model"
+Zeolite13X,CH4_productivity,1.3,mol/(m3 s),"Table 5, 13X, recovery-recovery case, first row",CH4 per bed volume per cycle time
+MIL160Al,CO2_purity,95.0,%,"Table 5, MIL-160(Al), recovery-recovery case, first row",paper's detailed-model result
+MIL160Al,CH4_purity,97.6,%,"Table 5, MIL-160(Al), recovery-recovery case, first row",paper's detailed-model result
+MIL160Al,CO2_recovery,94.1,%,"Table 5, MIL-160(Al), recovery-recovery case, first row",paper's detailed-model result
+MIL160Al,CH4_recovery,35.8,%,"Table 5, MIL-160(Al), recovery-recovery case, first row",paper's detailed-model result
+MIL160Al,specific_energy,1739.0,kWh/tonne,"Table 5, MIL-160(Al), recovery-recovery case, first row","transcribed only, not compared: deck has no compressor / vacuum-pump model"
+MIL160Al,CH4_productivity,0.9,mol/(m3 s),"Table 5, MIL-160(Al), recovery-recovery case, first row",CH4 per bed volume per cycle time

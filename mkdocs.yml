@@ -1,0 +1,99 @@
+site_name: Skarstrom
+site_description: Open-source simulator for pressure, vacuum and temperature swing adsorption (PSA/VSA/TSA) cycles
+site_url: https://samaffleck.github.io/skarstrom/
+repo_url: https://github.com/samaffleck/skarstrom
+repo_name: samaffleck/skarstrom
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2024-2026 Sam Affleck and contributors
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+
+extra_javascript:
+  - javascripts/katex.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js
+
+extra_css:
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Getting Started: getting-started.md
+      - Python and the Command Line: python.md
+      - Examples: examples.md
+      - Using the C++ Library: cpp-library.md
+  - Tutorials:
+      - "O₂ PSA (Arora 2021)": arora-2021-o2-psa.md
+      - "CO₂ VPSA with LPP (Perez 2019)": perez-2019-vpsa.md
+      - TSA Regeneration: tsa-regeneration.md
+  - Model:
+      - Governing Equations: equations.md
+      - Mass Balance: mass-balance.md
+      - Momentum Balance: momentum-balance.md
+      - Energy Balance: energy-balance.md
+      - Wall Energy Balance: wall-energy-balance.md
+      - Isotherms: isotherms.md
+      - Kinetic Models: kinetic-models.md
+      - Transport Correlations: transport-correlations.md
+      - Equation of State: equation-of-state.md
+  - Simulating a process:
+      - Cycles and Initial Conditions: cycles.md
+      - Boundary Conditions: boundary-conditions.md
+      - Connecting Beds: connecting-beds.md
+      - Pressure Equalisation: pressure-equalization.md
+      - Light-Product Pressurisation: light-product-pressurization.md
+      - Light Reflux / Recycle: light-reflux-recycle.md
+      - Solver Settings: solver-settings.md
+      - Numerics: numerics.md
+      - Cyclic Steady State: cyclic-steady-state.md
+      - Performance Metrics: performance-metrics.md
+      - Global Variables and Units: global-variables.md
+  - Studies and data:
+      - Parametric Studies and Parameterisation: parameterisation.md
+      - Isotherm Fitting: isotherm-fitting.md
+      - Adsorbent Library: adsorbent-library.md
+  - Validation:
+      - Validation: validation.md
+      - Verification: verification.md

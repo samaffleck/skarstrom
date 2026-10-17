@@ -1,0 +1,1521 @@
+{
+  "_about": "Curated in-house adsorbent library (no user-contributed entries). Each entry's physics is the cereal blob named by `file` (loadable by LoadAdsorbentFromJSON); this catalog adds citation + per-parameter provenance. Provenance codes: source = transcribed from the cited table/figure; derived = computed from cited values (formula in `ref`); repo = value used by the repo deck/validation test that cites the source, but not stated in the source itself; default = engine default, not from any source; not_stated = the source does not state it (value null); unknown = legacy entry, origin not verified. Completeness rule (enforced by scripts/gen_adsorbent_library.mjs and the native library test): for every sourced entry each required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) is either sourced/derived or carries a ref beginning 'Not stated in source (checked: ...)'; fields that could not be checked against the source are listed in `unverified_fields`. `source_points` holds TABULATED equilibrium data from the source (tables, SI files, datasets; never digitised plots), in the source's units. The web header, docs page and capabilities are GENERATED from this file + the blobs by scripts/gen_adsorbent_library.mjs.",
+  "schema_version": 2,
+  "sources": {
+    "arora2021": {
+      "citation": "Arora, A., Hasan, M.M.F. (2021). Flexible oxygen concentrators for medical applications. Scientific Reports 11, 14317.",
+      "doi": "10.1038/s41598-021-93796-3"
+    },
+    "ward_pini2024": {
+      "citation": "Ward, A., Pini, R. (2024). Design and Performance Evaluation of Multisorbent Vacuum-Swing Adsorption Processes for Postcombustion Carbon Capture. Industrial & Engineering Chemistry Research 63, 13787-13800.",
+      "doi": "10.1021/acs.iecr.4c01345"
+    },
+    "perez2019": {
+      "citation": "Estupiñan Perez, L., Sarkar, P., Rajendran, A. (2019). Experimental validation of multi-objective optimization techniques for design of vacuum swing adsorption processes. Separation and Purification Technology 224, 553-563.",
+      "doi": "10.1016/j.seppur.2019.05.039"
+    },
+    "schell2012": {
+      "citation": "Schell, J., Casas, N., Pini, R., Mazzotti, M. (2012). Pure and binary adsorption of CO2, H2, and N2 on activated carbon. Adsorption 18, 49-65.",
+      "doi": "10.1007/s10450-011-9382-y"
+    },
+    "casas2012": {
+      "citation": "Casas, N., Schell, J., Pini, R., Mazzotti, M. (2012). Fixed bed adsorption of CO2/H2 mixtures on activated carbon: experiments and modeling. Adsorption 18, 143-161.",
+      "doi": "10.1007/s10450-012-9389-z"
+    },
+    "ferre2026": {
+      "citation": "Ferré, A., Wedler, C., Ward, A., Burger, J., Pini, R., Petit, C. (2026). Co-production of high-purity carbon dioxide and methane via a single-bed pressure-vacuum swing adsorption process. Separation and Purification Technology 406, 138821.",
+      "doi": "10.1016/j.seppur.2026.138821"
+    },
+    "nguyen2022": {
+      "citation": "Nguyen, T.T.T., Lin, J.-B., Shimizu, G.K.H., Rajendran, A. (2022). Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20. Chemical Engineering Journal 442, 136263.",
+      "doi": "10.1016/j.cej.2022.136263"
+    },
+    "nguyen2023": {
+      "citation": "Nguyen, T.T.T., Shimizu, G.K.H., Rajendran, A. (2023). CO2/N2 separation by vacuum swing adsorption using a metal-organic framework, CALF-20: Multi-objective optimization and experimental validation. Chemical Engineering Journal 452, 139550.",
+      "doi": "10.1016/j.cej.2022.139550"
+    },
+    "streb2021": {
+      "citation": "Streb, A., Mazzotti, M. (2021). Adsorption for efficient low carbon hydrogen production: part 1 - adsorption equilibrium and breakthrough studies for H2/CO2/CH4 on zeolite 13X. Adsorption 27, 541-558.",
+      "doi": "10.1007/s10450-021-00306-y"
+    },
+    "vysyaraju2024": {
+      "citation": "Vysyaraju, R., Sawada, J.A., Estupiñan Perez, L., Rajendran, A. (2024). Simulation and experimental demonstration of helium purification from He/N2 mixtures by pressure swing adsorption. Chemical Engineering Journal 499, 155929.",
+      "doi": "10.1016/j.cej.2024.155929"
+    },
+    "ward2022": {
+      "citation": "Ward, A., Pini, R. (2022). Integrated uncertainty quantification and sensitivity analysis of single-component dynamic column breakthrough experiments. Adsorption 28, 161-183.",
+      "doi": "10.1007/s10450-022-00361-z"
+    },
+    "ganesan2026": {
+      "citation": "Ganesan, S., Grande, C.A. (2026). Impact of pressure equalization direction on product purity in Pressure Swing Adsorption (PSA) process. Adsorption 32, 36 (incl. Electronic Supplementary Material).",
+      "doi": "10.1007/s10450-026-00702-2"
+    },
+    "shen2018": {
+      "citation": "Shen, Y., Shi, W., Zhang, D., Na, P., Fu, B. (2018). The removal and capture of CO2 from biogas by vacuum pressure swing process using silica gel. Journal of CO2 Utilization 27, 259-271. (Original source of the silica-gel parameters as cited by Ganesan & Grande 2026; not consulted directly.)",
+      "doi": "10.1016/j.jcou.2018.08.001"
+    },
+    "stampi2020": {
+      "citation": "Stampi-Bombelli, V., van der Spek, M., Mazzotti, M. (2020). Analysis of direct capture of CO2 from ambient air via steam-assisted temperature-vacuum swing adsorption. Adsorption 26, 1183-1197.",
+      "doi": "10.1007/s10450-020-00249-w"
+    },
+    "stampi2021corr": {
+      "citation": "Stampi-Bombelli, V., van der Spek, M., Mazzotti, M. (2022). Correction to: Analysis of direct capture of CO2 from ambient air via steam-assisted temperature-vacuum swing adsorption. Adsorption 28, 105.",
+      "doi": "10.1007/s10450-021-00351-7"
+    },
+    "low2023": {
+      "citation": "Low, M.-Y.A., Danaci, D., Azzan, H., Woodward, R.T., Petit, C. (2023). Measurement of Physicochemical Properties and CO2, N2, Ar, O2, and H2O Unary Adsorption Isotherms of Purolite A110 and Lewatit VP OC 1065 for Application in Direct Air Capture. Journal of Chemical & Engineering Data 68, 3499-3511 (incl. Supporting Information and AIF data files).",
+      "doi": "10.1021/acs.jced.3c00401"
+    },
+    "grossmann2025": {
+      "citation": "Grossmann, Q., Saenz-Cavazos, P.A., Ferru, N., Williams, D.R., Mazzotti, M. (2025). Measuring and Modeling Water and Carbon Dioxide Adsorption on Amine Functionalized Alumina under Direct Air Capture Conditions. Industrial & Engineering Chemistry Research 64, 7165-7175 (incl. Supporting Information).",
+      "doi": "10.1021/acs.iecr.4c04581"
+    },
+    "krishnamurthy2020": {
+      "citation": "Krishnamurthy, S., Blom, R., Ferrari, M.C., Brandani, S. (2020). Adsorption and diffusion of CO2 in CPO-27-Ni beads. Adsorption 26, 711-721.",
+      "doi": "10.1007/s10450-019-00162-x"
+    },
+    "azzan2023": {
+      "citation": "Azzan, H., Danaci, D., Petit, C., Pini, R. (2023). Unary Adsorption Equilibria of Hydrogen, Nitrogen, and Carbon Dioxide on Y-Type Zeolites at Temperatures from 298 to 393 K and at Pressures up to 3 MPa. Journal of Chemical & Engineering Data 68, 3512-3524 (incl. Supporting Information).",
+      "doi": "10.1021/acs.jced.3c00504"
+    },
+    "low2024": {
+      "citation": "Low, M.-Y.A., Danaci, D., Azzan, H., Jiayi, A.L., Yong, G.W.S., Itskou, I., Petit, C. (2024). Physicochemical Properties, Equilibrium Adsorption Performance, Manufacturability, and Stability of TIFSIX-3-Ni for Direct Air Capture of CO2. Energy & Fuels 38, 11947-11965 (incl. Supporting Information and AIF data files).",
+      "doi": "10.1021/acs.energyfuels.4c01368"
+    },
+    "zhang2021": {
+      "citation": "Zhang, J., Liu, H., Zhou, F., Li, X., Wei, K., Song, J. (2021). Enrichment of Oxygen-Containing Low-Concentration Coalbed Methane with CMS-3KT as the Adsorbent. ACS Omega 6, 6914-6923.",
+      "doi": "10.1021/acsomega.0c06148"
+    }
+  },
+  "entries": [
+    {
+      "key": "lilsx_arora2021",
+      "file": "lilsx_arora2021.json",
+      "label": "LiLSX zeolite (Arora 2021)",
+      "material": "LiLSX zeolite",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["air separation / O2"],
+      "components": ["Nitrogen", "Oxygen"],
+      "sources": [{"id": "arora2021", "refs": "Table 2 (isotherm, dH, LDF, particle properties); SI model-input table (particle diameter)"}],
+      "isotherms": [
+        {"component": "Nitrogen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 27.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)"},
+        {"component": "Oxygen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 27.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)"}
+      ],
+      "heat_of_adsorption": {
+        "Nitrogen": {"value": 25451.65, "provenance": "source", "ref": "Table 2, -dH"},
+        "Oxygen": {"value": 14661.44, "provenance": "source", "ref": "Table 2, -dH"}
+      },
+      "properties": {
+        "particle_density": {"value": 1035.0, "provenance": "source", "ref": "Table 2"},
+        "heat_capacity": {"value": 1172.0, "provenance": "source", "ref": "Table 2"},
+        "particle_voidage": {"value": 0.33, "provenance": "source", "ref": "Table 2, particle porosity"},
+        "particle_diameter": {"value": 0.035, "provenance": "source", "ref": "SI model-input table (value as printed)"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+      },
+      "example_decks": ["Arora2021_LiLSX_PSA.json", "Arora2021_LiLSX_PVSA.json"],
+      "deck_checks": [{"deck": "Arora2021_LiLSX_PSA.json", "adsorbent": "LiLSX Zeolite"}],
+      "notes": [
+        "Site saturation capacities in mol/kg, b0 in 1/Pa (pressure-form dual-site Langmuir); site energies are -dU from Table 2.",
+        "Includes the Table 2 LDF constants (N2 42.84 1/s, O2 104.07 1/s)."
+      ]
+    },
+    {
+      "key": "lix_arora2021",
+      "file": "lix_arora2021.json",
+      "label": "LiX zeolite (Arora 2021)",
+      "material": "LiX zeolite",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["air separation / O2"],
+      "components": ["Nitrogen", "Oxygen"],
+      "sources": [{"id": "arora2021", "refs": "Table 2 (isotherm, dH, particle properties); SI model-input table (particle diameter)"}],
+      "isotherms": [
+        {"component": "Nitrogen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 25.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)"},
+        {"component": "Oxygen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 25.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)"}
+      ],
+      "heat_of_adsorption": {
+        "Nitrogen": {"value": 23430.4, "provenance": "source", "ref": "Table 2, -dH"},
+        "Oxygen": {"value": 13221.44, "provenance": "source", "ref": "Table 2, -dH"}
+      },
+      "properties": {
+        "particle_density": {"value": 1200.0, "provenance": "source", "ref": "Table 2"},
+        "heat_capacity": {"value": 1172.0, "provenance": "source", "ref": "Table 2"},
+        "particle_voidage": {"value": 0.33, "provenance": "source", "ref": "Table 2, particle porosity"},
+        "particle_diameter": {"value": 0.035, "provenance": "source", "ref": "SI model-input table (value as printed)"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+      },
+      "example_decks": ["Arora2021_LiLSX_PSA.json", "Arora2021_LiLSX_PVSA.json"],
+      "deck_checks": [{"deck": "Arora2021_LiLSX_PSA.json", "adsorbent": "LiX Zeolite"}],
+      "notes": [
+        "Table 2 gives no LDF constant for LiX, so none is bundled (the engine default applies). The Arora decks reuse the LiLSX constants for LiX."
+      ]
+    },
+    {
+      "key": "zeolite_5a_arora2021",
+      "file": "zeolite_5a_arora2021.json",
+      "label": "Zeolite 5A (Arora 2021)",
+      "material": "Zeolite 5A",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["air separation / O2"],
+      "components": ["Nitrogen", "Oxygen"],
+      "sources": [{"id": "arora2021", "refs": "Table 2 (isotherm, dH, LDF, particle properties); SI model-input table (particle diameter)"}],
+      "isotherms": [
+        {"component": "Nitrogen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 26 and 28.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)"},
+        {"component": "Oxygen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 26 and 28.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)"}
+      ],
+      "heat_of_adsorption": {
+        "Nitrogen": {"value": 22886.48, "provenance": "source", "ref": "Table 2, -dH"},
+        "Oxygen": {"value": 13221.44, "provenance": "source", "ref": "Table 2, -dH"}
+      },
+      "properties": {
+        "particle_density": {"value": 1160.0, "provenance": "source", "ref": "Table 2"},
+        "heat_capacity": {"value": 1338.9, "provenance": "source", "ref": "Table 2"},
+        "particle_voidage": {"value": 0.65, "provenance": "source", "ref": "Table 2, particle porosity"},
+        "particle_diameter": {"value": 0.035, "provenance": "source", "ref": "SI model-input table (value as printed)"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+      },
+      "example_decks": ["Arora2021_LiLSX_PSA.json", "Arora2021_LiLSX_PVSA.json"],
+      "deck_checks": [{"deck": "Arora2021_LiLSX_PSA.json", "adsorbent": "Zeolite 5A"}],
+      "notes": [
+        "Includes the Table 2 LDF constants (N2 4.02 1/s, O2 12.07 1/s)."
+      ]
+    },
+    {
+      "key": "mg_mof_74",
+      "file": "mg_mof_74.json",
+      "label": "Mg-MOF-74 (Ward & Pini 2024)",
+      "material": "Mg-MOF-74",
+      "family": "MOF",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "ward_pini2024", "refs": "Table 1 (DSL isotherm, bed and pellet properties), Sect. 2.1 (extended / competitive DSL)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "Table 1", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"},
+        {"component": "Nitrogen", "ref": "Table 1", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 30850.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ward & Pini 2024 Table 1, PR #137 curation; the model uses the site energies dU_b, dU_d). 30.85 kJ/mol is the value used by the Ward2024 deck / ward_pini_2024.cpp; it equals the Perez 2019 13X value."},
+        "Nitrogen": {"value": 15930.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ward & Pini 2024 Table 1, PR #137 curation). 15.93 kJ/mol is the value used by the Ward2024 deck (equals the Perez 2019 13X value)."}
+      },
+      "properties": {
+        "particle_density": {"value": 910.4166666666667, "provenance": "derived", "ref": "Table 1: rho_b / (1 - eps) = 437 / (1 - 0.52)"},
+        "bulk_density": {"value": 437.0, "provenance": "source", "ref": "Table 1"},
+        "heat_capacity": {"value": 900.0, "provenance": "source", "ref": "Table 1"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 1, pellet porosity"},
+        "particle_diameter": {"value": 0.002, "provenance": "source", "ref": "Table 1, pellet radius 1e-3 m"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+      },
+      "example_decks": ["Ward2024.json"],
+      "deck_checks": [{"deck": "Ward2024.json", "adsorbent": "Mg-MOF-74"}],
+      "notes": [
+        "Extended (competitive) concentration-form dual-site Langmuir: Sect. 2.1 states that the competitive CO2/N2 equilibrium is described with the extended DSL; site energies -dU_b, -dU_d from Table 1. The Ward2024 deck uses the same extended kind. The paper's energy balance uses the internal-energy convention (the Ward2024 deck sets it)."
+      ]
+    },
+    {
+      "key": "activated_carbon",
+      "file": "activated_carbon.json",
+      "label": "Activated carbon (Ward & Pini 2024)",
+      "material": "Activated carbon",
+      "family": "carbon",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "ward_pini2024", "refs": "Table 1 (DSL isotherm, bed and pellet properties), Sect. 2.1 (extended / competitive DSL)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "Table 1", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"},
+        {"component": "Nitrogen", "ref": "Table 1", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ward & Pini 2024 Table 1, PR #137 curation; the model uses the site energies dU_b, dU_d). Left unset (0) - set it before a non-isothermal run."},
+        "Nitrogen": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ward & Pini 2024 Table 1, PR #137 curation). Left unset (0)."}
+      },
+      "properties": {
+        "particle_density": {"value": 805.5555555555555, "provenance": "derived", "ref": "Table 1: rho_b / (1 - eps) = 435 / (1 - 0.46)"},
+        "bulk_density": {"value": 435.0, "provenance": "source", "ref": "Table 1"},
+        "heat_capacity": {"value": 1040.0, "provenance": "source", "ref": "Table 1"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 1, pellet porosity"},
+        "particle_diameter": {"value": 0.002, "provenance": "source", "ref": "Table 1, pellet radius 1e-3 m"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value set by adsim/test/unit/test_adsorbents.cpp"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended (competitive) concentration-form dual-site Langmuir (Sect. 2.1); site energies from Table 1.",
+        "The Ward2024 deck lists an 'Activated Carbon' adsorbent but leaves it unconfigured (Mg-MOF-74 only), so it does not use this entry."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry (the Ward2024 deck lists an 'Activated Carbon' adsorbent but leaves it unconfigured)."
+    },
+    {
+      "key": "zeolite_13x_perez2019",
+      "file": "zeolite_13x_perez2019.json",
+      "label": "Zeolite 13X Z10-02 (Perez 2019)",
+      "material": "Zeolite 13X (Zeochem Z10-02)",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "perez2019", "refs": "Table 2 (DSL isotherm), Sect. 4.1 and Fig. 2c (DSL used to predict the competitive CO2/N2 loadings), Table 1 (dH, Cp, voidage, particle radius), Section 2 (162 g per 0.30 m x 3.2 cm column)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "Table 2", "T_range_K": [298.15, 348.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 25, 50 and 75 C, 0-100 kPa (Section 3.1)."},
+        {"component": "Nitrogen", "ref": "Table 2", "T_range_K": [298.15, 348.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 25, 50 and 75 C, 0-100 kPa (Section 3.1)."}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 30850.0, "provenance": "source", "ref": "Table 1 (measured, Clausius-Clapeyron average)"},
+        "Nitrogen": {"value": 15930.0, "provenance": "source", "ref": "Table 1 (measured, Clausius-Clapeyron average)"}
+      },
+      "properties": {
+        "particle_density": {"value": 1138.0252816422599, "provenance": "derived", "ref": "m_ads / V_column / (1 - eps) with 0.162 kg, L = 0.3 m, D = 0.032 m, eps = 0.41 (Section 2, Table 1)"},
+        "heat_capacity": {"value": 900.0, "provenance": "source", "ref": "Table 1"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 1 (assumed by the authors)"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 1, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.63, "provenance": "repo", "ref": "Not in source; value used by the Perez2019 decks"}
+      },
+      "example_decks": ["Perez2019_A.json", "Perez2019_B.json", "Perez2019_C1.json", "Perez2019_D1.json", "Perez2019_E.json", "Perez2019_F.json"],
+      "deck_checks": [{"deck": "Perez2019_A.json", "adsorbent": "13X"}],
+      "notes": [
+        "Extended (competitive) concentration-form dual-site Langmuir: Sect. 4.1 uses the DSL to predict the competitive CO2/N2 loadings (Fig. 2c), as do the Perez2019 decks; site energies -dU_b, -dU_d from Table 2.",
+        "Includes the decks' macropore-controlled LDF model (tortuosity 3, particle voidage 0.35, Table 1)."
+      ]
+    },
+    {
+      "key": "ap3_60_schell2012",
+      "file": "ap3_60_schell2012.json",
+      "label": "Activated carbon AP3-60 (Schell / Casas 2012)",
+      "material": "Activated carbon (Chemviron AP3-60)",
+      "family": "carbon",
+      "status": "sourced",
+      "applications": ["pre-combustion CO2 capture", "hydrogen purification"],
+      "components": ["CarbonDioxide", "Hydrogen"],
+      "sources": [
+        {"id": "schell2012", "refs": "Table 1 (measurement ranges), Table 3 (per-temperature Sips fits); ESM Tables 1-8 (tabulated pure CO2 / H2 excess adsorption, used as source_points)"},
+        {"id": "casas2012", "refs": "Table 2 (particle density, size, Cs, porosities, dH), Table 3 (LDF), Table 4 (temperature-dependent Sips)"}
+      ],
+      "isotherms": [
+        {
+          "component": "CarbonDioxide",
+          "ref": "Schell 2012 Table 3 refit to the Casas 2012 Table 4 form",
+          "T_range_K": [298.15, 413.15],
+          "P_range_Pa": [10000, 21200000],
+          "range_note": "Measured 25-140 C, 0.01-21.2 MPa (Schell Table 1). The constants are the repo's refit of Schell Table 3 (adsim/test/papers/casas_2012/casas_2012.h); they reproduce Casas Table 4 to 3-4 significant figures.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "excess",
+            "units": {"p": "MPa", "q": "mmol/g", "T": "C"},
+            "source": "schell2012",
+            "ref": "ESM (10450_2011_9382_MOESM1_ESM.pdf), Tables 1-5 (p, n_ex columns)",
+            "note": "Gravimetric EXCESS adsorption as tabulated. The library isotherm describes absolute adsorption, so excess and model diverge at high pressure (excess passes through a maximum); no fit statistic is computed for these points.",
+            "T": [25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0, 140.0],
+            "p": [7.14, 6.26, 6.19, 4.9, 3.98, 3.02, 2.5, 1.99, 1.76, 1.53, 1.51, 1.26, 0.99, 0.75, 0.51, 0.28, 0.27, 0.26, 0.22, 0.189, 0.167, 0.136, 0.12, 0.105, 0.072, 0.06, 0.043, 0.03, 0.01, 21.03, 18.46, 16.34, 14.31, 13.05, 12.3, 11.63, 10.26, 9.29, 7.92, 6.36, 4.99, 3.0, 1.95, 1.53, 1.5, 1.21, 0.91, 0.71, 0.51, 0.31, 0.29, 0.25, 0.22, 0.192, 0.161, 0.14, 0.131, 0.102, 0.072, 0.06, 0.041, 0.03, 0.011, 18.92, 18.8, 15.98, 14.41, 13.17, 11.18, 9.62, 7.73, 5.95, 5.62, 3.99, 3.05, 1.99, 1.5, 1.01, 0.75, 0.6, 0.5, 0.47, 0.26, 0.25, 0.22, 0.191, 0.161, 0.131, 0.115, 0.101, 0.07, 0.061, 0.04, 0.031, 0.01, 21.17, 15.84, 12.76, 11.61, 9.94, 8.86, 7.67, 6.66, 5.57, 4.4, 4.06, 3.51, 3.02, 2.43, 2.01, 1.76, 1.51, 1.25, 1.0, 0.75, 0.5, 0.5, 0.42, 0.25, 0.25, 0.22, 0.186, 0.154, 0.121, 0.12, 0.096, 0.067, 0.05, 0.044, 0.02, 0.012, 20.09, 12.98, 12.8, 10.37, 8.1, 5.91, 4.48, 4.48, 3.49, 3.0, 2.49, 2.0, 1.5, 1.25, 1.04, 1.0, 0.75, 0.5, 0.35, 0.26, 0.25, 0.23, 0.2, 0.168, 0.121, 0.12, 0.098, 0.07, 0.06, 0.04, 0.03, 0.01],
+            "q": [2.948, 7.701, 7.83, 8.144, 8.116, 7.818, 7.496, 7.048, 6.784, 6.541, 6.456, 6.049, 5.512, 4.916, 4.098, 2.924, 2.934, 2.791, 2.584, 2.34, 2.173, 1.92, 1.77, 1.64, 1.293, 1.158, 0.922, 0.646, 0.376, 2.072, 2.298, 2.5, 2.775, 3.017, 3.216, 3.533, 4.325, 5.853, 6.807, 7.281, 7.218, 6.554, 5.716, 5.207, 5.172, 4.742, 4.169, 3.675, 3.092, 2.294, 2.128, 1.964, 1.813, 1.649, 1.474, 1.427, 1.292, 1.089, 0.855, 0.776, 0.578, 0.534, 0.205, 2.839, 2.9, 3.405, 4.062, 4.466, 5.587, 6.024, 6.362, 6.343, 6.348, 5.891, 5.446, 4.648, 4.1, 3.372, 2.872, 2.47, 2.261, 2.126, 1.478, 1.418, 1.296, 1.174, 1.044, 0.901, 0.865, 0.746, 0.572, 0.54, 0.372, 0.321, 0.12, 3.523, 4.525, 5.024, 5.157, 5.257, 5.272, 5.192, 5.098, 4.899, 4.571, 4.41, 4.21, 3.962, 3.595, 3.281, 3.058, 2.818, 2.535, 2.22, 1.859, 1.424, 1.36, 1.197, 0.872, 0.819, 0.744, 0.653, 0.561, 0.464, 0.504, 0.384, 0.285, 0.256, 0.196, 0.121, 0.06, 3.787, 4.285, 4.255, 4.263, 4.089, 3.734, 3.358, 3.309, 2.998, 2.777, 2.51, 2.216, 1.852, 1.652, 1.449, 1.417, 1.16, 0.857, 0.612, 0.48, 0.492, 0.43, 0.381, 0.327, 0.242, 0.272, 0.199, 0.145, 0.136, 0.085, 0.066, 0.019]
+          }
+        },
+        {
+          "component": "Hydrogen",
+          "ref": "Schell 2012 Table 3 refit to the Casas 2012 Table 4 form",
+          "T_range_K": [298.15, 338.15],
+          "P_range_Pa": [40000, 14100000],
+          "range_note": "Measured 25-65 C, 0.04-14.1 MPa (Schell Table 1). Repo refit; the H2 constants differ from Casas Table 4 by a few percent (k: 6.69e-10 vs 0.70e-9 1/Pa; exponent 0.96 vs 0.9556).",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "excess",
+            "units": {"p": "MPa", "q": "mmol/g", "T": "C"},
+            "source": "schell2012",
+            "ref": "ESM (10450_2011_9382_MOESM1_ESM.pdf), Tables 6-8 (p, n_ex columns)",
+            "note": "Gravimetric EXCESS adsorption as tabulated. The library isotherm describes absolute adsorption, so excess and model diverge at high pressure (excess passes through a maximum); no fit statistic is computed for these points.",
+            "T": [25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0],
+            "p": [14.11, 13.31, 12.53, 9.98, 9.8, 7.51, 7.48, 4.99, 4.98, 2.99, 2.51, 1.51, 1.49, 1.02, 1.0, 0.72, 0.5, 0.3, 0.232, 0.129, 0.101, 0.077, 0.064, 0.042, 12.76, 10.01, 8.01, 5.94, 5.0, 4.01, 3.0, 2.5, 2.0, 1.5, 1.25, 1.0, 0.75, 0.5, 0.25, 0.13, 12.24, 9.94, 8.0, 5.02, 3.51, 2.02, 1.01, 0.51, 0.32, 0.16],
+            "q": [1.975, 1.916, 1.871, 1.638, 1.62, 1.389, 1.365, 1.039, 1.027, 0.694, 0.627, 0.402, 0.384, 0.273, 0.29, 0.194, 0.156, 0.103, 0.063, 0.047, 0.03, 0.039, 0.029, 0.022, 1.599, 1.388, 1.196, 1.005, 0.866, 0.729, 0.564, 0.492, 0.405, 0.298, 0.254, 0.206, 0.165, 0.108, 0.059, 0.039, 1.35, 1.179, 1.016, 0.715, 0.535, 0.326, 0.175, 0.094, 0.057, 0.024]
+          }
+        }
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 26000.0, "provenance": "source", "ref": "Casas 2012 Table 2 (Clausius-Clapeyron)"},
+        "Hydrogen": {"value": 9800.0, "provenance": "source", "ref": "Casas 2012 Table 2 (Clausius-Clapeyron)"}
+      },
+      "properties": {
+        "particle_density": {"value": 850.0, "provenance": "source", "ref": "Casas 2012 Table 2 (manufacturer)"},
+        "bulk_density": {"value": 507.0, "provenance": "source", "ref": "Casas 2012 Table 2"},
+        "heat_capacity": {"value": 1000.0, "provenance": "source", "ref": "Casas 2012 Table 2"},
+        "particle_voidage": {"value": 0.5685279187817258, "provenance": "repo", "ref": "Repo deck value 1 - 850/1970; consistent with Casas 2012 Table 2 (eps_t = 0.742, eps_b = 0.403 gives eps_p = 0.568)"},
+        "particle_diameter": {"value": 0.003, "provenance": "source", "ref": "Casas 2012 Table 2"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not tabulated; nominal value used by the Casas2012 decks"}
+      },
+      "example_decks": ["Casas2012_Fig4_50_50_15bar_25C.json", "Casas2012_Fig6_25_75_15bar_25C.json", "Casas2012_Fig6_75_25_15bar_25C.json"],
+      "deck_checks": [{"deck": "Casas2012_Fig4_50_50_15bar_25C.json", "adsorbent": "AP3-60"}],
+      "notes": [
+        "Competitive Sips with Arrhenius n_inf and k and an arctan exponent (engine kind 'Arrhenius Sips').",
+        "Includes the fitted LDF constants of Casas 2012 Table 3 (CO2 0.15 1/s, H2 1.0 1/s).",
+        "N2 was also measured by Schell 2012 but is not part of this entry."
+      ]
+    },
+    {
+      "key": "nay_f_ferre2026",
+      "file": "nay_f_ferre2026.json",
+      "label": "Zeolite NaY, Feng data (Ferré 2026)",
+      "material": "Zeolite NaY",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p, D_m, tau); data of Feng et al. (ref 36)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [298, 338], "P_range_Pa": null, "range_note": "Fitted at 298, 318, 338 K (SI Table S3); selection required data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [298, 338], "P_range_Pa": null, "range_note": "Fitted at 298, 318, 338 K (SI Table S3); selection required data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 27028.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from adsim/test/papers/ferre_2026/ferre_2026.cpp (DSL isosteric heat at the feed loading), also used by the Ferre2026_NaYF deck"},
+        "Methane": {"value": 12896.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp / Ferre2026_NaYF deck"}
+      },
+      "properties": {
+        "particle_density": {"value": 1330.0, "provenance": "source", "ref": "SI Table S3"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; value used by ferre_2026.cpp"}
+      },
+      "example_decks": ["Ferre2026_NaYF.json"],
+      "deck_checks": [{"deck": "Ferre2026_NaYF.json", "adsorbent": "NaY(F)"}],
+      "notes": [
+        "Extended (competitive) concentration-form DSL as in the paper's Sect. 3.1 / Eq. 5 (the Ferre2026_NaYF deck uses the same kind).",
+        "Constant LDF 46.7 1/s = 15 eps_p D_m / (tau r_p^2) with Table 2 values (as in ferre_2026.cpp)."
+      ]
+    },
+    {
+      "key": "nay_w_ferre2026",
+      "file": "nay_w_ferre2026.json",
+      "label": "Zeolite NaY, Wedler data (Ferré 2026)",
+      "material": "Zeolite NaY",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Wedler et al. (ref 37)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [298, 353], "P_range_Pa": null, "range_note": "Fitted at 298, 333, 353 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [298, 353], "P_range_Pa": null, "range_note": "Fitted at 298, 333, 353 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 31726.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp (DSL isosteric heat at the feed loading)"},
+        "Methane": {"value": 16754.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp"}
+      },
+      "properties": {
+        "particle_density": {"value": 1330.0, "provenance": "source", "ref": "SI Table S3"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; value used by ferre_2026.cpp"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended concentration-form DSL (Eq. 5). Constant LDF 46.7 1/s from Table 2 (as in ferre_2026.cpp, test NaY_W)."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "lix_ferre2026",
+      "file": "lix_ferre2026.json",
+      "label": "LiX zeolite (Ferré 2026)",
+      "material": "LiX zeolite",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Park et al. (ref 35)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
+        "Methane": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S2, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."}
+      },
+      "properties": {
+        "particle_density": {"value": 930.0, "provenance": "source", "ref": "SI Table S3"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; same value as the other Ferré entries (ferre_2026.cpp)"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended concentration-form DSL (Eq. 5). Constant LDF 46.7 1/s from Table 2.",
+        "Screened out in the paper (no Table 5 operating point)."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "zeolite_13x_ferre2026",
+      "file": "zeolite_13x_ferre2026.json",
+      "label": "Zeolite 13X (Ferré 2026)",
+      "material": "Zeolite 13X",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Gholipour et al. (ref 33)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 20012.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp (DSL isosteric heat at the feed loading)"},
+        "Methane": {"value": 10255.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp"}
+      },
+      "properties": {
+        "particle_density": {"value": 1130.0, "provenance": "source", "ref": "SI Table S3 (1.130 g/cm3 is also the SI's stated default for materials without a reported density)"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; value used by ferre_2026.cpp"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended concentration-form DSL (Eq. 5). Constant LDF 46.7 1/s from Table 2 (as in ferre_2026.cpp, test Zeolite13X)."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "zeolite_5a_ferre2026",
+      "file": "zeolite_5a_ferre2026.json",
+      "label": "Zeolite 5A (Ferré 2026)",
+      "material": "Zeolite 5A",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Mofarahi et al. (ref 34)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
+        "Methane": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S2, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."}
+      },
+      "properties": {
+        "particle_density": {"value": 1130.0, "provenance": "source", "ref": "SI Table S3 (1.130 g/cm3 is also the SI's stated default for materials without a reported density)"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; same value as the other Ferré entries (ferre_2026.cpp)"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended concentration-form DSL (Eq. 5). Constant LDF 46.7 1/s from Table 2.",
+        "Screened out in the paper (no Table 5 operating point)."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "activated_carbon_ferre2026",
+      "file": "activated_carbon_ferre2026.json",
+      "label": "Activated carbon (Ferré 2026)",
+      "material": "Activated carbon",
+      "family": "carbon",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Park et al. (ref 35)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
+        "Methane": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S2, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."}
+      },
+      "properties": {
+        "particle_density": {"value": 850.0, "provenance": "source", "ref": "SI Table S3"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; same value as the other Ferré entries (ferre_2026.cpp)"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended concentration-form DSL (Eq. 5). Constant LDF 46.7 1/s from Table 2.",
+        "Screened out in the paper (no Table 5 operating point)."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "zif_8_ferre2026",
+      "file": "zif_8_ferre2026.json",
+      "label": "ZIF-8 (Ferré 2026)",
+      "material": "ZIF-8",
+      "family": "MOF",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Danaci et al. (ref 32)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
+        "Methane": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S2, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."}
+      },
+      "properties": {
+        "particle_density": {"value": 737.0, "provenance": "source", "ref": "SI Table S3"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; same value as the other Ferré entries (ferre_2026.cpp)"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended concentration-form DSL (Eq. 5). Constant LDF 46.7 1/s from Table 2.",
+        "SI Table S1 lists d0 = 0 for CO2 (site 2 inactive) while giving dU_d = -20286 J/mol; both are transcribed as printed.",
+        "Screened out in the paper (no Table 5 operating point)."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "zif_71_ferre2026",
+      "file": "zif_71_ferre2026.json",
+      "label": "ZIF-71 (Ferré 2026)",
+      "material": "ZIF-71",
+      "family": "MOF",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Danaci et al. (ref 32)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
+        "Methane": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S2, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."}
+      },
+      "properties": {
+        "particle_density": {"value": 924.0, "provenance": "source", "ref": "SI Table S3"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2 (common to all materials)"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; same value as the other Ferré entries (ferre_2026.cpp)"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended concentration-form DSL (Eq. 5). Constant LDF 46.7 1/s from Table 2.",
+        "Screened out in the paper (no Table 5 operating point)."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "mil_160_al_ferre2026",
+      "file": "mil_160_al_ferre2026.json",
+      "label": "MIL-160(Al) (Ferré 2026)",
+      "material": "MIL-160(Al)",
+      "family": "MOF",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Karimi et al. (ref 31)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [313, 373], "P_range_Pa": null, "range_note": "Fitted at 313, 343, 373 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [313, 373], "P_range_Pa": null, "range_note": "Fitted at 313, 343, 373 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 22851.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp (DSL isosteric heat at the feed loading)"},
+        "Methane": {"value": 8862.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp"}
+      },
+      "properties": {
+        "particle_density": {"value": 1070.0, "provenance": "source", "ref": "SI Table S3"},
+        "heat_capacity": {"value": 1070.0, "provenance": "source", "ref": "Table 2"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 2"},
+        "particle_diameter": {"value": 0.0015, "provenance": "source", "ref": "Table 2, particle radius 7.5e-4 m"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "repo", "ref": "Not in source; value used by ferre_2026.cpp"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended concentration-form DSL (Eq. 5). Constant LDF 46.7 1/s from Table 2 (as in ferre_2026.cpp, test MIL160Al).",
+        "Fit temperatures (313-373 K) lie above ambient; curves below 313 K are extrapolations."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "calf_20_nguyen2022",
+      "file": "calf_20_nguyen2022.json",
+      "label": "CALF-20 (Nguyen 2022)",
+      "material": "CALF-20",
+      "family": "MOF",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "nguyen2022", "refs": "Table 3 (ESS/extended DSL parameters) per the repo fixture adsim/test/papers/nguyen_2022/nguyen_2022.h"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "Table 3 (via the Nguyen_2022 decks)", "T_range_K": null, "P_range_Pa": null, "range_note": "Values copied verbatim from the repo's Nguyen_2022 decks, which cite Table 3; the paper itself was not available to this PR, so the fit range is not recorded."},
+        {"component": "Nitrogen", "ref": "Table 3 (via the Nguyen_2022 decks)", "T_range_K": null, "P_range_Pa": null, "range_note": "Values copied verbatim from the repo's Nguyen_2022 decks, which cite Table 3; fit range not recorded."}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 38000.0, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks; not checked against the paper"},
+        "Nitrogen": {"value": 15000.0, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks; not checked against the paper"}
+      },
+      "properties": {
+        "particle_density": {"value": 570.0, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks (matches the measured 570 kg/m3 of Nguyen 2023 Table 1)"},
+        "heat_capacity": {"value": 1371.0, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks; not checked against the paper"},
+        "particle_voidage": {"value": 0.35, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks"},
+        "particle_diameter": {"value": null, "provenance": "repo", "ref": "Not in the paper according to the repo fixture (the deck assumes 1.5 mm)"},
+        "thermal_conductivity": {"value": 0.63, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks"}
+      },
+      "example_decks": ["Nguyen_2022_Fig4.json", "Nguyen_2022_Fig5.json"],
+      "deck_checks": [{"deck": "Nguyen_2022_Fig4.json", "adsorbent": "CALF-20"}],
+      "notes": [
+        "Extended concentration-form DSL with equal-energy-site N2 (repo fixture comment: 'ESS model in Table 3').",
+        "Includes the decks' macropore-controlled LDF (tortuosity 3, eps_p 0.35)."
+      ],
+      "unverified_fields": ["T_range_K", "P_range_Pa", "heat_of_adsorption", "particle_density", "heat_capacity", "particle_diameter"],
+      "verification_note": "The paper (Elsevier, subscription) was not accessible to PR #137 or to this update; the isotherm parameters, properties and heat of adsorption are copied from the repo's Nguyen_2022 decks, which cite its Table 3. The listed fields could therefore not be checked against the source."
+    },
+    {
+      "key": "calf_20_nguyen2023",
+      "file": "calf_20_nguyen2023.json",
+      "label": "CALF-20, structured (Nguyen 2023)",
+      "material": "CALF-20 (structured, phase inversion)",
+      "family": "MOF",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "nguyen2023", "refs": "SI Table S1 (DSL / EES isotherm), Section 2 (competitive forms described by the DSL, paper ref 10; pellet size, isotherm temperatures), Table 1 (density, Cp, voidage)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [295.15, 373.15], "P_range_Pa": null, "range_note": "Single-component isotherms measured at 22-100 C on a Micromeritics ASAP 2020 (Section 2); pressure range not stated.", "P_range_not_stated": "Not stated in source (checked: Nguyen 2023 Section 2 and SI Table S1, PR #137 curation)"},
+        {"component": "Nitrogen", "ref": "SI Table S1", "T_range_K": [295.15, 373.15], "P_range_Pa": null, "range_note": "Measured at 22-100 C (Section 2); pressure range not stated.", "P_range_not_stated": "Not stated in source (checked: Nguyen 2023 Section 2 and SI Table S1, PR #137 curation)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 38000.0, "provenance": "repo", "ref": "Not stated in source (checked: Nguyen 2023 Table 1 and SI Table S1, PR #137 curation); 38 kJ/mol is the value used by the Nguyen2023 decks"},
+        "Nitrogen": {"value": 15000.0, "provenance": "repo", "ref": "Not stated in source (checked: Nguyen 2023 Table 1 and SI Table S1, PR #137 curation); 15 kJ/mol is the value used by the Nguyen2023 decks"}
+      },
+      "properties": {
+        "particle_density": {"value": 570.0, "provenance": "source", "ref": "Table 1 (measured)"},
+        "heat_capacity": {"value": 1350.0, "provenance": "source", "ref": "Table 1 (fitted)"},
+        "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 1 (assumed)"},
+        "particle_diameter": {"value": 0.001, "provenance": "source", "ref": "Section 2: cylinders of 1 mm diameter, 1-3 mm long"},
+        "thermal_conductivity": {"value": 0.63, "provenance": "repo", "ref": "Not in source; value used by the Nguyen2023 decks"}
+      },
+      "example_decks": ["Nguyen2023_Exp_I.json", "Nguyen2023_Exp_II.json", "Nguyen2023_Exp_III.json", "Nguyen2023_Exp_IV.json", "Nguyen2023_Exp_V.json", "Nguyen2023_Exp_VI.json", "Nguyen2023_Exp_VII.json", "Nguyen2023_Exp_VIII.json", "Nguyen2023_Exp_IX.json", "Nguyen2023_Exp_X.json"],
+      "deck_checks": [{"deck": "Nguyen2023_Exp_I.json", "adsorbent": "CALF-20"}],
+      "notes": [
+        "Extended (competitive) concentration-form DSL (CO2) with the equal-energy-site scheme (N2), SI Table S1; Section 2 states the single-component and competitive forms are described by the DSL (as in the Nguyen2023 decks).",
+        "Includes the decks' macropore-controlled LDF (tortuosity 3, eps_p 0.35, Table 1)."
+      ]
+    },
+    {
+      "key": "zeolite_13x_streb2021",
+      "file": "zeolite_13x_streb2021.json",
+      "label": "Zeolite 13X (Streb 2021)",
+      "material": "Zeolite 13X",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["hydrogen purification", "pre-combustion CO2 capture", "biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane", "Hydrogen"],
+      "sources": [{"id": "streb2021", "refs": "Table 3 (Sips isotherms), Table 1 (particle diameter, densities, Cs), Fig. 4 (isosteric heats)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "Table 3", "T_range_K": null, "P_range_Pa": null, "range_note": "The CO2 parameters are those of the paper's ref 14 (Hefti et al. 2015).", "T_range_not_stated": "Not stated in source (checked: Streb & Mazzotti 2021 Table 3 and Section 2.1; the CO2 parameters are taken from their ref 14, Hefti et al. 2015)", "P_range_not_stated": "Not stated in source (checked: Streb & Mazzotti 2021 Table 3 and Section 2.1; the CO2 parameters are taken from their ref 14, Hefti et al. 2015)"},
+        {"component": "Methane", "ref": "Table 3", "T_range_K": [298.15, 338.15], "P_range_Pa": [0, 3000000], "range_note": "Measured at 25, 45, 65 C up to 30 bar (Section 2.1)."},
+        {"component": "Hydrogen", "ref": "Table 3", "T_range_K": [298.15, 338.15], "P_range_Pa": [0, 3000000], "range_note": "Measured at 25, 45, 65 C up to 30 bar (Section 2.1). Not part of the repo decks; transcribed from Table 3 for this entry."}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 36300.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Streb & Mazzotti 2021 Fig. 4, isosteric heat shown graphically only); 36.3 kJ/mol is the value used by the streb_2021 decks"},
+        "Methane": {"value": 18800.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Streb & Mazzotti 2021 Fig. 4, isosteric heat shown graphically only); 18.8 kJ/mol is the value used by the streb_2021 decks"},
+        "Hydrogen": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Streb & Mazzotti 2021 Fig. 4, graphical only). Left unset (0)."}
+      },
+      "properties": {
+        "particle_density": {"value": 1085.0, "provenance": "source", "ref": "Table 1"},
+        "bulk_density": {"value": 595.0, "provenance": "source", "ref": "Table 1"},
+        "skeletal_density": {"value": 2359.0, "provenance": "source", "ref": "Table 1"},
+        "heat_capacity": {"value": 1100.0, "provenance": "source", "ref": "Table 1"},
+        "particle_voidage": {"value": 0.5400593471810089, "provenance": "derived", "ref": "1 - rho_p / rho_s = 1 - 1085/2359 (Table 1)"},
+        "particle_diameter": {"value": 0.0018, "provenance": "source", "ref": "Table 1"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value used by the streb_2021 decks"}
+      },
+      "example_decks": ["streb_2021_A1.json", "streb_2021_A3.json"],
+      "deck_checks": [{"deck": "streb_2021_A1.json", "adsorbent": "13X"}],
+      "notes": [
+        "Extended Sips with temperature-dependent capacity, affinity and exponent (engine kind 'Extended Sips 2'); B1 converted from 1e-4 1/bar to 1/Pa, T_ref = 298 K as in the repo decks (paper: 25 C).",
+        "Includes the decks' fitted LDF constants (Table 4: CO2 0.06 1/s, CH4 0.2 1/s); H2 uses the engine default."
+      ]
+    },
+    {
+      "key": "zeolite_5a_vysyaraju2024",
+      "file": "zeolite_5a_vysyaraju2024.json",
+      "label": "Binderless zeolite 5A (Vysyaraju 2024)",
+      "material": "Binderless zeolite 5A (Zeochem)",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["helium purification"],
+      "components": ["Nitrogen"],
+      "sources": [{"id": "vysyaraju2024", "refs": "Table 2 (DSL), Table 1 (density, voidage, Cp, particle radius), Section 2.1 (isotherm ranges), Fig. 3c (isosteric heat)"}],
+      "isotherms": [{"component": "Nitrogen", "ref": "Table 2", "T_range_K": [298, 338], "P_range_Pa": [1000, 2000000], "range_note": "HPVA-100: 0.05-20 bar at 298, 308, 318 K; ASAP-2020C: 0.01-1.2 bar at 308-338 K; both sets fitted together (Section 2.1)."}],
+      "heat_of_adsorption": {
+        "Nitrogen": {"value": 18700.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Vysyaraju 2024 Fig. 3c, isosteric heat vs loading shown graphically; PR #137 curation); 18.7 kJ/mol is the value used by the Vysyaraju2024 deck"}
+      },
+      "properties": {
+        "particle_density": {"value": 1183.6, "provenance": "source", "ref": "Table 1 (measured)"},
+        "heat_capacity": {"value": 960.0, "provenance": "source", "ref": "Table 1 (fitted)"},
+        "particle_voidage": {"value": 0.33, "provenance": "source", "ref": "Table 1 (assumed)"},
+        "particle_diameter": {"value": 0.00206, "provenance": "source", "ref": "Table 1, average particle radius 1.03e-3 m (spheres of 1.6-2 mm, Section 2.1)"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "repo", "ref": "Not in source; value used by the Vysyaraju2024 deck"}
+      },
+      "example_decks": ["Vysyaraju2024_PSA_exp1.json"],
+      "deck_checks": [{"deck": "Vysyaraju2024_PSA_exp1.json", "adsorbent": "Zeolite5A"}],
+      "notes": [
+        "Concentration-form DSL; helium is treated as non-adsorbing by the source (use the Inert kind).",
+        "Includes the deck's constant LDF 104.98 1/s = 15 eps_p D_m / (tau r_p^2) with Table 1 values."
+      ]
+    },
+    {
+      "key": "activated_carbon_ward2022",
+      "file": "activated_carbon_ward2022.json",
+      "label": "Activated carbon (Ward & Pini 2022)",
+      "material": "Activated carbon",
+      "family": "carbon",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture"],
+      "components": ["CarbonDioxide"],
+      "sources": [{"id": "ward2022", "refs": "Table 2 (DSL), Table 1 (bed density, voidages, Cs, ks, particle radius), Section 2 (fit range)"}],
+      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2", "T_range_K": [293, 313], "P_range_Pa": [0, 100000], "range_note": "Fitted to volumetric data at p = 0-1 bar, T = 293-313 K (Section 2)."}],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 29980.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ward & Pini 2022 Table 2, DSL site energies only); the Ward_2022 decks use |dU_1| = 29.98 kJ/mol"}
+      },
+      "properties": {
+        "particle_density": {"value": 799.6323529411765, "provenance": "derived", "ref": "Table 1: rho_b / (1 - eps) = 435 / (1 - 0.456). The repo decks round this to 799."},
+        "bulk_density": {"value": 435.0, "provenance": "source", "ref": "Table 1"},
+        "heat_capacity": {"value": 1040.0, "provenance": "source", "ref": "Table 1"},
+        "particle_voidage": {"value": 0.59, "provenance": "source", "ref": "Table 1 (the repo decks set 0)"},
+        "particle_diameter": {"value": 0.003, "provenance": "source", "ref": "Table 1, particle radius 1.5e-3 m"},
+        "thermal_conductivity": {"value": 0.63, "provenance": "source", "ref": "Table 1, k_s"}
+      },
+      "example_decks": ["Ward_2022_Q=50[ccm].json", "Ward_2022_Q=100[ccm].json", "Ward_2022_Q=200[ccm].json"],
+      "deck_checks": [{"deck": "Ward_2022_Q=50[ccm].json", "adsorbent": "Activated Carbon"}],
+      "notes": [
+        "Concentration-form DSL from Table 2.",
+        "Includes the decks' Haynes-type macropore LDF model."
+      ]
+    },
+    {
+      "key": "silica_gel_ganesan2026",
+      "file": "silica_gel_ganesan2026.json",
+      "label": "Silica gel (Ganesan & Grande 2026)",
+      "material": "Silica gel",
+      "family": "silica",
+      "status": "sourced",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [
+        {"id": "ganesan2026", "refs": "ESM S.I. 4 (extended Langmuir, -dH, LDF), S.I. 3 (silica-gel values in brackets), ESM Eq. 6"},
+        {"id": "shen2018", "refs": "original isotherm source cited by Ganesan & Grande (ESM ref 6)"}
+      ],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "ESM S.I. 4", "T_range_K": null, "P_range_Pa": null, "range_note": "Parameters taken from Shen et al. 2018 (ESM ref 6).", "T_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)", "P_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)"},
+        {"component": "Methane", "ref": "ESM S.I. 4", "T_range_K": null, "P_range_Pa": null, "range_note": "Parameters taken from Shen et al. 2018 (ESM ref 6).", "T_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)", "P_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)"}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 24967.0, "provenance": "source", "ref": "ESM S.I. 4, -dH = 24.967 kJ/mol"},
+        "Methane": {"value": 14873.0, "provenance": "source", "ref": "ESM S.I. 4, -dH = 14.873 kJ/mol"}
+      },
+      "properties": {
+        "particle_density": {"value": 1160.0, "provenance": "source", "ref": "ESM S.I. 3 (silica gel)"},
+        "heat_capacity": {"value": 902.0, "provenance": "source", "ref": "ESM S.I. 3 (silica gel)"},
+        "particle_voidage": {"value": 0.37, "provenance": "source", "ref": "ESM S.I. 3, pellet porosity (silica gel)"},
+        "particle_diameter": {"value": 0.004, "provenance": "source", "ref": "ESM S.I. 3, particle radius 2e-3 m (silica gel)"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not in source; engine default"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Extended Langmuir (ESM Eq. 6) with K = K0 exp(-dH/RT); K0 converted from 1/bar to 1/Pa (x 1e-5).",
+        "Includes the ESM S.I. 4 LDF constants (CO2 0.0643 1/s, CH4 0.356 1/s)."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "apdes_nfc_stampi2020",
+      "file": "apdes_nfc_stampi2020.json",
+      "label": "APDES-NFC amine sorbent (Stampi-Bombelli 2020)",
+      "material": "APDES-NFC (amine-functionalised nanofibrillated cellulose)",
+      "family": "amine",
+      "status": "sourced",
+      "applications": ["direct air capture"],
+      "components": ["CarbonDioxide"],
+      "sources": [
+        {"id": "stampi2020", "refs": "Table 2 (temperature-dependent Toth, dry CO2), Table 1 (densities, particle size, Cs, dH, k), Eqs. 7-10, Section 2.2.1"},
+        {"id": "stampi2021corr", "refs": "corrected b0 = 70.7 kPa^-1 (replaces the value printed in Table 2)"}
+      ],
+      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2 + correction", "T_range_K": [296, 343], "P_range_Pa": null, "range_note": "Dry CO2 data of Gebald et al. 2014 at 296-343 K (Section 2.2.1); the partial-pressure range is shown only in Fig. 1b.", "P_range_not_stated": "Not stated in source (checked: Stampi-Bombelli 2020 Section 2.2.1 and Table 2; the CO2 partial-pressure range of the Gebald et al. 2014 data is shown only in Fig. 1b)"}],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 57000.0, "provenance": "source", "ref": "Table 1, dH_CO2 = -57 kJ/mol"}
+      },
+      "properties": {
+        "particle_density": {"value": 61.0, "provenance": "source", "ref": "Table 1"},
+        "bulk_density": {"value": 55.4, "provenance": "source", "ref": "Table 1"},
+        "skeletal_density": {"value": 1590.0, "provenance": "source", "ref": "Table 1, material density"},
+        "heat_capacity": {"value": 2070.0, "provenance": "source", "ref": "Table 1"},
+        "particle_voidage": {"value": 0.9616352201257862, "provenance": "derived", "ref": "1 - rho_p / rho_mat = 1 - 61/1590 (Table 1)"},
+        "particle_diameter": {"value": 0.0075, "provenance": "source", "ref": "Table 1"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not in source; engine default"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Engine kind 'Toth 2' implements Eqs. 7-10 exactly: n_s0 = 2.38 mol/kg, chi = 0, T0 = 296 K, b0 = 0.0707 1/Pa (corrected 70.7 kPa^-1), t0 = 0.4148, alpha = -1.606.",
+        "Table 2 prints dH0 = -57.047 kJ/mol; Eq. 9 needs the magnitude for the affinity to fall with temperature, so the entry stores dH0 = +57047 J/mol (interpretation of the sign convention).",
+        "Dry-gas fit only: the water GAB isotherm and the humid modified-Toth model of the paper are not available in the engine.",
+        "Includes the Table 1 LDF constant k_CO2 = 2e-4 1/s."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "zeolite_13x",
+      "file": "zeolite_13x.json",
+      "label": "Zeolite 13X, CO2/CH4 (legacy)",
+      "material": "Zeolite 13X",
+      "family": "zeolite",
+      "status": "legacy",
+      "legacy_note": "Source unknown - legacy entry. The generating unit test (AdsorbentTest.Zeolite13X_CO2CH4_ExtendedSingleSiteLangmuir) carries a comment pointing to Santos et al. 2010 / Wu et al. 2015 (J. Clean. Prod. 101, 251-261), but the values have not been verified against either.",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."},
+        {"component": "Methane", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 31164.0, "provenance": "unknown", "ref": "unverified"},
+        "Methane": {"value": 20856.0, "provenance": "unknown", "ref": "unverified"}
+      },
+      "properties": {
+        "particle_density": {"value": 1324.0, "provenance": "unknown", "ref": "unverified"},
+        "heat_capacity": {"value": 900.0, "provenance": "unknown", "ref": "unverified"},
+        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "engine default"},
+        "particle_diameter": {"value": null, "provenance": "unknown", "ref": "not recorded"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "unknown", "ref": "unverified"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Kept for backward compatibility of the web key 'zeolite_13x'. Prefer a sourced 13X entry."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "cms_3k",
+      "file": "cms_3k.json",
+      "label": "CMS-3K, CO2/CH4 (legacy)",
+      "material": "Carbon molecular sieve 3K",
+      "family": "carbon",
+      "status": "legacy",
+      "legacy_note": "Source unknown - legacy entry. The generating unit test (AdsorbentTest.CMS3K_CO2CH4_ExtendedSingleSiteLangmuir) sits under a comment pointing to Santos et al. 2010 / Wu et al. 2015 (J. Clean. Prod. 101, 251-261), but the values have not been verified against either.",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."},
+        {"component": "Methane", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 38947.0, "provenance": "unknown", "ref": "unverified"},
+        "Methane": {"value": 33674.0, "provenance": "unknown", "ref": "unverified"}
+      },
+      "properties": {
+        "particle_density": {"value": 1060.0, "provenance": "unknown", "ref": "unverified"},
+        "heat_capacity": {"value": 880.0, "provenance": "unknown", "ref": "unverified"},
+        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "engine default"},
+        "particle_diameter": {"value": null, "provenance": "unknown", "ref": "not recorded"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "unknown", "ref": "unverified"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "An equilibrium (extended Langmuir) description of a kinetically selective CMS: it does not capture the kinetic CO2/CH4 selectivity."
+      ],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "mof_508b",
+      "file": "mof_508b.json",
+      "label": "MOF-508b, CO2/CH4 (legacy)",
+      "material": "MOF-508b",
+      "family": "MOF",
+      "status": "legacy",
+      "legacy_note": "Source unknown - legacy entry. The generating unit test (AdsorbentTest.MOF508b_CO2CH4_ExtendedSingleSiteLangmuir) sits under a comment pointing to Santos et al. 2010 / Wu et al. 2015 (J. Clean. Prod. 101, 251-261), but the values have not been verified against either.",
+      "applications": ["biogas upgrading"],
+      "components": ["CarbonDioxide", "Methane"],
+      "sources": [],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."},
+        {"component": "Methane", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 18800.0, "provenance": "unknown", "ref": "unverified"},
+        "Methane": {"value": 3650.0, "provenance": "unknown", "ref": "unverified"}
+      },
+      "properties": {
+        "particle_density": {"value": 1492.0, "provenance": "unknown", "ref": "unverified"},
+        "heat_capacity": {"value": 760.0, "provenance": "unknown", "ref": "unverified"},
+        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "engine default"},
+        "particle_diameter": {"value": null, "provenance": "unknown", "ref": "not recorded"},
+        "thermal_conductivity": {"value": 0.15, "provenance": "unknown", "ref": "unverified"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [],
+      "example_deck_note": "No bundled example deck uses this entry."
+    },
+    {
+      "key": "lewatit_vp_oc_1065_low2023",
+      "file": "lewatit_vp_oc_1065_low2023.json",
+      "label": "Lewatit VP OC 1065 (Low 2023)",
+      "material": "Lewatit VP OC 1065 (amine-functionalised polystyrene-divinylbenzene resin)",
+      "family": "amine",
+      "status": "sourced",
+      "applications": ["direct air capture (DAC)"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "low2023", "refs": "Table 7 (td-Toth CO2), Table 8 (SSL N2), eqs 7-11 and 15, Table 5 (densities, particle porosity), Table 6 + eq 7 (heat capacity), Table 10 (limiting heats); SI zip files je3c00401_si_002/003 (AIF isotherm data)"}],
+      "isotherms": [
+        {
+          "component": "CarbonDioxide",
+          "ref": "Table 7 (td-Toth, eqs 8-11)",
+          "T_range_K": [288.15, 393.15],
+          "P_range_Pa": [0, 100000],
+          "range_note": "Volumetric CO2 isotherms at 288-393 K up to 100 kPa (Section 3.2.1). The authors report that td-Toth does not fit their data well at 288-308 K and propose a chemi-physisorption model the engine does not support (Figure 5).",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "as_measured",
+            "units": {"p": "kPa", "q": "mmol/g", "T": "K"},
+            "source": "low2023",
+            "ref": "SI je3c00401_si_002.zip: Lewatit_CO2_288K.aif, Lewatit_CO2_298K.aif, Lewatit_CO2_308K.aif, Lewatit_CO2_333K.aif, Lewatit_CO2_343K.aif, Lewatit_CO2_353K.aif, Lewatit_CO2_393K.aif (adsorption branch)",
+            "note": "Volumetric (Micromeritics 3Flex) adsorption points as tabulated in the authors' AIF files; these are the data the td-Toth/SSL parameters were fitted to (Section 3.2). Desorption branches omitted.",
+            "T": [288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15],
+            "p": [0.009670951621180774, 0.01915564406783581, 0.02892934666374922, 0.038429061229205135, 0.04781214900312424, 0.057145876258134845, 0.06804354087510109, 0.07865828147134782, 0.08574389793834687, 0.09648095312962533, 0.10812022149868013, 0.11773161210250856, 0.12640974997501375, 0.1344392994498253, 0.1492444512946129, 0.1558016960474968, 0.16533562286024095, 0.17466238091697694, 0.18672518105392458, 0.19587291733331683, 0.31626396596145634, 0.3874049062179566, 0.49885305101222993, 0.5863437463142396, 0.7097961086574555, 0.7643631669948578, 0.8659509690261842, 0.9673255469661713, 5.795875814117432, 10.830513395709229, 15.333810273468018, 20.603042671069336, 25.71548759263916, 30.84734620535889, 35.81933226789551, 40.822632901098636, 45.86202676582032, 50.81618592114258, 55.84485475393067, 60.82707557285156, 65.91286048996582, 70.86300386132812, 75.89581053837891, 80.8331660586914, 85.89664242114259, 90.80931734824219, 95.81051854423829, 99.86812036391602, 0.009729620628833771, 0.019192985302376748, 0.028906120638370517, 0.03875117010362149, 0.04827895416805744, 0.05702690719614029, 0.06765673050427437, 0.07938921289358139, 0.08784225440311433, 0.09726821824235916, 0.10742611477975846, 0.11860999332404137, 0.12418728297586441, 0.1371938571879387, 0.1467166587126732, 0.15430512230443955, 0.1638590269557953, 0.17664517742586136, 0.18691424737701418, 0.19529991732101443, 0.28800322328052524, 0.3844091204492569, 0.4897880391958237, 0.5699992996204376, 0.5914229170886994, 0.672365871812439, 0.78425136757164, 0.9086111084049225, 0.9535013276584626, 5.808779622454835, 10.45357083748169, 15.749675827899171, 20.66893692550049, 25.697882428308105, 30.828382102990723, 35.77656233781738, 40.89659330720215, 45.72942045292969, 50.895057220092774, 55.756662116528325, 60.84296375559082, 65.81206309196777, 70.83879523461914, 75.87196809257813, 80.85813145927735, 85.88149880625001, 90.84228176733399, 95.84271805209961, 99.88117267895508, 0.009531642155385017, 0.01940668221845627, 0.028773503231978418, 0.03863754117987156, 0.047585296433973315, 0.057942776664948466, 0.06787649467563629, 0.07651354050221444, 0.08604522636408807, 0.09661670548324586, 0.10498976411862374, 0.11438997291612626, 0.12879566334829332, 0.13630906303253174, 0.15100455132408144, 0.15305018981695176, 0.16385087370901108, 0.17709101539621355, 0.18902987982473374, 0.1947513134759903, 0.29351494525280003, 0.38883847904434204, 0.47571149835605625, 0.586970958265686, 0.6668830120159149, 0.7887525319541931, 0.8574649807708741, 0.9728339631385804, 5.8500390625, 10.784764177075196, 15.82260584161377, 20.64856912965088, 25.726143457067874, 30.728597805505373, 35.80543366809082, 40.805906570947265, 45.84810782263184, 50.88646824345703, 55.846779238037115, 60.8177176163086, 65.88, 70.92946162749024, 75.94882539653321, 80.92395451186523, 85.95248094096681, 90.84766869536134, 95.85446839057617, 99.86523160341797, 0.010507487853187324, 0.021631048463201526, 0.030922809542512895, 0.04258598138751984, 0.05945656679120064, 0.0767723703277588, 0.09950950287151338, 0.12107341816821099, 0.15805153125514984, 0.1865203009285927, 0.20772470254325867, 0.32398907987651826, 0.4464116219884873, 0.5473185881801605, 0.7016979161556244, 0.8852187599704743, 1.1259714546798707, 6.391086097109985, 10.847384163885499, 15.675378738793945, 20.638590699902345, 25.97137074261475, 30.91640385596924, 35.97622044367676, 40.64677655427246, 45.755846508471684, 50.91422068762207, 55.59538383852539, 60.85028330507813, 65.9614120097168, 70.64939833154297, 75.69680342080079, 80.98911030146485, 85.69727726000977, 90.64150884404297, 96.16068514072266, 99.5864133225586, 0.009604733310949803, 0.01912400454339981, 0.02928356391402483, 0.039254740372109416, 0.04855836577641964, 0.05903670239503384, 0.0709806010163784, 0.0793399040277958, 0.08688265063247681, 0.09966963549914361, 0.10844597787823677, 0.11887009461107255, 0.12563147250566484, 0.13397508886098863, 0.15057074455804825, 0.152368193768692, 0.168129007853508, 0.1780761596494675, 0.1892738891773224, 0.1951258860300064, 0.2891160699468613, 0.3899293294269562, 0.4884152740150452, 0.5756132470962525, 0.6845649726207733, 0.7658308785621644, 0.9012652396648407, 1.0028420435543062, 5.996183891088868, 10.682964867425538, 15.65016921760254, 20.600107120788575, 25.744102596276857, 31.021729691198733, 35.95942494602051, 40.96087026262207, 46.01583902197266, 51.04568777102051, 55.98923988603516, 60.85583704885254, 65.85552876577148, 70.8109573482422, 75.81800930141603, 80.81085343535156, 85.89826989184571, 90.92059565756837, 95.9772366430664, 99.78358953559571, 0.010226920009535552, 0.020124873199260235, 0.03182888279789686, 0.04308839144740105, 0.05063594576582909, 0.06079116428747178, 0.06849586329903604, 0.07979360121946336, 0.09253919206809998, 0.10384655336265565, 0.11138536638336183, 0.1164002568330288, 0.12975396387090685, 0.1373207013645172, 0.14584980805749895, 0.1641310243543625, 0.18220513546829226, 0.2002769897380829, 0.30957563352928164, 0.3998582993236542, 0.4995448214206696, 0.5924702199153901, 0.6984303237075806, 0.8290199715339661, 0.8780363376045227, 1.0156752857791902, 5.733788823962403, 10.698983247821046, 15.599221247241212, 20.62099163858643, 26.078938418737796, 30.79682748039551, 36.00099868513184, 40.915512654125976, 45.93132853703614, 50.97798498977051, 56.02604513598633, 60.81998793793946, 65.8187153784668, 70.91142925209961, 75.75749994067384, 80.82614352260742, 85.7536447078125, 91.01358933354493, 95.85904158325197, 99.8690968463379, 0.010500805727076531, 0.019746500167393686, 0.030023193359375, 0.03967805360755921, 0.050287271292972564, 0.05975970704956055, 0.06992150538439751, 0.08035650105957985, 0.08982192788472176, 0.09968653799028397, 0.11003265380859376, 0.1198878756913662, 0.1297592563293457, 0.13969823898525238, 0.150030517578125, 0.1595495194991112, 0.1696983727666855, 0.17953846750545502, 0.18973347482500078, 0.19949715472841265, 0.29187250309066776, 0.3986870290019989, 0.4977804461019516, 0.5983618545799255, 0.698444754795456, 0.79675854349823, 0.8979240295967102, 0.9969673193275452, 5.986287852044678, 10.870906201391602, 15.866866941723634, 20.838395278125002, 25.889486588525394, 30.8946791564209, 36.12844591589356, 40.93553461245117, 45.76188442478028, 50.773293930761724, 55.963513642895514, 60.8471707673584, 65.80513006677246, 70.84297783432618, 76.03139512265625, 81.10345639306641, 85.75480834936523, 90.85626987802735, 95.86647912436524, 99.784004540625],
+            "q": [0.7670985676457995, 0.9457103252532223, 1.0577403240601881, 1.122237902549545, 1.1682710641800635, 1.2099360862539144, 1.2577319862546907, 1.292279460423222, 1.3157704426576369, 1.3406227516853044, 1.370321783392349, 1.3911986798327909, 1.4076472963411009, 1.4227014694642897, 1.446198761399411, 1.4562491903781116, 1.4714199286529552, 1.4824148939797004, 1.5009353224896784, 1.513923472537245, 1.5983936448365152, 1.6703721384874437, 1.7266234844008808, 1.7747695332238582, 1.8105716292764797, 1.826076779801749, 1.8529814709084944, 1.8884430065016906, 2.3198517044667875, 2.4626035147150165, 2.541397580734452, 2.611961383737021, 2.6672021496904152, 2.7123539611165475, 2.7506628759778238, 2.786102542099078, 2.8174104153641326, 2.8499970485213164, 2.87627682531628, 2.903523330191873, 2.9274299189271606, 2.952273978917866, 2.9743489313331044, 3.0002607093673173, 3.0190186915706367, 3.038320034749333, 3.0601118324732197, 3.076897251160415, 0.6323887062158007, 0.7778253390508348, 0.8671454219506962, 0.9400439453125, 0.9897164112903527, 1.0349888076027343, 1.071772403466575, 1.111375863206831, 1.136828783944758, 1.1612633296781947, 1.187348985033345, 1.2059851025100568, 1.2149850932461101, 1.2369726244806754, 1.2526433099861687, 1.2682863692387367, 1.2917951556179423, 1.3089449770752721, 1.325247512278448, 1.3375219170167898, 1.4194339305616708, 1.5011984998551395, 1.558819460217944, 1.5929702857596062, 1.5998541197393523, 1.6256862226969575, 1.681344540428698, 1.717438008377995, 1.734688532049587, 2.1726436885221667, 2.3160713718633605, 2.4213017151752285, 2.487389333639661, 2.5416472606586757, 2.586638608899199, 2.6265178387574566, 2.659834932815835, 2.696800157117579, 2.725254802463747, 2.751804966433036, 2.778759010262076, 2.8050722938453427, 2.830358432680929, 2.854854219386801, 2.8785963224490967, 2.8975860078070976, 2.915761744081835, 2.93766660883295, 2.9543200854674097, 0.3692851844098929, 0.5381728895246286, 0.6417779285995292, 0.7216787518933148, 0.7732369428221342, 0.8221730123914359, 0.8594029507168743, 0.8940142146656778, 0.9238925488315621, 0.9512057334986245, 0.9740628623121259, 0.9958221157615192, 1.0252211000103029, 1.0408076480382271, 1.0625711099202129, 1.0695782792421067, 1.0868502113809932, 1.114486522530291, 1.1354193399403185, 1.1475869377444854, 1.254998017488886, 1.3290268808866543, 1.3912925795702404, 1.44625501738213, 1.4839364903455943, 1.5244148557250874, 1.5507994946395551, 1.5827528275950487, 2.075830748784537, 2.2266868956030472, 2.3233296323888077, 2.3933210494539843, 2.4532890570809363, 2.5029621820228733, 2.5444382080626573, 2.582534406151498, 2.619452614596573, 2.6490723028445995, 2.6761579850138513, 2.7014183634626967, 2.728290996131037, 2.7526086915812917, 2.7758016772190737, 2.7979457351333905, 2.819539222146269, 2.840627518808401, 2.860048828125, 2.875608605502653, 0.03145260959965936, 0.06593258296016212, 0.09766063074118128, 0.12972084306513618, 0.1693634227397316, 0.20626420654764396, 0.25183443201639444, 0.3012937595164861, 0.3571524221387328, 0.3883976228273734, 0.42645251563333547, 0.5252335220062451, 0.6098816065689397, 0.6770577929555305, 0.7449005852669166, 0.8215027502832084, 0.8959458628316513, 1.4741014270488577, 1.649833556979907, 1.77789346157344, 1.8808054793659725, 1.93791287323422, 2.0076005563898804, 2.050427923657083, 2.092873883975172, 2.13711634806272, 2.1665911452729443, 2.2107777214383244, 2.245130656234873, 2.257659899826368, 2.286337773948878, 2.3246815417243964, 2.3465000885898206, 2.3648264336715026, 2.396923000621695, 2.3950871637135065, 2.4313491947772348, 0.011829764088455362, 0.02359435937671404, 0.036430281829113884, 0.04970762737944504, 0.0605516438308021, 0.07339622399368455, 0.08865398656808947, 0.09836069358096755, 0.10796911174064096, 0.12377497511851913, 0.13391445352230252, 0.14433227526358394, 0.1525803446119183, 0.1617004071822768, 0.1765602992862263, 0.18270639410200168, 0.19507773413385993, 0.20660974825309028, 0.21668599902399915, 0.22312718570974752, 0.2964945483809978, 0.3642275484099677, 0.41847336014130876, 0.4624683869406541, 0.5084975460683967, 0.5460436918193851, 0.5844646757610639, 0.6162758388529688, 1.19884620986295, 1.4051106489978948, 1.530689853054984, 1.620228234460283, 1.697391796096941, 1.7583540137795728, 1.8050751710187043, 1.8470007214160709, 1.887339555786377, 1.9196737930834904, 1.953352196105608, 1.9851928612933525, 2.012628338830123, 2.0365569906032466, 2.0598530892096463, 2.086210620633638, 2.106906127296356, 2.1291903237902745, 2.149385752948813, 2.167447524871393, 0.004802459671522122, 0.009438553082329593, 0.015218037247063247, 0.01950477083706685, 0.023588910587261216, 0.030373525151268826, 0.03533584585535425, 0.04017476935916214, 0.04491602515908082, 0.05160791419167721, 0.05527107165576842, 0.058372609650243004, 0.0649806951967912, 0.06821916941992393, 0.07261507406164325, 0.08034284465088434, 0.09171684438692711, 0.10122351838936425, 0.1490195683909224, 0.18820289673170423, 0.22386866128919897, 0.26225416891637726, 0.29320488134301115, 0.33560944903113293, 0.3572305246449091, 0.39042510415570575, 0.9153340287594116, 1.1304167547998492, 1.267008256325377, 1.3763388921171615, 1.4583985480831092, 1.5205287075708778, 1.5726014022503874, 1.615207786874775, 1.659865079870361, 1.6972060884070743, 1.731148855907031, 1.7575960481236192, 1.7836707063327943, 1.809886940641861, 1.839757346194852, 1.8666634529643287, 1.8937223229749596, 1.9162273456089884, 1.9335719418994857, 1.9497289677398042, 9.8854536190629e-05, 0.0001766624987454326, 0.00025563165085896734, 0.0003498353913061043, 0.0004328987783907819, 0.0005129959658083502, 0.0006104532150419676, 0.0006876284239479139, 0.0007668462361537776, 0.0008535170942092672, 0.0009375777664353501, 0.0010048218487350637, 0.001101155219719241, 0.0011785585140218192, 0.0012598947405192344, 0.0013488007401688134, 0.0014177228420754026, 0.0015154544432185936, 0.0015899561787705984, 0.001668046724189256, 0.00280862941533865, 0.00407988867273135, 0.005315494322830357, 0.006508656164058829, 0.0077209686722722, 0.008974570462705498, 0.010194610394988967, 0.011356022602634777, 0.08461530386520959, 0.16291339732118038, 0.23971795225421275, 0.31394523566918886, 0.37726950417335553, 0.43691329091289005, 0.4885033528144108, 0.5358082852649636, 0.5755136266463577, 0.6173262172950083, 0.6572354155633494, 0.6922215755787776, 0.7257918475905558, 0.7566348115881375, 0.7880593181467432, 0.8137331204996675, 0.842105170270096, 0.868696549205834, 0.8923612165693027, 0.9163015311336125]
+          }
+        },
+        {
+          "component": "Nitrogen",
+          "ref": "Table 8 (SSL, eq 15)",
+          "T_range_K": [288.15, 308.15],
+          "P_range_Pa": [0, 100000],
+          "range_note": "Volumetric N2 isotherms at 288, 298 and 308 K up to 100 kPa (Section 3.2.2).",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "as_measured",
+            "units": {"p": "kPa", "q": "mmol/g", "T": "K"},
+            "source": "low2023",
+            "ref": "SI je3c00401_si_002.zip: Lewatit_N2_288K.aif, Lewatit_N2_298K.aif, Lewatit_N2_308K.aif (adsorption branch)",
+            "note": "Volumetric (Micromeritics 3Flex) adsorption points as tabulated in the authors' AIF files; these are the data the td-Toth/SSL parameters were fitted to (Section 3.2). Desorption branches omitted.",
+            "T": [288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15],
+            "p": [4.970540665118408, 9.961912955236818, 14.94096325779419, 19.900317096166994, 24.93134983015137, 29.858749298437502, 34.90141844794922, 39.87725958171387, 44.909451888574225, 49.9241081986084, 54.850665450805664, 59.85089423305664, 64.86143304221191, 69.93913756728516, 74.96325355078126, 79.92948040136719, 84.93145464594727, 89.86602719135743, 94.91, 99.9498763546875, 4.984227185147095, 9.952249847937013, 14.997057087084961, 19.900532736035156, 24.88429151477051, 29.87696069560547, 34.94580771137696, 39.88624321999512, 44.88065379448243, 49.85, 54.98329210708008, 59.933313418139655, 64.86229153300782, 69.9483816008789, 74.87434482626954, 79.87347913447266, 84.9031366557129, 89.87511661523438, 94.8786206822754, 99.96053628779298, 4.9785727416229255, 9.9421920789917, 14.940512651843262, 19.95314682952881, 24.90078796468506, 29.94356696846924, 34.92391823041992, 39.90561012136231, 44.86380947270508, 49.95780091083984, 54.89403347636719, 59.86501661008301, 64.8969932770752, 69.98949151083984, 74.95216233793946, 79.87753153652345, 84.89085738925782, 89.90337764399415, 94.86182518461915, 99.89491666904297],
+            "q": [0.00039609686679775767, 0.0007438682589388334, 0.0011355121003930081, 0.0015163408613672535, 0.00186853928865496, 0.002175741923182437, 0.0025782121782434767, 0.0029154611358067116, 0.0032568790657186686, 0.0036049512809650706, 0.003949234933157771, 0.004346968210379614, 0.004742412092991339, 0.005059029360471092, 0.00551016004082216, 0.005875973348652174, 0.006280962969747805, 0.006699400141018859, 0.007009433734184476, 0.007504553215251358, 0.000335232704124659, 0.0006306377403640582, 0.0009512147924984877, 0.0012516406286540627, 0.0015078111053008754, 0.001762850192330302, 0.002032258752031243, 0.0022876561270867564, 0.0025625941394823303, 0.0028170646991369755, 0.0030995276194638525, 0.0033868703770795483, 0.003685632216976996, 0.003999831491917056, 0.004313326497019675, 0.004619330410066044, 0.00495151520878719, 0.005294859541101899, 0.005624714528349225, 0.006009289617583386, 0.0002658701638896384, 0.00048736026289751907, 0.0007238689646179404, 0.0009117162534217267, 0.0011079775625627405, 0.0012992347032327054, 0.001527079144510466, 0.0017725120024712684, 0.0019678549561717865, 0.002137391152201412, 0.0023072623689566227, 0.0024971445740728923, 0.0026942849691368185, 0.0028893800405732925, 0.003113306948101571, 0.0033098531251762385, 0.0036175789903149175, 0.003934970769258827, 0.004225841341601431, 0.004544745596790154]
+          }
+        }
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 70100.0, "provenance": "source", "ref": "Table 7, -dH of the td-Toth fit (the limiting heat from the virial analysis is 107 +/- 8 kJ/mol, Table 10)"},
+        "Nitrogen": {"value": 20300.0, "provenance": "source", "ref": "Table 8, -dH of the SSL fit (Table 10 limiting heat: 16 +/- 8 kJ/mol)"}
+      },
+      "properties": {
+        "particle_density": {"value": 744.0, "provenance": "source", "ref": "Table 5, rho_particle (dried resin)"},
+        "bulk_density": {"value": 476.0, "provenance": "source", "ref": "Table 5, rho_bed"},
+        "skeletal_density": {"value": 1123.1, "provenance": "source", "ref": "Table 5, rho_skeletal"},
+        "heat_capacity": {"value": 1307.4440323153406, "provenance": "derived", "ref": "Eq 7, c_p = a T^-2 + b T - c with Table 6 (a = -3.23e4 J K/g, b = 0.00227 J/(g K2), c = -0.994 J/(g K)) evaluated at 298.15 K; the DSC data span 298-393 K (Section 3.1.2)"},
+        "particle_voidage": {"value": 0.338, "provenance": "source", "ref": "Table 5, eps_particle"},
+        "particle_diameter": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Low 2023 Section 3.1.1, which quotes 0.3-1.2 mm bead sizes from the manufacturers' data sheets)"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Low 2023 Tables 1, 5, 6 and Supporting Information); engine default"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "CO2 uses the engine's temperature-dependent Toth (TOTH_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see adsim/test/unit/test_adsorbent_library_sources.cpp).",
+        "N2 is a non-competitive single-site Langmuir (unary fit as reported); CO2-N2 competition is not modelled.",
+        "H2O (GAB, Table 9) is not included: the engine has no GAB isotherm."
+      ]
+    },
+    {
+      "key": "purolite_a110_low2023",
+      "file": "purolite_a110_low2023.json",
+      "label": "Purolite A110 (Low 2023)",
+      "material": "Purolite A110 (amine-functionalised polystyrene-divinylbenzene resin)",
+      "family": "amine",
+      "status": "sourced",
+      "applications": ["direct air capture (DAC)"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "low2023", "refs": "Table 7 (td-Toth CO2), Table 8 (SSL N2), eqs 7-11 and 15, Table 5 (densities, particle porosity), Table 6 + eq 7 (heat capacity), Table 10 (limiting heats); SI zip files je3c00401_si_002/003 (AIF isotherm data)"}],
+      "isotherms": [
+        {
+          "component": "CarbonDioxide",
+          "ref": "Table 7 (td-Toth, eqs 8-11)",
+          "T_range_K": [288.15, 393.15],
+          "P_range_Pa": [0, 100000],
+          "range_note": "Volumetric CO2 isotherms at 288-393 K up to 100 kPa (Section 3.2.1). The authors report that td-Toth does not fit their data well at 288-308 K and propose a chemi-physisorption model the engine does not support (Figure 5).",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "as_measured",
+            "units": {"p": "kPa", "q": "mmol/g", "T": "K"},
+            "source": "low2023",
+            "ref": "SI je3c00401_si_003.zip: Purolite_CO2_288K.aif, Purolite_CO2_298K.aif, Purolite_CO2_308K.aif, Purolite_CO2_333K.aif, Purolite_CO2_343K.aif, Purolite_CO2_353K.aif, Purolite_CO2_393K.aif (adsorption branch)",
+            "note": "Volumetric (Micromeritics 3Flex) adsorption points as tabulated in the authors' AIF files; these are the data the td-Toth/SSL parameters were fitted to (Section 3.2). Desorption branches omitted.",
+            "T": [288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 343.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15],
+            "p": [0.009581783431112767, 0.019644934234499933, 0.02866647200134993, 0.038758548553562165, 0.04892110579197407, 0.057709089990305905, 0.06757287761921883, 0.07711672977819443, 0.08669923436636925, 0.09549676247248651, 0.10461123414072991, 0.11477575817112923, 0.12722508260006907, 0.13902813110189438, 0.14922026173982622, 0.16022779652252198, 0.1661310332731247, 0.17249031147251132, 0.18194151382226945, 0.192058326260376, 0.28773411845684055, 0.39951783372402194, 0.4920071845018387, 0.5935183491920472, 0.6698273353809358, 0.7834502832618714, 0.8807430248176575, 0.9738543109817506, 5.8422271969116215, 10.607888626721191, 15.398112658117677, 20.631726842211915, 25.758259557055666, 30.70084943001709, 35.90158056855469, 40.817616222656255, 45.89370141437988, 50.796741714917, 55.90440390695801, 60.86058519462891, 65.85852331186524, 70.85245785117188, 75.81730948901368, 80.81606134160157, 85.83965653447267, 90.83571492304688, 95.88893822006837, 99.84770374394532, 0.009844562733900547, 0.01912151128689051, 0.028925228320527078, 0.0381012466713667, 0.04872819329788685, 0.05735318805356026, 0.0691511824959755, 0.07834892694497109, 0.08951796912302971, 0.0987940276529789, 0.10881195217394829, 0.11805885450267792, 0.1279591847293854, 0.13485389125413896, 0.14636160309247973, 0.15860655598068238, 0.1678711872505188, 0.17500276705026627, 0.18497893995466233, 0.19078085711803439, 0.29555475091609956, 0.40742530700283053, 0.47930248703327183, 0.5714545508651734, 0.6687326070407867, 0.7752938578239441, 0.8878972207386018, 0.9699003836231233, 5.715988363146973, 10.55454929159546, 15.839115514727784, 20.584914681774904, 25.70863187230225, 30.7869812826416, 35.71293637067871, 40.784684352978516, 45.86862615952149, 50.783518515454105, 55.800949663037116, 60.82659140031738, 65.91148527722169, 70.8304869966797, 75.89729967407227, 80.81055235327149, 85.80080067143555, 90.86152660839845, 95.8534430840332, 99.87528937236328, 0.009621766921555997, 0.019081839701843264, 0.02883122559682131, 0.03803189639389515, 0.047674588790202144, 0.057642807113671306, 0.06776726818728447, 0.07801917340836526, 0.08580081173315049, 0.09604513586511612, 0.10744681576209068, 0.11848898992366791, 0.12472870306348802, 0.13743669043865206, 0.14913588437690736, 0.15320789872112275, 0.16979308075418473, 0.17470534042196276, 0.18766313819274905, 0.19403478135509492, 0.2851814370162964, 0.3931910095790863, 0.512824505560112, 0.570006103515625, 0.6654872015956879, 0.7796517920700073, 0.8660371105419159, 0.9715968946849823, 5.725683511276245, 10.885614467871095, 15.845013061688233, 20.560547376672364, 25.737263150646974, 30.743415926257327, 35.78302746518555, 40.82763737351075, 45.81674646218262, 50.82824141037598, 55.817159271240236, 60.811708180737305, 65.81242927287597, 70.86922893676758, 75.84129840717773, 80.87623707084961, 85.8733207659668, 90.8794206487793, 95.83314852436524, 99.85085289975586, 0.010198618071502448, 0.022812190491306783, 0.03282558741738796, 0.04226220371990204, 0.06135602694625855, 0.07530863207759858, 0.08760786842465401, 0.10933612011852265, 0.13009613037109374, 0.15630544908857347, 0.17751542924051286, 0.21865550462522507, 0.3570611917562485, 0.500122192081833, 0.6925330310394288, 0.8769254617034913, 1.0904767000831606, 5.929356383926392, 10.775330950012208, 15.795976352233888, 20.56981378798828, 26.019419780786134, 30.703524584985352, 35.740627784692386, 40.960491875683594, 45.696028822778324, 50.891916201635745, 55.64683225612793, 60.95262680024415, 65.77672256564942, 71.0051634272461, 75.86012010585938, 80.92986223051759, 85.75625679829102, 91.26935449189453, 95.60040393911133, 100.12797047373047, 0.010020561218261718, 0.019690192303454878, 0.030312547762012483, 0.039517134263134, 0.049364233960032464, 0.05818646417884827, 0.06797758381047249, 0.0798711126903534, 0.09065002280445099, 0.09799138580288888, 0.10672797911725045, 0.11617373007588387, 0.12432216119971276, 0.13376196012926103, 0.15364790386190416, 0.1790242725869179, 0.18723805683116915, 0.20796084472789766, 0.29296487922706604, 0.3860462860462189, 0.4825341289077759, 0.5949931173706055, 0.6752598453025819, 0.7914278140686035, 0.8958710007339478, 0.9709670762374879, 5.768104043737793, 10.77069774435425, 15.915258765911867, 20.419114069555665, 25.846218245544435, 30.759822865283205, 35.63902885737305, 40.895344223437505, 45.70587502053223, 50.92414419023438, 55.661145860961916, 60.93472055383301, 65.76823123725586, 70.90740126210937, 75.94726302465821, 80.8036274654297, 85.90733490366212, 90.89835627041016, 95.97227285742188, 99.8752975097168, 0.01077098731970787, 0.02047667069939375, 0.034512518811607364, 0.047467690219759946, 0.05304826580486298, 0.06727078631658555, 0.08523955684633255, 0.09158788458366394, 0.1086118241359234, 0.11886953834667206, 0.13215101047883035, 0.13979935195999146, 0.14735337483873368, 0.1583319679793358, 0.17464880806560518, 0.19863440453653336, 0.29690609197082524, 0.38690388681907656, 0.49684496831302644, 0.6146059829624176, 0.6874781451793671, 0.8035424898342133, 0.9378970622692109, 1.0114928132183076, 6.003038085671998, 10.874279134423828, 15.753202353479004, 20.413204316564943, 25.937260991015627, 30.971377781982422, 35.42397894733887, 41.139216639624024, 45.555264812988284, 51.00311720610352, 56.066601705908205, 60.96320535981446, 65.84668753117676, 70.95031766455078, 76.04137151806641, 80.83711267514649, 85.64484015395509, 90.9642606965332, 95.70650689160156, 99.95100744682618, 0.010097427368164063, 0.020215299937534334, 0.02985081254975796, 0.0396687679653883, 0.04994444951627255, 0.0599769243246317, 0.06956075997405052, 0.07970464659519196, 0.08970936380996705, 0.0994261108912468, 0.10980799126281739, 0.11970986313657761, 0.12944877338089944, 0.1397758934955597, 0.14934106647434237, 0.15995217545871734, 0.1696571456279755, 0.17873749444856646, 0.1898776267710686, 0.19925659421510697, 0.28748856745719914, 0.39615545382213596, 0.49856427032203676, 0.5968011356048585, 0.6990560734783173, 0.7986820740085602, 0.8926623405258179, 0.9962330503189087, 5.887821297244263, 10.962671136987305, 15.85188403956299, 20.927261281530765, 25.893886862438965, 30.996711397814945, 35.91518215495606, 41.07865031740723, 45.84269648254395, 51.155936705126955, 55.945611465161136, 61.04862315966797, 66.093672485083, 71.10142831933594, 75.92206164082032, 81.1226198605957, 85.9783577251465, 91.19664723823243, 95.80462710029298, 99.90595905776368],
+            "q": [1.0540885129341975, 1.3030838267952876, 1.4346400993909214, 1.526277516461683, 1.5934865681470487, 1.6407407725734786, 1.6778530332705626, 1.7205757578749044, 1.749146242257241, 1.7856691357415997, 1.8102532941755092, 1.8484911291643282, 1.8736484188101519, 1.9016941134716554, 1.9196605415902073, 1.9405579364242782, 1.953622741473623, 1.9682676492151334, 1.9895435139918078, 2.004014778587266, 2.112258937485221, 2.197450627073612, 2.270241365693248, 2.3232411294946362, 2.3547378370406244, 2.39807714539394, 2.4462955522556107, 2.479822576452763, 2.963883935195987, 3.1095572789332713, 3.203141713066004, 3.281519249388988, 3.340658745812573, 3.39289646167304, 3.4352391126103905, 3.4742325952529454, 3.5122728124019447, 3.542775688592887, 3.5711997923126044, 3.5973227619405788, 3.621627889163258, 3.647896500965785, 3.671822746386439, 3.6934076997253897, 3.7143998557111337, 3.7393652134697204, 3.7576602111604736, 3.7754130530512446, 0.8741834105011461, 1.0591070910549387, 1.183581314412838, 1.2761841515622103, 1.3456376300439563, 1.4003612859307533, 1.4494597413408565, 1.4932882694196998, 1.5269570839965154, 1.5582533189686312, 1.5809176392398825, 1.6063632988101633, 1.640453200247531, 1.6635173714821339, 1.6863593915405357, 1.7088300319223837, 1.7217636069984132, 1.736021433162967, 1.7461128666495511, 1.7509765591869786, 1.8875226521140895, 1.972986424340925, 2.0396457089452493, 2.0969656723826042, 2.1356587969272716, 2.192457527448668, 2.231157687078201, 2.2482436111334323, 2.7394262658629973, 2.906072101611958, 3.011596609916926, 3.080654099306215, 3.1409596520534135, 3.1885246108924963, 3.2327443531704487, 3.2754872380149633, 3.306976079396559, 3.3357391186411123, 3.3643472723863974, 3.3918842945690653, 3.419782331327507, 3.44570872680982, 3.4728039083694906, 3.498093739613966, 3.5225829490945273, 3.5410867553042964, 3.5584537600300634, 3.579292046085395, 0.519369398483498, 0.7469462956230379, 0.8885006836452177, 0.9866668430230479, 1.0611121679093525, 1.1252222026630117, 1.189037405928227, 1.2377937973523494, 1.2691831425241757, 1.305918804695436, 1.347192412724598, 1.3773739587853506, 1.3936873145818263, 1.430785510900762, 1.4570315199351276, 1.4701162401812633, 1.5079951015389856, 1.5186909454571877, 1.5416761758561324, 1.554458722420307, 1.6643504419718698, 1.7959389922150786, 1.8790118053873146, 1.9118661256036429, 1.9597087227737888, 2.014732590302958, 2.055820110665091, 2.095589569431911, 2.625706758261917, 2.816895763712702, 2.918812115614377, 2.989612282395367, 3.0523454901184146, 3.104992443834737, 3.1476930355416814, 3.1887937318363813, 3.226643121752434, 3.2562013802999132, 3.283549632104897, 3.3112263216934066, 3.338486452121716, 3.3638197142829873, 3.3897511835422174, 3.4141356028474807, 3.438287055523505, 3.4627093346122058, 3.4857034609808037, 3.504050669357178, 0.05634978218829304, 0.09240645067021712, 0.1262960410725891, 0.16181965743762924, 0.18596192144903584, 0.2318396873677995, 0.2545859219581166, 0.30616342088711507, 0.3492067693806062, 0.40446648624496523, 0.42690164511050815, 0.459098204932677, 0.6143260344593311, 0.7321583335780736, 0.8664896913920809, 0.9506580166922463, 1.0370596007785522, 1.7543662651012382, 1.995398649117027, 2.145069176872234, 2.2438275896315245, 2.3273303327779744, 2.3937703334190905, 2.471151312118112, 2.507149295646862, 2.5504459876268735, 2.589943778124654, 2.6424342256040956, 2.6804158209116284, 2.7094927765539722, 2.715603828047342, 2.741919184551654, 2.7682579706520127, 2.8186903940717833, 2.811685769491847, 2.859708990954066, 2.860485774857747, 0.01874402994421702, 0.03468978492987661, 0.05226971376050192, 0.06578766268582434, 0.08117121165028589, 0.0943255677321358, 0.10764739206539269, 0.12538560600786514, 0.13920700894430635, 0.14821792163235095, 0.16053754253665273, 0.1717635952587399, 0.18348191499253969, 0.19475283929976384, 0.2151586048923331, 0.2447919599421572, 0.258686678633116, 0.2800457763671875, 0.36200989039422093, 0.4376039374078764, 0.5105123838334787, 0.5776030507107072, 0.6250928333474824, 0.6868070137944103, 0.7337041383703474, 0.7743724597454574, 1.5482082004833098, 1.839304961418527, 1.9926784188148685, 2.1071808717225653, 2.2038083540478595, 2.264374477014911, 2.330983239787284, 2.379627343397413, 2.4303621426367217, 2.46828841724874, 2.5150041385476363, 2.549396045139691, 2.5841508239615125, 2.6135075427160976, 2.6355391723482824, 2.667099359190286, 2.693370911716604, 2.719475183122376, 2.7430901446515903, 2.757225582181512, 0.007071626793457505, 0.013590860078056427, 0.020094833374023437, 0.028989957598138022, 0.030962664962783697, 0.037230058923769745, 0.048809190912377606, 0.05530497023723722, 0.06284860286846054, 0.06931199183771097, 0.07525357915991225, 0.07964591148739306, 0.08519976798702009, 0.09024179466171925, 0.0973720794440668, 0.10922299371211862, 0.156645810905327, 0.20008056640625, 0.243705766607753, 0.28897702455381924, 0.3193387302523583, 0.35887084117407986, 0.41341191092780505, 0.43504507108984736, 1.1619334443143459, 1.4501239855845303, 1.6195873936966323, 1.7566078757985681, 1.8788454066067113, 1.9412322606494408, 2.0302041527999757, 2.0687362637431947, 2.1251494798147768, 2.1900537109375, 2.2276739103349517, 2.2655019057166896, 2.296165295025814, 2.340767056785412, 2.369681516285344, 2.3864522368837013, 2.4258460089329303, 2.4441554267776993, 2.4711534687891397, 2.4959783413359293, 0.00033132308629619335, 0.0006439807847534517, 0.0009214223669112594, 0.0012364784035603835, 0.001515403863345067, 0.001775908276602244, 0.002080080938253701, 0.002351576772276494, 0.00260974573682716, 0.0029293734263914927, 0.003226291509424773, 0.003463598281944651, 0.003760561977085027, 0.00401344652076037, 0.00431616899016983, 0.004608913053816651, 0.004827853095793768, 0.0051613434119659254, 0.005424241521767628, 0.005643028578956421, 0.008488486383804967, 0.01176659365121811, 0.014776818765963168, 0.01802779027200517, 0.02106786471476832, 0.02377082714392575, 0.027098391767573674, 0.03026852887008083, 0.17888861200271783, 0.32297971676617443, 0.454506396111208, 0.5642263542938494, 0.6692681392676061, 0.7564342340717448, 0.8401444199873912, 0.9119461770102132, 0.9846485884387799, 1.0416523819504349, 1.093172936117237, 1.1469581502394959, 1.1955090800753367, 1.2331276060451732, 1.2812001842721346, 1.3138545044983951, 1.3565996529952153, 1.3890790803676227, 1.421902941452109, 1.4502265536669547]
+          }
+        },
+        {
+          "component": "Nitrogen",
+          "ref": "Table 8 (SSL, eq 15)",
+          "T_range_K": [288.15, 308.15],
+          "P_range_Pa": [0, 100000],
+          "range_note": "Volumetric N2 isotherms at 288, 298 and 308 K up to 100 kPa (Section 3.2.2).",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "as_measured",
+            "units": {"p": "kPa", "q": "mmol/g", "T": "K"},
+            "source": "low2023",
+            "ref": "SI je3c00401_si_003.zip: Purolite_N2_288K.aif, Purolite_N2_298K.aif, Purolite_N2_308K.aif (adsorption branch)",
+            "note": "Volumetric (Micromeritics 3Flex) adsorption points as tabulated in the authors' AIF files; these are the data the td-Toth/SSL parameters were fitted to (Section 3.2). Desorption branches omitted.",
+            "T": [288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 288.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15, 308.15],
+            "p": [4.976994603625489, 9.94109353626709, 14.930724432733156, 19.893504096936038, 24.892546859912112, 29.878278946875003, 34.90639850830078, 39.87994897705078, 44.87214619138184, 49.897185764501955, 54.84514018776856, 59.964263842236335, 64.90726261721191, 69.85906600869141, 74.92375483681641, 79.85730207568359, 84.92796372128906, 89.89313271591797, 94.91112940957032, 99.88214102402344, 4.97464799430542, 9.946458086572266, 14.915239048992921, 19.894708425256347, 24.896351072680666, 29.858912045507815, 34.91060958874512, 39.85841347097168, 44.910782345874026, 49.91122269931641, 54.856605718872075, 59.866957368896486, 64.84823018613281, 69.84305983432617, 74.8579806083496, 79.83359796489258, 84.84940571044922, 89.9656934972168, 94.89459430722657, 99.91854754365235, 4.975863511486817, 9.952194920800782, 14.935656686132813, 19.941062859558105, 24.90043602414551, 29.889323369934083, 34.90331851999512, 39.86384515444336, 44.83672836020508, 49.861865581567386, 54.9042743357666, 59.96724211362305, 64.89459275778809, 69.88016616635743, 74.92740850854493, 79.97413006010743, 84.90721346982423, 89.86304078261719, 94.8532077272461, 99.95735458256837],
+            "q": [0.00033797451103003914, 0.0007050404847335558, 0.0010640453066738703, 0.001434269118099233, 0.0017777897364753229, 0.0020814981010728564, 0.002433327731735393, 0.002755204784831094, 0.0030662361193455096, 0.003388309199214288, 0.0036948330033639725, 0.00405045084898111, 0.004378358798901311, 0.004674312681586966, 0.005024873760734936, 0.005313827864224853, 0.00561212965335978, 0.005956907146672276, 0.0061715954210006495, 0.006552443721721549, 0.0002965353986755878, 0.0005997208077248221, 0.0008929991394901902, 0.0011977271185783964, 0.0014845091317144759, 0.0017370844905522616, 0.0020084402568576174, 0.002263393565739289, 0.002512004709339728, 0.0027357955148838912, 0.003016380416768641, 0.0032520804125993345, 0.003478806374527438, 0.003740595273727053, 0.003967991716517606, 0.004233979130544211, 0.004473269437417274, 0.004687891700868481, 0.004895602480701094, 0.005231934449022263, 0.0002284375429659598, 0.00046292497463726095, 0.0007371403941344789, 0.0009699383917476562, 0.001200285916751063, 0.0013972103368228889, 0.0016206561150055665, 0.0018252909910637914, 0.002013813358207929, 0.002206609848435743, 0.002368534553027591, 0.002556588974433911, 0.0027565421790340153, 0.002949505981673045, 0.0031464247350062907, 0.00333739596298907, 0.0035074110969472885, 0.0037107973492209886, 0.003892548430185128, 0.004130943657643538]
+          }
+        }
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 70100.0, "provenance": "source", "ref": "Table 7, -dH of the td-Toth fit (the limiting heat from the virial analysis is 104 +/- 9 kJ/mol, Table 10)"},
+        "Nitrogen": {"value": 18650.0, "provenance": "source", "ref": "Table 8, -dH of the SSL fit (Table 10 limiting heat: 13 +/- 13 kJ/mol)"}
+      },
+      "properties": {
+        "particle_density": {"value": 663.0, "provenance": "source", "ref": "Table 5, rho_particle (dried resin)"},
+        "bulk_density": {"value": 424.0, "provenance": "source", "ref": "Table 5, rho_bed"},
+        "skeletal_density": {"value": 1147.1, "provenance": "source", "ref": "Table 5, rho_skeletal"},
+        "heat_capacity": {"value": 1327.1447220953241, "provenance": "derived", "ref": "Eq 7, c_p = a T^-2 + b T - c with Table 6 (a = -5.86e4 J K/g, b = 0.000994 J/(g K2), c = -1.69 J/(g K)) evaluated at 298.15 K; the DSC data span 298-393 K (Section 3.1.2)"},
+        "particle_voidage": {"value": 0.422, "provenance": "source", "ref": "Table 5, eps_particle"},
+        "particle_diameter": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Low 2023 Section 3.1.1, which quotes 0.3-1.2 mm bead sizes from the manufacturers' data sheets)"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Low 2023 Tables 1, 5, 6 and Supporting Information); engine default"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "CO2 uses the engine's temperature-dependent Toth (TOTH_2). The paper writes b(T) = b0 exp(-dH/(R T)) with an absolute b0 (Table 7, kPa^-1); the engine references b0 to T0, so the stored b0 = b0_paper exp(-dH/(R T0)) with dH = -70.1 kJ/mol and T0 = 298.15 K, i.e. the affinity at T0 (exact re-parameterisation, see adsim/test/unit/test_adsorbent_library_sources.cpp).",
+        "N2 is a non-competitive single-site Langmuir (unary fit as reported); CO2-N2 competition is not modelled.",
+        "H2O (GAB, Table 9) is not included: the engine has no GAB isotherm."
+      ]
+    },
+    {
+      "key": "triamine_alumina_grossmann2025",
+      "file": "triamine_alumina_grossmann2025.json",
+      "label": "Triamine-grafted alumina (Grossmann 2025)",
+      "material": "Triamine-grafted gamma-alumina pellets (amine-functionalised alumina)",
+      "family": "amine",
+      "status": "sourced",
+      "applications": ["direct air capture (DAC)"],
+      "components": ["CarbonDioxide"],
+      "sources": [{"id": "grossmann2025", "refs": "Table 4 (dry temperature-dependent Toth, eqs 8-11), Table 2 (sorbent properties), Section 2.1.1 (pellet size), Section 3.2.1 and SI Fig. S4 (dry isotherms up to 100 kPa)"}],
+      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 4 (dry Toth, eqs 8-11)", "T_range_K": [288.15, 373.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric dry CO2 isotherms at 15, 25, 35 and 100 C up to 100 kPa (Section 3.2.1, SI Fig. S4); the authors note the 95% CI of b0 is very large."}],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 77800.0, "provenance": "source", "ref": "Table 4, dH = -77.8 kJ/mol of the Toth fit"}
+      },
+      "properties": {
+        "particle_density": {"value": 1200.0, "provenance": "default", "ref": "Not stated in source (checked: Grossmann 2025 Table 2, Sections 2.1-2.2 and Supporting Information; the sorbent is characterised in their ref 34); engine default"},
+        "heat_capacity": {"value": 500.0, "provenance": "default", "ref": "Not stated in source (checked: Grossmann 2025 Table 2, Sections 2.1-2.2 and Supporting Information; the sorbent is characterised in their ref 34); engine default"},
+        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "Not stated in source (checked: Grossmann 2025 Table 2, Sections 2.1-2.2 and Supporting Information; the sorbent is characterised in their ref 34); engine default"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Grossmann 2025 Table 2, Sections 2.1-2.2 and Supporting Information; the sorbent is characterised in their ref 34); engine default"},
+        "particle_diameter": {"value": 0.003, "provenance": "source", "ref": "Section 2.1.1: cylindrical Saint-Gobain SA6176 alumina pellets, 3 mm diameter and ~3 mm long"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "Eqs 8-11 are exactly the engine's TOTH_2 form (b0 referenced to T0 = 308 K), so Table 4 is used as printed (b0 = 2.96e3 kPa^-1 = 2.96 1/Pa).",
+        "Only the dry CO2 isotherm is included; the humid co-adsorption models (WADST, CATSO) and the GAB water isotherm are not supported by the engine.",
+        "The material is an amine-functionalised alumina; no plain activated-alumina source with an engine-supported model was found."
+      ]
+    },
+    {
+      "key": "cpo_27_ni_krishnamurthy2020",
+      "file": "cpo_27_ni_krishnamurthy2020.json",
+      "label": "CPO-27-Ni beads (Krishnamurthy 2020)",
+      "material": "CPO-27-Ni (Ni-MOF-74) alginate beads",
+      "family": "MOF",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "krishnamurthy2020", "refs": "Table 1 (dual-site Langmuir, eq 1), Section 4 (heats of adsorption), Table 2 (porosity), Section 2 (bead size), Section 3 (isotherm temperatures and range)"}],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "Table 1 (DSL, eq 1)", "T_range_K": [283.0, 323.0], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 283, 308 and 323 K up to 100 kPa (Section 3)."},
+        {"component": "Nitrogen", "ref": "Table 1 (DSL, eq 1; equal site affinities)", "T_range_K": [283.0, 323.0], "P_range_Pa": [0, 100000], "range_note": "Section 3 also mentions N2 measurements at 263 and 273 K; the stated range is the three temperatures common to both gases."}
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 39700.0, "provenance": "source", "ref": "Section 4: -39.7 kJ/mol (Table 1 lists the site energies dH1 = -39.9, dH2 = -23.6 kJ/mol)"},
+        "Nitrogen": {"value": 17300.0, "provenance": "source", "ref": "Section 4 and Table 1: -17.3 kJ/mol"}
+      },
+      "properties": {
+        "particle_density": {"value": 1200.0, "provenance": "default", "ref": "Not stated in source (checked: Krishnamurthy 2020 Sections 2-10 and Tables 1-5); engine default"},
+        "heat_capacity": {"value": 500.0, "provenance": "default", "ref": "Not stated in source (checked: Krishnamurthy 2020 Sections 2-10 and Tables 1-5); engine default"},
+        "particle_voidage": {"value": 0.383, "provenance": "source", "ref": "Table 2, porosity (mercury intrusion)"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Krishnamurthy 2020 Sections 2-10 and Tables 1-5); engine default"},
+        "particle_diameter": {"value": 0.0032, "provenance": "source", "ref": "Section 2: 'The beads used had a diameter of 3.2 mm'"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "Pressure-form dual-site Langmuir with b0 in kPa^-1 (converted to 1/Pa). Saturation capacities are shared by CO2 and N2 'for the sake of thermodynamic consistency', so the extended (competitive) DSL kind is used.",
+        "Check: Table 1 lists a CO2 Henry constant of 80.5 mol/(kg bar) at 303 K; these parameters give 80.3."
+      ]
+    },
+    {
+      "key": "zeolite_h_y_azzan2023",
+      "file": "zeolite_h_y_azzan2023.json",
+      "label": "Zeolite H-Y (Azzan 2023)",
+      "material": "Zeolite H-Y (Zeolyst CBV400 powder)",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture", "pre-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Hydrogen"],
+      "sources": [{"id": "azzan2023", "refs": "Table 8 (single-site Langmuir, eq 12), Table 3 (skeletal density), Sections 2.1-2.3 and abstract (temperatures, up to 3 MPa), SI Table S3 (tabulated absolute adsorption, used as source_points)"}],
+      "isotherms": [
+        {
+          "component": "CarbonDioxide",
+          "ref": "Table 8 (SSL, eq 12)",
+          "T_range_K": [298.15, 393.15],
+          "P_range_Pa": [0, 3000000],
+          "range_note": "Gravimetric isotherms (magnetic suspension balance) at 298.15-393.15 K from vacuum to 3 MPa; fitted to absolute adsorption.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "absolute",
+            "units": {"p": "MPa", "q": "mol/kg", "T": "K"},
+            "source": "azzan2023",
+            "ref": "SI je3c00504_si_001.pdf, Table S3 (H-Y, CO2; column n_abs)",
+            "note": "Gravimetric (magnetic suspension balance) data converted by the authors to absolute adsorption with the micropore volume (eq 7); these absolute amounts are what the SSL/SSI models were fitted to (Section 2.4).",
+            "T": [298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15],
+            "p": [0.0, 0.046, 0.24, 0.501, 0.751, 1.004, 1.509, 2.002, 2.501, 2.997, 0.0, 0.048, 0.247, 0.5, 0.752, 1.0, 1.496, 2.002, 2.502, 2.997, 0.0, 0.052, 0.246, 0.499, 0.751, 1.004, 1.495, 1.994, 2.5, 3.025, 0.0, 0.053, 0.25, 0.502, 0.748, 1.003, 1.503, 1.997, 2.503, 3.0],
+            "q": [0.0, 1.222, 3.147, 4.129, 4.566, 4.847, 5.198, 5.432, 5.619, 5.782, 0.0, 0.59, 1.711, 2.633, 3.205, 3.588, 4.087, 4.411, 4.648, 4.836, 0.0, 0.408, 1.27, 1.973, 2.502, 2.903, 3.448, 3.822, 4.102, 4.331, 0.0, 0.266, 0.762, 1.215, 1.621, 1.938, 2.435, 2.817, 3.126, 3.376]
+          }
+        },
+        {
+          "component": "Hydrogen",
+          "ref": "Table 8 (SSL, eq 12)",
+          "T_range_K": [298.15, 353.15],
+          "P_range_Pa": [0, 3000000],
+          "range_note": "Gravimetric isotherms at 298.15-353.15 K up to 3 MPa.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "absolute",
+            "units": {"p": "MPa", "q": "mol/kg", "T": "K"},
+            "source": "azzan2023",
+            "ref": "SI je3c00504_si_001.pdf, Table S3 (H-Y, H2; column n_abs)",
+            "note": "Gravimetric (magnetic suspension balance) data converted by the authors to absolute adsorption with the micropore volume (eq 7); these absolute amounts are what the SSL/SSI models were fitted to (Section 2.4). Excluded: the 313.15 K and 353.15 K blocks, whose tabulated n_abs is below n_ex (physically impossible; the column appears to repeat the uncertainty column in the SI).",
+            "T": [298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15],
+            "p": [0.0, 0.503, 0.997, 1.501, 1.996, 2.502, 2.992, 0.0, 0.5, 1.001, 1.501, 2.003, 2.499, 3.0],
+            "q": [0.0, 0.14, 0.285, 0.41, 0.541, 0.669, 0.788, 0.0, 0.094, 0.202, 0.295, 0.402, 0.501, 0.598]
+          }
+        }
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 23310.0, "provenance": "source", "ref": "Table 8, -dU_b of the single-site Langmuir fit (an internal energy of adsorption: use the internal-energy heat-of-adsorption convention)"},
+        "Hydrogen": {"value": 8960.0, "provenance": "source", "ref": "Table 8, -dU_b of the single-site Langmuir fit (an internal energy of adsorption: use the internal-energy heat-of-adsorption convention)"}
+      },
+      "properties": {
+        "particle_density": {"value": 1200.0, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "heat_capacity": {"value": 500.0, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "skeletal_density": {"value": 2130.0, "provenance": "source", "ref": "Table 3, skeletal density by He gravimetry (this study)"},
+        "particle_diameter": {"value": null, "provenance": "not_stated", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders)"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "Single-site Langmuir with n_s,b shared by CO2/N2/H2 'for thermodynamic consistency' -> extended (competitive) SSL kind; b0 in bar^-1 (x1e-7) converted to 1/Pa.",
+        "The authors show that the SSL fit is poor near saturation for CO2 on Na-Y and NaTMA-Y and prefer their simplified statistical isotherm (not supported by the engine); SI Table S1 also gives dual-site Langmuir parameters.",
+        "N2 is omitted: the published N2 parameters (Table 8: b0 = 193.42e-7 bar^-1, -dU_b = 11.35 kJ/mol; SI Table S1 DSL likewise) under-predict the paper's own tabulated N2 data (SI Table S3) by about a factor of 10 (0.11 vs 0.97 mol/kg at 298.15 K and 1 MPa), which points to an error in the published parameters. They are not corrected here.",
+        "SI Table S3 is used for source_points except the H2 blocks at 313.15 and 353.15 K, whose tabulated n_abs is below n_ex (see the block note)."
+      ]
+    },
+    {
+      "key": "zeolite_na_y_azzan2023",
+      "file": "zeolite_na_y_azzan2023.json",
+      "label": "Zeolite Na-Y (Azzan 2023)",
+      "material": "Zeolite Na-Y (NIST RM8850 powder)",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture", "pre-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Nitrogen", "Hydrogen"],
+      "sources": [{"id": "azzan2023", "refs": "Table 8 (single-site Langmuir, eq 12), Table 3 (skeletal density), Sections 2.1-2.3 and abstract (temperatures, up to 3 MPa), SI Table S3 (tabulated absolute adsorption, used as source_points)"}],
+      "isotherms": [
+        {
+          "component": "CarbonDioxide",
+          "ref": "Table 8 (SSL, eq 12)",
+          "T_range_K": [298.15, 393.15],
+          "P_range_Pa": [0, 3000000],
+          "range_note": "Gravimetric isotherms (magnetic suspension balance) at 298.15-393.15 K from vacuum to 3 MPa; fitted to absolute adsorption.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "absolute",
+            "units": {"p": "MPa", "q": "mol/kg", "T": "K"},
+            "source": "azzan2023",
+            "ref": "SI je3c00504_si_001.pdf, Table S3 (Na-Y, CO2; column n_abs)",
+            "note": "Gravimetric (magnetic suspension balance) data converted by the authors to absolute adsorption with the micropore volume (eq 7); these absolute amounts are what the SSL/SSI models were fitted to (Section 2.4).",
+            "T": [298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15],
+            "p": [0.0, 0.028, 0.053, 0.072, 0.083, 0.107, 0.254, 0.499, 0.762, 1.006, 1.5, 2.009, 2.504, 3.029, 0.0, 0.028, 0.053, 0.072, 0.081, 0.107, 0.255, 0.5, 0.751, 1.001, 1.473, 2.009, 2.512, 2.965, 0.0, 0.025, 0.053, 0.071, 0.106, 0.257, 0.503, 0.754, 0.995, 1.503, 2.006, 2.499, 2.994, 0.0, 0.025, 0.051, 0.067, 0.077, 0.105, 0.258, 0.502, 0.747, 1.004, 1.498, 2.003, 2.495, 2.997],
+            "q": [0.0, 4.481, 5.364, 5.719, 5.871, 6.129, 6.836, 7.268, 7.512, 7.663, 7.862, 8.012, 8.123, 8.183, 0.0, 2.351, 3.195, 3.673, 3.864, 4.313, 5.542, 6.281, 6.645, 6.877, 7.164, 7.375, 7.522, 7.626, 0.0, 1.59, 2.295, 2.658, 3.217, 4.584, 5.521, 5.989, 6.272, 6.651, 6.89, 7.061, 7.194, 0.0, 0.777, 1.112, 1.308, 1.433, 1.726, 2.847, 3.889, 4.491, 4.92, 5.447, 5.786, 6.023, 6.208]
+          }
+        },
+        {
+          "component": "Nitrogen",
+          "ref": "Table 8 (SSL, eq 12)",
+          "T_range_K": [298.15, 393.15],
+          "P_range_Pa": [0, 3000000],
+          "range_note": "Gravimetric isotherms at 298.15-393.15 K up to 3 MPa.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "absolute",
+            "units": {"p": "MPa", "q": "mol/kg", "T": "K"},
+            "source": "azzan2023",
+            "ref": "SI je3c00504_si_001.pdf, Table S3 (Na-Y, N2; column n_abs)",
+            "note": "Gravimetric (magnetic suspension balance) data converted by the authors to absolute adsorption with the micropore volume (eq 7); these absolute amounts are what the SSL/SSI models were fitted to (Section 2.4).",
+            "T": [298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15],
+            "p": [0.0, 0.252, 0.498, 0.754, 1.002, 1.506, 2.012, 2.521, 2.99, 0.0, 0.253, 0.5, 0.754, 0.997, 1.502, 1.996, 2.496, 2.987, 0.0, 0.249, 0.504, 0.745, 1.013, 1.521, 2.022, 2.514, 2.988, 0.0, 0.25, 0.497, 0.748, 0.996, 1.499, 1.999, 2.518, 3.135],
+            "q": [0.0, 0.592, 1.044, 1.427, 1.739, 2.229, 2.607, 2.914, 3.136, 0.0, 0.348, 0.63, 0.889, 1.112, 1.508, 1.831, 2.112, 2.35, 0.0, 0.234, 0.457, 0.649, 0.85, 1.184, 1.47, 1.716, 1.933, 0.0, 0.142, 0.282, 0.419, 0.543, 0.78, 0.994, 1.198, 1.419]
+          }
+        },
+        {
+          "component": "Hydrogen",
+          "ref": "Table 8 (SSL, eq 12)",
+          "T_range_K": [298.15, 353.15],
+          "P_range_Pa": [0, 3000000],
+          "range_note": "Gravimetric isotherms at 298.15-353.15 K up to 3 MPa.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "absolute",
+            "units": {"p": "MPa", "q": "mol/kg", "T": "K"},
+            "source": "azzan2023",
+            "ref": "SI je3c00504_si_001.pdf, Table S3 (Na-Y, H2; column n_abs)",
+            "note": "Gravimetric (magnetic suspension balance) data converted by the authors to absolute adsorption with the micropore volume (eq 7); these absolute amounts are what the SSL/SSI models were fitted to (Section 2.4).",
+            "T": [298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 313.15, 313.15, 313.15, 313.15, 313.15, 313.15, 313.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15],
+            "p": [0.0, 0.501, 1.004, 1.51, 1.993, 2.493, 3.004, 0.0, 0.495, 0.99, 1.502, 2.0, 2.484, 3.001, 0.0, 0.5, 1.003, 1.496, 1.993, 2.492, 2.996, 0.0, 0.49, 0.993, 1.482, 1.964, 2.502, 2.986],
+            "q": [0.0, 0.236, 0.488, 0.727, 0.948, 1.157, 1.358, 0.0, 0.205, 0.412, 0.624, 0.811, 0.985, 1.166, 0.0, 0.202, 0.384, 0.55, 0.707, 0.862, 1.005, 0.0, 0.108, 0.247, 0.393, 0.511, 0.635, 0.75]
+          }
+        }
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 33210.0, "provenance": "source", "ref": "Table 8, -dU_b of the single-site Langmuir fit (an internal energy of adsorption: use the internal-energy heat-of-adsorption convention)"},
+        "Nitrogen": {"value": 13440.0, "provenance": "source", "ref": "Table 8, -dU_b of the single-site Langmuir fit (an internal energy of adsorption: use the internal-energy heat-of-adsorption convention)"},
+        "Hydrogen": {"value": 10790.0, "provenance": "source", "ref": "Table 8, -dU_b of the single-site Langmuir fit (an internal energy of adsorption: use the internal-energy heat-of-adsorption convention)"}
+      },
+      "properties": {
+        "particle_density": {"value": 1200.0, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "heat_capacity": {"value": 500.0, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "skeletal_density": {"value": 2410.0, "provenance": "source", "ref": "Table 3, skeletal density by He gravimetry (this study)"},
+        "particle_diameter": {"value": null, "provenance": "not_stated", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders)"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "Single-site Langmuir with n_s,b shared by CO2/N2/H2 'for thermodynamic consistency' -> extended (competitive) SSL kind; b0 in bar^-1 (x1e-7) converted to 1/Pa.",
+        "The authors show that the SSL fit is poor near saturation for CO2 on Na-Y and NaTMA-Y and prefer their simplified statistical isotherm (not supported by the engine); SI Table S1 also gives dual-site Langmuir parameters."
+      ]
+    },
+    {
+      "key": "zeolite_natma_y_azzan2023",
+      "file": "zeolite_natma_y_azzan2023.json",
+      "label": "Zeolite NaTMA-Y (Azzan 2023)",
+      "material": "Zeolite NaTMA-Y (Na-Y (NIST RM8850) partially exchanged with tetramethylammonium)",
+      "family": "zeolite",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture", "pre-combustion CO2 capture"],
+      "components": ["CarbonDioxide", "Nitrogen", "Hydrogen"],
+      "sources": [{"id": "azzan2023", "refs": "Table 8 (single-site Langmuir, eq 12), Table 3 (skeletal density), Sections 2.1-2.3 and abstract (temperatures, up to 3 MPa), SI Table S3 (tabulated absolute adsorption, used as source_points)"}],
+      "isotherms": [
+        {
+          "component": "CarbonDioxide",
+          "ref": "Table 8 (SSL, eq 12)",
+          "T_range_K": [298.15, 393.15],
+          "P_range_Pa": [0, 3000000],
+          "range_note": "Gravimetric isotherms (magnetic suspension balance) at 298.15-393.15 K from vacuum to 3 MPa; fitted to absolute adsorption.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "absolute",
+            "units": {"p": "MPa", "q": "mol/kg", "T": "K"},
+            "source": "azzan2023",
+            "ref": "SI je3c00504_si_001.pdf, Table S3 (NaTMA-Y, CO2; column n_abs)",
+            "note": "Gravimetric (magnetic suspension balance) data converted by the authors to absolute adsorption with the micropore volume (eq 7); these absolute amounts are what the SSL/SSI models were fitted to (Section 2.4).",
+            "T": [298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15],
+            "p": [0.0, 0.034, 0.053, 0.074, 0.106, 0.256, 0.504, 0.757, 1.001, 1.503, 1.997, 2.511, 2.999, 0.0, 0.032, 0.053, 0.079, 0.106, 0.253, 0.527, 0.764, 1.006, 1.513, 2.004, 2.507, 3.091, 0.0, 0.028, 0.051, 0.078, 0.108, 0.257, 0.504, 0.75, 1.008, 1.509, 2.0, 2.508, 2.999, 0.0, 0.03, 0.046, 0.075, 0.104, 0.259, 0.498, 0.752, 1.002, 1.497, 2.013, 2.508, 2.989],
+            "q": [0.0, 3.672, 4.339, 4.811, 5.287, 6.259, 6.826, 7.104, 7.28, 7.523, 7.686, 7.807, 7.835, 0.0, 1.765, 2.302, 2.828, 3.258, 4.611, 5.621, 6.052, 6.334, 6.702, 6.933, 7.104, 7.256, 0.0, 1.139, 1.565, 1.966, 2.354, 3.617, 4.667, 5.239, 5.627, 6.074, 6.358, 6.567, 6.726, 0.0, 0.506, 0.674, 0.949, 1.184, 2.121, 3.052, 3.689, 4.15, 4.736, 5.139, 5.419, 5.63]
+          }
+        },
+        {
+          "component": "Nitrogen",
+          "ref": "Table 8 (SSL, eq 12)",
+          "T_range_K": [298.15, 393.15],
+          "P_range_Pa": [0, 3000000],
+          "range_note": "Gravimetric isotherms at 298.15-393.15 K up to 3 MPa.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "absolute",
+            "units": {"p": "MPa", "q": "mol/kg", "T": "K"},
+            "source": "azzan2023",
+            "ref": "SI je3c00504_si_001.pdf, Table S3 (NaTMA-Y, N2; column n_abs)",
+            "note": "Gravimetric (magnetic suspension balance) data converted by the authors to absolute adsorption with the micropore volume (eq 7); these absolute amounts are what the SSL/SSI models were fitted to (Section 2.4).",
+            "T": [298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15, 393.15],
+            "p": [0.0, 0.251, 0.5, 0.751, 1.002, 1.505, 2.001, 2.502, 3.0, 0.0, 0.251, 0.501, 0.752, 1.001, 1.503, 1.996, 2.501, 2.995, 0.0, 0.252, 0.501, 0.749, 1.0, 1.502, 2.002, 2.509, 2.95, 0.0, 0.248, 0.494, 0.75, 0.994, 1.503, 1.999, 2.495, 3.034],
+            "q": [0.0, 0.509, 0.91, 1.251, 1.543, 2.024, 2.398, 2.707, 2.967, 0.0, 0.294, 0.545, 0.772, 0.977, 1.342, 1.647, 1.919, 2.153, 0.0, 0.231, 0.429, 0.611, 0.78, 1.089, 1.358, 1.602, 1.792, 0.0, 0.206, 0.335, 0.463, 0.573, 0.789, 0.992, 1.175, 1.31]
+          }
+        },
+        {
+          "component": "Hydrogen",
+          "ref": "Table 8 (SSL, eq 12)",
+          "T_range_K": [298.15, 353.15],
+          "P_range_Pa": [0, 3000000],
+          "range_note": "Gravimetric isotherms at 298.15-353.15 K up to 3 MPa.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "absolute",
+            "units": {"p": "MPa", "q": "mol/kg", "T": "K"},
+            "source": "azzan2023",
+            "ref": "SI je3c00504_si_001.pdf, Table S3 (NaTMA-Y, H2; column n_abs)",
+            "note": "Gravimetric (magnetic suspension balance) data converted by the authors to absolute adsorption with the micropore volume (eq 7); these absolute amounts are what the SSL/SSI models were fitted to (Section 2.4).",
+            "T": [298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 298.15, 313.15, 313.15, 313.15, 313.15, 313.15, 313.15, 313.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 333.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15, 353.15],
+            "p": [0.0, 0.504, 0.998, 1.506, 1.99, 2.499, 3.011, 0.0, 0.501, 1.007, 1.5, 1.998, 2.508, 3.03, 0.0, 0.493, 0.989, 1.504, 1.999, 2.506, 3.007, 0.0, 0.511, 1.0, 1.499, 2.0, 2.497, 2.99],
+            "q": [0.0, 0.218, 0.423, 0.624, 0.811, 0.995, 1.16, 0.0, 0.167, 0.347, 0.512, 0.671, 0.828, 0.971, 0.0, 0.133, 0.282, 0.41, 0.545, 0.674, 0.79, 0.0, 0.104, 0.216, 0.323, 0.423, 0.519, 0.627]
+          }
+        }
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 31980.0, "provenance": "source", "ref": "Table 8, -dU_b of the single-site Langmuir fit (an internal energy of adsorption: use the internal-energy heat-of-adsorption convention)"},
+        "Nitrogen": {"value": 12000.0, "provenance": "source", "ref": "Table 8, -dU_b of the single-site Langmuir fit (an internal energy of adsorption: use the internal-energy heat-of-adsorption convention)"},
+        "Hydrogen": {"value": 11160.0, "provenance": "source", "ref": "Table 8, -dU_b of the single-site Langmuir fit (an internal energy of adsorption: use the internal-energy heat-of-adsorption convention)"}
+      },
+      "properties": {
+        "particle_density": {"value": 1200.0, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "heat_capacity": {"value": 500.0, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders); engine default"},
+        "skeletal_density": {"value": 2310.0, "provenance": "source", "ref": "Table 3, skeletal density by He gravimetry (this study)"},
+        "particle_diameter": {"value": null, "provenance": "not_stated", "ref": "Not stated in source (checked: Azzan 2023 Sections 2.1-2.3, Tables 3-4 and Supporting Information; the samples are powders)"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "Single-site Langmuir with n_s,b shared by CO2/N2/H2 'for thermodynamic consistency' -> extended (competitive) SSL kind; b0 in bar^-1 (x1e-7) converted to 1/Pa.",
+        "The authors show that the SSL fit is poor near saturation for CO2 on Na-Y and NaTMA-Y and prefer their simplified statistical isotherm (not supported by the engine); SI Table S1 also gives dual-site Langmuir parameters."
+      ]
+    },
+    {
+      "key": "tifsix_3_ni_low2024",
+      "file": "tifsix_3_ni_low2024.json",
+      "label": "TIFSIX-3-Ni (Low 2024)",
+      "material": "TIFSIX-3-Ni (fluorinated hybrid ultramicroporous MOF)",
+      "family": "MOF",
+      "status": "sourced",
+      "applications": ["direct air capture (DAC)"],
+      "components": ["CarbonDioxide", "Nitrogen"],
+      "sources": [{"id": "low2024", "refs": "Table 1 (CO2 DSL, N2 SSL; eqs 7-9), Table 5 (pellet densities and porosity), Section 3.1 + eq 6 (heat capacity), Sections 2.6 and 3.2.1-3.2.2 (isotherm temperatures and range); SI zip ef4c01368_si_002 (AIF isotherm data)"}],
+      "isotherms": [
+        {
+          "component": "CarbonDioxide",
+          "ref": "Table 1 (DSL, eqs 7-9)",
+          "T_range_K": [288.15, 393.15],
+          "P_range_Pa": [0, 100000],
+          "range_note": "Volumetric CO2 isotherms at 15, 25, 35, 60, 70, 80 and 120 C up to 1 bar on the powder (Section 3.2.1).",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "as_measured",
+            "units": {"p": "kPa", "q": "mmol/g", "T": "C"},
+            "source": "low2024",
+            "ref": "SI ef4c01368_si_002.zip, folder 'isotherms for fitting': CO2-15C-batch5.aif, CO2-25C-batch5.aif, CO2-35C-batch5.aif, CO2-60C-batch5.aif, CO2-70C-batch5.aif, CO2-80C-batch5.aif, CO2-120C-batch5.aif (adsorption branch)",
+            "note": "Volumetric (Micromeritics 3Flex) adsorption points on TIFSIX-3-Ni powder (batch 5) from the AIF files the authors provide as the fitting data set (Section 2.6, Table 1). Desorption branches omitted.",
+            "T": [15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0, 120.0],
+            "p": [0.009600942766392232, 0.019210531470894816, 0.02902119386290312, 0.03808312834517956, 0.047982616228652006, 0.058073459065890315, 0.06695863457493782, 0.07987600781707764, 0.08688834042263031, 0.09869150812397004, 0.10814813802495003, 0.11855376293978692, 0.12811316666207315, 0.13857777944326402, 0.14866428341817856, 0.15841396135196686, 0.16881130587387086, 0.17826055335159302, 0.1889373492150307, 0.19867494826469423, 0.29033727691841127, 0.4008214313999176, 0.4889211249675751, 0.5910780967334748, 0.6943268724781037, 0.79449743996315, 0.8962514855838776, 0.9985524503631592, 5.741127191079713, 10.857805062231446, 15.870160535559084, 20.887616095202638, 25.858865727246094, 30.873989935107424, 35.928242607348636, 40.87380464868164, 45.91986707460938, 50.896436501513676, 55.91407922028809, 60.86666379770508, 66.00162681079102, 71.03310709921875, 75.9839706263672, 80.85235393828125, 86.02026509575195, 91.04952388666993, 95.88272128198243, 99.99559200673829, 0.009511410024476051, 0.01922909878191948, 0.02875249431756735, 0.03864240452005863, 0.047987145810198785, 0.05761420717685223, 0.06807217259845734, 0.07796097225880623, 0.08772574085111619, 0.09857243575572969, 0.10831761589450836, 0.11853185406904221, 0.128388740046072, 0.1386563239766121, 0.14884179533500672, 0.15895156705513003, 0.1687859084306717, 0.17914261386480332, 0.18908660290031434, 0.1986719921167374, 0.29799153864212036, 0.39509108162498474, 0.48769648505001073, 0.5927367182430268, 0.6946992835475923, 0.7966719569709778, 0.8966570182250977, 1.0015160999427797, 5.771450530371094, 10.974592359887696, 15.993747609246826, 20.886151371569824, 26.016646977575686, 31.10152661411133, 36.045843640356445, 41.14831420085449, 45.88528739084473, 50.92851394907227, 55.948569393164064, 60.93425672468262, 65.94096284033203, 70.87068552304687, 75.85675124150391, 80.85863597519531, 85.8624329869629, 90.95439008671876, 96.05, 99.93046876655274, 0.009597797885870934, 0.01909880576605797, 0.029003057656788827, 0.03816143050618172, 0.050176856782794, 0.05808443734116554, 0.06974563842086792, 0.07712201428999901, 0.08852487028884888, 0.0981882636674881, 0.10829670035305024, 0.11816174752349855, 0.1284786800529957, 0.13835495581769944, 0.1481207813123703, 0.1584105919790268, 0.16829858902931213, 0.17871881985797883, 0.18791596830940246, 0.19837005180015566, 0.28617451201057437, 0.40627027960166934, 0.4779453926153183, 0.5917545142444611, 0.6891898502059937, 0.7931141534385682, 0.89196100236969, 0.9940601862110139, 6.059394853198243, 10.861080347021485, 15.867912591650391, 20.923387901257325, 25.91701932414551, 30.890671509814457, 35.8542455831543, 40.95694805822754, 45.854206769091796, 50.86510769047852, 55.9, 60.90495818334961, 65.89621960202638, 70.9956915477539, 75.93395031430664, 80.89902166069336, 85.89114970751953, 90.88151194863282, 95.91313870942383, 99.89012376782227, 0.009743502405613662, 0.020230648861670496, 0.03159671591706276, 0.04200197131340504, 0.053203602638697625, 0.06372990911521911, 0.07221025526018143, 0.08536971476941109, 0.09214467346200944, 0.10511059269304276, 0.1252471255914688, 0.1453371229994774, 0.16762253706350327, 0.18327143075094224, 0.2054534114230156, 0.32092043936462405, 0.4194359772188187, 0.49572824368915563, 0.6253221146656037, 0.6987080108963013, 0.8544434796936036, 0.8910115385044098, 1.0134398021930695, 5.926786505969239, 10.727255465441894, 15.889775626208497, 20.950780267529296, 25.937468493530275, 31.083176881933596, 35.96472236315918, 41.18751997009277, 46.11020791069336, 51.089263299096686, 56.07091043459473, 60.985505777124025, 66.04966567727051, 70.98238697475587, 76.10331305302735, 81.04310977939454, 85.91308801259765, 90.90267720512696, 95.8005828355957, 99.99736594980469, 0.009593641796135904, 0.01949781819384098, 0.029957269636058808, 0.038747741130924225, 0.04939360869369507, 0.05919950906510353, 0.0709854325700283, 0.07871582305026055, 0.09036958608026505, 0.09581878393392564, 0.10554729998059273, 0.1145800643550396, 0.12487237026486397, 0.1339696215765953, 0.15103527301225664, 0.15955921439294815, 0.16852786532192232, 0.17737232625017166, 0.18350164474639893, 0.19300872782850267, 0.2890641307451248, 0.40196593745727544, 0.47984222243442537, 0.591635314730072, 0.6964671235988618, 0.785213673197937, 0.8872085336242677, 1.0012881904712678, 5.893274849853516, 10.608257859136964, 15.733880207556153, 20.826992811511232, 25.885338572570802, 30.825680501623538, 35.90217052668457, 40.85878716276856, 45.88120650805664, 50.94962631276856, 55.89633572094727, 60.86198888811035, 65.9969315578125, 70.83579255117188, 76.01518551445312, 80.83192104360351, 85.89691909116212, 90.97285374184571, 95.96161292431641, 99.9353430413086, 0.010079574584960938, 0.02020462959433794, 0.03252131873695851, 0.04063450256438256, 0.050989837204098706, 0.06533378626112939, 0.07048255365872383, 0.08336634442434311, 0.09268025277342797, 0.10197998432693482, 0.11397498378009797, 0.12091394511122704, 0.12788780011353493, 0.1395497640701294, 0.14879557770996094, 0.1598573880048752, 0.16806268524370194, 0.17425877136125564, 0.18526066403360367, 0.1931817419503212, 0.3070561372335434, 0.41183114356040956, 0.5070166602075578, 0.6037927751747132, 0.7107856235595703, 0.8054170055042267, 0.9602188401317597, 5.811948104479981, 10.480585833984376, 15.662473913287354, 20.80609405334473, 25.80820459859619, 30.914094881909183, 35.83959020947266, 40.89396901069336, 45.90365339772949, 50.99156216411133, 55.91065339445801, 60.86180986633301, 65.94519833283692, 70.97723602998047, 75.86979541918946, 80.872534575, 85.80018223256836, 90.95543980532227, 95.92061693730469, 100.07581817504884, 0.010214779538995028, 0.019999465376830103, 0.02910948494321108, 0.038888841569423675, 0.04840263558418751, 0.05820848827579022, 0.0687329908663273, 0.07825270115032197, 0.0883342861586094, 0.09877048177556992, 0.10904834070425035, 0.11847548064537049, 0.12890860091485978, 0.13814136618118286, 0.1484967683672905, 0.15849531899385452, 0.1688389760544777, 0.17882754570837023, 0.18896544851388933, 0.19994809443798067, 0.28708745314464573, 0.38516684792232514, 0.49205979122085575, 0.5947249661430359, 0.6914465671989442, 0.7969425875484467, 0.8948991591464996, 1.0009436879814149, 5.74207061550293, 10.931814292456055, 15.448274356695558, 20.804903965393066, 25.84195020362549, 30.910158437146, 35.82738824787598, 40.84664623132324, 45.73806639104004, 50.87850584304199, 55.80869642358399, 60.884118420996096, 65.8503778209961, 70.7970017869629, 75.87076376425782, 80.8248334086914, 85.90372191870118, 90.92289039125977, 95.88280265551758, 99.84476615932618],
+            "q": [0.7793404338623151, 1.099193207675168, 1.2691275251248397, 1.3644201263347435, 1.4401755527444542, 1.4941602977297646, 1.5344740028087247, 1.5785407575040455, 1.5987123298138288, 1.6278741122987048, 1.648002059471771, 1.6669626323830893, 1.6825447415300079, 1.6977199580333868, 1.7106419607576249, 1.722014865061841, 1.732859878537543, 1.742117226101434, 1.7515511315874022, 1.759461851369194, 1.8119831317543207, 1.848913155202901, 1.8687043798716338, 1.8858316499063588, 1.8991345824985484, 1.909540798066656, 1.9182544053376276, 1.9257408391940487, 2.019586608656183, 2.0525293066078136, 2.075801799956662, 2.093825562984963, 2.1095236184827337, 2.1239730080786243, 2.1370088138653824, 2.1484048535311406, 2.159769449632676, 2.1701293968080413, 2.1797296502228383, 2.1899045627413556, 2.1998095748564515, 2.2068483436752917, 2.2162896516128647, 2.2255556264621776, 2.2358054875932103, 2.2431308245377566, 2.25001953125, 2.259616684265281, 0.4994657314758462, 0.7959478173633555, 0.983063487287023, 1.1136599009375692, 1.1983408458046854, 1.2673601548871078, 1.3275862326545644, 1.3739112893003658, 1.4132337162068551, 1.45033657082564, 1.4790850834854838, 1.505420116980469, 1.5278098677868428, 1.5487269848550755, 1.567387181427489, 1.583953565329525, 1.5987086322135913, 1.6129007975138712, 1.6253609916355307, 1.63648483511753, 1.717182999448012, 1.7640064379744689, 1.7947472596431175, 1.820196628413819, 1.8389885144027531, 1.8540164148047258, 1.86607127338162, 1.8767404243037096, 1.9936466277570035, 2.0274254960011615, 2.0483441811537544, 2.0652115849212884, 2.0787532714386723, 2.090624444019589, 2.1009276743212904, 2.110753731537785, 2.119415967897891, 2.1277863832690307, 2.1358992963792023, 2.144365096264927, 2.1521906910403446, 2.1601050672265543, 2.1679507126167175, 2.17603062736214, 2.183633654165489, 2.1924442043457053, 2.2018964691623237, 2.20924519758398, 0.3221697315456065, 0.5496800154479883, 0.7149413522184213, 0.840530890572102, 0.9555279352137324, 1.0209483397318926, 1.0964430128556377, 1.1374254361483978, 1.192552326260734, 1.2331015580835445, 1.270401604801818, 1.3030159411756776, 1.3333656583730515, 1.3594530261434536, 1.383564498202804, 1.4062545429388948, 1.4261676927717823, 1.4450749336570263, 1.4613300868061692, 1.4779731023406006, 1.5796056311891424, 1.6614706918808895, 1.6949517242436443, 1.7347679031929817, 1.7606369788625096, 1.7823831570469488, 1.7994276701736267, 1.8139773771731247, 1.9728322674657268, 2.0067031197760166, 2.028977786831791, 2.0457440226815615, 2.0597449154375815, 2.070468019139961, 2.082306675585334, 2.091249874303786, 2.099829249091907, 2.108915794135406, 2.116017421221824, 2.1241504765018266, 2.1318065592452102, 2.136712662909057, 2.1445014471178143, 2.1498685066509977, 2.15700239584582, 2.1641644891889396, 2.168928639220836, 2.1763360566305123, 0.0475662248149834, 0.09725213478719752, 0.14844978398282205, 0.18741503893176142, 0.22692509202500483, 0.2710112460411352, 0.2961700954618064, 0.3455244057123845, 0.36260700577227367, 0.3997678354312775, 0.4644180700358617, 0.5085675282684415, 0.5648621493409939, 0.5946724122498839, 0.6409628023567896, 0.8187965534670665, 0.9384429321009488, 1.0035139154809722, 1.1029851485037625, 1.1465930735473955, 1.2218215646894204, 1.241257534404752, 1.2924448635359531, 1.7528433467261078, 1.8386587672987595, 1.8854928037933518, 1.9075600077669763, 1.9305488456404427, 1.940950509830813, 1.9557511235474985, 1.9653078686942895, 1.9726173290380649, 1.9821974878215827, 1.9860488911498566, 1.995854045420171, 1.998251485631958, 2.006129992597813, 2.0096599575392795, 2.0147780180091184, 2.021073617702788, 2.0236378267796984, 2.0326471345843595, 2.0343626898510156, 0.028909993849399778, 0.059075695402770856, 0.08987092493099315, 0.11329339635593562, 0.14255841702713468, 0.16692129240291156, 0.19716417421729324, 0.2172999369989888, 0.24189836117794034, 0.2560015057599443, 0.277754035437186, 0.2976385517383278, 0.31755913135919067, 0.3361895435439858, 0.3710051308683874, 0.386724552933101, 0.4021135963496407, 0.41632061738993575, 0.43124081374846523, 0.44616943830010275, 0.5910383120550166, 0.7190133851825291, 0.7926890815721289, 0.8851860920374712, 0.9550319180652614, 1.0053240958211105, 1.0597861775188708, 1.1090473873079796, 1.6966723263176058, 1.8074790654479174, 1.8657951577938476, 1.9013517815568077, 1.9243088011885214, 1.9440243134599038, 1.9597765965817053, 1.969920618158323, 1.982555947830147, 1.9930111375851984, 1.997867379324903, 2.009749701217222, 2.0153216137177696, 2.0241169051245436, 2.0319850108593145, 2.041582875788368, 2.0417991616983366, 2.0546781885625736, 2.0605404035358243, 2.0617016729813256, 0.017902805897773353, 0.03567460820678543, 0.05613571396672364, 0.0722087801405877, 0.08839306456103004, 0.10821301100206814, 0.12246345894900705, 0.13816399373574223, 0.1550920353307163, 0.16867421967013313, 0.18785932615746073, 0.19653180213012927, 0.20448874947148243, 0.22139742242226426, 0.23591642167884452, 0.250078125, 0.25922802460989175, 0.27139427067975147, 0.2835253513572026, 0.29186603559592517, 0.4184051818512736, 0.5139838209402774, 0.5992757100677772, 0.6710298328243772, 0.7206527481868547, 0.7951642784376378, 0.8480988186690185, 1.5633624830400568, 1.7149224453907816, 1.7978202577259401, 1.8396449395202354, 1.8722961096942192, 1.8966771709306125, 1.9157000954875887, 1.9316960492115196, 1.94720758384169, 1.9564917901024483, 1.963951908781232, 1.9730997722557977, 1.9894893218178882, 1.9903535680039914, 2.001877027572626, 2.0054324233601686, 2.0188827534688025, 2.0132711771783627, 2.033310352891533, 2.032467631655186, 0.002234247987241942, 0.0044422087193179425, 0.006537364418858664, 0.00863131520861059, 0.010804075455464586, 0.013067844849940552, 0.015274293204810968, 0.01747104364640172, 0.019750671776922548, 0.022015863761617196, 0.024179407636749757, 0.02642564031293952, 0.028576712902555226, 0.030728149574375273, 0.03292054432738448, 0.035175850931662575, 0.037361986636159486, 0.03954937477254603, 0.041883385765068226, 0.04426255088717505, 0.06296451745587282, 0.08371916312142261, 0.10480487570903417, 0.1244514172890152, 0.14418151511805907, 0.1632512663412297, 0.18122170502304755, 0.19996239103773614, 0.7398963776036745, 1.031228561056544, 1.1863219303653878, 1.3133355699567448, 1.3990964342416816, 1.4665562369676828, 1.5186271637983921, 1.5624094493645442, 1.6006188745890209, 1.630068359375, 1.6590727732292114, 1.6817620494876515, 1.7031289535078227, 1.724696361799771, 1.7388294451335709, 1.75749577340835, 1.77, 1.7863022262438915, 1.7986431660141469, 1.809952781862524]
+          }
+        },
+        {
+          "component": "Nitrogen",
+          "ref": "Table 1 (SSL)",
+          "T_range_K": [288.15, 308.15],
+          "P_range_Pa": [0, 100000],
+          "range_note": "Volumetric N2 isotherms at 15, 25 and 35 C up to 1 bar (Section 3.2.2).",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "as_measured",
+            "units": {"p": "kPa", "q": "mmol/g", "T": "C"},
+            "source": "low2024",
+            "ref": "SI ef4c01368_si_002.zip, folder 'isotherms for fitting': N2-15C-batch5.aif, N2-25C-batch5.aif, N2-35C-batch5.aif (adsorption branch)",
+            "note": "Volumetric (Micromeritics 3Flex) adsorption points on TIFSIX-3-Ni powder (batch 5) from the AIF files the authors provide as the fitting data set (Section 2.6, Table 1). Desorption branches omitted.",
+            "T": [15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0],
+            "p": [4.856246449145508, 9.82633650831299, 14.946626855841066, 19.91566821357422, 24.907340568603516, 29.908722820715333, 34.90650836257324, 39.836161877783205, 44.90465491867676, 49.84871154960938, 54.854819569775394, 59.841035829272464, 64.84549196667481, 69.91107997236328, 74.86616678598634, 79.99092555776367, 84.88346867226564, 89.86618180107422, 94.87971108764648, 99.88483448803711, 4.89817568888855, 9.8398953736084, 14.924399674713136, 19.93415221208496, 24.87837565876465, 29.91540765662842, 34.881396489624024, 39.88407868395996, 44.97592999812012, 49.973961694921876, 54.89398058356934, 59.932084677758795, 64.87398084133301, 69.93294504125977, 74.85654843413086, 79.88078647792969, 84.86349960673829, 89.85043602202148, 94.8815908163086, 99.94321186215821, 4.908559969143677, 9.891640804614259, 14.961633152893068, 19.919547696862793, 24.896239184069827, 29.92939780166016, 34.877885221582034, 39.866148025488286, 44.87876185979004, 49.87234649289551, 54.906133721044924, 59.872620966943366, 64.85799094167481, 69.8671382633789, 74.90133642788086, 79.91366952348633, 84.87664143266602, 89.90242557363281, 94.88999670249024, 99.91102862900391],
+            "q": [0.011631171880392047, 0.023295386561933817, 0.03515944754939751, 0.04662868974880204, 0.05790237580969286, 0.0689841841204324, 0.08009429931640626, 0.09079613622424693, 0.10155575228839823, 0.11206094797674421, 0.12233105858462956, 0.13275152871656448, 0.14311580053368292, 0.15317722153190658, 0.16331111346855545, 0.17339009778173275, 0.18296461753019172, 0.1929302015115224, 0.20214697700922452, 0.21198495549501525, 0.008641686988911905, 0.017202345849596103, 0.025984161264760528, 0.0344173516408795, 0.04263187515340735, 0.05092579849492103, 0.05908010823824623, 0.06727749356820113, 0.07540630285422653, 0.08325542948910267, 0.09108218622324031, 0.09892807999239595, 0.10653814188438622, 0.1143774538949979, 0.1218985533643563, 0.12956883365094363, 0.13716256014147304, 0.14453918658631212, 0.1520586632252634, 0.1598054381497244, 0.006779513456432264, 0.013561397785775567, 0.02046481813681832, 0.027151270140986082, 0.03366971918763046, 0.040231754988743866, 0.04654312272152921, 0.052880658868138926, 0.05908158563494108, 0.06526778842501618, 0.0714445834588284, 0.07752571339843514, 0.08366741552940436, 0.0897376749957093, 0.09568220206566375, 0.10167444538764636, 0.10758898352721576, 0.11355968777384816, 0.11943068809766459, 0.12546311856679696]
+          }
+        }
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Low 2024 Table 1, DSL site energies only, and Fig. 5, isosteric heat vs loading shown graphically). Left unset (0) - set it before a non-isothermal run."},
+        "Nitrogen": {"value": 21175.0, "provenance": "source", "ref": "Table 1, -dU of the SSL fit (internal energy of adsorption)"}
+      },
+      "properties": {
+        "particle_density": {"value": 810.0, "provenance": "source", "ref": "Table 5, rho_pellet (binderless pellet, batch 5; the isotherms were measured on the powder)"},
+        "bulk_density": {"value": 580.0, "provenance": "source", "ref": "Table 5, rho_bed"},
+        "skeletal_density": {"value": 1260.0, "provenance": "source", "ref": "Table 5, rho_skeletal"},
+        "heat_capacity": {"value": 1123.110706490334, "provenance": "derived", "ref": "Eq 6, c_p = a (T+273.15)^-2 + b (T+273.15) - c with a = 1.077e5 J C/g, b = 5.65e-3 J/(g C2), c = 1.773 J/(g C) (Section 3.1), evaluated at 25 C; the DSC data span 25-160 C (1.06-1.25 J/(g C))"},
+        "particle_voidage": {"value": 0.36, "provenance": "source", "ref": "Table 5, eps_pellet"},
+        "particle_diameter": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a process particle size (checked: Low 2024 Sections 2.2.3, 2.4 and 2.8; ~4 mm pellet pieces were cut for porosimetry and 1-2 mm granules for cycling tests)"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Low 2024 Tables 1 and 5, Sections 2-3 and Supporting Information); engine default"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "CO2: pressure-form dual-site Langmuir; N2: single-site Langmuir. The two were fitted independently (no shared saturation capacity), so they are stored as non-competitive unary isotherms.",
+        "Check: the CO2 DSL gives 1.11 mmol/g at 0.4 mbar and 25 C, the value quoted in Section 3.2.1.",
+        "H2O (universal isotherm model, Table 1) is not included: the engine does not support it."
+      ]
+    },
+    {
+      "key": "cms_3kt_zhang2021",
+      "file": "cms_3kt_zhang2021.json",
+      "label": "CMS-3KT (Zhang 2021)",
+      "material": "Carbon molecular sieve CMS-3KT (Gongyi Tenglong)",
+      "family": "carbon",
+      "status": "sourced",
+      "applications": ["coal-bed methane enrichment (CH4/O2/N2)"],
+      "components": ["Methane", "Oxygen", "Nitrogen"],
+      "sources": [{"id": "zhang2021", "refs": "Table 1 (Sips fits at 308 K, eq 2), Section 2.2.1 (isotherm range), Section 2.2.2 (isosteric heats), Section 4.1.1 (material)"}],
+      "isotherms": [
+        {"component": "Methane", "ref": "Table 1, Sips at 308 K (eq 2)", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."},
+        {"component": "Oxygen", "ref": "Table 1, Sips at 308 K (eq 2)", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."},
+        {"component": "Nitrogen", "ref": "Table 1, Sips at 308 K (eq 2)", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."}
+      ],
+      "heat_of_adsorption": {
+        "Methane": {"value": 20600.0, "provenance": "source", "ref": "Section 2.2.2: isosteric heat ~20.6 kJ/mol (micro-calorimetry)"},
+        "Oxygen": {"value": 18100.0, "provenance": "source", "ref": "Section 2.2.2: isosteric heat ~18.1 kJ/mol (micro-calorimetry)"},
+        "Nitrogen": {"value": 19100.0, "provenance": "source", "ref": "Section 2.2.2: isosteric heat ~19.1 kJ/mol (micro-calorimetry)"}
+      },
+      "properties": {
+        "particle_density": {"value": 1200.0, "provenance": "default", "ref": "Not stated in source (checked: Zhang 2021 Sections 2 and 4 and Supporting Information); engine default"},
+        "heat_capacity": {"value": 500.0, "provenance": "default", "ref": "Not stated in source (checked: Zhang 2021 Sections 2 and 4 and Supporting Information); engine default"},
+        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "Not stated in source (checked: Zhang 2021 Sections 2 and 4 and Supporting Information); engine default"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Zhang 2021 Sections 2 and 4 and Supporting Information); engine default"},
+        "particle_diameter": {"value": null, "provenance": "not_stated", "ref": "Not stated in source (checked: Zhang 2021 Sections 2 and 4 and Supporting Information)"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "notes": [
+        "Non-competitive Sips per component, q = q_m (b p)^(1/n) / (1 + (b p)^(1/n)), exactly the engine's Sips kind; b converted from MPa^-1 to 1/Pa.",
+        "CMS separations are kinetic (O2 > N2 >> CH4, Table 2 diffusion time constants); no mass-transfer constant is bundled."
+      ]
+    }
+  ]
+}

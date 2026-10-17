@@ -1,0 +1,153 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "Activated Carbon (Ward 2022)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 799.6323529411765,
+            "Expression": "799.6323529411765",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 1040.0,
+            "Expression": "1.04e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.63,
+            "Expression": "0.63",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::LinearDrivingForce",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2147483650,
+                                        "polymorphic_name": "adsim::MassTransferCoefficient_Haynes",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 2,
+                                                "value0": {},
+                                                "Tortuosity": {
+                                                    "Value": 3.0,
+                                                    "Expression": "3",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Macropore_Void_Fraction": {
+                                                    "Value": 0.59,
+                                                    "Expression": "0.59",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 29980.0,
+                        "Expression": "2.998e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 5,
+                    "value": {
+                        "polymorphic_id": 2147483651,
+                        "polymorphic_name": "adsim::DualSiteLangmuirIsotherm_Concentration",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 0.418,
+                                                "Expression": "0.418",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 0.00000205,
+                                                "Expression": "2.05e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 29980.0,
+                                                "Expression": "2.998e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 6.04,
+                                                "Expression": "6.04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 0.00000332,
+                                                "Expression": "3.32e-06",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 20367.0,
+                                                "Expression": "20367",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 2,
+                    "value": {
+                        "polymorphic_id": 2147483652,
+                        "polymorphic_name": "adsim::InertIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "ISO_Params": []
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": 5
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.59,
+            "Expression": "0.59",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

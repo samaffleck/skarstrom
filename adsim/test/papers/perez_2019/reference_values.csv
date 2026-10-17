@@ -1,0 +1,29 @@
+case,quantity,value,unit,source,note
+ConfigA,CO2_purity_exp,99.7,%,"Table 3, 4-step, Experiment A, Experimental Purity",measured at CSS
+ConfigA,CO2_recovery_exp,58.7,%,"Table 3, 4-step, Experiment A, Experimental Recovery",measured at CSS
+ConfigA,CO2_purity_model,99.3,%,"Table 3, 4-step, Experiment A, Model Purity",paper's detailed model
+ConfigA,CO2_recovery_model,60.0,%,"Table 3, 4-step, Experiment A, Model Recovery",paper's detailed model
+ConfigB,CO2_purity_exp,96.1,%,"Table 3, 4-step, Experiment B, Experimental Purity",measured at CSS
+ConfigB,CO2_recovery_exp,61.8,%,"Table 3, 4-step, Experiment B, Experimental Recovery",measured at CSS
+ConfigB,CO2_purity_model,95.2,%,"Table 3, 4-step, Experiment B, Model Purity",paper's detailed model
+ConfigB,CO2_recovery_model,64.1,%,"Table 3, 4-step, Experiment B, Model Recovery",paper's detailed model
+ConfigC1,CO2_purity_exp,88.1,%,"Table 3, 4-step, Experiment C1, Experimental Purity","repeat C2: 86.9 %"
+ConfigC1,CO2_recovery_exp,64.6,%,"Table 3, 4-step, Experiment C1, Experimental Recovery","repeat C2: 71.9 %"
+ConfigC1,CO2_purity_exp_C2,86.9,%,"Table 3, 4-step, Experiment C2, Experimental Purity",repeat of C1
+ConfigC1,CO2_recovery_exp_C2,71.9,%,"Table 3, 4-step, Experiment C2, Experimental Recovery",repeat of C1
+ConfigC1,CO2_purity_model,83.4,%,"Table 3, 4-step, Experiment C1/C2, Model Purity",paper's detailed model
+ConfigC1,CO2_recovery_model,68.2,%,"Table 3, 4-step, Experiment C1/C2, Model Recovery",paper's detailed model
+ConfigD1,CO2_purity_exp,97.1,%,"Table 3, LPP, Experiment D1, Experimental Purity","repeat D2: 94.5 %"
+ConfigD1,CO2_recovery_exp,86.1,%,"Table 3, LPP, Experiment D1, Experimental Recovery","repeat D2: 83.4 %"
+ConfigD1,CO2_purity_exp_D2,94.5,%,"Table 3, LPP, Experiment D2, Experimental Purity",repeat of D1
+ConfigD1,CO2_recovery_exp_D2,83.4,%,"Table 3, LPP, Experiment D2, Experimental Recovery",repeat of D1
+ConfigD1,CO2_purity_model,96.1,%,"Table 3, LPP, Experiment D1/D2, Model Purity",paper's detailed model
+ConfigD1,CO2_recovery_model,86.8,%,"Table 3, LPP, Experiment D1/D2, Model Recovery",paper's detailed model
+ConfigE,CO2_purity_exp,88.5,%,"Table 3, LPP, Experiment E, Experimental Purity",measured at CSS
+ConfigE,CO2_recovery_exp,91.7,%,"Table 3, LPP, Experiment E, Experimental Recovery",measured at CSS
+ConfigE,CO2_purity_model,90.4,%,"Table 3, LPP, Experiment E, Model Purity",paper's detailed model
+ConfigE,CO2_recovery_model,91.1,%,"Table 3, LPP, Experiment E, Model Recovery",paper's detailed model
+ConfigF,CO2_purity_exp,77.7,%,"Table 3, LPP, Experiment F, Experimental Purity",measured at CSS
+ConfigF,CO2_recovery_exp,95.6,%,"Table 3, LPP, Experiment F, Experimental Recovery",measured at CSS
+ConfigF,CO2_purity_model,79.9,%,"Table 3, LPP, Experiment F, Model Purity",paper's detailed model
+ConfigF,CO2_recovery_model,94.6,%,"Table 3, LPP, Experiment F, Model Recovery",paper's detailed model

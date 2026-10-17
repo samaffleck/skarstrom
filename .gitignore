@@ -1,0 +1,84 @@
+# ---- Build trees ------------------------------------------------------------
+/build/
+/build_*/
+/out/
+/cmake-build-*/
+CMakeUserPresets.json
+compile_commands.json
+.cache/
+
+# ---- C++ test output ----------------------------------------------------------
+# The GoogleTest suite runs with cwd adsim/ and writes ~4 GB of CSV/JSON into
+# adsim/Results/ (recreated on every run). Never commit it.
+adsim/Results/
+/Results/
+Results/
+
+# ---- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+/dist/
+/wheelhouse/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+.tox/
+.nox/
+python/build/
+# Plots written by the example scripts
+examples/output/
+
+# ---- Docs -------------------------------------------------------------------
+/site/
+
+# ---- Compiled objects ---------------------------------------------------------
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.exe
+*.pch
+*.gch
+
+# ---- Editors / OS -------------------------------------------------------------
+.vscode/
+.idea/
+.vs/
+*.swp
+.DS_Store
+
+# ---- Secrets ----------------------------------------------------------------
+.env
+.env.*
+*.pem
+*.key
+
+# ---- Copyrighted paper material -------------------------------------------------
+# Paper PDFs, supplementary documents, figure images and full-text extractions
+# must never be committed (see adsim/test/papers/README.md). Keep them locally
+# in each paper's assets/ folder (ignored as a whole). Only the transcribed
+# numbers (reference_values.csv), our own READMEs/tests and the digitised curves
+# in adsim/data/ belong in the repository.
+# Extensionless files (e.g. a PDF saved without its suffix) under papers/:
+# ignore every name without a dot, then re-include dotted names and directories.
+adsim/test/papers/**/[!.]*
+!adsim/test/papers/**/*.*
+!adsim/test/papers/**/
+adsim/test/papers/**/assets/
+adsim/test/papers/**/*.pdf
+adsim/test/papers/**/*.PDF
+adsim/test/papers/**/*.docx
+adsim/test/papers/**/*.doc
+adsim/test/papers/**/*.xlsx
+adsim/test/papers/**/*.xls
+adsim/test/papers/**/*.pptx
+adsim/test/papers/**/*.epub
+adsim/test/papers/**/*.png
+adsim/test/papers/**/*.jpg
+adsim/test/papers/**/*_artifacts/

@@ -1,0 +1,53 @@
+# AdsimConfig.cmake — CMake package for the adsim (Skarstrom) solver library.
+#
+#   find_package(Adsim CONFIG REQUIRED)
+#   target_link_libraries(my_app PRIVATE Adsim::adsim)
+#
+# Adsim::adsim is a static library. Its link interface pulls in, from the same
+# install prefix:
+#   SUNDIALS::ida_static / SUNDIALS::idas_static  (SUNDIALS' own CMake package)
+#   muparser::muparser                            (muparser's own CMake package)
+#   Adsim::dlib                                   (exported together with adsim)
+#   Adsim::CoolProp                               (imported below)
+# Consumers compile as C++20 (propagated via cxx_std_20) and get
+# EIGEN_MPL2_ONLY and FMT_CONSTEVAL= defined. Eigen, cereal, the CoolProp API
+# headers and CoolProp's bundled fmt are installed under
+# include/adsim/third_party and added to the include path.
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Dependencies installed next to adsim by their own install rules. Hint this
+# prefix so the copies adsim was built against are found first.
+find_dependency(SUNDIALS CONFIG HINTS "${PACKAGE_PREFIX_DIR}")
+find_dependency(muparser CONFIG HINTS "${PACKAGE_PREFIX_DIR}")
+find_dependency(Threads)
+
+# CoolProp is built in-tree as a static library without a CMake export, so
+# re-create it as an imported target pointing at the installed archive.
+if(NOT TARGET Adsim::CoolProp)
+    find_library(ADSIM_COOLPROP_LIBRARY
+        NAMES CoolProp CoolPropd
+        PATHS "@PACKAGE_CMAKE_INSTALL_LIBDIR@"
+        NO_DEFAULT_PATH)
+    if(NOT ADSIM_COOLPROP_LIBRARY)
+        set(Adsim_FOUND FALSE)
+        set(Adsim_NOT_FOUND_MESSAGE
+            "CoolProp static library not found in @PACKAGE_CMAKE_INSTALL_LIBDIR@")
+        return()
+    endif()
+    add_library(Adsim::CoolProp STATIC IMPORTED)
+    set_target_properties(Adsim::CoolProp PROPERTIES
+        IMPORTED_LOCATION "${ADSIM_COOLPROP_LIBRARY}"
+        IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+        INTERFACE_INCLUDE_DIRECTORIES "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/adsim/third_party/CoolProp"
+        # CoolProp.h includes its bundled fmt 10 (header-only), which needs the
+        # same consteval workaround the library was built with.
+        INTERFACE_COMPILE_DEFINITIONS "FMT_CONSTEVAL="
+        INTERFACE_LINK_LIBRARIES "${CMAKE_DL_LIBS}")
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/AdsimTargets.cmake")
+
+check_required_components(Adsim)

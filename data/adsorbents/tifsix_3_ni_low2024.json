@@ -1,0 +1,142 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "TIFSIX-3-Ni (Low 2024)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 810.0,
+            "Expression": "8.1e+02",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 1123.110706490334,
+            "Expression": "1123.110706490334",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.5,
+            "Expression": "0.5",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 21175.0,
+                        "Expression": "21175",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 0,
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::LangmuirIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 1.7934,
+                                                "Expression": "1.7934",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 1.9277e-10,
+                                                "Expression": "1.9277e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 21175.0,
+                                                "Expression": "21175",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 1,
+                    "value": {
+                        "polymorphic_id": 2147483650,
+                        "polymorphic_name": "adsim::DualSiteLangmuirIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 0.38737,
+                                                "Expression": "0.38737",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 3.4932e-10,
+                                                "Expression": "3.4932e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 29256.0,
+                                                "Expression": "29256",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 1.873,
+                                                "Expression": "1.873",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 1.2200000000000003e-12,
+                                                "Expression": "1.2200000000000003e-12",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 59798.0,
+                                                "Expression": "59798",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "Nitrogen",
+                    "value": 0
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": 1
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.36,
+            "Expression": "0.36",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

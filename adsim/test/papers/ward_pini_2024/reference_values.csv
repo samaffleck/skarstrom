@@ -1,0 +1,5 @@
+case,quantity,value,unit,source,note
+FourStepPSA,CO2_purity,98.5,%,"Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent)",paper's optimised detailed-model result (simulation)
+FourStepPSA,CO2_recovery,89.0,%,"Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent)",paper's detailed-model result
+FourStepPSA,CO2_productivity,0.828,mol/(m3 s),"Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent)","CO2 from the evacuation step per bed volume (V_bed = L A) per total cycle time (Sect. 4.2)"
+FourStepPSA,specific_energy,904,kWh/tonne,"Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent)","transcribed only, not compared: deck has no vacuum-pump model"

@@ -1,0 +1,20 @@
+case,quantity,value,unit,source,note
+ExperimentA3,CH4_breakthrough_time,140,s,"Sect. 4.2.1 text (Fig. 6, reference experiment A3)","approximate experimental value: 'After 140 s ... CH4 breaks through'"
+ExperimentA3,CO2_breakthrough_time,400,s,"Sect. 4.2.1 text (Fig. 6, reference experiment A3)","approximate experimental value: 'After 400 s ... CO2 breakthrough occurs'"
+ExperimentA3,CH4_front_temperature_rise,30,K,"Sect. 4.2.1 text (Fig. 6)","approximate: 'a temperature increase of about 30 K' (CH4 front)"
+ExperimentA3,CO2_front_temperature_rise,100,K,"Sect. 4.2.1 text (Fig. 6)","approximate: 'a larger temperature increase of about 100 K' (CO2 front)"
+conditions,A1_pressure,1,bar,"Table 2",binary CO2:CH4 = 50:50; 25 C; 20 cm3/s
+conditions,A2_flow,10,cm3/s,"Table 2",binary; 25 C; 10 bar
+conditions,A3_flow,20,cm3/s,"Table 2",binary; 25 C; 10 bar (reference experiment)
+conditions,A4_flow,40,cm3/s,"Table 2",binary; 25 C; 10 bar
+conditions,A5_pressure,25,bar,"Table 2",binary; 25 C; 20 cm3/s
+conditions,A6_temperature,45,C,"Table 2",binary; 10 bar; 20 cm3/s
+conditions,A7_temperature,65,C,"Table 2",binary; 10 bar; 20 cm3/s
+conditions,B1_pressure,1,bar,"Table 2",ternary H2:CO2:CH4 = 75:20:5; 25 C; 20 cm3/s
+conditions,B2_flow,10,cm3/s,"Table 2",ternary; 25 C; 10 bar
+isotherm,H2_A1,5.013,mol/kg,"Table 3 (H2 column)",Sips q_inf
+isotherm,H2_B1,1.034e-4,1/bar,"Table 3 (H2 column)",Sips affinity pre-factor
+isotherm,H2_B2,9.453,kJ/mol,"Table 3 (H2 column)",Sips affinity energy
+isotherm,H2_C1,1.006,-,"Table 3 (H2 column)",Sips exponent
+isotherm,H2_heat_of_adsorption,10.7,kJ/mol,"Sect. 4.1 text",loading-averaged isosteric heat (sign: released on adsorption)
+isotherm,k_LDF_H2,1.0,1/s,"Table 4 (footnote b)",assumed high value used for all ternary predictions

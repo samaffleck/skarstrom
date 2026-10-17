@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use Skarstrom in your work, please cite it as below."
+type: software
+title: "Skarstrom: pressure and temperature swing adsorption cycle simulator"
+abstract: >-
+  Skarstrom simulates pressure, vacuum and temperature swing adsorption
+  (PSA/VSA/TSA) cycles. Its C++20 engine (adsim) solves a 1D packed-bed model
+  with SUNDIALS IDA to cyclic steady state; a Python package and command-line
+  tool wrap it.
+authors:
+  - family-names: Affleck
+    given-names: Sam
+version: "0.1.0"
+# Licence: keep in step with LICENSE, NOTICE, README.md and pyproject.toml.
+license: Apache-2.0
+url: "https://samaffleck.github.io/skarstrom/"
+repository-code: "https://github.com/samaffleck/skarstrom"
+keywords:
+  - adsorption
+  - pressure swing adsorption
+  - temperature swing adsorption
+  - process simulation
+  - gas separation

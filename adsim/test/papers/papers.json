@@ -1,0 +1,131 @@
+{
+  "_comment": "Bibliographic manifest for the paper-validation folders. DOIs/titles verified against Crossref (api.crossref.org). Read by scripts/docs/gen_validation_page.py.",
+  "papers": [
+    {
+      "id": "arora_hasan_2021",
+      "label": "Arora & Hasan (2021)",
+      "citation": "A. Arora, M.M.F. Hasan, Flexible oxygen concentrators for medical applications, Scientific Reports 11 (2021) 14317.",
+      "doi": "10.1038/s41598-021-93796-3",
+      "system": "O2/N2 (air) on LiLSX, 4-step PSA and PVSA",
+      "reference_kind": "paper's optimised model results (Table 4)",
+      "findings": [
+        "O2 purity is within about 4 percentage points of Table 4, but recovery is far below the paper (4 % vs 30 % for PSA, 20 % vs 66 % for PVSA). This is an open disagreement, not a tuned result.",
+        "The paper's recovery is a model value from an optimiser; the t1/t4 rows of the PSA column of Table 4 were lost in the text extraction (t1 = 3.0 s is an estimate). The isotherm form is the non-competitive dual-site Langmuir; the paper does not state whether its DSL is competitive, so it was left as is.",
+        "The PSA deck now vents the depressurisation step counter-currently (feed end), as the paper states for every Table 4 case; it previously vented co-currently."
+      ]
+    },
+    {
+      "id": "casas_2012",
+      "label": "Casas et al. (2012) / Schell et al. (2012)",
+      "citation": "N. Casas, J. Schell, R. Pini, M. Mazzotti, Fixed bed adsorption of CO2/H2 mixtures on activated carbon: experiments and modeling, Adsorption 18 (2012) 143-161; J. Schell, N. Casas, R. Pini, M. Mazzotti, Pure and binary adsorption of CO2, H2, and N2 on activated carbon, Adsorption 18 (2012) 49-65.",
+      "doi": "10.1007/s10450-012-9389-z",
+      "doi_secondary": "10.1007/s10450-011-9382-y",
+      "system": "CO2/H2 breakthrough on activated carbon AP3-60",
+      "reference_kind": "paper's simulated breakthrough times (Table 5); isotherm fits (Schell Table 3)",
+      "findings": [
+        "CO2 breakthrough times agree with the paper's simulated Table 5 values to 0.5-1.3 % for the 50/50 and 25/75 feeds and 13 % for 75/25; H2 breakthrough is 15-19 % early for the two CO2-lean feeds.",
+        "Table 5 is the paper's simulation (feed velocity fitted per experiment, piping to the mass spectrometer modelled); adsim uses the 10 cm3/s set-point and no piping. The experimental curves (Figs. 4, 6) have not been digitised.",
+        "The competitive Arrhenius-Sips isotherm reproduces the paper's per-temperature Sips fits (Schell et al., Table 3) to 7 % (CO2) and 0.6 % (H2)."
+      ]
+    },
+    {
+      "id": "ferre_2026",
+      "label": "Ferré et al. (2026)",
+      "citation": "A. Ferré, C. Wedler, A. Ward, J. Burger, R. Pini, C. Petit, Co-production of high-purity carbon dioxide and methane via a single-bed pressure-vacuum swing adsorption process, Separation and Purification Technology 406 (2026) 138821.",
+      "doi": "10.1016/j.seppur.2026.138821",
+      "system": "CO2/CH4 (biogas) 4-step PVSA, four adsorbents",
+      "reference_kind": "paper's optimised detailed-model results (Table 5)",
+      "findings": [
+        "Product purities agree with Table 5 within 0.1-1.8 percentage points and CO2 recovery within 0.6-3 pp; CH4 recovery is 5-7 pp low for the zeolites and 11 pp high for MIL-160(Al), whose CH4 productivity is 59 % high.",
+        "The decks now use the extended (competitive) DSL isotherm the paper states (Sect. 3.1); they previously used the non-competitive form. adsim uses a constant LDF coefficient and a single heat of adsorption per component instead of the paper's loading-dependent forms.",
+        "Specific energy is not compared: the decks drive the pressure steps with pressure boundary conditions, not pump models."
+      ]
+    },
+    {
+      "id": "nguyen_2022",
+      "label": "Nguyen et al. (2022)",
+      "citation": "T.T.T. Nguyen, J.-B. Lin, G.K.H. Shimizu, A. Rajendran, Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20, Chemical Engineering Journal 442 (2022) 136263.",
+      "doi": "10.1016/j.cej.2022.136263",
+      "system": "CO2 breakthrough on CALF-20",
+      "reference_kind": "digitised experimental breakthrough curves (Figs. 4, 5)",
+      "findings": [
+        "Outlet CO2 curves agree with the digitised Figs. 4 and 5 to an NRMSE of 8-12 % and the CO2 front position (half the feed fraction) to 0.7-5 %.",
+        "The paper text is not in the repo. The four additional feed fractions assume the same flow as the bundled case of the same figure (50 ccm for Fig. 4, 100 ccm for Fig. 5); Fig. 5 is described as a CO2/N2/He experiment but the deck feeds CO2 in He. Particle diameter and ambient temperature are assumptions (see the README)."
+      ]
+    },
+    {
+      "id": "nguyen_2023",
+      "label": "Nguyen et al. (2023)",
+      "citation": "T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, CO2/N2 separation by vacuum swing adsorption using a metal-organic framework, CALF-20: Multi-objective optimization and experimental validation, Chemical Engineering Journal 452 (2023) 139550.",
+      "doi": "10.1016/j.cej.2022.139550",
+      "system": "CO2/N2 VSA on CALF-20 (4-step and LPP)",
+      "reference_kind": "experimental and model purity/recovery/productivity (Table 2)",
+      "findings": [
+        "Four-step cycles (I-V): CO2 purity within 1.7-4.9 pp and recovery within 1.2-2.7 pp of the experiments; productivity within 5-9 %.",
+        "LPP cycles (VI-X): purity within 0.1-2.7 pp of the experiments, but recovery is 6-10 pp high and exceeds 100 % for IX and X. The single-bed emulation couples the light-product pressurisation to the feed step by composition, not by moles, so CO2 enters through the LPP stream that is not drawn from the raffinate; this is a limitation of the deck/connection model, recorded rather than hidden.",
+        "The decks now use the competitive DSL form (as the paper's ref. [10]); the paper's column length (0.267 m) is inconsistent with its adsorbent mass and particle density, and the deck keeps the mass (L = 0.304 m)."
+      ]
+    },
+    {
+      "id": "perez_2019",
+      "label": "Estupiñan Perez et al. (2019)",
+      "citation": "L. Estupiñan Perez, P. Sarkar, A. Rajendran, Experimental validation of multi-objective optimization techniques for design of vacuum swing adsorption processes, Separation and Purification Technology 224 (2019) 553-563.",
+      "doi": "10.1016/j.seppur.2019.05.039",
+      "system": "CO2/N2 VSA on zeolite 13X (4-step and LPP)",
+      "reference_kind": "experimental and model purity/recovery (Table 3)",
+      "findings": [
+        "Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 3-9 pp low and recovery 3-4 pp high.",
+        "adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K)."
+      ]
+    },
+    {
+      "id": "streb_2021",
+      "label": "Streb & Mazzotti (2021)",
+      "citation": "A. Streb, M. Mazzotti, Adsorption for efficient low carbon hydrogen production: part 1 - adsorption equilibrium and breakthrough studies for H2/CO2/CH4 on zeolite 13X, Adsorption 27 (2021) 541-558.",
+      "doi": "10.1007/s10450-021-00306-y",
+      "system": "CO2/CH4 and H2/CO2/CH4 breakthrough on zeolite 13X",
+      "reference_kind": "digitised experimental outlet compositions and thermocouples (Figs. 6, 7, 11)",
+      "findings": [
+        "CO2 front positions agree with the digitised experiments to 0.5-9 %, CH4 fronts to 0.3-15 %. Curve NRMSE is large (13-83 % for CH4) because the fronts are nearly vertical: a 10-20 s shift on a 20 s front dominates the RMSE. Thermocouple RMSE is 11-33 K, driven by the timing and height of the 30-100 K temperature fronts at the centre line.",
+        "adsim uses extended Sips competition and the MFC set-point velocity; the paper shows IAST/RAST predict the binary cases better than extended Sips and fits the feed velocity per experiment within the MFC uncertainty. The ~10 m of sampling line to the MS is not modelled.",
+        "A1/A3 previously compared simulated CO2 against the digitised CH4 curve (alphabetical file order) with a bound of 0.8 in mole fraction; fixed."
+      ]
+    },
+    {
+      "id": "vysyarajua_2024",
+      "label": "Vysyaraju et al. (2024)",
+      "citation": "R. Vysyaraju, J.A. Sawada, L. Estupiñan Perez, A. Rajendran, Simulation and experimental demonstration of helium purification from He/N2 mixtures by pressure swing adsorption, Chemical Engineering Journal 499 (2024) 155929.",
+      "doi": "10.1016/j.cej.2024.155929",
+      "system": "He/N2 on zeolite 5A: breakthrough and 5-step PSA",
+      "reference_kind": "experimental values stated in the text and Table 3",
+      "findings": [
+        "The N2 breakthrough loadings match the reported value (ambient) and the DSL value (11.2 bar) to 2-4 %, and the peak bed temperature to 0.3 K.",
+        "He purity matches the paper model to 0.01 pp (1.9 pp above the experiment), but He recovery is 17 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle."
+      ]
+    },
+    {
+      "id": "ward_2022",
+      "label": "Ward & Pini (2022)",
+      "citation": "A. Ward, R. Pini, Integrated uncertainty quantification and sensitivity analysis of single-component dynamic column breakthrough experiments, Adsorption 28 (2022) 161-183.",
+      "doi": "10.1007/s10450-022-00361-z",
+      "system": "CO2 breakthrough on activated carbon at 50/100/200 ccm",
+      "reference_kind": "digitised experimental outlet composition and thermocouple",
+      "findings": [
+        "The CO2 front (y = 0.5) arrives 4-6 % earlier than measured. The simulated front is much sharper than the measured one, so the curve NRMSE is 34-38 %; the thermocouple RMSE is 2.6-4.2 K, and the simulated temperature rise (15-33 K) is above the paper model's 95 % interval (7-27 K).",
+        "No transcription error was found (column length, radius, voidage, bed density, flows and isotherm match Tables 1-2). Likely causes: a single constant heat of adsorption of 29.98 kJ/mol (the site-1 internal energy, while most of the loading sits on site 2 at 20.4 kJ/mol) heats the bed more and lowers its capacity; the deck uses air as carrier where the paper uses He; the sampling line is not modelled. The ambient temperature was corrected to Table 1's 291.4 K."
+      ]
+    },
+    {
+      "id": "ward_pini_2024",
+      "label": "Ward & Pini (2024)",
+      "citation": "A. Ward, R. Pini, Design and Performance Evaluation of Multisorbent Vacuum-Swing Adsorption Processes for Postcombustion Carbon Capture, Industrial & Engineering Chemistry Research 63 (2024) 13787-13800.",
+      "doi": "10.1021/acs.iecr.4c01345",
+      "system": "CO2/N2 4-step VSA on Mg-MOF-74",
+      "reference_kind": "paper's optimised detailed-model results (Table 4)",
+      "findings": [
+        "CO2 purity within 2.3 pp, recovery within 1.8 pp and productivity within 0.7 % of Table 4.",
+        "The deck now uses the extended (competitive) DSL the paper states (Sect. 2.1). Energy is not compared (no pump model in the deck)."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+case,quantity,value,unit,source,note
+DCB_Ambient_N2,N2_loading,0.56,mol/kg,"Sect. 4.2 text (Fig. 4a)","N2 equilibrium loading from the mass balance of the 100 % N2 adsorption DCB at 0.95 bar, 295 K"
+DCB_Ambient_N2,peak_temperature,304,K,"Sect. 4.2 text (Fig. 4)","'The temperature inside the bed reached a maximum of 304 K from 295 K during adsorption'"
+DCB_HighPressure_N2,N2_loading,2.167,mol/kg,"Table 2 DSL parameters evaluated at 11.2 bar, 298 K (Sect. 4.2, Fig. 5b)","DERIVED, not printed in the paper: the paper states the measured high-pressure DCB loading 'was within 5% of the loading obtained from the DSL model'; this is that DSL loading computed from Table 2"
+PSA_Exp1,He_purity_exp,98.0,%,"Table 3, Exp. 1, Exp Pu_He",measured at CSS (3-bed rig)
+PSA_Exp1,He_purity_model,99.9,%,"Table 3, Exp. 1, Model Pu_He",paper's detailed model
+PSA_Exp1,He_recovery_exp,30.6,%,"Table 3, Exp. 1, Exp Re_He",measured at CSS (3-bed rig)
+PSA_Exp1,He_recovery_model,31.3,%,"Table 3, Exp. 1, Model Re_He",paper's detailed model
+PSA_Exp1,He_productivity_exp,0.08,mol/(m3 s),"Table 3, Exp. 1, Exp Pr","transcribed only, not compared"
+PSA_Exp1,He_productivity_model,0.09,mol/(m3 s),"Table 3, Exp. 1, Model Pr","transcribed only, not compared"

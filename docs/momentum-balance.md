@@ -1,0 +1,90 @@
+## Momentum Balance
+
+The momentum balance relates the axial pressure gradient to the **superficial** gas velocity $u$ (volumetric flow per unit of column cross-section). Inertia of the gas and wall friction are neglected, as is usual for packed-bed adsorption columns, so the momentum balance reduces to a packed-bed pressure-drop law. Every layer selects its own law under **Layer Properties → Momentum model**:
+
+| Momentum model | Viscous term | Inertial term | Default for |
+|----------------|--------------|---------------|-------------|
+| **Ergun** | ✔ (constant 150) | ✔ (constant 1.75) | new layers and new decks |
+| **Darcy (Kozeny–Carman)** | ✔ (constant 180) | — | decks saved before Ergun was available |
+
+Both are special cases of
+
+$$
+-\frac{\partial P}{\partial z} = A\,u + B\,\lvert u\rvert\,u
+$$
+
+where $A$ [Pa s m⁻²] is the viscous (laminar) resistance and $B$ [Pa s² m⁻³] the inertial (turbulent) one.
+
+### Darcy's law with the Kozeny–Carman permeability
+
+$$
+u = -\frac{K}{\mu}\frac{\partial P}{\partial z},
+\qquad
+K = \frac{d_p^2\,\epsilon_b^3}{180\,(1-\epsilon_b)^2}
+$$
+
+i.e. $A = \mu / K$ and $B = 0$. The pressure drop is linear in the velocity. This is accurate at low particle Reynolds number $Re_p = \rho\,u\,d_p / \mu$ (creeping flow) and is the model that every deck created before the Ergun option existed was solved with — such decks still load as Darcy (Kozeny–Carman) and give exactly the same results.
+
+### Ergun equation
+
+$$
+-\frac{\partial P}{\partial z} =
+\frac{150\,\mu\,(1-\epsilon_b)^2}{\epsilon_b^3\,d_p^2}\,u
++ \frac{1.75\,\rho\,(1-\epsilon_b)}{\epsilon_b^3\,d_p}\,\lvert u\rvert\,u
+$$
+
+The first (Blake–Kozeny) term dominates at low Reynolds number; the second (Burke–Plummer) term adds the kinetic-energy losses that become important at the higher velocities of fast cycles and large particles (Ergun, *Chem. Eng. Prog.* 48 (1952) 89–94). It is the pressure-drop model used in most of the PSA literature, e.g. Haghpanah *et al.* (2013), and is therefore the default for newly created layers. $\rho = \sum_i c_i M_i$ is the local gas density, so the inertial resistance follows the pressure and composition of the gas.
+
+At low Reynolds number the inertial term vanishes and Ergun reduces to Darcy's law with the constant 150 instead of 180, so in the creeping-flow limit the Darcy (Kozeny–Carman) pressure drop is 180/150 = 1.2 times the Ergun one. Switching a layer between them is therefore a (small) physical change, not just a numerical one.
+
+### Solving for the velocity
+
+The velocity is an algebraic unknown on every cell face. For a given driving pressure difference $g$ across a face, the quadratic $g = A u + B\lvert u\rvert u$ has the unique physical root
+
+$$
+u = \frac{2\,g}{A + \sqrt{A^2 + 4\,B\,\lvert g\rvert}}
+$$
+
+i.e. $u = \operatorname{sign}(g)\left(-A + \sqrt{A^2 + 4B\lvert g\rvert}\right)/(2B)$ written without the cancellation that form suffers at small $g$; it equals Darcy's $u = g/A$ exactly when $B = 0$.
+
+The solver does not, however, impose the root in this explicit form. At high Reynolds number it behaves like $\sqrt{\lvert g\rvert/B}$ everywhere except within a fraction of a pascal of $g = 0$, and Newton iterations on such a square-root characteristic fail at the abrupt boundary switches of a PSA cycle (a closed bed end, a valve opening). Instead each face carries the momentum balance itself as its residual,
+
+$$
+r_u = u - \frac{g - B\,\lvert u\rvert\,u}{A} = 0
+$$
+
+which is a smooth polynomial in the unknown $u$ (slope $(A + 2B\lvert u\rvert)/A \ge 1$, continuous through flow reversal) and linear in the pressures; its solution is exactly the root above, and for $B = 0$ it is the Darcy residual. Darcy (Kozeny–Carman) layers keep their original explicit residual, so their results are unchanged.
+
+**Pressure and closed boundaries.** The boundary face of a **pressure** or **closed** boundary condition is the exception. These conditions fix that face's pressure drop: a pressure condition sets the ghost-cell pressure so that the face sits at the boundary pressure $P_{bc}$, giving $g = 2\,(P_{bc} - P_1)$ across the face (with the sign of the flow direction), and a closed end has $g = 0$. There the face imposes the explicit root of that $g$,
+
+$$
+r_u = u - \frac{2\,g}{A + \sqrt{A^2 + 4\,B\,\lvert g\rvert}} = 0,
+$$
+
+with $g$ taken from the boundary value $P_{bc}$ and the first bed cell, not from the ghost pressure. At a step switch the boundary-face velocity must jump (a 15 bar feed face being closed, a vent opening). With the implicit residual, the slope in $u$ changes by an order of magnitude between the old and the new velocity (from about 33 to 1 for the feed face of the 8-step biogas cycle, whose inertial term is about 16 times the viscous one), and IDA's corrector, a Newton iteration whose Jacobian is evaluated before the jump, failed to converge at every step size. The explicit root written this way is linear in $u$ with slope 1 and depends only on the first-cell pressure, which does not jump, so the corrector resolves the jump in one iteration. It has exactly the same solution, so results only change within the solver tolerance.
+
+**Interior faces and layer interfaces.** A face between cells $i$ and $i+1$ is treated as the two half-cells between the cell centres acting in series: each contributes its own viscous resistance $\mu\,\Delta z / 2K$ and inertial resistance $\beta\,\rho\,\Delta z / 2$ (with $\beta = 1.75(1-\epsilon_b)/(\epsilon_b^3 d_p)$ for Ergun and $0$ for Darcy), evaluated with that cell's own voidage, particle diameter, viscosity and density:
+
+$$
+A = \tfrac12\left(\frac{\mu_i\,\Delta z_i}{K_i} + \frac{\mu_{i+1}\,\Delta z_{i+1}}{K_{i+1}}\right),\qquad
+B = \tfrac12\left(\beta_i\,\rho_i\,\Delta z_i + \beta_{i+1}\,\rho_{i+1}\,\Delta z_{i+1}\right)
+$$
+
+For two Darcy cells this is exactly the harmonic-mean permeability used before, so a Darcy layer next to an Ergun layer, and an interface between two layers with different packings, are handled consistently.
+
+**Void regions.** A void region (dead volume) is well mixed and has no packing resistance. The face between a void and the bed uses the bed-side cell's resistance over its full width — $\mu\,\Delta z / K$ plus, for an Ergun layer, $\beta\,\rho\,\Delta z$ — in series with the optional void **resistance coefficient** (a linear Pa s m⁻¹ term, applied only at the void–bed face).
+
+**Flow boundaries.** On a flow boundary the imposed molar flow is matched against the flow through the boundary face, which obeys the same law between the ghost cell and the first bed cell (for an Ergun layer, the boundary face's own velocity unknown carries this flow). Here the flow condition fixes the face velocity, so the implicit residual, which is linear in the ghost pressure, is the well-conditioned form and is kept.
+
+| Symbol        | Description                              | Unit           |
+|---------------|------------------------------------------|----------------|
+| $P$           | Pressure                                 | Pa             |
+| $u$           | Superficial velocity                     | m s⁻¹          |
+| $\mu$         | Gas dynamic viscosity                    | Pa·s           |
+| $\rho$        | Gas density                              | kg m⁻³         |
+| $K$           | Permeability of packed bed               | m²             |
+| $A$, $B$      | Viscous / inertial resistance            | Pa s m⁻², Pa s² m⁻³ |
+| $\beta$       | Ergun inertial coefficient               | m⁻¹            |
+| $z$           | Axial coordinate                         | m              |
+| $d_p$         | Particle diameter                        | m              |
+| $\epsilon_b$  | Bed void fraction                        | -              |

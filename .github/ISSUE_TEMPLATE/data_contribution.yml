@@ -1,0 +1,26 @@
+name: Adsorbent data or validation case
+description: Propose an adsorbent library entry or a new paper validation case
+labels: [data]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Source (citation and DOI)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What would be added
+      description: Material, components, isotherm model and parameters (with table/figure references), or the experiments to reproduce.
+    validations:
+      required: true
+  - type: checkboxes
+    id: integrity
+    attributes:
+      label: Data integrity
+      options:
+        - label: Every value comes from the cited source (table/figure/page), or is marked "Not stated in source (checked ...)".
+          required: true
+        - label: No PDFs, figures or full text of the paper will be committed.
+          required: true

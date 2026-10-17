@@ -1,0 +1,241 @@
+# Continuous integration: C++ build + tests on Linux, macOS and Windows, the
+# Python wheel and its tests, the Emscripten build of the engine, and the docs.
+#
+# Test scope (ctest):
+#   * pull requests and pushes to other branches run the FAST subset: every
+#     test except the paper replications (adsim/test/papers/, about 25 minutes
+#     of CPU) and the slow CSS-acceleration test. That is ~600 tests in a few
+#     minutes.
+#   * pushes to main, the nightly schedule and manual runs (workflow_dispatch)
+#     run the FULL suite (~670 tests, ~10 minutes on 4 cores on Linux).
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["**"]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Paper-replication tests and the slow CSS-acceleration test (excluded from the fast subset).
+  SLOW_TESTS: "^(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)Test\\.|^CSSAcceleration\\."
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+
+jobs:
+  cpp:
+    name: C++ ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux (GCC)
+            runner: ubuntu-24.04
+            preset: linux-release
+            build_preset: linux-release
+            test_preset: linux-release
+          - name: macOS arm64 (Apple clang)
+            runner: macos-14
+            preset: macos-release
+            build_preset: macos-release
+            test_preset: macos-release
+          - name: Windows x64 (MSVC 2022)
+            runner: windows-2022
+            preset: windows
+            build_preset: windows-release
+            test_preset: windows-release
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Enable long paths (Windows)
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # CoolProp runs Python at configure/build time to generate its fluid headers.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Compiler cache
+        if: runner.os != 'Windows'
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.preset }}
+          max-size: 1G
+
+      - name: Configure
+        run: |
+          # The Visual Studio generator (Windows preset) ignores compiler
+          # launchers, so only the Ninja builds are cached.
+          extra=()
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            extra=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+          fi
+          cmake --preset ${{ matrix.preset }} "${extra[@]}"
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.build_preset }} --parallel 4
+
+      - name: Test (fast subset)
+        if: >-
+          !(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+        run: ctest --preset ${{ matrix.test_preset }} -E "$SLOW_TESTS" --parallel 3 --timeout 1800
+
+      - name: Test (full suite)
+        if: >-
+          github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: ctest --preset ${{ matrix.test_preset }} --parallel 3 --timeout 3600
+
+      - name: Install consumer (find_package)
+        if: runner.os == 'Linux'
+        run: BUILD_DIR=build/linux-release JOBS=4 bash scripts/test_install_consumer.sh
+
+      - name: Example decks unchanged by the tests
+        if: runner.os == 'Linux'
+        # The test suite re-saves the example decks and adsorbent files; their
+        # embedded result numbers may move in the last digits, but no file may
+        # appear or disappear.
+        run: |
+          git status --porcelain --untracked-files=all examples data | grep '^??' && exit 1 || true
+
+      - name: Remove test output
+        if: always()
+        run: rm -rf adsim/Results
+
+  python:
+    name: Python wheel (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Compiler cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: python-wheel
+          max-size: 1G
+      - name: Build the wheel
+        env:
+          CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          CMAKE_BUILD_PARALLEL_LEVEL: "4"
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel --outdir dist .
+      - name: Install into a fresh venv and test
+        run: |
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install dist/*.whl pytest matplotlib
+          cd /tmp && /tmp/venv/bin/skarstrom --version && /tmp/venv/bin/skarstrom examples | head -3
+          cd "$GITHUB_WORKSPACE" && /tmp/venv/bin/python -m pytest python/tests -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-ci
+          path: dist/*.whl
+          retention-days: 7
+
+  emscripten:
+    name: Engine with Emscripten
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.10
+      - name: Build the subproject consumer with emcmake and run it under Node.js
+        run: JOBS=4 bash scripts/test_subproject_consumer.sh --emscripten
+
+  subproject:
+    name: Subproject build (add_subdirectory)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Compiler cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: subproject
+          max-size: 1G
+      - name: Build and run the subproject consumer
+        env:
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+        run: JOBS=4 bash scripts/test_subproject_consumer.sh
+
+  docs:
+    name: Docs and generated pages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generated pages are up to date
+        run: |
+          python scripts/docs/gen_validation_page.py --check
+          python scripts/docs/gen_adsorbent_library.py --check
+      - name: mkdocs build --strict
+        run: |
+          python -m pip install -r requirements-docs.txt
+          mkdocs build --strict
+
+  lint:
+    name: Workflow lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: actionlint
+        run: |
+          python -m pip install actionlint-py
+          actionlint

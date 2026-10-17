@@ -1,0 +1,9 @@
+case,quantity,value,unit,source,note
+LiLSX_PSA,O2_purity,84.72,%,"Table 4, PSA cycle with LiLSX adsorbent, column PC_O2 >= 5 L/min, P_O2 >= 85%","paper's optimised model result (simulation, not experiment)"
+LiLSX_PSA,O2_recovery,30.14,%,"Table 4, PSA cycle with LiLSX adsorbent, column PC_O2 >= 5 L/min, P_O2 >= 85%","paper's optimised model result; recovery net of the O2 product recycled to purge and pressurisation"
+LiLSX_PSA,O2_production,9.02,L/min,"Table 4, PSA cycle with LiLSX adsorbent, column PC_O2 >= 5 L/min, P_O2 >= 85%","transcribed only, not compared: standard conditions behind L/min not stated"
+LiLSX_PSA,bed_size_factor,36.15,kg ads/TPD O2,"Table 4, PSA cycle with LiLSX adsorbent, column PC_O2 >= 5 L/min, P_O2 >= 85%","transcribed only, not compared"
+LiLSX_PVSA,O2_purity,89.97,%,"Table 4, PVSA cycle with LiLSX adsorbent, column PC_O2 >= 5 L/min, P_O2 >= 90%","paper's optimised model result (simulation, not experiment)"
+LiLSX_PVSA,O2_recovery,65.51,%,"Table 4, PVSA cycle with LiLSX adsorbent, column PC_O2 >= 5 L/min, P_O2 >= 90%","paper's optimised model result; recovery net of the O2 product recycled to purge and pressurisation"
+LiLSX_PVSA,O2_production,22.53,L/min,"Table 4, PVSA cycle with LiLSX adsorbent, column PC_O2 >= 5 L/min, P_O2 >= 90%","transcribed only, not compared: standard conditions behind L/min not stated"
+LiLSX_PVSA,bed_size_factor,14.48,kg ads/TPD O2,"Table 4, PVSA cycle with LiLSX adsorbent, column PC_O2 >= 5 L/min, P_O2 >= 90%","transcribed only, not compared"

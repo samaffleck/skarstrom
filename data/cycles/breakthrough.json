@@ -1,0 +1,294 @@
+{
+    "value0": {
+        "cereal_class_version": 2,
+        "Number_Of_Cycles": 1,
+        "Step_List": [
+            {
+                "cereal_class_version": 5,
+                "Step_Time": {
+                    "cereal_class_version": 2,
+                    "Value": 600.0,
+                    "Expression": "6e+02",
+                    "DisplayUnitIndex": 0
+                },
+                "Top_Boundary_Condition": {
+                    "polymorphic_id": 2147483649,
+                    "polymorphic_name": "adsim::PressureBoundaryCondition",
+                    "ptr_wrapper": {
+                        "id": 2147483649,
+                        "data": {
+                            "cereal_class_version": 4,
+                            "value0": {
+                                "cereal_class_version": 0,
+                                "Boundary_Condition_Location": 0,
+                                "Boundary_Condition_Direction": 1
+                            },
+                            "Inlet_Temperature": {
+                                "Value": 293.0,
+                                "Expression": "293",
+                                "DisplayUnitIndex": 0
+                            },
+                            "Inlet_Mole_Fraction": [],
+                            "Boundary_Pressure": {
+                                "polymorphic_id": 2147483650,
+                                "polymorphic_name": "adsim::ConstantBoundaryValue",
+                                "ptr_wrapper": {
+                                    "valid": 1,
+                                    "data": {
+                                        "cereal_class_version": 2,
+                                        "value0": {},
+                                        "Constant_Value": {
+                                            "Value": 100000.0,
+                                            "Expression": "1e+05",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    }
+                                }
+                            },
+                            "Boundary_Condition_Connection": {
+                                "cereal_class_version": 1,
+                                "Connection_Type": 0,
+                                "Pair_ID": 0
+                            },
+                            "Pump": {
+                                "polymorphic_id": 2147483651,
+                                "polymorphic_name": "adsim::Compressor",
+                                "ptr_wrapper": {
+                                    "valid": 1,
+                                    "data": {
+                                        "cereal_class_version": 2,
+                                        "value0": {
+                                            "cereal_class_version": 3,
+                                            "Use_Pump": false,
+                                            "Polytropic_Index": {
+                                                "Value": 1.4,
+                                                "Expression": "1.4",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "Energy_Equation": {
+                                                "polymorphic_id": 2147483652,
+                                                "polymorphic_name": "adsim::IsothermalCompressorEnergyModel",
+                                                "ptr_wrapper": {
+                                                    "valid": 1,
+                                                    "data": {
+                                                        "cereal_class_version": 1,
+                                                        "value0": {
+                                                            "cereal_class_version": 0
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "Efficiency_Model": {
+                                                "polymorphic_id": 2147483653,
+                                                "polymorphic_name": "adsim::ConstantPumpEfficiencyModel",
+                                                "ptr_wrapper": {
+                                                    "valid": 1,
+                                                    "data": {
+                                                        "cereal_class_version": 2,
+                                                        "value0": {
+                                                            "cereal_class_version": 0
+                                                        },
+                                                        "Efficiency": {
+                                                            "Value": 0.7,
+                                                            "Expression": "0.7",
+                                                            "DisplayUnitIndex": 0
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "Suction_Pressure": {
+                                            "Value": 100000.0,
+                                            "Expression": "1e+05",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    }
+                                }
+                            },
+                            "Buffer_Tank_Source": {
+                                "cereal_class_version": 3,
+                                "Active": false,
+                                "Percentage": {
+                                    "Value": 100.0,
+                                    "Expression": "1e+02",
+                                    "DisplayUnitIndex": 0
+                                },
+                                "Source_Step_Name": "",
+                                "Source_Endpoint_Name": "",
+                                "Source_Step_ID": 0,
+                                "Source_Endpoint_ID": 0
+                            },
+                            "Cycle_Endpoint_Summary": {
+                                "cereal_class_version": 1,
+                                "Is_Valid": false,
+                                "Total_Moles": 0.0,
+                                "Average_Temperature": 0.0,
+                                "Average_Mole_Fraction": [],
+                                "Source_Cycle_Index": -1
+                            },
+                            "Inlet_Temperature_Profile": {
+                                "polymorphic_id": 0
+                            },
+                            "Endpoint_ID": 0
+                        }
+                    }
+                },
+                "Bottom_Boundary_Condition": {
+                    "polymorphic_id": 2147483654,
+                    "polymorphic_name": "adsim::FlowBoundaryCondition",
+                    "ptr_wrapper": {
+                        "id": 2147483650,
+                        "data": {
+                            "cereal_class_version": 1,
+                            "value0": {
+                                "Boundary_Condition_Location": 1,
+                                "Boundary_Condition_Direction": 0
+                            },
+                            "Boundary_Stream_List": [
+                                {
+                                    "polymorphic_id": 2147483655,
+                                    "polymorphic_name": "adsim::BoundaryStream",
+                                    "ptr_wrapper": {
+                                        "valid": 1,
+                                        "data": {
+                                            "cereal_class_version": 1,
+                                            "value0": {
+                                                "cereal_class_version": 4,
+                                                "Stream_Name": "Feed inlet",
+                                                "Boundary_Temperature": {
+                                                    "Value": 298.0,
+                                                    "Expression": "298",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Boundary_Mole_Fraction": [
+                                                    {
+                                                        "key": "Nitrogen",
+                                                        "value": 0.85
+                                                    },
+                                                    {
+                                                        "key": "CarbonDioxide",
+                                                        "value": 0.15
+                                                    }
+                                                ],
+                                                "Boundary_Connection": {
+                                                    "Connection_Type": 0,
+                                                    "Pair_ID": 0
+                                                },
+                                                "Buffer_Tank_Source": {
+                                                    "Active": false,
+                                                    "Percentage": {
+                                                        "Value": 100.0,
+                                                        "Expression": "1e+02",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Source_Step_Name": "",
+                                                    "Source_Endpoint_Name": "",
+                                                    "Source_Step_ID": 0,
+                                                    "Source_Endpoint_ID": 0
+                                                },
+                                                "Cycle_Endpoint_Summary": {
+                                                    "Is_Valid": false,
+                                                    "Total_Moles": 0.0,
+                                                    "Average_Temperature": 0.0,
+                                                    "Average_Mole_Fraction": [],
+                                                    "Source_Cycle_Index": -1
+                                                },
+                                                "Temperature_Profile": {
+                                                    "polymorphic_id": 0
+                                                },
+                                                "Endpoint_ID": 0
+                                            },
+                                            "Boundary_Flow": {
+                                                "polymorphic_id": 2147483656,
+                                                "polymorphic_name": "adsim::VelocityBoundaryValue",
+                                                "ptr_wrapper": {
+                                                    "valid": 1,
+                                                    "data": {
+                                                        "cereal_class_version": 2,
+                                                        "value0": {},
+                                                        "Profile": {
+                                                            "polymorphic_id": 2,
+                                                            "ptr_wrapper": {
+                                                                "valid": 1,
+                                                                "data": {
+                                                                    "value0": {},
+                                                                    "Constant_Value": {
+                                                                        "Value": 0.3,
+                                                                        "Expression": "0.3",
+                                                                        "DisplayUnitIndex": 0
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "Pump": {
+                                                "polymorphic_id": 3,
+                                                "ptr_wrapper": {
+                                                    "valid": 1,
+                                                    "data": {
+                                                        "value0": {
+                                                            "Use_Pump": false,
+                                                            "Polytropic_Index": {
+                                                                "Value": 1.4,
+                                                                "Expression": "1.4",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "Energy_Equation": {
+                                                                "polymorphic_id": 4,
+                                                                "ptr_wrapper": {
+                                                                    "valid": 1,
+                                                                    "data": {
+                                                                        "value0": {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            "Efficiency_Model": {
+                                                                "polymorphic_id": 5,
+                                                                "ptr_wrapper": {
+                                                                    "valid": 1,
+                                                                    "data": {
+                                                                        "value0": {},
+                                                                        "Efficiency": {
+                                                                            "Value": 0.7,
+                                                                            "Expression": "0.7",
+                                                                            "DisplayUnitIndex": 0
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        "Suction_Pressure": {
+                                                            "Value": 100000.0,
+                                                            "Expression": "1e+05",
+                                                            "DisplayUnitIndex": 0
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "Step_Name": "Feed",
+                "Energy_Sources": [],
+                "Step_Fraction": {
+                    "Value": 0.0,
+                    "Expression": "0",
+                    "DisplayUnitIndex": 0
+                },
+                "ID": 1
+            }
+        ],
+        "Step_Time_Mode": 0,
+        "Total_Cycle_Time": {
+            "Value": 100.0,
+            "Expression": "1e+02",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

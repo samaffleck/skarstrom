@@ -1,0 +1,242 @@
+{
+    "value0": {
+        "cereal_class_version": 4,
+        "Name": "AP3-60 Activated Carbon (Schell 2012)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 850.0,
+            "Expression": "8.5e+02",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 1000.0,
+            "Expression": "1e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.15,
+            "Expression": "0.15",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 0,
+            "Mass_Transfer_Models": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::LinearDrivingForce",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2147483650,
+                                        "polymorphic_name": "adsim::MassTransferCoefficientConstant",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 3,
+                                                "value0": {},
+                                                "Mass_Transfer_Coefficient": {
+                                                    "Value": 0.15,
+                                                    "Expression": "0.15",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": "Hydrogen",
+                    "value": {
+                        "polymorphic_id": 1,
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "value0": {
+                                    "Mass_Transfer_Coefficient_Model": {
+                                        "polymorphic_id": 2,
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "value0": {},
+                                                "Mass_Transfer_Coefficient": {
+                                                    "Value": 1.0,
+                                                    "Expression": "1",
+                                                    "DisplayUnitIndex": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 26000.0,
+                        "Expression": "2.6e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Hydrogen",
+                    "value": {
+                        "Value": 9800.0,
+                        "Expression": "9.8e+03",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 19,
+                    "value": {
+                        "polymorphic_id": 2147483651,
+                        "polymorphic_name": "adsim::ArrheniusSipsIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Hydrogen",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_n_inf_a": {
+                                                "Value": 6.66,
+                                                "Expression": "6.66",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_n_inf_b": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_k_A": {
+                                                "Value": 6.6886e-10,
+                                                "Expression": "6.6886e-10",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_k_B": {
+                                                "Value": 9954.73,
+                                                "Expression": "9954.73",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_c_ref": {
+                                                "Value": 0.96,
+                                                "Expression": "0.96",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_c_amp": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_c_beta": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_c_Tref": {
+                                                "Value": 298.15,
+                                                "Expression": "298.15",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "IP_n_inf_a": {
+                                                "Value": 1.38286,
+                                                "Expression": "1.38286",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_n_inf_b": {
+                                                "Value": 5625.93,
+                                                "Expression": "5625.93",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_k_A": {
+                                                "Value": 1.6814e-8,
+                                                "Expression": "1.6814e-08",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_k_B": {
+                                                "Value": 9160.22,
+                                                "Expression": "9160.22",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_c_ref": {
+                                                "Value": 0.832365,
+                                                "Expression": "0.832365",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_c_amp": {
+                                                "Value": 0.116571,
+                                                "Expression": "0.116571",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_c_beta": {
+                                                "Value": 0.0928714,
+                                                "Expression": "0.0928714",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_c_Tref": {
+                                                "Value": 330.129,
+                                                "Expression": "330.129",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 2,
+                    "value": {
+                        "polymorphic_id": 2147483652,
+                        "polymorphic_name": "adsim::InertIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "ISO_Params": []
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": 19
+                },
+                {
+                    "key": "Hydrogen",
+                    "value": 19
+                }
+            ]
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.5685279187817258,
+            "Expression": "0.5685279187817258",
+            "DisplayUnitIndex": 0
+        }
+    }
+}

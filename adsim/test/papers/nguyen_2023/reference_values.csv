@@ -1,0 +1,73 @@
+case,quantity,value,unit,source,note
+ExperimentI,CO2_purity_exp,97.7,%,"Table 2, Exp. I, Experimental Pu",measured at CSS
+ExperimentI,CO2_recovery_exp,66.9,%,"Table 2, Exp. I, Experimental Re",measured at CSS
+ExperimentI,CO2_productivity_exp,0.65,mol CO2/(m3 s),"Table 2, Exp. I, Experimental Pr","per m3 of adsorbent per second (Sect. 2.3)"
+ExperimentI,CO2_purity_model,96.7,%,"Table 2, Exp. I, Model Pu",paper's detailed model
+ExperimentI,CO2_recovery_model,70.1,%,"Table 2, Exp. I, Model Re",paper's detailed model
+ExperimentI,energy_model,115,kWhe/tonne CO2,"Table 2, Exp. I, Model En","transcribed only, not compared: deck has no vacuum-pump model"
+ExperimentI,CO2_productivity_model,0.63,mol CO2/(m3 s),"Table 2, Exp. I, Model Pr",paper's detailed model
+ExperimentII,CO2_purity_exp,91.2,%,"Table 2, Exp. II, Experimental Pu",measured at CSS
+ExperimentII,CO2_recovery_exp,71.7,%,"Table 2, Exp. II, Experimental Re",measured at CSS
+ExperimentII,CO2_productivity_exp,0.52,mol CO2/(m3 s),"Table 2, Exp. II, Experimental Pr",
+ExperimentII,CO2_purity_model,90.3,%,"Table 2, Exp. II, Model Pu",paper's detailed model
+ExperimentII,CO2_recovery_model,72.3,%,"Table 2, Exp. II, Model Re",paper's detailed model
+ExperimentII,energy_model,120,kWhe/tonne CO2,"Table 2, Exp. II, Model En","transcribed only, not compared"
+ExperimentII,CO2_productivity_model,0.54,mol CO2/(m3 s),"Table 2, Exp. II, Model Pr",paper's detailed model
+ExperimentIII,CO2_purity_exp,85.6,%,"Table 2, Exp. III, Experimental Pu",measured at CSS
+ExperimentIII,CO2_recovery_exp,71.8,%,"Table 2, Exp. III, Experimental Re",measured at CSS
+ExperimentIII,CO2_productivity_exp,0.48,mol CO2/(m3 s),"Table 2, Exp. III, Experimental Pr",
+ExperimentIII,CO2_purity_model,85.7,%,"Table 2, Exp. III, Model Pu",paper's detailed model
+ExperimentIII,CO2_recovery_model,73.4,%,"Table 2, Exp. III, Model Re",paper's detailed model
+ExperimentIII,energy_model,115,kWhe/tonne CO2,"Table 2, Exp. III, Model En","transcribed only, not compared"
+ExperimentIII,CO2_productivity_model,0.51,mol CO2/(m3 s),"Table 2, Exp. III, Model Pr",paper's detailed model
+ExperimentIV,CO2_purity_exp,82.3,%,"Table 2, Exp. IV, Experimental Pu",measured at CSS
+ExperimentIV,CO2_recovery_exp,72.5,%,"Table 2, Exp. IV, Experimental Re",measured at CSS
+ExperimentIV,CO2_productivity_exp,0.46,mol CO2/(m3 s),"Table 2, Exp. IV, Experimental Pr",
+ExperimentIV,CO2_purity_model,81.3,%,"Table 2, Exp. IV, Model Pu",paper's detailed model
+ExperimentIV,CO2_recovery_model,74.3,%,"Table 2, Exp. IV, Model Re",paper's detailed model
+ExperimentIV,energy_model,112,kWhe/tonne CO2,"Table 2, Exp. IV, Model En","transcribed only, not compared"
+ExperimentIV,CO2_productivity_model,0.50,mol CO2/(m3 s),"Table 2, Exp. IV, Model Pr",paper's detailed model
+ExperimentV,CO2_purity_exp,78.4,%,"Table 2, Exp. V, Experimental Pu",measured at CSS
+ExperimentV,CO2_recovery_exp,74.2,%,"Table 2, Exp. V, Experimental Re",measured at CSS
+ExperimentV,CO2_productivity_exp,0.40,mol CO2/(m3 s),"Table 2, Exp. V, Experimental Pr",
+ExperimentV,CO2_purity_model,75.6,%,"Table 2, Exp. V, Model Pu",paper's detailed model
+ExperimentV,CO2_recovery_model,75.4,%,"Table 2, Exp. V, Model Re",paper's detailed model
+ExperimentV,energy_model,112,kWhe/tonne CO2,"Table 2, Exp. V, Model En","transcribed only, not compared"
+ExperimentV,CO2_productivity_model,0.44,mol CO2/(m3 s),"Table 2, Exp. V, Model Pr",paper's detailed model
+ExperimentVI,CO2_purity_exp,97.2,%,"Table 2, Exp. VI, Experimental Pu",measured at CSS (LPP cycle)
+ExperimentVI,CO2_recovery_exp,83.1,%,"Table 2, Exp. VI, Experimental Re",measured at CSS (LPP cycle)
+ExperimentVI,CO2_productivity_exp,0.30,mol CO2/(m3 s),"Table 2, Exp. VI, Experimental Pr",
+ExperimentVI,CO2_purity_model,96.7,%,"Table 2, Exp. VI, Model Pu",paper's detailed model
+ExperimentVI,CO2_recovery_model,84.8,%,"Table 2, Exp. VI, Model Re",paper's detailed model
+ExperimentVI,energy_model,140,kWhe/tonne CO2,"Table 2, Exp. VI, Model En","transcribed only, not compared"
+ExperimentVI,CO2_productivity_model,0.28,mol CO2/(m3 s),"Table 2, Exp. VI, Model Pr",paper's detailed model
+ExperimentVII,CO2_purity_exp,94.3,%,"Table 2, Exp. VII.a, Experimental Pu","repeat VII.b: 93.8 %"
+ExperimentVII,CO2_recovery_exp,88.4,%,"Table 2, Exp. VII.a, Experimental Re","repeat VII.b: 87.5 %"
+ExperimentVII,CO2_productivity_exp,0.14,mol CO2/(m3 s),"Table 2, Exp. VII.a, Experimental Pr","repeat VII.b: 0.13"
+ExperimentVII,CO2_purity_exp_b,93.8,%,"Table 2, Exp. VII.b, Experimental Pu",repeat experiment
+ExperimentVII,CO2_recovery_exp_b,87.5,%,"Table 2, Exp. VII.b, Experimental Re",repeat experiment
+ExperimentVII,CO2_purity_model,95.5,%,"Table 2, Exp. VII, Model Pu",paper's detailed model
+ExperimentVII,CO2_recovery_model,88.1,%,"Table 2, Exp. VII, Model Re",paper's detailed model
+ExperimentVII,energy_model,183,kWhe/tonne CO2,"Table 2, Exp. VII, Model En","transcribed only, not compared"
+ExperimentVII,CO2_productivity_model,0.14,mol CO2/(m3 s),"Table 2, Exp. VII, Model Pr",paper's detailed model
+ExperimentVIII,CO2_purity_exp,92.7,%,"Table 2, Exp. VIII, Experimental Pu",measured at CSS (LPP cycle)
+ExperimentVIII,CO2_recovery_exp,87.8,%,"Table 2, Exp. VIII, Experimental Re",measured at CSS (LPP cycle)
+ExperimentVIII,CO2_productivity_exp,0.17,mol CO2/(m3 s),"Table 2, Exp. VIII, Experimental Pr",
+ExperimentVIII,CO2_purity_model,93.6,%,"Table 2, Exp. VIII, Model Pu",paper's detailed model
+ExperimentVIII,CO2_recovery_model,89.9,%,"Table 2, Exp. VIII, Model Re",paper's detailed model
+ExperimentVIII,energy_model,168,kWhe/tonne CO2,"Table 2, Exp. VIII, Model En","transcribed only, not compared"
+ExperimentVIII,CO2_productivity_model,0.16,mol CO2/(m3 s),"Table 2, Exp. VIII, Model Pr",paper's detailed model
+ExperimentIX,CO2_purity_exp,85.67,%,"Table 2, Exp. IX, Experimental Pu",measured at CSS (LPP cycle)
+ExperimentIX,CO2_recovery_exp,90.5,%,"Table 2, Exp. IX, Experimental Re",measured at CSS (LPP cycle)
+ExperimentIX,CO2_productivity_exp,0.13,mol CO2/(m3 s),"Table 2, Exp. IX, Experimental Pr",
+ExperimentIX,CO2_purity_model,88.3,%,"Table 2, Exp. IX, Model Pu",paper's detailed model
+ExperimentIX,CO2_recovery_model,91.6,%,"Table 2, Exp. IX, Model Re",paper's detailed model
+ExperimentIX,energy_model,176,kWhe/tonne CO2,"Table 2, Exp. IX, Model En","transcribed only, not compared"
+ExperimentIX,CO2_productivity_model,0.14,mol CO2/(m3 s),"Table 2, Exp. IX, Model Pr",paper's detailed model
+ExperimentX,CO2_purity_exp,80.6,%,"Table 2, Exp. X, Experimental Pu",measured at CSS (LPP cycle)
+ExperimentX,CO2_recovery_exp,92.4,%,"Table 2, Exp. X, Experimental Re",measured at CSS (LPP cycle)
+ExperimentX,CO2_productivity_exp,0.15,mol CO2/(m3 s),"Table 2, Exp. X, Experimental Pr",
+ExperimentX,CO2_purity_model,80.6,%,"Table 2, Exp. X, Model Pu",paper's detailed model
+ExperimentX,CO2_recovery_model,93.6,%,"Table 2, Exp. X, Model Re",paper's detailed model
+ExperimentX,energy_model,192,kWhe/tonne CO2,"Table 2, Exp. X, Model En","transcribed only, not compared"
+ExperimentX,CO2_productivity_model,0.13,mol CO2/(m3 s),"Table 2, Exp. X, Model Pr",paper's detailed model
