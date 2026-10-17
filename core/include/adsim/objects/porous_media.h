@@ -7,7 +7,12 @@
 #pragma once
 
 // STL includes
+#include <atomic>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <map>
 #include <memory>
@@ -413,12 +418,23 @@ namespace adsim {
     return u - (g - B * std::abs(u) * u) / A;
   }
 
+  // Writes the file atomically: the JSON goes to a uniquely named temporary
+  // file beside it, which then replaces the target in one rename, so a reader
+  // never sees a half-written file (the library files are re-saved by tests
+  // that run in parallel with tests reading them).
   inline void SaveAdsorbentToJSON(const std::string& file_name, const Adsorbent& adsorbent) {
-    std::ofstream file(file_name);
-    if (file.is_open()) {
+    static std::atomic<unsigned long> counter{0};
+    std::ostringstream tmp_name;
+    tmp_name << file_name << ".tmp" << std::hash<std::thread::id>{}(std::this_thread::get_id()) << "_" << counter++;
+    {
+      std::ofstream file(tmp_name.str());
+      if (!file.is_open()) return;
       cereal::JSONOutputArchive archive(file);
       archive(adsorbent);
-    }
+    }  // the archive's destructor completes the JSON before the file closes
+    std::error_code ec;
+    std::filesystem::rename(tmp_name.str(), file_name, ec);
+    if (ec) std::filesystem::remove(tmp_name.str(), ec);
   }
 
   inline void LoadAdsorbentFromJSON(const std::string& file_name, Adsorbent& adsorbent) {
