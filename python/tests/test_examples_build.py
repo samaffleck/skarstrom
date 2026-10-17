@@ -48,12 +48,33 @@ def test_example_builds_its_deck(family, case, deck):
 @pytest.mark.parametrize("family,deck", [("perez_2019", "Perez2019_E"), ("ward_2022", "Ward2022_Q100ccm"),
                                          ("tsa_illustrative", "Illustrative_TSA_13X")], ids=lambda x: str(x))
 def test_example_runs_like_its_deck(family, deck):
-    """Built and shipped simulations give the same results (2 cycles)."""
-    from test_build import assert_same_run
+    """Built and shipped simulations give the same results (2 cycles).
+
+    Hand-written units ("100 ccm") can round differently from the deck's stored
+    number in the last bit, which changes IDA's adaptive step sequence, so the
+    runs are compared physically (interpolated onto the deck's time grid, to
+    0.1 % of each signal's range, which covers interpolating a steep front
+    between two grids) rather than bit for bit as for skarstrom.to_script.
+    """
+    import numpy as np
 
     module = importlib.import_module(family)
     if not hasattr(module, "DECKS"):
         pytest.skip(f"{family} does not build its cases yet")
     case = next(c for c, d in module.DECKS.items() if d == deck)
     shipped = skarstrom.examples.get(deck).load()
-    assert_same_run(shipped, module.build(case), cycles=min(2, shipped.cycle.number_of_cycles))
+    built = module.build(case)
+    cycles = min(2, shipped.cycle.number_of_cycles)
+    ra, rb = shipped.run(cycles=cycles), built.run(cycles=cycles)
+    assert ra.ok and rb.ok and ra.cycles_run == rb.cycles_run, (ra.message, rb.message)
+    for var, comps in (("pressure", [None]), ("temperature", [None]), ("mole_fraction", shipped.components)):
+        for comp in comps:
+            for loc in ("top", "bottom"):
+                a, b = shipped.series(var, comp, location=loc), built.series(var, comp, location=loc)
+                scale = max(float(np.ptp(a.values)), 1e-4 * float(np.max(np.abs(a.values))), 1e-30)
+                np.testing.assert_allclose(np.interp(a.time, b.time, b.values), a.values, rtol=0,
+                                           atol=1e-3 * scale, err_msg=f"{var} {comp} {loc}")
+    for ka, kb in zip(shipped.kpis(), built.kpis()):
+        for key, value in ka.as_dict().items():
+            if isinstance(value, float):
+                np.testing.assert_allclose(kb.as_dict()[key], value, rtol=1e-4, err_msg=key)
