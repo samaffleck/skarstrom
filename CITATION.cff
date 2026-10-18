@@ -11,6 +11,7 @@ authors:
   - family-names: Affleck
     given-names: Sam
 version: "0.1.0"
+date-released: "2026-10-18"
 # Licence: keep in step with LICENSE, NOTICE, README.md and pyproject.toml.
 license: Apache-2.0
 url: "https://samaffleck.github.io/skarstrom/"

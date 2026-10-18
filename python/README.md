@@ -6,6 +6,15 @@ open-source simulator for pressure, vacuum and temperature swing adsorption
 JSON simulation file), change parameters, run it to cyclic steady state and
 read KPIs, time series and axial profiles as NumPy arrays.
 
+```bash
+pip install skarstrom
+pip install "skarstrom[examples]"   # also pandas, matplotlib, scipy and Jupyter
+```
+
+Wheels are built for Linux (x86_64, aarch64), macOS 13.3+ (arm64, x86_64) and
+Windows x64 on Python 3.10–3.13; elsewhere pip builds from the source
+distribution (CMake 3.15+ and a C++20 compiler).
+
 ```python
 import skarstrom
 

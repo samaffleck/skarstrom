@@ -6,7 +6,7 @@ Skarstrom has two layers: the C++ engine (`adsim`), and the `skarstrom` Python p
 
 ## 1. Install the Python package
 
-Once Skarstrom is published on PyPI, install a pre-built wheel (Linux x86_64/aarch64, macOS 13.3+ arm64/x86_64, Windows x64; Python 3.10–3.13):
+Install a pre-built wheel from PyPI (Linux x86_64/aarch64, macOS 13.3+ arm64/x86_64, Windows x64; Python 3.10–3.13):
 
 ```bash
 pip install skarstrom
@@ -15,7 +15,7 @@ pip install "skarstrom[examples]"     # also pandas, matplotlib, scipy and Jupyt
 
 ### From source
 
-Until then, or to use the development version, build it from a checkout. You need Python 3.9 or newer, CMake 3.15 or newer, a C++20 compiler (GCC 11+, Clang 14+, Apple clang from Xcode 15+, or MSVC 2022) and, recommended, Ninja:
+For the development version, or on a platform without a wheel, build it from a checkout. You need Python 3.9 or newer, CMake 3.15 or newer, a C++20 compiler (GCC 11+, Clang 14+, Apple clang from Xcode 15+, or MSVC 2022) and, recommended, Ninja:
 
 ```bash
 git clone --recursive https://github.com/samaffleck/skarstrom.git

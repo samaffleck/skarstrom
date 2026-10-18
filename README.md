@@ -55,13 +55,13 @@ The [Skarstrom website](https://www.skarstrom.co.uk/) is a browser-based user in
 
 ## Install
 
-Once published on PyPI (Linux, macOS 13.3+ and Windows wheels for Python 3.10–3.13):
+Pre-built wheels for Linux (x86_64, aarch64), macOS 13.3+ (arm64, x86_64) and Windows x64, Python 3.10–3.13:
 
 ```bash
 pip install skarstrom
 ```
 
-From source now (Python 3.9+, CMake 3.15+, a C++20 compiler; Ninja recommended):
+From source (the development version or another platform; Python 3.9+, CMake 3.15+, a C++20 compiler; Ninja recommended):
 
 ```bash
 git clone --recursive https://github.com/samaffleck/skarstrom.git
