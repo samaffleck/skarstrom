@@ -38,16 +38,17 @@ bool IsAvailableComponent(const std::string& name);
 // An added entry is 0.
 void ReconcileMoleFractions(UserData& data, const std::string& component, bool add);
 
-// Add a component to the fluid, seed a 0 mole fraction everywhere and default
-// physics on every adsorbent (Inert isotherm, LDF rate model with a constant
-// coefficient, 0 heat of adsorption; existing components are untouched).
+// Add a component to the fluid, seed a 0 mole fraction everywhere, a 0
+// adsorbed-phase heat capacity and default physics on every adsorbent (Inert
+// isotherm, LDF rate model with a constant coefficient, 0 heat of adsorption;
+// existing components are untouched).
 // False + err for an unknown component name. Adding an existing component is a
 // no-op that returns true.
 bool AddComponentToDeck(UserData& data, const std::string& name, std::string& err);
 
-// Remove a component from the fluid, from every adsorbent and from every
-// mole-fraction map. A deck may end up with no components (it then fails the
-// deck checks until one is added).
+// Remove a component from the fluid, from every adsorbent, from every
+// mole-fraction map and from the adsorbed-phase heat capacities. A deck may
+// end up with no components (it then fails the deck checks until one is added).
 void RemoveComponentFromDeck(UserData& data, const std::string& name);
 
 // ---- layers and adsorbents -----------------------------------------------------
