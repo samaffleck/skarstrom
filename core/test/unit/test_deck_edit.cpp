@@ -69,6 +69,10 @@ TEST(DeckEdit, AddAndRemoveComponentCascades) {
   EXPECT_NE(std::find(data.fluid.components_.begin(), data.fluid.components_.end(), "Argon"),
             data.fluid.components_.end());
   EXPECT_EQ(data.ic.mole_fraction.count("Argon"), 1u);
+  // The adsorbed-phase heat capacity gets an editable 0 entry straight away
+  // (Fluid::Initialise would only add one at run time).
+  ASSERT_EQ(data.fluid.adsorbed_heat_capacity_.count("Argon"), 1u);
+  EXPECT_EQ(data.fluid.adsorbed_heat_capacity_.at("Argon").Get(), 0.0);
   for (auto& [id, ads] : data.adsorbent_directory.GetAll()) {
     EXPECT_EQ(ads.adsorption_source_.mass_transfer_models_.count("Argon"), 1u) << ads.name_;
     EXPECT_EQ(ads.adsorption_source_.heat_of_adsorption_.count("Argon"), 1u) << ads.name_;
@@ -82,6 +86,7 @@ TEST(DeckEdit, AddAndRemoveComponentCascades) {
   EXPECT_EQ(std::find(data.fluid.components_.begin(), data.fluid.components_.end(), "Argon"),
             data.fluid.components_.end());
   EXPECT_EQ(data.ic.mole_fraction.count("Argon"), 0u);
+  EXPECT_EQ(data.fluid.adsorbed_heat_capacity_.count("Argon"), 0u);
   std::string eval_err;
   EXPECT_TRUE(data.EvaluateAllExpressions(eval_err)) << eval_err;
 }

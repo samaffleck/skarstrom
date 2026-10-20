@@ -8,6 +8,13 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed
+- `AddComponentToDeck` now seeds a 0 adsorbed-phase heat capacity for the new
+  component (and `RemoveComponentFromDeck` drops it), as the Python
+  `AddComponent` already did. A front end that lists the map's entries showed
+  no heat-capacity field for a component added through the shared cascade
+  until the deck had been run once.
+
 ## [0.1.0] — 2026-10-20
 
 First public release of the Skarstrom engine under the Apache License 2.0.

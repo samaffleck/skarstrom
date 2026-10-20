@@ -291,8 +291,6 @@ std::string VariableCategoryKind(UnitCategory category) {
 void AddComponent(UserData& data, const std::string& name) {
   std::string err;
   if (!AddComponentToDeck(data, name, err)) throw std::invalid_argument(err);
-  // 0 is what Fluid::Initialise assumes for a component without a value.
-  data.fluid.adsorbed_heat_capacity_.emplace(name, 0.0);
   data.kpi_config.SyncToComponents(data.fluid.components_);
 }
 
