@@ -2,7 +2,7 @@
 
 Releases are made from tags. `.github/workflows/release.yml` builds the wheels
 (cibuildwheel: manylinux x86_64/aarch64, macOS arm64/x86_64 at deployment target
-13.3, Windows x64; CPython 3.10–3.13), an sdist that contains the submodule
+13.3, Windows x64; CPython 3.10–3.15), an sdist that contains the submodule
 sources, and a full source tarball; attaches them to a GitHub Release; and
 publishes to PyPI or TestPyPI when enabled.
 

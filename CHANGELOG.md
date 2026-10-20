@@ -8,6 +8,10 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-10-20
+
+First public release of the Skarstrom engine under the Apache License 2.0.
+
 ### Changed (units)
 - Unit strings are parsed and converted with the LLNL units library
   (BSD-3-Clause, new submodule `external/units`, compiled into the engine)
@@ -170,10 +174,6 @@ root `CMakeLists.txt`.
   survive save/reload bit for bit, and a run is unchanged when every map in
   the deck is listed in reverse order.
 
-## [0.1.0] — initial open-source release (unreleased)
-
-First public release of the Skarstrom engine under the Apache License 2.0.
-
 ### Added
 - The `adsim` C++20 simulation engine: 1D finite-volume packed-bed model
   (mass, momentum, energy and wall energy balances; 20 isotherm models;
@@ -202,6 +202,6 @@ First public release of the Skarstrom engine under the Apache License 2.0.
   (`data/cycles/`).
 - MkDocs documentation with generated validation and adsorbent-library pages.
 - GitHub Actions: CI on Linux, macOS and Windows, the Python wheel, the
-  Emscripten build and the docs; release workflow with cibuildwheel wheels,
+  Emscripten build and the docs; release workflow with cibuildwheel wheels (CPython 3.10–3.15),
   sdist, source tarball and gated (Test)PyPI trusted publishing; docs
   deployment to GitHub Pages.
