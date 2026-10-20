@@ -4,14 +4,14 @@ The `skarstrom` Python package wraps the C++ engine (`adsim`) and runs deck file
 
 ## Install
 
-See [Getting Started](getting-started.md) for the details. In short, once the package is on PyPI:
+See [Getting Started](getting-started.md) for the details. In short:
 
 ```bash
 pip install skarstrom
 pip install "skarstrom[examples]"   # also pandas, matplotlib, scipy and Jupyter
 ```
 
-Until then, or for the development version, build it from a checkout (Python 3.9+, CMake 3.15+, a C++20 compiler):
+For the development version, build it from a checkout (Python 3.10+, CMake 3.15+, a C++20 compiler):
 
 ```bash
 git clone --recursive https://github.com/samaffleck/skarstrom.git

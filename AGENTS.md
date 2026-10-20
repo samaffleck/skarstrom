@@ -9,7 +9,7 @@ Skarstrom simulates pressure, vacuum and temperature swing adsorption (PSA/VSA/T
 ### Install
 
 ```bash
-pip install skarstrom                    # once published on PyPI
+pip install skarstrom                    # wheels for CPython 3.10–3.15
 # or, from a checkout (needs CMake >= 3.15 and a C++20 compiler; several minutes):
 git clone --recursive https://github.com/samaffleck/skarstrom.git && cd skarstrom && pip install .
 ```
