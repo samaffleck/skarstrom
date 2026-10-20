@@ -149,10 +149,10 @@ namespace adsim {
     press_closed->location_ = BoundaryLocation::TOP;
     step_press.top_boundary_condition_ = std::move(press_closed);
 
-    // Run to CSS, min 100 cycles
+    // Run to CSS, min 5 cycles
     ConfigureCycle(250);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-    data.settings.css.min_cycles_ = 100;
+    data.settings.css.min_cycles_ = 5;
     ConfigureKPI(0, {0, 3}, {BoundaryLocation::BOTTOM, BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
     data.settings.max_step = 2.0;
 
@@ -297,13 +297,13 @@ namespace adsim {
     press_closed->location_ = BoundaryLocation::BOTTOM;
     step_press.bottom_boundary_condition_ = std::move(press_closed);
 
-    // Run to CSS, min 100 cycles. The CO2 inventory of these light-product
+    // Run to CSS, min 5 cycles. The CO2 inventory of these light-product
     // pressurisation cycles settles slowly: the per-component balance reaches
     // 0.5 % at about cycle 450 (E) and 1030 (F), long after the gas profiles
     // stop changing, so the cap is well above that.
     ConfigureCycle(1500);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-    data.settings.css.min_cycles_ = 100;
+    data.settings.css.min_cycles_ = 5;
     // KPI: CO2 fed in Feed1(0), Feed2(1) @ bottom; product = Evacuation(3) @ bottom. The
     // light-product pressurisation stream is N2-rich gas moving within the cycle, not
     // CO2 product, so it is not a KPI endpoint (as in ConfigD1).
@@ -730,10 +730,10 @@ namespace adsim {
     step_press.bottom_boundary_condition_ = std::move(press_closed);
 
     // CONFIGURE CYCLE — run to cyclic steady state (Perez 2019: <1% component mass-balance
-    // error for 5 consecutive cycles, ~80-150 cycles to CSS). Minimum 100 cycles, cap 250.
+    // error for 5 consecutive cycles, ~80-150 cycles to CSS). Minimum 5 cycles, cap 250.
     ConfigureCycle(250);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-    data.settings.css.min_cycles_ = 100;
+    data.settings.css.min_cycles_ = 5;
 
     // KPI: Feed1(0),Feed2(1)@Bottom, Product: Evacuation(3)@Bottom, Product component: CO2(0)
     ConfigureKPI(0, {0, 1}, {BoundaryLocation::BOTTOM, BoundaryLocation::BOTTOM}, {3}, {BoundaryLocation::BOTTOM});
@@ -900,10 +900,10 @@ namespace adsim {
     step_press.top_boundary_condition_ = std::move(press_closed);
 
     // CONFIGURE CYCLE — run to cyclic steady state (Perez 2019: <1% component mass-balance
-    // error for 5 consecutive cycles, ~80-150 cycles to CSS). Minimum 100 cycles, cap 250.
+    // error for 5 consecutive cycles, ~80-150 cycles to CSS). Minimum 5 cycles, cap 250.
     ConfigureCycle(250);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-    data.settings.css.min_cycles_ = 100;
+    data.settings.css.min_cycles_ = 5;
 
     // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
     ConfigureKPI(0, {0, 3}, {BoundaryLocation::BOTTOM, BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});

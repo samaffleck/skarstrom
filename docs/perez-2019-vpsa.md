@@ -49,7 +49,7 @@ Blowdown removes N₂ from the light end at an intermediate vacuum, so the evacu
 
 The two steps represent two beds working at the same time, which is why they have the same duration, 27.5 s. The coupling lags by one cycle: each side uses what its partner did in the previous cycle, and on the first cycle the typed-in values (pure N₂, zero LPP flow) stand in. See [Connecting Beds](connecting-beds.md) and [Light Product Pressurisation](light-product-pressurization.md).
 
-**Cyclic steady state.** *Mass Balance (Per-Component)* (`css.method` = 3) with a tolerance of 0.005: the run stops once, for every component, the moles entering the column over a cycle match the moles leaving to within 0.5 %. The minimum is 100 cycles (`css.min_cycles`) and the cycle limit is 250 (`cycle.number_of_cycles`).
+**Cyclic steady state.** *Mass Balance (Per-Component)* (`css.method` = 3) with a tolerance of 0.005: the run stops once, for every component, the moles entering the column over a cycle match the moles leaving to within 0.5 %. The minimum is 5 cycles (`css.min_cycles`) and the cycle limit is 250 (`cycle.number_of_cycles`).
 
 **KPI configuration.** CO₂ is tracked. **Feed**: *Feed 1 inlet* and *Feed 2 inlet*. **Product**: *Evacuation Pressure Boundary Bottom*.
 

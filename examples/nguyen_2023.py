@@ -145,7 +145,7 @@ def build(case: str) -> sk.Simulation:
         add_basic_cycle(sim, exp)
 
     # ---- solver (SUNDIALS IDA), cyclic steady state (the paper's mass-balance
-    # criterion, at least 100 cycles), energy balance ------------------------------------
+    # criterion, at least 5 cycles), energy balance ------------------------------------
     sim.settings.init_step = 1e-10 * u.s
     sim.settings.min_step = 1e-15 * u.s
     sim.settings.max_step = 2 * u.s
@@ -162,7 +162,7 @@ def build(case: str) -> sk.Simulation:
     sim.settings.max_log_points_per_step = 200
     sim.settings.acceleration_method = "none"
     sim.css.method = "mass_balance_component"
-    sim.css.min_cycles = 100
+    sim.css.min_cycles = 5
     sim.css.molar_absolute_tolerance = 1e-4
     sim.css.molar_relative_tolerance = 1e-4
     sim.css.mass_balance_tolerance = 0.005

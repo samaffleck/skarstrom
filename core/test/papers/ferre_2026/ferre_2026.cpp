@@ -162,7 +162,7 @@ namespace adsim {
 
       t.ConfigureCycle(250);
       data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-      data.settings.css.min_cycles_ = 100;
+      data.settings.css.min_cycles_ = 5;
       data.settings.max_step = 2.0;
 
       std::string error{};

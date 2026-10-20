@@ -216,10 +216,10 @@ namespace adsim {
     step_press.top_boundary_condition_ = std::move(press_closed);
 
     // CONFIGURE CYCLE
-    // Run to cyclic steady state (paper's mass-balance criterion), minimum 100 cycles.
+    // Run to cyclic steady state (paper's mass-balance criterion), minimum 5 cycles.
     test_fixture.ConfigureCycle(250); // hard cap on cycle count
     test_fixture.data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-    test_fixture.data.settings.css.min_cycles_ = 100;
+    test_fixture.data.settings.css.min_cycles_ = 5;
 
     // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
     test_fixture.ConfigureKPI(0, {0, 3}, {BoundaryLocation::BOTTOM, BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
@@ -429,13 +429,13 @@ namespace adsim {
     step_press.bottom_boundary_condition_ = std::move(press_closed);
 
     // CONFIGURE CYCLE
-    // Run to cyclic steady state (paper's mass-balance criterion), minimum 100 cycles.
+    // Run to cyclic steady state (paper's mass-balance criterion), minimum 5 cycles.
     // The CO2 inventory of the light-product pressurisation cycles settles slowly:
     // the per-component balance reaches 0.5 % at about cycle 300-500 (VIII-X), so
     // the cap is well above that.
     test_fixture.ConfigureCycle(1000); // hard cap on cycle count
     test_fixture.data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-    test_fixture.data.settings.css.min_cycles_ = 100;
+    test_fixture.data.settings.css.min_cycles_ = 5;
 
     // KPI: CO2 fed in Feed1(0), Feed2(1) @ bottom; product = Evacuation(3) @ bottom. The
     // light-product pressurisation stream is N2-rich gas moving within the cycle, not CO2

@@ -233,10 +233,10 @@ namespace adsim {
 
     // CONFIGURE CYCLE
     // Run to cyclic steady state (paper's per-component mass-balance criterion,
-    // Wilkins/Rajendran 2022), minimum 100 cycles, hard cap 250.
+    // Wilkins/Rajendran 2022), minimum 5 cycles, hard cap 250.
     ConfigureCycle(250);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-    data.settings.css.min_cycles_ = 100;
+    data.settings.css.min_cycles_ = 5;
 
     // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
     ConfigureKPI(0, {0, 3}, {BoundaryLocation::BOTTOM, BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});

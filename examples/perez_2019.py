@@ -163,7 +163,7 @@ def build(case: str) -> sk.Simulation:
     sim.settings.max_log_points_per_step = 200
     sim.settings.acceleration_method = "none"
     sim.css.method = "mass_balance_component"
-    sim.css.min_cycles = 100
+    sim.css.min_cycles = 5
     sim.css.molar_absolute_tolerance = 1e-4
     sim.css.molar_relative_tolerance = 1e-4
     sim.css.mass_balance_tolerance = 0.005

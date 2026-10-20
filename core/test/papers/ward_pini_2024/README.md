@@ -41,5 +41,5 @@ value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#ward-pini-2024)
 (generated from `../validation_summary.json`).
 
-- CO2 purity within 2.3 pp, recovery within 1.8 pp and productivity within 0.7 % of Table 4.
+- CO2 purity within 2.4 pp, recovery within 1.8 pp and productivity within 0.7 % of Table 4.
 - The deck now uses the extended (competitive) DSL the paper states (Sect. 2.1). Energy is not compared (no pump model in the deck).
