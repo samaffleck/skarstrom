@@ -100,6 +100,17 @@ First public release of the Skarstrom engine under the Apache License 2.0.
   `examples` command lists names without `.json`.
 
 ### Fixed
+- Ergun layers no longer fail at a step switch that moves the boundary
+  pressure by a large factor (a constant-pressure feed re-pressurising an
+  evacuated bed, 0.05 -> 1 bar, failed IDA's corrector at the start of every
+  pressurisation step; the restart from a consistent initial condition that
+  rescued it gave out after about ten cycles, and sooner with a bottom void).
+  The boundary faces' Ergun coefficients used the ghost cell's density and
+  viscosity, a mirror construct (P = 2 Pf - P1) that jumps with the boundary
+  pressure; they now use the interior neighbour's. Results of Ergun decks move
+  by less than 0.1 % (the density change over half a cell); Darcy
+  (Kozeny-Carman) results are unchanged. Regression test
+  `ErgunPressureSwitchTest`.
 - The KPI configurations of the light-product-pressurisation decks
   (Perez2019_E, _F, Nguyen2023_Exp_VI–X) listed the pressurisation inlet as
   product. That stream is N2-rich gas moving within the cycle, not CO2

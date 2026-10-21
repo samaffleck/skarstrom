@@ -34,6 +34,8 @@ namespace adsim {
   // plus, on a void-bed (not ghost-void) face, the void region's resistance
   // coefficient, read from `bed`. `bed` may be null only for the two
   // boundary faces (0 and n_cells - 2), which never carry that resistance.
+  // The viscosity and density of a boundary face are the interior
+  // neighbour's, never a ghost cell's (see the implementation).
   bool ErgunFaceCoefficients(const Equations& state, const Bed* bed, int face, double& A, double& B);
   void UpdateTemperature(UserData* udata);
   void UpdateFluidTemperature(UserData* udata);
