@@ -9,11 +9,13 @@
 
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <string>
 
 #include <gtest/gtest.h>
 
+#include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_edit.h"
 #include "adsim/objects/deck_io.h"
 #include "adsim/objects/user_data.h"
@@ -117,6 +119,78 @@ TEST(DeckEdit, LibraryAdsorbentAddAndRemove) {
     ASSERT_EQ(layer.composition_.size(), 1u);
     EXPECT_EQ(layer.composition_.begin()->first, id);
   }
+}
+
+}  // namespace adsim
+
+namespace adsim {
+
+// The edit cascades must leave nothing for run-time initialisation to fill in.
+// Fluid::Initialise and Bed::Initialise seed a default for any per-component
+// entry a deck lacks (an adsorbed-phase heat capacity, a heat of adsorption, an
+// isotherm, a rate model), so a cascade that forgets one is invisible to the
+// engine but shows up in an editor that lists the map's entries: the component
+// has no field until the deck has been run once. Saving before and after
+// Initialise must give the same deck.
+namespace {
+
+std::string SavedWithFixedVersion(UserData& data) {
+  data.info.sim_version = 0;  // SaveToString increments it
+  std::string out;
+  SaveToString(data, out);
+  return out;
+}
+
+void ExpectInitialiseChangesNothing(UserData& data, const char* label) {
+  std::string err;
+  ASSERT_TRUE(data.EvaluateAllExpressions(err)) << label << ": " << err;
+  const std::string before = SavedWithFixedVersion(data);
+  ASSERT_NO_THROW(data.fluid.Initialise(data.ic)) << label;
+  ASSERT_NO_THROW(data.bed.Initialise(data.adsorbent_directory, data.fluid)) << label;
+  for (auto& [id, ads] : data.adsorbent_directory.GetAll())
+    const_cast<Adsorbent&>(ads).adsorption_source_.Initialise(data.fluid);
+  const std::string after = SavedWithFixedVersion(data);
+  if (before == after) return;
+  // Report only the lines Initialise added or removed, not both decks.
+  auto lines = [](const std::string& text) {
+    std::set<std::string> out;
+    std::istringstream in(text);
+    for (std::string l; std::getline(in, l);) out.insert(l);
+    return out;
+  };
+  const std::set<std::string> a = lines(before), b = lines(after);
+  std::string diff;
+  for (const auto& l : b) if (!a.count(l)) diff += "  + " + l + "\n";
+  for (const auto& l : a) if (!b.count(l)) diff += "  - " + l + "\n";
+  ADD_FAILURE() << label << ": Initialise changed the saved deck (a cascade left an entry for run time to seed):\n" << diff;
+}
+
+}  // namespace
+
+TEST(DeckEdit, CascadesLeaveNothingForInitialise) {
+  // A loaded deck edited through the cascades.
+  UserData edited = LoadPerez();
+  std::string err;
+  ASSERT_TRUE(AddComponentToDeck(edited, "Argon", err)) << err;
+  const AdsorbentID fresh = edited.adsorbent_directory.Add("Fresh");
+  edited.adsorbent_directory.Get(fresh).adsorption_source_.Initialise(edited.fluid);
+  edited.bed.layers_.Add("Fresh layer");
+  SeedEmptyLayerCompositions(edited);
+  ExpectInitialiseChangesNothing(edited, "Perez2019_A + component + adsorbent + layer");
+
+  // A deck built from nothing (the builder goes through the same cascades).
+  UserData built;
+  build::AddComponent(built, "CarbonDioxide");
+  build::AddComponent(built, "Nitrogen");
+  const AdsorbentID zeolite = build::AddAdsorbent(built, "13X");
+  build::SetIsotherm(built, zeolite, "extended_dual_site_langmuir_c", {"CarbonDioxide", "Nitrogen"});
+  const size_t layer = build::AddLayer(built, "13X");
+  build::SetLayerComposition(built, layer, {{zeolite, 1.0}});
+  const size_t feed = build::AddStep(built, "Feed");
+  build::SetFlowBoundary(built, feed, "bottom", "inlet");
+  build::AddStream(built, feed, "bottom", "Feed inlet", "velocity", "constant");
+  build::SetPressureBoundary(built, feed, "top", "outlet", "exponential");
+  ExpectInitialiseChangesNothing(built, "built from scratch");
 }
 
 }  // namespace adsim
