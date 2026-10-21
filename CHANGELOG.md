@@ -8,6 +8,12 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed
+- The solver log no longer ends a run with the IDA statistics line
+  ("Statistics: N steps, N residual evals, ..."); the completion line with
+  the wall time is the summary. The counters stay available through
+  `CoupledSolver::PrintStatistics()` and `SolverData::GetStatistics()`.
+
 ### Fixed
 - `AddComponentToDeck` now seeds a 0 adsorbed-phase heat capacity for the new
   component (and `RemoveComponentFromDeck` drops it), as the Python

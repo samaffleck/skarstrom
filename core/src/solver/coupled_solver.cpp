@@ -461,18 +461,6 @@ namespace adsim {
       LogMessage(LogLevel::LOW, ss.str());
     }
 
-    // Statistics
-    auto stats = solver_data_.GetStatistics();
-    {
-      std::ostringstream ss;
-      ss << "Statistics: " << stats.num_steps << " steps, "
-         << stats.num_res_evals << " residual evals, "
-         << stats.num_nonlin_iters << " nonlinear iters, "
-         << stats.num_err_test_fails << " error test fails, "
-         << stats.num_conv_fails << " convergence fails";
-      LogMessage(LogLevel::LOW, ss.str());
-    }
-
     return flag;
   }
 
@@ -499,15 +487,6 @@ namespace adsim {
          << wall_secs << " s";
       LogMessage(LogLevel::LOW, ss.str());
     }
-
-    auto stats = solver_data_.GetStatistics();
-    std::ostringstream ss;
-    ss << "Statistics: " << stats.num_steps << " steps, "
-       << stats.num_res_evals << " residual evals, "
-       << stats.num_nonlin_iters << " nonlinear iters, "
-       << stats.num_err_test_fails << " error test fails, "
-       << stats.num_conv_fails << " convergence fails";
-    LogMessage(LogLevel::LOW, ss.str());
   }
 
   void CoupledSolverChuncked::Stop() {
