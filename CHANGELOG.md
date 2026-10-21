@@ -138,6 +138,13 @@ First public release of the Skarstrom engine under the Apache License 2.0.
   (shellcheck SC2015) and also fails when the test suite deletes a file.
 
 ### Added
+- The solver log warns, once at the start of a run, about a step whose
+  constant pressure boundary differs by more than 25 % from the pressure the
+  step is expected to start at (the end value of the previous pressure
+  boundary, or the initial pressure for the first step): the bed end then
+  sees an instantaneous pressure change the integrator has to resolve, and a
+  linear or exponential ramp avoids it. Ramps never trigger it
+  (`BoundaryPressureStepChangeWarnings`, `adsim/solver/deck_warnings.h`).
 - Building a simulation from scratch. In the engine, `adsim/objects/deck_builder.h`
   creates components, adsorbents (isotherms by kind, rate models), the bed
   shape, wall, layers and their models, steps, pressure and flow boundaries,
