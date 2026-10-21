@@ -119,14 +119,30 @@ namespace adsim {
     const bool void_left  = (i     < (int)is_void.size()) && is_void[i];
     const bool void_right = (i + 1 < (int)is_void.size()) && is_void[i + 1];
 
+    // Transport properties (viscosity, density) of each side. A ghost cell's
+    // gas state is the boundary condition's mirror construct (P = 2 Pf - P1,
+    // T = 2 Tin - T1), not a gas that exists: when a step switch moves the
+    // boundary pressure, the ghost pressure and density jump by the full swing
+    // (to ~2 bar for a 1 bar feed into an evacuated bed), and the inertial
+    // coefficient's 1 / sqrt(rho) sensitivity to that jump made IDA's Newton
+    // corrector diverge at the start of every pressurisation step (the
+    // Jacobian is evaluated at the predicted, pre-switch state). The two
+    // boundary faces therefore take their transport properties from the
+    // interior neighbour, whose state is continuous through the switch. At
+    // steady flow the difference from the ghost-averaged value is the
+    // density change over half a cell (well below 0.1 %).
+    const int n_cells = static_cast<int>(is_void.size());
+    const int tl = (i == 0) ? 1 : i;
+    const int tr = (i + 1 == n_cells - 1) ? n_cells - 2 : i + 1;
+
     if (!void_left && !void_right) {
       if (beta[i] == 0.0 && beta[i + 1] == 0.0) return false;
       // The two half-cells between the cell centres act in series, each with
       // its own viscous (mu dx / 2K) and inertial (beta rho dx / 2)
       // resistance. With beta = 0 this is exactly the harmonic-K Darcy face,
       // so a Darcy layer next to an Ergun layer is treated consistently.
-      A = 0.5 * (mu[i] * dx[i] / K[i] + mu[i + 1] * dx[i + 1] / K[i + 1]);
-      B = 0.5 * (beta[i] * rho[i] * dx[i] + beta[i + 1] * rho[i + 1] * dx[i + 1]);
+      A = 0.5 * (mu[tl] * dx[i] / K[i] + mu[tr] * dx[i + 1] / K[i + 1]);
+      B = 0.5 * (beta[i] * rho[tl] * dx[i] + beta[i + 1] * rho[tr] * dx[i + 1]);
       return true;
     }
 
@@ -134,7 +150,8 @@ namespace adsim {
     // full width (Darcy's law does not apply inside a lumped tank).
     const int bed_idx = void_left ? (i + 1) : i;
     if (beta[bed_idx] == 0.0) return false;
-    double R_face = mu[bed_idx] * dx[bed_idx] / K[bed_idx];
+    const int t_idx = void_left ? tr : tl;  // the bed side, or its interior neighbour at a boundary face
+    double R_face = mu[t_idx] * dx[bed_idx] / K[bed_idx];
     // Optional user-specified void resistance: applied ONLY at the void-bed
     // interface (where a screen or distributor would sit), not at the
     // ghost-void face (the BC face, where the boundary condition controls the
@@ -149,7 +166,7 @@ namespace adsim {
       }
     }
     A = R_face;
-    B = beta[bed_idx] * rho[bed_idx] * dx[bed_idx];
+    B = beta[bed_idx] * rho[t_idx] * dx[bed_idx];
     return true;
   }
 

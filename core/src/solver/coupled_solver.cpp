@@ -9,6 +9,7 @@
 #include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/log.h"
 #include "adsim/solver/ida_settings.h"
+#include "adsim/solver/deck_warnings.h"
 #include <chrono>
 #include <optional>
 #include <sstream>
@@ -321,6 +322,10 @@ namespace adsim {
          << ", max cycles: " << total_cycles << ")";
       LogMessage(LogLevel::LOW, ss.str());
     }
+    // Advisory, once per run: a constant pressure boundary far from the
+    // pressure its step starts at (see deck_warnings.h).
+    for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
+      LogMessage(LogLevel::LOW, w);
 
     stop_requested_ = false;
 
@@ -561,6 +566,8 @@ namespace adsim {
            << ", max cycles: " << cycle.number_of_cycles_ << ")";
         LogMessage(LogLevel::LOW, ss.str());
       }
+      for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
+        LogMessage(LogLevel::LOW, w);
     }
   }
 
