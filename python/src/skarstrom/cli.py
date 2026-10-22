@@ -448,7 +448,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="convergence: percentile uncertainty as a fraction of the 5-95 %% band (default 0.1)")
     s.add_argument("--setting", action="append", metavar="PATH=VALUE",
                    help="applied to every run and recorded with the study (repeatable), e.g. a tighter "
-                        "css.molar_relative_tolerance")
+                        "css.mass_balance_tolerance")
     s.add_argument("--set", action="append", metavar="PATH=VALUE", help="change the deck before the study")
     s.add_argument("--cycles", type=int, help="override the deck's cycle limit")
     s.add_argument("--no-require-css", action="store_true",

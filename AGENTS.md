@@ -127,9 +127,9 @@ KPIs exist only for components tracked in the deck's KPI configuration; some dec
 
 ```python
 from skarstrom import sensitivity as sa
-study = sa.Study(sim, [sa.relative("step[1].time", 0.1), sa.uniform("layer[1].bed_void_fraction", 0.36, 0.40),
+study = sa.Study(sim, [sa.relative("step[1].time", 0.1), sa.uniform("layer[1].bed_void_fraction", 0.39, 0.43),
                        sa.normal(path, mean, sd, lower=0), sa.triangular(path, lo, mode, hi)],
-                 outputs=None, settings={"css.molar_relative_tolerance": 1e-4}, require_css=True, workers=4)
+                 outputs=None, settings={"css.mass_balance_tolerance": 2e-3}, require_css=True, workers=4)
 screen = study.screen(trajectories=10)            # Morris: .table() (mu*, mu, sigma), .ranking(), .important()
 spread = study.propagate(inputs=screen.important())   # LHS Monte Carlo: .table() (p05/p50/p95, converged), .shares()
 ```

@@ -10,9 +10,9 @@ steps::
 
     sim = skarstrom.examples.Perez2019_A.load()
     study = sa.Study(sim, [
-        sa.relative("step[Feed].time", 0.10),                       # +-10 %, uniform
-        sa.normal("adsorbent[1].isotherm[CarbonDioxide].b1", 1.2e-5, 0.1e-5),
-        sa.uniform("layer[1].bed_void_fraction", 0.35, 0.40),
+        sa.relative("step[Feed].time", 0.10),                        # +-10 %, uniform
+        sa.normal("adsorbent[1].isotherm[CarbonDioxide].b1", 3.934e-7, 0.2e-7, lower=0),
+        sa.uniform("layer[1].bed_void_fraction", 0.39, 0.43),
     ], workers=4)
     screen = study.screen()               # Morris: which inputs matter (r (k + 1) runs)
     screen.table()                        # mu*, mu, sigma per output and input
