@@ -29,6 +29,16 @@ root `CMakeLists.txt`.
   the wall time is the summary. The counters stay available through
   `CoupledSolver::PrintStatistics()` and `SolverData::GetStatistics()`.
 
+### Removed
+- The unsourced legacy adsorbent library entry `zeolite_13x` ("Zeolite 13X,
+  CO2/CH4 (legacy)") and its blob `data/adsorbents/zeolite_13x.json`. The
+  sourced 13X entries (`zeolite_13x_ferre2026`, `zeolite_13x_perez2019`,
+  `zeolite_13x_streb2021`) remain.
+- The `bulk_density` property from `data/adsorbents/library.json`: the bed
+  (bulk) density depends on how a layer is packed, so it is a layer property,
+  not a property of the adsorbent material. The layer's bed voidage and the
+  particle density determine it.
+
 ### Fixed
 - `AddComponentToDeck` now seeds a 0 adsorbed-phase heat capacity for the new
   component (and `RemoveComponentFromDeck` drops it), as the Python

@@ -89,7 +89,6 @@ POINT_QUANTITIES = ["absolute", "as_measured", "excess"]
 # Catalogue property key -> (label, unit, blob field it must equal or None).
 PROPERTIES = {
     "particle_density": ("Particle density", "kg/m3", "Density"),
-    "bulk_density": ("Bed (bulk) density", "kg/m3", None),
     "skeletal_density": ("Skeletal density", "kg/m3", None),
     "heat_capacity": ("Heat capacity", "J/(kg K)", "Specific_Heat_Capacity"),
     "particle_voidage": ("Particle voidage", "-", "Particle_Void_Fraction"),
