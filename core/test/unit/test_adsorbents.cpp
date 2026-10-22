@@ -402,9 +402,13 @@ namespace adsim {
     adsorbent.adsorption_source_.heat_of_adsorption_[CO2] = 31.164 * 1e3;
     adsorbent.adsorption_source_.heat_of_adsorption_[CH4] = 20.856 * 1e3;
 
-    SaveAdsorbent(adsorbent, "zeolite_13x");
+    // Not a library entry (the unsourced legacy 13X blob was removed from
+    // data/adsorbents/), so the round trip goes through a temporary file.
+    const auto json_path = std::filesystem::temp_directory_path() / "adsim_zeolite_13x.json";
+    SaveAdsorbentToJSON(json_path.string(), adsorbent);
     Adsorbent adsorbent_cpy;
-    LoadAdsorbent("zeolite_13x", adsorbent_cpy);
+    LoadAdsorbentFromJSON(json_path.string(), adsorbent_cpy);
+    std::filesystem::remove(json_path);
 
     EXPECT_EQ(adsorbent.name_, adsorbent_cpy.name_);
     EXPECT_DOUBLE_EQ(adsorbent.solid_density_, adsorbent_cpy.solid_density_);

@@ -202,7 +202,6 @@
       },
       "properties": {
         "particle_density": {"value": 910.4166666666667, "provenance": "derived", "ref": "Table 1: rho_b / (1 - eps) = 437 / (1 - 0.52)"},
-        "bulk_density": {"value": 437.0, "provenance": "source", "ref": "Table 1"},
         "heat_capacity": {"value": 900.0, "provenance": "source", "ref": "Table 1"},
         "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 1, pellet porosity"},
         "particle_diameter": {"value": 0.002, "provenance": "source", "ref": "Table 1, pellet radius 1e-3 m"},
@@ -234,7 +233,6 @@
       },
       "properties": {
         "particle_density": {"value": 805.5555555555555, "provenance": "derived", "ref": "Table 1: rho_b / (1 - eps) = 435 / (1 - 0.46)"},
-        "bulk_density": {"value": 435.0, "provenance": "source", "ref": "Table 1"},
         "heat_capacity": {"value": 1040.0, "provenance": "source", "ref": "Table 1"},
         "particle_voidage": {"value": 0.35, "provenance": "source", "ref": "Table 1, pellet porosity"},
         "particle_diameter": {"value": 0.002, "provenance": "source", "ref": "Table 1, pellet radius 1e-3 m"},
@@ -337,7 +335,6 @@
       },
       "properties": {
         "particle_density": {"value": 850.0, "provenance": "source", "ref": "Casas 2012 Table 2 (manufacturer)"},
-        "bulk_density": {"value": 507.0, "provenance": "source", "ref": "Casas 2012 Table 2"},
         "heat_capacity": {"value": 1000.0, "provenance": "source", "ref": "Casas 2012 Table 2"},
         "particle_voidage": {"value": 0.5685279187817258, "provenance": "repo", "ref": "Repo deck value 1 - 850/1970; consistent with Casas 2012 Table 2 (eps_t = 0.742, eps_b = 0.403 gives eps_p = 0.568)"},
         "particle_diameter": {"value": 0.003, "provenance": "source", "ref": "Casas 2012 Table 2"},
@@ -734,7 +731,6 @@
       },
       "properties": {
         "particle_density": {"value": 1085.0, "provenance": "source", "ref": "Table 1"},
-        "bulk_density": {"value": 595.0, "provenance": "source", "ref": "Table 1"},
         "skeletal_density": {"value": 2359.0, "provenance": "source", "ref": "Table 1"},
         "heat_capacity": {"value": 1100.0, "provenance": "source", "ref": "Table 1"},
         "particle_voidage": {"value": 0.5400593471810089, "provenance": "derived", "ref": "1 - rho_p / rho_s = 1 - 1085/2359 (Table 1)"},
@@ -792,7 +788,6 @@
       },
       "properties": {
         "particle_density": {"value": 799.6323529411765, "provenance": "derived", "ref": "Table 1: rho_b / (1 - eps) = 435 / (1 - 0.456). The repo decks round this to 799."},
-        "bulk_density": {"value": 435.0, "provenance": "source", "ref": "Table 1"},
         "heat_capacity": {"value": 1040.0, "provenance": "source", "ref": "Table 1"},
         "particle_voidage": {"value": 0.59, "provenance": "source", "ref": "Table 1 (the repo decks set 0)"},
         "particle_diameter": {"value": 0.003, "provenance": "source", "ref": "Table 1, particle radius 1.5e-3 m"},
@@ -860,7 +855,6 @@
       },
       "properties": {
         "particle_density": {"value": 61.0, "provenance": "source", "ref": "Table 1"},
-        "bulk_density": {"value": 55.4, "provenance": "source", "ref": "Table 1"},
         "skeletal_density": {"value": 1590.0, "provenance": "source", "ref": "Table 1, material density"},
         "heat_capacity": {"value": 2070.0, "provenance": "source", "ref": "Table 1"},
         "particle_voidage": {"value": 0.9616352201257862, "provenance": "derived", "ref": "1 - rho_p / rho_mat = 1 - 61/1590 (Table 1)"},
@@ -874,39 +868,6 @@
         "Table 2 prints dH0 = -57.047 kJ/mol; Eq. 9 needs the magnitude for the affinity to fall with temperature, so the entry stores dH0 = +57047 J/mol (interpretation of the sign convention).",
         "Dry-gas fit only: the water GAB isotherm and the humid modified-Toth model of the paper are not available in the engine.",
         "Includes the Table 1 LDF constant k_CO2 = 2e-4 1/s."
-      ],
-      "example_deck_note": "No bundled example deck uses this entry."
-    },
-    {
-      "key": "zeolite_13x",
-      "file": "zeolite_13x.json",
-      "label": "Zeolite 13X, CO2/CH4 (legacy)",
-      "material": "Zeolite 13X",
-      "family": "zeolite",
-      "status": "legacy",
-      "legacy_note": "Source unknown - legacy entry. The generating unit test (AdsorbentTest.Zeolite13X_CO2CH4_ExtendedSingleSiteLangmuir) carries a comment pointing to Santos et al. 2010 / Wu et al. 2015 (J. Clean. Prod. 101, 251-261), but the values have not been verified against either.",
-      "applications": ["biogas upgrading"],
-      "components": ["CarbonDioxide", "Methane"],
-      "sources": [],
-      "isotherms": [
-        {"component": "CarbonDioxide", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."},
-        {"component": "Methane", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."}
-      ],
-      "heat_of_adsorption": {
-        "CarbonDioxide": {"value": 31164.0, "provenance": "unknown", "ref": "unverified"},
-        "Methane": {"value": 20856.0, "provenance": "unknown", "ref": "unverified"}
-      },
-      "properties": {
-        "particle_density": {"value": 1324.0, "provenance": "unknown", "ref": "unverified"},
-        "heat_capacity": {"value": 900.0, "provenance": "unknown", "ref": "unverified"},
-        "particle_voidage": {"value": 0.35, "provenance": "default", "ref": "engine default"},
-        "particle_diameter": {"value": null, "provenance": "unknown", "ref": "not recorded"},
-        "thermal_conductivity": {"value": 0.15, "provenance": "unknown", "ref": "unverified"}
-      },
-      "example_decks": [],
-      "deck_checks": [],
-      "notes": [
-        "Kept for backward compatibility of the web key 'zeolite_13x'. Prefer a sourced 13X entry."
       ],
       "example_deck_note": "No bundled example deck uses this entry."
     },
@@ -1028,7 +989,6 @@
       },
       "properties": {
         "particle_density": {"value": 744.0, "provenance": "source", "ref": "Table 5, rho_particle (dried resin)"},
-        "bulk_density": {"value": 476.0, "provenance": "source", "ref": "Table 5, rho_bed"},
         "skeletal_density": {"value": 1123.1, "provenance": "source", "ref": "Table 5, rho_skeletal"},
         "heat_capacity": {"value": 1307.4440323153406, "provenance": "derived", "ref": "Eq 7, c_p = a T^-2 + b T - c with Table 6 (a = -3.23e4 J K/g, b = 0.00227 J/(g K2), c = -0.994 J/(g K)) evaluated at 298.15 K; the DSC data span 298-393 K (Section 3.1.2)"},
         "particle_voidage": {"value": 0.338, "provenance": "source", "ref": "Table 5, eps_particle"},
@@ -1097,7 +1057,6 @@
       },
       "properties": {
         "particle_density": {"value": 663.0, "provenance": "source", "ref": "Table 5, rho_particle (dried resin)"},
-        "bulk_density": {"value": 424.0, "provenance": "source", "ref": "Table 5, rho_bed"},
         "skeletal_density": {"value": 1147.1, "provenance": "source", "ref": "Table 5, rho_skeletal"},
         "heat_capacity": {"value": 1327.1447220953241, "provenance": "derived", "ref": "Eq 7, c_p = a T^-2 + b T - c with Table 6 (a = -5.86e4 J K/g, b = 0.000994 J/(g K2), c = -1.69 J/(g K)) evaluated at 298.15 K; the DSC data span 298-393 K (Section 3.1.2)"},
         "particle_voidage": {"value": 0.422, "provenance": "source", "ref": "Table 5, eps_particle"},
@@ -1468,7 +1427,6 @@
       },
       "properties": {
         "particle_density": {"value": 810.0, "provenance": "source", "ref": "Table 5, rho_pellet (binderless pellet, batch 5; the isotherms were measured on the powder)"},
-        "bulk_density": {"value": 580.0, "provenance": "source", "ref": "Table 5, rho_bed"},
         "skeletal_density": {"value": 1260.0, "provenance": "source", "ref": "Table 5, rho_skeletal"},
         "heat_capacity": {"value": 1123.110706490334, "provenance": "derived", "ref": "Eq 6, c_p = a (T+273.15)^-2 + b (T+273.15) - c with a = 1.077e5 J C/g, b = 5.65e-3 J/(g C2), c = 1.773 J/(g C) (Section 3.1), evaluated at 25 C; the DSC data span 25-160 C (1.06-1.25 J/(g C))"},
         "particle_voidage": {"value": 0.36, "provenance": "source", "ref": "Table 5, eps_pellet"},
