@@ -2,7 +2,7 @@
 
 # Adsorbent Library
 
-Skarstrom ships a curated library of **35** adsorbents (32 sourced, 3 legacy) in `data/adsorbents/`. Every sourced entry cites the publication (DOI and table/figure) its parameters were transcribed from, and every property records its provenance:
+Skarstrom ships a curated library of **34** adsorbents (32 sourced, 2 legacy) in `data/adsorbents/`. Every sourced entry cites the publication (DOI and table/figure) its parameters were transcribed from, and every property records its provenance:
 
 - **source** — transcribed from the cited table or figure;
 - **derived** — computed from cited values (the formula is given);
@@ -14,7 +14,7 @@ A quantity the source does not state is never filled in silently: its reference 
 
 Legacy entries predate the curated library; their origin has not been verified and they are labelled *source unknown*.
 
-**Completeness:** 31 of 35 entries carry every required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) as a sourced value or an explicit *not stated in source* note; the others are listed as incomplete below. **Tabulated source data:** 7 entries include equilibrium points tabulated in their source (tables, SI files or datasets — never digitised from plots), stored with the entry in `library.json`.
+**Completeness:** 31 of 34 entries carry every required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) as a sourced value or an explicit *not stated in source* note; the others are listed as incomplete below. **Tabulated source data:** 7 entries include equilibrium points tabulated in their source (tables, SI files or datasets — never digitised from plots), stored with the entry in `library.json`.
 
 ## Using the library
 
@@ -57,7 +57,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | [Activated carbon (Ward &amp; Pini 2022)](#activated-carbon-ward2022) | carbon | CarbonDioxide | post-combustion CO2 capture | [10.1007/s10450-022-00361-z](https://doi.org/10.1007/s10450-022-00361-z) |
 | [Silica gel (Ganesan &amp; Grande 2026)](#silica-gel-ganesan2026) | silica | CarbonDioxide, Methane | biogas upgrading | [10.1007/s10450-026-00702-2](https://doi.org/10.1007/s10450-026-00702-2), [10.1016/j.jcou.2018.08.001](https://doi.org/10.1016/j.jcou.2018.08.001) |
 | [APDES-NFC amine sorbent (Stampi-Bombelli 2020)](#apdes-nfc-stampi2020) | amine | CarbonDioxide | direct air capture | [10.1007/s10450-020-00249-w](https://doi.org/10.1007/s10450-020-00249-w), [10.1007/s10450-021-00351-7](https://doi.org/10.1007/s10450-021-00351-7) |
-| [Zeolite 13X, CO2/CH4 (legacy)](#zeolite-13x) | zeolite | CarbonDioxide, Methane | biogas upgrading | source unknown (legacy) |
 | [CMS-3K, CO2/CH4 (legacy)](#cms-3k) | carbon | CarbonDioxide, Methane | biogas upgrading | source unknown (legacy) |
 | [MOF-508b, CO2/CH4 (legacy)](#mof-508b) | MOF | CarbonDioxide, Methane | biogas upgrading | source unknown (legacy) |
 | [Lewatit VP OC 1065 (Low 2023)](#lewatit-vp-oc-1065-low2023) | amine | CarbonDioxide, Nitrogen | direct air capture (DAC) | [10.1021/acs.jced.3c00401](https://doi.org/10.1021/acs.jced.3c00401) |
@@ -192,7 +191,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat of adsorption, CarbonDioxide | 30.85 kJ/mol | repo deck/test | Not stated in source as a single value (checked: Ward &amp; Pini 2024 Table 1, PR #137 curation; the model uses the site energies dU\_b, dU\_d). 30.85 kJ/mol is the value used by the Ward2024 deck / ward\_pini\_2024.cpp; it equals the Perez 2019 13X value. |
 | Heat of adsorption, Nitrogen | 15.93 kJ/mol | repo deck/test | Not stated in source as a single value (checked: Ward &amp; Pini 2024 Table 1, PR #137 curation). 15.93 kJ/mol is the value used by the Ward2024 deck (equals the Perez 2019 13X value). |
 | Particle density | 910.417 kg/m3 | derived | Table 1: rho\_b / (1 - eps) = 437 / (1 - 0.52) |
-| Bed (bulk) density | 437 kg/m3 | source | Table 1 |
 | Heat capacity | 900 J/(kg K) | source | Table 1 |
 | Particle voidage | 0.35 | source | Table 1, pellet porosity |
 | Particle diameter | 0.002 m | source | Table 1, pellet radius 1e-3 m |
@@ -226,7 +224,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat of adsorption, CarbonDioxide | not set (0) | not stated | Not stated in source as a single value (checked: Ward &amp; Pini 2024 Table 1, PR #137 curation; the model uses the site energies dU\_b, dU\_d). Left unset (0) - set it before a non-isothermal run. |
 | Heat of adsorption, Nitrogen | not set (0) | not stated | Not stated in source as a single value (checked: Ward &amp; Pini 2024 Table 1, PR #137 curation). Left unset (0). |
 | Particle density | 805.556 kg/m3 | derived | Table 1: rho\_b / (1 - eps) = 435 / (1 - 0.46) |
-| Bed (bulk) density | 435 kg/m3 | source | Table 1 |
 | Heat capacity | 1040 J/(kg K) | source | Table 1 |
 | Particle voidage | 0.35 | source | Table 1, pellet porosity |
 | Particle diameter | 0.002 m | source | Table 1, pellet radius 1e-3 m |
@@ -296,7 +293,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat of adsorption, CarbonDioxide | 26 kJ/mol | source | Casas 2012 Table 2 (Clausius-Clapeyron) |
 | Heat of adsorption, Hydrogen | 9.8 kJ/mol | source | Casas 2012 Table 2 (Clausius-Clapeyron) |
 | Particle density | 850 kg/m3 | source | Casas 2012 Table 2 (manufacturer) |
-| Bed (bulk) density | 507 kg/m3 | source | Casas 2012 Table 2 |
 | Heat capacity | 1000 J/(kg K) | source | Casas 2012 Table 2 |
 | Particle voidage | 0.568528 | repo deck/test | Repo deck value 1 - 850/1970; consistent with Casas 2012 Table 2 (eps\_t = 0.742, eps\_b = 0.403 gives eps\_p = 0.568) |
 | Particle diameter | 0.003 m | source | Casas 2012 Table 2 |
@@ -717,7 +713,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat of adsorption, Methane | 18.8 kJ/mol | repo deck/test | Not stated in source as a single value (checked: Streb &amp; Mazzotti 2021 Fig. 4, isosteric heat shown graphically only); 18.8 kJ/mol is the value used by the streb\_2021 decks |
 | Heat of adsorption, Hydrogen | not set (0) | not stated | Not stated in source as a single value (checked: Streb &amp; Mazzotti 2021 Fig. 4, graphical only). Left unset (0). |
 | Particle density | 1085 kg/m3 | source | Table 1 |
-| Bed (bulk) density | 595 kg/m3 | source | Table 1 |
 | Skeletal density | 2359 kg/m3 | source | Table 1 |
 | Heat capacity | 1100 J/(kg K) | source | Table 1 |
 | Particle voidage | 0.540059 | derived | 1 - rho\_p / rho\_s = 1 - 1085/2359 (Table 1) |
@@ -783,7 +778,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 |---|---|---|---|
 | Heat of adsorption, CarbonDioxide | 29.98 kJ/mol | repo deck/test | Not stated in source as a single value (checked: Ward &amp; Pini 2022 Table 2, DSL site energies only); the Ward\_2022 decks use \|dU\_1\| = 29.98 kJ/mol |
 | Particle density | 799.632 kg/m3 | derived | Table 1: rho\_b / (1 - eps) = 435 / (1 - 0.456). The repo decks round this to 799. |
-| Bed (bulk) density | 435 kg/m3 | source | Table 1 |
 | Heat capacity | 1040 J/(kg K) | source | Table 1 |
 | Particle voidage | 0.59 | source | Table 1 (the repo decks set 0) |
 | Particle diameter | 0.003 m | source | Table 1, particle radius 1.5e-3 m |
@@ -852,7 +846,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 |---|---|---|---|
 | Heat of adsorption, CarbonDioxide | 57 kJ/mol | source | Table 1, dH\_CO2 = -57 kJ/mol |
 | Particle density | 61 kg/m3 | source | Table 1 |
-| Bed (bulk) density | 55.4 kg/m3 | source | Table 1 |
 | Skeletal density | 1590 kg/m3 | source | Table 1, material density |
 | Heat capacity | 2070 J/(kg K) | source | Table 1 |
 | Particle voidage | 0.961635 | derived | 1 - rho\_p / rho\_mat = 1 - 61/1590 (Table 1) |
@@ -867,39 +860,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 - Table 2 prints dH0 = -57.047 kJ/mol; Eq. 9 needs the magnitude for the affinity to fall with temperature, so the entry stores dH0 = +57047 J/mol (interpretation of the sign convention).
 - Dry-gas fit only: the water GAB isotherm and the humid modified-Toth model of the paper are not available in the engine.
 - Includes the Table 1 LDF constant k\_CO2 = 2e-4 1/s.
-
----
-
-### Zeolite 13X, CO2/CH4 (legacy) {#zeolite-13x}
-
-**Material:** Zeolite 13X · **Family:** zeolite · **Applications:** biogas upgrading · **Library key:** `zeolite_13x` · **File:** `zeolite_13x.json`
-
-> **Source unknown - legacy entry. The generating unit test (AdsorbentTest.Zeolite13X\_CO2CH4\_ExtendedSingleSiteLangmuir) carries a comment pointing to Santos et al. 2010 / Wu et al. 2015 (J. Clean. Prod. 101, 251-261), but the values have not been verified against either.**
-
-| Component | Isotherm | Parameters | T range of fit | P range of fit | Ref. |
-|---|---|---|---|---|---|
-| CarbonDioxide | Extended Single Site Langmuir | m1 = 3.75; b1 = 3.96e-5; q1 = 31164 | not stated | not stated | unknown |
-| Methane | Extended Single Site Langmuir | m1 = 14.2; b1 = 1.32e-7; q1 = 20856 | not stated | not stated | unknown |
-
-*Fit ranges.* CarbonDioxide: Unknown. Methane: Unknown.
-
-| Quantity | Value | Provenance | Reference |
-|---|---|---|---|
-| Heat of adsorption, CarbonDioxide | 31.164 kJ/mol | unknown | unverified |
-| Heat of adsorption, Methane | 20.856 kJ/mol | unknown | unverified |
-| Particle density | 1324 kg/m3 | unknown | unverified |
-| Heat capacity | 900 J/(kg K) | unknown | unverified |
-| Particle voidage | 0.35 | engine default | engine default |
-| Particle diameter | — | unknown | not recorded |
-| Thermal conductivity | 0.15 W/(m K) | unknown | unverified |
-
-*No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).
-
-**Used by example decks:** none. No bundled example deck uses this entry.
-
-> **Incomplete entry.** Missing or unverified: doi, T\_range\_K (CarbonDioxide), P\_range\_Pa (CarbonDioxide), T\_range\_K (Methane), P\_range\_Pa (Methane), heat\_of\_adsorption (CarbonDioxide), heat\_of\_adsorption (Methane), particle\_density, heat\_capacity, particle\_diameter.
-
-- Kept for backward compatibility of the web key 'zeolite\_13x'. Prefer a sourced 13X entry.
 
 ---
 
@@ -987,7 +947,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat of adsorption, CarbonDioxide | 70.1 kJ/mol | source | Table 7, -dH of the td-Toth fit (the limiting heat from the virial analysis is 107 +/- 8 kJ/mol, Table 10) |
 | Heat of adsorption, Nitrogen | 20.3 kJ/mol | source | Table 8, -dH of the SSL fit (Table 10 limiting heat: 16 +/- 8 kJ/mol) |
 | Particle density | 744 kg/m3 | source | Table 5, rho\_particle (dried resin) |
-| Bed (bulk) density | 476 kg/m3 | source | Table 5, rho\_bed |
 | Skeletal density | 1123.1 kg/m3 | source | Table 5, rho\_skeletal |
 | Heat capacity | 1307.44 J/(kg K) | derived | Eq 7, c\_p = a T^-2 + b T - c with Table 6 (a = -3.23e4 J K/g, b = 0.00227 J/(g K2), c = -0.994 J/(g K)) evaluated at 298.15 K; the DSC data span 298-393 K (Section 3.1.2) |
 | Particle voidage | 0.338 | source | Table 5, eps\_particle |
@@ -1032,7 +991,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat of adsorption, CarbonDioxide | 70.1 kJ/mol | source | Table 7, -dH of the td-Toth fit (the limiting heat from the virial analysis is 104 +/- 9 kJ/mol, Table 10) |
 | Heat of adsorption, Nitrogen | 18.65 kJ/mol | source | Table 8, -dH of the SSL fit (Table 10 limiting heat: 13 +/- 13 kJ/mol) |
 | Particle density | 663 kg/m3 | source | Table 5, rho\_particle (dried resin) |
-| Bed (bulk) density | 424 kg/m3 | source | Table 5, rho\_bed |
 | Skeletal density | 1147.1 kg/m3 | source | Table 5, rho\_skeletal |
 | Heat capacity | 1327.14 J/(kg K) | derived | Eq 7, c\_p = a T^-2 + b T - c with Table 6 (a = -5.86e4 J K/g, b = 0.000994 J/(g K2), c = -1.69 J/(g K)) evaluated at 298.15 K; the DSC data span 298-393 K (Section 3.1.2) |
 | Particle voidage | 0.422 | source | Table 5, eps\_particle |
@@ -1283,7 +1241,6 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentF
 | Heat of adsorption, CarbonDioxide | not set (0) | not stated | Not stated in source as a single value (checked: Low 2024 Table 1, DSL site energies only, and Fig. 5, isosteric heat vs loading shown graphically). Left unset (0) - set it before a non-isothermal run. |
 | Heat of adsorption, Nitrogen | 21.175 kJ/mol | source | Table 1, -dU of the SSL fit (internal energy of adsorption) |
 | Particle density | 810 kg/m3 | source | Table 5, rho\_pellet (binderless pellet, batch 5; the isotherms were measured on the powder) |
-| Bed (bulk) density | 580 kg/m3 | source | Table 5, rho\_bed |
 | Skeletal density | 1260 kg/m3 | source | Table 5, rho\_skeletal |
 | Heat capacity | 1123.11 J/(kg K) | derived | Eq 6, c\_p = a (T+273.15)^-2 + b (T+273.15) - c with a = 1.077e5 J C/g, b = 5.65e-3 J/(g C2), c = 1.773 J/(g C) (Section 3.1), evaluated at 25 C; the DSC data span 25-160 C (1.06-1.25 J/(g C)) |
 | Particle voidage | 0.36 | source | Table 5, eps\_pellet |

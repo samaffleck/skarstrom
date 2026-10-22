@@ -99,7 +99,7 @@ TEST(AdsorbentLibraryTest, CatalogParsesWithUniqueKeysAndFiles) {
     EXPECT_FALSE(e.applications.empty()) << e.key;
   }
   // Keys the web build has always exposed stay available.
-  for (const char* k : {"zeolite_13x", "activated_carbon", "mg_mof_74"})
+  for (const char* k : {"activated_carbon", "mg_mof_74"})
     EXPECT_NE(lib.Find(k), nullptr) << k;
   // No orphan blobs: every adsorbent file in the folder is catalogued.
   for (const auto& f : std::filesystem::directory_iterator(kLibDir)) {
