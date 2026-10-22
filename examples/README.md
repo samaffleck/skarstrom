@@ -63,7 +63,7 @@ published values are mostly the authors' optimised **model** results or
 `notebooks/` holds three executed notebooks:
 
 - `parametric_study.ipynb` — sweeps the feed-step time of a CO₂ VSA cycle and plots purity and recovery;
-- `sensitivity_analysis.ipynb` — local finite-difference sensitivities of the KPIs to tunable parameters;
+- `sensitivity_analysis.ipynb` — screening of uncertain inputs and KPI error bars with `skarstrom.sensitivity`;
 - `isotherm_fit.ipynb` — single- and multi-temperature isotherm fits with the engine's fitter.
 
 ## Decks

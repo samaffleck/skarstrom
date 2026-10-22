@@ -28,6 +28,7 @@
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_edit.h"
 #include "adsim/solver/isotherm_fit.h"
+#include "adsim/solver/sensitivity.h"
 
 namespace py = pybind11;
 
@@ -118,6 +119,74 @@ adsim::isofit::ParamSpec SpecFromDict(const py::dict& d) {
   return s;
 }
 
+
+// ---- sensitivity (adsim/solver/sensitivity.h) ------------------------------------
+// Inputs, plans and policies cross as plain dicts; skarstrom/sensitivity.py
+// builds the public API on top.
+
+namespace sa = adsim::sensitivity;
+
+double DictNumber(const py::dict& d, const char* key) {
+  if (!d.contains(key) || d[key].is_none()) return sa::kNaN;
+  return d[key].cast<double>();
+}
+
+sa::Input InputFromDict(const py::dict& d) {
+  sa::Input in;
+  in.path = d["path"].cast<std::string>();
+  in.distribution = sa::DistributionFromName(d.contains("distribution") ? d["distribution"].cast<std::string>()
+                                                                        : std::string("uniform"));
+  in.lower = DictNumber(d, "lower");
+  in.upper = DictNumber(d, "upper");
+  in.mode = DictNumber(d, "mode");
+  in.mean = DictNumber(d, "mean");
+  in.sd = DictNumber(d, "sd");
+  return in;
+}
+
+std::vector<sa::Input> InputsFromList(const py::list& l) {
+  std::vector<sa::Input> out;
+  for (auto item : l) out.push_back(InputFromDict(item.cast<py::dict>()));
+  return out;
+}
+
+std::vector<sa::Output> OutputsFromList(const std::vector<std::string>& names) {
+  std::vector<sa::Output> out;
+  for (const auto& n : names) out.push_back(sa::ParseOutput(n));
+  return out;
+}
+
+sa::RunPolicy PolicyFromDict(const py::dict& d) {
+  sa::RunPolicy p;
+  if (d.contains("require_css")) p.require_css = d["require_css"].cast<bool>();
+  if (d.contains("cycles") && !d["cycles"].is_none()) p.cycles = d["cycles"].cast<int>();
+  if (d.contains("settings")) {
+    for (auto item : d["settings"].cast<py::dict>()) {
+      p.settings.emplace_back(item.first.cast<std::string>(), py::str(item.second).cast<std::string>());
+    }
+  }
+  return p;
+}
+
+py::dict PlanToDict(const sa::Plan& plan) {
+  py::dict d;
+  d["method"] = sa::MethodName(plan.method);
+  d["seed"] = plan.seed;
+  d["trajectories"] = plan.trajectories;
+  d["levels"] = plan.levels;
+  d["batch"] = plan.batch;
+  d["changed"] = plan.changed;
+  d["u"] = plan.u;
+  d["values"] = plan.values;
+  return d;
+}
+
+py::dict IntervalToDict(const sa::Interval& i) {
+  py::dict d;
+  d["low"] = i.low;
+  d["high"] = i.high;
+  return d;
+}
 }  // namespace
 
 PYBIND11_MODULE(_core, m) {
@@ -818,4 +887,144 @@ PYBIND11_MODULE(_core, m) {
   }, py::arg("kind"), py::arg("pressure"), py::arg("loading"), py::arg("temperature"),
      py::arg("mole_fraction") = std::vector<double>{}, py::arg("specs") = py::none(), py::arg("t_ref") = 0.0,
      py::arg("max_global_evals") = 0);
+
+  m.def("sensitivity_morris_plan", [](const py::list& inputs, int trajectories, int levels, std::uint64_t seed) {
+    return PlanToDict(sa::MorrisPlan(InputsFromList(inputs), trajectories, levels, seed));
+  }, py::arg("inputs"), py::arg("trajectories"), py::arg("levels"), py::arg("seed"));
+  m.def("sensitivity_monte_carlo_plan", [](const py::list& inputs, int runs, std::uint64_t seed, int batch) {
+    return PlanToDict(sa::MonteCarloPlan(InputsFromList(inputs), runs, seed, batch));
+  }, py::arg("inputs"), py::arg("runs"), py::arg("seed"), py::arg("batch"));
+  m.def("sensitivity_quantile", [](const py::dict& input, const std::vector<double>& u) {
+    const sa::Input in = InputFromDict(input);
+    in.Validate();
+    std::vector<double> out;
+    for (double x : u) out.push_back(in.Quantile(x));
+    return ToArray(out);
+  }, py::arg("input"), py::arg("u"));
+  m.def("sensitivity_kpi_names", &sa::KPINames);
+  m.def("sensitivity_default_outputs", [](const std::string& deck_json) {
+    adsim::Simulation sim = adsim::Simulation::FromJson(deck_json);
+    std::vector<std::string> out;
+    for (const auto& o : sa::DefaultOutputs(sim.Data())) out.push_back(o.Name());
+    return out;
+  }, py::arg("deck_json"));
+  m.def("sensitivity_check", [](const std::string& deck_json, const py::list& inputs,
+                                const std::vector<std::string>& outputs, const py::dict& policy) {
+    sa::CheckStudy(deck_json, InputsFromList(inputs), OutputsFromList(outputs), PolicyFromDict(policy));
+  }, py::arg("deck_json"), py::arg("inputs"), py::arg("outputs"), py::arg("policy"));
+  // One sample, GIL released; Ctrl-C cancels the run and is re-raised.
+  m.def("sensitivity_evaluate", [](const std::string& deck_json, const py::list& inputs,
+                                   const std::vector<double>& values, const std::vector<std::string>& outputs,
+                                   const py::dict& policy) {
+    const auto in = InputsFromList(inputs);
+    const auto out = OutputsFromList(outputs);
+    const auto pol = PolicyFromDict(policy);
+    std::optional<py::error_already_set> pending;
+    auto last_check = std::chrono::steady_clock::now();
+    adsim::CancelPoll cancel = [&]() {
+      if (pending) return true;
+      const auto now = std::chrono::steady_clock::now();
+      if (now - last_check < std::chrono::milliseconds(100)) return false;
+      last_check = now;
+      py::gil_scoped_acquire gil;
+      if (PyErr_CheckSignals() != 0) {
+        pending.emplace();
+        return true;
+      }
+      return false;
+    };
+    sa::SampleOutcome r;
+    {
+      py::gil_scoped_release release;
+      r = sa::EvaluateSample(deck_json, in, values, out, pol, cancel);
+    }
+    if (pending) throw std::move(*pending);
+    py::dict d;
+    d["status"] = adsim::RunStatusName(r.status);
+    d["message"] = r.message;
+    d["accepted"] = r.accepted;
+    d["outputs"] = r.outputs;
+    d["wall_time_s"] = r.wall_time_s;
+    return d;
+  }, py::arg("deck_json"), py::arg("inputs"), py::arg("values"), py::arg("outputs"), py::arg("policy"));
+  m.def("sensitivity_analyse_morris", [](const py::list& inputs, const py::dict& plan_in,
+                                         const std::vector<std::string>& names,
+                                         const std::vector<std::vector<double>>& y, int bootstrap) {
+    sa::Plan plan;
+    plan.method = sa::Method::Morris;
+    plan.inputs = InputsFromList(inputs);
+    plan.seed = plan_in["seed"].cast<std::uint64_t>();
+    plan.trajectories = plan_in["trajectories"].cast<int>();
+    plan.levels = plan_in["levels"].cast<int>();
+    plan.changed = plan_in["changed"].cast<std::vector<int>>();
+    plan.u = plan_in["u"].cast<std::vector<std::vector<double>>>();
+    plan.values = plan_in["values"].cast<std::vector<std::vector<double>>>();
+    const sa::MorrisResult r = sa::AnalyseMorris(plan, names, y, bootstrap);
+    py::list outputs;
+    for (const auto& o : r.outputs) {
+      py::list effects;
+      for (const auto& e : o.effects) {
+        py::dict d;
+        d["input"] = e.input;
+        d["mu"] = e.mu;
+        d["mu_star"] = e.mu_star;
+        d["sigma"] = e.sigma;
+        d["mu_star_interval"] = IntervalToDict(e.mu_star_interval);
+        d["effects"] = e.effects;
+        effects.append(d);
+      }
+      py::dict d;
+      d["output"] = o.output;
+      d["missing"] = o.missing;
+      d["effects"] = effects;
+      outputs.append(d);
+    }
+    py::dict d;
+    d["runs"] = r.runs;
+    d["outputs"] = outputs;
+    return d;
+  }, py::arg("inputs"), py::arg("plan"), py::arg("names"), py::arg("y"), py::arg("bootstrap") = 1000);
+  m.def("sensitivity_analyse_monte_carlo", [](const py::list& inputs, const std::vector<std::vector<double>>& values,
+                                              const std::vector<std::string>& names,
+                                              const std::vector<std::vector<double>>& y, std::uint64_t seed,
+                                              int bootstrap, double rel_tol) {
+    const sa::MonteCarloResult r =
+        sa::AnalyseMonteCarlo(InputsFromList(inputs), values, names, y, seed, bootstrap, rel_tol);
+    py::list outputs;
+    for (const auto& s : r.outputs) {
+      py::list shares;
+      for (const auto& x : s.shares) {
+        py::dict d;
+        d["input"] = x.input;
+        d["spearman"] = x.spearman;
+        d["srrc"] = x.srrc;
+        d["share"] = x.share;
+        shares.append(d);
+      }
+      py::dict d;
+      d["output"] = s.output;
+      d["valid"] = s.valid;
+      d["missing"] = s.missing;
+      d["mean"] = s.mean;
+      d["sd"] = s.sd;
+      d["min"] = s.min;
+      d["max"] = s.max;
+      d["p05"] = s.p05;
+      d["p50"] = s.p50;
+      d["p95"] = s.p95;
+      d["p05_interval"] = IntervalToDict(s.p05_interval);
+      d["p50_interval"] = IntervalToDict(s.p50_interval);
+      d["p95_interval"] = IntervalToDict(s.p95_interval);
+      d["converged"] = s.converged;
+      d["r2"] = s.r2;
+      d["shares"] = shares;
+      outputs.append(d);
+    }
+    py::dict d;
+    d["runs"] = r.runs;
+    d["converged"] = r.converged;
+    d["outputs"] = outputs;
+    return d;
+  }, py::arg("inputs"), py::arg("values"), py::arg("names"), py::arg("y"), py::arg("seed"),
+     py::arg("bootstrap") = 1000, py::arg("rel_tol") = 0.1);
 }

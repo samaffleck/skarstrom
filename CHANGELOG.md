@@ -8,7 +8,22 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added
+- Sensitivity analysis and KPI error bars (`adsim/solver/sensitivity.h`):
+  Morris screening (which inputs move the KPIs) and Monte Carlo propagation
+  with Latin hypercube sampling (median, 5-95 % band with bootstrap
+  intervals, a convergence check, and each input's share of the spread from
+  a rank regression). Inputs are registry paths with uniform, triangular or
+  normal distributions; plans are seeded and reproducible on every platform.
+  The engine plans and analyses; callers run the samples
+  (`EvaluateSample`), which must reach cyclic steady state by default.
+  Python: `skarstrom.sensitivity` (`Study.screen`, `Study.propagate`,
+  parallel `workers`); CLI: `skarstrom sensitivity`. Docs:
+  `docs/sensitivity.md`.
+
 ### Changed
+- `examples/notebooks/sensitivity_analysis.ipynb` now runs the two-stage
+  study instead of one-at-a-time finite differences.
 - The solver log no longer ends a run with the IDA statistics line
   ("Statistics: N steps, N residual evals, ..."); the completion line with
   the wall time is the summary. The counters stay available through

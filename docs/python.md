@@ -384,6 +384,7 @@ fit["params"], fit["std_errors"], fit["r2"], fit["rmse"]
 ```bash
 skarstrom run deck.json [--cycles N] [--set PATH=VALUE ...] [--csv DIR] [--json] [--log low|medium|high] [-q]
 skarstrom params deck.json [--all] [--search TEXT] [--json]
+skarstrom sensitivity deck.json --input PATH=SPEC ... [--output C.kpi ...] [--method both] [--workers N]
 skarstrom examples [list] [--json]          # the bundled decks
 skarstrom examples run NAME [run options]   # run a bundled deck
 skarstrom examples path NAME                # where it is installed
@@ -400,6 +401,8 @@ The exit code is 0 when the run completes or reaches CSS, 1 when it fails and 13
 
 `skarstrom params` lists the tunable parameters of a deck with their values, units, suggested bounds and aliases. `--all` adds solver settings, integers and text fields; `--json` prints them as a list of objects.
 
+`skarstrom sensitivity` screens uncertain inputs and puts error bars on the KPIs; see [Sensitivity Analysis and Error Bars](sensitivity.md), which also covers the Python API (`skarstrom.sensitivity`).
+
 ## Bundled data
 
 ```python
@@ -415,7 +418,7 @@ The decks are those of `examples/decks/` in the repository and the library is `d
 [Examples](examples.md) lists a runnable script for every deck family in `examples/` (each runs its decks, prints KPIs or the CSS status, and compares with the published or digitised data). The repository also has three executed notebooks in `examples/notebooks/`:
 
 - `parametric_study.ipynb` sweeps the feed-step time of a CO₂ VSA cycle and plots purity and recovery.
-- `sensitivity_analysis.ipynb` computes local sensitivities of the KPIs to a set of tunable parameters by finite differences.
+- `sensitivity_analysis.ipynb` screens uncertain inputs of a CO₂ VSA cycle and puts error bars on its KPIs with `skarstrom.sensitivity` ([Sensitivity Analysis and Error Bars](sensitivity.md)).
 - `isotherm_fit.ipynb` fits single-temperature and temperature-dependent isotherm models with the engine's fitter.
 
 ## Licence
