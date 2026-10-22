@@ -42,6 +42,8 @@ find_package(Adsim 0.1 CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE Adsim::adsim)
 ```
 
+The package accepts a request only for its own major.minor version (CMake's `SameMinorVersion`), so `0.1` finds a 0.1.x install but not 0.2.0. Ask for the version you installed.
+
 The install tree contains the static libraries (adsim, SUNDIALS, muparser, dlib, CoolProp), the public headers with the third-party headers they include (under `include/adsim/third_party`), the CMake package files and the licence texts. `scripts/test_install_consumer.sh` builds `core/install_consumer/` against a fresh install to prove it works.
 
 ## As a subproject (`add_subdirectory`)

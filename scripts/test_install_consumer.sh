@@ -43,10 +43,14 @@ test -f "$PREFIX/lib/cmake/Adsim/AdsimConfig.cmake" \
   || { echo "AdsimConfig.cmake was not installed"; exit 1; }
 
 echo "== [3/4] Configure + build the consumer against the install tree only =="
+# Ask for this tree's major.minor (the package uses SameMinorVersion).
+VERSION="$(sed -n 's/^set(ADSIM_PROJECT_VERSION \([0-9]*\.[0-9]*\)\..*/\1/p' CMakeLists.txt)"
+[ -n "$VERSION" ] || { echo "could not read ADSIM_PROJECT_VERSION from CMakeLists.txt"; exit 1; }
 # CMAKE_FIND_USE_PACKAGE_REGISTRY etc. off: the package must come from PREFIX.
 cmake -S core/install_consumer -B "$WORK/consumer" "${GEN[@]}" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$PREFIX" \
+  -DADSIM_REQUIRED_VERSION="$VERSION" \
   -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF \
   -DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF
 cmake --build "$WORK/consumer" --config Release -j "$JOBS"
