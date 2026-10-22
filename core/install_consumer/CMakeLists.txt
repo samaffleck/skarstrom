@@ -2,7 +2,8 @@
 # package — no add_subdirectory, no submodules. Used by
 # scripts/test_install_consumer.sh to prove the install/export works:
 #
-#   cmake -S core/install_consumer -B <dir> -DCMAKE_PREFIX_PATH=<prefix>
+#   cmake -S core/install_consumer -B <dir> -DCMAKE_PREFIX_PATH=<prefix> \
+#         -DADSIM_REQUIRED_VERSION=<major.minor>
 #   cmake --build <dir>
 #   <dir>/adsim_consumer examples/decks/<deck>.json
 #
@@ -11,7 +12,12 @@
 cmake_minimum_required(VERSION 3.15)
 project(AdsimInstallConsumer LANGUAGES C CXX)
 
-find_package(Adsim 0.1 CONFIG REQUIRED)
+# The version to ask for comes from the caller (the script reads it from the
+# root CMakeLists.txt), so a version bump needs no edit here. The package is
+# exported with SameMinorVersion, so this also checks that compatibility rule.
+set(ADSIM_REQUIRED_VERSION "" CACHE STRING
+    "Adsim version to request in find_package (empty: any)")
+find_package(Adsim ${ADSIM_REQUIRED_VERSION} CONFIG REQUIRED)
 message(STATUS "Found Adsim ${Adsim_VERSION} in ${Adsim_DIR}")
 
 add_executable(adsim_consumer main.cpp)
