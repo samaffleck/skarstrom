@@ -73,19 +73,34 @@ def test_study_resolves_and_checks_inputs(sim, paths):
         quick(sim, [sa.relative(time, 0.0)])
 
 
-def test_screen(sim, paths, tmp_path):
+@pytest.fixture(scope="module")
+def screening(sim, paths):
     time, void = paths
-    study = quick(sim, [sa.relative(time, 0.2), sa.uniform(void, 0.30, 0.40)])
-    s = study.screen(trajectories=2)
+    return quick(sim, [sa.relative(time, 0.2), sa.uniform(void, 0.30, 0.40)]).screen(trajectories=2)
+
+
+@pytest.fixture(scope="module")
+def propagation(sim, paths):
+    time, void = paths
+    calls = []
+    p = quick(sim, [sa.relative(time, 0.1), sa.uniform(void, 0.36, 0.40)]).propagate(
+        runs=4, batch=2, max_runs=6, progress=lambda done, total: calls.append((done, total)))
+    return p, calls
+
+
+def test_screen(sim, paths, screening, tmp_path):
+    time, void = paths
+    s = screening
     assert s.runs == 2 * 3 and s.failed == 0 and s.warnings == []
-    table = s.table()
-    assert len(table) == 2 * 2 and set(table["output"]) == {"Oxygen.purity", "Oxygen.recovery"}
-    assert (table["mu_star"] >= 0).all() and (table["effects"] == 2).all()
+    outputs = s.result["outputs"]
+    assert [o["output"] for o in outputs] == ["Oxygen.purity", "Oxygen.recovery"]
+    for o in outputs:
+        assert [e["input"] for e in o["effects"]] == [time, void]
+        assert all(e["mu_star"] >= 0 and e["effects"] == 2 for e in o["effects"])
     ranking = s.ranking("Oxygen.purity")
     assert {r[0] for r in ranking} == {time, void} and ranking[0][1] >= ranking[1][1]
     assert set(s.important(0.0)) == {time, void}
     assert s.important(1.0) and len(s.important(1.0)) <= 2
-    assert len(s.samples_table()) == 6
 
     s.save(tmp_path / "screen.json")
     saved = json.loads((tmp_path / "screen.json").read_text())
@@ -94,29 +109,43 @@ def test_screen(sim, paths, tmp_path):
 
     # Parallel workers give the same numbers.
     parallel = quick(sim, [sa.relative(time, 0.2), sa.uniform(void, 0.30, 0.40)], workers=2).screen(trajectories=2)
-    assert parallel.table()["mu_star"].tolist() == table["mu_star"].tolist()
+    assert parallel.result == s.result
 
 
-def test_propagate(sim, paths):
+def test_propagate(sim, paths, propagation):
     time, void = paths
-    study = quick(sim, [sa.relative(time, 0.1), sa.uniform(void, 0.36, 0.40)])
-    calls = []
-    p = study.propagate(runs=4, batch=2, max_runs=6, progress=lambda done, total: calls.append((done, total)))
+    p, calls = propagation
     assert p.runs == 6 and p.batches == 2 and not p.converged
     assert calls[-1] == (6, 6)
+    purity = p.result["outputs"][0]
+    assert purity["output"] == "Oxygen.purity" and purity["valid"] == 6
+    assert purity["p05"] <= purity["p50"] <= purity["p95"]
+    assert [x["input"] for x in purity["shares"]] == [time, void]
+    assert p.error_bars()["Oxygen.purity"] == (purity["p05"], purity["p50"], purity["p95"])
+    assert 0 < p.study.nominal()["outputs"]["Oxygen.purity"] <= 1
+    # Only the inputs given are varied.
+    study = p.study
+    one = study.propagate(runs=3, batch=1, max_runs=3, inputs=[time])
+    assert one.runs == 3 and [i.path for i in one.inputs] == [time]
+    with pytest.raises(KeyError):
+        study.propagate(runs=3, max_runs=3, inputs=["layer[999].length"])
+
+
+def test_tables(screening, propagation):
+    pytest.importorskip("pandas")
+    table = screening.table()
+    assert len(table) == 2 * 2 and set(table["output"]) == {"Oxygen.purity", "Oxygen.recovery"}
+    assert (table["mu_star"] >= 0).all() and (table["effects"] == 2).all()
+    assert len(screening.samples_table()) == 6
+
+    p, _ = propagation
     table = p.table(nominal=True)
     assert list(table["output"]) == ["Oxygen.purity", "Oxygen.recovery"]
     row = table.iloc[0]
     assert row["p05"] <= row["p50"] <= row["p95"] and row["valid"] == 6
     assert 0 < row["nominal"] <= 1
     assert len(p.shares()) == 4
-    bars = p.error_bars()
-    assert bars["Oxygen.purity"][0] == row["p05"]
-    # Only the inputs given are varied.
-    one = study.propagate(runs=3, batch=1, max_runs=3, inputs=[time])
-    assert one.runs == 3 and [i.path for i in one.inputs] == [time]
-    with pytest.raises(KeyError):
-        study.propagate(runs=3, max_runs=3, inputs=["layer[999].length"])
+    assert len(p.samples_table()) == 6
 
 
 def test_cli(capsys, tmp_path, sim, paths):
