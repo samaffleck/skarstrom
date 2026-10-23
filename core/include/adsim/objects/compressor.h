@@ -195,14 +195,14 @@ namespace adsim {
     }
   };
 
-  // eta = a + b*P + c*P^3 + d*P^4 + e*P^5
+  // eta = a + b*P + c*P^2 + d*P^3 + e*P^4 + f*P^5 (P = suction pressure, Pa)
   class PolyPumpEfficiencyModel : public IPumpEfficiencyModel {
   public:
     double CalculateEfficiency(double pressure) const override;
     PumpEfficiencyType GetType() const override { return PumpEfficiencyType::POLYNOMIAL; }
     void EvaluateExpressions(const EvalContext& ctx) override {
       a_.Evaluate(ctx); b_.Evaluate(ctx); c_.Evaluate(ctx);
-      d_.Evaluate(ctx); e_.Evaluate(ctx);
+      d_.Evaluate(ctx); e_.Evaluate(ctx); f_.Evaluate(ctx);
     }
 
     ExpressionParam a_{0.0};
@@ -210,6 +210,7 @@ namespace adsim {
     ExpressionParam c_{0.0};
     ExpressionParam d_{0.0};
     ExpressionParam e_{0.0};
+    ExpressionParam f_{0.0};
 
   private:
     friend class cereal::access;
@@ -218,11 +219,26 @@ namespace adsim {
       ar(
         cereal::virtual_base_class<IPumpEfficiencyModel>(this),
         cereal::make_nvp("a", a_),
-        cereal::make_nvp("b", b_),
-        cereal::make_nvp("c", c_),
-        cereal::make_nvp("d", d_),
-        cereal::make_nvp("e", e_)
+        cereal::make_nvp("b", b_)
       );
+      if (version >= 3) {
+        ar(
+          cereal::make_nvp("c", c_),
+          cereal::make_nvp("d", d_),
+          cereal::make_nvp("e", e_),
+          cereal::make_nvp("f", f_)
+        );
+      } else {
+        // Pre-v3 archives had no P^2 term: eta = a + b*P + c*P^3 + d*P^4 +
+        // e*P^5. Their c, d, e move up to the P^3, P^4, P^5 coefficients, so
+        // the efficiency (and every result) is unchanged on load.
+        ar(
+          cereal::make_nvp("c", d_),
+          cereal::make_nvp("d", e_),
+          cereal::make_nvp("e", f_)
+        );
+        c_ = 0.0;
+      }
     }
   };
 

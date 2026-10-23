@@ -680,10 +680,11 @@ namespace adsim {
         E("alpha", "vacuum pump efficiency decay", "-", eff->alpha_, 0.0, 100.0);
       } else if (auto* eff = dynamic_cast<PolyPumpEfficiencyModel*>(pump->efficiency_model_.get())) {
         E("poly_a", "pump efficiency polynomial a", "-", eff->a_, -1e3, 1e3);
-        E("poly_b", "pump efficiency polynomial b", "-", eff->b_, -1e3, 1e3);
-        E("poly_c", "pump efficiency polynomial c", "-", eff->c_, -1e3, 1e3);
-        E("poly_d", "pump efficiency polynomial d", "-", eff->d_, -1e3, 1e3);
-        E("poly_e", "pump efficiency polynomial e", "-", eff->e_, -1e3, 1e3);
+        E("poly_b", "pump efficiency polynomial b (x P)", "1/Pa", eff->b_, -1e3, 1e3);
+        E("poly_c", "pump efficiency polynomial c (x P^2)", "1/Pa^2", eff->c_, -1e3, 1e3);
+        E("poly_d", "pump efficiency polynomial d (x P^3)", "1/Pa^3", eff->d_, -1e3, 1e3);
+        E("poly_e", "pump efficiency polynomial e (x P^4)", "1/Pa^4", eff->e_, -1e3, 1e3);
+        E("poly_f", "pump efficiency polynomial f (x P^5)", "1/Pa^5", eff->f_, -1e3, 1e3);
       }
       if (auto* c = dynamic_cast<Compressor*>(pump)) {
         Emplace(ep.path + ".pump.suction_pressure", ep.alias + ".pump.suction_pressure", "cycle",

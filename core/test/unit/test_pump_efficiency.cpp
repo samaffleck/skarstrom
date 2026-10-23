@@ -6,7 +6,12 @@
 #include "adsim/objects/fluid.h"
 
 // STL includes
+#include <cmath>
+#include <sstream>
 #include <string>
+
+// cereal includes
+#include <cereal/archives/json.hpp>
 
 // Gtest includes
 #include <gtest/gtest.h>
@@ -84,10 +89,61 @@ namespace adsim {
     model.c_ = 1.0;
     model.d_ = 1.0;
     model.e_ = 1.0;
+    model.f_ = 1.0;
 
     double P = 2.0;
-    // eta = 1 + 1*2 + 1*8 + 1*16 + 1*32 = 59
-    EXPECT_NEAR(model.CalculateEfficiency(P), 59.0, 1e-10);
+    // eta = 1 + 2 + 4 + 8 + 16 + 32 = 63
+    EXPECT_NEAR(model.CalculateEfficiency(P), 63.0, 1e-10);
+  }
+
+  TEST(PumpEfficiencyTest, PolyModelEachCoefficientMultipliesItsPower) {
+    const double P = 3.0;
+    for (int k = 0; k <= 5; ++k) {
+      SCOPED_TRACE("coefficient of P^" + std::to_string(k));
+      PolyPumpEfficiencyModel model;
+      ExpressionParam* coefficient[] = {&model.a_, &model.b_, &model.c_, &model.d_, &model.e_, &model.f_};
+      *coefficient[k] = 1.0;
+      EXPECT_DOUBLE_EQ(model.CalculateEfficiency(P), std::pow(P, k));
+    }
+  }
+
+  // PolyPumpEfficiencyModel v3 added the P^2 term. A v2 archive's c, d, e were
+  // the P^3, P^4, P^5 coefficients; they load as d, e, f with c = 0, so an old
+  // deck's efficiency is unchanged.
+  TEST(PumpEfficiencyTest, PolyModelVersion2LoadsWithTheSameEfficiency) {
+    PolyPumpEfficiencyModel saved;
+    saved.a_ = 0.1;
+    saved.b_ = 2e-6;
+    saved.c_ = 3e-17;  // v2: x P^3
+    saved.d_ = -4e-23; // v2: x P^4
+    saved.e_ = 5e-29;  // v2: x P^5
+    std::ostringstream out;
+    {
+      cereal::JSONOutputArchive archive(out);
+      archive(cereal::make_nvp("model", saved));
+    }
+    std::string json = out.str();
+    // The first class version in the document is the model's own (the
+    // leftover "f" is not read by the v2 layout).
+    const std::string v3 = "\"cereal_class_version\": 3";
+    const auto version_pos = json.find(v3);
+    ASSERT_NE(version_pos, std::string::npos) << json;
+    json.replace(version_pos, v3.size(), "\"cereal_class_version\": 2");
+
+    PolyPumpEfficiencyModel loaded;
+    {
+      std::istringstream in(json);
+      cereal::JSONInputArchive archive(in);
+      archive(cereal::make_nvp("model", loaded));
+    }
+    EXPECT_EQ(loaded.c_.Get(), 0.0);
+    EXPECT_EQ(loaded.d_.Get(), 3e-17);
+    EXPECT_EQ(loaded.e_.Get(), -4e-23);
+    EXPECT_EQ(loaded.f_.Get(), 5e-29);
+    for (double P : {1e4, 1e5, 3e5}) {
+      const double v2_eta = 0.1 + 2e-6 * P + 3e-17 * std::pow(P, 3) - 4e-23 * std::pow(P, 4) + 5e-29 * std::pow(P, 5);
+      EXPECT_NEAR(loaded.CalculateEfficiency(P), v2_eta, 1e-12 * std::abs(v2_eta)) << "P = " << P;
+    }
   }
 
   TEST(PumpEfficiencyTest, FactoryCreation) {

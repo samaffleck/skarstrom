@@ -39,9 +39,8 @@ namespace adsim {
   }
 
   double PolyPumpEfficiencyModel::CalculateEfficiency(double pressure) const {
-    double P2 = pressure * pressure;
-    double P3 = P2 * pressure;
-    return a_ + b_ * pressure + c_ * P3 + d_ * P3 * pressure + e_ * P3 * P2;
+    const double P = pressure;
+    return ((((f_ * P + e_) * P + d_) * P + c_) * P + b_) * P + a_;
   }
 
   double VacuumPumpEfficiencyModel::CalculateEfficiency(double pressure) const {
@@ -294,7 +293,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPumpEfficiencyModel, adsim::VacuumP
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPumpEfficiencyModel, adsim::PolyPumpEfficiencyModel)
 CEREAL_CLASS_VERSION(adsim::ConstantPumpEfficiencyModel, 2);
 CEREAL_CLASS_VERSION(adsim::VacuumPumpEfficiencyModel, 2);
-CEREAL_CLASS_VERSION(adsim::PolyPumpEfficiencyModel, 2);
+CEREAL_CLASS_VERSION(adsim::PolyPumpEfficiencyModel, 3);
 
 CEREAL_REGISTER_TYPE(adsim::Compressor)
 CEREAL_REGISTER_TYPE(adsim::VacuumPump)

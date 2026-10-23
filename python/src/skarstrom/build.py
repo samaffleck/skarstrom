@@ -153,7 +153,7 @@ class Pump:
     ``kind`` is ``"compressor"`` or ``"vacuum_pump"``; ``energy`` the
     compression model (``"isothermal"`` or ``"adiabatic"``);
     ``efficiency_model`` ``"constant"`` (efficiency), ``"vacuum_pump"``
-    (eta_max, alpha) or ``"polynomial"`` (poly_a ... poly_e). Other keyword
+    (eta_max, alpha) or ``"polynomial"`` (poly_a ... poly_f). Other keyword
     values: polytropic_index, suction_pressure (compressor),
     discharge_pressure (vacuum pump).
     """
