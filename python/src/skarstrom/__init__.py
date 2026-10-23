@@ -36,7 +36,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
-from . import _core, examples, units
+from . import _core, examples, sensitivity, units
 from .units import Quantity, ureg
 from ._core import AxialProfile, CSSRecord, KPIRecord, RunResult, TimeSeries
 from ._example import Example

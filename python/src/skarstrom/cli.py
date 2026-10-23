@@ -2,6 +2,7 @@
 
     skarstrom run deck.json [--cycles N] [--set PATH=VALUE ...] [--csv DIR] [--json]
     skarstrom params deck.json [--all] [--search TEXT] [--json]
+    skarstrom sensitivity deck.json --input PATH=SPEC ... [--output COMPONENT.KPI ...] [--method both]
     skarstrom examples [list] [--json]
     skarstrom examples run NAME [run options]
     skarstrom examples path NAME
@@ -21,6 +22,7 @@ import sys
 from typing import List, Optional, Sequence, Tuple
 
 from . import Simulation, __version__, examples
+from . import sensitivity as sa
 
 
 def _fmt(x) -> str:
@@ -238,6 +240,125 @@ def cmd_params(args: argparse.Namespace) -> int:
     return 0
 
 
+def _parse_input(sim: Simulation, text: str) -> "sa.Input":
+    """PATH=SPEC: '10%' or '+-10%' (relative, uniform), 'LO:HI' (uniform),
+    'normal:MEAN:SD[:LO:HI]' or 'triangular:LO:MODE:HI'; numbers in SI units."""
+    path, spec = _split_assignment(sim, text)
+    s = spec.replace(" ", "")
+
+    def num(x: str, what: str) -> Optional[float]:
+        if x == "":
+            return None
+        try:
+            return float(x)
+        except ValueError:
+            raise SystemExit(f"skarstrom: --input {path}: {what} {x!r} is not a number") from None
+
+    try:
+        if s.endswith("%"):
+            return sa.relative(path, float(s.lstrip("±+-")[:-1]) / 100.0)
+        parts = s.split(":")
+        if parts[0] == "normal" and len(parts) in (3, 5):
+            lo, hi = (parts[3], parts[4]) if len(parts) == 5 else ("", "")
+            return sa.normal(path, num(parts[1], "mean"), num(parts[2], "sd"), num(lo, "lower"), num(hi, "upper"))
+        if parts[0] == "triangular" and len(parts) == 4:
+            return sa.triangular(path, num(parts[1], "lower"), num(parts[2], "mode"), num(parts[3], "upper"))
+        if len(parts) == 2:
+            return sa.uniform(path, num(parts[0], "lower"), num(parts[1], "upper"))
+    except ValueError:
+        pass
+    raise SystemExit(f"skarstrom: --input {path}={spec}: expected 10%, LO:HI, normal:MEAN:SD[:LO:HI] or "
+                     "triangular:LO:MODE:HI")
+
+
+def cmd_sensitivity(args: argparse.Namespace) -> int:
+    sim = Simulation.from_file(_resolve_deck(args.deck))
+    _apply_sets(sim, args.set or [])
+    inputs = [_parse_input(sim, t) for t in args.input]
+    settings = {}
+    for t in args.setting or []:
+        path, value = _split_assignment(sim, t)
+        settings[path] = value
+    try:
+        study = sa.Study(sim, inputs, outputs=args.output or None, settings=settings,
+                         require_css=not args.no_require_css, cycles=args.cycles, seed=args.seed,
+                         workers=args.workers)
+    except KeyError as e:
+        raise SystemExit(f"skarstrom: {e.args[0]}") from None
+
+    def progress(label: str):
+        def report(done: int, total: int) -> None:
+            if not args.quiet:
+                print(f"\r  {label}: run {done}/{total}", end="", file=sys.stderr, flush=True)
+        return report
+
+    payload = {"deck": args.deck, "study": study.describe()}
+    screening = propagation = None
+    try:
+        if args.method in ("screen", "both"):
+            screening = study.screen(args.trajectories, args.levels, progress=progress("screening"))
+            if not args.quiet:
+                print("", file=sys.stderr)
+            payload["screening"] = screening.to_dict()
+        if args.method in ("propagate", "both"):
+            chosen = screening.important(args.threshold) if screening else None
+            propagation = study.propagate(args.runs, args.batch, args.max_runs, args.rel_tol, inputs=chosen,
+                                          progress=progress("propagation"))
+            if not args.quiet:
+                print("", file=sys.stderr)
+            payload["propagation"] = propagation.to_dict()
+    except KeyboardInterrupt:
+        print("\nskarstrom: interrupted", file=sys.stderr)
+        return 130
+
+    if args.save:
+        with open(args.save, "w", encoding="utf-8") as f:
+            json.dump(sa._nan_to_none(payload), f, indent=1)
+    if args.json:
+        print(json.dumps(sa._nan_to_none(payload), indent=1))
+        return 0
+
+    print(f"Deck:    {args.deck}")
+    print(f"Inputs:  {len(study.inputs)}   outputs: {', '.join(study.outputs)}")
+    if screening:
+        print(f"\nScreening (Morris): {screening.runs} runs, {screening.failed} did not count")
+        print("mu* = typical change of the output when the input moves across its range; "
+              "sigma ~ mu* means interactions or curvature\n")
+        for o in screening.result["outputs"]:
+            print(o["output"])
+            rows = []
+            for e in sorted(o["effects"], key=lambda e: -e["mu_star"] if math.isfinite(e["mu_star"]) else 0):
+                ci = e["mu_star_interval"]
+                rows.append([e["input"], _fmt(e["mu_star"]), f"{_fmt(ci['low'])} .. {_fmt(ci['high'])}",
+                             _fmt(e["mu"]), _fmt(e["sigma"])])
+            _print_table(rows, ["input", "mu*", "95% interval", "mu", "sigma"])
+            print()
+        if args.method == "both":
+            print(f"Kept for propagation (mu* >= {args.threshold:g} x the largest): "
+                  f"{', '.join(screening.important(args.threshold)) or 'none'}")
+    if propagation:
+        state = "converged" if propagation.converged else f"NOT converged at --max-runs {args.max_runs}"
+        print(f"\nPropagation (Latin hypercube Monte Carlo): {propagation.runs} runs ({state}), "
+              f"{propagation.failed} did not count\n")
+        rows = []
+        for o in propagation.result["outputs"]:
+            rows.append([o["output"], _fmt(o["p50"]), f"{_fmt(o['p05'])} .. {_fmt(o['p95'])}", _fmt(o["mean"]),
+                         _fmt(o["sd"]), "yes" if o["converged"] else "no", f"{o['valid']}/{o['valid'] + o['missing']}"])
+        _print_table(rows, ["output", "median", "90% band (p05 .. p95)", "mean", "sd", "converged", "valid"])
+        print("\nShare of each output's spread (rank regression; the shares add up to R^2):\n")
+        for o in propagation.result["outputs"]:
+            rows = [[s["input"], _fmt(s["share"]), _fmt(s["spearman"])]
+                    for s in sorted(o["shares"], key=lambda s: -s["share"] if math.isfinite(s["share"]) else 0)]
+            print(f"{o['output']}   (R^2 {_fmt(o['r2'])})")
+            _print_table(rows, ["input", "share", "rank correlation"])
+            print()
+    for w in (screening.warnings if screening else []) + (propagation.warnings if propagation else []):
+        print(f"warning: {w}", file=sys.stderr)
+    if args.save:
+        print(f"Wrote {args.save}")
+    return 0
+
+
 def _example_family(name: str) -> str:
     """The paper / study an example deck belongs to: its AuthorYear prefix."""
     m = re.match(r"[A-Za-z]+\d{4}", name)
@@ -303,6 +424,41 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--search", metavar="TEXT", help="only entries whose path, alias or name contains TEXT")
     p.add_argument("--json", action="store_true", help="print as JSON")
     p.set_defaults(func=cmd_params)
+
+    s = sub.add_parser("sensitivity", help="which inputs move the KPIs (Morris screening) and their error bars "
+                                           "(Monte Carlo propagation)")
+    s.add_argument("deck")
+    s.add_argument("--input", action="append", required=True, metavar="PATH=SPEC",
+                   help="an uncertain input (repeatable): 10%% (+-10 %% of the deck's value), LO:HI (uniform), "
+                        "normal:MEAN:SD[:LO:HI] or triangular:LO:MODE:HI; numbers in SI units")
+    s.add_argument("--output", action="append", metavar="COMPONENT.KPI",
+                   help="a KPI to watch (repeatable), e.g. CarbonDioxide.purity; default: purity, recovery, "
+                        "productivity_mass and energy_consumption of every tracked component")
+    s.add_argument("--method", choices=["screen", "propagate", "both"], default="both",
+                   help="screen, propagate, or both: screen, then propagate the inputs that matter (default)")
+    s.add_argument("--trajectories", type=int, default=10, help="Morris trajectories (default 10)")
+    s.add_argument("--levels", type=int, default=4, help="Morris grid levels (even, default 4)")
+    s.add_argument("--threshold", type=float, default=0.1,
+                   help="with --method both, propagate inputs whose mu* reaches this fraction of the largest "
+                        "(default 0.1)")
+    s.add_argument("--runs", type=int, default=100, help="first Monte Carlo batch (default 100)")
+    s.add_argument("--batch", type=int, default=50, help="runs added per batch until converged (default 50)")
+    s.add_argument("--max-runs", type=int, default=400, help="Monte Carlo run limit (default 400)")
+    s.add_argument("--rel-tol", type=float, default=0.1,
+                   help="convergence: percentile uncertainty as a fraction of the 5-95 %% band (default 0.1)")
+    s.add_argument("--setting", action="append", metavar="PATH=VALUE",
+                   help="applied to every run and recorded with the study (repeatable), e.g. a tighter "
+                        "css.mass_balance_tolerance")
+    s.add_argument("--set", action="append", metavar="PATH=VALUE", help="change the deck before the study")
+    s.add_argument("--cycles", type=int, help="override the deck's cycle limit")
+    s.add_argument("--no-require-css", action="store_true",
+                   help="count runs that stop at the cycle limit without reaching CSS")
+    s.add_argument("--seed", type=int, default=1, help="random seed (default 1)")
+    s.add_argument("--workers", type=int, default=1, help="parallel processes (default 1)")
+    s.add_argument("--save", metavar="FILE", help="write the study, every run and the results as JSON")
+    s.add_argument("--json", action="store_true", help="print the study and results as JSON")
+    s.add_argument("-q", "--quiet", action="store_true", help="no progress line")
+    s.set_defaults(func=cmd_sensitivity)
 
     e = sub.add_parser("examples", help="list, run or copy the example decks shipped with the package")
     e.add_argument("--json", action="store_true", help="list as JSON (name, family, path)")

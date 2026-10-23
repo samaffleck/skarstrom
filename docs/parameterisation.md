@@ -32,7 +32,7 @@ for t_feed in np.linspace(30, 90, 5):
     rows.append((t_feed, k.purity, k.recovery, r.css_cycle))
 ```
 
-`examples/notebooks/parametric_study.ipynb` is the executed version, with plots, and `sensitivity_analysis.ipynb` computes local sensitivities of the KPIs to several tunable parameters by finite differences. Independent trials parallelise well: run them in a `concurrent.futures.ProcessPoolExecutor`, one `Simulation` per process.
+`examples/notebooks/parametric_study.ipynb` is the executed version, with plots, and [Sensitivity Analysis and Error Bars](sensitivity.md) covers screening uncertain inputs and putting error bars on the KPIs. Independent trials parallelise well: run them in a `concurrent.futures.ProcessPoolExecutor`, one `Simulation` per process.
 
 ## Optimisation
 

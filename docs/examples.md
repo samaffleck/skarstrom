@@ -31,7 +31,7 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 
 Runtimes are wall-clock times of a full run of the script (all its cases, to cyclic steady state where the deck checks it) on one core of a shared 4-core Linux machine, measured for the 0.1.0 release. `python/tests/test_examples.py` imports every script and runs each once with fast options (one breakthrough case, or two cycles of one cyclic case).
 
-Three executed notebooks are in `examples/notebooks/`: a parametric study of the feed time of a CO₂ VSA cycle, a finite-difference sensitivity analysis of its KPIs, and isotherm fitting with the engine's fitter.
+Three executed notebooks are in `examples/notebooks/`: a parametric study of the feed time of a CO₂ VSA cycle, a sensitivity study with error bars on its KPIs, and isotherm fitting with the engine's fitter.
 
 ## Worked tutorials
 

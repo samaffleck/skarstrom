@@ -94,6 +94,7 @@ nav:
       - Global Variables and Units: global-variables.md
   - Studies and data:
       - Parametric Studies and Parameterisation: parameterisation.md
+      - Sensitivity Analysis and Error Bars: sensitivity.md
       - Isotherm Fitting: isotherm-fitting.md
       - Adsorbent Library: adsorbent-library.md
   - Validation:
