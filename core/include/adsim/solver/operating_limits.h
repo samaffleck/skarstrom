@@ -24,6 +24,8 @@
 // - Approach to fluidisation is the upward pressure gradient over the weight
 //   of the packing less the gas, (-dP/dz) / ((rho_b - rho) g); above 1 an
 //   unrestrained bed in upward flow lifts. It is checked whatever the design.
+// - A warning switched off in the deck's settings (IDASettings::warnings_,
+//   warning_settings.h) is not reported; the step summaries are complete.
 // - Values are those at the logged times; a peak between two log points is
 //   not seen. A step's first logged point is the state the step before ended
 //   in: an extreme a step reaches only there is in its summary but gives no

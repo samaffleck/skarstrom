@@ -61,3 +61,20 @@ def test_operating_limits_of_a_vsa_run():
 
     sim["wall.vacuum_service"] = True
     assert not [w for w in sim.operating_limits().warnings if w.limit != "fluidisation"]
+
+
+def test_warnings_can_be_switched_off():
+    sim = skarstrom.Simulation(PEREZ)
+    sim["cycle.number_of_cycles"] = 1
+    sim["wall.design_pressure"] = 10e5
+    sim["wall.design_temperature"] = 400.0
+    assert sim.settings.warn_fluidisation and sim.get("settings.warn_vacuum")
+    assert sim.run().ok
+    limits = {w.limit for w in sim.operating_limits().warnings}
+    assert {"fluidisation", "vacuum"} <= limits  # Perez 2019 A's pressurisation and evacuation
+
+    sim.settings.warn_fluidisation = False
+    sim["settings.warn_vacuum"] = False
+    r = sim.operating_limits()
+    assert not r.warnings
+    assert max(s.max_approach_to_fluidisation for s in r.steps) > 1  # the summary is complete

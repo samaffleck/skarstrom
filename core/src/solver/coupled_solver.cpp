@@ -325,10 +325,13 @@ namespace adsim {
     }
     // Advisory, once per run: a constant pressure boundary far from the
     // pressure its step starts at (see deck_warnings.h).
-    for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
-      LogMessage(LogLevel::LOW, w);
-    for (const auto& w : WallDesignWarnings(user_data_.bed))
-      LogMessage(LogLevel::LOW, w);
+    const auto& warn = user_data_.settings.warnings_;
+    if (warn.pressure_step_change)
+      for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
+        LogMessage(LogLevel::LOW, w);
+    if (warn.wall_thickness)
+      for (const auto& w : WallDesignWarnings(user_data_.bed))
+        LogMessage(LogLevel::LOW, w);
 
     stop_requested_ = false;
 
@@ -554,10 +557,13 @@ namespace adsim {
            << ", max cycles: " << cycle.number_of_cycles_ << ")";
         LogMessage(LogLevel::LOW, ss.str());
       }
-      for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
-        LogMessage(LogLevel::LOW, w);
-      for (const auto& w : WallDesignWarnings(user_data_.bed))
-        LogMessage(LogLevel::LOW, w);
+      const auto& warn = user_data_.settings.warnings_;
+      if (warn.pressure_step_change)
+        for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
+          LogMessage(LogLevel::LOW, w);
+      if (warn.wall_thickness)
+        for (const auto& w : WallDesignWarnings(user_data_.bed))
+          LogMessage(LogLevel::LOW, w);
     }
   }
 

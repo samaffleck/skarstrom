@@ -27,6 +27,11 @@ root `CMakeLists.txt`.
   when). At the start of a run it warns when the wall is thinner than its
   design requires (`WallDesignWarnings`). Python: `sim.operating_limits()`;
   CLI: `warnings` in `skarstrom run --json`. Docs: `docs/wall-design.md`.
+- Warning switches (`adsim/solver/warning_settings.h`, `IDASettings::warnings_`,
+  cereal version 6): each advisory warning (pressure step change, wall
+  thickness, design pressure, vacuum, design temperature, fluidisation) can be
+  switched off in the deck; registry paths `settings.warn_<name>`. Docs: the
+  Warnings section of `docs/solver-settings.md`.
 
 ### Changed
 - Vacuum service no longer sizes the wall with 1 atm as an internal pressure

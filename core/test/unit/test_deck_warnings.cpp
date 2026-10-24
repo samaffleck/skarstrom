@@ -145,6 +145,17 @@ namespace adsim {
     });
     ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0);
     EXPECT_EQ(warnings, 1);
+
+    // Switched off in the deck's settings (warning_settings.h): not logged.
+    data.settings.warnings_.pressure_step_change = false;
+    warnings = 0;
+    CoupledSolver quiet{data};
+    quiet.SetLogLevel(LogLevel::LOW);
+    quiet.SetMessageCallback([&warnings](LogLevel, const std::string& msg) {
+      if (msg.find("step change in boundary pressure") != std::string::npos) ++warnings;
+    });
+    ASSERT_GE(quiet.IntegrateCycle(data.cycle, false), 0);
+    EXPECT_EQ(warnings, 0);
   }
 
 } // namespace adsim

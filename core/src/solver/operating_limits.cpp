@@ -118,8 +118,20 @@ namespace adsim {
       report.steps.push_back(std::move(s));
     }
 
+    // A warning switched off in the deck's settings is not reported.
+    const WarningSettings& on = data.settings.warnings_;
+    auto enabled = [&](OperatingLimit limit) {
+      switch (limit) {
+        case OperatingLimit::DesignPressure:    return on.design_pressure;
+        case OperatingLimit::Vacuum:            return on.vacuum;
+        case OperatingLimit::DesignTemperature: return on.design_temperature;
+        case OperatingLimit::Fluidisation:      return on.fluidisation;
+      }
+      return true;
+    };
     auto warn = [&](OperatingLimit limit, const StepOperatingSummary& s, double value, double limit_value,
                     std::string message) {
+      if (!enabled(limit)) return;
       report.warnings.push_back({ limit, s.step, value, limit_value, "Warning: " + std::move(message) });
     };
 

@@ -773,6 +773,18 @@ class Settings(_Node):
     """Cycles kept in the log."""
     max_log_points_per_step = Integer()
     """Maximum logged points per step."""
+    warn_pressure_step_change = Boolean()
+    """Warn at the start of a run about a constant pressure boundary far from the bed pressure."""
+    warn_wall_thickness = Boolean()
+    """Warn at the start of a run when the wall is thinner than its pressure design requires."""
+    warn_design_pressure = Boolean()
+    """Warn when the last cycle's pressure passes the wall's design pressure."""
+    warn_vacuum = Boolean()
+    """Warn when the last cycle goes below atmospheric and the wall is not in vacuum service."""
+    warn_design_temperature = Boolean()
+    """Warn when the last cycle's wall temperature passes the design temperature."""
+    warn_fluidisation = Boolean()
+    """Warn when the last cycle's approach to fluidisation passes 1."""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none" or "aitken" (Graves-Morris extrapolation)."""
 

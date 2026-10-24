@@ -29,6 +29,21 @@ The solver parameters are stored in the deck and are parameters of the registry 
 
 > **Absolute tolerances** are set internally on a per-variable basis (10⁻⁸ for concentrations, mole fractions and loadings, 10⁻⁶ for pressure and velocity, 10⁻⁴ K for temperatures), so only the single relative tolerance is a setting. See [Numerics](numerics.md#time-integration-sundials-ida).
 
+## Warnings
+
+A run reports advisory warnings in the solver log; none of them stops it. Each can be switched off in the deck (in the web workspace: **Solver → Solver Settings → Warnings**). A switched-off warning is not logged and not listed by `sim.operating_limits()`, whose per-step extremes stay complete.
+
+| Warning | Parameter | When |
+|---------|-----------|------|
+| **Pressure step change** | `settings.warn_pressure_step_change` | Start of a run: a step's constant pressure boundary is more than 25 % from the pressure the bed starts the step at; a ramp avoids the instantaneous change. |
+| **Wall thickness** | `settings.warn_wall_thickness` | Start of a run: the wall is thinner than its [pressure design](wall-design.md) requires. |
+| **Design pressure** | `settings.warn_design_pressure` | End of a run: the last cycle's pressure passes the wall's design pressure. |
+| **Vacuum** | `settings.warn_vacuum` | End of a run: the last cycle goes below atmospheric and the wall is not in vacuum service. |
+| **Design temperature** | `settings.warn_design_temperature` | End of a run: the wall temperature passes the design temperature. |
+| **Fluidisation** | `settings.warn_fluidisation` | End of a run: the approach to fluidisation passes 1. Switch it off for a bed that is held down. |
+
+All are on by default. The end-of-run checks are described on [Wall Design and Operating Limits](wall-design.md#operating-limit-warnings).
+
 ## Troubleshooting convergence
 
 - **The run fails early with a message about consistent initial conditions.** The solver could not reconcile the [initial conditions](cycles.md#initial-conditions) with the first step's [boundary conditions](boundary-conditions.md). Make the initial pressure, temperature and composition physically consistent with what the first step imposes.

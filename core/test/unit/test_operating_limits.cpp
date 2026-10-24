@@ -4,6 +4,7 @@
 // approach to fluidisation per step of the last cycle, against the wall's
 // pressure design) and WallDesignWarnings (the start-of-run thickness check).
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -204,6 +205,63 @@ namespace adsim {
     EXPECT_DOUBLE_EQ(loaded.bed.wall_.design_pressure_.Get(), 6e5);
     EXPECT_DOUBLE_EQ(loaded.bed.wall_.corrosion_allowance_.Get(), 0.0015);
     EXPECT_TRUE(loaded.bed.wall_.vacuum_service_);
+  }
+
+  // ---- WarningSettings ---------------------------------------------------
+
+  // A switched-off warning is neither listed nor logged; the summaries stay.
+  TEST_F(OperatingLimitsTest, SwitchedOffWarningsAreNotReported) {
+    Cycle(2.0, 1.2 * kAtm);
+    data.bed.wall_.design_pressure_ = 1e4;
+    data.settings.warnings_.fluidisation = false;
+    data.settings.warnings_.design_pressure = false;
+    CoupledSolver solver{data};
+    const auto messages = Run(solver);
+    for (const auto& m : messages) {
+      EXPECT_EQ(m.find("approach to fluidisation reaches"), std::string::npos) << m;
+      EXPECT_EQ(m.find("above the wall's design pressure"), std::string::npos) << m;
+    }
+    auto r = CheckOperatingLimits(data, solver.GetLog());
+    EXPECT_EQ(Count(r, OperatingLimit::Fluidisation), 0);
+    EXPECT_EQ(Count(r, OperatingLimit::DesignPressure), 0);
+    EXPECT_GE(Count(r, OperatingLimit::Vacuum), 1);  // still on
+    EXPECT_GT(r.steps[0].max_approach_to_fluidisation, 1.0);  // the summary is complete
+
+    data.settings.warnings_.fluidisation = true;
+    data.settings.warnings_.design_pressure = true;
+    r = CheckOperatingLimits(data, solver.GetLog());
+    EXPECT_EQ(Count(r, OperatingLimit::Fluidisation), 1);
+    EXPECT_EQ(Count(r, OperatingLimit::DesignPressure), 1);
+  }
+
+  // The start-of-run wall-thickness warning has its own switch.
+  TEST_F(OperatingLimitsTest, WallThicknessWarningCanBeSwitchedOff) {
+    Cycle(0.02);
+    data.bed.wall_.ApplyMaterial(WallMaterial::SS316L);
+    data.bed.wall_.thickness_ = 0.0001;
+    data.bed.wall_.design_pressure_ = 10e5;
+    auto thin = [](const std::vector<std::string>& m) {
+      return std::count_if(m.begin(), m.end(), [](const std::string& s) { return s.find("thinner than") != std::string::npos; });
+    };
+    {
+      CoupledSolver solver{data};
+      EXPECT_EQ(thin(Run(solver)), 1);
+    }
+    data.settings.warnings_.wall_thickness = false;
+    CoupledSolver solver{data};
+    EXPECT_EQ(thin(Run(solver)), 0);
+  }
+
+  TEST_F(OperatingLimitsTest, WarningSettingsRoundTrip) {
+    data.settings.warnings_.fluidisation = false;
+    data.settings.warnings_.pressure_step_change = false;
+    std::string text;
+    SaveToString(data, text);
+    UserData loaded;
+    LoadFromJsonText(loaded, text);
+    EXPECT_FALSE(loaded.settings.warnings_.fluidisation);
+    EXPECT_FALSE(loaded.settings.warnings_.pressure_step_change);
+    EXPECT_TRUE(loaded.settings.warnings_.vacuum);
   }
 
 } // namespace adsim

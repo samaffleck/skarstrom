@@ -1327,7 +1327,7 @@
             }
         },
         "Solver_Settings": {
-            "cereal_class_version": 5,
+            "cereal_class_version": 6,
             "Maximum_Number_Of_Steps": 100000,
             "Initial_Step_Size": {
                 "Value": 1e-10,
@@ -1380,7 +1380,16 @@
                 "cereal_class_version": 0,
                 "Method": 0
             },
-            "Maximum_Log_Points_Per_Step": 200
+            "Maximum_Log_Points_Per_Step": 200,
+            "Warnings": {
+                "cereal_class_version": 0,
+                "Pressure_Step_Change": true,
+                "Wall_Thickness": true,
+                "Design_Pressure": true,
+                "Vacuum": true,
+                "Design_Temperature": true,
+                "Fluidisation": true
+            }
         },
         "Experimental_Data": {
             "cereal_class_version": 1,
