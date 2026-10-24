@@ -17,7 +17,7 @@
                     "ptr_wrapper": {
                         "id": 2147483649,
                         "data": {
-                            "cereal_class_version": 4,
+                            "cereal_class_version": 5,
                             "value0": {
                                 "cereal_class_version": 0,
                                 "Boundary_Condition_Location": 0,
@@ -153,7 +153,7 @@
                                         "data": {
                                             "cereal_class_version": 1,
                                             "value0": {
-                                                "cereal_class_version": 4,
+                                                "cereal_class_version": 5,
                                                 "Stream_Name": "Feed inlet",
                                                 "Boundary_Temperature": {
                                                     "Value": 298.0,
@@ -163,11 +163,19 @@
                                                 "Boundary_Mole_Fraction": [
                                                     {
                                                         "key": "Nitrogen",
-                                                        "value": 0.85
+                                                        "value": {
+                                                            "Value": 0.85,
+                                                            "Expression": "0.85",
+                                                            "DisplayUnitIndex": 0
+                                                        }
                                                     },
                                                     {
                                                         "key": "CarbonDioxide",
-                                                        "value": 0.15
+                                                        "value": {
+                                                            "Value": 0.15,
+                                                            "Expression": "0.15",
+                                                            "DisplayUnitIndex": 0
+                                                        }
                                                     }
                                                 ],
                                                 "Boundary_Connection": {
@@ -604,11 +612,19 @@
                             "Inlet_Mole_Fraction": [
                                 {
                                     "key": "Nitrogen",
-                                    "value": 0.85
+                                    "value": {
+                                        "Value": 0.85,
+                                        "Expression": "0.85",
+                                        "DisplayUnitIndex": 0
+                                    }
                                 },
                                 {
                                     "key": "CarbonDioxide",
-                                    "value": 0.15
+                                    "value": {
+                                        "Value": 0.15,
+                                        "Expression": "0.15",
+                                        "DisplayUnitIndex": 0
+                                    }
                                 }
                             ],
                             "Boundary_Pressure": {
