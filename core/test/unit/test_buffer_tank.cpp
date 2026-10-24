@@ -275,7 +275,7 @@ namespace adsim {
       return summary;
     }
 
-    const std::unordered_map<std::string, double> kAssumedY = {{"O2", 1.0}, {"N2", 0.0}};
+    const ExpressionMap kAssumedY = {{"O2", 1.0}, {"N2", 0.0}};
     constexpr double kAssumedT = 293.0;
 
     // Inlet stream-side temperature / O2 fraction implied by the flow functions.

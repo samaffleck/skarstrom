@@ -866,7 +866,7 @@
             "Heat_Of_Adsorption_Convention": 0
         },
         "Initial_Conditions": {
-            "cereal_class_version": 2,
+            "cereal_class_version": 3,
             "Initial_Temperature": {
                 "Value": 298.0,
                 "Expression": "298",
@@ -890,11 +890,19 @@
             "Initial_Composition": [
                 {
                     "key": "Oxygen",
-                    "value": 0.21
+                    "value": {
+                        "Value": 0.21,
+                        "Expression": "0.21",
+                        "DisplayUnitIndex": 0
+                    }
                 },
                 {
                     "key": "Nitrogen",
-                    "value": 0.79
+                    "value": {
+                        "Value": 0.79,
+                        "Expression": "0.79",
+                        "DisplayUnitIndex": 0
+                    }
                 }
             ],
             "Adsorbed_Concentration": []
@@ -916,7 +924,7 @@
                         "ptr_wrapper": {
                             "id": 2147483649,
                             "data": {
-                                "cereal_class_version": 4,
+                                "cereal_class_version": 5,
                                 "value0": {
                                     "cereal_class_version": 0,
                                     "Boundary_Condition_Location": 0,
@@ -930,11 +938,19 @@
                                 "Inlet_Mole_Fraction": [
                                     {
                                         "key": "Oxygen",
-                                        "value": 0.9
+                                        "value": {
+                                            "Value": 0.9,
+                                            "Expression": "0.9",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     },
                                     {
                                         "key": "Nitrogen",
-                                        "value": 0.1
+                                        "value": {
+                                            "Value": 0.1,
+                                            "Expression": "0.1",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     }
                                 ],
                                 "Boundary_Pressure": {
@@ -1061,7 +1077,7 @@
                                             "data": {
                                                 "cereal_class_version": 1,
                                                 "value0": {
-                                                    "cereal_class_version": 4,
+                                                    "cereal_class_version": 5,
                                                     "Stream_Name": "",
                                                     "Boundary_Temperature": {
                                                         "Value": 298.0,
@@ -1071,11 +1087,19 @@
                                                     "Boundary_Mole_Fraction": [
                                                         {
                                                             "key": "Oxygen",
-                                                            "value": 0.21
+                                                            "value": {
+                                                                "Value": 0.21,
+                                                                "Expression": "0.21",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         },
                                                         {
                                                             "key": "Nitrogen",
-                                                            "value": 0.79
+                                                            "value": {
+                                                                "Value": 0.79,
+                                                                "Expression": "0.79",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         }
                                                     ],
                                                     "Boundary_Connection": {
@@ -1228,11 +1252,19 @@
                                 "Inlet_Mole_Fraction": [
                                     {
                                         "key": "Oxygen",
-                                        "value": 0.9
+                                        "value": {
+                                            "Value": 0.9,
+                                            "Expression": "0.9",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     },
                                     {
                                         "key": "Nitrogen",
-                                        "value": 0.1
+                                        "value": {
+                                            "Value": 0.1,
+                                            "Expression": "0.1",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     }
                                 ],
                                 "Boundary_Pressure": {
@@ -1375,11 +1407,19 @@
                                                     "Boundary_Mole_Fraction": [
                                                         {
                                                             "key": "Oxygen",
-                                                            "value": 0.9
+                                                            "value": {
+                                                                "Value": 0.9,
+                                                                "Expression": "0.9",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         },
                                                         {
                                                             "key": "Nitrogen",
-                                                            "value": 0.1
+                                                            "value": {
+                                                                "Value": 0.1,
+                                                                "Expression": "0.1",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         }
                                                     ],
                                                     "Boundary_Connection": {
@@ -1501,11 +1541,19 @@
                                 "Inlet_Mole_Fraction": [
                                     {
                                         "key": "Oxygen",
-                                        "value": 0.21
+                                        "value": {
+                                            "Value": 0.21,
+                                            "Expression": "0.21",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     },
                                     {
                                         "key": "Nitrogen",
-                                        "value": 0.79
+                                        "value": {
+                                            "Value": 0.79,
+                                            "Expression": "0.79",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     }
                                 ],
                                 "Boundary_Pressure": {
@@ -1628,11 +1676,19 @@
                                 "Inlet_Mole_Fraction": [
                                     {
                                         "key": "Oxygen",
-                                        "value": 0.9
+                                        "value": {
+                                            "Value": 0.9,
+                                            "Expression": "0.9",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     },
                                     {
                                         "key": "Nitrogen",
-                                        "value": 0.1
+                                        "value": {
+                                            "Value": 0.1,
+                                            "Expression": "0.1",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     }
                                 ],
                                 "Boundary_Pressure": {

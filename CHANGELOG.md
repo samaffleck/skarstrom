@@ -8,6 +8,19 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed
+- Inlet mole fractions (pressure boundaries and every stream kind) and the
+  initial-condition mole fractions are expressions (`ExpressionMap`, a
+  component-keyed map of `ExpressionParam`s in `adsim/math/expression_map.h`)
+  instead of plain numbers, so a composition can use global variables
+  (`y_feed`, `1 - y_feed`) or a fraction unit (`21 [%]`, `400 [ppm]`). The
+  registry lists `endpoint[ID].y[C]` and `initial.y[C]` as Expression
+  parameters (a plain number stays tunable). The sum-to-1 checks use the
+  evaluated values. Archive versions: `IBoundaryStream` 5,
+  `PressureBoundaryCondition` 5, `InitialConditions` 3; older decks, whose
+  mole fractions are numbers, still load. A deck saved by this version does
+  not load in 0.2.0 or earlier.
+
 ## [0.2.0] — 2026-10-24
 
 ### Added
