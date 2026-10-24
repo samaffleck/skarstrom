@@ -8,6 +8,8 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-24
+
 ### Added
 - Sensitivity analysis and KPI error bars (`adsim/solver/sensitivity.h`):
   Morris screening (which inputs move the KPIs) and Monte Carlo propagation
