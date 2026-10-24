@@ -27,7 +27,7 @@ skarstrom run path/to/deck.json --cycles 20 --set "step[Feed].time=120" --json -
 skarstrom run deck.json --csv out/                          # kpis.csv, css.csv, run.json, logs/
 ```
 
-The `--json` summary has `status` (`completed`, `reached_css`, `failed`, `cancelled`), `message`, `css_reached`, `css_cycle` (0-based, -1 if not reached), `cycles_run`, `wall_time_s`, `stats` (integrator counters), `kpis` (one object per tracked component per logged cycle; undefined values are `null`) and `css` (the CSS check per cycle). Progress goes to stderr; use `-q` to silence it.
+The `--json` summary has `status` (`completed`, `reached_css`, `failed`, `cancelled`), `message`, `css_reached`, `css_cycle` (0-based, -1 if not reached), `cycles_run`, `wall_time_s`, `stats` (integrator counters), `kpis` (one object per tracked component per logged cycle; undefined values are `null`) `css` (the CSS check per cycle) and `warnings` (operating limits of the last cycle: wall design pressure and temperature, vacuum, approach to fluidisation; see `sim.operating_limits()`). Progress goes to stderr; use `-q` to silence it.
 
 Python:
 

@@ -743,6 +743,19 @@ namespace adsim {
       Emplace("wall.thermal_conductivity", "", "bed", "wall", "wall thermal conductivity", "W/(m-K)",
               bed.wall_.thermal_conductivity_, 0.1, 100.0);
       Emplace("wall.thickness", "", "bed", "wall", "wall thickness", "m", bed.wall_.thickness_, 0.001, 0.1);
+      // Pressure design (wall_design.h): sizes the thickness, sets the
+      // operating-limit warnings; the solver does not read it.
+      EmplaceEnum("wall.design_code", "", "bed", "wall design", "wall design code", bed.wall_.design_code_,
+                  "asme_viii_1,asme_b31_3");
+      Emplace("wall.design_pressure", "", "bed", "wall design", "wall design pressure (gauge)", "Pa",
+              bed.wall_.design_pressure_, 0.0, 1e7);
+      Emplace("wall.design_temperature", "", "bed", "wall design", "wall design temperature", "K",
+              bed.wall_.design_temperature_, 273.0, 873.0);
+      Emplace("wall.weld_joint_efficiency", "", "bed", "wall design", "weld joint efficiency", "-",
+              bed.wall_.weld_joint_efficiency_, 0.5, 1.0);
+      Emplace("wall.corrosion_allowance", "", "bed", "wall design", "corrosion allowance", "m",
+              bed.wall_.corrosion_allowance_, 0.0, 0.006);
+      EmplaceBool("wall.vacuum_service", "", "bed", "wall design", "vacuum service", bed.wall_.vacuum_service_);
       auto& wall_bc = bed.equations_.wall_temperature_boundary_condition_;
       if (auto* fixed = dynamic_cast<WallTemperatureBoundaryConditionFixed*>(wall_bc.get())) {
         Emplace("wall.fixed_temperature", "", "bed", "wall", "fixed wall temperature", "K",

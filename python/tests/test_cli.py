@@ -83,6 +83,9 @@ def test_run_json(capsys):
     assert code == 0
     payload = json.loads(out)
     assert payload["cycles_run"] == 1 and payload["kpis"][0]["component"] == "CarbonDioxide"
+    assert payload["warnings"] == []  # no wall design, no fluidisation
+    code, out, _ = run_cli(capsys, "run", PEREZ, "--cycles", "1", "--set", "wall.design_pressure=1e5", "--json", "-q")
+    assert any("vacuum service" in w for w in json.loads(out)["warnings"])
 
 
 def test_run_rejects_unknown_parameter_and_bad_value(capsys):

@@ -141,6 +141,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     kpis = sim.kpis() if sim.has_results else []
     css = sim.css_history() if sim.has_results else []
+    warnings = [w.message for w in sim.operating_limits().warnings] if sim.has_results else []
     last = sim.last_cycle
 
     if args.json:
@@ -157,6 +158,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                      for r in kpis],
             "css": [{"cycle": c.cycle, "converged": c.converged, "error": c.error, "tolerance": c.tolerance,
                      "method": c.method} for c in css],
+            "warnings": warnings,
         }
         print(json.dumps(payload, indent=2))
     else:
@@ -186,6 +188,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             _print_table(rows, ["component"] + [h for _, h in KPI_FIELDS])
         elif sim.has_results:
             print("\nKPIs:    none (no component is tracked in the deck's KPI configuration)")
+        for w in warnings:
+            print(f"\n{w}")
 
     if args.csv:
         os.makedirs(args.csv, exist_ok=True)

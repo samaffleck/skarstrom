@@ -88,3 +88,7 @@ For two Darcy cells this is exactly the harmonic-mean permeability used before, 
 | $z$           | Axial coordinate                         | m              |
 | $d_p$         | Particle diameter                        | m              |
 | $\epsilon_b$  | Bed void fraction                        | -              |
+
+### Approach to fluidisation
+
+The **Approach To Fluidisation** result variable is the upward pressure gradient divided by the weight of the packing less the gas, $(-\partial P/\partial z)/((\rho_b - \rho_g) g)$. Above 1 an unrestrained bed in upward flow lifts; the solver warns at the end of a run when any step of the last cycle passes it (see [Wall Design and Operating Limits](wall-design.md#operating-limit-warnings)).

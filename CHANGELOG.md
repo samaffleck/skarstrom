@@ -8,6 +8,39 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added
+- Wall pressure design (`adsim/objects/wall_design.h`): the minimum wall
+  thickness of a cylindrical column for ASME BPVC VIII-1 UG-27 (with
+  Appendix 1-2 for thick shells) or ASME B31.3 304.1.2, with a corrosion
+  allowance, and for full vacuum by the formula method of ASME Code Case
+  2286 (VIII-2 4.4.5.1). New `BedWall` fields `design_code_` and
+  `corrosion_allowance_`; registry paths `wall.design_code`,
+  `wall.design_pressure`, `wall.design_temperature`,
+  `wall.weld_joint_efficiency`, `wall.corrosion_allowance`,
+  `wall.vacuum_service`. Elastic moduli of the wall materials
+  (`GetElasticModulus`). Python: `sim.wall_design()`.
+- Operating-limit warnings (`adsim/solver/operating_limits.h`): at the end of
+  a completed run the solver checks the last logged cycle and warns, per step,
+  when the pressure passes the wall's design pressure or goes below
+  atmospheric without vacuum service, when the wall passes its design
+  temperature, and when the approach to fluidisation passes 1 (with where and
+  when). At the start of a run it warns when the wall is thinner than its
+  design requires (`WallDesignWarnings`). Python: `sim.operating_limits()`;
+  CLI: `warnings` in `skarstrom run --json`. Docs: `docs/wall-design.md`.
+
+### Changed
+- Vacuum service no longer sizes the wall with 1 atm as an internal pressure
+  in UG-27 (not conservative: buckling governs) and no longer ignores the
+  design pressure; the larger of the internal and the external requirement
+  is used.
+- `BedWall` cereal version 4. Its version was declared in `wall.cpp`, where
+  no archive saw it, so decks carry version 0 for the wall; they load
+  unchanged. The declaration is now in `wall.h`.
+
+### Removed
+- `CalculateAsmeMinWallThickness`, `AsmeWallThicknessResult` and
+  `BedWall::CalculateMinThickness`; use `DesignWall` / `DesignBedWall`.
+
 ## [0.2.0] — 2026-10-24
 
 ### Added

@@ -38,7 +38,17 @@ import numpy as np
 
 from . import _core, examples, sensitivity, units
 from .units import Quantity, ureg
-from ._core import AxialProfile, CSSRecord, KPIRecord, RunResult, TimeSeries
+from ._core import (
+    AxialProfile,
+    CSSRecord,
+    KPIRecord,
+    OperatingLimitsReport,
+    OperatingWarning,
+    RunResult,
+    StepOperatingSummary,
+    TimeSeries,
+    WallDesignResult,
+)
 from ._example import Example
 from .build import (
     Flow,
@@ -97,6 +107,10 @@ __all__ = [
     "BufferTank",
     "CSS",
     "CSSRecord",
+    "OperatingLimitsReport",
+    "OperatingWarning",
+    "StepOperatingSummary",
+    "WallDesignResult",
     "Collection",
     "Cycle",
     "EnergyBalance",
@@ -840,6 +854,23 @@ class Simulation:
     def css_history(self) -> List[CSSRecord]:
         """The deck's cyclic-steady-state check at every logged cycle."""
         return self._sim.css_history()
+
+    def operating_limits(self, cycle: int = -1) -> OperatingLimitsReport:
+        """Pressure, wall-temperature and fluidisation extremes of each step of
+        one cycle (-1 = last), with ``warnings`` where the cycle passes the
+        wall's design pressure or temperature, goes below atmospheric without
+        vacuum service, or the approach to fluidisation passes 1. The design
+        checks run only when the wall has a design (a positive
+        ``wall.design_pressure`` or ``wall.vacuum_service``)."""
+        return self._sim.operating_limits(cycle)
+
+    def wall_design(self) -> WallDesignResult:
+        """The wall's minimum thickness [m] for its pressure design
+        (``wall.design_code``, ``design_pressure``, ``design_temperature``,
+        ``weld_joint_efficiency``, ``corrosion_allowance``,
+        ``vacuum_service``): ``required_thickness``, or ``valid`` False with
+        a ``message``. Set ``sim.wall.thickness`` to it to size the wall."""
+        return self._sim.wall_design()
 
     def series(
         self,

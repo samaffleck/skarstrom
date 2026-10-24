@@ -210,63 +210,116 @@ namespace adsim {
   }
 
   // ---------------------------------------------------------------------------
-  // ASME BPV VIII-1 Minimum Wall Thickness
+  // Elastic modulus — ASME Section II Part D, Tables TM
   // ---------------------------------------------------------------------------
+  // Approximate values (converted from the psi tables at 70, 200, 300, ... °F)
+  // after ASME BPVC II-D Tables TM-1 (carbon and austenitic steels), TM-2
+  // (aluminium alloys), TM-4 (nickel alloys) and TM-5 (titanium). Used only by
+  // the external-pressure (buckling) check of the wall design; verify them
+  // against the edition in use for a final design.
+  // Returns 0.0 for WallMaterial::Custom.
+  inline double GetElasticModulus(WallMaterial m, double temperature_K) {
+    const double T_C = temperature_K - 273.15;
+    auto interpolate = [&](std::span<const StressDataPoint> pts) -> double {
+      if (T_C <= pts.front().temperature_C) return pts.front().max_stress;
+      if (T_C >= pts.back().temperature_C)  return pts.back().max_stress;
+      for (std::size_t i = 1; i < pts.size(); ++i) {
+        if (T_C <= pts[i].temperature_C) {
+          const double frac = (T_C - pts[i-1].temperature_C)
+                            / (pts[i].temperature_C - pts[i-1].temperature_C);
+          return pts[i-1].max_stress + frac * (pts[i].max_stress - pts[i-1].max_stress);
+        }
+      }
+      return pts.back().max_stress;
+    };
+    switch (m) {
+      // Austenitic stainless steels (TM-1, 304/316 group)
+      case WallMaterial::SS316L:
+      case WallMaterial::SS304:
+      case WallMaterial::SS304L: {
+        static constexpr StressDataPoint pts[] = {
+          {  21.0, 195.1e9 }, {  93.0, 190.3e9 }, { 149.0, 186.2e9 }, { 204.0, 182.7e9 },
+          { 260.0, 177.9e9 }, { 316.0, 174.4e9 }, { 371.0, 171.0e9 }, { 427.0, 166.2e9 },
+          { 482.0, 162.0e9 }, { 538.0, 157.2e9 }
+        };
+        return interpolate(pts);
+      }
+      // Carbon steels, C <= 0.30 % (TM-1)
+      case WallMaterial::CarbonSteel_A106:
+      case WallMaterial::CarbonSteel_A53: {
+        static constexpr StressDataPoint pts[] = {
+          {  21.0, 202.7e9 }, {  93.0, 198.6e9 }, { 149.0, 195.1e9 }, { 204.0, 192.4e9 },
+          { 260.0, 188.2e9 }, { 316.0, 182.7e9 }, { 371.0, 175.8e9 }, { 427.0, 166.9e9 },
+          { 482.0, 154.4e9 }, { 538.0, 140.7e9 }
+        };
+        return interpolate(pts);
+      }
+      // Hastelloy C-276, UNS N10276 (TM-4)
+      case WallMaterial::Hastelloy_C276: {
+        static constexpr StressDataPoint pts[] = {
+          {  21.0, 205.5e9 }, {  93.0, 201.3e9 }, { 149.0, 198.6e9 }, { 204.0, 195.8e9 },
+          { 260.0, 193.1e9 }, { 316.0, 190.3e9 }, { 371.0, 187.5e9 }, { 427.0, 184.8e9 },
+          { 482.0, 182.0e9 }, { 538.0, 179.3e9 }
+        };
+        return interpolate(pts);
+      }
+      // Inconel 625, UNS N06625 (TM-4)
+      case WallMaterial::Inconel_625: {
+        static constexpr StressDataPoint pts[] = {
+          {  21.0, 207.5e9 }, {  93.0, 203.4e9 }, { 149.0, 200.6e9 }, { 204.0, 197.9e9 },
+          { 260.0, 195.1e9 }, { 316.0, 192.4e9 }, { 371.0, 189.6e9 }, { 427.0, 186.8e9 },
+          { 482.0, 183.4e9 }, { 538.0, 180.0e9 }
+        };
+        return interpolate(pts);
+      }
+      // Aluminium 6061 (TM-2)
+      case WallMaterial::Aluminium_6061: {
+        static constexpr StressDataPoint pts[] = {
+          {  21.0, 68.9e9 }, {  93.0, 66.2e9 }, { 149.0, 63.4e9 }, { 204.0, 60.0e9 }
+        };
+        return interpolate(pts);
+      }
+      // Titanium Grade 2, UNS R50400 (TM-5)
+      case WallMaterial::Titanium_Gr2: {
+        static constexpr StressDataPoint pts[] = {
+          {  21.0, 106.9e9 }, {  93.0, 103.4e9 }, { 149.0, 100.7e9 }, { 204.0, 96.5e9 },
+          { 260.0,  91.7e9 }, { 316.0,  86.9e9 }, { 371.0,  82.0e9 }
+        };
+        return interpolate(pts);
+      }
+      default:
+        return 0.0;
+    }
+  }
 
-  struct AsmeWallThicknessResult {
-    double min_thickness;    // [m]  — minimum required wall thickness per ASME
-    double allowable_stress; // [Pa] — S at design temperature
-    bool   is_valid;         // false when P >= S*E (UG-27 formula breaks down)
+  // Austenitic stainless steels and nickel alloys may be given an allowable
+  // stress up to 0.9 of the yield strength at temperature (ASME II-D Mandatory
+  // Appendix 1); every other material is limited to 2/3 of it.
+  inline bool IsAusteniticOrNickelAlloy(WallMaterial m) {
+    return m == WallMaterial::SS316L || m == WallMaterial::SS304 || m == WallMaterial::SS304L
+        || m == WallMaterial::Hastelloy_C276 || m == WallMaterial::Inconel_625;
+  }
+
+  // A lower bound on the yield strength at temperature [Pa], from the
+  // allowable stress: II-D sets S <= 2/3 Sy(T) (0.9 Sy(T) for austenitic and
+  // nickel alloys), so Sy(T) >= 1.5 S (S / 0.9). The external-pressure check
+  // uses it in place of a yield-strength table; a lower yield strength gives a
+  // lower allowable external pressure, so the bound is conservative.
+  inline double YieldStrengthLowerBound(WallMaterial m, double temperature_K) {
+    const double S = GetMaxAllowableStress(m, temperature_K);
+    return IsAusteniticOrNickelAlloy(m) ? S / 0.9 : 1.5 * S;
+  }
+
+  // The code a wall's minimum thickness is calculated to (see wall_design.h).
+  enum class WallDesignCode {
+    ASME_VIII_1,  // ASME BPVC Section VIII Division 1, UG-27 (pressure vessel shell)
+    ASME_B31_3    // ASME B31.3 304.1.2 (process piping: tube and pipe columns)
   };
 
-  // Calculates the minimum required wall thickness for a cylindrical pressure
-  // vessel per ASME BPV Section VIII Division 1.
-  //
-  // Internal pressure (UG-27, circumferential stress):
-  //   t = P * R / (S * E - 0.6 * P)
-  //
-  // Vacuum / external pressure:
-  //   A conservative simplification is used: the vessel is designed for full
-  //   atmospheric vacuum differential (101 325 Pa) applied as an equivalent
-  //   internal pressure using the UG-27 formula. This is conservative relative
-  //   to the iterative UG-28 chart procedure and is appropriate for preliminary
-  //   sizing. A formal UG-28 analysis is required for final design.
-  //
-  // Parameters:
-  //   inner_diameter        [m]   — vessel inside diameter
-  //   design_pressure       [Pa gauge] — maximum allowable working pressure
-  //   design_temperature    [K]   — design temperature for S lookup
-  //   material              —     wall material (Custom returns is_valid=false)
-  //   weld_joint_efficiency —     E: 1.0 seamless/full RT, 0.85 spot, 0.70 none
-  //   vacuum_service        —     if true, design for full external vacuum
-  inline AsmeWallThicknessResult CalculateAsmeMinWallThickness(
-      double inner_diameter,
-      double design_pressure,
-      double design_temperature,
-      WallMaterial material,
-      double weld_joint_efficiency,
-      bool   vacuum_service)
-  {
-    const double S = GetMaxAllowableStress(material, design_temperature);
-    if (S <= 0.0) {
-      return {0.0, S, false};
-    }
-
-    const double R = inner_diameter / 2.0;
-    const double E = weld_joint_efficiency;
-
-    // For vacuum service use full atmospheric differential as the effective
-    // design pressure (conservative simplification — see function comment above).
-    const double P = vacuum_service ? 101325.0 : design_pressure;
-
-    const double denominator = S * E - 0.6 * P;
-    if (denominator <= 0.0) {
-      return {0.0, S, false};
-    }
-
-    const double t = P * R / denominator;
-    return {t, S, true};
-  }
+  inline constexpr const char* kWallDesignCodeList[] = {
+    "ASME BPVC VIII-1 (UG-27)",
+    "ASME B31.3 (304.1.2)"
+  };
 
 
 	class BedWall {
@@ -279,11 +332,15 @@ namespace adsim {
     ExpressionParam heat_capacity_{500};         // [J/(kg-K)]
     ExpressionParam thermal_conductivity_{16.3}; // [W/(m-K)]
 
-    // Design parameters for ASME minimum wall thickness calculation
-    ExpressionParam design_pressure_{0.0};       // [Pa gauge] — user-specified MAWP
+    // Pressure design (see wall_design.h). The design is in use when the
+    // design pressure is positive or the wall is in vacuum service; then the
+    // solver warns when a run leaves the design envelope.
+    WallDesignCode  design_code_ = WallDesignCode::ASME_VIII_1;
+    ExpressionParam design_pressure_{0.0};       // [Pa gauge] — maximum internal (operating) pressure
     ExpressionParam design_temperature_{293.0};  // [K]        — for allowable stress lookup
     ExpressionParam weld_joint_efficiency_{1.0}; // E: 1.0 seamless/full RT, 0.85 spot, 0.70 none
-    bool            vacuum_service_ = false;     // if true, design for external pressure (vacuum)
+    ExpressionParam corrosion_allowance_{0.0};   // [m] — added to the required thickness
+    bool            vacuum_service_ = false;     // if true, also design for full vacuum (external pressure)
 
     void ApplyMaterial(WallMaterial m) {
       material = m;
@@ -295,17 +352,8 @@ namespace adsim {
       }
     }
 
-    // Returns the ASME minimum wall thickness result using the stored design
-    // parameters. Caller must ensure the column shape is CylinderBed — the
-    // ASME BPV VIII-1 formulae only apply to cylindrical pressure vessels.
-    AsmeWallThicknessResult CalculateMinThickness(double inner_diameter) const {
-      return CalculateAsmeMinWallThickness(
-          inner_diameter,
-          design_pressure_.Get(),
-          design_temperature_.Get(),
-          material,
-          weld_joint_efficiency_.Get(),
-          vacuum_service_);
+    bool DesignInUse() const {
+      return design_pressure_.Get() > 0.0 || vacuum_service_;
     }
 
     void EvaluateExpressions(const EvalContext& ctx) {
@@ -316,6 +364,7 @@ namespace adsim {
       design_pressure_.Evaluate(ctx);
       design_temperature_.Evaluate(ctx);
       weld_joint_efficiency_.Evaluate(ctx);
+      corrosion_allowance_.Evaluate(ctx);
     }
 
 	private:
@@ -333,7 +382,18 @@ namespace adsim {
         cereal::make_nvp("Weld_Joint_Efficiency", weld_joint_efficiency_),
         cereal::make_nvp("Vacuum_Service", vacuum_service_)
 			);
+      if (version >= 4) {
+        ar(
+          cereal::make_nvp("Design_Code", design_code_),
+          cereal::make_nvp("Corrosion_Allowance", corrosion_allowance_)
+        );
+      }
 		}
 	};
 
 } // adsim namespace
+
+// Version 4 adds Design_Code and Corrosion_Allowance. Decks saved before it
+// carry version 0 (the version was declared in wall.cpp, where no archive saw
+// it) and have every field up to Vacuum_Service.
+CEREAL_CLASS_VERSION(adsim::BedWall, 4);
