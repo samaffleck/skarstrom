@@ -20,6 +20,7 @@
 #include "adsim/boundary_conditions/connection.h"
 #include "adsim/boundary_conditions/cycle_endpoint_summary.h"
 #include "adsim/boundary_conditions/buffer_tank_source.h"
+#include "adsim/math/expression_map.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/objects/valve.h"
 #include "adsim/objects/compressor.h"
@@ -57,7 +58,7 @@ namespace adsim {
 	// the fluid after the map was last edited) and entries for components no
 	// longer in the fluid are erased. Run by the boundary checks so the residual
 	// never meets a missing key.
-	inline void ReconcileMoleFractionMap(std::unordered_map<std::string, double>& mole_fraction,
+	inline void ReconcileMoleFractionMap(ExpressionMap& mole_fraction,
 	                                     const std::vector<std::string>& components) {
 		for (auto it = mole_fraction.begin(); it != mole_fraction.end();) {
 			if (std::find(components.begin(), components.end(), it->first) == components.end())
@@ -132,6 +133,7 @@ namespace adsim {
 		virtual void EvaluateExpressions(const EvalContext& ctx) {
 			temperature_.Evaluate(ctx);
 			if (temperature_profile_) temperature_profile_->EvaluateExpressions(ctx);
+			EvaluateExpressionMap(mole_fraction, ctx);
 			buffer_tank_.EvaluateExpressions(ctx);
 		}
 
@@ -163,7 +165,7 @@ namespace adsim {
     }
 
 		StreamData stream_data_{};
-		std::unordered_map<std::string, double> mole_fraction{}; // Inlet mole fraction (also acts as first-cycle assumption when buffer_tank_ is active)
+		ExpressionMap mole_fraction{}; // Inlet mole fraction (also acts as first-cycle assumption when buffer_tank_ is active)
 		std::string name_{};
 		// Stable identity of this endpoint within the cycle (unique across every
 		// stream and pressure boundary of every step; 0 = not yet assigned, see
@@ -205,10 +207,11 @@ namespace adsim {
 		void serialize(Archive& ar, std::uint32_t const version) {
 			ar(
 				cereal::make_nvp("Stream_Name", name_),
-				cereal::make_nvp("Boundary_Temperature", temperature_),
-				cereal::make_nvp("Boundary_Mole_Fraction", mole_fraction),
-				cereal::make_nvp("Boundary_Connection", connection_)
+				cereal::make_nvp("Boundary_Temperature", temperature_)
 			);
+			// version < 5: the mole fractions were plain numbers.
+			SerializeExpressionMap(ar, "Boundary_Mole_Fraction", mole_fraction, version < 5);
+			ar(cereal::make_nvp("Boundary_Connection", connection_));
 
 			if (version >= 2) {
 				ar(

@@ -18,7 +18,7 @@
 
 // adsim includes
 #include "adsim/objects/fluid.h"
-#include "adsim/math/expression_param.h"
+#include "adsim/math/expression_map.h"
 
 
 namespace adsim {
@@ -31,7 +31,7 @@ namespace adsim {
 	  ExpressionParam wall_temperature{293.0};  // [K]
 	  ExpressionParam pressure{101325.0};       // [Pa]
 	  ExpressionParam velocity{0.0};            // [m/s]
-	  std::unordered_map<std::string, double> mole_fraction{}; // [mol/mol]
+	  ExpressionMap mole_fraction{}; // [mol/mol]
 	  std::unordered_map<std::string, double> adsorbed_concentration{}; // [mol/kg]
 
     void EvaluateExpressions(const EvalContext& ctx) {
@@ -39,6 +39,7 @@ namespace adsim {
       wall_temperature.Evaluate(ctx);
       pressure.Evaluate(ctx);
       velocity.Evaluate(ctx);
+      EvaluateExpressionMap(mole_fraction, ctx);
     }
 
   private:
@@ -49,13 +50,14 @@ namespace adsim {
         cereal::make_nvp("Initial_Temperature", temperature),
         cereal::make_nvp("Initial_Wall_Temperature", wall_temperature),
         cereal::make_nvp("Initial_Pressure", pressure),
-        cereal::make_nvp("Initial_Velocity", velocity),
-        cereal::make_nvp("Initial_Composition", mole_fraction),
-        cereal::make_nvp("Adsorbed_Concentration", adsorbed_concentration)
+        cereal::make_nvp("Initial_Velocity", velocity)
       );
+      // version < 3: the mole fractions were plain numbers.
+      SerializeExpressionMap(ar, "Initial_Composition", mole_fraction, version < 3);
+      ar(cereal::make_nvp("Adsorbed_Concentration", adsorbed_concentration));
     }
   };
 
 } // end adsim namespace
 
-CEREAL_CLASS_VERSION(adsim::InitialConditions, 2);
+CEREAL_CLASS_VERSION(adsim::InitialConditions, 3);

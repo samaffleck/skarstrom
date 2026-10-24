@@ -657,7 +657,7 @@ CEREAL_REGISTER_TYPE(adsim::PumpBoundaryStream)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryStream, adsim::BoundaryStream)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryStream, adsim::ValveBoundaryStream)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryStream, adsim::PumpBoundaryStream)
-CEREAL_CLASS_VERSION(adsim::IBoundaryStream, 4);
+CEREAL_CLASS_VERSION(adsim::IBoundaryStream, 5);
 CEREAL_CLASS_VERSION(adsim::BoundaryStream, 1);
 CEREAL_CLASS_VERSION(adsim::ValveBoundaryStream, 1);
 CEREAL_CLASS_VERSION(adsim::PumpBoundaryStream, 1);

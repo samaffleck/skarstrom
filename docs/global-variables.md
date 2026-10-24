@@ -1,6 +1,6 @@
 # Global Variables, Expressions and Units
 
-Almost every number in a deck (step times, pressures, flows, temperatures, isotherm and kinetic parameters, layer and wall properties, solver tolerances) is stored as an **expression**, not just a value. You can type a plain number, a number with a unit such as `3.5 [bar]`, or a formula that refers to your own named **global variables**, such as `P_high / 2`. This page describes what an expression may contain, how units are converted and when expressions are evaluated.
+Almost every number in a deck (step times, pressures, flows, temperatures, inlet and initial mole fractions, isotherm and kinetic parameters, layer and wall properties, solver tolerances) is stored as an **expression**, not just a value. You can type a plain number, a number with a unit such as `3.5 [bar]`, or a formula that refers to your own named **global variables**, such as `P_high / 2`. This page describes what an expression may contain, how units are converted and when expressions are evaluated.
 
 ---
 
@@ -23,6 +23,8 @@ sim["variable[t_feed]"] = "40 [s]"
 sim["step[Feed].time"] = "t_feed"          # both steps now follow t_feed
 sim["step[Rinse].time"] = "t_feed"
 sim["endpoint[3].pressure"] = "P_high / 2"
+sim["endpoint[1].y[CarbonDioxide]"] = "y_feed"       # an inlet composition
+sim["endpoint[1].y[Nitrogen]"] = "1 - y_feed"
 ```
 
 Use a variable's name in any numeric field, for example `P_high` in a pressure profile's final value, or `t_feed` in two step times so that they always stay equal.

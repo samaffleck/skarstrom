@@ -14,7 +14,7 @@
 #include <cereal/cereal.hpp>
 
 #include "adsim/boundary_conditions/cycle_endpoint_summary.h"
-#include "adsim/math/expression_param.h"
+#include "adsim/math/expression_map.h"
 
 
 namespace adsim {
@@ -129,7 +129,7 @@ namespace adsim {
                                 double time);
   double SelectInletMoleFraction(const BufferTankSource& buffer_tank,
                                  const Connection& connection,
-                                 const std::unordered_map<std::string, double>& assumed_mole_fraction,
+                                 const ExpressionMap& assumed_mole_fraction,
                                  const std::string& component,
                                  double time);
 

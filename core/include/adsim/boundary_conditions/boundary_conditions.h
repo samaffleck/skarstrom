@@ -112,6 +112,7 @@ namespace adsim {
 			temperature_.Evaluate(ctx);
 			if (temperature_profile_) temperature_profile_->EvaluateExpressions(ctx);
 			if (pressure_) pressure_->EvaluateExpressions(ctx);
+			EvaluateExpressionMap(mole_fraction_, ctx);
 			if (pump_) pump_->EvaluateExpressions(ctx);
 			buffer_tank_.EvaluateExpressions(ctx);
 		}
@@ -124,7 +125,7 @@ namespace adsim {
 		std::unique_ptr<IBoundaryValue> temperature_profile_{};
 		// Isothermal-run override (transient, never serialised; set in Initialise).
 		std::optional<double> isothermal_temperature_{};
-		std::unordered_map<std::string, double> mole_fraction_{};
+		ExpressionMap mole_fraction_{};
 		std::unique_ptr<IBoundaryValue> pressure_;
     StreamData stream_data_{};
     Connection connection_{};
@@ -139,8 +140,11 @@ namespace adsim {
 		void serialize(Archive& ar, std::uint32_t const version) {
 			ar(
 				cereal::virtual_base_class<IBoundaryCondition>(this),
-				cereal::make_nvp("Inlet_Temperature", temperature_),
-				cereal::make_nvp("Inlet_Mole_Fraction", mole_fraction_),
+				cereal::make_nvp("Inlet_Temperature", temperature_)
+			);
+			// version < 5: the mole fractions were plain numbers.
+			SerializeExpressionMap(ar, "Inlet_Mole_Fraction", mole_fraction_, version < 5);
+			ar(
 				cereal::make_nvp("Boundary_Pressure", pressure_),
         cereal::make_nvp("Boundary_Condition_Connection", connection_),
         cereal::make_nvp("Pump", pump_)

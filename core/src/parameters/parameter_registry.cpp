@@ -613,7 +613,7 @@ namespace adsim {
               "buffer tank: share of the source endpoint's moles drawn", "%", tank.percentage_, 0.0, 100.0);
     }
 
-    void AddMoleFractions(std::unordered_map<std::string, double>& y, const EndpointScope& ep, bool inlet) {
+    void AddMoleFractions(ExpressionMap& y, const EndpointScope& ep, bool inlet) {
       for (auto& [component, yi] : y) {
         Emplace(ep.path + ".y[" + component + "]", ep.alias + ".y[" + component + "]", "cycle", ep.subcategory,
                 component + (inlet ? " inlet mole fraction" : " backflow mole fraction"), "-", yi, 0.0, 1.0);

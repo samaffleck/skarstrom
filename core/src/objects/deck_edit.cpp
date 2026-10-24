@@ -25,7 +25,7 @@ bool IsAvailableComponent(const std::string& name) {
 }
 
 void ReconcileMoleFractions(UserData& data, const std::string& component, bool add) {
-  auto touch = [&](std::unordered_map<std::string, double>& mf) {
+  auto touch = [&](ExpressionMap& mf) {
     if (add) {
       if (!mf.count(component)) mf[component] = 0.0;
     } else {

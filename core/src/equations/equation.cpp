@@ -515,7 +515,7 @@ namespace adsim {
     for (auto& [component, eq] : mole_fraction){
       double yi_0 = 0.0;
       if (ic.mole_fraction.find(component) != ic.mole_fraction.end()) {
-        yi_0 = ic.mole_fraction.at(component);
+        yi_0 = ic.mole_fraction.at(component).Get();
       }
       eq.SetInitialConditions(yi_0);
     }
