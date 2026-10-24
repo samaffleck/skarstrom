@@ -18,9 +18,10 @@ namespace adsim {
 
   namespace {
 
-    // Below these margins a limit is not counted as passed: logged pressures
-    // and temperatures carry solver noise around a boundary value.
-    constexpr double kPressureMargin = 100.0;      // [Pa]
+    // Below these margins a limit is not counted as passed. Logged values
+    // carry solver noise around a boundary value, and decks often take 1 bar
+    // as atmospheric (1.3 kPa below kAtmosphericPressure).
+    constexpr double kPressureMargin = 0.02 * kAtmosphericPressure;  // [Pa], 2 kPa
     constexpr double kTemperatureMargin = 0.01;    // [K]
 
     std::string Num(double v, int precision = 3) {

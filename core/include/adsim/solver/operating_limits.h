@@ -18,7 +18,9 @@
 //   pressure across a different region).
 // - The design checks run only when the wall's design is in use
 //   (BedWall::DesignInUse: a positive design pressure or vacuum service).
-//   Gauge pressure is relative to kAtmosphericPressure.
+//   Gauge pressure is relative to kAtmosphericPressure. A pressure limit
+//   counts as passed by more than 2 kPa (decks often take 1 bar as
+//   atmospheric), a temperature limit by more than 0.01 K.
 // - Approach to fluidisation is the upward pressure gradient over the weight
 //   of the packing less the gas, (-dP/dz) / ((rho_b - rho) g); above 1 an
 //   unrestrained bed in upward flow lifts. It is checked whatever the design.

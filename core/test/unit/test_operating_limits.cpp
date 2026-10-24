@@ -44,16 +44,16 @@ namespace adsim {
       AddConstantExternalHeatTransferCoefficientModel(0.0, layer_id);
     }
 
-    // Upward feed at `velocity` with the top at 1 atm, then a downward purge
-    // (top inlet) with the bottom at 0.9 atm.
-    void Cycle(double velocity) {
+    // Upward feed at `velocity` with the top at `feed_outlet`, then a downward
+    // purge (top inlet) with the bottom at 0.9 atm.
+    void Cycle(double velocity, double feed_outlet = kAtm) {
       AddStep("Feed", 30.0);
       {
         std::vector<std::unique_ptr<IBoundaryStream>> streams;
         streams.push_back(CreateNoValveInletStream(CreateVelocityBC(velocity), feed, 293));
         AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, "Feed");
       }
-      AddPressureOutletBC(CreateConstantBoundaryValue(kAtm), BoundaryLocation::TOP, "Feed");
+      AddPressureOutletBC(CreateConstantBoundaryValue(feed_outlet), BoundaryLocation::TOP, "Feed");
       AddStep("Purge", 10.0);
       {
         std::vector<std::unique_ptr<IBoundaryStream>> streams;
@@ -120,12 +120,12 @@ namespace adsim {
     EXPECT_LE(s.fluidisation_time, 30.0 + 1e-9);
   }
 
-  // With a design in use: the feed passes a low design pressure, the
-  // blowdown goes below atmospheric without vacuum service, and the wall
-  // passes a design temperature set below the feed temperature.
+  // With a design in use: the feed at 1.2 atm passes a 0.1 bar(g) design
+  // pressure, the purge goes below atmospheric without vacuum service, and
+  // the wall passes a design temperature set below the feed temperature.
   TEST_F(OperatingLimitsTest, DesignLimitsAreReportedPerStep) {
-    Cycle(0.02);
-    data.bed.wall_.design_pressure_ = 100.0;     // 1 mbar(g)
+    Cycle(0.02, 1.2 * kAtm);
+    data.bed.wall_.design_pressure_ = 1e4;
     data.bed.wall_.design_temperature_ = 280.0;
     CoupledSolver solver{data};
     Run(solver);
@@ -144,6 +144,11 @@ namespace adsim {
     data.bed.wall_.vacuum_service_ = true;
     data.bed.wall_.design_pressure_ = 10e5;
     data.bed.wall_.design_temperature_ = 350.0;
+    r = CheckOperatingLimits(data, solver.GetLog());
+    EXPECT_TRUE(r.warnings.empty());
+
+    // A pressure within 2 kPa of the design pressure is not reported.
+    data.bed.wall_.design_pressure_ = r.steps[0].max_pressure - kAtm - 1000.0;
     r = CheckOperatingLimits(data, solver.GetLog());
     EXPECT_TRUE(r.warnings.empty());
   }
