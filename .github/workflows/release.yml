@@ -69,7 +69,9 @@ jobs:
           submodules: recursive
       # Build settings (Python versions, manylinux image, macOS deployment
       # target 13.3, tests) live in [tool.cibuildwheel] in pyproject.toml.
-      - uses: pypa/cibuildwheel@v4.3.1
+      # v4.3.3+ ships pip and certifi without the compromised eMudhra/emSign
+      # CA (October 2026); never go below it.
+      - uses: pypa/cibuildwheel@v4.3.4
         with:
           package-dir: .
           output-dir: wheelhouse
@@ -101,7 +103,7 @@ jobs:
       - name: Build and test a wheel from the sdist (offline source build)
         run: |
           sudo apt-get update && sudo apt-get install -y ninja-build
-          python -m venv /tmp/venv
+          python -m venv --upgrade-deps /tmp/venv
           CMAKE_BUILD_PARALLEL_LEVEL=4 /tmp/venv/bin/pip install dist/*.tar.gz pytest
           cd /tmp && /tmp/venv/bin/skarstrom --version
           /tmp/venv/bin/skarstrom examples run "Ward2022_Q100ccm" --json -q > /dev/null
