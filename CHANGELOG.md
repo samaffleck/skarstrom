@@ -40,6 +40,12 @@ root `CMakeLists.txt`.
   particle density determine it.
 
 ### Fixed
+- The polynomial pump efficiency model had no P^2 term: it evaluated
+  eta = a + b P + c P^3 + d P^4 + e P^5. It is now the full fifth-degree
+  polynomial eta = a + b P + c P^2 + d P^3 + e P^4 + f P^5, with a new
+  coefficient `f` (registry and Python `poly_f`). `PolyPumpEfficiencyModel`
+  is now class version 3; a version-2 deck's c, d, e load as d, e, f with
+  c = 0, so its efficiency and results are unchanged.
 - `AddComponentToDeck` now seeds a 0 adsorbed-phase heat capacity for the new
   component (and `RemoveComponentFromDeck` drops it), as the Python
   `AddComponent` already did. A front end that lists the map's entries showed

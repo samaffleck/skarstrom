@@ -830,15 +830,17 @@ class Pump(_Node):
     alpha = Real()
     """Decay coefficient of the vacuum-pump efficiency curve [-]."""
     poly_a = Real()
-    """Efficiency polynomial coefficient a [-]."""
+    """Efficiency polynomial coefficient a [-] (eta = a + b P + c P^2 + d P^3 + e P^4 + f P^5)."""
     poly_b = Real()
-    """Efficiency polynomial coefficient b [-]."""
+    """Efficiency polynomial coefficient b, of P [1/Pa]."""
     poly_c = Real()
-    """Efficiency polynomial coefficient c [-]."""
+    """Efficiency polynomial coefficient c, of P^2 [1/Pa^2]."""
     poly_d = Real()
-    """Efficiency polynomial coefficient d [-]."""
+    """Efficiency polynomial coefficient d, of P^3 [1/Pa^3]."""
     poly_e = Real()
-    """Efficiency polynomial coefficient e [-]."""
+    """Efficiency polynomial coefficient e, of P^4 [1/Pa^4]."""
+    poly_f = Real()
+    """Efficiency polynomial coefficient f, of P^5 [1/Pa^5]."""
 
 
 class BufferTank(_Node):

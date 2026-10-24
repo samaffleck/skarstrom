@@ -115,7 +115,11 @@ A **Pump** device (or a pump attached to a Pressure boundary) models mechanical 
 - an **inlet** uses a **compressor** (with a **Suction Pressure**);
 - an **outlet** uses a **vacuum pump** (with a **Discharge Pressure**).
 
-The pump settings include an **Efficiency Model** (constant **Isentropic Efficiency**, a vacuum-pump curve, or a polynomial), a **Polytropic Constant**, and an **Energy Model** (**Isothermal** or **Adiabatic**) that determines the outlet-gas temperature rise from compression.
+The pump settings include an **Efficiency Model** (constant **Isentropic Efficiency**, a vacuum-pump curve, or a polynomial), a **Polytropic Constant**, and an **Energy Model** (**Isothermal** or **Adiabatic**) that determines the outlet-gas temperature rise from compression. The efficiency is evaluated at the pump's suction pressure $P_1$ (in Pa); the polynomial is the full fifth-degree one:
+
+$$
+\eta(P_1) = a + b\,P_1 + c\,P_1^{2} + d\,P_1^{3} + e\,P_1^{4} + f\,P_1^{5}
+$$
 
 There are two distinct uses:
 
