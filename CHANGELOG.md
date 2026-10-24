@@ -52,6 +52,14 @@ root `CMakeLists.txt`.
   no heat-capacity field for a component added through the shared cascade
   until the deck had been run once.
 
+### Security
+- Release wheels build with cibuildwheel v4.3.4 (was v4.3.1), whose pip,
+  certifi and manylinux images no longer trust the compromised
+  eMudhra/emSign certificate authority (October 2026). Every CI job now
+  upgrades pip before installing from PyPI. The 0.1.0 files on PyPI were
+  checked (hashes, RECORD files, no `.pth` files, Python sources identical
+  to the tag) and are unaffected.
+
 ## [0.1.0] — 2026-10-20
 
 First public release of the Skarstrom engine under the Apache License 2.0.
