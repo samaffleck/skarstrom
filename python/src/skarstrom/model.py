@@ -1295,6 +1295,19 @@ class Wall(_Node):
     """Wall thickness [m]."""
     fixed_temperature = Real()
     """Wall temperature when it is held fixed [K]."""
+    design_code = Choice()
+    """Pressure design code: ``"asme_viii_1"`` (UG-27) or ``"asme_b31_3"`` (304.1.2); see
+    :meth:`Simulation.wall_design`."""
+    design_pressure = Real()
+    """Design (maximum internal) pressure, gauge [Pa]; 0 = no pressure design."""
+    design_temperature = Real()
+    """Design temperature, for the allowable stress [K]."""
+    weld_joint_efficiency = Real()
+    """Weld joint efficiency E [-]: 1.0 seamless or fully radiographed, 0.85 spot, 0.70 none."""
+    corrosion_allowance = Real()
+    """Corrosion allowance added to the required thickness [m]."""
+    vacuum_service = Boolean()
+    """Also design the wall for full vacuum (external pressure)."""
 
     def set_material(self, kind: str, **values: Value) -> "Wall":
         """A wall material (``"ss316l"``, ``"carbon_steel_a106"``...; ``"custom"``): sets its

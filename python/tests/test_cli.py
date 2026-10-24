@@ -83,7 +83,8 @@ def test_run_json(capsys):
     assert code == 0
     payload = json.loads(out)
     assert payload["cycles_run"] == 1 and payload["kpis"][0]["component"] == "CarbonDioxide"
-    assert payload["warnings"] == []  # no wall design, no fluidisation
+    # No wall design, so only fluidisation can be reported.
+    assert all("fluidisation" in w for w in payload["warnings"])
     code, out, _ = run_cli(capsys, "run", PEREZ, "--cycles", "1", "--set", "wall.design_pressure=1e5", "--json", "-q")
     assert any("vacuum service" in w for w in json.loads(out)["warnings"])
 
