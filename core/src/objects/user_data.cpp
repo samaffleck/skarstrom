@@ -137,6 +137,7 @@ namespace adsim {
           if (pbc->pressure_)
             visit(s + " " + side + " pressure", [&] { pbc->pressure_->EvaluateExpressions(ctx); });
           visit(s + " " + side + " inlet temperature", [&] { pbc->temperature_.Evaluate(ctx); });
+          visit(s + " " + side + " inlet composition", [&] { EvaluateExpressionMap(pbc->mole_fraction_, ctx); });
         }
         visit(s + " " + side + " boundary", [&] { bc->EvaluateExpressions(ctx); });
       }
@@ -180,6 +181,10 @@ namespace adsim {
     visit("Initial wall temperature", [&] { ic.wall_temperature.Evaluate(ctx); });
     visit("Initial pressure", [&] { ic.pressure.Evaluate(ctx); });
     visit("Initial velocity", [&] { ic.velocity.Evaluate(ctx); });
+    for (auto& [component, y_entry] : ic.mole_fraction) {
+      auto& y = y_entry;
+      visit("Initial " + component + " mole fraction", [&] { y.Evaluate(ctx); });
+    }
     visit("Initial conditions", [&] { ic.EvaluateExpressions(ctx); });
     visit("Solver settings", [&] { settings.EvaluateExpressions(ctx); });
     for (auto& [component, cp_entry] : fluid.adsorbed_heat_capacity_) {

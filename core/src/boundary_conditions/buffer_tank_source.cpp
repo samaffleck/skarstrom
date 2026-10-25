@@ -87,7 +87,7 @@ namespace adsim {
 
   double SelectInletMoleFraction(const BufferTankSource& buffer_tank,
                                  const Connection& connection,
-                                 const std::unordered_map<std::string, double>& assumed_mole_fraction,
+                                 const ExpressionMap& assumed_mole_fraction,
                                  const std::string& component,
                                  double time) {
     if (buffer_tank.IsActive()) {
@@ -97,7 +97,7 @@ namespace adsim {
     }
     // First-cycle assumption / unconnected value
     const auto it = assumed_mole_fraction.find(component);
-    return (it != assumed_mole_fraction.end()) ? it->second : 0.0;
+    return (it != assumed_mole_fraction.end()) ? it->second.Get() : 0.0;
   }
 
 } // end adsim namespace

@@ -503,7 +503,7 @@
             "Heat_Of_Adsorption_Convention": 0
         },
         "Initial_Conditions": {
-            "cereal_class_version": 2,
+            "cereal_class_version": 3,
             "Initial_Temperature": {
                 "Value": 293.0,
                 "Expression": "293",
@@ -527,11 +527,19 @@
             "Initial_Composition": [
                 {
                     "key": "CarbonDioxide",
-                    "value": 0.0
+                    "value": {
+                        "Value": 0.0,
+                        "Expression": "0",
+                        "DisplayUnitIndex": 0
+                    }
                 },
                 {
                     "key": "Nitrogen",
-                    "value": 1.0
+                    "value": {
+                        "Value": 1.0,
+                        "Expression": "1",
+                        "DisplayUnitIndex": 0
+                    }
                 }
             ],
             "Adsorbed_Concentration": []
@@ -568,7 +576,7 @@
                                             "data": {
                                                 "cereal_class_version": 1,
                                                 "value0": {
-                                                    "cereal_class_version": 4,
+                                                    "cereal_class_version": 5,
                                                     "Stream_Name": "Feed 1 ambient Stream",
                                                     "Boundary_Temperature": {
                                                         "Value": 293.0,
@@ -578,11 +586,19 @@
                                                     "Boundary_Mole_Fraction": [
                                                         {
                                                             "key": "Nitrogen",
-                                                            "value": 0.0
+                                                            "value": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         },
                                                         {
                                                             "key": "CarbonDioxide",
-                                                            "value": 0.0
+                                                            "value": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         }
                                                     ],
                                                     "Boundary_Connection": {
@@ -674,11 +690,19 @@
                                                     "Boundary_Mole_Fraction": [
                                                         {
                                                             "key": "Nitrogen",
-                                                            "value": 0.0
+                                                            "value": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         },
                                                         {
                                                             "key": "CarbonDioxide",
-                                                            "value": 0.0
+                                                            "value": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         }
                                                     ],
                                                     "Boundary_Connection": {
@@ -830,11 +854,19 @@
                                                     "Boundary_Mole_Fraction": [
                                                         {
                                                             "key": "CarbonDioxide",
-                                                            "value": 0.15
+                                                            "value": {
+                                                                "Value": 0.15,
+                                                                "Expression": "0.15",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         },
                                                         {
                                                             "key": "Nitrogen",
-                                                            "value": 0.85
+                                                            "value": {
+                                                                "Value": 0.85,
+                                                                "Expression": "0.85",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         }
                                                     ],
                                                     "Boundary_Connection": {
@@ -988,11 +1020,19 @@
                                                     "Boundary_Mole_Fraction": [
                                                         {
                                                             "key": "Nitrogen",
-                                                            "value": 0.0
+                                                            "value": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         },
                                                         {
                                                             "key": "CarbonDioxide",
-                                                            "value": 0.0
+                                                            "value": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         }
                                                     ],
                                                     "Boundary_Connection": {
@@ -1090,11 +1130,19 @@
                                                     "Boundary_Mole_Fraction": [
                                                         {
                                                             "key": "CarbonDioxide",
-                                                            "value": 0.15
+                                                            "value": {
+                                                                "Value": 0.15,
+                                                                "Expression": "0.15",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         },
                                                         {
                                                             "key": "Nitrogen",
-                                                            "value": 0.85
+                                                            "value": {
+                                                                "Value": 0.85,
+                                                                "Expression": "0.85",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         }
                                                     ],
                                                     "Boundary_Connection": {
@@ -1229,7 +1277,7 @@
                         "ptr_wrapper": {
                             "id": 2147483653,
                             "data": {
-                                "cereal_class_version": 4,
+                                "cereal_class_version": 5,
                                 "value0": {
                                     "Boundary_Condition_Location": 0,
                                     "Boundary_Condition_Direction": 1
@@ -1242,11 +1290,19 @@
                                 "Inlet_Mole_Fraction": [
                                     {
                                         "key": "Nitrogen",
-                                        "value": 1.0
+                                        "value": {
+                                            "Value": 1.0,
+                                            "Expression": "1",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     },
                                     {
                                         "key": "CarbonDioxide",
-                                        "value": 0.0
+                                        "value": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     }
                                 ],
                                 "Boundary_Pressure": {
@@ -1417,11 +1473,19 @@
                                 "Inlet_Mole_Fraction": [
                                     {
                                         "key": "Nitrogen",
-                                        "value": 1.0
+                                        "value": {
+                                            "Value": 1.0,
+                                            "Expression": "1",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     },
                                     {
                                         "key": "CarbonDioxide",
-                                        "value": 0.0
+                                        "value": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     }
                                 ],
                                 "Boundary_Pressure": {
@@ -1564,11 +1628,19 @@
                                 "Inlet_Mole_Fraction": [
                                     {
                                         "key": "CarbonDioxide",
-                                        "value": 0.0
+                                        "value": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     },
                                     {
                                         "key": "Nitrogen",
-                                        "value": 1.0
+                                        "value": {
+                                            "Value": 1.0,
+                                            "Expression": "1",
+                                            "DisplayUnitIndex": 0
+                                        }
                                     }
                                 ],
                                 "Boundary_Pressure": {

@@ -116,7 +116,7 @@ std::shared_ptr<IBoundaryCondition>& EndOf(Step& step, BoundaryLocation location
   return location == BoundaryLocation::TOP ? step.top_boundary_condition_ : step.bottom_boundary_condition_;
 }
 
-void SeedMoleFractions(const UserData& data, std::unordered_map<std::string, double>& y) {
+void SeedMoleFractions(const UserData& data, ExpressionMap& y) {
   for (const auto& c : data.fluid.components_) y.emplace(c, 0.0);
 }
 
