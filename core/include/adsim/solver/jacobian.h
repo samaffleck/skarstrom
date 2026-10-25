@@ -51,11 +51,6 @@ namespace adsim {
     static constexpr int kAuditInterval = 50;   // every Nth evaluation is a band audit
     static constexpr int kBoundaryCells = 3;    // cells at each end with exact patterns
     static constexpr int kProbeStates = 3;      // generic states probed per step in cycle 0
-    // Band audits after a Newton convergence failure stop once this many in a
-    // row have found no new coupling (a miss re-arms them); the periodic
-    // kAuditInterval audits continue regardless. < 0 never stops them.
-    // Set before Initialise (IDASettings::max_clean_failure_audits_).
-    void SetMaxCleanFailureAudits(int n) { max_clean_failure_audits_ = n; }
 
     BandedJacobian() = default;
     ~BandedJacobian();
@@ -69,6 +64,12 @@ namespace adsim {
     void Initialise(void* ida_mem, const Equations& eqs, SUNContext ctx,
                     sunindextype mu, sunindextype ml, JacobianMode mode,
                     bool record_pattern, sunindextype scan_mu = -1, sunindextype scan_ml = -1);
+
+    // Widens the matrix band to (mu, ml) <= the scan reach after the band was
+    // sized too narrow (NumOutOfBand() > 0): the learned pattern is dropped
+    // and re-learned, the evaluation counters are kept. The caller swaps the
+    // SUNMatrix / linear solver; this only re-sizes the pattern tables.
+    void ResizeBand(sunindextype mu, sunindextype ml);
 
     // Measures the coupling reach of the residual by band difference quotients
     // (stride 2 reach + 1) at the state (y, yp) and at kProbeStates jittered
@@ -110,6 +111,7 @@ namespace adsim {
     const std::vector<std::string>& CheckReport() const { return check_report_; }
 
   private:
+    void InitialiseBand();  // pattern tables and column groups for (mu_, ml_, scan_mu_, scan_ml_)
     bool IsBoundaryColumn(sunindextype j) const;
     // Records the nonzeros of a band evaluation; returns true if any was new.
     bool Learn(sunindextype j, sunindextype i);
@@ -163,8 +165,6 @@ namespace adsim {
     long num_res_evals_ = 0;
     long num_audits_ = 0;
     long num_failure_audits_ = 0;
-    int clean_failure_audits_ = 0;  // consecutive failure audits that found nothing new
-    int max_clean_failure_audits_ = -1;
     long last_conv_fails_ = 0;  // IDA convergence-failure count at the previous evaluation
     long num_misses_ = 0;
 

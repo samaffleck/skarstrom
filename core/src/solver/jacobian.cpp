@@ -67,7 +67,6 @@ namespace adsim {
     num_res_evals_ = 0;
     num_audits_ = 0;
     num_failure_audits_ = 0;
-    clean_failure_audits_ = 0;
     last_conv_fails_ = 0;
     num_misses_ = 0;
     pattern_counts_.clear();
@@ -116,6 +115,10 @@ namespace adsim {
       check_matrix_ = SUNBandMatrix(n_, mu_, ml_, ctx);
     }
 
+    InitialiseBand();
+  }
+
+  void BandedJacobian::InitialiseBand() {
     // IDA's column groups: stride mu + ml + 1 (over the scanned reach).
     const sunindextype width = scan_mu_ + scan_ml_ + 1;
     band_groups_.assign(SUNMIN(width, n_), {});
@@ -140,6 +143,18 @@ namespace adsim {
     learn_budget_ = kLearnPerStep;  // covers IDACalcIC and the first step
     probe_pending_ = mode_ != JacobianMode::BandDQ;
     evals_since_audit_ = 0;
+  }
+
+  void BandedJacobian::ResizeBand(sunindextype mu, sunindextype ml) {
+    mu_ = SUNMIN(mu, scan_mu_);
+    ml_ = SUNMIN(ml, scan_ml_);
+    num_out_of_band_ = 0;
+    if (check_matrix_) {
+      SUNContext ctx = check_matrix_->sunctx;
+      SUNMatDestroy(check_matrix_);
+      check_matrix_ = SUNBandMatrix(n_, mu_, ml_, ctx);
+    }
+    InitialiseBand();
   }
 
   void BandedJacobian::OnStepStart(int cycle_index) {
@@ -233,14 +248,8 @@ namespace adsim {
     last_conv_fails_ = conv_fails;
 
     const bool learning = learn_budget_ > 0 || colour_groups_.empty();
-    // Failure audits are the bulk of all audits (93-98% on the example decks)
-    // and find nothing once the pattern is complete; after
-    // max_clean_failure_audits_ clean ones in a row they are suspended until a
-    // periodic audit finds a miss.
-    const bool failure_audit = after_failure
-      && (max_clean_failure_audits_ < 0 || clean_failure_audits_ < max_clean_failure_audits_);
-    const bool audit = !learning && (failure_audit || ++evals_since_audit_ >= kAuditInterval);
-    if (audit && failure_audit) ++num_failure_audits_;
+    const bool audit = !learning && (after_failure || ++evals_since_audit_ >= kAuditInterval);
+    if (audit && after_failure) ++num_failure_audits_;
     if (!learning && !audit) {
       int retval = EvaluateGroups(colour_groups_, false, tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
       if (retval == 0 && mode_ == JacobianMode::ColouredCheck) {
@@ -283,11 +292,7 @@ namespace adsim {
     const long misses_before = num_misses_;
     new_entries_ = 0;
     const int retval = EvaluateGroups(band_groups_, true, tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
-    if (audit) {
-      num_misses_ = misses_before + new_entries_;
-      if (new_entries_ > 0) clean_failure_audits_ = 0;
-      else if (failure_audit) ++clean_failure_audits_;
-    }
+    if (audit) num_misses_ = misses_before + new_entries_;
     if (new_entries_ > 0 || colour_groups_.empty()) Recolour();
     return retval;
   }

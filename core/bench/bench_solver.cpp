@@ -16,8 +16,6 @@
 // "deck row_var col_var cell_offset count" lines.
 // --unknowns full|ts|c|both selects the reduced-unknown switches (IDASettings
 // alias_lte_solid_temperature_ / derived_concentration_; default: solver default).
-// --failure-audits N caps the consecutive clean band audits after a Newton
-// convergence failure (IDASettings max_clean_failure_audits_; -1 = unlimited).
 // --band probe|full sizes the banded matrix from a start-of-run coupling probe
 // (IDASettings band_from_probe_) or from the 2 neq each side default.
 // --max-step / --nl-coef override the deck's IDA max step [s] and nonlinear
@@ -52,6 +50,7 @@ namespace {
     long mu = 0;
     long ml = 0;
     long out_of_band = 0;
+    bool widened = false;
   };
 
   struct Options {
@@ -65,7 +64,6 @@ namespace {
     std::optional<double> trace_from;
     std::optional<std::string> unknowns;  // full | ts | c | both
     std::optional<bool> band_probe;
-    std::optional<int> failure_audits;
   };
 
   RunResult RunDeck(const std::string& path, const std::string& save_dir, const Options& opt) {
@@ -78,7 +76,6 @@ namespace {
     if (opt.max_step) data.settings.max_step = *opt.max_step;
     if (opt.nl_coef) data.settings.nonlin_conv_coef = *opt.nl_coef;
     if (opt.band_probe) data.settings.band_from_probe_ = *opt.band_probe;
-    if (opt.failure_audits) data.settings.max_clean_failure_audits_ = *opt.failure_audits;
     if (opt.unknowns) {
       data.settings.alias_lte_solid_temperature_ = (*opt.unknowns == "ts" || *opt.unknowns == "both");
       data.settings.derived_concentration_ = (*opt.unknowns == "c" || *opt.unknowns == "both");
@@ -117,6 +114,7 @@ namespace {
     r.mu = solver.GetJacobian().UpperBandwidth();
     r.ml = solver.GetJacobian().LowerBandwidth();
     r.out_of_band = solver.GetJacobian().NumOutOfBand();
+    r.widened = solver.GetSolverData().BandWidened();
     if (data.settings.jacobian_mode_ == adsim::JacobianMode::ColouredCheck) {
       std::printf("  check: %ld mismatched entries, max |diff|/colmax = %.3e\n",
                   solver.GetJacobian().NumCheckMismatches(), solver.GetJacobian().MaxCheckRelativeError());
@@ -158,7 +156,7 @@ namespace {
     std::printf("%-36s rep%d rc=%d wall=%8.3fs | steps=%7ld res=%8ld jacRes=%8ld (%4.1f%%) jacs=%6ld "
                 "setups=%6ld nni=%7ld etf=%5ld ncf=%5ld | %6.2fus/res | "
                 "resid=%4.1f%% idaInt=%4.1f%% log=%4.1f%% css=%4.1f%% other=%4.1f%% | "
-                "atMaxStep=%ld/%ld bndETF=%ld/%ld cycSteps | colours=%d audits=%ld (after ncf %ld) misses=%ld band=%ld/%ld oob=%ld | save=%.3fs\n",
+                "atMaxStep=%ld/%ld bndETF=%ld/%ld cycSteps | colours=%d audits=%ld (after ncf %ld) misses=%ld band=%ld/%ld oob=%ld widened=%d | save=%.3fs\n",
                 name.c_str(), rep, r.retval, r.wall_s,
                 s.num_steps, s.num_res_evals, s.num_lin_res_evals, jac_share, s.num_jac_evals,
                 s.num_lin_setups, s.num_nonlin_iters, s.num_err_test_fails, s.num_conv_fails,
@@ -166,7 +164,7 @@ namespace {
                 Pct(p.residual_ns, r.wall_s), Pct(ida_internal_ns, r.wall_s), Pct(p.log_ns, r.wall_s),
                 Pct(p.css_ns, r.wall_s), Pct(other_ns, r.wall_s),
                 p.steps_at_max_step, s.num_steps, p.boundary_err_test_fails, p.cycle_steps,
-                r.colours, r.audits, r.failure_audits, r.misses, r.mu, r.ml, r.out_of_band, r.save_s);
+                r.colours, r.audits, r.failure_audits, r.misses, r.mu, r.ml, r.out_of_band, r.widened ? 1 : 0, r.save_s);
     std::fflush(stdout);
   }
 
@@ -201,8 +199,6 @@ int main(int argc, char** argv) {
       opt.nl_coef = std::atof(argv[++i]);
     } else if (arg == "--pattern" && i + 1 < argc) {
       opt.pattern_file = argv[++i];
-    } else if (arg == "--failure-audits" && i + 1 < argc) {
-      opt.failure_audits = std::atoi(argv[++i]);
     } else if (arg == "--band" && i + 1 < argc) {
       std::string mode = argv[++i];
       if (mode == "probe") opt.band_probe = true;

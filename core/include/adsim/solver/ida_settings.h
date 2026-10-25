@@ -83,18 +83,15 @@ namespace adsim {
     bool derived_concentration_ = false;
     // Size the banded matrix from the coupling reach measured by a difference-
     // quotient probe at the initial state (BandedJacobian::ProbeBandwidth)
-    // instead of the 2 neq each side that covers every scheme. Band audits
-    // still scan the full 2 neq reach and count couplings outside the band
-    // (BandedJacobian::NumOutOfBand); nothing widens the band yet, so this is
-    // off by default (item 8).
-    bool band_from_probe_ = false;
-    // Band audits after a Newton convergence failure stop once this many in a
-    // row have found no new coupling (a miss re-arms them). < 0 (the default)
-    // never stops them: on the example decks the cap saves only 0-3% of wall,
-    // and on the decks whose pattern grows late (misses > 0) those audits are
-    // what finds the missing coupling. See BandedJacobian and item 6 of
-    // solver_performance.md in samaffleck/skarstrom-gui.
-    int max_clean_failure_audits_ = -1;
+    // instead of the 2 neq each side that covers every scheme (about 45% less
+    // LU work; results are byte-identical). The coloured Jacobian's band
+    // audits keep scanning the full 2 neq reach; if one finds a coupling
+    // outside the matrix band, the solver rebuilds the linear solver with the
+    // full band and restarts from the current point (SolverData::WidenBand).
+    bool band_from_probe_ = true;
+    // Testing only: narrows the probed band by this many diagonals on each side
+    // so that an audit finds couplings outside it and WidenBand runs.
+    int band_probe_shrink_for_testing_ = 0;
 
     CyclicSteadyState css{};
     AccelerateCyclicSteadyState acc_css{};
