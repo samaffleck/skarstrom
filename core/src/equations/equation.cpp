@@ -202,6 +202,8 @@ namespace adsim {
     // Solid temperature only has physical meaning inside the packed bed.
     solid_temperature.SetDomain(EquationDomain::PorousMediaOnly);
 
+    pressure.SetEquationType(pressure_differential_ ? EquationType::Differential : EquationType::Algebraic);
+
     // Isothermal runs drop the three temperature unknowns from the DAE: they
     // are not registered, so they are never packed, unpacked, given residuals
     // or Jacobian columns, and HoldIsothermalTemperature keeps their values at

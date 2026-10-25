@@ -143,6 +143,8 @@ namespace adsim {
       alias_lte_solid_temperature_ = alias_lte_solid_temperature;
       derived_concentration_ = derived_concentration;
     }
+    // Must be called before Initialise. See IDASettings::pressure_differential_.
+    void SetPressureDifferential(bool on) { pressure_differential_ = on; }
     // True when Ts is not a DAE unknown but a copy of Tf (LTE, non-isothermal,
     // flag on) / when C is not a DAE unknown but P / (R T) (flag on).
     bool SolidTemperatureAliased() const { return solid_temperature_aliased_; }
@@ -268,6 +270,7 @@ namespace adsim {
     bool alias_lte_solid_temperature_ = false;
     bool derived_concentration_ = false;
     bool solid_temperature_aliased_ = false;
+    bool pressure_differential_ = false;
     // Fills the unregistered fields from the unpacked state: Ts (and dTs/dt)
     // from Tf when aliased, C (and dC/dt) from P and T when derived.
     void SyncDerivedFields();

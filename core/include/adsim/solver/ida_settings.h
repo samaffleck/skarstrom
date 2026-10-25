@@ -93,6 +93,20 @@ namespace adsim {
     // so that an audit finds couplings outside it and WidenBand runs.
     int band_probe_shrink_for_testing_ = 0;
 
+    // Solver-settings experiments (transient, not serialised; see item 10 of
+    // solver_performance.md in samaffleck/skarstrom-gui).
+    // IDASetSuppressAlg: leave the algebraic variables (P, u, and C / Ts when
+    // they are unknowns) out of the local error test.
+    bool suppress_alg_ = false;
+    // IDASetDeltaCjLSetup: IDA refreshes the Jacobian when cj / cj_old leaves
+    // [(1 - dcj) / (1 + dcj), its inverse]; SUNDIALS' default is 0.25. < 0
+    // leaves the default.
+    double delta_cj_lsetup_ = -1.0;
+    // Tag the pressure as a differential variable (its residual carries dP/dt)
+    // instead of algebraic: with suppress_alg_ it then stays in the error test
+    // while the ghost cells and the face velocity leave it.
+    bool pressure_differential_ = false;
+
     CyclicSteadyState css{};
     AccelerateCyclicSteadyState acc_css{};
 
@@ -173,6 +187,10 @@ namespace adsim {
       rc = ida_accumulate(rc, IDASetMaxErrTestFails(ida_mem, s.max_err_test_fails), "IDASetMaxErrTestFails");
     if (s.nonlin_conv_coef.Get() > 0.0)
       rc = ida_accumulate(rc, IDASetNonlinConvCoef(ida_mem, s.nonlin_conv_coef.Get()), "IDASetNonlinConvCoef");
+    if (s.suppress_alg_)
+      rc = ida_accumulate(rc, IDASetSuppressAlg(ida_mem, SUNTRUE), "IDASetSuppressAlg");
+    if (s.delta_cj_lsetup_ >= 0.0 && s.delta_cj_lsetup_ < 1.0)
+      rc = ida_accumulate(rc, IDASetDeltaCjLSetup(ida_mem, s.delta_cj_lsetup_), "IDASetDeltaCjLSetup");
 
     // The step-size ratio bounds (IDASetEtaMax/EtaMin/EtaLow/...) are left at
     // the SUNDIALS defaults. Note SUNDIALS does not reject out-of-range eta

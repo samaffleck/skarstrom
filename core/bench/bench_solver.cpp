@@ -18,6 +18,9 @@
 // alias_lte_solid_temperature_ / derived_concentration_; default: solver default).
 // --band probe|full sizes the banded matrix from a start-of-run coupling probe
 // (IDASettings band_from_probe_) or from the 2 neq each side default.
+// --suppress-alg 0|1 and --dcj D set IDASetSuppressAlg / IDASetDeltaCjLSetup
+// (IDASettings suppress_alg_ / delta_cj_lsetup_) for solver-settings experiments.
+// --reltol R overrides the deck's relative tolerance (for reference solutions).
 // --max-step / --nl-coef override the deck's IDA max step [s] and nonlinear
 // convergence coefficient (for solver-settings experiments).
 // --log low|medium|high prints the solver's log messages to stderr.
@@ -64,6 +67,10 @@ namespace {
     std::optional<double> trace_from;
     std::optional<std::string> unknowns;  // full | ts | c | both
     std::optional<bool> band_probe;
+    std::optional<bool> suppress_alg;
+    std::optional<double> dcj;
+    std::optional<double> reltol;
+    std::optional<bool> p_diff;
   };
 
   RunResult RunDeck(const std::string& path, const std::string& save_dir, const Options& opt) {
@@ -76,6 +83,10 @@ namespace {
     if (opt.max_step) data.settings.max_step = *opt.max_step;
     if (opt.nl_coef) data.settings.nonlin_conv_coef = *opt.nl_coef;
     if (opt.band_probe) data.settings.band_from_probe_ = *opt.band_probe;
+    if (opt.suppress_alg) data.settings.suppress_alg_ = *opt.suppress_alg;
+    if (opt.dcj) data.settings.delta_cj_lsetup_ = *opt.dcj;
+    if (opt.reltol) data.settings.reltol = *opt.reltol;
+    if (opt.p_diff) data.settings.pressure_differential_ = *opt.p_diff;
     if (opt.unknowns) {
       data.settings.alias_lte_solid_temperature_ = (*opt.unknowns == "ts" || *opt.unknowns == "both");
       data.settings.derived_concentration_ = (*opt.unknowns == "c" || *opt.unknowns == "both");
@@ -199,6 +210,14 @@ int main(int argc, char** argv) {
       opt.nl_coef = std::atof(argv[++i]);
     } else if (arg == "--pattern" && i + 1 < argc) {
       opt.pattern_file = argv[++i];
+    } else if (arg == "--suppress-alg" && i + 1 < argc) {
+      opt.suppress_alg = std::atoi(argv[++i]) != 0;
+    } else if (arg == "--p-diff" && i + 1 < argc) {
+      opt.p_diff = std::atoi(argv[++i]) != 0;
+    } else if (arg == "--reltol" && i + 1 < argc) {
+      opt.reltol = std::atof(argv[++i]);
+    } else if (arg == "--dcj" && i + 1 < argc) {
+      opt.dcj = std::atof(argv[++i]);
     } else if (arg == "--band" && i + 1 < argc) {
       std::string mode = argv[++i];
       if (mode == "probe") opt.band_probe = true;
