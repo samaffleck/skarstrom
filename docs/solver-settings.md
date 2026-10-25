@@ -31,7 +31,7 @@ The solver parameters are stored in the deck and are parameters of the registry 
 
 ## Warnings
 
-A run reports advisory warnings in the solver log; none of them stops it. Each can be switched off in the deck (in the web workspace: **Solver → Solver Settings → Warnings**). A switched-off warning is not logged and not listed by `sim.operating_limits()`, whose per-step extremes stay complete.
+A run reports advisory warnings in the solver log; none of them stops it. Each can be switched off in the deck (in the web workspace: the Solver window's **Warnings** tab, or **Turn off** on a warning in the Solver Log). A switched-off warning is not logged and not listed by `sim.operating_limits()`, whose per-step extremes stay complete.
 
 | Warning | Parameter | When |
 |---------|-----------|------|

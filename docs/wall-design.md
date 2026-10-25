@@ -84,7 +84,7 @@ At the end of a run that completes, the solver checks the **last logged cycle** 
 | Design temperature | The wall temperature exceeds the design temperature | design in use |
 | Fluidisation | The approach to fluidisation exceeds 1 | always |
 
-A pressure limit counts as passed by more than 2 kPa, since many decks take 1 bar (1.3 kPa below 101 325 Pa) as atmospheric. Each warning can be switched off ([Solver Settings → Warnings](solver-settings.md#warnings)), for example fluidisation for a bed that is held down. Each warning names the step and cycle; the fluidisation warning also gives the height above the bottom of the bed and the time into the step at which the approach peaks. Before a run, the solver also warns when the wall is thinner than its design requires (for example after the diameter was increased) or the requirement cannot be evaluated.
+A pressure limit counts as passed by more than 2 kPa, since many decks take 1 bar (1.3 kPa below 101 325 Pa) as atmospheric. Each warning can be switched off ([Warnings](solver-settings.md#warnings)), for example fluidisation for a bed that is held down. Each warning names the step and cycle; the fluidisation warning also gives the height above the bottom of the bed and the time into the step at which the approach peaks. Before a run, the solver also warns when the wall is thinner than its design requires (for example after the diameter was increased) or the requirement cannot be evaluated.
 
 The **approach to fluidisation** is the upward pressure gradient over the weight of the packing less the gas,
 
