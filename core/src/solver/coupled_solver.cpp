@@ -963,8 +963,20 @@ namespace adsim {
     // only within the same mole fraction, i.e. exactly 2*neq. So 2*neq covers
     // every scheme (pinned by JacobianBand.* in test_jacobian_band.cpp).
     size_t num_equations = state.GetEquations().size();
-    sunindextype mu = static_cast<sunindextype>(num_equations * 2); // Upper bandwidth
-    sunindextype ml = static_cast<sunindextype>(num_equations * 2); // Lower bandwidth
+    const sunindextype reach = static_cast<sunindextype>(num_equations * 2);
+    sunindextype mu = reach; // Upper bandwidth
+    sunindextype ml = reach; // Lower bandwidth
+    // Optionally size the band from the reach a DQ probe measures at the
+    // initial state (the band audits keep scanning the full reach and count
+    // anything that falls outside; see BandedJacobian::NumOutOfBand).
+    if (settings.band_from_probe_) {
+      sunindextype mu_p = 0, ml_p = 0;
+      if (BandedJacobian::ProbeBandwidth(state, &user_data, sunctx_, y_, yp_, abstol_vec_, reach, mu_p, ml_p)
+          && mu_p > 0 && ml_p > 0) {
+        mu = SUNMIN(reach, mu_p);
+        ml = SUNMIN(reach, ml_p);
+      }
+    }
     
     A_ = SUNBandMatrix(sys_size, mu, ml, sunctx_);
     if (!A_) {
@@ -987,8 +999,9 @@ namespace adsim {
     custom_jacobian_ = settings.jacobian_mode_ != JacobianMode::IdaInternal;
     user_data.jacobian_ = nullptr;
     if (custom_jacobian_) {
+      jacobian_.SetMaxCleanFailureAudits(settings.max_clean_failure_audits_);
       jacobian_.Initialise(ida_mem_, state, sunctx_, mu, ml, settings.jacobian_mode_,
-                           settings.record_jacobian_pattern_);
+                           settings.record_jacobian_pattern_, reach, reach);
       user_data.jacobian_ = &jacobian_;
       retval = IDASetJacFn(ida_mem_, BandedJacobianFn);
       if (retval != IDA_SUCCESS) {
