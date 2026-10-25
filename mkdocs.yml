@@ -76,6 +76,7 @@ nav:
       - Momentum Balance: momentum-balance.md
       - Energy Balance: energy-balance.md
       - Wall Energy Balance: wall-energy-balance.md
+      - Wall Design and Operating Limits: wall-design.md
       - Isotherms: isotherms.md
       - Kinetic Models: kinetic-models.md
       - Transport Correlations: transport-correlations.md

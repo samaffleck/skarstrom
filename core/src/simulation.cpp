@@ -598,6 +598,16 @@ namespace adsim {
     return out;
   }
 
+  OperatingLimitsReport Simulation::OperatingLimits(int cycle) const {
+    if (!HasResults()) return {};
+    return CheckOperatingLimits(*data_, Log(), ResolveCycle(cycle));
+  }
+
+  WallDesignResult Simulation::WallDesign() {
+    data_->EvaluateAllExpressions();
+    return DesignBedWall(data_->bed);
+  }
+
   TimeSeries Simulation::Series(const std::string& variable, const std::string& component,
                                 SeriesLocation where, double z, int cycle) const {
     const int c = ResolveCycle(cycle);

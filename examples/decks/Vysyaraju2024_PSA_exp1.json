@@ -216,7 +216,7 @@
                 }
             },
             "Wall": {
-                "cereal_class_version": 0,
+                "cereal_class_version": 4,
                 "Material": 1,
                 "Density": {
                     "Value": 7800.0,
@@ -253,7 +253,13 @@
                     "Expression": "1",
                     "DisplayUnitIndex": 0
                 },
-                "Vacuum_Service": false
+                "Vacuum_Service": false,
+                "Design_Code": 0,
+                "Corrosion_Allowance": {
+                    "Value": 0.0,
+                    "Expression": "0",
+                    "DisplayUnitIndex": 0
+                }
             },
             "Layers": {
                 "cereal_class_version": 1,
@@ -1476,7 +1482,7 @@
             }
         },
         "Solver_Settings": {
-            "cereal_class_version": 5,
+            "cereal_class_version": 6,
             "Maximum_Number_Of_Steps": 100000,
             "Initial_Step_Size": {
                 "Value": 1e-10,
@@ -1529,7 +1535,16 @@
                 "cereal_class_version": 0,
                 "Method": 0
             },
-            "Maximum_Log_Points_Per_Step": 200
+            "Maximum_Log_Points_Per_Step": 200,
+            "Warnings": {
+                "cereal_class_version": 0,
+                "Pressure_Step_Change": true,
+                "Wall_Thickness": true,
+                "Design_Pressure": true,
+                "Vacuum": true,
+                "Design_Temperature": true,
+                "Fluidisation": true
+            }
         },
         "Experimental_Data": {
             "cereal_class_version": 1,

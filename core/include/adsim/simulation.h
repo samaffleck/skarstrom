@@ -42,6 +42,8 @@
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/solver/coupled_solver.h"
 #include "adsim/solver/log.h"
+#include "adsim/solver/operating_limits.h"
+#include "adsim/objects/wall_design.h"
 
 namespace adsim {
 
@@ -265,6 +267,13 @@ namespace adsim {
     std::vector<KPIRecord> KPIs(int cycle) const;
     // The deck's CSS check evaluated at every logged cycle.
     std::vector<CSSRecord> CSSHistory();
+    // Pressure, wall temperature and fluidisation extremes of one cycle (-1 =
+    // last) with the warnings where it leaves the wall design or lifts the bed
+    // (operating_limits.h). Empty (cycle -1) without results.
+    OperatingLimitsReport OperatingLimits(int cycle = -1) const;
+    // The wall's minimum thickness for its pressure design (wall_design.h).
+    // Evaluates the deck's expressions first.
+    WallDesignResult WallDesign();
 
     // Time series of a log variable at one point of the bed over one cycle
     // (-1 = last), concatenated across its steps, with time measured from the

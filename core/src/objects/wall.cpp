@@ -12,4 +12,5 @@ namespace adsim {
 
 } // end adsim namespace
 
-CEREAL_CLASS_VERSION(adsim::BedWall, 3);
+// CEREAL_CLASS_VERSION(adsim::BedWall, ...) is in wall.h, where every
+// archive that serialises a wall sees it.

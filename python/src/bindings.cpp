@@ -258,6 +258,46 @@ PYBIND11_MODULE(_core, m) {
                " error=" + std::to_string(c.error) + ">";
       });
 
+  py::class_<adsim::StepOperatingSummary>(m, "StepOperatingSummary")
+      .def_readonly("step", &adsim::StepOperatingSummary::step)
+      .def_readonly("step_name", &adsim::StepOperatingSummary::step_name)
+      .def_readonly("max_pressure", &adsim::StepOperatingSummary::max_pressure)
+      .def_readonly("min_pressure", &adsim::StepOperatingSummary::min_pressure)
+      .def_readonly("max_wall_temperature", &adsim::StepOperatingSummary::max_wall_temperature)
+      .def_readonly("max_approach_to_fluidisation", &adsim::StepOperatingSummary::max_approach_to_fluidisation)
+      .def_readonly("fluidisation_position", &adsim::StepOperatingSummary::fluidisation_position)
+      .def_readonly("fluidisation_time", &adsim::StepOperatingSummary::fluidisation_time)
+      .def("__repr__", [](const adsim::StepOperatingSummary& s) {
+        return "<StepOperatingSummary step=" + std::to_string(s.step) + " '" + s.step_name + "'>";
+      });
+
+  py::class_<adsim::OperatingWarning>(m, "OperatingWarning")
+      .def_property_readonly("limit", [](const adsim::OperatingWarning& w) {
+        return std::string(adsim::kOperatingLimitList[static_cast<int>(w.limit)]);
+      })
+      .def_readonly("step", &adsim::OperatingWarning::step)
+      .def_readonly("value", &adsim::OperatingWarning::value)
+      .def_readonly("limit_value", &adsim::OperatingWarning::limit_value)
+      .def_readonly("message", &adsim::OperatingWarning::message)
+      .def("__repr__", [](const adsim::OperatingWarning& w) { return w.message; });
+
+  py::class_<adsim::OperatingLimitsReport>(m, "OperatingLimitsReport")
+      .def_readonly("cycle", &adsim::OperatingLimitsReport::cycle)
+      .def_readonly("design_checked", &adsim::OperatingLimitsReport::design_checked)
+      .def_readonly("steps", &adsim::OperatingLimitsReport::steps)
+      .def_readonly("warnings", &adsim::OperatingLimitsReport::warnings);
+
+  py::class_<adsim::WallDesignResult>(m, "WallDesignResult")
+      .def_readonly("valid", &adsim::WallDesignResult::valid)
+      .def_readonly("message", &adsim::WallDesignResult::message)
+      .def_readonly("notes", &adsim::WallDesignResult::notes)
+      .def_readonly("allowable_stress", &adsim::WallDesignResult::allowable_stress)
+      .def_readonly("internal_thickness", &adsim::WallDesignResult::internal_thickness)
+      .def_readonly("external_thickness", &adsim::WallDesignResult::external_thickness)
+      .def_readonly("required_thickness", &adsim::WallDesignResult::required_thickness)
+      .def_readonly("external_governs", &adsim::WallDesignResult::external_governs)
+      .def_readonly("thick_shell", &adsim::WallDesignResult::thick_shell);
+
   py::class_<adsim::TimeSeries>(m, "TimeSeries")
       .def_readonly("variable", &adsim::TimeSeries::variable)
       .def_readonly("component", &adsim::TimeSeries::component)
@@ -436,6 +476,8 @@ PYBIND11_MODULE(_core, m) {
         return cycle ? s.KPIs(*cycle) : s.KPIs();
       }, py::arg("cycle") = py::none())
       .def("css_history", &adsim::Simulation::CSSHistory)
+      .def("operating_limits", &adsim::Simulation::OperatingLimits, py::arg("cycle") = -1)
+      .def("wall_design", &adsim::Simulation::WallDesign)
       .def("series", [](const adsim::Simulation& s, const std::string& variable, const std::string& component,
                         const std::string& location, double z, int cycle) {
         return s.Series(variable, component, ParseLocation(location), z, cycle);
