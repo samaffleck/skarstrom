@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.15)
 # ADSIM_VERSION_SUFFIX marks a pre-release ("rc1", "a1", "b2"; empty for a
 # final release). It is appended to ADSIM_VERSION_STRING and the Python
 # version, and must match the tag (v0.2.0rc1). See RELEASING.md.
-set(ADSIM_PROJECT_VERSION 0.2.0)
+set(ADSIM_PROJECT_VERSION 0.3.0)
 set(ADSIM_VERSION_SUFFIX "")
 
 # Minimum macOS version. It must be set before project(). 13.3 is the lowest

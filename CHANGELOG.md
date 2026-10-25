@@ -8,6 +8,8 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-25
+
 ### Added
 - Wall pressure design (`adsim/objects/wall_design.h`): the minimum wall
   thickness of a cylindrical column for ASME BPVC VIII-1 UG-27 (with
