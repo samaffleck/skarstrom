@@ -137,6 +137,18 @@ namespace adsim {
 
   class Equations {
   public:    
+    // Must be called before Initialise (UserData::Initialise does, from the
+    // IDASettings flags of the same name). See IDASettings.
+    void SetReducedUnknowns(bool alias_lte_solid_temperature, bool derived_concentration) {
+      alias_lte_solid_temperature_ = alias_lte_solid_temperature;
+      derived_concentration_ = derived_concentration;
+    }
+    // Must be called before Initialise. See IDASettings::pressure_differential_.
+    void SetPressureDifferential(bool on) { pressure_differential_ = on; }
+    // True when Ts is not a DAE unknown but a copy of Tf (LTE, non-isothermal,
+    // flag on) / when C is not a DAE unknown but P / (R T) (flag on).
+    bool SolidTemperatureAliased() const { return solid_temperature_aliased_; }
+    bool ConcentrationDerived() const { return derived_concentration_; }
     void Initialise(const Fluid& fluid, const Bed& bed, const AdsorbentDirectory& dir);
     void UpdateDifferentialEquations(UserData* udata);
     // Fields the residual depends on (called on every residual evaluation).
@@ -253,6 +265,15 @@ namespace adsim {
     // Isothermal run: temperature equations not registered in equations_.
     bool isothermal_ = false;
     double isothermal_temperature_ = 0.0;
+    // Reduced unknowns (see SetReducedUnknowns). solid_temperature_aliased_ is
+    // the effective value: the flag, and LTE, and not isothermal.
+    bool alias_lte_solid_temperature_ = false;
+    bool derived_concentration_ = false;
+    bool solid_temperature_aliased_ = false;
+    bool pressure_differential_ = false;
+    // Fills the unregistered fields from the unpacked state: Ts (and dTs/dt)
+    // from Tf when aliased, C (and dC/dt) from P and T when derived.
+    void SyncDerivedFields();
 
     // Banded state layout (cell-major, active entries only), resolved once so
     // the per-residual pack/unpack is a straight copy. Built on first use;

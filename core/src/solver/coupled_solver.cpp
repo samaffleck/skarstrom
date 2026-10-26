@@ -148,6 +148,18 @@ namespace adsim {
 
     while (true) {
       const double t_prev = t_curr;
+      // A band audit found a coupling outside the probed matrix band: widen it
+      // to the full reach and restart from the current point (rare; the probe
+      // at the initial state covers every example deck).
+      if (solver_data_.BandNeedsWidening()) {
+        if (!solver_data_.WidenBand(user_data_)) {
+          flag = IDA_LSETUP_FAIL;
+          break;
+        }
+        LogMessage(LogLevel::MEDIUM,
+                   "  Step \"" + step.step_name_ + "\": Jacobian coupling outside the probed band at t="
+                   + std::to_string(t_curr) + "; widened the band to the full reach.");
+      }
       // flag = IDASolve(ida_mem_, t_final, &t_curr, y_, yp_, IDA_ONE_STEP);
       {
         ProfileTimer step_timer(profile.enabled, profile.one_step_ns);
@@ -978,10 +990,31 @@ namespace adsim {
     // The banded layout is cell-major. Cross-variable couplings reach one cell
     // (|i - j| < 2*neq); the WENO / van Leer face stencils reach two cells but
     // only within the same mole fraction, i.e. exactly 2*neq. So 2*neq covers
-    // every scheme (pinned by JacobianBand.* in test_jacobian_band.cpp).
+    // every scheme (pinned by JacobianBand.* in test_jacobian_band.cpp) and is
+    // the reach the band audits scan. The matrix itself is sized from the
+    // reach a DQ probe measures at the initial state (about 12 / 16 instead of
+    // 20 / 20 at neq = 10); a coupling later found outside it widens the band
+    // to the full reach (WidenBand, called from the one-step loop).
     size_t num_equations = state.GetEquations().size();
-    sunindextype mu = static_cast<sunindextype>(num_equations * 2); // Upper bandwidth
-    sunindextype ml = static_cast<sunindextype>(num_equations * 2); // Lower bandwidth
+    const sunindextype reach = static_cast<sunindextype>(num_equations * 2);
+    sunindextype mu = reach; // Upper bandwidth
+    sunindextype ml = reach; // Lower bandwidth
+    if (settings.band_from_probe_) {
+      sunindextype mu_p = 0, ml_p = 0;
+      if (BandedJacobian::ProbeBandwidth(state, &user_data, sunctx_, y_, yp_, abstol_vec_, reach, mu_p, ml_p)
+          && mu_p > 0 && ml_p > 0) {
+        mu = SUNMIN(reach, mu_p);
+        ml = SUNMIN(reach, ml_p);
+        if (settings.band_probe_shrink_for_testing_ > 0) {
+          mu = SUNMAX(1, mu - settings.band_probe_shrink_for_testing_);
+          ml = SUNMAX(1, ml - settings.band_probe_shrink_for_testing_);
+        }
+      }
+    }
+    band_mu_ = mu;
+    band_ml_ = ml;
+    band_reach_ = reach;
+    band_widened_ = false;
     
     A_ = SUNBandMatrix(sys_size, mu, ml, sunctx_);
     if (!A_) {
@@ -1005,7 +1038,7 @@ namespace adsim {
     user_data.jacobian_ = nullptr;
     if (custom_jacobian_) {
       jacobian_.Initialise(ida_mem_, state, sunctx_, mu, ml, settings.jacobian_mode_,
-                           settings.record_jacobian_pattern_);
+                           settings.record_jacobian_pattern_, reach, reach);
       user_data.jacobian_ = &jacobian_;
       retval = IDASetJacFn(ida_mem_, BandedJacobianFn);
       if (retval != IDA_SUCCESS) {
@@ -1184,6 +1217,43 @@ namespace adsim {
     }
     user_data.state.UnpackBanded(N_VGetArrayPointer(y_), N_VGetArrayPointer(yp_));
     return true;
+  }
+
+  bool SolverData::BandNeedsWidening() const {
+    return custom_jacobian_ && A_ && jacobian_.NumOutOfBand() > 0
+        && (band_mu_ < band_reach_ || band_ml_ < band_reach_);
+  }
+
+  bool SolverData::WidenBand(UserData& user_data) {
+    if (!ida_mem_ || !A_ || !LS_) return false;
+    const sunindextype n = N_VGetLength(y_);
+    SUNMatrix A = SUNBandMatrix(n, band_reach_, band_reach_, sunctx_);
+    SUNLinearSolver LS = A ? SUNLinSol_Band(y_, A, sunctx_) : nullptr;
+    if (!A || !LS) {
+      if (LS) SUNLinSolFree(LS);
+      if (A) SUNMatDestroy(A);
+      return false;
+    }
+    // IDASetLinearSolver releases IDA's interface to the old solver; the
+    // objects themselves are ours to free. The next IDASolve after the
+    // IDAReInit below runs IDA's initial setup again, which initialises the
+    // new linear solver and forces a fresh Jacobian.
+    if (IDASetLinearSolver(ida_mem_, LS, A) != IDA_SUCCESS) {
+      SUNLinSolFree(LS);
+      SUNMatDestroy(A);
+      return false;
+    }
+    SUNLinSolFree(LS_);
+    SUNMatDestroy(A_);
+    LS_ = LS;
+    A_ = A;
+    band_mu_ = band_reach_;
+    band_ml_ = band_reach_;
+    band_widened_ = true;
+    jacobian_.ResizeBand(band_reach_, band_reach_);
+    if (IDASetJacFn(ida_mem_, BandedJacobianFn) != IDA_SUCCESS) return false;
+    (void)user_data;
+    return RestartFromConsistentIC();
   }
 
   int SolverData::Reinitialise(UserData& user_data) {

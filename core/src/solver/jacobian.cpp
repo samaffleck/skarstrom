@@ -55,11 +55,14 @@ namespace adsim {
 
   void BandedJacobian::Initialise(void* ida_mem, const Equations& eqs, SUNContext ctx,
                                   sunindextype mu, sunindextype ml, JacobianMode mode,
-                                  bool record_pattern) {
+                                  bool record_pattern, sunindextype scan_mu, sunindextype scan_ml) {
     ida_mem_ = ida_mem;
     mode_ = mode;
     mu_ = mu;
     ml_ = ml;
+    scan_mu_ = scan_mu < mu ? mu : scan_mu;
+    scan_ml_ = scan_ml < ml ? ml : scan_ml;
+    num_out_of_band_ = 0;
     record_pattern_ = record_pattern;
     num_res_evals_ = 0;
     num_audits_ = 0;
@@ -92,6 +95,9 @@ namespace adsim {
     var_names_.clear();
     for (int e = 0; e < n_vars_; ++e)
       var_names_.push_back(VariableName(eqs, e));
+    velocity_var_ = -1;
+    for (int e = 0; e < n_vars_; ++e)
+      if (equations[e] == &eqs.velocity) velocity_var_ = e;
 
     if (ewt_) N_VDestroy(ewt_);
     ewt_ = N_VNew_Serial(n_, ctx);
@@ -109,8 +115,12 @@ namespace adsim {
       check_matrix_ = SUNBandMatrix(n_, mu_, ml_, ctx);
     }
 
-    // IDA's column groups: stride mu + ml + 1.
-    const sunindextype width = mu_ + ml_ + 1;
+    InitialiseBand();
+  }
+
+  void BandedJacobian::InitialiseBand() {
+    // IDA's column groups: stride mu + ml + 1 (over the scanned reach).
+    const sunindextype width = scan_mu_ + scan_ml_ + 1;
     band_groups_.assign(SUNMIN(width, n_), {});
     for (sunindextype g = 0; g < static_cast<sunindextype>(band_groups_.size()); ++g)
       for (sunindextype j = g; j < n_; j += width) band_groups_[g].push_back(j);
@@ -133,6 +143,18 @@ namespace adsim {
     learn_budget_ = kLearnPerStep;  // covers IDACalcIC and the first step
     probe_pending_ = mode_ != JacobianMode::BandDQ;
     evals_since_audit_ = 0;
+  }
+
+  void BandedJacobian::ResizeBand(sunindextype mu, sunindextype ml) {
+    mu_ = SUNMIN(mu, scan_mu_);
+    ml_ = SUNMIN(ml, scan_ml_);
+    num_out_of_band_ = 0;
+    if (check_matrix_) {
+      SUNContext ctx = check_matrix_->sunctx;
+      SUNMatDestroy(check_matrix_);
+      check_matrix_ = SUNBandMatrix(n_, mu_, ml_, ctx);
+    }
+    InitialiseBand();
   }
 
   void BandedJacobian::OnStepStart(int cycle_index) {
@@ -277,7 +299,7 @@ namespace adsim {
 
   void BandedJacobian::ProbeGenericStates(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp,
                                          UserData* udata, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) {
-    constexpr int kVelocity = 5;            // equation index of the face velocity
+    const int kVelocity = velocity_var_;    // equation index of the face velocity
     constexpr sunrealtype kRelJitter = 1e-2;
     constexpr sunrealtype kVelocityJitter = 0.05;  // [m/s], applied with random sign
 
@@ -327,12 +349,14 @@ namespace adsim {
           for (sunindextype j : group) {
             ytemp[j] = ys[j];
             yptemp[j] = yps[j];
-            const sunindextype i1 = SUNMAX(0, j - mu_);
-            const sunindextype i2 = SUNMIN(j + ml_, n_ - 1);
+            const sunindextype i1 = SUNMAX(0, j - scan_mu_);
+            const sunindextype i2 = SUNMIN(j + scan_ml_, n_ - 1);
             for (sunindextype i = i1; i <= i2; ++i) {
               if (std::isnan(rs[i])) continue;
               const sunrealtype diff = rtemp[i] - rs[i];
-              if (diff != SUN_RCONST(0.0)) Learn(j, i);  // NaN != 0 counts as a coupling
+              if (diff == SUN_RCONST(0.0)) continue;  // NaN != 0 counts as a coupling
+              if (i < j - mu_ || i > j + ml_) { ++num_out_of_band_; continue; }
+              Learn(j, i);
             }
           }
         }
@@ -389,10 +413,15 @@ namespace adsim {
         sunrealtype* col_j = SUNBandMatrix_Column(Jac, j);
 
         if (band) {
-          const sunindextype i1 = SUNMAX(0, j - mu_);
-          const sunindextype i2 = SUNMIN(j + ml_, n_ - 1);
+          const sunindextype i1 = SUNMAX(0, j - scan_mu_);
+          const sunindextype i2 = SUNMIN(j + scan_ml_, n_ - 1);
           for (sunindextype i = i1; i <= i2; ++i) {
             const sunrealtype value = inc_inv * (rtemp_data[i] - r_data[i]);
+            if (i < j - mu_ || i > j + ml_) {
+              // Outside the matrix: cannot be stored, only counted.
+              if (value != SUN_RCONST(0.0)) ++num_out_of_band_;
+              continue;
+            }
             SM_COLUMN_ELEMENT_B(col_j, i, j) = value;
             if (value == SUN_RCONST(0.0)) continue;
             if (learn && Learn(j, i)) ++new_entries_;
@@ -408,6 +437,91 @@ namespace adsim {
       }
     }
     return retval;
+  }
+
+  bool BandedJacobian::ProbeBandwidth(const Equations& eqs, UserData* udata, SUNContext ctx,
+                                      N_Vector y, N_Vector yp, N_Vector abstol, sunindextype reach,
+                                      sunindextype& mu, sunindextype& ml) {
+    const sunindextype n = N_VGetLength(y);
+    if (n <= 0 || reach <= 0) return false;
+
+    // Variable index of each state entry (same loop order as PackBanded), to
+    // jitter the face velocity with its own absolute scale.
+    const auto& equations = eqs.GetEquations();
+    const auto* void_mask = &eqs.domain_vectors.is_void_cell;
+    size_t max_size = 0;
+    for (const auto* eq : equations) max_size = std::max(max_size, eq->Size());
+    std::vector<bool> is_velocity;
+    is_velocity.reserve(n);
+    for (size_t cell = 0; cell < max_size; ++cell)
+      for (const auto* eq : equations)
+        if (eq->IsActiveAt(cell, void_mask)) is_velocity.push_back(eq == &eqs.velocity);
+    if (static_cast<sunindextype>(is_velocity.size()) != n) return false;
+
+    N_Vector vs = N_VNew_Serial(n, ctx), vps = N_VNew_Serial(n, ctx), r0 = N_VNew_Serial(n, ctx);
+    N_Vector ytemp = N_VNew_Serial(n, ctx), yptemp = N_VNew_Serial(n, ctx), rtemp = N_VNew_Serial(n, ctx);
+    const sunrealtype* y_data = N_VGetArrayPointer(y);
+    const sunrealtype* yp_data = N_VGetArrayPointer(yp);
+    const sunrealtype* atol = N_VGetArrayPointer(abstol);
+    sunrealtype* ys = N_VGetArrayPointer(vs);
+    sunrealtype* yps = N_VGetArrayPointer(vps);
+    sunrealtype* rs = N_VGetArrayPointer(r0);
+    sunrealtype* yt = N_VGetArrayPointer(ytemp);
+    sunrealtype* ypt = N_VGetArrayPointer(yptemp);
+    sunrealtype* rt = N_VGetArrayPointer(rtemp);
+    const sunrealtype srur = SUNRsqrt(SUN_UNIT_ROUNDOFF);
+    constexpr sunrealtype kRelJitter = 1e-2;
+    constexpr sunrealtype kVelocityJitter = 0.05;  // [m/s]
+    std::mt19937_64 rng(0x5eed);
+    std::uniform_real_distribution<sunrealtype> jitter(-1.0, 1.0);
+
+    const sunindextype width = 2 * reach + 1;
+    sunindextype mu_meas = 0, ml_meas = 0;
+    bool any = false;
+    for (int s = 0; s <= kProbeStates; ++s) {
+      for (sunindextype j = 0; j < n; ++j) {
+        if (s == 0) { ys[j] = y_data[j]; yps[j] = yp_data[j]; continue; }
+        if (is_velocity[j]) ys[j] = y_data[j] + (SUNRabs(y_data[j]) + kVelocityJitter) * jitter(rng);
+        else ys[j] = y_data[j] + (kRelJitter * SUNRabs(y_data[j]) + atol[j]) * jitter(rng);
+        yps[j] = yp_data[j] + (kRelJitter * SUNRabs(yp_data[j]) + atol[j]) * jitter(rng);
+      }
+      try {
+        if (UpdateResiduals(0.0, vs, vps, r0, udata) != 0) continue;
+        std::copy(ys, ys + n, yt);
+        std::copy(yps, yps + n, ypt);
+        for (sunindextype g = 0; g < SUNMIN(width, n); ++g) {
+          for (sunindextype j = g; j < n; j += width) {
+            const sunrealtype inc = SUNMAX(srur * SUNRabs(ys[j]), atol[j]);
+            yt[j] += inc;
+            ypt[j] += inc;
+          }
+          if (UpdateResiduals(0.0, ytemp, yptemp, rtemp, udata) != 0) break;
+          any = true;
+          for (sunindextype j = g; j < n; j += width) {
+            yt[j] = ys[j];
+            ypt[j] = yps[j];
+            const sunindextype i1 = SUNMAX(0, j - reach);
+            const sunindextype i2 = SUNMIN(j + reach, n - 1);
+            for (sunindextype i = i1; i <= i2; ++i) {
+              if (std::isnan(rs[i])) continue;
+              if (rt[i] - rs[i] == SUN_RCONST(0.0)) continue;  // NaN counts as a coupling
+              if (i < j) mu_meas = SUNMAX(mu_meas, j - i);
+              else if (i > j) ml_meas = SUNMAX(ml_meas, i - j);
+            }
+          }
+        }
+      } catch (...) {
+        continue;
+      }
+    }
+    // Leave the state (and its independent fields) at the real initial point.
+    try { UpdateResiduals(0.0, y, yp, rtemp, udata); } catch (...) {}
+    udata->residual_error_.clear();
+    for (N_Vector v : { vs, vps, r0, ytemp, yptemp, rtemp }) N_VDestroy(v);
+    if (!any) return false;
+    mu = mu_meas;
+    ml = ml_meas;
+    return true;
   }
 
   int BandedJacobianFn(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp,

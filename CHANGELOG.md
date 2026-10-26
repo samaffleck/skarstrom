@@ -8,6 +8,25 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed
+- Solver: the banded Jacobian matrix is sized from the coupling reach a
+  difference-quotient probe measures at the initial state (12 / 16 instead of
+  2 neq = 20 / 20 diagonals at ten equations per cell), about 45% less LU
+  work; results are byte-identical. If a Jacobian audit later finds a
+  coupling outside the band, the solver widens it to the full reach and
+  restarts from the current point (logged at medium level).
+  `IDASettings::band_from_probe_` switches it off.
+
+### Added
+- Transient (not serialised) `IDASettings` switches for solver experiments,
+  all off by default: `alias_lte_solid_temperature_` and
+  `derived_concentration_` (drop Ts and C from the DAE unknowns),
+  `suppress_alg_` (`IDASetSuppressAlg`), `delta_cj_lsetup_`
+  (`IDASetDeltaCjLSetup`) and `pressure_differential_` (tag P as a
+  differential unknown). `bench_solver` gets `--unknowns`, `--band`,
+  `--suppress-alg`, `--dcj`, `--p-diff` and `--reltol`; its report adds the
+  band widths, out-of-band count and whether the band was widened.
+
 ## [0.3.0] — 2026-10-25
 
 ### Added

@@ -304,6 +304,15 @@ namespace adsim {
     std::string DescribeLargestLocalError(const Equations& state) const;
     long int GetNumSteps() const; // cumulative internal steps taken
     const BandedJacobian& GetJacobian() const { return jacobian_; }
+    // True when a band audit found a coupling outside the probed matrix band
+    // (IDASettings::band_from_probe_) and the band is not yet the full reach.
+    bool BandNeedsWidening() const;
+    // Rebuilds the band matrix and linear solver at the full 2 neq reach and
+    // restarts the integrator from the current point (RestartFromConsistentIC).
+    bool WidenBand(UserData& user_data);
+    bool BandWidened() const { return band_widened_; }
+    sunindextype BandUpper() const { return band_mu_; }
+    sunindextype BandLower() const { return band_ml_; }
 
   private:
     // Releases the IDA memory, N_Vectors, band matrix and linear solver and
@@ -345,6 +354,11 @@ namespace adsim {
     SUNMatrix A_ = nullptr;
     SUNLinearSolver LS_ = nullptr;
     BandedJacobian jacobian_;
+    // Half-bandwidths of A_ and the full 2 neq reach (see Initialise / WidenBand).
+    sunindextype band_mu_ = 0;
+    sunindextype band_ml_ = 0;
+    sunindextype band_reach_ = 0;
+    bool band_widened_ = false;
     bool custom_jacobian_ = false;
     bool fail_next_reseed_commit_for_testing_ = false;
 
@@ -363,6 +377,7 @@ namespace adsim {
     void PrintStatistics() const;
     IntegrationStats GetStatistics() const { return solver_data_.GetStatistics(); }
     const BandedJacobian& GetJacobian() const { return solver_data_.GetJacobian(); }
+    const SolverData& GetSolverData() const { return solver_data_; }
     std::string DescribeLargestLocalError() const { return solver_data_.DescribeLargestLocalError(user_data_.state); }
 
     void SetProgressCallback(SolverProgressCallback cb) { progress_callback_ = std::move(cb); }

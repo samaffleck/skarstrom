@@ -58,9 +58,26 @@ namespace adsim {
     BandedJacobian& operator=(const BandedJacobian&) = delete;
 
     // `ida_mem` is queried for the current step size and error weights.
+    // (mu, ml) are the matrix half-bandwidths; (scan_mu, scan_ml) >= (mu, ml)
+    // is the reach band evaluations scan, so couplings outside the matrix
+    // band are counted (NumOutOfBand) rather than silently dropped.
     void Initialise(void* ida_mem, const Equations& eqs, SUNContext ctx,
                     sunindextype mu, sunindextype ml, JacobianMode mode,
-                    bool record_pattern);
+                    bool record_pattern, sunindextype scan_mu = -1, sunindextype scan_ml = -1);
+
+    // Widens the matrix band to (mu, ml) <= the scan reach after the band was
+    // sized too narrow (NumOutOfBand() > 0): the learned pattern is dropped
+    // and re-learned, the evaluation counters are kept. The caller swaps the
+    // SUNMatrix / linear solver; this only re-sizes the pattern tables.
+    void ResizeBand(sunindextype mu, sunindextype ml);
+
+    // Measures the coupling reach of the residual by band difference quotients
+    // (stride 2 reach + 1) at the state (y, yp) and at kProbeStates jittered
+    // copies of it; returns false if no residual evaluation succeeded.
+    // `abstol` sets the increment floor. Leaves udata->state at (y, yp).
+    static bool ProbeBandwidth(const Equations& eqs, UserData* udata, SUNContext ctx,
+                               N_Vector y, N_Vector yp, N_Vector abstol, sunindextype reach,
+                               sunindextype& mu, sunindextype& ml);
 
     // Called at the start of every cycle step; re-opens pattern learning for
     // the first steps of cycle 0 (each step has its own boundary conditions).
@@ -74,6 +91,9 @@ namespace adsim {
     long NumFailureAudits() const { return num_failure_audits_; }
     // Pattern entries discovered by audits after learning (0 = pattern held).
     long NumMisses() const { return num_misses_; }
+    // Nonzero couplings band evaluations found outside the matrix band (only
+    // possible when the band was sized below the scan reach).
+    long NumOutOfBand() const { return num_out_of_band_; }
     int NumColours() const { return static_cast<int>(colour_groups_.size()); }
     // Half-bandwidths of the banded system (as passed to Initialise).
     sunindextype UpperBandwidth() const { return mu_; }
@@ -91,6 +111,7 @@ namespace adsim {
     const std::vector<std::string>& CheckReport() const { return check_report_; }
 
   private:
+    void InitialiseBand();  // pattern tables and column groups for (mu_, ml_, scan_mu_, scan_ml_)
     bool IsBoundaryColumn(sunindextype j) const;
     // Records the nonzeros of a band evaluation; returns true if any was new.
     bool Learn(sunindextype j, sunindextype i);
@@ -108,11 +129,15 @@ namespace adsim {
     sunindextype n_ = 0;
     sunindextype mu_ = 0;
     sunindextype ml_ = 0;
+    sunindextype scan_mu_ = 0;
+    sunindextype scan_ml_ = 0;
+    long num_out_of_band_ = 0;
 
     // Banded layout: variable (equation index) and cell of each state entry,
     // and the reverse map index_of_[cell * n_vars_ + var] (-1 if inactive).
     int n_vars_ = 0;
     int n_cells_ = 0;
+    int velocity_var_ = -1;  // equation index of the face velocity (-1 if absent)
     std::vector<int> var_;
     std::vector<int> cell_;
     std::vector<sunindextype> index_of_;

@@ -71,6 +71,43 @@ namespace adsim {
     JacobianMode jacobian_mode_ = JacobianMode::Coloured;
     bool record_jacobian_pattern_ = false;
 
+    // Reduced DAE unknowns (transient, not serialised; off by default, see
+    // solver_performance.md item 9 in samaffleck/skarstrom-gui). With local
+    // thermal equilibrium the solid temperature is the algebraic constraint
+    // Ts = Tf: aliasing it to Tf removes one unknown per cell. The gas
+    // concentration C = P / (R T) has no time derivative in any residual:
+    // deriving it from P and T removes another. Both shrink the band (2 neq
+    // each side), the LU and the colour count. The equations solved are the
+    // same, but the error test loses the removed entries, so the integration
+    // path (step sizes, results in the last digits) changes.
+    bool alias_lte_solid_temperature_ = false;
+    bool derived_concentration_ = false;
+    // Size the banded matrix from the coupling reach measured by a difference-
+    // quotient probe at the initial state (BandedJacobian::ProbeBandwidth)
+    // instead of the 2 neq each side that covers every scheme (about 45% less
+    // LU work; results are byte-identical). The coloured Jacobian's band
+    // audits keep scanning the full 2 neq reach; if one finds a coupling
+    // outside the matrix band, the solver rebuilds the linear solver with the
+    // full band and restarts from the current point (SolverData::WidenBand).
+    bool band_from_probe_ = true;
+    // Testing only: narrows the probed band by this many diagonals on each side
+    // so that an audit finds couplings outside it and WidenBand runs.
+    int band_probe_shrink_for_testing_ = 0;
+
+    // Solver-settings experiments (transient, not serialised; see item 10 of
+    // solver_performance.md in samaffleck/skarstrom-gui).
+    // IDASetSuppressAlg: leave the algebraic variables (P, u, and C / Ts when
+    // they are unknowns) out of the local error test.
+    bool suppress_alg_ = false;
+    // IDASetDeltaCjLSetup: IDA refreshes the Jacobian when cj / cj_old leaves
+    // [(1 - dcj) / (1 + dcj), its inverse]; SUNDIALS' default is 0.25. < 0
+    // leaves the default.
+    double delta_cj_lsetup_ = -1.0;
+    // Tag the pressure as a differential variable (its residual carries dP/dt)
+    // instead of algebraic: with suppress_alg_ it then stays in the error test
+    // while the ghost cells and the face velocity leave it.
+    bool pressure_differential_ = false;
+
     CyclicSteadyState css{};
     AccelerateCyclicSteadyState acc_css{};
     WarningSettings warnings_{};  // advisory warnings a run reports
@@ -155,6 +192,10 @@ namespace adsim {
       rc = ida_accumulate(rc, IDASetMaxErrTestFails(ida_mem, s.max_err_test_fails), "IDASetMaxErrTestFails");
     if (s.nonlin_conv_coef.Get() > 0.0)
       rc = ida_accumulate(rc, IDASetNonlinConvCoef(ida_mem, s.nonlin_conv_coef.Get()), "IDASetNonlinConvCoef");
+    if (s.suppress_alg_)
+      rc = ida_accumulate(rc, IDASetSuppressAlg(ida_mem, SUNTRUE), "IDASetSuppressAlg");
+    if (s.delta_cj_lsetup_ >= 0.0 && s.delta_cj_lsetup_ < 1.0)
+      rc = ida_accumulate(rc, IDASetDeltaCjLSetup(ida_mem, s.delta_cj_lsetup_), "IDASetDeltaCjLSetup");
 
     // The step-size ratio bounds (IDASetEtaMax/EtaMin/EtaLow/...) are left at
     // the SUNDIALS defaults. Note SUNDIALS does not reject out-of-range eta

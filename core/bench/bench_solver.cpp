@@ -14,6 +14,13 @@
 // --jacobian selects how the Newton Jacobian is built (default: solver default).
 // --pattern appends the observed Jacobian coupling of each deck to FILE as
 // "deck row_var col_var cell_offset count" lines.
+// --unknowns full|ts|c|both selects the reduced-unknown switches (IDASettings
+// alias_lte_solid_temperature_ / derived_concentration_; default: solver default).
+// --band probe|full sizes the banded matrix from a start-of-run coupling probe
+// (IDASettings band_from_probe_) or from the 2 neq each side default.
+// --suppress-alg 0|1 and --dcj D set IDASetSuppressAlg / IDASetDeltaCjLSetup
+// (IDASettings suppress_alg_ / delta_cj_lsetup_) for solver-settings experiments.
+// --reltol R overrides the deck's relative tolerance (for reference solutions).
 // --max-step / --nl-coef override the deck's IDA max step [s] and nonlinear
 // convergence coefficient (for solver-settings experiments).
 // --log low|medium|high prints the solver's log messages to stderr.
@@ -43,6 +50,10 @@ namespace {
     long audits = 0;
     long failure_audits = 0;
     long misses = 0;
+    long mu = 0;
+    long ml = 0;
+    long out_of_band = 0;
+    bool widened = false;
   };
 
   struct Options {
@@ -54,6 +65,12 @@ namespace {
     std::optional<double> nl_coef;
     std::optional<adsim::LogLevel> log_level;
     std::optional<double> trace_from;
+    std::optional<std::string> unknowns;  // full | ts | c | both
+    std::optional<bool> band_probe;
+    std::optional<bool> suppress_alg;
+    std::optional<double> dcj;
+    std::optional<double> reltol;
+    std::optional<bool> p_diff;
   };
 
   RunResult RunDeck(const std::string& path, const std::string& save_dir, const Options& opt) {
@@ -65,6 +82,15 @@ namespace {
     data.settings.record_jacobian_pattern_ = !opt.pattern_file.empty();
     if (opt.max_step) data.settings.max_step = *opt.max_step;
     if (opt.nl_coef) data.settings.nonlin_conv_coef = *opt.nl_coef;
+    if (opt.band_probe) data.settings.band_from_probe_ = *opt.band_probe;
+    if (opt.suppress_alg) data.settings.suppress_alg_ = *opt.suppress_alg;
+    if (opt.dcj) data.settings.delta_cj_lsetup_ = *opt.dcj;
+    if (opt.reltol) data.settings.reltol = *opt.reltol;
+    if (opt.p_diff) data.settings.pressure_differential_ = *opt.p_diff;
+    if (opt.unknowns) {
+      data.settings.alias_lte_solid_temperature_ = (*opt.unknowns == "ts" || *opt.unknowns == "both");
+      data.settings.derived_concentration_ = (*opt.unknowns == "c" || *opt.unknowns == "both");
+    }
 
     adsim::RunOptions run;
     if (opt.log_level) {
@@ -96,6 +122,10 @@ namespace {
     r.audits = solver.GetJacobian().NumAudits();
     r.failure_audits = solver.GetJacobian().NumFailureAudits();
     r.misses = solver.GetJacobian().NumMisses();
+    r.mu = solver.GetJacobian().UpperBandwidth();
+    r.ml = solver.GetJacobian().LowerBandwidth();
+    r.out_of_band = solver.GetJacobian().NumOutOfBand();
+    r.widened = solver.GetSolverData().BandWidened();
     if (data.settings.jacobian_mode_ == adsim::JacobianMode::ColouredCheck) {
       std::printf("  check: %ld mismatched entries, max |diff|/colmax = %.3e\n",
                   solver.GetJacobian().NumCheckMismatches(), solver.GetJacobian().MaxCheckRelativeError());
@@ -137,7 +167,7 @@ namespace {
     std::printf("%-36s rep%d rc=%d wall=%8.3fs | steps=%7ld res=%8ld jacRes=%8ld (%4.1f%%) jacs=%6ld "
                 "setups=%6ld nni=%7ld etf=%5ld ncf=%5ld | %6.2fus/res | "
                 "resid=%4.1f%% idaInt=%4.1f%% log=%4.1f%% css=%4.1f%% other=%4.1f%% | "
-                "atMaxStep=%ld/%ld bndETF=%ld/%ld cycSteps | colours=%d audits=%ld (after ncf %ld) misses=%ld | save=%.3fs\n",
+                "atMaxStep=%ld/%ld bndETF=%ld/%ld cycSteps | colours=%d audits=%ld (after ncf %ld) misses=%ld band=%ld/%ld oob=%ld widened=%d | save=%.3fs\n",
                 name.c_str(), rep, r.retval, r.wall_s,
                 s.num_steps, s.num_res_evals, s.num_lin_res_evals, jac_share, s.num_jac_evals,
                 s.num_lin_setups, s.num_nonlin_iters, s.num_err_test_fails, s.num_conv_fails,
@@ -145,7 +175,7 @@ namespace {
                 Pct(p.residual_ns, r.wall_s), Pct(ida_internal_ns, r.wall_s), Pct(p.log_ns, r.wall_s),
                 Pct(p.css_ns, r.wall_s), Pct(other_ns, r.wall_s),
                 p.steps_at_max_step, s.num_steps, p.boundary_err_test_fails, p.cycle_steps,
-                r.colours, r.audits, r.failure_audits, r.misses, r.save_s);
+                r.colours, r.audits, r.failure_audits, r.misses, r.mu, r.ml, r.out_of_band, r.widened ? 1 : 0, r.save_s);
     std::fflush(stdout);
   }
 
@@ -180,6 +210,24 @@ int main(int argc, char** argv) {
       opt.nl_coef = std::atof(argv[++i]);
     } else if (arg == "--pattern" && i + 1 < argc) {
       opt.pattern_file = argv[++i];
+    } else if (arg == "--suppress-alg" && i + 1 < argc) {
+      opt.suppress_alg = std::atoi(argv[++i]) != 0;
+    } else if (arg == "--p-diff" && i + 1 < argc) {
+      opt.p_diff = std::atoi(argv[++i]) != 0;
+    } else if (arg == "--reltol" && i + 1 < argc) {
+      opt.reltol = std::atof(argv[++i]);
+    } else if (arg == "--dcj" && i + 1 < argc) {
+      opt.dcj = std::atof(argv[++i]);
+    } else if (arg == "--band" && i + 1 < argc) {
+      std::string mode = argv[++i];
+      if (mode == "probe") opt.band_probe = true;
+      else if (mode == "full") opt.band_probe = false;
+      else { std::fprintf(stderr, "unknown --band mode: %s\n", mode.c_str()); return 2; }
+    } else if (arg == "--unknowns" && i + 1 < argc) {
+      opt.unknowns = argv[++i];
+      if (*opt.unknowns != "full" && *opt.unknowns != "ts" && *opt.unknowns != "c" && *opt.unknowns != "both") {
+        std::fprintf(stderr, "unknown --unknowns mode: %s\n", opt.unknowns->c_str()); return 2;
+      }
     } else {
       decks.push_back(arg);
     }

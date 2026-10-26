@@ -202,6 +202,8 @@ namespace adsim {
     // Solid temperature only has physical meaning inside the packed bed.
     solid_temperature.SetDomain(EquationDomain::PorousMediaOnly);
 
+    pressure.SetEquationType(pressure_differential_ ? EquationType::Differential : EquationType::Algebraic);
+
     // Isothermal runs drop the three temperature unknowns from the DAE: they
     // are not registered, so they are never packed, unpacked, given residuals
     // or Jacobian columns, and HoldIsothermalTemperature keeps their values at
@@ -209,12 +211,21 @@ namespace adsim {
     isothermal_ = bed.equations_.IsIsothermal();
     isothermal_temperature_ = 0.0;
 
+    // Reduced unknowns (IDASettings): in LTE the solid temperature is the
+    // algebraic constraint Ts = Tf, so it can be a copy of Tf instead of an
+    // unknown; the gas concentration is C = P / (R T) in every cell (its time
+    // derivative appears in no residual), so it can be derived from P and T.
+    // Unregistered fields keep their storage and are refreshed from the
+    // unpacked state by SyncDerivedFields.
+    solid_temperature_aliased_ = alias_lte_solid_temperature_ && !isothermal_
+                                 && thermal_mode == ThermalEquilibriumMode::LOCAL;
+
     // Registration order matters!
-    equations_.emplace_back(&concentration);
+    if (!derived_concentration_) equations_.emplace_back(&concentration);
     equations_.emplace_back(&pressure);
     if (!isothermal_) {
       equations_.emplace_back(&fluid_temperature);
-      equations_.emplace_back(&solid_temperature);
+      if (!solid_temperature_aliased_) equations_.emplace_back(&solid_temperature);
       equations_.emplace_back(&wall_temperature);
     }
     equations_.emplace_back(&velocity);
@@ -472,6 +483,8 @@ namespace adsim {
       solid_temperature.Resize(n_cells);
       wall_temperature.Resize(n_cells);
     }
+    if (solid_temperature_aliased_) solid_temperature.Resize(n_cells);
+    if (derived_concentration_) concentration.Resize(n_cells);
 
     for (const auto& eq : independent_equations_) {
       eq->Resize(n_cells);
@@ -582,6 +595,31 @@ namespace adsim {
     for (const auto& eq : equations_) {
       eq->Unpack(start_index, y_data, yp_data);
     }
+    SyncDerivedFields();
+  }
+
+  void Equations::SyncDerivedFields() {
+    if (solid_temperature_aliased_) {
+      solid_temperature.var = fluid_temperature.var;
+      solid_temperature.ddt_var = fluid_temperature.ddt_var;
+    }
+    if (derived_concentration_) {
+      // Same expression (and temperature floor) as the former residual
+      // C - P / (R T); dC/dt by the chain rule, for anything that logs it.
+      const auto& P = pressure.var;
+      const auto& dP = pressure.ddt_var;
+      const auto& T = fluid_temperature.var;
+      const auto& dT = fluid_temperature.ddt_var;
+      auto& C = concentration.var;
+      auto& dC = concentration.ddt_var;
+      const size_t n = std::min(C.size(), std::min(P.size(), T.size()));
+      for (size_t i = 0; i < n; ++i) {
+        const double Tc = detail::DenomFloor(T[i], constants::kMinDenomTemperature);
+        const double inv_RT = 1.0 / (R * Tc);
+        C[i] = P[i] * inv_RT;
+        dC[i] = (dP[i] - P[i] * dT[i] / Tc) * inv_RT;
+      }
+    }
   }
 
   void Equations::SetIDBanded(sunrealtype* id) {
@@ -653,6 +691,7 @@ namespace adsim {
       *slots[g].var = y_data[g];
       *slots[g].ddt_var = yp_data[g];
     }
+    SyncDerivedFields();
   }
   
   void Equations::UpdateIndependentEquations(UserData* udata) {
