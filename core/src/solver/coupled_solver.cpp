@@ -10,6 +10,7 @@
 #include "adsim/solver/log.h"
 #include "adsim/solver/ida_settings.h"
 #include "adsim/solver/deck_warnings.h"
+#include "adsim/solver/operating_limits.h"
 #include <chrono>
 #include <optional>
 #include <sstream>
@@ -336,8 +337,13 @@ namespace adsim {
     }
     // Advisory, once per run: a constant pressure boundary far from the
     // pressure its step starts at (see deck_warnings.h).
-    for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
-      LogMessage(LogLevel::LOW, w);
+    const auto& warn = user_data_.settings.warnings_;
+    if (warn.pressure_step_change)
+      for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
+        LogMessage(LogLevel::LOW, w);
+    if (warn.wall_thickness)
+      for (const auto& w : WallDesignWarnings(user_data_.bed))
+        LogMessage(LogLevel::LOW, w);
 
     stop_requested_ = false;
 
@@ -467,6 +473,10 @@ namespace adsim {
          << (cycle_index > 0 ? "s" : "") << ", "
          << std::fixed << std::setprecision(2) << wall_secs << " s)";
       LogMessage(LogLevel::LOW, ss.str());
+      // Advisory, once per run: the last cycle against the wall design and
+      // fluidisation (see operating_limits.h).
+      for (const auto& w : CheckOperatingLimits(user_data_, equation_log_).warnings)
+        LogMessage(LogLevel::LOW, w.message);
     } else {
       std::ostringstream ss;
       ss << "Solver failed after " << std::fixed << std::setprecision(2) << wall_secs << " s";
@@ -493,6 +503,8 @@ namespace adsim {
       ss << "Solver completed (" << std::fixed << std::setprecision(2)
          << wall_secs << " s)";
       LogMessage(LogLevel::LOW, ss.str());
+      for (const auto& w : CheckOperatingLimits(user_data_, equation_log_).warnings)
+        LogMessage(LogLevel::LOW, w.message);
     } else {
       std::ostringstream ss;
       ss << "Solver failed after " << std::fixed << std::setprecision(2)
@@ -557,8 +569,13 @@ namespace adsim {
            << ", max cycles: " << cycle.number_of_cycles_ << ")";
         LogMessage(LogLevel::LOW, ss.str());
       }
-      for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
-        LogMessage(LogLevel::LOW, w);
+      const auto& warn = user_data_.settings.warnings_;
+      if (warn.pressure_step_change)
+        for (const auto& w : BoundaryPressureStepChangeWarnings(cycle, user_data_.ic.pressure.Get()))
+          LogMessage(LogLevel::LOW, w);
+      if (warn.wall_thickness)
+        for (const auto& w : WallDesignWarnings(user_data_.bed))
+          LogMessage(LogLevel::LOW, w);
     }
   }
 

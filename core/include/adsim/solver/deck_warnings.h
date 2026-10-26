@@ -14,6 +14,7 @@
 
 namespace adsim {
 
+  class Bed;
   class Cycle;
 
   // One warning per step end whose CONSTANT pressure boundary value differs
@@ -31,5 +32,12 @@ namespace adsim {
   // values must already be evaluated (UserData::Initialise).
   std::vector<std::string> BoundaryPressureStepChangeWarnings(
       const Cycle& cycle, double initial_pressure, double relative_threshold = 0.25);
+
+  // When the wall's pressure design is in use (BedWall::DesignInUse): one
+  // warning if the wall is thinner than the minimum its design code requires
+  // (wall_design.h), or if the requirement cannot be evaluated (a column that
+  // is not cylindrical, a Custom material, a pressure no wall can hold).
+  // Expressions must already be evaluated.
+  std::vector<std::string> WallDesignWarnings(const Bed& bed);
 
 } // namespace adsim

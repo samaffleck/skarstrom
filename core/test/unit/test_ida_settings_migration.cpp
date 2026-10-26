@@ -26,11 +26,13 @@ namespace adsim {
       }
       std::string json = out.str();
 
-      // The first class version in the document is IDASettings' own.
-      const std::string v5 = "\"cereal_class_version\": 5";
-      const auto version_pos = json.find(v5);
+      // The first class version in the document is IDASettings' own (the
+      // current one; fields newer than v4 are then ignored on load).
+      const std::string current = "\"cereal_class_version\": " +
+          std::to_string(cereal::detail::Version<IDASettings>::version);
+      const auto version_pos = json.find(current);
       EXPECT_NE(version_pos, std::string::npos);
-      json.replace(version_pos, v5.size(), "\"cereal_class_version\": 4");
+      json.replace(version_pos, current.size(), "\"cereal_class_version\": 4");
 
       // Rewrite the max-step expression (and its cached value) to the old one.
       const auto field = json.find("\"Maximum_Step_Size\"");

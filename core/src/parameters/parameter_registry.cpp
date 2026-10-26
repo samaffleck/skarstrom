@@ -177,6 +177,25 @@ namespace adsim {
                [](const UserData& u) { return (long long)static_cast<int>(u.settings.acc_css.method_); },
                [](UserData& u, long long x) { u.settings.acc_css.method_ = static_cast<AccelerationMethod>((int)x); },
                "none,aitken"),
+      // Advisory warnings a run reports (warning_settings.h).
+      BoolField("settings", "warn_pressure_step_change", "warn on a constant pressure boundary far from the bed pressure",
+                [](const UserData& u) { return u.settings.warnings_.pressure_step_change; },
+                [](UserData& u, bool b) { u.settings.warnings_.pressure_step_change = b; }),
+      BoolField("settings", "warn_wall_thickness", "warn when the wall is thinner than its pressure design",
+                [](const UserData& u) { return u.settings.warnings_.wall_thickness; },
+                [](UserData& u, bool b) { u.settings.warnings_.wall_thickness = b; }),
+      BoolField("settings", "warn_design_pressure", "warn when the pressure passes the wall's design pressure",
+                [](const UserData& u) { return u.settings.warnings_.design_pressure; },
+                [](UserData& u, bool b) { u.settings.warnings_.design_pressure = b; }),
+      BoolField("settings", "warn_vacuum", "warn below atmospheric without vacuum service",
+                [](const UserData& u) { return u.settings.warnings_.vacuum; },
+                [](UserData& u, bool b) { u.settings.warnings_.vacuum = b; }),
+      BoolField("settings", "warn_design_temperature", "warn when the wall passes its design temperature",
+                [](const UserData& u) { return u.settings.warnings_.design_temperature; },
+                [](UserData& u, bool b) { u.settings.warnings_.design_temperature = b; }),
+      BoolField("settings", "warn_fluidisation", "warn when the approach to fluidisation passes 1",
+                [](const UserData& u) { return u.settings.warnings_.fluidisation; },
+                [](UserData& u, bool b) { u.settings.warnings_.fluidisation = b; }),
 
       // css (cyclic steady state)
       IntField("css", "method", "CSS method",
@@ -743,6 +762,19 @@ namespace adsim {
       Emplace("wall.thermal_conductivity", "", "bed", "wall", "wall thermal conductivity", "W/(m-K)",
               bed.wall_.thermal_conductivity_, 0.1, 100.0);
       Emplace("wall.thickness", "", "bed", "wall", "wall thickness", "m", bed.wall_.thickness_, 0.001, 0.1);
+      // Pressure design (wall_design.h): sizes the thickness, sets the
+      // operating-limit warnings; the solver does not read it.
+      EmplaceEnum("wall.design_code", "", "bed", "wall design", "wall design code", bed.wall_.design_code_,
+                  "asme_viii_1,asme_b31_3");
+      Emplace("wall.design_pressure", "", "bed", "wall design", "wall design pressure (gauge)", "Pa",
+              bed.wall_.design_pressure_, 0.0, 1e7);
+      Emplace("wall.design_temperature", "", "bed", "wall design", "wall design temperature", "K",
+              bed.wall_.design_temperature_, 273.0, 873.0);
+      Emplace("wall.weld_joint_efficiency", "", "bed", "wall design", "weld joint efficiency", "-",
+              bed.wall_.weld_joint_efficiency_, 0.5, 1.0);
+      Emplace("wall.corrosion_allowance", "", "bed", "wall design", "corrosion allowance", "m",
+              bed.wall_.corrosion_allowance_, 0.0, 0.006);
+      EmplaceBool("wall.vacuum_service", "", "bed", "wall design", "vacuum service", bed.wall_.vacuum_service_);
       auto& wall_bc = bed.equations_.wall_temperature_boundary_condition_;
       if (auto* fixed = dynamic_cast<WallTemperatureBoundaryConditionFixed*>(wall_bc.get())) {
         Emplace("wall.fixed_temperature", "", "bed", "wall", "fixed wall temperature", "K",

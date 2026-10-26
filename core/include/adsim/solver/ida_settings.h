@@ -17,6 +17,7 @@
 
 // Adsim includes
 #include "adsim/solver/cyclic_steady_state.h"
+#include "adsim/solver/warning_settings.h"
 #include "adsim/solver/jacobian.h"
 #include "adsim/math/expression_param.h"
 
@@ -109,6 +110,7 @@ namespace adsim {
 
     CyclicSteadyState css{};
     AccelerateCyclicSteadyState acc_css{};
+    WarningSettings warnings_{};  // advisory warnings a run reports
 
     void EvaluateExpressions(const EvalContext& ctx) {
       init_step.Evaluate(ctx);
@@ -147,6 +149,9 @@ namespace adsim {
       }
       if (version >= 4) {
         ar(cereal::make_nvp("Maximum_Log_Points_Per_Step", max_log_points_per_step_));
+      }
+      if (version >= 6) {
+        ar(cereal::make_nvp("Warnings", warnings_));
       }
       // v5: the default max step changed from 2 s to no cap. Decks saved before
       // v5 that still carry the old default ("2") move to the new one; any value
@@ -207,4 +212,4 @@ namespace adsim {
 
 } // end adsim namespace
 
-CEREAL_CLASS_VERSION(adsim::IDASettings, 5);
+CEREAL_CLASS_VERSION(adsim::IDASettings, 6);

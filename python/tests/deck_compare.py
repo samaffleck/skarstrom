@@ -19,7 +19,8 @@ from typing import Any, Dict, List, Tuple
 DROP = {
     "cereal_class_version", "DisplayUnitIndex", "Cycle_Endpoint_Summary", "Experimental_Data", "Cost_Estimator",
     "Next_ID", "Next_Layer_ID", "ID", "Endpoint_ID", "Pair_ID", "Step_ID", "Version",
-    "Design_Pressure", "Design_Temperature", "Weld_Joint_Efficiency", "Vacuum_Service", "Proportional_Gain",
+    "Design_Pressure", "Design_Temperature", "Weld_Joint_Efficiency", "Vacuum_Service", "Design_Code",
+    "Corrosion_Allowance", "Proportional_Gain",
 }
 # Values the engine overrides at run time for pressure profiles (bed pressure, step time).
 PRESSURE_PROFILE_KEYS = {"Boundary_Pressure", "Boundary_Value"}

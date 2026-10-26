@@ -27,7 +27,7 @@ The same exchange appears with the opposite sign in the bed's [energy balance](e
 | $T$, $T_s$       | Gas (and, in LTNE, solid) temperature of the bed        | K              | |
 | $T_{amb}$        | Ambient temperature                                     | K              | **Column Properties → Geometry → Ambient temperature** |
 | $\rho_w$, $C_{p,w}$, $k_w$ | Wall density, heat capacity, axial thermal conductivity | kg m⁻³, J kg⁻¹ K⁻¹, W m⁻¹ K⁻¹ | **Wall → Material** (a preset, or *Custom*) |
-| $t_w$            | Wall thickness                                          | m              | **Wall → Thickness** |
+| $t_w$            | Wall thickness                                          | m              | **Wall → Thickness** (or calculated from a design pressure: [Wall Design](wall-design.md)) |
 | $d_i$            | Inner diameter: the column diameter                     | m              | **Geometry** |
 | $d_o$            | Outer diameter, $d_i + 2\thinspace t_w$                          | m              | |
 | $h_i$            | Bed-to-wall (internal) heat transfer coefficient        | W m⁻² K⁻¹      | layer internal heat transfer model |

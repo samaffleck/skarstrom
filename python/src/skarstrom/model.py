@@ -773,6 +773,18 @@ class Settings(_Node):
     """Cycles kept in the log."""
     max_log_points_per_step = Integer()
     """Maximum logged points per step."""
+    warn_pressure_step_change = Boolean()
+    """Warn at the start of a run about a constant pressure boundary far from the bed pressure."""
+    warn_wall_thickness = Boolean()
+    """Warn at the start of a run when the wall is thinner than its pressure design requires."""
+    warn_design_pressure = Boolean()
+    """Warn when the last cycle's pressure passes the wall's design pressure."""
+    warn_vacuum = Boolean()
+    """Warn when the last cycle goes below atmospheric and the wall is not in vacuum service."""
+    warn_design_temperature = Boolean()
+    """Warn when the last cycle's wall temperature passes the design temperature."""
+    warn_fluidisation = Boolean()
+    """Warn when the last cycle's approach to fluidisation passes 1."""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none" or "aitken" (Graves-Morris extrapolation)."""
 
@@ -1295,6 +1307,19 @@ class Wall(_Node):
     """Wall thickness [m]."""
     fixed_temperature = Real()
     """Wall temperature when it is held fixed [K]."""
+    design_code = Choice()
+    """Pressure design code: ``"asme_viii_1"`` (UG-27) or ``"asme_b31_3"`` (304.1.2); see
+    :meth:`Simulation.wall_design`."""
+    design_pressure = Real()
+    """Design (maximum internal) pressure, gauge [Pa]; 0 = no pressure design."""
+    design_temperature = Real()
+    """Design temperature, for the allowable stress [K]."""
+    weld_joint_efficiency = Real()
+    """Weld joint efficiency E [-]: 1.0 seamless or fully radiographed, 0.85 spot, 0.70 none."""
+    corrosion_allowance = Real()
+    """Corrosion allowance added to the required thickness [m]."""
+    vacuum_service = Boolean()
+    """Also design the wall for full vacuum (external pressure)."""
 
     def set_material(self, kind: str, **values: Value) -> "Wall":
         """A wall material (``"ss316l"``, ``"carbon_steel_a106"``...; ``"custom"``): sets its

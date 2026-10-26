@@ -9,6 +9,8 @@
 #include "adsim/solver/cycle.h"
 #include "adsim/boundary_conditions/boundary_conditions.h"
 #include "adsim/boundary_conditions/boundary_value.h"
+#include "adsim/objects/reactor.h"
+#include "adsim/objects/wall_design.h"
 
 #include <cmath>
 #include <iomanip>
@@ -116,6 +118,27 @@ namespace adsim {
                                      + prior->step->step_name_ + "\""));
         }
       }
+    }
+    return warnings;
+  }
+
+  std::vector<std::string> WallDesignWarnings(const Bed& bed) {
+    std::vector<std::string> warnings;
+    const auto& wall = bed.wall_;
+    if (!wall.DesignInUse()) return warnings;
+    const WallDesignResult design = DesignBedWall(bed);
+    if (!design.valid) {
+      warnings.push_back("Warning: the wall's minimum thickness cannot be checked: " + design.message + ".");
+      return warnings;
+    }
+    const double t = wall.thickness_.Get();
+    if (t < design.required_thickness * (1.0 - 1e-9)) {
+      std::ostringstream ss;
+      ss << std::setprecision(3) << "Warning: the wall is " << t * 1e3 << " mm thick, thinner than the "
+         << design.required_thickness * 1e3 << " mm " << kWallDesignCodeList[static_cast<int>(wall.design_code_)]
+         << " requires for its design" << (design.external_governs ? " (full vacuum governs)" : "")
+         << ". Use Calculate in the wall design, or a thicker wall.";
+      warnings.push_back(ss.str());
     }
     return warnings;
   }

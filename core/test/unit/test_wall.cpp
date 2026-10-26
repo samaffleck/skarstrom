@@ -1,6 +1,7 @@
 // adsim includes
 #include "../src/pch.h"
 #include "adsim/objects/wall.h"
+#include "adsim/objects/wall_design.h"
 
 // Gtest includes
 #include <gtest/gtest.h>
@@ -109,135 +110,201 @@ namespace adsim {
   }
 
   // ---------------------------------------------------------------------------
-  // CalculateAsmeMinWallThickness — internal pressure
-  // ---------------------------------------------------------------------------
-  // Hand calculation: 100 mm ID, 10 bar gauge, SS316L at 20°C, E = 1.0
-  //   S = 115.1 MPa, R = 0.05 m, P = 1e6 Pa
-  //   t = P*R / (S*E - 0.6*P) = 1e6 * 0.05 / (115.1e6 * 1.0 - 0.6 * 1e6)
-  //     = 50000 / (115100000 - 600000)
-  //     = 50000 / 114500000
-  //     ≈ 4.367e-4 m  ≈ 0.437 mm
-
-  TEST(AsmeWallThicknessTest, InternalPressure_BasicHandCalc) {
-    const double P  = 10.0 * 1e5;   // 10 bar gauge → Pa
-    const double D  = 0.1;          // 100 mm ID
-    const double T_K = 293.15;      // 20°C
-    const double E  = 1.0;
-
-    const auto result = CalculateAsmeMinWallThickness(D, P, T_K, WallMaterial::SS316L, E, false);
-
-    EXPECT_TRUE(result.is_valid);
-    EXPECT_NEAR(result.allowable_stress, 115.1e6, 1e3);
-
-    const double S   = result.allowable_stress;
-    const double R   = D / 2.0;
-    const double expected = P * R / (S * E - 0.6 * P);
-    EXPECT_NEAR(result.min_thickness, expected, 1e-9);
-    // Sanity: should be a fraction of a millimetre for 10 bar on a 100mm vessel
-    EXPECT_GT(result.min_thickness, 0.0);
-    EXPECT_LT(result.min_thickness, 0.01); // < 10 mm
-  }
-
-  TEST(AsmeWallThicknessTest, InternalPressure_HigherPressureGivesThickerWall) {
-    const auto r1 = CalculateAsmeMinWallThickness(0.1, 10e5, 293.15, WallMaterial::SS316L, 1.0, false);
-    const auto r2 = CalculateAsmeMinWallThickness(0.1, 50e5, 293.15, WallMaterial::SS316L, 1.0, false);
-    EXPECT_TRUE(r1.is_valid);
-    EXPECT_TRUE(r2.is_valid);
-    EXPECT_GT(r2.min_thickness, r1.min_thickness);
-  }
-
-  TEST(AsmeWallThicknessTest, InternalPressure_HigherTemperatureGivesThickerWall) {
-    // Higher temperature → lower S → thicker wall
-    const auto r_cold = CalculateAsmeMinWallThickness(0.1, 10e5, 293.15, WallMaterial::SS316L, 1.0, false);
-    const auto r_hot  = CalculateAsmeMinWallThickness(0.1, 10e5, 773.15, WallMaterial::SS316L, 1.0, false);
-    EXPECT_TRUE(r_cold.is_valid);
-    EXPECT_TRUE(r_hot.is_valid);
-    EXPECT_GT(r_hot.min_thickness, r_cold.min_thickness);
-  }
-
-  TEST(AsmeWallThicknessTest, InternalPressure_LowerWeldEfficiencyGivesThickerWall) {
-    const auto r_full = CalculateAsmeMinWallThickness(0.1, 10e5, 293.15, WallMaterial::SS316L, 1.0, false);
-    const auto r_spot = CalculateAsmeMinWallThickness(0.1, 10e5, 293.15, WallMaterial::SS316L, 0.85, false);
-    EXPECT_TRUE(r_full.is_valid);
-    EXPECT_TRUE(r_spot.is_valid);
-    EXPECT_GT(r_spot.min_thickness, r_full.min_thickness);
-  }
-
-  TEST(AsmeWallThicknessTest, InvalidWhenPressureExceedsSE) {
-    // If P >= S*E the denominator is zero or negative — should return is_valid = false
-    // Use enormous pressure with Custom material (S = 0)
-    const auto result = CalculateAsmeMinWallThickness(0.1, 1e9, 293.15, WallMaterial::Custom, 1.0, false);
-    EXPECT_FALSE(result.is_valid);
-  }
-
-  // ---------------------------------------------------------------------------
-  // CalculateAsmeMinWallThickness — vacuum service
-  // ---------------------------------------------------------------------------
-  // Vacuum uses P_eff = 101 325 Pa regardless of design_pressure
-  // Hand calculation: 100 mm ID, SS316L at 20°C, E = 1.0
-  //   P = 101325 Pa, R = 0.05 m, S = 115.1 MPa
-  //   t = 101325 * 0.05 / (115.1e6 - 0.6 * 101325)
-  //     = 5066.25 / (115100000 - 60795)
-  //     = 5066.25 / 115039205
-  //     ≈ 4.404e-5 m  ≈ 0.044 mm
-
-  TEST(AsmeWallThicknessTest, VacuumService_UsesAtmosphericPressure) {
-    const double D = 0.1;
-    const auto result = CalculateAsmeMinWallThickness(D, 0.0, 293.15, WallMaterial::SS316L, 1.0, true);
-
-    EXPECT_TRUE(result.is_valid);
-
-    // Verify: result should match UG-27 formula at P = 101325 Pa
-    const double P_vac = 101325.0;
-    const double S     = result.allowable_stress;
-    const double R     = D / 2.0;
-    const double expected = P_vac * R / (S - 0.6 * P_vac);
-    EXPECT_NEAR(result.min_thickness, expected, 1e-9);
-  }
-
-  TEST(AsmeWallThicknessTest, VacuumService_ThicknessIsPositive) {
-    const auto result = CalculateAsmeMinWallThickness(0.3, 0.0, 293.15, WallMaterial::SS316L, 1.0, true);
-    EXPECT_TRUE(result.is_valid);
-    EXPECT_GT(result.min_thickness, 0.0);
-  }
-
-  // ---------------------------------------------------------------------------
-  // BedWall convenience method
+  // DesignWall — internal pressure
   // ---------------------------------------------------------------------------
 
-  TEST(BedWallTest, CalculateMinThickness_DelegatesToFreeFunction) {
+  // 100 mm ID SS316L column at 20 °C, E = 1: S = 115.1 MPa.
+  WallDesignInput Column(double P, double c = 0.0) {
+    WallDesignInput in;
+    in.material = WallMaterial::SS316L;
+    in.inner_diameter = 0.1;
+    in.length = 1.0;
+    in.design_pressure = P;
+    in.design_temperature = 293.15;
+    in.joint_efficiency = 1.0;
+    in.corrosion_allowance = c;
+    return in;
+  }
+
+  // UG-27(c)(1): t = P R / (S E - 0.6 P) = 1e6 * 0.05 / (115.1e6 - 0.6e6) = 0.4367 mm.
+  TEST(WallDesignTest, Ug27HandCalculation) {
+    const auto r = DesignWall(Column(10e5));
+    ASSERT_TRUE(r.valid) << r.message;
+    EXPECT_NEAR(r.allowable_stress, 115.1e6, 1e3);
+    EXPECT_NEAR(r.required_thickness, 1e6 * 0.05 / (115.1e6 - 0.6e6), 1e-12);
+    EXPECT_FALSE(r.thick_shell);
+    EXPECT_FALSE(r.external_governs);
+    EXPECT_DOUBLE_EQ(r.external_thickness, 0.0);
+  }
+
+  // The corrosion allowance enlarges the radius and is added to the thickness:
+  // t = 1e6 * (0.05 + 0.0015) / 114.5e6 + 0.0015.
+  TEST(WallDesignTest, CorrosionAllowance) {
+    const auto r = DesignWall(Column(10e5, 0.0015));
+    ASSERT_TRUE(r.valid) << r.message;
+    EXPECT_NEAR(r.required_thickness, 1e6 * 0.0515 / 114.5e6 + 0.0015, 1e-12);
+  }
+
+  // Above P = 0.385 S E the thick-shell rule of Appendix 1-2 applies:
+  // t = R (sqrt(Z) - 1), Z = (S E + P) / (S E - P).
+  TEST(WallDesignTest, Appendix1_2ThickShell) {
+    const double P = 50e6;
+    const auto r = DesignWall(Column(P));
+    ASSERT_TRUE(r.valid) << r.message;
+    EXPECT_TRUE(r.thick_shell);
+    const double Z = (115.1e6 + P) / (115.1e6 - P);
+    EXPECT_NEAR(r.required_thickness, 0.05 * (std::sqrt(Z) - 1.0), 1e-12);
+  }
+
+  TEST(WallDesignTest, TrendsWithPressureTemperatureAndJointEfficiency) {
+    const double t0 = DesignWall(Column(10e5)).required_thickness;
+    EXPECT_GT(DesignWall(Column(50e5)).required_thickness, t0);
+    auto hot = Column(10e5);
+    hot.design_temperature = 773.15;
+    EXPECT_GT(DesignWall(hot).required_thickness, t0);
+    auto spot = Column(10e5);
+    spot.joint_efficiency = 0.85;
+    EXPECT_GT(DesignWall(spot).required_thickness, t0);
+  }
+
+  // B31.3 eq. (3b) with Y = 0.4 equals UG-27 for the inside diameter...
+  TEST(WallDesignTest, B31_3EqualsUg27InTheThinRange) {
+    auto in = Column(10e5, 0.001);
+    in.code = WallDesignCode::ASME_B31_3;
+    const auto r = DesignWall(in);
+    ASSERT_TRUE(r.valid) << r.message;
+    EXPECT_NEAR(r.required_thickness, DesignWall(Column(10e5, 0.001)).required_thickness, 1e-12);
+  }
+
+  // ...but has no thick-wall rule: past P / (S E) = 0.385 it needs special consideration.
+  TEST(WallDesignTest, B31_3ThickWallIsNotValid) {
+    auto in = Column(50e6);
+    in.code = WallDesignCode::ASME_B31_3;
+    const auto r = DesignWall(in);
+    EXPECT_FALSE(r.valid);
+    EXPECT_NE(r.message.find("304.1.2(b)"), std::string::npos);
+  }
+
+  // The MAWP of the required wall is the design pressure, for both codes.
+  TEST(WallDesignTest, MaxAllowableInternalPressureInvertsTheDesign) {
+    for (auto code : { WallDesignCode::ASME_VIII_1, WallDesignCode::ASME_B31_3 }) {
+      for (double P : { 5e5, 40e5, 200e5 }) {
+        auto in = Column(P, 0.001);
+        in.code = code;
+        const auto r = DesignWall(in);
+        ASSERT_TRUE(r.valid) << r.message;
+        EXPECT_NEAR(MaxAllowableInternalPressure(in, r.required_thickness), P, 1e-6 * P);
+      }
+    }
+    auto thick = Column(50e6);
+    EXPECT_NEAR(MaxAllowableInternalPressure(thick, DesignWall(thick).required_thickness), 50e6, 1.0);
+  }
+
+  TEST(WallDesignTest, NotValidWithoutAKnownStressOrADesign) {
+    auto custom = Column(10e5);
+    custom.material = WallMaterial::Custom;
+    EXPECT_FALSE(DesignWall(custom).valid);
+    EXPECT_FALSE(DesignWall(Column(0.0)).valid);
+    EXPECT_FALSE(DesignWall(Column(200e6)).valid);  // P > S E
+  }
+
+  // ---------------------------------------------------------------------------
+  // External pressure (Code Case 2286 / VIII-2 4.4.5.1)
+  // ---------------------------------------------------------------------------
+
+  // A long tube in the elastic range: Ch = 0.55 t/Do, so Fhe = 0.88 E (t/Do)^2,
+  // FS = 2 and Pa = 2 (Fhe / 2)(t/Do) = 0.88 E (t/Do)^3 (the classical long-tube
+  // collapse pressure 2E/(1-v^2) (t/D)^3 with a 0.8 knock-down, halved).
+  TEST(WallExternalPressureTest, LongTubeElasticClosedForm) {
+    WallDesignInput in = Column(0.0);
+    in.inner_diameter = 0.5;
+    in.length = 10.0;
+    const double E = GetElasticModulus(WallMaterial::SS316L, 293.15);
+    EXPECT_NEAR(E, 195.1e9, 1e6);
+    const double t = 0.004;
+    const double Do = 0.5 + 2 * t;
+    EXPECT_NEAR(AllowableExternalPressure(in, t), 0.88 * E * std::pow(t / Do, 3), 1e-9 * E);
+
+    // Designing for full vacuum solves 0.88 E (t/Do)^3 = 101 325 Pa.
+    in.vacuum_service = true;
+    const auto r = DesignWall(in);
+    ASSERT_TRUE(r.valid) << r.message;
+    EXPECT_TRUE(r.external_governs);
+    const double k = std::cbrt(kFullVacuumExternalPressure / (0.88 * E));  // t / Do
+    EXPECT_NEAR(r.required_thickness, k * 0.5 / (1 - 2 * k), 1e-8);
+  }
+
+  // A thick, short tube buckles at yield: Fic = Sy, FS = 1.667, Pa = 2 (Sy / 1.667)(t/Do),
+  // with Sy the lower bound 1.5 S for carbon steel.
+  TEST(WallExternalPressureTest, YieldGovernedThickTube) {
+    WallDesignInput in = Column(0.0);
+    in.material = WallMaterial::CarbonSteel_A106;
+    in.inner_diameter = 0.05;
+    const double t = 0.005, Do = 0.06;
+    const double Sy = YieldStrengthLowerBound(WallMaterial::CarbonSteel_A106, 293.15);
+    EXPECT_NEAR(Sy, 1.5 * 120.7e6, 1.0);
+    EXPECT_NEAR(AllowableExternalPressure(in, t), 2.0 * (Sy / 1.667) * t / Do, 1.0);
+  }
+
+  TEST(WallExternalPressureTest, ShorterAndThickerHoldsMore) {
+    WallDesignInput in = Column(0.0);
+    in.inner_diameter = 0.3;
+    double prev = 0.0;
+    for (double t : { 0.001, 0.002, 0.004, 0.008 }) {
+      const double pa = AllowableExternalPressure(in, t);
+      EXPECT_GT(pa, prev);
+      prev = pa;
+    }
+    in.length = 3.0;
+    const double long_pa = AllowableExternalPressure(in, 0.002);
+    in.length = 0.3;
+    EXPECT_GT(AllowableExternalPressure(in, 0.002), long_pa);
+  }
+
+  // The previous simplification (1 atm as an internal pressure in UG-27) gave
+  // 0.13 mm for a 300 mm column; buckling needs several times that.
+  TEST(WallExternalPressureTest, VacuumNeedsMoreThanUg27AtOneAtmosphere) {
+    WallDesignInput in = Column(0.0);
+    in.inner_diameter = 0.3;
+    in.vacuum_service = true;
+    const auto r = DesignWall(in);
+    ASSERT_TRUE(r.valid) << r.message;
+    const double ug27_1atm = 101325.0 * 0.15 / (115.1e6 - 0.6 * 101325.0);
+    EXPECT_GT(r.required_thickness, 5.0 * ug27_1atm);
+    EXPECT_NEAR(AllowableExternalPressure(in, r.required_thickness), kFullVacuumExternalPressure, 1.0);
+  }
+
+  // Vacuum service and a design pressure: the larger requirement governs, and
+  // the corrosion allowance is kept in both.
+  TEST(WallExternalPressureTest, TheLargerRequirementGoverns) {
+    WallDesignInput in = Column(2e5, 0.001);
+    in.inner_diameter = 0.3;
+    in.vacuum_service = true;
+    const auto r = DesignWall(in);
+    ASSERT_TRUE(r.valid) << r.message;
+    EXPECT_GT(r.internal_thickness, 0.001);
+    EXPECT_GT(r.external_thickness, r.internal_thickness);
+    EXPECT_DOUBLE_EQ(r.required_thickness, r.external_thickness);
+    EXPECT_GE(AllowableExternalPressure(in, r.required_thickness), kFullVacuumExternalPressure);
+
+    in.design_pressure = 50e5;
+    const auto high = DesignWall(in);
+    EXPECT_FALSE(high.external_governs);
+    EXPECT_DOUBLE_EQ(high.required_thickness, high.internal_thickness);
+  }
+
+  // ---------------------------------------------------------------------------
+  // BedWall
+  // ---------------------------------------------------------------------------
+
+  TEST(BedWallTest, DesignInUse) {
     BedWall wall;
-    wall.ApplyMaterial(WallMaterial::SS316L);
-    wall.design_pressure_      = 10e5;   // 10 bar gauge
-    wall.design_temperature_   = 293.15; // 20°C
-    wall.weld_joint_efficiency_ = 1.0;
-    wall.vacuum_service_       = false;
-
-    const double D = 0.1;
-    const auto r1 = wall.CalculateMinThickness(D);
-    const auto r2 = CalculateAsmeMinWallThickness(D, 10e5, 293.15, WallMaterial::SS316L, 1.0, false);
-
-    EXPECT_EQ(r1.is_valid, r2.is_valid);
-    EXPECT_DOUBLE_EQ(r1.min_thickness, r2.min_thickness);
-    EXPECT_DOUBLE_EQ(r1.allowable_stress, r2.allowable_stress);
-  }
-
-  TEST(BedWallTest, VacuumServiceFlag_AffectsResult) {
-    BedWall wall;
-    wall.ApplyMaterial(WallMaterial::SS316L);
-    wall.design_pressure_      = 5e5;
-    wall.design_temperature_   = 293.15;
-    wall.weld_joint_efficiency_ = 1.0;
-    wall.vacuum_service_       = false;
-    const auto r_pos = wall.CalculateMinThickness(0.1);
-
+    EXPECT_FALSE(wall.DesignInUse());
+    wall.design_pressure_ = 5e5;
+    EXPECT_TRUE(wall.DesignInUse());
+    wall.design_pressure_ = 0.0;
     wall.vacuum_service_ = true;
-    const auto r_vac = wall.CalculateMinThickness(0.1);
-
-    EXPECT_TRUE(r_pos.is_valid);
-    EXPECT_TRUE(r_vac.is_valid);
-    // Vacuum uses 101325 Pa; 5 bar is larger, so positive design gives thicker wall
-    EXPECT_GT(r_pos.min_thickness, r_vac.min_thickness);
+    EXPECT_TRUE(wall.DesignInUse());
   }
 
 } // end adsim namespace
