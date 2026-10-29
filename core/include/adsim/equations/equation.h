@@ -267,10 +267,10 @@ namespace adsim {
     double isothermal_temperature_ = 0.0;
     // Reduced unknowns (see SetReducedUnknowns). solid_temperature_aliased_ is
     // the effective value: the flag, and LTE, and not isothermal.
-    bool alias_lte_solid_temperature_ = false;
-    bool derived_concentration_ = false;
+    bool alias_lte_solid_temperature_ = true;
+    bool derived_concentration_ = true;
     bool solid_temperature_aliased_ = false;
-    bool pressure_differential_ = false;
+    bool pressure_differential_ = true;
     // Fills the unregistered fields from the unpacked state: Ts (and dTs/dt)
     // from Tf when aliased, C (and dC/dt) from P and T when derived.
     void SyncDerivedFields();

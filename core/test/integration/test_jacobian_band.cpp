@@ -85,8 +85,17 @@ namespace adsim {
       // Generic state: non-uniform mole fractions (so limiter / smoothness
       // weights have nonzero derivatives) and face velocities of random sign
       // (so both the left- and right-biased reconstructions are exercised).
-      constexpr int kVelocity = 5;  // equation index of u (Equations::Initialise order)
-      constexpr int kFirstMoleFraction = 6;
+      // Equation indices of u and of the first mole fraction, from the list
+      // (the fixed block ahead of them depends on the thermal mode and on the
+      // reduced-unknown settings; the mole fractions are consecutive).
+      int kVelocity = -1;
+      int kFirstMoleFraction = -1;
+      for (int e = 0; e < neq; ++e) {
+        if (eqs[e] == &state.velocity) kVelocity = e;
+        if (eqs[e] == &state.mole_fraction.at(data.fluid.components_.front())) kFirstMoleFraction = e;
+      }
+      EXPECT_GE(kVelocity, 0);
+      EXPECT_GE(kFirstMoleFraction, 0);
       const int n_comp = static_cast<int>(data.fluid.components_.size());
       std::mt19937_64 rng(0xBA9D);
       std::uniform_real_distribution<double> jitter(-1.0, 1.0);

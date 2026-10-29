@@ -676,16 +676,16 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.11511001555896559,
-                                    "Average_Temperature": 298.3524204306258,
+                                    "Total_Moles": 0.11511061611356348,
+                                    "Average_Temperature": 298.35231979271478,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Air",
-                                            "value": 0.011067668951089243
+                                            "value": 0.011067617063640026
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.9889323310489108
+                                            "value": 0.98893238293636
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -760,7 +760,7 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.2052454911210271,
+                                                        "Total_Moles": 0.2052454911201525,
                                                         "Average_Temperature": 292.9999999999999,
                                                         "Average_Mole_Fraction": [
                                                             {

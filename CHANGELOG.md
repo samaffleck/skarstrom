@@ -9,6 +9,26 @@ root `CMakeLists.txt`.
 ## [Unreleased]
 
 ### Changed
+- Solver: two settings are now on by default (`IDASettings`, transient):
+  - `suppress_alg_` with `pressure_differential_`: the pressure is tagged a
+    differential unknown (its residual carries dP/dt) and IDA's local error
+    test leaves out the algebraic entries, i.e. the ghost cells (mirror
+    relations with no time derivative) and the face velocity. Their jumps at
+    a boundary-condition switch used to fail the error test and force tiny
+    restart steps; the cyclic example decks now take 40-60% fewer steps
+    (1.3-2.1x wall) at the same accuracy against a reltol = 1e-8 reference.
+  - `alias_lte_solid_temperature_` and `derived_concentration_`: with local
+    thermal equilibrium the solid temperature is a copy of the fluid
+    temperature instead of an unknown, and the gas concentration is derived
+    from P and T (C = P / RT; no residual reads dC/dt). Two unknowns per cell
+    fewer, a narrower band, one colour fewer (1.1-1.25x).
+  The equations solved are unchanged; the integration path is not, so
+  results move in their last digits (the example decks are re-saved). The
+  per-step boundary/outlet logs have fewer points than before, so a value read
+  from them at an exact time is interpolated over a longer step. Set the
+  switches to `false` for the previous behaviour.
+
+### Changed
 - Solver: the banded Jacobian matrix is sized from the coupling reach a
   difference-quotient probe measures at the initial state (12 / 16 instead of
   2 neq = 20 / 20 diagonals at ten equations per cell), about 45% less LU

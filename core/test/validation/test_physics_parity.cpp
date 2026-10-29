@@ -323,10 +323,14 @@ namespace adsim {
     EXPECT_GT(pinned, 0u);
     EXPECT_TRUE(sources_zero);
 
-    // Three temperature unknowns per cell are gone (fluid + wall at every cell
-    // incl. ghosts, solid at every packed cell incl. ghosts).
+    // The temperature unknowns are gone: fluid + wall at every cell incl.
+    // ghosts, and the solid at every packed cell incl. ghosts unless the LTE
+    // reference already aliases it to the fluid temperature
+    // (IDASettings::alias_lte_solid_temperature_), in which case it was never
+    // an unknown there either.
     const int n_total = c.n_cells + 2;
-    EXPECT_EQ(ref.system_size - run.system_size, 3 * n_total);
+    const int removed_per_cell = fake.state.SolidTemperatureAliased() ? 2 : 3;
+    EXPECT_EQ(ref.system_size - run.system_size, removed_per_cell * n_total);
 
     // The breakthrough curves agree closely.
     const double diff = MaxAbsDifference(ref, run, c.run_time);
@@ -517,7 +521,11 @@ namespace adsim {
 
     const auto& sd = feed->stream_data_;
     ASSERT_GT(sd.time_series_.size(), 10u);
-    for (double t : {0.0, 10.0, 20.0, 30.0, 40.0, 60.0, 100.0}) {
+    // The stream log holds one point per accepted step and is read back by
+    // linear interpolation, so the ramp's kink at t = 40 is rounded off by up
+    // to the step length there (0.1 K with the error test's default settings);
+    // sample the ramp and the plateau, not the kink itself.
+    for (double t : {0.0, 10.0, 20.0, 30.0, 39.0, 60.0, 100.0}) {
       const double expected = 298.0 + 50.0 * std::min(t, 40.0) / 40.0;
       EXPECT_NEAR(sd.GetTemperature(t), expected, 0.05) << "t = " << t;
     }
