@@ -234,6 +234,11 @@ namespace adsim {
     press.top_boundary_condition_ = std::move(top);
     AddClosedBC(BoundaryLocation::BOTTOM, "Pressurise");
 
+    // This test exercises the consistent-IC restart, which the default error
+    // test no longer needs here: with the algebraic variables suppressed
+    // (IDASettings::suppress_alg_) the ghost-cell jump at the switch does not
+    // fail the error test and the step never collapses. Run it the old way.
+    data.settings.suppress_alg_ = false;
     const double min_step = data.settings.min_step.Get();
     SolverData sd;
     Start(sd);

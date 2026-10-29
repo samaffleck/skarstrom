@@ -71,17 +71,17 @@ namespace adsim {
     JacobianMode jacobian_mode_ = JacobianMode::Coloured;
     bool record_jacobian_pattern_ = false;
 
-    // Reduced DAE unknowns (transient, not serialised; off by default, see
-    // solver_performance.md item 9 in samaffleck/skarstrom-gui). With local
-    // thermal equilibrium the solid temperature is the algebraic constraint
-    // Ts = Tf: aliasing it to Tf removes one unknown per cell. The gas
-    // concentration C = P / (R T) has no time derivative in any residual:
-    // deriving it from P and T removes another. Both shrink the band (2 neq
-    // each side), the LU and the colour count. The equations solved are the
-    // same, but the error test loses the removed entries, so the integration
-    // path (step sizes, results in the last digits) changes.
-    bool alias_lte_solid_temperature_ = false;
-    bool derived_concentration_ = false;
+    // Reduced DAE unknowns (transient, not serialised; see solver_performance.md
+    // item 9 in samaffleck/skarstrom-gui). With local thermal equilibrium the
+    // solid temperature is the algebraic constraint Ts = Tf: aliasing it to Tf
+    // removes one unknown per cell. The gas concentration C = P / (R T) has no
+    // time derivative in any residual: deriving it from P and T removes
+    // another. Both shrink the band (2 neq each side), the LU and the colour
+    // count (1.13-1.25x on the example decks). The equations solved are the
+    // same; the error test loses the removed entries, so the integration path
+    // (step sizes, results in the last digits) differs from the full set.
+    bool alias_lte_solid_temperature_ = true;
+    bool derived_concentration_ = true;
     // Size the banded matrix from the coupling reach measured by a difference-
     // quotient probe at the initial state (BandedJacobian::ProbeBandwidth)
     // instead of the 2 neq each side that covers every scheme (about 45% less
@@ -94,11 +94,15 @@ namespace adsim {
     // so that an audit finds couplings outside it and WidenBand runs.
     int band_probe_shrink_for_testing_ = 0;
 
-    // Solver-settings experiments (transient, not serialised; see item 10 of
+    // Solver settings (transient, not serialised; see item 10 of
     // solver_performance.md in samaffleck/skarstrom-gui).
-    // IDASetSuppressAlg: leave the algebraic variables (P, u, and C / Ts when
-    // they are unknowns) out of the local error test.
-    bool suppress_alg_ = false;
+    // IDASetSuppressAlg: leave the algebraic variables out of the local error
+    // test. With pressure_differential_ those are the ghost cells (mirror
+    // relations with no time derivative) and the face velocity: their jumps at
+    // a boundary-condition switch no longer fail the error test, which took
+    // 40-60% of the steps on the cyclic example decks (1.3-2.1x) at the same
+    // accuracy against a reltol = 1e-8 reference.
+    bool suppress_alg_ = true;
     // IDASetDeltaCjLSetup: IDA refreshes the Jacobian when cj / cj_old leaves
     // [(1 - dcj) / (1 + dcj), its inverse]; SUNDIALS' default is 0.25. < 0
     // leaves the default.
@@ -106,7 +110,7 @@ namespace adsim {
     // Tag the pressure as a differential variable (its residual carries dP/dt)
     // instead of algebraic: with suppress_alg_ it then stays in the error test
     // while the ghost cells and the face velocity leave it.
-    bool pressure_differential_ = false;
+    bool pressure_differential_ = true;
 
     CyclicSteadyState css{};
     AccelerateCyclicSteadyState acc_css{};
