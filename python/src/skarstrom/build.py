@@ -66,6 +66,7 @@ __all__ = [
     "constant",
     "exponential",
     "linear",
+    "log_linear",
     "mass_flow",
     "molar_flow",
     "polynomial_power",
@@ -87,8 +88,8 @@ def build_kinds() -> Dict[str, List[str]]:
 
 @dataclass(frozen=True)
 class Profile:
-    """How a boundary value changes during a step: constant, or a linear or
-    exponential ramp from ``start`` to ``value`` over ``time``.
+    """How a boundary value changes during a step: constant, or a linear,
+    exponential or log-linear ramp from ``start`` to ``value`` over ``time``.
 
     For a pressure the ramp starts from the bed pressure and lasts the step,
     so only its end is given; temperature and flow ramps need all three.
@@ -113,6 +114,14 @@ def linear(end: Any, start: Any = None, time: Any = None) -> Profile:
 def exponential(end: Any, start: Any = None, time: Any = None) -> Profile:
     """An exponential approach to ``end`` (from ``start`` over ``time`` for temperatures and flows)."""
     return Profile("exponential", end, start, time)
+
+
+def log_linear(end: Any, start: Any = None, time: Any = None) -> Profile:
+    """A log-linear (geometric) ramp to ``end``: the value rises by the same factor every
+    second, so ln(value) is linear in time (from ``start`` over ``time`` for temperatures and
+    flows). Suits a pressurisation from vacuum, where a linear ramp puts most of the relative
+    pressure rise, and so the inlet pressure gradient, at the start of the step."""
+    return Profile("log_linear", end, start, time)
 
 
 def _profile(x: Any) -> Profile:

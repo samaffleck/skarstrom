@@ -258,6 +258,31 @@ def test_from_scratch_round_trips_through_a_script():
     assert_same_deck(sim, ns["sim"])
 
 
+def test_log_linear_profiles_build_and_round_trip():
+    sim, parts = build_vsa()
+    press = sim.steps["Pressurisation"]
+    press.bottom.set_pressure("inlet", sk.log_linear("1 bar"), y={"CO2": 0.15, "N2": 0.85}, temperature=298.0)
+    parts["feed"].bottom.set_streams("inlet", [
+        sk.Stream("Feed inlet", flow=sk.velocity(sk.log_linear("8 cm/s", start="2 cm/s", time="5 s")),
+                  y={"CO2": 0.15, "N2": 0.85}, temperature=sk.log_linear(310.0, start=298.0, time=10.0)),
+    ])
+    d = {s["name"]: s for s in sim.describe()["steps"]}
+    assert d["Pressurisation"]["bottom"]["profile"] == "log_linear"
+    assert d["Feed"]["bottom"]["streams"][0]["profile"] == "log_linear"
+    assert d["Feed"]["bottom"]["streams"][0]["temperature_profile"] == "log_linear"
+    assert press.bottom.pressure_log_linear_end == pytest.approx(1e5)
+    inlet = parts["feed"].bottom["Feed inlet"]
+    assert inlet.velocity_log_linear_start == pytest.approx(0.02)
+    assert inlet.velocity_log_linear_time == pytest.approx(5.0)
+    assert inlet.temperature_log_linear_end == 310.0
+    script = sk.to_script(sim)
+    assert "sk.log_linear(" in script
+    ns = {}
+    exec(compile(script, "<log_linear>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    assert sim.run(cycles=1).ok
+
+
 def test_structure_edits_replace_what_was_there():
     sim, parts = build_vsa()
     feed = parts["feed"]

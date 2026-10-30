@@ -99,13 +99,13 @@ layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5)   # + se
 sim.initial_conditions.pressure = 1e5; sim.initial_conditions.y["N2"] = 1.0
 feed = sim.add_step("Feed", time=99)                                     # both ends closed until set
 feed.bottom.set_streams("inlet", [sk.Stream("Feed inlet", flow=sk.velocity(0.085), y={"CO2": 0.15, "N2": 0.85}, temperature=298)])
-feed.top.set_pressure("outlet", 1e5)                                     # or sk.linear(end) / sk.exponential(end); pump=sk.Pump(...)
+feed.top.set_pressure("outlet", 1e5)                                     # or sk.linear / sk.exponential / sk.log_linear(end); pump=sk.Pump(...)
 step.top.set_streams("outlet", [sk.ValveStream("Vent", pressure=1e5, cv=10, xt=0.53)]); step.bottom.set_closed()
 sim.connect(feed.top["LPP out"], other.top["LPP in"]); step.add_energy_source(layer, power=500)
 sim.kpi.track("CO2", feed=[feed.bottom], product=[evac.bottom])
 ```
 
-Flows: `sk.velocity|volumetric_flow|molar_flow|mass_flow(value or profile)`; profiles `sk.constant|linear|exponential(end, start=, time=)` (pressure ramps take only the end). `sim.describe()` gives the structure; `sk.to_script(sim)` writes builder code for any deck. Every example script `examples/<family>.py` builds its cases from scratch (`build(case)`); `python/tests/test_examples_build.py` checks each reproduces its deck in `examples/decks/`. User variables: `sim.add_variable("t_feed", 60 * u.s, category="time")`, then `time="t_feed"`; `formula="t_feed / 3"` defines one from others. Pump-driven streams: `sk.PumpStream(name, power=, pump=)` (power constant or `sk.polynomial_power(a, b, ...)`). Buffer tanks: `inlet.set_buffer_tank(source, percentage=)`. Measured data in the deck: `sim.experimental_data` (`add`, `load_csv`, `[name].compare(x, y)`). Not created by the builder: cost data.
+Flows: `sk.velocity|volumetric_flow|molar_flow|mass_flow(value or profile)`; profiles `sk.constant|linear|exponential|log_linear(end, start=, time=)` (pressure ramps take only the end). `sim.describe()` gives the structure; `sk.to_script(sim)` writes builder code for any deck. Every example script `examples/<family>.py` builds its cases from scratch (`build(case)`); `python/tests/test_examples_build.py` checks each reproduces its deck in `examples/decks/`. User variables: `sim.add_variable("t_feed", 60 * u.s, category="time")`, then `time="t_feed"`; `formula="t_feed / 3"` defines one from others. Pump-driven streams: `sk.PumpStream(name, power=, pump=)` (power constant or `sk.polynomial_power(a, b, ...)`). Buffer tanks: `inlet.set_buffer_tank(source, percentage=)`. Measured data in the deck: `sim.experimental_data` (`add`, `load_csv`, `[name].compare(x, y)`). Not created by the builder: cost data.
 
 ### Results
 

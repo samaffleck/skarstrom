@@ -35,6 +35,7 @@ namespace adsim {
       if (const auto* c = dynamic_cast<const ConstantBoundaryValue*>(v)) return c->constant_value_.Get();
       if (const auto* l = dynamic_cast<const LinearBoundaryValue*>(v)) return l->end_value_.Get();
       if (const auto* e = dynamic_cast<const ExponentialBoundaryValue*>(v)) return e->end_value_.Get();
+      if (const auto* g = dynamic_cast<const LogLinearBoundaryValue*>(v)) return g->end_value_.Get();
       return std::nullopt;
     }
 
