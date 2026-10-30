@@ -157,7 +157,7 @@ TEST(DeckBuilder, KindListsMatchTheEngineEnums) {
   EXPECT_TRUE(Contains(build::IsothermKinds(), "inert"));
   EXPECT_TRUE(Contains(build::IsothermKinds(), "extended_dual_site_langmuir_c"));
   EXPECT_EQ(build::FlowKinds(), (std::vector<std::string>{"velocity", "volumetric_flow", "molar_flow", "mass_flow"}));
-  EXPECT_EQ(build::ProfileKinds(), (std::vector<std::string>{"constant", "linear", "exponential"}));
+  EXPECT_EQ(build::ProfileKinds(), (std::vector<std::string>{"constant", "linear", "exponential", "log_linear"}));
   EXPECT_EQ(build::BedShapeKinds(), (std::vector<std::string>{"cylinder", "square", "rectangle"}));
   EXPECT_EQ(build::MomentumKinds(), (std::vector<std::string>{"kozeny_carman", "ergun"}));
   EXPECT_EQ(build::WallMaterialKinds().front(), "custom");
