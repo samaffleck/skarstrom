@@ -14,6 +14,7 @@
 
 // Eigen includes
 #include <Eigen/Core>
+#include "adsim/equations/temperature_cache.h"
 
 
 namespace adsim {
@@ -43,6 +44,7 @@ namespace adsim {
     double eps{};
     double sigma{};
     double mr_avr_invers_ij{}; // Mr_i^-1 + Mr_j^-1 
+    TemperatureCache omega_cache{}; // per-cell memo of the collision integral omega(T / eps)
   };
 
   class BinaryDiffusionCoefficientModel {
@@ -54,6 +56,7 @@ namespace adsim {
 
   private:
     std::vector<double> top_scratch_{}; // per-cell numerator scratch, reused across Update calls
+    TemperatureCache top_cache_{};      // per-cell memo of 2.66e-7 T^1.5
   };
 
 } // adsim namespace

@@ -54,7 +54,7 @@ namespace adsim {
 		// compute it once per cell instead of once per pair per cell.
 		top_scratch_.resize(N);
 		for (int n = 0; n < N; ++n) {
-			top_scratch_[n] = 2.66e-7 * std::pow(T[n], (3.0 / 2.0));
+			top_scratch_[n] = top_cache_.Get(n, T[n], 0.0, [&] { return 2.66e-7 * std::pow(T[n], (3.0 / 2.0)); });
 		}
 
 		for (auto& [componentPair, params] : m_DiffusionCoefficients) {
@@ -70,13 +70,16 @@ namespace adsim {
 			const double sqrt_M_AB = std::sqrt(M_AB);
 
 			for (int n = 0; n < N; ++n) {
-        // Collision diameter correlation of Neufield et al. (1972)
-        double Ts = T[n] / eps;
-        double a = 1.06036 / (std::pow(Ts, 0.15610));
-        double c = 0.193 / (std::exp(0.47635 * Ts));
-        double e = 1.03587 / (std::exp(1.52996 * Ts));
-        double g = 1.76474 / (std::exp(3.89411 * Ts));
-        omega_D[n] = a + c + e + g;
+        // Collision diameter correlation of Neufield et al. (1972); a function
+        // of T alone for the pair, so it comes from the per-cell memo.
+        omega_D[n] = params.omega_cache.Get(n, T[n], eps, [&] {
+          double Ts = T[n] / eps;
+          double a = 1.06036 / (std::pow(Ts, 0.15610));
+          double c = 0.193 / (std::exp(0.47635 * Ts));
+          double e = 1.03587 / (std::exp(1.52996 * Ts));
+          double g = 1.76474 / (std::exp(3.89411 * Ts));
+          return a + c + e + g;
+        });
 
         double P_bar = P[n] / 1.0e5;
         double top = top_scratch_[n];
