@@ -198,6 +198,11 @@ void ExpressionParam::CompileForRun(const UserVariableRegistry* registry) {
     run_cache_.ptr = std::move(cache);
 }
 
+bool ExpressionParam::IsRunConstant() const {
+    const RunCache* rc = run_cache_.ptr.get();
+    return rc && rc->expr == expr_str_ && !rc->parser;
+}
+
 double ExpressionParam::EvaluateAt(const EvalContext& ctx) {
     RunCache* rc = run_cache_.ptr.get();
     if (!rc || rc->expr != expr_str_) {

@@ -33,7 +33,8 @@ namespace adsim {
 	}
 
 	void IsothermFunction::Langmuir(double& qi, double T, double P, double yi, const LangmuirIsothermParameters& ips) {
-		qi = ips.m1 * ips.b1 * std::exp(ips.q1 / (constants::kIdealGasConstant * T)) * P * yi / (1 + ips.b1 * std::exp(ips.q1 / (constants::kIdealGasConstant * T)) * P * yi);
+		const double e1 = std::exp(ips.q1 / (constants::kIdealGasConstant * T));
+		qi = ips.m1 * ips.b1 * e1 * P * yi / (1 + ips.b1 * e1 * P * yi);
 	}
 	
 	void IsothermFunction::AntiLangmuir(double& qi, double T, double P, double yi, const AntiLangmuirIsothermParameters& ips) {
@@ -110,19 +111,24 @@ namespace adsim {
 	}
 
 	void IsothermFunction::DualSiteLangmuir(double& qi, double T, double P, double yi, const DualSiteLangmuirIsothermParameters& ips) {
-		qi = (ips.m1 * ips.b1 * std::exp(ips.q1 / (constants::kIdealGasConstant * T)) * P * yi / (1 + ips.b1 * std::exp(ips.q1 / (constants::kIdealGasConstant * T)) * P * yi)) +
-			(ips.m2 * ips.b2 * std::exp(ips.q2 / (constants::kIdealGasConstant * T)) * P * yi / (1 + ips.b2 * std::exp(ips.q2 / (constants::kIdealGasConstant * T)) * P * yi));
+		const double e1 = std::exp(ips.q1 / (constants::kIdealGasConstant * T));
+		const double e2 = std::exp(ips.q2 / (constants::kIdealGasConstant * T));
+		qi = (ips.m1 * ips.b1 * e1 * P * yi / (1 + ips.b1 * e1 * P * yi)) +
+			(ips.m2 * ips.b2 * e2 * P * yi / (1 + ips.b2 * e2 * P * yi));
 	}
 
 	void IsothermFunction::Langmuir_Concentration(double& qi, double T, double P, double yi, const LangmuirIsothermParametersConcentration& ips) {
 		double ci = P * yi / (constants::kIdealGasConstant * T);
-		qi = ips.m1 * ips.b1 * std::exp(ips.q1 / (constants::kIdealGasConstant * T)) * ci / (1 + ips.b1 * std::exp(ips.q1 / (constants::kIdealGasConstant * T)) * ci);
+		const double e1 = std::exp(ips.q1 / (constants::kIdealGasConstant * T));
+		qi = ips.m1 * ips.b1 * e1 * ci / (1 + ips.b1 * e1 * ci);
 	}
 
 	void IsothermFunction::DualSiteLangmuir_Concentration(double& qi, double T, double P, double yi, const DualSiteLangmuirIsothermParametersConcentration& ips) {
 		double ci = P * yi / (constants::kIdealGasConstant * T);
-		qi = (ips.m1 * ips.b1 * std::exp(ips.q1 / (constants::kIdealGasConstant * T)) * ci / (1 + ips.b1 * std::exp(ips.q1 / (constants::kIdealGasConstant * T)) * ci)) +
-			(ips.m2 * ips.b2 * std::exp(ips.q2 / (constants::kIdealGasConstant * T)) * ci / (1 + ips.b2 * std::exp(ips.q2 / (constants::kIdealGasConstant * T)) * ci));
+		const double e1 = std::exp(ips.q1 / (constants::kIdealGasConstant * T));
+		const double e2 = std::exp(ips.q2 / (constants::kIdealGasConstant * T));
+		qi = (ips.m1 * ips.b1 * e1 * ci / (1 + ips.b1 * e1 * ci)) +
+			(ips.m2 * ips.b2 * e2 * ci / (1 + ips.b2 * e2 * ci));
 	}
 
   void InertIsotherm::Update(IsothermUpdateParams& state) {

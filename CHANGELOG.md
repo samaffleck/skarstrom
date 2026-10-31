@@ -20,6 +20,13 @@ root `CMakeLists.txt`.
   `<head>_log_linear_start/_end/_time` and `pressure_log_linear_end`.
 
 ### Changed
+- Solver residual, byte-identical: the Langmuir and dual-site Langmuir isotherm
+  functions (and their concentration-based variants) compute each `exp(q/(R T))`
+  factor once instead of twice (GCC's default `-fmath-errno` does not merge the
+  duplicate calls, so Linux builds paid 4 `exp` per cell per component), and a
+  constant mass-transfer coefficient is evaluated once per layer instead of once
+  per cell (`ExpressionParam::IsRunConstant()`). -17% instructions per residual
+  call on FiveStepProductPurge; CSV output identical on six example decks.
 - Solver: two settings are now on by default (`IDASettings`, transient):
   - `suppress_alg_` with `pressure_differential_`: the pressure is tagged a
     differential unknown (its residual carries dP/dt) and IDA's local error
