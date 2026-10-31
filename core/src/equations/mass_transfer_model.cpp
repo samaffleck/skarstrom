@@ -18,6 +18,13 @@ namespace adsim {
     auto& P = state.pressure.var;
     auto& y = state.mole_fraction.at(component).var;
 
+    if (constant_mtc_.IsRunConstant()) {
+      // State-independent: one evaluation for the layer (same value every cell).
+      EvalContext ctx{registry, T[layer.domain_.start_index], P[layer.domain_.start_index], 0.0, y[layer.domain_.start_index], 0.0};
+      const double k = constant_mtc_.EvaluateAt(ctx);
+      for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) mtc[n] = k;
+      return;
+    }
     for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
       EvalContext ctx{registry, T[n], P[n], 0.0, y[n], 0.0};
       mtc[n] = constant_mtc_.EvaluateAt(ctx);
