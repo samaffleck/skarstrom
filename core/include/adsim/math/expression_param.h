@@ -139,6 +139,9 @@ public:
     // y, v). Such expressions are evaluated per cell during the run, so their
     // value outside the run (placeholder state) is not meaningful.
     bool UsesStateVariables() const;
+    // True when CompileForRun resolved this parameter to a state-independent
+    // value: EvaluateAt returns the same number for every EvalContext.
+    bool IsRunConstant() const;
 
     // True when the cached value is inf/NaN and the expression does not depend
     // on run-time state, i.e. the run would use a non-finite constant.
