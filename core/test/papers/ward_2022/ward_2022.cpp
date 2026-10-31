@@ -29,13 +29,30 @@
 namespace adsim {
 
   namespace {
-    // Validation tolerances = measured error rounded up.
-    // Q50ccm: measured NRMSE 0.381727, T RMSE 2.58832 K, front-time error 0.0427429
-    constexpr double kTolY_50 = 0.44, kTolT_50 = 3.1, kTolT50_50 = 0.053;
-    // Q100ccm: measured NRMSE 0.379455, T RMSE 3.54418 K, front-time error 0.0611066
-    constexpr double kTolY_100 = 0.44, kTolT_100 = 4.1, kTolT50_100 = 0.072;
-    // Q200ccm: measured NRMSE 0.335826, T RMSE 4.20647 K, front-time error 0.0458177
-    constexpr double kTolY_200 = 0.39, kTolT_200 = 4.9, kTolT50_200 = 0.056;
+    // Validation tolerances = measured error rounded up (decks with the paper's
+    // model forms, WP10 audit 2026-10-31; before it: NRMSE 0.34-0.38, T RMSE
+    // 2.6-4.2 K, front time 4-6 % early).
+    // Q50ccm: measured NRMSE 0.1837, T RMSE 1.186 K, front-time error 0.0193
+    constexpr double kTolY_50 = 0.21, kTolT_50 = 1.4, kTolT50_50 = 0.025;
+    // Q100ccm: measured NRMSE 0.1287, T RMSE 2.058 K, front-time error 0.0165
+    constexpr double kTolY_100 = 0.15, kTolT_100 = 2.4, kTolT50_100 = 0.022;
+    // Q200ccm: measured NRMSE 0.0289, T RMSE 4.007 K, front-time error 0.0010
+    constexpr double kTolY_200 = 0.035, kTolT_200 = 4.6, kTolT50_200 = 0.006;
+
+    // The paper's model forms (WP10 audit, see README.md "Provenance"): its
+    // dispersion coefficient is Eq. 4, D_L = 0.7 D_m + v_F r_p with the
+    // constant D_m of Table 1 and the interstitial feed velocity, multiplied
+    // by 4 (Sect. 3.2, "an optimal match to the experimental outlet
+    // composition profiles"). Given as a constant per flow rate.
+    double PaperDispersion(double flow_ccm) {
+      const double Dm = 0.605e-5, rp = 1.5e-3, Di = 0.0189, eb = 0.456;
+      const double Q = flow_ccm * 1.666666666666667e-8;
+      const double vF = Q / (constants::kPI / 4.0 * Di * Di) / eb;
+      return 4.0 * (0.7 * Dm + vF * rp);
+    }
+    // Heat released per mole adsorbed in the paper's energy balance (Eq. A4):
+    // -dU_1 + R T with the site-1 internal energy of Table 2, at T_F = 293 K.
+    constexpr double kPaperHeat = 29980.0 + 8.314462618 * 293.0;
   }
 
   class Ward2022Test : public UserDataTest {
@@ -45,8 +62,9 @@ namespace adsim {
     // their ref. [5]): outlet CO2 mole fraction (feed is pure CO2, so the
     // RMSE is already normalised) and the thermocouple at z = 0.0715 m. The
     // paper's 95 % credibility intervals for the model-predicted breakthrough
-    // time and temperature rise (Table 10) are recorded for context only - the
-    // indicator definitions (Table 9) did not survive the text extraction.
+    // time and temperature rise (Table 10) are recorded for context only. The
+    // indicators follow Table 9: t_br is the time y_out reaches 0.5 and dT_ads
+    // is the thermocouple maximum less the feed temperature.
     void ValidateWard(const CoupledSolver& solver, const std::string& case_name, int flow_ccm,
                       double tol_y_rmse, double tol_T_rmse,
                       double tol_t50) {
@@ -76,28 +94,31 @@ namespace adsim {
       const double t_br = CrossingTime(y_sim, 0.5);
       report.Info("breakthrough time (y_CO2,out = 0.5)", t_br, t_mid, "abs_error",
                   "reference = CI midpoint; simulated value " + ci_note(t_br, t_lo.value, t_hi.value) +
-                  "; t_br read as the time y_CO2,out reaches 0.5 (Table 9 only partly legible)");
+                  "; t_br = the time y_CO2,out reaches 0.5 (Table 9)");
       const RefValue d_lo = Reference("ward_2022", case_name, "temperature_rise_CI_low");
       const RefValue d_hi = Reference("ward_2022", case_name, "temperature_rise_CI_high");
       RefValue d_mid = d_lo; d_mid.value = 0.5 * (d_lo.value + d_hi.value);
-      const double dT = T_sim.empty() ? 0.0 : MaxValue(T_sim) - T_sim.y.front();
+      // Table 9: dT_ads = max_t T_tc(t) - T_F, against the FEED temperature
+      // (293 K, Table 1), not the initial bed temperature (T_a = 291.4 K).
+      const double T_F = Reference("ward_2022", "conditions", "feed_temperature").value;
+      const double dT = T_sim.empty() ? 0.0 : MaxValue(T_sim) - T_F;
       report.Info("temperature rise at z = 0.0715 m", dT, d_mid, "abs_error",
                   "reference = CI midpoint; simulated value " + ci_note(dT, d_lo.value, d_hi.value) +
-                  "; simulated = max T at the thermocouple minus initial T");
+                  "; simulated = max T at the thermocouple minus T_F (Table 9)");
     }
   };
 
   TEST_F(Ward2022Test, Q100ccm) {
     data.info.title = "Ward 2022 - 100 ccm Flow Rate";
     data.info.description = "CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. "
-                            "This is a binary CO2/Air breakthrough simulation where the bed is initially saturated with air and then fed with pure CO2. "
+                            "This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. "
                             "The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. "
                             "The simulation includes coupled heat and mass transfer effects with wall heat transfer. "
                             "Experimental breakthrough data is included and can be plotted to validate the solver performance. "
                             "This configuration tests the medium flow rate condition (100 ccm/min) of three flow rates studied.";
     data.info.author = "Sam Affleck";
     
-    AddComponents({ "CarbonDioxide", "Air" });
+    AddComponents({ "CarbonDioxide", "Helium" }); // CO2/He experiment (Sect. 2)
 
     const double Di = 0.0189;
 
@@ -108,6 +129,7 @@ namespace adsim {
     AC.particle_diameter_ = 0.003;
     AC.eb_ = 0.456;
     AC.domain_.n_cells = 60;
+    AC.momentum_model_ = MomentumModel::Ergun; // Eq. A3 is the Blake-Kozeny law (constant 150), the viscous term of Ergun
 
     auto& AC_ads = GetAdsorbent(ads_id);
     AC_ads.solid_density_ = 799;
@@ -122,6 +144,10 @@ namespace adsim {
     data.bed.wall_.thermal_conductivity_ = 205;
     data.bed.wall_.thickness_ = 3.25e-3;
     data.bed.ambient_temperature_ = 291.4; // Table 1: T_a = 291.4 K (was 293 = T_F, a transcription slip)
+    // Table 4, "tight thermal contact": the wall ends are held at T_a.
+    auto wall_bc = std::make_unique<WallTemperatureBoundaryConditionFixed>();
+    wall_bc->temperature_ = 291.4;
+    data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
 
     auto dsl_co2 = std::make_unique<DualSiteLangmuirIsotherm_Concentration>("CarbonDioxide");
@@ -134,13 +160,15 @@ namespace adsim {
     AddIsotherm({ "CarbonDioxide" }, ads_id, std::move(dsl_co2));
 
     AddLinearDrivingForceModel_Haynes(ads_id, "CarbonDioxide", 3, 0.59);
-    AddLinearDrivingForceModel(ads_id, "Air", 0.0);
+    AddLinearDrivingForceModel(ads_id, "Helium", 0.0);
 
-    SetHOA(ads_id, "CarbonDioxide", 29980.0);
-    SetHOA(ads_id, "Air", 0.0);
+    SetHOA(ads_id, "CarbonDioxide", kPaperHeat);
+    SetHOA(ads_id, "Helium", 0.0);
 
     auto& layer = GetLayer(layer_id);
-    layer.equations_.dispersion_model_ = CreateAxialDispersionModel(AxialDispersionType::RUTHVEN);
+    auto disp = std::make_unique<DispersionModelConstant>();
+    disp->dispersion_coefficient_ = PaperDispersion(100);
+    layer.equations_.dispersion_model_ = std::move(disp);
     layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
 
     AddConstantInternalHeatTransferCoefficientModel(57.9, layer_id);
@@ -155,7 +183,7 @@ namespace adsim {
       1.0e5, 291.4, 291.4,
       {
         {"CarbonDioxide", 0.0 },
-        {"Air", 1.0 }
+        {"Helium", 1.0 }
       }
     );
 
@@ -169,7 +197,7 @@ namespace adsim {
       CreateVolumeFlowBC(volumetric_flowrate_m3_s),
       {
         {"CarbonDioxide", 1.0 },
-        {"Air", 0.0 }
+        {"Helium", 0.0 }
       },
       293.0
     );
@@ -186,7 +214,7 @@ namespace adsim {
     feed_pressure_out->location_ = BoundaryLocation::TOP;
     feed_pressure_out->pressure_ = CreateConstantBoundaryValue(1e5);
     feed_pressure_out->mole_fraction_["CarbonDioxide"] = 0.0;
-    feed_pressure_out->mole_fraction_["Air"] = 1.0;
+    feed_pressure_out->mole_fraction_["Helium"] = 1.0;
     step_feed.top_boundary_condition_ = std::move(feed_pressure_out);
 
     ConfigureCycle(1);
@@ -216,14 +244,14 @@ namespace adsim {
   TEST_F(Ward2022Test, Q50ccm) {
     data.info.title = "Ward 2022 - 50 ccm Flow Rate";
     data.info.description = "CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. "
-                            "This is a binary CO2/Air breakthrough simulation where the bed is initially saturated with air and then fed with pure CO2. "
+                            "This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. "
                             "The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. "
                             "The simulation includes coupled heat and mass transfer effects with wall heat transfer. "
                             "Experimental breakthrough data is included and can be plotted to validate the solver performance. "
                             "This configuration tests the low flow rate condition (50 ccm/min) of three flow rates studied.";
     data.info.author = "Sam Affleck";
     
-    AddComponents({ "CarbonDioxide", "Air" });
+    AddComponents({ "CarbonDioxide", "Helium" }); // CO2/He experiment (Sect. 2)
 
     const double Di = 0.0189;
 
@@ -234,6 +262,7 @@ namespace adsim {
     AC.particle_diameter_ = 0.003;
     AC.eb_ = 0.456;
     AC.domain_.n_cells = 60;
+    AC.momentum_model_ = MomentumModel::Ergun; // Eq. A3 is the Blake-Kozeny law (constant 150), the viscous term of Ergun
 
     auto& AC_ads = GetAdsorbent(ads_id);
     AC_ads.solid_density_ = 799;
@@ -248,6 +277,10 @@ namespace adsim {
     data.bed.wall_.thermal_conductivity_ = 205;
     data.bed.wall_.thickness_ = 3.25e-3;
     data.bed.ambient_temperature_ = 291.4; // Table 1: T_a = 291.4 K (was 293 = T_F, a transcription slip)
+    // Table 4, "tight thermal contact": the wall ends are held at T_a.
+    auto wall_bc = std::make_unique<WallTemperatureBoundaryConditionFixed>();
+    wall_bc->temperature_ = 291.4;
+    data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
 
     auto dsl_co2 = std::make_unique<DualSiteLangmuirIsotherm_Concentration>("CarbonDioxide");
@@ -260,13 +293,15 @@ namespace adsim {
     AddIsotherm({ "CarbonDioxide" }, ads_id, std::move(dsl_co2));
 
     AddLinearDrivingForceModel_Haynes(ads_id, "CarbonDioxide", 3, 0.59);
-    AddLinearDrivingForceModel(ads_id, "Air", 0.0);
+    AddLinearDrivingForceModel(ads_id, "Helium", 0.0);
 
-    SetHOA(ads_id, "CarbonDioxide", 29980.0);
-    SetHOA(ads_id, "Air", 0.0);
+    SetHOA(ads_id, "CarbonDioxide", kPaperHeat);
+    SetHOA(ads_id, "Helium", 0.0);
 
     auto& layer = GetLayer(layer_id);
-    layer.equations_.dispersion_model_ = CreateAxialDispersionModel(AxialDispersionType::RUTHVEN);
+    auto disp = std::make_unique<DispersionModelConstant>();
+    disp->dispersion_coefficient_ = PaperDispersion(50);
+    layer.equations_.dispersion_model_ = std::move(disp);
     layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
 
     AddConstantInternalHeatTransferCoefficientModel(77.5, layer_id);
@@ -281,7 +316,7 @@ namespace adsim {
       1.0e5, 291.4, 291.4,
       {
         {"CarbonDioxide", 0.0 },
-        {"Air", 1.0 }
+        {"Helium", 1.0 }
       }
     );
 
@@ -295,7 +330,7 @@ namespace adsim {
       CreateVolumeFlowBC(volumetric_flowrate_m3_s),
       {
         {"CarbonDioxide", 1.0 },
-        {"Air", 0.0 }
+        {"Helium", 0.0 }
       },
       293.0
     );
@@ -312,7 +347,7 @@ namespace adsim {
     feed_pressure_out->location_ = BoundaryLocation::TOP;
     feed_pressure_out->pressure_ = CreateConstantBoundaryValue(1e5);
     feed_pressure_out->mole_fraction_["CarbonDioxide"] = 0.0;
-    feed_pressure_out->mole_fraction_["Air"] = 1.0;
+    feed_pressure_out->mole_fraction_["Helium"] = 1.0;
     step_feed.top_boundary_condition_ = std::move(feed_pressure_out);
 
     ConfigureCycle(1);
@@ -342,7 +377,7 @@ namespace adsim {
   TEST_F(Ward2022Test, Q200ccm) {
     data.info.title = "Ward 2022 - 200 ccm Flow Rate";
     data.info.description = "CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. "
-                            "This is a binary CO2/Air breakthrough simulation where the bed is initially saturated with air and then fed with pure CO2. "
+                            "This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. "
                             "The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. "
                             "The simulation includes coupled heat and mass transfer effects with wall heat transfer. "
                             "Experimental breakthrough data is included and can be plotted to validate the solver performance. "
@@ -350,7 +385,7 @@ namespace adsim {
     data.info.author = "Sam Affleck";
     
     // Start with Q100 setup
-    AddComponents({ "CarbonDioxide", "Air" });
+    AddComponents({ "CarbonDioxide", "Helium" }); // CO2/He experiment (Sect. 2)
 
     const double Di = 0.0189;
 
@@ -361,6 +396,7 @@ namespace adsim {
     AC.particle_diameter_ = 0.003;
     AC.eb_ = 0.456;
     AC.domain_.n_cells = 60;
+    AC.momentum_model_ = MomentumModel::Ergun; // Eq. A3 is the Blake-Kozeny law (constant 150), the viscous term of Ergun
 
     auto& AC_ads = GetAdsorbent(ads_id);
     AC_ads.solid_density_ = 799;
@@ -375,6 +411,10 @@ namespace adsim {
     data.bed.wall_.thermal_conductivity_ = 205;
     data.bed.wall_.thickness_ = 3.25e-3;
     data.bed.ambient_temperature_ = 291.4; // Table 1: T_a = 291.4 K (was 293 = T_F, a transcription slip)
+    // Table 4, "tight thermal contact": the wall ends are held at T_a.
+    auto wall_bc = std::make_unique<WallTemperatureBoundaryConditionFixed>();
+    wall_bc->temperature_ = 291.4;
+    data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
 
     auto dsl_co2 = std::make_unique<DualSiteLangmuirIsotherm_Concentration>("CarbonDioxide");
@@ -387,13 +427,15 @@ namespace adsim {
     AddIsotherm({ "CarbonDioxide" }, ads_id, std::move(dsl_co2));
 
     AddLinearDrivingForceModel_Haynes(ads_id, "CarbonDioxide", 3, 0.59);
-    AddLinearDrivingForceModel(ads_id, "Air", 0.0);
+    AddLinearDrivingForceModel(ads_id, "Helium", 0.0);
 
-    SetHOA(ads_id, "CarbonDioxide", 29980.0);
-    SetHOA(ads_id, "Air", 0.0);
+    SetHOA(ads_id, "CarbonDioxide", kPaperHeat);
+    SetHOA(ads_id, "Helium", 0.0);
 
     auto& layer = GetLayer(layer_id);
-    layer.equations_.dispersion_model_ = CreateAxialDispersionModel(AxialDispersionType::RUTHVEN);
+    auto disp = std::make_unique<DispersionModelConstant>();
+    disp->dispersion_coefficient_ = PaperDispersion(200);
+    layer.equations_.dispersion_model_ = std::move(disp);
     layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
 
     AddConstantInternalHeatTransferCoefficientModel(45.2, layer_id);
@@ -408,7 +450,7 @@ namespace adsim {
       1.0e5, 291.4, 291.4,
       {
         {"CarbonDioxide", 0.0 },
-        {"Air", 1.0 }
+        {"Helium", 1.0 }
       }
     );
 
@@ -422,7 +464,7 @@ namespace adsim {
       CreateVolumeFlowBC(volumetric_flowrate_m3_s),
       {
         {"CarbonDioxide", 1.0 },
-        {"Air", 0.0 }
+        {"Helium", 0.0 }
       },
       293.0
     );
@@ -439,7 +481,7 @@ namespace adsim {
     feed_pressure_out->location_ = BoundaryLocation::TOP;
     feed_pressure_out->pressure_ = CreateConstantBoundaryValue(1e5);
     feed_pressure_out->mole_fraction_["CarbonDioxide"] = 0.0;
-    feed_pressure_out->mole_fraction_["Air"] = 1.0;
+    feed_pressure_out->mole_fraction_["Helium"] = 1.0;
     step_feed.top_boundary_condition_ = std::move(feed_pressure_out);
 
     ConfigureCycle(1);

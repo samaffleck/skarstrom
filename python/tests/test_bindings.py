@@ -83,7 +83,7 @@ def test_load_from_path_and_json(tmp_path):
     a = skarstrom.Simulation(WARD)
     b = skarstrom.Simulation(a.to_json())
     c = skarstrom.Simulation.from_file(WARD)
-    assert a.components == b.components == c.components == ["CarbonDioxide", "Air"]
+    assert a.components == b.components == c.components == ["CarbonDioxide", "Helium"]
     assert a.steps.names == b.steps.names == ["Feed"]
     a["settings.reltol"] = 2e-6
     out = tmp_path / "deck.json"

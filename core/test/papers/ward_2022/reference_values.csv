@@ -1,5 +1,5 @@
 case,quantity,value,unit,source,note
-Q50ccm,breakthrough_time_CI_low,2132,s,"Table 10, adsorption, f_in = 50 ccm, t_br 95% CI","95% credibility interval of the paper's MODEL prediction (not a measurement); t_br definition (Table 9) is only partly legible in the extraction"
+Q50ccm,breakthrough_time_CI_low,2132,s,"Table 10, adsorption, f_in = 50 ccm, t_br 95% CI","95% credibility interval of the paper's MODEL prediction (not a measurement); t_br = time y_out reaches 0.5 (Table 9)"
 Q50ccm,breakthrough_time_CI_high,2949,s,"Table 10, adsorption, f_in = 50 ccm, t_br 95% CI",see above
 Q50ccm,temperature_rise_CI_low,7.36,K,"Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI",95% credibility interval of the paper's model prediction
 Q50ccm,temperature_rise_CI_high,9.53,K,"Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI",see above
@@ -16,3 +16,7 @@ conditions,feed_temperature,293,K,"Table 1",T_F
 conditions,h_in_50ccm,77.5,W/(m2 K),"Table 6 (adsorption, 50 ccm)",fitted inside heat transfer coefficient
 conditions,h_in_100ccm,57.9,W/(m2 K),"Table 6 (adsorption, 100 ccm)",fitted inside heat transfer coefficient
 conditions,h_in_200ccm,45.2,W/(m2 K),"Table 6 (adsorption, 200 ccm)",fitted inside heat transfer coefficient
+conditions,molecular_diffusivity,0.605e-5,m2/s,"Table 1",D_m used by the paper's model in Eq. 4 (dispersion) and Eq. 6 (LDF)
+conditions,dispersion_factor,4,-,"Sect. 3.2 text below Eq. 4","the paper multiplies D_L = 0.7 D_m + v_F r_p by 4 for 'an optimal match to the experimental outlet composition profiles'"
+conditions,bed_density,435,kg/m3,"Table 1",rho_b; with eps = 0.456 gives a particle density of 799.6 kg/m3
+conditions,heat_of_adsorption_site1,29980,J/mol,"Table 2 (-Delta U_1)","the energy balance (Eq. A4) uses -Delta U_1 + R T as the heat released, about 32.4 kJ/mol at 293 K"

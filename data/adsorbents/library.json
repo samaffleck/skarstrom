@@ -784,7 +784,7 @@
       "sources": [{"id": "ward2022", "refs": "Table 2 (DSL), Table 1 (bed density, voidages, Cs, ks, particle radius), Section 2 (fit range)"}],
       "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2", "T_range_K": [293, 313], "P_range_Pa": [0, 100000], "range_note": "Fitted to volumetric data at p = 0-1 bar, T = 293-313 K (Section 2)."}],
       "heat_of_adsorption": {
-        "CarbonDioxide": {"value": 29980.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ward & Pini 2022 Table 2, DSL site energies only); the Ward_2022 decks use |dU_1| = 29.98 kJ/mol"}
+        "CarbonDioxide": {"value": 29980.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ward & Pini 2022 Table 2, DSL site energies only); |dU_1| = 29.98 kJ/mol. The paper's energy balance (Eq. A4) releases -dU_1 + RT per mole adsorbed, and the Ward_2022 decks use that (32.42 kJ/mol at 293 K)"}
       },
       "properties": {
         "particle_density": {"value": 799.6323529411765, "provenance": "derived", "ref": "Table 1: rho_b / (1 - eps) = 435 / (1 - 0.456). The repo decks round this to 799."},

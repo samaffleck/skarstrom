@@ -53,3 +53,26 @@ value in a comment next to it. Results of the last run:
 
 - Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 1.9-3.4 pp low and recovery 2.7-4.1 pp high, at the cyclic steady state of the per-component mass balance (E and F need about 450 and 1000 cycles to reach it).
 - adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K).
+
+### Kinetics check (Config A, 2026-10-31)
+
+The deck's macropore LDF coefficient has no capacity factor (the engine's
+`MassTransferCoefficientMacropore` computes c and ρ_b q\* per cell but
+multiplies by a hard-coded 1.0), so its CO₂ coefficient is of order 50 s⁻¹
+where the Haghpanah et al. (2013) form, k = 15 ε_p D_m c / (τ r_p² ρ_p q\*),
+gives about 0.1 s⁻¹. Replacing the model by constant coefficients of that
+magnitude (0.1631 s⁻¹ CO₂, 0.2044 s⁻¹ N₂, as reported for 13X by Haghpanah et
+al. (2013) and to be confirmed against Perez 2019 Table 1 once the paper is in
+`assets/`) on Config A gives, at CSS:
+
+| LDF coefficient | CO₂ purity | CO₂ recovery |
+|---|---|---|
+| macropore, no capacity factor (deck) | 98.9 % | 68.2 % |
+| constant 0.1631 / 0.2044 s⁻¹ | 94.0 % | 66.6 % |
+| experiment (Table 3) | 99.7 % | 58.7 % |
+| paper's model (Table 3) | 99.3 % | 60.0 % |
+
+Slower kinetics lower the recovery only by 1.6 pp and cost 5 pp of purity, so
+the 8–10 pp recovery excess is not a kinetics effect. The remaining
+candidates need the paper's Table 1 and the SI (the actual k values and the
+pressure profiles of the blowdown and evacuation steps); see ROADMAP WP10-E7.
