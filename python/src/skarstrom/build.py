@@ -99,6 +99,9 @@ class Profile:
     value: Any = None
     start: Any = None
     time: Any = None
+    rate_1: Any = None   # double_exponential only [1/s]
+    rate_2: Any = None   # double_exponential only [1/s]
+    weight: Any = None   # double_exponential only [-]
 
 
 def constant(value: Any) -> Profile:
@@ -122,6 +125,16 @@ def log_linear(end: Any, start: Any = None, time: Any = None) -> Profile:
     flows). Suits a pressurisation from vacuum, where a linear ramp puts most of the relative
     pressure rise, and so the inlet pressure gradient, at the start of the step."""
     return Profile("log_linear", end, start, time)
+
+
+def double_exponential(end: Any, rate_1: Any, rate_2: Any, weight: Any, start: Any = None,
+                       time: Any = None) -> Profile:
+    """A two-term exponential decay to ``end``: a share ``weight`` of the initial excess
+    decays at ``rate_1`` [1/s] and the rest at ``rate_2``, v(t) = v1 + (v0 - v1) [w e^(-r1 t)
+    + (1 - w) e^(-r2 t)]. The form Estupiñan Perez et al. (2019) fitted to a VSA rig's
+    evacuation pressure. For a pressure the start is the bed pressure; temperatures and
+    flows take ``start`` (``time`` is not used)."""
+    return Profile("double_exponential", end, start, time, rate_1, rate_2, weight)
 
 
 def _profile(x: Any) -> Profile:
@@ -260,13 +273,18 @@ def _apply_profile(sim: "Simulation", eid: int, head: str, prof: Profile) -> Non
         _set_endpoint(sim, eid, head, prof.value)
         return
     _set_endpoint(sim, eid, f"{head}_{prof.kind}_end", prof.value)
+    if prof.kind == "double_exponential":
+        _set_endpoint(sim, eid, f"{head}_double_exponential_rate_1", prof.rate_1)
+        _set_endpoint(sim, eid, f"{head}_double_exponential_rate_2", prof.rate_2)
+        _set_endpoint(sim, eid, f"{head}_double_exponential_weight", prof.weight)
     if head == "pressure":
         if prof.start is not None or prof.time is not None:
             raise ValueError("a pressure ramp starts from the bed pressure and lasts the whole step; "
                              "give only its end value")
         return
     _set_endpoint(sim, eid, f"{head}_{prof.kind}_start", prof.start)
-    _set_endpoint(sim, eid, f"{head}_{prof.kind}_time", prof.time)
+    if prof.kind != "double_exponential":
+        _set_endpoint(sim, eid, f"{head}_{prof.kind}_time", prof.time)
 
 
 def _apply_inlet(sim: "Simulation", eid: int, temperature: Any, y: Optional[Dict[str, Any]]) -> None:
@@ -623,6 +641,12 @@ def _profile_src(sim: "Simulation", eid: int, head: str, kind: str) -> str:
     if kind == "constant":
         return _literal(sim, p)
     end = _literal(sim, f"{p}_{kind}_end")
+    if kind == "double_exponential":
+        extra = (f", rate_1={_literal(sim, f'{p}_{kind}_rate_1')}, rate_2={_literal(sim, f'{p}_{kind}_rate_2')}"
+                 f", weight={_literal(sim, f'{p}_{kind}_weight')}")
+        if head == "pressure":
+            return f"sk.{kind}({end}{extra})"
+        return f"sk.{kind}({end}{extra}, start={_literal(sim, f'{p}_{kind}_start')})"
     if head == "pressure":
         return f"sk.{kind}({end})"
     return f"sk.{kind}({end}, start={_literal(sim, f'{p}_{kind}_start')}, time={_literal(sim, f'{p}_{kind}_time')})"

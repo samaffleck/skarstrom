@@ -41,6 +41,41 @@ CO₂/N₂ separation reported by Perez et al. (2019).
 > The authoritative parameter values live in `perez_2019.h`. This table is a
 > human-readable summary — if the two ever disagree, the header wins.
 
+## Provenance (WP10 audit, 2026-10-31, from the paper text and SI)
+
+| Deck value | Value | Source | Note |
+|---|---|---|---|
+| Column length, inner radius, outer radius | 0.3 m, 0.016 m, 0.0191 m | Table 1 | wall thickness 3.1 mm (derived) |
+| Bed voidage, particle voidage, tortuosity | 0.41, 0.35, 3 | Table 1 ("assumed") | |
+| Particle radius | 7.5 × 10⁻⁴ m | Table 1 ("measured") | |
+| Adsorbent mass | 0.162 kg per column | abstract, Sect. 2 | particle density derived: m / (V (1 − ε)) = 1138 kg/m³ |
+| Heats of adsorption | 30.85 (CO₂), 15.93 (N₂) kJ/mol | Table 1 ("measured", Clausius–Clapeyron average) | |
+| Adsorbent C_p, wall ρ / C_p / k | 900 J/(kg K); 7800 kg/m³, 502 J/(kg K), 16 W/(m K) | Table 1 | |
+| Gas and adsorbed-phase C_p | 30.7 J/(mol K), constant | Table 1 | the engine takes the gas C_p from CoolProp; the adsorbed-phase value is set to 30.7 |
+| Viscosity, D_m | 1.72 × 10⁻⁵ Pa s, 1.60 × 10⁻⁵ m²/s, constant | Table 1 | the engine computes both per cell |
+| K_z | 0.0903 W/(m K) | Table 1 | |
+| h_in, h_out | 8.6 (fitted to the DCB temperature curves, Sect. 4.2), 10 ("assumed") W/(m² K) | Table 1 | |
+| Isotherm | competitive DSL, concentration form | Table 2, Sect. 4.1 and Fig. 2c | q_sb 2.768, q_sd 2.758 mol/kg; CO₂ b₀ 3.934 × 10⁻⁷, d₀ 1.256 × 10⁻⁷ m³/mol, −ΔU_b 40.98, −ΔU_d 34.19 kJ/mol; N₂ b₀ = d₀ = 3.134 × 10⁻⁶, 15.71 / 15.72 kJ/mol |
+| LDF coefficient | **macropore, no capacity factor** | SI Table S1, Eq. S4: k_i = 15 ε_p D_p / r_p² · c_i / q_i\* | the capacity factor is in the paper's model (see "Kinetics check") |
+| Pressure drop | **Kozeny–Carman (180)** | SI Eq. S5: Blake–Kozeny with 150; Sect. 3 assumption (Darcy adequate) | |
+| Wall end condition | **zero flux** | SI Table S2: T_w = T_a at z = 0 and z = L in every step | the engine has a fixed-end option |
+| Pressurisation profile | linear from P_evac to P_ads over the step | Sect. 4.3 and Table S2 | as the deck |
+| Blowdown profile | **exponential reaching 99 % of the change at the step end** (λ = ln 100 / 19 s = 0.242 s⁻¹) | Sect. 4.3: P = P_int + (P_ads − P_int) e^(−λ_BD t), λ_BD = 0.1742 s⁻¹ (Table 1, fitted to one experiment) | the deck's decay is 1.4× faster |
+| Evacuation profile | **single exponential, 99 % at the step end** (λ = ln 100 / 57 s = 0.081 s⁻¹) | Sect. 4.3: two-term, P = P_L + (P_H1 − P_L) e^(−λ₁ t) + (P_H2 − P_L) e^(−λ₂ t), λ₁ = 0.019, λ₂ = 0.101 s⁻¹ (Table 1); the split P_H1 / P_H2 is not printed | the slow term (53 s time constant) keeps the experiment's pressure above P_low for most of the step; the deck reaches it |
+| Step switching | fixed step times (19 s blowdown, 57 s evacuation, 30 s pressurisation) | Sect. 5.2: blowdown, evacuation and pressurisation end on a **pressure trigger**; Sect. 6.1: evacuation lengths differed by about 10 s between cycles | the deck's step times are not printed in the paper; their source is unrecorded |
+| Idle | none | Sect. 6: a one-second hold with all valves closed between steps | |
+| Feed | 15 % CO₂ / 85 % N₂, 298 K, interstitial velocity of Table 3 × ε | Sect. 2, Table 3 | the deck converts v_feed (Table 3, interstitial) to superficial with ε = 0.41 |
+| Dead volume | none | Sect. 2: about 5 % of the column volume (12 cm³ of 240 cm³ measured for the DCB rig) | |
+| CSS | component balance to 0.5 % | Sect. 3: < 1 % for each species over 5 consecutive cycles, 80–150 cycles | |
+| Cells | 30 | not printed | |
+
+Bold entries differ from the paper's model. Optimisation set-up (Sect. 5.2, for
+WP11): decision variables t_ads 20–200 s, P_int 3–50 kPa, P_low 3–10 kPa,
+v_feed 0.05–1.5 m/s; NSGA-II, population 96, 50 generations, 4800 evaluations
+per front, each to CSS; objectives purity and recovery; P_low converged near
+its 3 kPa bound for every point. Rig: Pfeiffer MVP 040-2 diaphragm pumps,
+thermocouples at 8, 15 and 27 cm from the inlet.
+
 ## Validation
 
 The tests compare the simulation with the paper using the helpers in

@@ -35,7 +35,7 @@
 //                        "carbon_steel_a53", "hastelloy_c276", "inconel_625",
 //                        "aluminium_6061", "titanium_gr2"
 //   wall boundary        "zero_flux", "fixed"
-//   profile              "constant", "linear", "exponential"
+//   profile              "constant", "linear", "exponential", "log_linear", "double_exponential"
 //   flow                 "velocity", "volumetric_flow", "molar_flow", "mass_flow"
 //   pump                 "none", "compressor", "vacuum_pump"
 //   pump energy          "isothermal", "adiabatic"

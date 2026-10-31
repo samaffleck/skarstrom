@@ -56,6 +56,18 @@ $$
 
 Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$. The molecular diffusivity $D_m$ is computed from the gas properties, and the particle diameter $d_p$ comes from the layer.
 
+### Macropore Diffusion with the capacity factor
+
+The macropore coefficient scaled by the ratio of the gas-phase to the adsorbed-phase capacity, the form used by the Haghpanah et al. (2013) VSA model and the papers built on it (e.g. Estupiñan Perez et al. 2019, SI Eq. S4):
+
+$$
+k_i = \frac{15 \thinspace \epsilon_p D_{m,i}}{\tau \thinspace r_p^2}\thinspace \frac{c_i}{\rho_p \thinspace q_i^*}
+$$
+
+with $c_i$ the gas-phase concentration [mol m⁻³], $q_i^*$ the equilibrium loading [mol kg⁻¹] and $\rho_p$ the particle density, so the ratio is dimensionless. For a strongly adsorbed component (CO₂ on 13X at 0.15 bar: $c/\rho_p q^* \approx 2 \times 10^{-3}$) the coefficient is orders of magnitude below the plain macropore value. As $c_i \to 0$ both $c_i$ and $q_i^*$ vanish and their ratio tends to the Henry limit $1/(\rho_p K_H)$; evaluating the state's own $c_i / q_i^*$ there is a $0/0$ that drifts with the solver's error. The engine therefore evaluates the ratio at $\max(c_i, c_{\text{floor}})$, re-evaluating the isotherm at that concentration (every other component at its actual value), which is finite and smooth; the ratio is capped at 1.
+
+Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$, **Concentration floor** $c_{\text{floor}}$ [mol m⁻³] (default 10⁻³, about 2.5 Pa of partial pressure at room temperature, inside the Henry regime of the usual isotherms).
+
 ### Macropore + Knudsen Diffusion
 
 As above, but the effective diffusivity combines Knudsen and molecular contributions in series:

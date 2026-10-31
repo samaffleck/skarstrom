@@ -27,3 +27,11 @@ ConfigF,CO2_purity_exp,77.7,%,"Table 3, LPP, Experiment F, Experimental Purity",
 ConfigF,CO2_recovery_exp,95.6,%,"Table 3, LPP, Experiment F, Experimental Recovery",measured at CSS
 ConfigF,CO2_purity_model,79.9,%,"Table 3, LPP, Experiment F, Model Purity",paper's detailed model
 ConfigF,CO2_recovery_model,94.6,%,"Table 3, LPP, Experiment F, Model Recovery",paper's detailed model
+conditions,blowdown_rate,0.1742,1/s,"Table 1, lambda_BD (fitted)","single-exponential blowdown pressure, Sect. 4.3"
+conditions,evacuation_rate_1,0.019,1/s,"Table 1, lambda_evac1 (fitted)","two-term exponential evacuation pressure, Sect. 4.3; the split P_H1 / P_H2 is not printed"
+conditions,evacuation_rate_2,0.101,1/s,"Table 1, lambda_evac2 (fitted)",see above
+conditions,inside_htc,8.6,W/(m2 K),"Table 1, h_in (fitted to the DCB temperature curves, Sect. 4.2)",
+conditions,outside_htc,10,W/(m2 K),"Table 1, h_out (assumed)",
+conditions,effective_thermal_conductivity,0.0903,W/(m K),"Table 1, K_z",
+conditions,molecular_diffusivity,1.6e-5,m2/s,"Table 1, D_m",
+conditions,dead_volume_fraction,0.05,-,"Sect. 2 (12 cm3 of a 240 cm3 column, DCB rig)",approximate; not modelled

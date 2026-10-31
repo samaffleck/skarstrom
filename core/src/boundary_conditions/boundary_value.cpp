@@ -37,6 +37,16 @@ namespace adsim{
     return sv + (ev - sv) * (1.0 - std::exp(-(std::log(100.0) / ts) * t));
   }
 
+  double DoubleExponentialBoundaryValue::GetValue(double time) {
+    const double sv = runtime_start_value_.value_or(start_value_.Get());
+    const double ev = end_value_.Get();
+    const double t = std::max(time, 0.0);
+    const double w = std::min(std::max(weight_.Get(), 0.0), 1.0);
+    const double r1 = std::max(rate_1_.Get(), 0.0);
+    const double r2 = std::max(rate_2_.Get(), 0.0);
+    return ev + (sv - ev) * (w * std::exp(-r1 * t) + (1.0 - w) * std::exp(-r2 * t));
+  }
+
   double LogLinearBoundaryValue::GetValue(double time) {
     const double sv = runtime_start_value_.value_or(start_value_.Get());
     const double ev = end_value_.Get();
@@ -56,11 +66,14 @@ CEREAL_REGISTER_TYPE(adsim::ConstantBoundaryValue)
 CEREAL_REGISTER_TYPE(adsim::LinearBoundaryValue)
 CEREAL_REGISTER_TYPE(adsim::ExponentialBoundaryValue)
 CEREAL_REGISTER_TYPE(adsim::LogLinearBoundaryValue)
+CEREAL_REGISTER_TYPE(adsim::DoubleExponentialBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::ConstantBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::LinearBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::ExponentialBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::LogLinearBoundaryValue)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::DoubleExponentialBoundaryValue)
 CEREAL_CLASS_VERSION(adsim::ConstantBoundaryValue, 2);
 CEREAL_CLASS_VERSION(adsim::LinearBoundaryValue, 3);
 CEREAL_CLASS_VERSION(adsim::ExponentialBoundaryValue, 3);
 CEREAL_CLASS_VERSION(adsim::LogLinearBoundaryValue, 1);
+CEREAL_CLASS_VERSION(adsim::DoubleExponentialBoundaryValue, 1);

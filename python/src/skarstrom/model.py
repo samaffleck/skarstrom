@@ -1144,7 +1144,8 @@ class StepEnd(Endpoint):
 
         ``direction`` is ``"inlet"`` or ``"outlet"``; ``pressure`` a value or a
         profile (:func:`skarstrom.constant`, :func:`skarstrom.linear`,
-        :func:`skarstrom.exponential`, :func:`skarstrom.log_linear`). ``temperature`` and ``y`` are the gas
+        :func:`skarstrom.exponential`, :func:`skarstrom.log_linear`,
+        :func:`skarstrom.double_exponential`). ``temperature`` and ``y`` are the gas
         that enters (for an outlet, when the flow reverses); ``pump`` a
         :class:`skarstrom.Pump`. Returns the new boundary.
         """
@@ -1607,8 +1608,10 @@ class Adsorbent(_Node):
                        **values: Value) -> "Adsorbent":
         """The mass-transfer model of one component: ``model`` ``"ldf"`` or ``"ldf2"``, with a
         ``coefficient`` model ``"constant"`` (k), ``"arrhenius"`` (pre_exp_factor, activation_energy),
-        ``"macropore"`` / ``"haynes"`` (tortuosity, macropore_void_fraction) or
-        ``"macropore_knudsen"`` (+ pore_radius)."""
+        ``"macropore"`` / ``"haynes"`` (tortuosity, macropore_void_fraction),
+        ``"macropore_knudsen"`` (+ pore_radius) or ``"macropore_capacity"`` (the macropore
+        coefficient times the capacity factor c / (rho_p q*) of Haghpanah et al. 2013;
+        + concentration_floor)."""
         name = self._sim._component(component)
         self._sim._build("set_rate_model", self._id, name, model, coefficient)
         ads = self._fresh()

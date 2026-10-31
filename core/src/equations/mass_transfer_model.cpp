@@ -7,6 +7,7 @@
 #include "../pch.h"
 #include "adsim/equations/mass_transfer_model.h"
 #include "adsim/equations/equation.h"
+#include "adsim/equations/isotherm.h"
 #include "adsim/objects/reactor.h"
 
 
@@ -81,17 +82,9 @@ namespace adsim {
     auto& mtc = state.mass_transfer_coefficient.at(ads_id).at(component).var;
     auto& T = state.fluid_temperature.var;
     auto& Dmi = state.molecular_diffusion.at(component).var;
-    auto& Ci = state.molar_concentration.at(component).var;
-    auto& qi_sat = state.eq_ads_concentration.at(ads_id).at(component).var;
-    auto& rho_b = state.domain_vectors.bulk_density;
-    double R = constants::kIdealGasConstant;
-
     double ep = macropore_void_fraction_;
     double dp = layer.particle_diameter_;
     double tortuosity = tortuosity_;
-    double Mr = fluid.molar_mass_.at(component);
-
-    const double eps = 1e-50;
 
     int N = mtc.size();
     for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
@@ -100,11 +93,70 @@ namespace adsim {
       if (T[n] < 0)
         continue;
 
-      double Ci_loc = Ci[n];
-      double qi_loc = qi_sat[n] * rho_b[n];
-      double ratio = 1.0;
+      // The plain macropore coefficient, 15 eps_p D_m / (tau r_p^2); the
+      // capacity-factor variant is MassTransferCoefficientMacroporeCapacity.
       double Dmi_eff = Dmi[n] * ep / tortuosity;
-      mtc[n] = 60.0 * Dmi_eff * ratio / (dp * dp);
+      mtc[n] = 60.0 * Dmi_eff / (dp * dp);
+    }
+  }
+
+  void MassTransferCoefficientMacroporeCapacity::UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) {
+    auto& mtc = state.mass_transfer_coefficient.at(ads_id).at(component).var;
+    const auto& T = state.fluid_temperature.var;
+    const auto& P = state.pressure.var;
+    const auto& Dmi = state.molecular_diffusion.at(component).var;
+    const auto& Ci = state.molar_concentration.at(component).var;
+    auto& qi_sat = state.eq_ads_concentration.at(ads_id).at(component).var;
+    auto& yi = state.mole_fraction.at(component).var;
+    const double R = constants::kIdealGasConstant;
+
+    const double ep = macropore_void_fraction_;
+    const double dp = layer.particle_diameter_;
+    const double tortuosity = tortuosity_;
+    const double c_floor = std::max(concentration_floor_.Get(), 0.0);
+    const double rho_p = solid_density_;
+    const int start = layer.domain_.start_index, end = layer.domain_.end_index;
+
+    // q* at the floored concentration of this component (every other component
+    // at its actual value): swap a floored mole fraction into the state, run the
+    // isotherm for this component only, keep the result, and restore both.
+    bool have_floor_eval = false;
+    if (isotherm_ && c_floor > 0.0 && rho_p > 0.0) {
+      const int N = (int)yi.size();
+      y_scratch_.assign(yi.begin(), yi.end());
+      q_scratch_.assign(qi_sat.begin(), qi_sat.end());
+      bool any = false;
+      for (int n = start; n <= end; ++n) {
+        if (!(T[n] > 0.0) || !(P[n] > 0.0)) continue;
+        const double y_floor = c_floor * R * T[n] / P[n];
+        if (yi[n] < y_floor) { yi[n] = y_floor; any = true; }
+      }
+      if (any) {
+        IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id),
+                                    state.solid_temperature.var, state.pressure.var, component, start, end, registry);
+        isotherm_->Update(params);
+        // q* at the floored state now sits in qi_sat; keep it and restore the state.
+        std::swap(q_scratch_, qi_sat);          // q_scratch_ = floored q*, qi_sat = original (restored)
+        std::copy(y_scratch_.begin(), y_scratch_.end(), yi.begin());
+        (void)N;
+      } else {
+        q_scratch_.assign(qi_sat.begin(), qi_sat.end());
+      }
+      have_floor_eval = true;
+    }
+
+    for (int n = start; n <= end; ++n) {
+      if (T[n] < 0) continue;  // Newton iterates can probe T < 0; skip the cell
+      const double Dmi_eff = Dmi[n] * ep / tortuosity;
+      const double k_macro = 60.0 * Dmi_eff / (dp * dp);
+      double ratio = 1.0;
+      if (rho_p > 0.0) {
+        const double c = std::max(Ci[n], c_floor);
+        const double q = have_floor_eval ? q_scratch_[n] : qi_sat[n];
+        const double denom = rho_p * q;
+        ratio = denom > 0.0 ? std::min(c / denom, 1.0) : 1.0;
+      }
+      mtc[n] = k_macro * ratio;
     }
   }
 
@@ -144,16 +196,19 @@ CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientConstant)
 CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientMacroporeKnudsen)
 CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientMacropore)
 CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficient_Haynes)
+CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientMacroporeCapacity)
 CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientArrhenius)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientConstant)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientMacroporeKnudsen)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientMacropore)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficient_Haynes)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientMacroporeCapacity)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientArrhenius)
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientConstant, 3);
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeKnudsen, 2);
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacropore, 2);
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficient_Haynes, 2);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeCapacity, 1);
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientArrhenius, 3);
 
 CEREAL_REGISTER_TYPE(adsim::LinearDrivingForce)

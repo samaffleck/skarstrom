@@ -8,6 +8,22 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added
+- A **double exponential** profile (`DoubleExponentialBoundaryValue`,
+  `BoundaryValueType::DOUBLE_EXPONENTIAL`, builder kind `double_exponential`, Python
+  `sk.double_exponential(end, rate_1, rate_2, weight, start=)`): a two-term decay
+  towards the end value, v(t) = v1 + (v0 − v1)[w e^(−r1 t) + (1 − w) e^(−r2 t)], the
+  form Estupiñan Perez et al. (2019) fitted to their rig's evacuation pressure. The
+  rates are entered in 1/s. Registry leaves `<head>_double_exponential_start/_end/
+  _rate_1/_rate_2/_weight` and `pressure_double_exponential_end/_rate_1/_rate_2/_weight`.
+- A **capacity-factor macropore LDF coefficient** (`MassTransferCoefficientMacroporeCapacity`,
+  kind `macropore_capacity`): k = (15 ε_p D_m / (τ r_p²)) · c / (ρ_p q\*), the
+  Haghpanah et al. (2013) form the Rajendran-group papers use. The ratio is evaluated
+  from the isotherm at max(c, c_floor), with the isotherm re-evaluated at the floored
+  concentration, so it stays finite where c and q\* both vanish; capped at 1. The plain
+  `macropore` kind is unchanged (it never applied the factor; its `ratio = 1.0` stub is
+  gone).
+
 ### Changed
 - **Ward 2022 example decks** (`Ward2022_Q50ccm/Q100ccm/Q200ccm`) now use the
   paper's model forms, after an audit of the deck against the paper text

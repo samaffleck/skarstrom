@@ -439,3 +439,31 @@ def test_experimental_data_is_stored_in_the_deck(tmp_path):
     assert fit["points"] == 4 and 0 <= fit["nrmse"] < 1
     sim.experimental_data.remove("outlet")
     assert "outlet" not in sim.experimental_data and len(sim.experimental_data) == 1
+
+
+def test_double_exponential_pressure_and_capacity_factor_build_and_round_trip():
+    """The Perez 2019 forms: a two-term exponential evacuation pressure and the
+    capacity-factor macropore coefficient (SI Eqs. S4 and the evacuation profile)."""
+    sim = sk.examples.Perez2019_A.load()
+    evac = sim.steps["Evacuation"]
+    evac.bottom.set_pressure("outlet", sk.double_exponential("3.2 kPa", rate_1=0.019, rate_2=0.101, weight=0.3),
+                             y={"CarbonDioxide": 0.0, "Nitrogen": 1.0}, temperature=298.0)
+    assert evac.bottom.pressure_double_exponential_end == pytest.approx(3200.0)
+    assert evac.bottom.pressure_double_exponential_rate_1 == pytest.approx(0.019)
+    assert evac.bottom.pressure_double_exponential_weight == pytest.approx(0.3)
+    ads = sim.adsorbents[0]
+    ads.set_rate_model("CarbonDioxide", "ldf", "macropore_capacity", tortuosity=3.0, macropore_void_fraction=0.35)
+    assert ads.kinetics["CarbonDioxide"].concentration_floor == pytest.approx(1e-3)
+    assert "macropore_capacity" in sk.build_kinds()["rate_coefficient"]
+    d = {s["name"]: s for s in sim.describe()["steps"]}
+    assert d["Evacuation"]["bottom"]["profile"] == "double_exponential"
+    script = sk.to_script(sim)
+    assert "sk.double_exponential(" in script and "macropore_capacity" in script
+    ns = {}
+    exec(compile(script, "<double_exponential>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    result = sim.run(cycles=1)
+    assert result.ok, result.message
+    k = sim.series("mass_transfer_coefficient", "CarbonDioxide", location="bottom")
+    import numpy as np
+    assert np.all(np.isfinite(k.values)) and np.all(k.values >= 0.0)
