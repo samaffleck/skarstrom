@@ -83,7 +83,8 @@ std::unique_ptr<IBoundaryValue> MakeProfile(const std::string& kind) {
   switch (KindIndex(ProfileKinds(), kind, "profile")) {
     case 0: return std::make_unique<ConstantBoundaryValue>();
     case 1: return std::make_unique<LinearBoundaryValue>();
-    default: return std::make_unique<ExponentialBoundaryValue>();
+    case 2: return std::make_unique<ExponentialBoundaryValue>();
+    default: return std::make_unique<LogLinearBoundaryValue>();
   }
 }
 
@@ -208,7 +209,7 @@ const std::vector<std::string>& WallBoundaryKinds() {
   return k;
 }
 const std::vector<std::string>& ProfileKinds() {
-  static const std::vector<std::string> k{"constant", "linear", "exponential"};
+  static const std::vector<std::string> k{"constant", "linear", "exponential", "log_linear"};
   return k;
 }
 const std::vector<std::string>& FlowKinds() {

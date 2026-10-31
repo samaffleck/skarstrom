@@ -8,6 +8,17 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added
+- A **log-linear** profile (`LogLinearBoundaryValue`, `BoundaryValueType::LOG_LINEAR`,
+  builder kind `log_linear`, Python `sk.log_linear(end, start=, time=)`) for pressures,
+  flows and inlet temperatures: v(t) = v0 (v1 / v0)^(t / t_r), a geometric ramp whose
+  relative rate of rise d(ln v)/dt is constant. A pressurisation from vacuum with a
+  linear ramp puts most of the relative pressure rise, and with it the inlet pressure
+  gradient and approach to fluidisation, in the first seconds; the log-linear ramp
+  spreads it over the step. It holds its end value after the ramp, and ramps linearly
+  when the start or end value is zero or negative. Registry leaves
+  `<head>_log_linear_start/_end/_time` and `pressure_log_linear_end`.
+
 ### Changed
 - Solver: two settings are now on by default (`IDASettings`, transient):
   - `suppress_alg_` with `pressure_differential_`: the pressure is tagged a

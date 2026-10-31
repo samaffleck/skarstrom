@@ -639,8 +639,9 @@ namespace adsim {
       }
     }
 
-    // The start, end and duration of a linear or exponential profile, as
-    // <head>_linear_start/_end/_time (or _exponential_...); a constant one as <head>.
+    // The start, end and duration of a linear, exponential or log-linear profile,
+    // as <head>_linear_start/_end/_time (or _exponential_..., _log_linear_...); a
+    // constant one as <head>.
     void AddProfile(IBoundaryValue* value, const EndpointScope& ep, const std::string& head,
                     const std::string& name, const std::string& unit, double lo, double hi) {
       auto E = [&](const std::string& leaf, const std::string& label, const std::string& u, ExpressionParam& v,
@@ -657,6 +658,10 @@ namespace adsim {
         E(head + "_exponential_start", name + " (exponential start)", unit, ex->start_value_, lo, hi);
         E(head + "_exponential_end", name + " (exponential end)", unit, ex->end_value_, lo, hi);
         E(head + "_exponential_time", name + " (exponential time)", "s", ex->step_time_, 0.0, 1e4);
+      } else if (auto* lg = dynamic_cast<LogLinearBoundaryValue*>(value)) {
+        E(head + "_log_linear_start", name + " (log-linear start)", unit, lg->start_value_, lo, hi);
+        E(head + "_log_linear_end", name + " (log-linear end)", unit, lg->end_value_, lo, hi);
+        E(head + "_log_linear_time", name + " (log-linear ramp time)", "s", lg->ramp_time_, 0.0, 1e4);
       }
     }
 
@@ -724,6 +729,9 @@ namespace adsim {
       } else if (auto* bv = dynamic_cast<ExponentialBoundaryValue*>(value)) {
         Emplace(ep.path + ".pressure_exponential_end", ep.alias + ".pressure_exponential_end", "cycle",
                 ep.subcategory, "pressure (exponential end)", "Pa", bv->end_value_, 1e4, 1e6);
+      } else if (auto* bv = dynamic_cast<LogLinearBoundaryValue*>(value)) {
+        Emplace(ep.path + ".pressure_log_linear_end", ep.alias + ".pressure_log_linear_end", "cycle",
+                ep.subcategory, "pressure (log-linear end)", "Pa", bv->end_value_, 1e4, 1e6);
       }
     }
 

@@ -906,6 +906,12 @@ class Endpoint(_Node):
     """Duration of the inlet temperature linear ramp [s]."""
     temperature_exponential_time = Real()
     """Duration of the inlet temperature exponential ramp [s]."""
+    temperature_log_linear_start = Real()
+    """Inlet temperature at the start of a log-linear ramp [K]."""
+    temperature_log_linear_end = Real()
+    """Inlet temperature at the end of a log-linear ramp [K]."""
+    temperature_log_linear_time = Real()
+    """Duration of the inlet temperature log-linear ramp [s]."""
     velocity_linear_start = Real()
     """Superficial velocity at the start of a linear ramp [m/s]."""
     velocity_linear_end = Real()
@@ -918,6 +924,12 @@ class Endpoint(_Node):
     """Superficial velocity at the end of an exponential ramp [m/s]."""
     velocity_exponential_time = Real()
     """Duration of the velocity exponential ramp [s]."""
+    velocity_log_linear_start = Real()
+    """Superficial velocity at the start of a log-linear ramp [m/s]."""
+    velocity_log_linear_end = Real()
+    """Superficial velocity at the end of a log-linear ramp [m/s]."""
+    velocity_log_linear_time = Real()
+    """Duration of the velocity log-linear ramp [s]."""
     molar_flow_linear_start = Real()
     """Molar flow at the start of a linear ramp [mol/s]."""
     molar_flow_linear_end = Real()
@@ -930,6 +942,12 @@ class Endpoint(_Node):
     """Molar flow at the end of an exponential ramp [mol/s]."""
     molar_flow_exponential_time = Real()
     """Duration of the molar flow exponential ramp [s]."""
+    molar_flow_log_linear_start = Real()
+    """Molar flow at the start of a log-linear ramp [mol/s]."""
+    molar_flow_log_linear_end = Real()
+    """Molar flow at the end of a log-linear ramp [mol/s]."""
+    molar_flow_log_linear_time = Real()
+    """Duration of the molar flow log-linear ramp [s]."""
     volumetric_flow_linear_start = Real()
     """Volumetric flow at the start of a linear ramp [m3/s]."""
     volumetric_flow_linear_end = Real()
@@ -942,6 +960,12 @@ class Endpoint(_Node):
     """Volumetric flow at the end of an exponential ramp [m3/s]."""
     volumetric_flow_exponential_time = Real()
     """Duration of the volumetric flow exponential ramp [s]."""
+    volumetric_flow_log_linear_start = Real()
+    """Volumetric flow at the start of a log-linear ramp [m3/s]."""
+    volumetric_flow_log_linear_end = Real()
+    """Volumetric flow at the end of a log-linear ramp [m3/s]."""
+    volumetric_flow_log_linear_time = Real()
+    """Duration of the volumetric flow log-linear ramp [s]."""
     mass_flow_linear_start = Real()
     """Mass flow at the start of a linear ramp [kg/s]."""
     mass_flow_linear_end = Real()
@@ -954,6 +978,12 @@ class Endpoint(_Node):
     """Mass flow at the end of an exponential ramp [kg/s]."""
     mass_flow_exponential_time = Real()
     """Duration of the mass flow exponential ramp [s]."""
+    mass_flow_log_linear_start = Real()
+    """Mass flow at the start of a log-linear ramp [kg/s]."""
+    mass_flow_log_linear_end = Real()
+    """Mass flow at the end of a log-linear ramp [kg/s]."""
+    mass_flow_log_linear_time = Real()
+    """Duration of the mass flow log-linear ramp [s]."""
     velocity = Real()
     """Inlet superficial velocity [m/s]."""
     molar_flow = Real()
@@ -968,6 +998,8 @@ class Endpoint(_Node):
     """Boundary pressure at the end of a linear ramp [Pa]."""
     pressure_exponential_end = Real()
     """Boundary pressure at the end of an exponential ramp [Pa]."""
+    pressure_log_linear_end = Real()
+    """Boundary pressure at the end of a log-linear ramp [Pa]."""
     power = Real()
     """Shaft power of a pump-driven stream (constant power model) [W]."""
     power_poly_a = Real()
@@ -1112,7 +1144,7 @@ class StepEnd(Endpoint):
 
         ``direction`` is ``"inlet"`` or ``"outlet"``; ``pressure`` a value or a
         profile (:func:`skarstrom.constant`, :func:`skarstrom.linear`,
-        :func:`skarstrom.exponential`). ``temperature`` and ``y`` are the gas
+        :func:`skarstrom.exponential`, :func:`skarstrom.log_linear`). ``temperature`` and ``y`` are the gas
         that enters (for an outlet, when the flow reverses); ``pump`` a
         :class:`skarstrom.Pump`. Returns the new boundary.
         """

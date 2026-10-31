@@ -76,6 +76,8 @@ $$
 T_{\text{in}}(t) = T_1 + \left(T_0 - T_1\right)e^{-\ln(100)\thinspace t/t_r}
 $$
 
+- **Log-linear** — a geometric ramp from $T_0$ to $T_1$ over the ramp time, then held at $T_1$ (see [time-varying profiles](#time-varying-profiles)).
+
 $t$ is the time since the start of the step, so the ramp restarts every time the step runs. A ramp time of zero is an immediate step to $T_1$, and a ramp longer than the step simply ends part-way. Switching from Constant starts both temperatures at the current value with a ramp time equal to the step time.
 
 The profile replaces the typed-in temperature only. When the inlet is fed from a [buffer tank](#drawing-gas-from-another-step-buffer-tank) or a connected stream, the gas keeps that source's temperature as before, and the profile acts as the first-cycle assumption. In an [isothermal](energy-balance.md#isothermal-mode) run inlet temperatures have no effect.
@@ -89,8 +91,21 @@ Flow rates, pressures and [inlet temperatures](#inlet-temperature-profile) can a
 - **Constant** — a single value held for the whole step.
 - **Linear** — ramps linearly from a **Start Value** to a **Final Value** over a **Ramp Time**.
 - **Exponential** — approaches the **Final Value** from the **Start Value** with an exponential (first-order) response over the ramp time.
+- **Log-linear** — a geometric ramp from the **Start Value** $v_0$ to the **Final Value** $v_1$ over the ramp time $t_r$, then held at $v_1$. The value is multiplied by the same factor every second, so $\ln v$ rises linearly:
+
+$$
+v(t) = v_0\left(\frac{v_1}{v_0}\right)^{\min(t,\thinspace t_r)/t_r},
+\qquad
+\frac{d\ln v}{dt} = \frac{\ln(v_1/v_0)}{t_r}
+$$
 
 Ramps are the natural way to model gradual pressurisation or blowdown. The ramp time is clamped to the step duration.
+
+### Choosing a pressurisation ramp
+
+In upward flow the pressure gradient at the bed inlet scales roughly with $d\ln P/dt$, the boundary pressure's rate of rise relative to the pressure itself (in the viscous regime $-\partial P/\partial z \propto \mu R T N / (K P)$, and the molar flux $N$ needed to fill the bed scales with $dP/dt$). A **linear** ramp from vacuum has its largest relative rise in the first seconds: from 3 kPa to 4.6 bar in 20 s it starts at 7.6 s⁻¹ and ends at 0.05 s⁻¹, which is where a spike in the approach to fluidisation appears. An **exponential** ramp front-loads the rise even more (35 s⁻¹ at the start). A **log-linear** ramp holds $d\ln P/dt$ at $\ln(P_1/P_0)/t_r$ (0.25 s⁻¹ here) for the whole step, so the gradient is spread evenly. The trade-off is that the bed stays at low pressure for longer (only $\sqrt{P_0 P_1}$ halfway through) and the pressure rises fastest in absolute terms at the end of the step, so check the approach to fluidisation there too, and the cycle's performance.
+
+A geometric ramp cannot start from or pass through zero, so when the start or final value is zero or negative the log-linear profile ramps linearly instead (for example a flow ramp that starts from zero).
 
 > All numeric fields accept [expressions and units](global-variables.md), e.g. `2 [bar]` or a reference to a global variable.
 

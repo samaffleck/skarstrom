@@ -16,13 +16,15 @@ namespace adsim {
 	static const char* BoundaryValueTypeList[] = {
 		"Constant",		// 0
 		"Linear",		// 1
-		"Exponential"	// 2
+		"Exponential",	// 2
+		"Log-linear"	// 3
 	};
 
 	enum class BoundaryValueType {
 		CONSTANT = 0,
 		LINEAR = 1,
-		EXPONENTIAL = 2
+		EXPONENTIAL = 2,
+		LOG_LINEAR = 3
 	};
 
 	class IBoundaryValue {
@@ -147,19 +149,61 @@ namespace adsim {
 		}
 	};
 
+	// A geometric ramp: the value is multiplied by the same factor every second,
+	// v(t) = v0 * (v1 / v0)^(t / ramp), so ln(v) rises linearly and the rate of
+	// rise relative to the value, d(ln v)/dt = ln(v1 / v0) / ramp, is constant.
+	// For a pressurisation from vacuum this spreads the relative pressure rise
+	// (which sets the inlet pressure gradient) evenly over the step, where a
+	// linear ramp concentrates it at the start. Holds the end value after the
+	// ramp, like LinearBoundaryValue. The ratio needs both values positive: when
+	// either is zero or negative the ramp is linear instead.
+	class LogLinearBoundaryValue : public IBoundaryValue {
+	public:
+		BoundaryValueType GetType() override { return BoundaryValueType::LOG_LINEAR; }
+		double GetValue(double time) override;
+		void InitialiseStartValue(double start_value) override { runtime_start_value_ = start_value; }
+		void InitialiseStepTime(double step_time) override { runtime_ramp_time_ = step_time; }
+		void EvaluateExpressions(const EvalContext& ctx) override {
+			end_value_.Evaluate(ctx);
+			start_value_.Evaluate(ctx);
+			ramp_time_.Evaluate(ctx);
+		}
+
+		ExpressionParam end_value_{1e5};
+		ExpressionParam start_value_{1};
+		ExpressionParam ramp_time_{1};
+
+	private:
+		// Transient runtime overrides (see LinearBoundaryValue). Not serialised.
+		std::optional<double> runtime_start_value_;
+		std::optional<double> runtime_ramp_time_;
+
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const /*version*/) {
+			ar(
+				cereal::virtual_base_class<IBoundaryValue>(this),
+				cereal::make_nvp("End_Value", end_value_),
+				cereal::make_nvp("Start_Value", start_value_),
+				cereal::make_nvp("Ramp_Time", ramp_time_)
+			);
+		}
+	};
+
 	/* Factory function */
 	inline std::unique_ptr<IBoundaryValue> CreateBoundaryValue(BoundaryValueType type) {
 		switch (type) {
 		case BoundaryValueType::CONSTANT: return std::make_unique<ConstantBoundaryValue>();
 		case BoundaryValueType::LINEAR: return std::make_unique<LinearBoundaryValue>();
 		case BoundaryValueType::EXPONENTIAL: return std::make_unique<ExponentialBoundaryValue>();
+		case BoundaryValueType::LOG_LINEAR: return std::make_unique<LogLinearBoundaryValue>();
 		default: return nullptr;
 		}
 	}
 
 	// ---- inlet-temperature profiles -------------------------------------------
 	// An inlet temperature is a constant ExpressionParam plus an optional time
-	// profile (the same Linear / Exponential classes the flow boundaries use,
+	// profile (the same Linear / Exponential / Log-linear classes the flow boundaries use,
 	// with the user's own start value and ramp time — no runtime overrides).
 	// nullptr or a ConstantBoundaryValue means "constant": the ExpressionParam.
 	// Linear holds its end value after the ramp (no extrapolation, cf. bug E-05)
@@ -191,6 +235,13 @@ namespace adsim {
 			p->start_value_ = temperature;
 			p->end_value_ = temperature;
 			p->step_time_ = ramp_time;
+			return p;
+		}
+		if (type == BoundaryValueType::LOG_LINEAR) {
+			auto p = std::make_unique<LogLinearBoundaryValue>();
+			p->start_value_ = temperature;
+			p->end_value_ = temperature;
+			p->ramp_time_ = ramp_time;
 			return p;
 		}
 		return nullptr;

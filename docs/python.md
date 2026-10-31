@@ -173,7 +173,7 @@ Paths look like this:
 | `step[2].time`, `step[2].fraction` | a step's duration or cycle fraction |
 | `endpoint[5].temperature`, `endpoint[5].y[CarbonDioxide]` | inlet temperature and mole fraction of a stream or pressure boundary |
 | `endpoint[5].velocity`, `.molar_flow`, `.volumetric_flow`, `.mass_flow` | a stream's constant flow |
-| `endpoint[3].pressure` | a pressure boundary's constant pressure (`pressure_linear_end`, `pressure_exponential_end` for ramps) |
+| `endpoint[3].pressure` | a pressure boundary's constant pressure (`pressure_linear_end`, `pressure_exponential_end`, `pressure_log_linear_end` for ramps) |
 | `endpoint[5].pump.efficiency` | pump, compressor and vacuum-pump settings |
 | `bed.diameter`, `bed.ambient_temperature`, `wall.thickness` | column and wall |
 | `layer[1].length`, `layer[1].bed_void_fraction`, `layer[1].particle_diameter` | layer properties and correlation coefficients |
