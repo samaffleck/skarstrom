@@ -45,8 +45,9 @@ namespace adsim {
     // their ref. [5]): outlet CO2 mole fraction (feed is pure CO2, so the
     // RMSE is already normalised) and the thermocouple at z = 0.0715 m. The
     // paper's 95 % credibility intervals for the model-predicted breakthrough
-    // time and temperature rise (Table 10) are recorded for context only - the
-    // indicator definitions (Table 9) did not survive the text extraction.
+    // time and temperature rise (Table 10) are recorded for context only. The
+    // indicators follow Table 9: t_br is the time y_out reaches 0.5 and dT_ads
+    // is the thermocouple maximum less the feed temperature.
     void ValidateWard(const CoupledSolver& solver, const std::string& case_name, int flow_ccm,
                       double tol_y_rmse, double tol_T_rmse,
                       double tol_t50) {
@@ -76,14 +77,17 @@ namespace adsim {
       const double t_br = CrossingTime(y_sim, 0.5);
       report.Info("breakthrough time (y_CO2,out = 0.5)", t_br, t_mid, "abs_error",
                   "reference = CI midpoint; simulated value " + ci_note(t_br, t_lo.value, t_hi.value) +
-                  "; t_br read as the time y_CO2,out reaches 0.5 (Table 9 only partly legible)");
+                  "; t_br = the time y_CO2,out reaches 0.5 (Table 9)");
       const RefValue d_lo = Reference("ward_2022", case_name, "temperature_rise_CI_low");
       const RefValue d_hi = Reference("ward_2022", case_name, "temperature_rise_CI_high");
       RefValue d_mid = d_lo; d_mid.value = 0.5 * (d_lo.value + d_hi.value);
-      const double dT = T_sim.empty() ? 0.0 : MaxValue(T_sim) - T_sim.y.front();
+      // Table 9: dT_ads = max_t T_tc(t) - T_F, against the FEED temperature
+      // (293 K, Table 1), not the initial bed temperature (T_a = 291.4 K).
+      const double T_F = Reference("ward_2022", "conditions", "feed_temperature").value;
+      const double dT = T_sim.empty() ? 0.0 : MaxValue(T_sim) - T_F;
       report.Info("temperature rise at z = 0.0715 m", dT, d_mid, "abs_error",
                   "reference = CI midpoint; simulated value " + ci_note(dT, d_lo.value, d_hi.value) +
-                  "; simulated = max T at the thermocouple minus initial T");
+                  "; simulated = max T at the thermocouple minus T_F (Table 9)");
     }
   };
 
