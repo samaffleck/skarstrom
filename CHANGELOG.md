@@ -8,6 +8,20 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed
+- **Ward 2022 example decks** (`Ward2022_Q50ccm/Q100ccm/Q200ccm`) now use the
+  paper's model forms, after an audit of the deck against the paper text
+  (`core/test/papers/ward_2022/README.md`, provenance and attribution tables):
+  helium as the carrier (the CO2/He experiment), the paper's dispersion
+  coefficient (Eq. 4 with D_m = 0.605e-5 m2/s, times the factor 4 the paper
+  fitted), -dU_1 + RT as the heat of adsorption (32.4 kJ/mol), the wall ends
+  held at ambient (Table 4) and the Ergun pressure drop. The CO2 front now
+  arrives 0.1-1.9 % late instead of 4-6 % early, the curve NRMSE is 3-18 %
+  instead of 34-38 %, and the temperature rise is within 0.9-2.9 K of the
+  measurement (it was 8-11 K high). The Ward test's temperature-rise
+  indicator follows the paper's Table 9 (against the feed temperature).
+  `examples/ward_2022.py` builds the same decks.
+
 ### Added
 - A **log-linear** profile (`LogLinearBoundaryValue`, `BoundaryValueType::LOG_LINEAR`,
   builder kind `log_linear`, Python `sk.log_linear(end, start=, time=)`) for pressures,

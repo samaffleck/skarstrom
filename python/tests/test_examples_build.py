@@ -71,7 +71,11 @@ def test_example_runs_like_its_deck(family, deck):
         for comp in comps:
             for loc in ("top", "bottom"):
                 a, b = shipped.series(var, comp, location=loc), built.series(var, comp, location=loc)
-                scale = max(float(np.ptp(a.values)), 1e-4 * float(np.max(np.abs(a.values))), 1e-30)
+                # The floor keeps a signal that barely moves (the pressure at an
+                # open end, 1 bar to within solver noise) from being compared
+                # below the integrator's tolerance: 1e-3 of 1e-3 |max| is 1e-6
+                # relative, the deck's reltol.
+                scale = max(float(np.ptp(a.values)), 1e-3 * float(np.max(np.abs(a.values))), 1e-30)
                 np.testing.assert_allclose(np.interp(a.time, b.time, b.values), a.values, rtol=0,
                                            atol=1e-3 * scale, err_msg=f"{var} {comp} {loc}")
     for ka, kb in zip(shipped.kpis(), built.kpis()):

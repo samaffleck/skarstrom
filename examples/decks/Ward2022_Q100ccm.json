@@ -29,7 +29,7 @@
                             "cereal_class_version": 0,
                             "Mass_Transfer_Models": [
                                 {
-                                    "key": "Air",
+                                    "key": "Helium",
                                     "value": {
                                         "polymorphic_id": 2147483649,
                                         "polymorphic_name": "adsim::LinearDrivingForce",
@@ -96,7 +96,7 @@
                             ],
                             "Heat_Of_Adsorption": [
                                 {
-                                    "key": "Air",
+                                    "key": "Helium",
                                     "value": {
                                         "Value": 0.0,
                                         "Expression": "0",
@@ -106,8 +106,8 @@
                                 {
                                     "key": "CarbonDioxide",
                                     "value": {
-                                        "Value": 29980.0,
-                                        "Expression": "2.998e+04",
+                                        "Value": 32416.137547074,
+                                        "Expression": "32416.137547074",
                                         "DisplayUnitIndex": 0
                                     }
                                 }
@@ -125,7 +125,7 @@
                                                 "value0": {},
                                                 "ISO_Params": [
                                                     {
-                                                        "key": "Air",
+                                                        "key": "Helium",
                                                         "value": {
                                                             "cereal_class_version": 0
                                                         }
@@ -190,7 +190,7 @@
                             ],
                             "Isotherm_Map": [
                                 {
-                                    "key": "Air",
+                                    "key": "Helium",
                                     "value": 2
                                 },
                                 {
@@ -293,12 +293,12 @@
                             "Expression": "0.003",
                             "DisplayUnitIndex": 0
                         },
-                        "Momentum_Model": 0,
+                        "Momentum_Model": 1,
                         "Layer_Equations": {
                             "cereal_class_version": 1,
                             "Dispersion_Model": {
                                 "polymorphic_id": 2147483654,
-                                "polymorphic_name": "adsim::DispersionModelRuthven",
+                                "polymorphic_name": "adsim::DispersionModelConstant",
                                 "ptr_wrapper": {
                                     "valid": 1,
                                     "data": {
@@ -306,9 +306,9 @@
                                         "value0": {
                                             "cereal_class_version": 0
                                         },
-                                        "Molecular_Diffusion": {
-                                            "Value": 0.000016,
-                                            "Expression": "1.6e-05",
+                                        "Constant_Longitudinal_Dispersion": {
+                                            "Value": 0.0000951066802180326,
+                                            "Expression": "9.51066802180326e-05",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -398,13 +398,18 @@
                 "cereal_class_version": 2,
                 "Wall_Temperature_Boundary_Condition": {
                     "polymorphic_id": 2147483658,
-                    "polymorphic_name": "adsim::WallTemperatureBoundaryConditionZeroFlux",
+                    "polymorphic_name": "adsim::WallTemperatureBoundaryConditionFixed",
                     "ptr_wrapper": {
                         "valid": 1,
                         "data": {
                             "cereal_class_version": 1,
                             "value0": {
                                 "cereal_class_version": 0
+                            },
+                            "Fixed_Wall_Temperature": {
+                                "Value": 291.4,
+                                "Expression": "291.4",
+                                "DisplayUnitIndex": 0
                             }
                         }
                     }
@@ -473,11 +478,11 @@
             "cereal_class_version": 3,
             "Components": [
                 "CarbonDioxide",
-                "Air"
+                "Helium"
             ],
             "Adsorbed_Heat_Capacity": [
                 {
-                    "key": "Air",
+                    "key": "Helium",
                     "value": {
                         "Value": 0.0,
                         "Expression": "0",
@@ -528,7 +533,7 @@
                     }
                 },
                 {
-                    "key": "Air",
+                    "key": "Helium",
                     "value": {
                         "Value": 1.0,
                         "Expression": "1",
@@ -568,7 +573,7 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Air",
+                                        "key": "Helium",
                                         "value": {
                                             "Value": 1.0,
                                             "Expression": "1",
@@ -676,16 +681,16 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.11511061611356348,
-                                    "Average_Temperature": 298.35231979271478,
+                                    "Total_Moles": 0.11131733026606999,
+                                    "Average_Temperature": 292.1789839021149,
                                     "Average_Mole_Fraction": [
                                         {
-                                            "key": "Air",
-                                            "value": 0.011067617063640026
+                                            "key": "Helium",
+                                            "value": 0.000856948849066792
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.98893238293636
+                                            "value": 0.9991430511509333
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -734,7 +739,7 @@
                                                             }
                                                         },
                                                         {
-                                                            "key": "Air",
+                                                            "key": "Helium",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -760,15 +765,15 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.2052454911201525,
-                                                        "Average_Temperature": 292.9999999999999,
+                                                        "Total_Moles": 0.2052450767085254,
+                                                        "Average_Temperature": 293.00000000000019,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
                                                                 "value": 1.0
                                                             },
                                                             {
-                                                                "key": "Air",
+                                                                "key": "Helium",
                                                                 "value": 0.0
                                                             }
                                                         ],
@@ -1157,7 +1162,7 @@
         "System_Information": {
             "cereal_class_version": 0,
             "Title": "Ward 2022 - 100 ccm Flow Rate",
-            "Description": "CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/Air breakthrough simulation where the bed is initially saturated with air and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. This configuration tests the medium flow rate condition (100 ccm/min) of three flow rates studied.",
+            "Description": "CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. This configuration tests the medium flow rate condition (100 ccm/min) of three flow rates studied.",
             "Author": "Sam Affleck",
             "Version": 3
         },

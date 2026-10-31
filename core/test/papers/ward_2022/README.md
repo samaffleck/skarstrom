@@ -60,6 +60,41 @@ own 1D model used (Sect. 3, Appendix A); the experiment is that of their ref. [5
 Bold entries differ from the paper's model; the attribution runs below measure
 what each one does.
 
+### Attribution runs (2026-10-31)
+
+One model-form change at a time on the bundled decks (Python, same engine),
+against the digitised experiment. NRMSE of the outlet CO₂ curve; the front
+time where y_out = 0.5 (Table 9's t_br); the thermocouple RMSE; ΔT_ads per
+Table 9 (measured: 13.1 K at 100 ccm, 6.4 K at 50, 20.3 K at 200).
+
+| Variant (100 ccm) | y NRMSE | t_br sim / exp [s] | T RMSE [K] | ΔT_ads sim [K] |
+|---|---|---|---|---|
+| deck before the audit (air, Ruthven D_m 1.6e-5, 29.98 kJ/mol, zero-flux wall ends, Kozeny–Carman) | 0.379 | 1182 / 1259 (−6.1 %) | 4.24 | 24.9 |
+| + paper's dispersion (Eq. 4 × 4, D_m 0.605e-5) | 0.400 | 1150 / 1259 (−8.6 %) | 3.66 | 15.1 |
+| + −ΔU₁ + RT | 0.383 | 1169 / 1259 (−7.1 %) | 4.98 | 26.3 |
+| + helium carrier | 0.378 | 1183 / 1259 (−6.1 %) | 3.97 | 23.9 |
+| + wall ends at T_a (Table 4) | 0.368 | 1324 / 1259 (+5.1 %) | 3.30 | 22.8 |
+| + Ergun | 0.383 | 1169 / 1259 (−7.1 %) | 4.55 | 25.0 |
+| all five (the paper's model) | **0.129** | **1280 / 1259 (+1.6 %)** | **2.65** | **13.2** |
+
+| Variant | 50 ccm: y NRMSE, t_br error, T RMSE, ΔT_ads | 200 ccm: y NRMSE, t_br error, T RMSE, ΔT_ads |
+|---|---|---|
+| deck before the audit | 0.382, −4.3 %, 2.64 K, 14.4 K | 0.336, −4.6 %, 5.24 K, 31.6 K |
+| paper's dispersion + wall ends at T_a | 0.185, +1.9 %, 1.42 K, 5.4 K | 0.132, +1.7 %, 3.87 K, 21.6 K |
+| all five | 0.184, +1.9 %, 1.38 K, 5.6 K | 0.029, +0.1 %, 5.50 K, 22.9 K |
+
+Two forms carry the result: the paper's (fitted) dispersion coefficient halves
+the temperature rise and brings it inside the paper's 95 % interval, and the
+wall ends held at ambient move the front from 4–6 % early to 1–2 % late. The
+carrier gas, the RT term in the heat and the pressure-drop constant are
+each worth less than 1 % in the front time. The heat-of-adsorption
+explanation recorded before the audit (that a single site-1 value "heats the
+bed more") was wrong: the paper's own model uses that value plus RT.
+
+The decks now use all five forms, i.e. the paper's model; the remaining
+error (the table's last rows) is the engine-vs-paper-model difference plus
+the digitising error of the curves.
+
 ## Validation
 
 The tests compare the simulation with the paper using the helpers in

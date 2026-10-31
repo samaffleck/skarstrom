@@ -66,7 +66,7 @@ for k in sim.kpis(cycle=-1):
     print(k.component, f"purity {k.purity:.3f}", f"recovery {k.recovery:.3f}")
 ```
 
-The Ward (2022) deck is a single breakthrough experiment: pure CO₂ fed at 100 cm³/min into a column of activated carbon that starts full of air. It runs in about a second. The outlet reaches 50 % CO₂ at about 1180 s, close to the measured curve (see [Validation](validation.md#ward-2022)).
+The Ward (2022) deck is a single breakthrough experiment: pure CO₂ fed at 100 cm³/min into a column of activated carbon that starts full of helium. It runs in about a second. The outlet reaches 50 % CO₂ at about 1280 s, within 2 % of the measured curve (see [Validation](validation.md#ward-2022)).
 
 [Python and the Command Line](python.md) covers the deck objects, units, parameter paths, results, the isotherm functions, the CLI and the bundled data.
 

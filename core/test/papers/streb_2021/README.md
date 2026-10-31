@@ -68,3 +68,25 @@ value in a comment next to it. Results of the last run:
 - CO2 front positions agree with the digitised experiments to 0.5-9 %, CH4 fronts to 0.3-15 %. Curve NRMSE is large (13-83 % for CH4) because the fronts are nearly vertical: a 10-20 s shift on a 20 s front dominates the RMSE. Thermocouple RMSE is 11-33 K, driven by the timing and height of the 30-100 K temperature fronts at the centre line.
 - adsim uses extended Sips competition and the MFC set-point velocity; the paper shows IAST/RAST predict the binary cases better than extended Sips and fits the feed velocity per experiment within the MFC uncertainty. The ~10 m of sampling line to the MS is not modelled.
 - A1/A3 previously compared simulated CO2 against the digitised CH4 curve (alphabetical file order) with a bound of 0.8 in mole fraction; fixed.
+
+### Attribution runs (A3, 2026-10-31)
+
+One change at a time on the bundled A3 deck, front times at half the feed
+fraction (y = 0.25) against the digitised Fig. 6:
+
+| Variant | CO₂ NRMSE | CO₂ front sim / exp [s] | CH₄ NRMSE | CH₄ front sim / exp [s] |
+|---|---|---|---|---|
+| deck (set-point velocity, no line) | 0.229 | 444 / 415 | 0.212 | 157 / 157 |
+| feed velocity −2 % | 0.264 | 453 / 415 | 0.306 | 160 / 157 |
+| feed velocity +2 % | 0.174 | 434 / 415 | 0.349 | 154 / 157 |
+| feed velocity +5 % | 0.064 | 421 / 415 | 0.588 | 149 / 157 |
+| 0.3 L top void (the sampling line at column pressure) | 0.272 | 462 / 415 | 0.549 | 168 / 157 |
+
+A velocity shift moves the two fronts together, so it cannot close the CO₂
+error (7 %) without opening a CH₄ error: with extended Sips the CO₂ front is
+late *relative to* the CH₄ front, which is what the paper reports for extended
+isotherms against IAST/RAST (Sect. 4.2.1). The sampling line as a void at
+column pressure delays both fronts by 3–7 % and is not what the paper models
+(plug flow at column pressure to the BPR, ambient after it). The remaining
+disagreement is therefore attributed to the competition model, not to the
+column model; an IAST option for the Sips isotherm is the open item (WP10-E3).
