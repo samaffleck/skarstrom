@@ -28,14 +28,32 @@
 | `ExperimentB1` | B1 (25 °C, 1 bar, 20 cm³/s) | Ternary H₂:CO₂:CH₄ 75:20:5 |
 | `ExperimentB2` | B2 (25 °C, 10 bar, 10 cm³/s) | Ternary |
 
-## Key parameters
+## Provenance (WP10 audit, 2026-10-31, from the paper text)
 
-- Zeolite 13X, Table 1 column; extended Sips isotherm (Table 3, H₂ column added
-  for B1/B2), LDF k = 0.06 / 0.2 / 1.0 s⁻¹ (CO₂/CH₄/H₂, Table 4), constant heats
-  36.3 / 18.8 / 10.7 kJ/mol (Sect. 4.1), Dixon (1996) internal HTC,
-  h_w = 220 W/(m²·K). Shared set-up in `Streb2021Test::SetUpStreb`.
-- Digitised data in `core/data/streb_2021/<case>/` (outlet mole fractions and
-  thermocouples at z = 10, 35, 60, 85, 110 cm).
+| Deck value | Value | Source | Note |
+|---|---|---|---|
+| Column length, inner diameter | 1.2 m, 0.025 m | Table 1 | |
+| Wall thickness | 2.5 mm | Table 1, d_o 0.03 m | |
+| Wall heat capacity | 4 × 10⁶ J/(m³ K) as ρ_w C_p,w = 8000 × 500 | Table 1, C_w | the paper lists it per kg; the value is volumetric |
+| Wall axial conduction | 0 | Sect. 3.2, assumption "axial conductivity of the column wall is neglected" | |
+| Particle diameter | 1.8 mm | Table 1 (pellets 1.6–2 mm, Sect. 2.1) | |
+| Particle density, skeletal density, bed density | 1085, 2359, 595 kg/m³ | Table 1 | ε_p = 1 − 1085/2359 = 0.540, ε_b = 1 − 595/1085 = 0.452 (derived) |
+| Adsorbent C_p | 1100 J/(kg K) | Table 1 | |
+| Adsorbent thermal conductivity | 0.15 W/(m K) | not in the paper | enters only the Dixon coefficient's static term |
+| Isotherm | extended Sips (Eqs. 1–4, 6) | Table 3 (CO₂ from ref. [14]) | B_1 converted from 10⁻⁴ bar⁻¹ to Pa⁻¹, B_2 from kJ/mol to J/mol; T_ref 25 °C |
+| Competition | **extended Sips** | Sect. 4.2.1: the k values in Table 4 were estimated with IAST; IAST and RAST "predict the time when CH₄ breakthrough occurs and the shape of the CO₂ breakthrough front better than extended isotherms" | the engine has no IAST for Sips |
+| LDF coefficients | CO₂ 0.06, CH₄ 0.2, H₂ 1.0 s⁻¹ | Table 4 (a, b) | the ternary-fitted values (0.09, 0.4, 1.2; footnote c) were not used by the paper for prediction either |
+| Heats of adsorption | 36.3, 18.8, 10.7 kJ/mol | Sect. 3.1.1 (temperature-averaged isosteric heats) | constant, as the paper assumes |
+| Axial dispersion, axial conduction | 0, 0 | Sect. 3.2 assumptions ("diffusion is neglected"; Eq. 18 has no conduction term) | |
+| Bed-to-wall HTC | Dixon (1996) | Eq. 21 and ref. [39] | h_L lumps λ_e and α_w |
+| Wall-to-thermofluid HTC | 220 W/(m² K) | Sect. 3.2.1, h_w from ref. [23] | the column is double-jacketed and thermostated, so the ambient is the experiment temperature |
+| Pressure drop | Ergun | Eq. 20 | |
+| Feed | Table 2 flows "at P and T", 50:50 CO₂:CH₄ or 75:20:5 H₂:CO₂:CH₄ | Table 2, Sect. 2.1 | **the paper fits the feed velocity per experiment within the MFC's ±2 % of full scale (Sect. 3.2.1); the deck uses the set-point** |
+| Initial gas | helium | Sect. 2.2 | |
+| Thermocouples | z = 10, 35, 60, 85, 110 cm, centre line (r = 0) | Sect. 2.2 | the paper notes the centre line cools slower than its 1D model |
+| Sampling line | **not modelled** | Table 1: 10.51 m × 6 mm downstream, modelled by the paper as plug flow at column pressure up to the BPR and at ambient after | about 0.3 L; a delay of order seconds to tens of seconds depending on pressure |
+
+Bold entries differ from the paper's model.
 
 ## Validation
 
