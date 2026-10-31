@@ -912,6 +912,16 @@ class Endpoint(_Node):
     """Inlet temperature at the end of a log-linear ramp [K]."""
     temperature_log_linear_time = Real()
     """Duration of the inlet temperature log-linear ramp [s]."""
+    temperature_double_exponential_start = Real()
+    """Inlet temperature at the start of a double-exponential decay [K]."""
+    temperature_double_exponential_end = Real()
+    """Inlet temperature at the end of a double-exponential decay [K]."""
+    temperature_double_exponential_rate_1 = Real()
+    """Rate of the first (weighted) term of the inlet temperature double-exponential decay [1/s]."""
+    temperature_double_exponential_rate_2 = Real()
+    """Rate of the second term of the inlet temperature double-exponential decay [1/s]."""
+    temperature_double_exponential_weight = Real()
+    """Share of the initial excess in the first term of the inlet temperature double-exponential decay [-]."""
     velocity_linear_start = Real()
     """Superficial velocity at the start of a linear ramp [m/s]."""
     velocity_linear_end = Real()
@@ -930,6 +940,16 @@ class Endpoint(_Node):
     """Superficial velocity at the end of a log-linear ramp [m/s]."""
     velocity_log_linear_time = Real()
     """Duration of the velocity log-linear ramp [s]."""
+    velocity_double_exponential_start = Real()
+    """Superficial velocity at the start of a double-exponential decay [m/s]."""
+    velocity_double_exponential_end = Real()
+    """Superficial velocity at the end of a double-exponential decay [m/s]."""
+    velocity_double_exponential_rate_1 = Real()
+    """Rate of the first (weighted) term of the superficial velocity double-exponential decay [1/s]."""
+    velocity_double_exponential_rate_2 = Real()
+    """Rate of the second term of the superficial velocity double-exponential decay [1/s]."""
+    velocity_double_exponential_weight = Real()
+    """Share of the initial excess in the first term of the superficial velocity double-exponential decay [-]."""
     molar_flow_linear_start = Real()
     """Molar flow at the start of a linear ramp [mol/s]."""
     molar_flow_linear_end = Real()
@@ -948,6 +968,16 @@ class Endpoint(_Node):
     """Molar flow at the end of a log-linear ramp [mol/s]."""
     molar_flow_log_linear_time = Real()
     """Duration of the molar flow log-linear ramp [s]."""
+    molar_flow_double_exponential_start = Real()
+    """Molar flow at the start of a double-exponential decay [mol/s]."""
+    molar_flow_double_exponential_end = Real()
+    """Molar flow at the end of a double-exponential decay [mol/s]."""
+    molar_flow_double_exponential_rate_1 = Real()
+    """Rate of the first (weighted) term of the molar flow double-exponential decay [1/s]."""
+    molar_flow_double_exponential_rate_2 = Real()
+    """Rate of the second term of the molar flow double-exponential decay [1/s]."""
+    molar_flow_double_exponential_weight = Real()
+    """Share of the initial excess in the first term of the molar flow double-exponential decay [-]."""
     volumetric_flow_linear_start = Real()
     """Volumetric flow at the start of a linear ramp [m3/s]."""
     volumetric_flow_linear_end = Real()
@@ -966,6 +996,16 @@ class Endpoint(_Node):
     """Volumetric flow at the end of a log-linear ramp [m3/s]."""
     volumetric_flow_log_linear_time = Real()
     """Duration of the volumetric flow log-linear ramp [s]."""
+    volumetric_flow_double_exponential_start = Real()
+    """Volumetric flow at the start of a double-exponential decay [m3/s]."""
+    volumetric_flow_double_exponential_end = Real()
+    """Volumetric flow at the end of a double-exponential decay [m3/s]."""
+    volumetric_flow_double_exponential_rate_1 = Real()
+    """Rate of the first (weighted) term of the volumetric flow double-exponential decay [1/s]."""
+    volumetric_flow_double_exponential_rate_2 = Real()
+    """Rate of the second term of the volumetric flow double-exponential decay [1/s]."""
+    volumetric_flow_double_exponential_weight = Real()
+    """Share of the initial excess in the first term of the volumetric flow double-exponential decay [-]."""
     mass_flow_linear_start = Real()
     """Mass flow at the start of a linear ramp [kg/s]."""
     mass_flow_linear_end = Real()
@@ -984,6 +1024,16 @@ class Endpoint(_Node):
     """Mass flow at the end of a log-linear ramp [kg/s]."""
     mass_flow_log_linear_time = Real()
     """Duration of the mass flow log-linear ramp [s]."""
+    mass_flow_double_exponential_start = Real()
+    """Mass flow at the start of a double-exponential decay [kg/s]."""
+    mass_flow_double_exponential_end = Real()
+    """Mass flow at the end of a double-exponential decay [kg/s]."""
+    mass_flow_double_exponential_rate_1 = Real()
+    """Rate of the first (weighted) term of the mass flow double-exponential decay [1/s]."""
+    mass_flow_double_exponential_rate_2 = Real()
+    """Rate of the second term of the mass flow double-exponential decay [1/s]."""
+    mass_flow_double_exponential_weight = Real()
+    """Share of the initial excess in the first term of the mass flow double-exponential decay [-]."""
     velocity = Real()
     """Inlet superficial velocity [m/s]."""
     molar_flow = Real()
@@ -1000,6 +1050,14 @@ class Endpoint(_Node):
     """Boundary pressure at the end of an exponential ramp [Pa]."""
     pressure_log_linear_end = Real()
     """Boundary pressure at the end of a log-linear ramp [Pa]."""
+    pressure_double_exponential_end = Real()
+    """Boundary pressure at the end of a double-exponential decay [Pa]."""
+    pressure_double_exponential_rate_1 = Real()
+    """Rate of the first (weighted) term of the boundary pressure's double-exponential decay [1/s]."""
+    pressure_double_exponential_rate_2 = Real()
+    """Rate of the second term of the boundary pressure's double-exponential decay [1/s]."""
+    pressure_double_exponential_weight = Real()
+    """Share of the initial excess in the first term of the boundary pressure's double-exponential decay [-]."""
     power = Real()
     """Shaft power of a pump-driven stream (constant power model) [W]."""
     power_poly_a = Real()
@@ -1529,6 +1587,8 @@ class Kinetics(_Node):
     """Particle tortuosity [-]."""
     macropore_void_fraction = Real()
     """Macropore void fraction [-]."""
+    concentration_floor = Real()
+    """Capacity-factor concentration floor: the gas concentration below which the ratio c / (rho_p q*) is evaluated at this value [mol/m3]."""
     pore_radius = Real()
     """Mean pore radius [m]."""
 
