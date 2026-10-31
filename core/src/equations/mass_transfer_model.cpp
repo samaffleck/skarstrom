@@ -105,7 +105,6 @@ namespace adsim {
     const auto& T = state.fluid_temperature.var;
     const auto& P = state.pressure.var;
     const auto& Dmi = state.molecular_diffusion.at(component).var;
-    const auto& Ci = state.molar_concentration.at(component).var;
     auto& qi_sat = state.eq_ads_concentration.at(ads_id).at(component).var;
     auto& yi = state.mole_fraction.at(component).var;
     const double R = constants::kIdealGasConstant;
@@ -117,32 +116,25 @@ namespace adsim {
     const double rho_p = solid_density_;
     const int start = layer.domain_.start_index, end = layer.domain_.end_index;
 
-    // q* at the floored concentration of this component (every other component
-    // at its actual value): swap a floored mole fraction into the state, run the
-    // isotherm for this component only, keep the result, and restore both.
-    bool have_floor_eval = false;
-    if (isotherm_ && c_floor > 0.0 && rho_p > 0.0) {
-      const int N = (int)yi.size();
+    // q* at max(c_i, c_floor) from the isotherm itself, evaluated here so it is
+    // consistent with the current y, P and T whatever the residual's update
+    // order (the state's own q* may be the previous evaluation's). The mole
+    // fraction of this component is floored in place, the isotherm run for
+    // this component only, the result kept, and both vectors restored.
+    const bool evaluate = isotherm_ && rho_p > 0.0;
+    if (evaluate) {
       y_scratch_.assign(yi.begin(), yi.end());
       q_scratch_.assign(qi_sat.begin(), qi_sat.end());
-      bool any = false;
       for (int n = start; n <= end; ++n) {
         if (!(T[n] > 0.0) || !(P[n] > 0.0)) continue;
         const double y_floor = c_floor * R * T[n] / P[n];
-        if (yi[n] < y_floor) { yi[n] = y_floor; any = true; }
+        if (yi[n] < y_floor) yi[n] = y_floor;
       }
-      if (any) {
-        IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id),
-                                    state.solid_temperature.var, state.pressure.var, component, start, end, registry);
-        isotherm_->Update(params);
-        // q* at the floored state now sits in qi_sat; keep it and restore the state.
-        std::swap(q_scratch_, qi_sat);          // q_scratch_ = floored q*, qi_sat = original (restored)
-        std::copy(y_scratch_.begin(), y_scratch_.end(), yi.begin());
-        (void)N;
-      } else {
-        q_scratch_.assign(qi_sat.begin(), qi_sat.end());
-      }
-      have_floor_eval = true;
+      IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id),
+                                  state.solid_temperature.var, state.pressure.var, component, start, end, registry);
+      isotherm_->Update(params);
+      std::swap(q_scratch_, qi_sat);   // q_scratch_ = q* at the floored state; qi_sat = the original, restored
+      std::copy(y_scratch_.begin(), y_scratch_.end(), yi.begin());
     }
 
     for (int n = start; n <= end; ++n) {
@@ -150,11 +142,13 @@ namespace adsim {
       const double Dmi_eff = Dmi[n] * ep / tortuosity;
       const double k_macro = 60.0 * Dmi_eff / (dp * dp);
       double ratio = 1.0;
-      if (rho_p > 0.0) {
-        const double c = std::max(Ci[n], c_floor);
-        const double q = have_floor_eval ? q_scratch_[n] : qi_sat[n];
-        const double denom = rho_p * q;
-        ratio = denom > 0.0 ? std::min(c / denom, 1.0) : 1.0;
+      if (evaluate && T[n] > 0.0 && P[n] > 0.0) {
+        // Gas-phase concentration from the state itself (y P / R T), floored
+        // like the isotherm evaluation above.
+        const double c = std::max(y_scratch_[n], 0.0) * P[n] / (R * T[n]);
+        const double c_eff = std::max(c, c_floor);
+        const double denom = rho_p * q_scratch_[n];
+        ratio = denom > 0.0 ? std::min(c_eff / denom, 1.0) : 1.0;
       }
       mtc[n] = k_macro * ratio;
     }
