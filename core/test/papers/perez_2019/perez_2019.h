@@ -53,6 +53,11 @@ namespace adsim {
       _13X.particle_diameter_ = 2 * 7.5e-4;
       _13X.eb_ = eb;
       _13X.domain_.n_cells = 30;
+      // SI Eq. S5 is the Blake-Kozeny law (constant 150); the deck keeps Darcy /
+      // Kozeny-Carman (180): the paper calls the pressure drop negligible, the
+      // difference is 0.3 pp of recovery (README), and Ergun fails the
+      // initial-condition calculation of ConfigD1_ConnectedBC (fast feed with a
+      // connected LPP stream) - an engine follow-up, not a deck choice.
       std::get<CylinderBed>(data.bed.shape_).diameter = Di;
 
       auto& _13X_ads = GetAdsorbent(ads_id);
@@ -65,6 +70,10 @@ namespace adsim {
       data.bed.wall_.thermal_conductivity_ = 16;
       data.bed.wall_.thickness_ = 3.1e-3;
       data.bed.ambient_temperature_ = 293;
+      // SI Table S2: T_w = T_a at both ends of the wall in every step.
+      auto wall_bc = std::make_unique<WallTemperatureBoundaryConditionFixed>();
+      wall_bc->temperature_ = 293.0;
+      data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
 
       data.fluid.adsorbed_heat_capacity_[CO2] = 30.7;
       data.fluid.adsorbed_heat_capacity_[N2] = 30.7;
@@ -89,8 +98,9 @@ namespace adsim {
       dsl->params_[N2].q2 = 15.72e3;
       AddIsotherm({ CO2, N2 }, ads_id, std::move(dsl));
 
-      AddLinearDrivingForceModel_Macropore(ads_id, CO2, 3.0, 0.35);
-      AddLinearDrivingForceModel_Macropore(ads_id, N2, 3.0, 0.35);
+      // SI Eq. S4: the macropore coefficient times the capacity factor c / (rho_p q*).
+      AddLinearDrivingForceModel_MacroporeCapacity(ads_id, CO2, 3.0, 0.35);
+      AddLinearDrivingForceModel_MacroporeCapacity(ads_id, N2, 3.0, 0.35);
 
       SetHOA(ads_id, CO2, 30.85e3);
       SetHOA(ads_id, N2, 15.93e3);

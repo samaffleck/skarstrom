@@ -40,11 +40,11 @@
                                                 "value0": {
                                                     "Mass_Transfer_Coefficient_Model": {
                                                         "polymorphic_id": 2147483650,
-                                                        "polymorphic_name": "adsim::MassTransferCoefficientMacropore",
+                                                        "polymorphic_name": "adsim::MassTransferCoefficientMacroporeCapacity",
                                                         "ptr_wrapper": {
                                                             "valid": 1,
                                                             "data": {
-                                                                "cereal_class_version": 2,
+                                                                "cereal_class_version": 1,
                                                                 "value0": {},
                                                                 "Tortuosity": {
                                                                     "Value": 3.0,
@@ -54,6 +54,11 @@
                                                                 "Macropore_Void_Fraction": {
                                                                     "Value": 0.35,
                                                                     "Expression": "0.35",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Concentration_Floor": {
+                                                                    "Value": 0.001,
+                                                                    "Expression": "0.001",
                                                                     "DisplayUnitIndex": 0
                                                                 }
                                                             }
@@ -86,6 +91,11 @@
                                                                 "Macropore_Void_Fraction": {
                                                                     "Value": 0.35,
                                                                     "Expression": "0.35",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Concentration_Floor": {
+                                                                    "Value": 0.001,
+                                                                    "Expression": "0.001",
                                                                     "DisplayUnitIndex": 0
                                                                 }
                                                             }
@@ -404,13 +414,18 @@
                 "cereal_class_version": 2,
                 "Wall_Temperature_Boundary_Condition": {
                     "polymorphic_id": 2147483656,
-                    "polymorphic_name": "adsim::WallTemperatureBoundaryConditionZeroFlux",
+                    "polymorphic_name": "adsim::WallTemperatureBoundaryConditionFixed",
                     "ptr_wrapper": {
                         "valid": 1,
                         "data": {
                             "cereal_class_version": 1,
                             "value0": {
                                 "cereal_class_version": 0
+                            },
+                            "Fixed_Wall_Temperature": {
+                                "Value": 293.0,
+                                "Expression": "293",
+                                "DisplayUnitIndex": 0
                             }
                         }
                     }
@@ -682,19 +697,19 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.17344923088218637,
-                                    "Average_Temperature": 295.26781724516658,
+                                    "Total_Moles": 0.17546881913137964,
+                                    "Average_Temperature": 294.94183023531857,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.9598157521080193
+                                            "value": 0.9469637462502507
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.04018424789198075
+                                            "value": 0.053036253749749389
                                         }
                                     ],
-                                    "Source_Cycle_Index": 63
+                                    "Source_Cycle_Index": 54
                                 },
                                 "Inlet_Temperature_Profile": {
                                     "polymorphic_id": 0
@@ -766,19 +781,19 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.19258174471121246,
+                                                        "Total_Moles": 0.1925830432304557,
                                                         "Average_Temperature": 298.0,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.15000000000000003
+                                                                "value": 0.14999999999999995
                                                             },
                                                             {
                                                                 "key": "Nitrogen",
                                                                 "value": 0.8500000000000001
                                                             }
                                                         ],
-                                                        "Source_Cycle_Index": 63
+                                                        "Source_Cycle_Index": 54
                                                     },
                                                     "Temperature_Profile": {
                                                         "polymorphic_id": 0
@@ -997,19 +1012,19 @@
                                 },
                                 "Cycle_Endpoint_Summary": {
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.03177898870210378,
-                                    "Average_Temperature": 293.556328696336,
+                                    "Total_Moles": 0.031184492124109229,
+                                    "Average_Temperature": 293.2399217791484,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.8988570254112406
+                                            "value": 0.8662545074745105
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.10114297458875941
+                                            "value": 0.13374549252548957
                                         }
                                     ],
-                                    "Source_Cycle_Index": 63
+                                    "Source_Cycle_Index": 54
                                 },
                                 "Inlet_Temperature_Profile": {
                                     "polymorphic_id": 0
@@ -1092,10 +1107,12 @@
                                     }
                                 ],
                                 "Boundary_Pressure": {
-                                    "polymorphic_id": 18,
+                                    "polymorphic_id": 2147483668,
+                                    "polymorphic_name": "adsim::DoubleExponentialBoundaryValue",
                                     "ptr_wrapper": {
                                         "valid": 1,
                                         "data": {
+                                            "cereal_class_version": 1,
                                             "value0": {},
                                             "End_Value": {
                                                 "Value": 3200.0,
@@ -1107,10 +1124,19 @@
                                                 "Expression": "1",
                                                 "DisplayUnitIndex": 0
                                             },
-                                            "Proportional_Gain": 0.95,
-                                            "Step_Time": {
-                                                "Value": 57.0,
-                                                "Expression": "57",
+                                            "Rate_1": {
+                                                "Value": 0.019,
+                                                "Expression": "0.019",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "Rate_2": {
+                                                "Value": 0.101,
+                                                "Expression": "0.101",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "Weight": {
+                                                "Value": 0.5,
+                                                "Expression": "0.5",
                                                 "DisplayUnitIndex": 0
                                             }
                                         }
@@ -1178,19 +1204,19 @@
                                 },
                                 "Cycle_Endpoint_Summary": {
                                     "Is_Valid": true,
-                                    "Total_Moles": -0.025484067926812086,
-                                    "Average_Temperature": 288.31153118449199,
+                                    "Total_Moles": -0.02146376487211981,
+                                    "Average_Temperature": 289.6972719511251,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.03993832370419239
+                                            "value": 0.03295958225442344
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.9600616762958076
+                                            "value": 0.9670404177455766
                                         }
                                     ],
-                                    "Source_Cycle_Index": 63
+                                    "Source_Cycle_Index": 54
                                 },
                                 "Inlet_Temperature_Profile": {
                                     "polymorphic_id": 0
@@ -1259,7 +1285,7 @@
                                     }
                                 ],
                                 "Boundary_Pressure": {
-                                    "polymorphic_id": 2147483668,
+                                    "polymorphic_id": 2147483669,
                                     "polymorphic_name": "adsim::LinearBoundaryValue",
                                     "ptr_wrapper": {
                                         "valid": 1,
@@ -1346,19 +1372,19 @@
                                 },
                                 "Cycle_Endpoint_Summary": {
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.03949289451509739,
-                                    "Average_Temperature": 297.9999999999998,
+                                    "Total_Moles": 0.03667885410605902,
+                                    "Average_Temperature": 297.99999999999997,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.8499999999999999
+                                            "value": 0.85
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.15000000000000009
+                                            "value": 0.14999999999999995
                                         }
                                     ],
-                                    "Source_Cycle_Index": 63
+                                    "Source_Cycle_Index": 54
                                 },
                                 "Inlet_Temperature_Profile": {
                                     "polymorphic_id": 0

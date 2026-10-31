@@ -25,6 +25,20 @@ root `CMakeLists.txt`.
   gone).
 
 ### Changed
+- **Perez 2019 example decks** (`Perez2019_A/B/C1/D1/E/F`) now use the paper's model
+  forms, after an audit of the deck against the paper and its SI
+  (`core/test/papers/perez_2019/README.md`, provenance and attribution tables): the
+  two-term exponential evacuation pressure of Sect. 4.3 (0.019 and 0.101 1/s; the split
+  of the terms is not printed and an equal split is used, chosen on A), wall ends at
+  ambient (SI Table S2) and the capacity-factor LDF of SI Eq. S4. The four-step
+  recoveries, 8-10 pp above the experiments before, are now within 0.7-1.1 pp for A and
+  B; the attribution shows the evacuation pressure history was the cause. The decks keep
+  Kozeny-Carman: the paper calls the pressure drop negligible, Ergun is worth 0.3 pp, and
+  it fails the initial-condition calculation of the fast-feed connected configuration in
+  `ConfigD1_ConnectedBC` (an open engine item). `examples/perez_2019.py` builds the same
+  decks.
+
+### Changed
 - **Ward 2022 example decks** (`Ward2022_Q50ccm/Q100ccm/Q200ccm`) now use the
   paper's model forms, after an audit of the deck against the paper text
   (`core/test/papers/ward_2022/README.md`, provenance and attribution tables):

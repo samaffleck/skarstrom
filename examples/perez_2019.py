@@ -79,9 +79,10 @@ def add_zeolite_13x(sim: sk.Simulation) -> sk.Adsorbent:
         "Nitrogen":      {"m1": 2.768 * u.mol / u.kg, "b1": 3.134e-6 * u.m**3 / u.mol, "q1": 15.71 * u.kJ / u.mol,
                           "m2": 2.758 * u.mol / u.kg, "b2": 3.134e-6 * u.m**3 / u.mol, "q2": 15.72 * u.kJ / u.mol},
     }, components=["CarbonDioxide", "Nitrogen"])
-    # Linear driving force with a macropore-diffusion-controlled coefficient.
+    # Linear driving force with the macropore coefficient times the capacity factor
+    # c / (rho_p q*) (paper SI Eq. S4).
     for component in ("CarbonDioxide", "Nitrogen"):
-        ads.set_rate_model(component, "ldf", "macropore", tortuosity=3.0, macropore_void_fraction=0.35)
+        ads.set_rate_model(component, "ldf", "macropore_capacity", tortuosity=3.0, macropore_void_fraction=0.35)
     ads.heat_of_adsorption["CarbonDioxide"] = 30.85 * u.kJ / u.mol
     ads.heat_of_adsorption["Nitrogen"] = 15.93 * u.kJ / u.mol
     return ads
@@ -120,7 +121,7 @@ def build(case: str) -> sk.Simulation:
     sim.wall.set_material("ss316l", density=7800 * u.kg / u.m**3, heat_capacity=502 * u.J / (u.kg * u.K),
                           thermal_conductivity=16 * u.W / (u.m * u.K))
     sim.wall.thickness = 3.1 * u.mm
-    sim.wall.set_boundary("zero_flux")
+    sim.wall.set_boundary("fixed", fixed_temperature=293 * u.K)     # SI Table S2: wall ends at T_a
 
     layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman",
                           length=0.3 * u.m, cells=30, bed_void_fraction=0.41, particle_diameter=1.5 * u.mm)
@@ -186,8 +187,10 @@ def add_basic_cycle(sim: sk.Simulation, cfg: dict) -> None:
     blowdown.top.set_pressure("outlet", sk.exponential(cfg["blowdown_pressure"]), y=BACKFLOW, temperature=293 * u.K)
 
     evacuation = sim.add_step("Evacuation", time=cfg["evacuation_time"])
-    evacuation.bottom.set_pressure("outlet", sk.exponential(cfg["evacuation_pressure"]), y=BACKFLOW,
-                                   temperature=293 * u.K)
+    # Sect. 4.3: two-term exponential decay (0.019 and 0.101 1/s, Table 1); the split is not
+    # printed and an equal weight is used (core/test/papers/perez_2019/README.md).
+    evacuation.bottom.set_pressure("outlet", sk.double_exponential(cfg["evacuation_pressure"], rate_1=0.019, rate_2=0.101, weight=0.5),
+                                   y=BACKFLOW, temperature=293 * u.K)
     evacuation.top.set_closed()
 
     pressurisation = sim.add_step("Pressurisation", time=cfg["pressurisation_time"])
@@ -226,8 +229,10 @@ def add_lpp_cycle(sim: sk.Simulation, cfg: dict) -> None:
     blowdown.top.set_pressure("outlet", sk.exponential(cfg["blowdown_pressure"]), y=BACKFLOW, temperature=293 * u.K)
 
     evacuation = sim.add_step("Evacuation", time=cfg["evacuation_time"])
-    evacuation.bottom.set_pressure("outlet", sk.exponential(cfg["evacuation_pressure"]), y=BACKFLOW,
-                                   temperature=293 * u.K)
+    # Sect. 4.3: two-term exponential decay (0.019 and 0.101 1/s, Table 1); the split is not
+    # printed and an equal weight is used (core/test/papers/perez_2019/README.md).
+    evacuation.bottom.set_pressure("outlet", sk.double_exponential(cfg["evacuation_pressure"], rate_1=0.019, rate_2=0.101, weight=0.5),
+                                   y=BACKFLOW, temperature=293 * u.K)
     evacuation.top.set_closed()
 
     pressurisation = sim.add_step("Pressurisation", time=cfg["pressurisation_time"])

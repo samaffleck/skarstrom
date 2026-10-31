@@ -25,7 +25,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Ferré et al. (2026)](#ferre-2026) | 4 | paper model | 20 | 1.21 pp (abs. error)<br/>7.15 % (rel. error) | 10.5 pp (abs. error)<br/>59 % (rel. error) |
 | [Nguyen et al. (2022)](#nguyen-2022) | 6 | experiment | 12 | 9.94 % (NRMSE)<br/>1.69 % (rel. error) | 12.4 % (NRMSE)<br/>4.98 % (rel. error) |
 | [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.05 pp (abs. error)<br/>7.89 % (rel. error) | 9.85 pp (abs. error)<br/>17.5 % (rel. error) |
-| [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 3.42 pp (abs. error) | 9.53 pp (abs. error) |
+| [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 2.17 pp (abs. error) | 8.37 pp (abs. error) |
 | [Streb & Mazzotti (2021)](#streb-2021) | 9 | experiment | 47 | 36.1 % (NRMSE)<br/>7.27 % (rel. error)<br/>16.5 K (RMSE) | 82.9 % (NRMSE)<br/>14.8 % (rel. error)<br/>32.6 K (RMSE) |
 | [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.81 % (rel. error)<br/>0.253 K (abs. error)<br/>1.91 pp (abs. error) | 3.81 % (rel. error)<br/>0.253 K (abs. error)<br/>14 pp (abs. error) |
 | [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 12.9 % (NRMSE)<br/>1.65 % (rel. error)<br/>2.06 K (RMSE) | 18.4 % (NRMSE)<br/>1.93 % (rel. error)<br/>4.01 K (RMSE) |
@@ -275,39 +275,40 @@ L. Estupiñan Perez, P. Sarkar, A. Rajendran, Experimental validation of multi-o
 
 **Findings.**
 
-- Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 1.9-3.4 pp low and recovery 2.7-4.1 pp high, at the cyclic steady state of the per-component mass balance (E and F need about 450 and 1000 cycles to reach it).
-- adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K).
+- The decks use the paper's model forms (WP10 audit of the paper and SI, 2026-10-31): the two-term exponential evacuation pressure of Sect. 4.3 (0.019 and 0.101 1/s; the split of the terms is not printed and an equal split is used, chosen on A), wall ends at ambient (SI Table S2), the Blake-Kozeny pressure drop (Ergun) and the capacity-factor LDF of SI Eq. S4. Four-step cycles: CO2 purity within 0.2-0.6 pp and recovery within 0.7-1.1 pp of experiments A and B (recovery was 8-10 pp high); C1 is 4.5 pp below its experiment and 12 pp below the repeat C2, which differ from each other by 7 pp. LPP cycles: purity 1.5-3.3 pp low and recovery 1.9-3.3 pp high.
+- Attribution (README): the four-step recovery excess was the evacuation pressure history. The paper's profile keeps the column above P_low for most of the 57 s step where the deck's single exponential reached it; the capacity-factor kinetics, the wall ends and the pressure-drop constant are each worth under 0.5 pp. The LPP cycles' 167 s evacuation reaches P_low whatever the profile; their remaining recovery excess is the composition-coupled LPP connection.
+- Open: the split of the two evacuation terms (Fig. 6c would pin it); the experiment ended steps on pressure triggers whose durations are not printed; the one-second hold between steps and about 5 % dead volume are not modelled.
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| ConfigA | CO2 purity vs experiment | experiment | 98.94 % | 99.7 % | 0.759 pp abs. error | 1.1 pp | Table 3, 4-step, Experiment A, Experimental Purity |
-| ConfigA | CO2 recovery vs experiment | experiment | 68.23 % | 58.7 % | 9.53 pp abs. error | 12 pp | Table 3, 4-step, Experiment A, Experimental Recovery |
-| ConfigA | CO2 purity vs paper model | paper model | 98.94 % | 99.3 % | 0.359 pp abs. error | 0.67 pp | Table 3, 4-step, Experiment A, Model Purity |
-| ConfigA | CO2 recovery vs paper model | paper model | 68.23 % | 60 % | 8.23 pp abs. error | 9.6 pp | Table 3, 4-step, Experiment A, Model Recovery |
-| ConfigB | CO2 purity vs experiment | experiment | 96.01 % | 96.1 % | 0.0939 pp abs. error | 0.41 pp | Table 3, 4-step, Experiment B, Experimental Purity |
-| ConfigB | CO2 recovery vs experiment | experiment | 70.28 % | 61.8 % | 8.48 pp abs. error | 9.9 pp | Table 3, 4-step, Experiment B, Experimental Recovery |
-| ConfigB | CO2 purity vs paper model | paper model | 96.01 % | 95.2 % | 0.806 pp abs. error | 1.1 pp | Table 3, 4-step, Experiment B, Model Purity |
-| ConfigB | CO2 recovery vs paper model | paper model | 70.28 % | 64.1 % | 6.18 pp abs. error | 7.2 pp | Table 3, 4-step, Experiment B, Model Recovery |
-| ConfigC1 | CO2 purity vs experiment | experiment | 86.89 % | 88.1 % | 1.21 pp abs. error | 1.6 pp | Table 3, 4-step, Experiment C1, Experimental Purity |
-| ConfigC1 | CO2 recovery vs experiment | experiment | 72.76 % | 64.6 % | 8.16 pp abs. error | 9.5 pp | Table 3, 4-step, Experiment C1, Experimental Recovery |
-| ConfigC1 | CO2 purity vs paper model | paper model | 86.89 % | 83.4 % | 3.49 pp abs. error | 4.1 pp | Table 3, 4-step, Experiment C1/C2, Model Purity |
-| ConfigC1 | CO2 recovery vs paper model | paper model | 72.76 % | 68.2 % | 4.56 pp abs. error | 5.3 pp | Table 3, 4-step, Experiment C1/C2, Model Recovery |
-| ConfigC1 | CO2 purity vs repeat experiment C2 | experiment | 86.89 % | 86.9 % | 0.00843 pp abs. error | info | Table 3, 4-step, Experiment C2, Experimental Purity |
-| ConfigC1 | CO2 recovery vs repeat experiment C2 | experiment | 72.76 % | 71.9 % | 0.863 pp abs. error | info | Table 3, 4-step, Experiment C2, Experimental Recovery |
-| ConfigD1 | CO2 purity vs experiment | experiment | 93.72 % | 97.1 % | 3.38 pp abs. error | 3.9 pp | Table 3, LPP, Experiment D1, Experimental Purity |
-| ConfigD1 | CO2 recovery vs experiment | experiment | 90.22 % | 86.1 % | 4.12 pp abs. error | 4.8 pp | Table 3, LPP, Experiment D1, Experimental Recovery |
-| ConfigD1 | CO2 purity vs paper model | paper model | 93.72 % | 96.1 % | 2.38 pp abs. error | 2.8 pp | Table 3, LPP, Experiment D1/D2, Model Purity |
-| ConfigD1 | CO2 recovery vs paper model | paper model | 90.22 % | 86.8 % | 3.42 pp abs. error | 4 pp | Table 3, LPP, Experiment D1/D2, Model Recovery |
-| ConfigD1 | CO2 purity vs repeat experiment D2 | experiment | 93.72 % | 94.5 % | 0.779 pp abs. error | info | Table 3, LPP, Experiment D2, Experimental Purity |
-| ConfigD1 | CO2 recovery vs repeat experiment D2 | experiment | 90.22 % | 83.4 % | 6.82 pp abs. error | info | Table 3, LPP, Experiment D2, Experimental Recovery |
-| ConfigE | CO2 purity vs experiment | experiment | 86.56 % | 88.5 % | 1.94 pp abs. error | 2.3 pp | Table 3, LPP, Experiment E, Experimental Purity |
-| ConfigE | CO2 recovery vs experiment | experiment | 94.87 % | 91.7 % | 3.17 pp abs. error | 3.7 pp | Table 3, LPP, Experiment E, Experimental Recovery |
-| ConfigE | CO2 purity vs paper model | paper model | 86.56 % | 90.4 % | 3.84 pp abs. error | 4.5 pp | Table 3, LPP, Experiment E, Model Purity |
-| ConfigE | CO2 recovery vs paper model | paper model | 94.87 % | 91.1 % | 3.77 pp abs. error | 4.4 pp | Table 3, LPP, Experiment E, Model Recovery |
-| ConfigF | CO2 purity vs experiment | experiment | 75.41 % | 77.7 % | 2.29 pp abs. error | 2.7 pp | Table 3, LPP, Experiment F, Experimental Purity |
-| ConfigF | CO2 recovery vs experiment | experiment | 98.33 % | 95.6 % | 2.73 pp abs. error | 3.2 pp | Table 3, LPP, Experiment F, Experimental Recovery |
-| ConfigF | CO2 purity vs paper model | paper model | 75.41 % | 79.9 % | 4.49 pp abs. error | 5.2 pp | Table 3, LPP, Experiment F, Model Purity |
-| ConfigF | CO2 recovery vs paper model | paper model | 98.33 % | 94.6 % | 3.73 pp abs. error | 4.3 pp | Table 3, LPP, Experiment F, Model Recovery |
+| ConfigA | CO2 purity vs experiment | experiment | 99.49 % | 99.7 % | 0.215 pp abs. error | 0.3 pp | Table 3, 4-step, Experiment A, Experimental Purity |
+| ConfigA | CO2 recovery vs experiment | experiment | 58.99 % | 58.7 % | 0.294 pp abs. error | 0.4 pp | Table 3, 4-step, Experiment A, Experimental Recovery |
+| ConfigA | CO2 purity vs paper model | paper model | 99.49 % | 99.3 % | 0.185 pp abs. error | 0.3 pp | Table 3, 4-step, Experiment A, Model Purity |
+| ConfigA | CO2 recovery vs paper model | paper model | 58.99 % | 60 % | 1.01 pp abs. error | 1.2 pp | Table 3, 4-step, Experiment A, Model Recovery |
+| ConfigB | CO2 purity vs experiment | experiment | 96.7 % | 96.1 % | 0.604 pp abs. error | 0.7 pp | Table 3, 4-step, Experiment B, Experimental Purity |
+| ConfigB | CO2 recovery vs experiment | experiment | 60.36 % | 61.8 % | 1.44 pp abs. error | 1.7 pp | Table 3, 4-step, Experiment B, Experimental Recovery |
+| ConfigB | CO2 purity vs paper model | paper model | 96.7 % | 95.2 % | 1.5 pp abs. error | 1.8 pp | Table 3, 4-step, Experiment B, Model Purity |
+| ConfigB | CO2 recovery vs paper model | paper model | 60.36 % | 64.1 % | 3.74 pp abs. error | 4.3 pp | Table 3, 4-step, Experiment B, Model Recovery |
+| ConfigC1 | CO2 purity vs experiment | experiment | 87.56 % | 88.1 % | 0.536 pp abs. error | 0.62 pp | Table 3, 4-step, Experiment C1, Experimental Purity |
+| ConfigC1 | CO2 recovery vs experiment | experiment | 59.83 % | 64.6 % | 4.77 pp abs. error | 5.5 pp | Table 3, 4-step, Experiment C1, Experimental Recovery |
+| ConfigC1 | CO2 purity vs paper model | paper model | 87.56 % | 83.4 % | 4.16 pp abs. error | 4.8 pp | Table 3, 4-step, Experiment C1/C2, Model Purity |
+| ConfigC1 | CO2 recovery vs paper model | paper model | 59.83 % | 68.2 % | 8.37 pp abs. error | 9.7 pp | Table 3, 4-step, Experiment C1/C2, Model Recovery |
+| ConfigC1 | CO2 purity vs repeat experiment C2 | experiment | 87.56 % | 86.9 % | 0.664 pp abs. error | info | Table 3, 4-step, Experiment C2, Experimental Purity |
+| ConfigC1 | CO2 recovery vs repeat experiment C2 | experiment | 59.83 % | 71.9 % | 12.1 pp abs. error | info | Table 3, 4-step, Experiment C2, Experimental Recovery |
+| ConfigD1 | CO2 purity vs experiment | experiment | 93.76 % | 97.1 % | 3.34 pp abs. error | 3.9 pp | Table 3, LPP, Experiment D1, Experimental Purity |
+| ConfigD1 | CO2 recovery vs experiment | experiment | 89.11 % | 86.1 % | 3.01 pp abs. error | 3.5 pp | Table 3, LPP, Experiment D1, Experimental Recovery |
+| ConfigD1 | CO2 purity vs paper model | paper model | 93.76 % | 96.1 % | 2.34 pp abs. error | 2.7 pp | Table 3, LPP, Experiment D1/D2, Model Purity |
+| ConfigD1 | CO2 recovery vs paper model | paper model | 89.11 % | 86.8 % | 2.31 pp abs. error | 2.7 pp | Table 3, LPP, Experiment D1/D2, Model Recovery |
+| ConfigD1 | CO2 purity vs repeat experiment D2 | experiment | 93.76 % | 94.5 % | 0.737 pp abs. error | info | Table 3, LPP, Experiment D2, Experimental Purity |
+| ConfigD1 | CO2 recovery vs repeat experiment D2 | experiment | 89.11 % | 83.4 % | 5.71 pp abs. error | info | Table 3, LPP, Experiment D2, Experimental Recovery |
+| ConfigE | CO2 purity vs experiment | experiment | 86.69 % | 88.5 % | 1.81 pp abs. error | 2.1 pp | Table 3, LPP, Experiment E, Experimental Purity |
+| ConfigE | CO2 recovery vs experiment | experiment | 93.87 % | 91.7 % | 2.17 pp abs. error | 2.5 pp | Table 3, LPP, Experiment E, Experimental Recovery |
+| ConfigE | CO2 purity vs paper model | paper model | 86.69 % | 90.4 % | 3.71 pp abs. error | 4.3 pp | Table 3, LPP, Experiment E, Model Purity |
+| ConfigE | CO2 recovery vs paper model | paper model | 93.87 % | 91.1 % | 2.77 pp abs. error | 3.2 pp | Table 3, LPP, Experiment E, Model Recovery |
+| ConfigF | CO2 purity vs experiment | experiment | 76.08 % | 77.7 % | 1.62 pp abs. error | 1.9 pp | Table 3, LPP, Experiment F, Experimental Purity |
+| ConfigF | CO2 recovery vs experiment | experiment | 97.17 % | 95.6 % | 1.57 pp abs. error | 1.9 pp | Table 3, LPP, Experiment F, Experimental Recovery |
+| ConfigF | CO2 purity vs paper model | paper model | 76.08 % | 79.9 % | 3.82 pp abs. error | 4.4 pp | Table 3, LPP, Experiment F, Model Purity |
+| ConfigF | CO2 recovery vs paper model | paper model | 97.17 % | 94.6 % | 2.57 pp abs. error | 3 pp | Table 3, LPP, Experiment F, Model Recovery |
 
 ??? note "Notes on these comparisons"
 
