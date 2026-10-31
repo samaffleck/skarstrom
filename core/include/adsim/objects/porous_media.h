@@ -79,7 +79,9 @@ namespace adsim {
     // denominator instead of recomputing it once per component. Writes into the
     // adsorbent's own equilibrium-loading map (eq_ads_concentration[ads_id]).
     void UpdateIsothermAll(Equations& state, AdsorbentID ads_id, const std::vector<std::string>& components, int start_index, int end_index, const UserVariableRegistry* registry);
-    void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const std::string& component, const Fluid& fluid, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry);
+    // solid_density [kg/m3] is the owning adsorbent's particle density, which
+    // the capacity-factor coefficient needs (0 when unknown).
+    void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const std::string& component, const Fluid& fluid, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry, double solid_density = 0.0);
     std::unique_ptr<IIsotherm>& GetIsotherm(const std::string& component);
 
     std::unordered_map<std::string, std::unique_ptr<IMassTransferModel>> mass_transfer_models_{};

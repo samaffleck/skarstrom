@@ -168,6 +168,16 @@ namespace adsim {
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
     }
 
+    void AddLinearDrivingForceModel_MacroporeCapacity(AdsorbentID ads_id, const std::string& component,
+      double tortuosity, double ep) {
+      auto ldf = std::make_unique<LinearDrivingForce>();
+      auto ldf_mtc = std::make_unique<MassTransferCoefficientMacroporeCapacity>();
+      ldf_mtc->tortuosity_ = tortuosity;
+      ldf_mtc->macropore_void_fraction_ = ep;
+      ldf->mtc_model_ = std::move(ldf_mtc);
+      GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
+    }
+
     void AddLinearDrivingForceModel_Macropore(AdsorbentID ads_id, const std::string& component,
       double tortuosity, double ep) {
       auto ldf = std::make_unique<LinearDrivingForce>();

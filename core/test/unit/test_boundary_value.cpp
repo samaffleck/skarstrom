@@ -143,6 +143,44 @@ TEST(ExponentialBoundaryValue, RuntimeInitialiseLeavesUserExpressionsUntouched) 
   EXPECT_NEAR(bv.GetValue(200.0), 1e5 + (1e4 - 1e5) * 0.99, 1e-6);
 }
 
+// ─── DoubleExponentialBoundaryValue ─────────────────────────────────────────
+
+TEST(DoubleExponentialBoundaryValue, SumsTwoDecaysWithTheGivenWeights) {
+  DoubleExponentialBoundaryValue bv;
+  bv.end_value_ = 3.2e3;
+  bv.rate_1_ = 0.019;
+  bv.rate_2_ = 0.101;
+  bv.weight_ = 0.3;
+  bv.InitialiseStartValue(6.0e3);
+  EXPECT_DOUBLE_EQ(bv.GetValue(0.0), 6.0e3);
+  for (double t : {1.0, 20.0, 57.0, 300.0}) {
+    const double expected = 3.2e3 + (6.0e3 - 3.2e3) * (0.3 * std::exp(-0.019 * t) + 0.7 * std::exp(-0.101 * t));
+    EXPECT_DOUBLE_EQ(bv.GetValue(t), expected) << "t = " << t;
+  }
+  EXPECT_GT(bv.GetValue(1000.0), 3.2e3);
+  EXPECT_LT(bv.GetValue(1000.0), 3.2e3 + 1.0);
+}
+
+TEST(DoubleExponentialBoundaryValue, WeightOneIsASingleExponential) {
+  DoubleExponentialBoundaryValue bv;
+  bv.end_value_ = 0.0;
+  bv.rate_1_ = 0.1742;
+  bv.rate_2_ = 5.0;
+  bv.weight_ = 1.0;
+  bv.InitialiseStartValue(1.0);
+  EXPECT_DOUBLE_EQ(bv.GetValue(10.0), std::exp(-1.742));
+}
+
+TEST(DoubleExponentialBoundaryValue, ZeroRatesHoldTheStartValue) {
+  DoubleExponentialBoundaryValue bv;
+  bv.end_value_ = 1e4;
+  bv.rate_1_ = 0.0;
+  bv.rate_2_ = 0.0;
+  bv.weight_ = 0.5;
+  bv.InitialiseStartValue(1e5);
+  for (double t : {0.0, 1.0, 100.0}) EXPECT_DOUBLE_EQ(bv.GetValue(t), 1e5) << "t = " << t;
+}
+
 // ─── LogLinearBoundaryValue ─────────────────────────────────────────────────
 
 TEST(LogLinearBoundaryValue, RisesGeometrically) {

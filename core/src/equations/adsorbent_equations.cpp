@@ -1033,7 +1033,8 @@ namespace adsim {
     auto& source = adsorbent.adsorption_source_;
     for (auto& layer : bed.layers_.layers_) {
       if (layer.composition_.find(ads_id) == layer.composition_.end()) continue;
-      source.UpdateMassTransferCoefficient(state, ads_id, component, fluid, layer, &udata->variable_registry);
+      source.UpdateMassTransferCoefficient(state, ads_id, component, fluid, layer, &udata->variable_registry,
+                                          adsorbent.solid_density_.Get());
     }
 
     ZeroVoidCellsAndMirrorGhosts(state.mass_transfer_coefficient.at(ads_id).at(component).var, bed);

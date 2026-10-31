@@ -107,6 +107,14 @@ In upward flow the pressure gradient at the bed inlet scales roughly with $d\ln 
 
 A geometric ramp cannot start from or pass through zero, so when the start or final value is zero or negative the log-linear profile ramps linearly instead (for example a flow ramp that starts from zero).
 
+- **Double exponential** — a two-term decay towards the **Final Value**: a share $w$ of the initial excess decays at **Rate 1** and the rest at **Rate 2** (both in s⁻¹, entered as fitted, not as a 99 % time):
+
+$$
+v(t) = v_1 + (v_0 - v_1)\left[w\thinspace e^{-r_1 t} + (1 - w)\thinspace e^{-r_2 t}\right]
+$$
+
+This is the form Estupiñan Perez et al. (2019) fitted to the evacuation pressure of their VSA rig (a fast term for the column gas, a slow one for the pump and piping, $r_1 = 0.019$ and $r_2 = 0.101$ s⁻¹), where a single exponential did not describe the measured curve. For a pressure the start is the bed pressure at the start of the step; a rate of zero freezes its term at the start value.
+
 > All numeric fields accept [expressions and units](global-variables.md), e.g. `2 [bar]` or a reference to a global variable.
 
 ---

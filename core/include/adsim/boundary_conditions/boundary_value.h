@@ -17,14 +17,16 @@ namespace adsim {
 		"Constant",		// 0
 		"Linear",		// 1
 		"Exponential",	// 2
-		"Log-linear"	// 3
+		"Log-linear",	// 3
+		"Double exponential"	// 4
 	};
 
 	enum class BoundaryValueType {
 		CONSTANT = 0,
 		LINEAR = 1,
 		EXPONENTIAL = 2,
-		LOG_LINEAR = 3
+		LOG_LINEAR = 3,
+		DOUBLE_EXPONENTIAL = 4
 	};
 
 	class IBoundaryValue {
@@ -145,6 +147,51 @@ namespace adsim {
 				cereal::make_nvp("Start_Value", start_value_),
 				cereal::make_nvp("Proportional_Gain", gain_),
 				cereal::make_nvp("Step_Time", step_time_)
+			);
+		}
+	};
+
+	// A two-term exponential decay towards the end value: the initial excess
+	// over the end value splits into a share w that decays at rate_1 and the
+	// rest at rate_2,
+	//   v(t) = v1 + (v0 - v1) [w e^(-r1 t) + (1 - w) e^(-r2 t)].
+	// The form Estupinan Perez et al. (2019) fitted to the evacuation pressure
+	// of their VSA rig (Sect. 4.3, SI Table S2): a fast term for the column
+	// gas and a slow one for the pump and piping. The rates are given directly
+	// in 1/s (not a 99 % time like the exponential profile) so a fitted value
+	// goes in as printed; a rate of zero freezes its term at the start value.
+	class DoubleExponentialBoundaryValue : public IBoundaryValue {
+	public:
+		BoundaryValueType GetType() override { return BoundaryValueType::DOUBLE_EXPONENTIAL; }
+		double GetValue(double time) override;
+		void InitialiseStartValue(double start_value) override { runtime_start_value_ = start_value; }
+		void EvaluateExpressions(const EvalContext& ctx) override {
+			end_value_.Evaluate(ctx);
+			start_value_.Evaluate(ctx);
+			rate_1_.Evaluate(ctx);
+			rate_2_.Evaluate(ctx);
+			weight_.Evaluate(ctx);
+		}
+
+		ExpressionParam end_value_{1e5};
+		ExpressionParam start_value_{1};
+		ExpressionParam rate_1_{0.02};   // [1/s] rate of the slow term
+		ExpressionParam rate_2_{0.1};    // [1/s] rate of the fast term
+		ExpressionParam weight_{0.5};    // [-] share of the initial excess in the slow term
+
+	private:
+		std::optional<double> runtime_start_value_;  // not serialised (see LinearBoundaryValue)
+
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const /*version*/) {
+			ar(
+				cereal::virtual_base_class<IBoundaryValue>(this),
+				cereal::make_nvp("End_Value", end_value_),
+				cereal::make_nvp("Start_Value", start_value_),
+				cereal::make_nvp("Rate_1", rate_1_),
+				cereal::make_nvp("Rate_2", rate_2_),
+				cereal::make_nvp("Weight", weight_)
 			);
 		}
 	};

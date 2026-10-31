@@ -662,6 +662,12 @@ namespace adsim {
         E(head + "_log_linear_start", name + " (log-linear start)", unit, lg->start_value_, lo, hi);
         E(head + "_log_linear_end", name + " (log-linear end)", unit, lg->end_value_, lo, hi);
         E(head + "_log_linear_time", name + " (log-linear ramp time)", "s", lg->ramp_time_, 0.0, 1e4);
+      } else if (auto* de = dynamic_cast<DoubleExponentialBoundaryValue*>(value)) {
+        E(head + "_double_exponential_start", name + " (double-exponential start)", unit, de->start_value_, lo, hi);
+        E(head + "_double_exponential_end", name + " (double-exponential end)", unit, de->end_value_, lo, hi);
+        E(head + "_double_exponential_rate_1", name + " (double-exponential rate 1)", "1/s", de->rate_1_, 0.0, 10.0);
+        E(head + "_double_exponential_rate_2", name + " (double-exponential rate 2)", "1/s", de->rate_2_, 0.0, 10.0);
+        E(head + "_double_exponential_weight", name + " (double-exponential weight of term 1)", "-", de->weight_, 0.0, 1.0);
       }
     }
 
@@ -732,6 +738,15 @@ namespace adsim {
       } else if (auto* bv = dynamic_cast<LogLinearBoundaryValue*>(value)) {
         Emplace(ep.path + ".pressure_log_linear_end", ep.alias + ".pressure_log_linear_end", "cycle",
                 ep.subcategory, "pressure (log-linear end)", "Pa", bv->end_value_, 1e4, 1e6);
+      } else if (auto* bv = dynamic_cast<DoubleExponentialBoundaryValue*>(value)) {
+        Emplace(ep.path + ".pressure_double_exponential_end", ep.alias + ".pressure_double_exponential_end", "cycle",
+                ep.subcategory, "pressure (double-exponential end)", "Pa", bv->end_value_, 1e4, 1e6);
+        Emplace(ep.path + ".pressure_double_exponential_rate_1", ep.alias + ".pressure_double_exponential_rate_1", "cycle",
+                ep.subcategory, "pressure (double-exponential rate 1)", "1/s", bv->rate_1_, 0.0, 10.0);
+        Emplace(ep.path + ".pressure_double_exponential_rate_2", ep.alias + ".pressure_double_exponential_rate_2", "cycle",
+                ep.subcategory, "pressure (double-exponential rate 2)", "1/s", bv->rate_2_, 0.0, 10.0);
+        Emplace(ep.path + ".pressure_double_exponential_weight", ep.alias + ".pressure_double_exponential_weight", "cycle",
+                ep.subcategory, "pressure (double-exponential weight of term 1)", "-", bv->weight_, 0.0, 1.0);
       }
     }
 
@@ -952,6 +967,12 @@ namespace adsim {
           E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
           E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
             m->macropore_void_fraction_, 0.01, 0.8);
+        } else if (auto* m = dynamic_cast<MassTransferCoefficientMacroporeCapacity*>(mtc)) {
+          E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
+          E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
+            m->macropore_void_fraction_, 0.01, 0.8);
+          E(kp + "concentration_floor", "adsorbent", sub, "capacity-factor concentration floor", "mol/m3",
+            m->concentration_floor_, 0.0, 10.0);
         }
       }
 

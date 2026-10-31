@@ -84,7 +84,8 @@ std::unique_ptr<IBoundaryValue> MakeProfile(const std::string& kind) {
     case 0: return std::make_unique<ConstantBoundaryValue>();
     case 1: return std::make_unique<LinearBoundaryValue>();
     case 2: return std::make_unique<ExponentialBoundaryValue>();
-    default: return std::make_unique<LogLinearBoundaryValue>();
+    case 3: return std::make_unique<LogLinearBoundaryValue>();
+    default: return std::make_unique<DoubleExponentialBoundaryValue>();
   }
 }
 
@@ -163,7 +164,7 @@ const std::vector<std::string>& RateModelKinds() {
   return k;
 }
 const std::vector<std::string>& RateCoefficientKinds() {
-  static const std::vector<std::string> k{"constant", "macropore", "macropore_knudsen", "haynes", "arrhenius"};
+  static const std::vector<std::string> k{"constant", "macropore", "macropore_knudsen", "haynes", "arrhenius", "macropore_capacity"};
   return k;
 }
 const std::vector<std::string>& MomentumKinds() {
@@ -209,7 +210,7 @@ const std::vector<std::string>& WallBoundaryKinds() {
   return k;
 }
 const std::vector<std::string>& ProfileKinds() {
-  static const std::vector<std::string> k{"constant", "linear", "exponential", "log_linear"};
+  static const std::vector<std::string> k{"constant", "linear", "exponential", "log_linear", "double_exponential"};
   return k;
 }
 const std::vector<std::string>& FlowKinds() {

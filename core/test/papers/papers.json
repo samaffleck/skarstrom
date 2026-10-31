@@ -74,8 +74,9 @@
       "system": "CO2/N2 VSA on zeolite 13X (4-step and LPP)",
       "reference_kind": "experimental and model purity/recovery (Table 3)",
       "findings": [
-        "Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 1.9-3.4 pp low and recovery 2.7-4.1 pp high, at the cyclic steady state of the per-component mass balance (E and F need about 450 and 1000 cycles to reach it).",
-        "adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K)."
+        "The decks use the paper's model forms (WP10 audit of the paper and SI, 2026-10-31): the two-term exponential evacuation pressure of Sect. 4.3 (0.019 and 0.101 1/s; the split of the terms is not printed and an equal split is used, chosen on A), wall ends at ambient (SI Table S2), the Blake-Kozeny pressure drop (Ergun) and the capacity-factor LDF of SI Eq. S4. Four-step cycles: CO2 purity within 0.2-0.6 pp and recovery within 0.7-1.1 pp of experiments A and B (recovery was 8-10 pp high); C1 is 4.5 pp below its experiment and 12 pp below the repeat C2, which differ from each other by 7 pp. LPP cycles: purity 1.5-3.3 pp low and recovery 1.9-3.3 pp high.",
+        "Attribution (README): the four-step recovery excess was the evacuation pressure history. The paper's profile keeps the column above P_low for most of the 57 s step where the deck's single exponential reached it; the capacity-factor kinetics, the wall ends and the pressure-drop constant are each worth under 0.5 pp. The LPP cycles' 167 s evacuation reaches P_low whatever the profile; their remaining recovery excess is the composition-coupled LPP connection.",
+        "Open: the split of the two evacuation terms (Fig. 6c would pin it); the experiment ended steps on pressure triggers whose durations are not printed; the one-second hold between steps and about 5 % dead volume are not modelled."
       ]
     },
     {

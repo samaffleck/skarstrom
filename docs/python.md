@@ -276,7 +276,7 @@ What each part takes:
 | `sim.add_component(name)` | a CoolProp name or formula |
 | `sim.add_adsorbent(name, **values)` | `solid_density`, `heat_capacity`, `thermal_conductivity`, `particle_void_fraction`; new components get an inert isotherm and a constant LDF rate |
 | `ads.set_isotherm(kind, {component: {param: value}}, components=None)` | `build_kinds()["isotherm"]`; the parameters are those of `skarstrom.isotherm_parameters(kind)`. Components given together share one (competitive) isotherm |
-| `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf` or `ldf2`; coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes` |
+| `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf` or `ldf2`; coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity` |
 | `sim.bed.set_shape(kind, **values)` | `cylinder` (diameter), `square` (width), `rectangle` (width, length) |
 | `sim.bed.set_thermal_equilibrium(kind)`, `sim.bed.set_particle_heat_transfer("constant", particle_htc=...)` | `lte` or `ltne` |
 | `sim.wall.set_material(kind, **values)`, `sim.wall.set_boundary(kind, **values)` | a library material or `custom`; `zero_flux` or `fixed` |
@@ -291,7 +291,7 @@ What each part takes:
 | `inlet.set_buffer_tank(source, percentage=)` | an inlet fed, time-averaged, with `percentage` % of what endpoint `source` produced in its last run; `None` removes it |
 | `sim.kpi.track(component, feed=, product=, recycle=)` | endpoints or step ends (all their streams); `recycle` is optional |
 
-Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)` and `sk.exponential(end, start=, time=)`; a pressure ramp starts from the bed pressure and lasts the step, so it takes only its end. `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. `y` and `temperature` of an outlet are the gas that enters if the flow reverses.
+Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)`, `sk.exponential(end, start=, time=)`, `sk.log_linear(end, start=, time=)` and `sk.double_exponential(end, rate_1, rate_2, weight, start=)`; a pressure ramp starts from the bed pressure and lasts the step, so it takes only its end (and, for the double exponential, its rates and weight). `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. `y` and `temperature` of an outlet are the gas that enters if the flow reverses.
 
 `set_*` replaces what was there: setting an end's streams removes its old streams and their connections, and a new model kind starts from that model's defaults. Objects held in variables (a step, a layer, `sim.bed`) follow these changes. `sim.describe()` returns the structure (the kind of every model, how each step end is set up, connections and KPI endpoints), and `sim.check()` runs the deck checks without running it.
 

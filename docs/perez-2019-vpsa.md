@@ -4,7 +4,7 @@ Reference: [Estupiñan Perez, L., Sarkar, P., Rajendran, A. Experimental validat
 
 **Goal.** Run a five-step vacuum swing adsorption (VPSA) cycle that captures CO₂ from a 15 % CO₂ / 85 % N₂ flue gas on zeolite 13X, see how **light-product pressurisation** (LPP) is wired with a step connection, run it to **cyclic steady state**, and compare purity and recovery with the experiment. The deck is experiment D1 of Table 3 in the paper.
 
-**What you will get.** CSS after 182 cycles, a CO₂ purity of 93.7 % and a recovery of 90.2 %, against 97.1 % and 86.1 % measured. See [Validation](validation.md#perez-2019) for all six Perez experiments.
+**What you will get.** CSS after 155 cycles, a CO₂ purity of 93.8 % and a recovery of 89.1 %, against 97.1 % and 86.1 % measured. See [Validation](validation.md#perez-2019) for all six Perez experiments.
 
 ---
 
@@ -24,9 +24,9 @@ print(sim.components, sim.steps.names)
 
 **Fluid.** *CarbonDioxide* and *Nitrogen*.
 
-**Adsorbents.** *13X*: the paper's competitive (extended) dual-site Langmuir isotherm in concentration form, a macropore-controlled linear driving force (tortuosity 3, particle voidage 0.35) and heats of adsorption of 30.85 kJ/mol (CO₂) and 15.93 kJ/mol (N₂). The same parameters are in the library as [Zeolite 13X (Perez 2019)](adsorbent-library.md#zeolite-13x-perez2019).
+**Adsorbents.** *13X*: the paper's competitive (extended) dual-site Langmuir isotherm in concentration form, a macropore-controlled linear driving force with the capacity factor c / (ρ_p q\*) of the paper's model (tortuosity 3, particle voidage 0.35; see [Kinetic models](kinetic-models.md)) and heats of adsorption of 30.85 kJ/mol (CO₂) and 15.93 kJ/mol (N₂). The same parameters are in the library as [Zeolite 13X (Perez 2019)](adsorbent-library.md#zeolite-13x-perez2019).
 
-**Column.** The laboratory column: 0.30 m long, 0.032 m diameter, a 3.1 mm steel wall and an ambient temperature of 293 K. The layer *13X* has 30 cells, a bed voidage of 0.41, 1.5 mm particles and the *Darcy (Kozeny–Carman)* momentum model. Dispersion uses the Ruthven correlation; heat transfer uses constant coefficients of 8.6 W m⁻² K⁻¹ (bed to wall) and 10 W m⁻² K⁻¹ (wall to ambient) with an axial thermal conductivity of 0.0903 W m⁻¹ K⁻¹.
+**Column.** The laboratory column: 0.30 m long, 0.032 m diameter, a 3.1 mm steel wall whose ends are held at the ambient temperature of 293 K (the paper's wall boundary condition). The layer *13X* has 30 cells, a bed voidage of 0.41, 1.5 mm particles and the *Darcy (Kozeny–Carman)* momentum model. Dispersion uses the Ruthven correlation; heat transfer uses constant coefficients of 8.6 W m⁻² K⁻¹ (bed to wall) and 10 W m⁻² K⁻¹ (wall to ambient) with an axial thermal conductivity of 0.0903 W m⁻¹ K⁻¹.
 
 **Initial Conditions.** Pure N₂ at 1 bar and 298 K.
 
@@ -37,7 +37,7 @@ print(sim.components, sim.steps.names)
 | Feed 1 | 27.5 s | **Flow** inlet *Feed 1 inlet*: 15 % CO₂, 0.0328 m/s superficial, 298 K | **Flow** outlet with two streams: a **Valve** to 1 bar (C<sub>v</sub> = 10) and the *LPP Stream*, connected to Pressurisation |
 | Feed 2 | 117 s | **Flow** inlet *Feed 2 inlet*, as Feed 1 | **Flow** outlet: the valve to 1 bar only |
 | Blowdown | 21 s | **Closed** | **Pressure** outlet, exponential ramp to 7.2 kPa |
-| Evacuation | 167 s | **Pressure** outlet, exponential ramp to 3 kPa: the CO₂ product | **Closed** |
+| Evacuation | 167 s | **Pressure** outlet, the paper's two-term exponential decay to 3 kPa (rates 0.019 and 0.101 s⁻¹, equal weights): the CO₂ product | **Closed** |
 | Pressurisation | 27.5 s | **Closed** | **Pressure** inlet, linear ramp to 101.3 kPa, connected to Feed 1 |
 
 Blowdown removes N₂ from the light end at an intermediate vacuum, so the evacuation product is rich in CO₂. The CO₂ product is drawn from the feed end, where the bed is most saturated.
@@ -58,14 +58,14 @@ The two steps represent two beds working at the same time, which is why they hav
 ```python
 result = sim.run()
 print(result.status, result.css_cycle + 1, f"{result.wall_time_s:.0f} s")
-# reached_css 182 31 s
+# reached_css 155 27 s
 ```
 
-The run stops at cyclic steady state, at cycle 182. It took about 30 s natively on one core of a shared 4-core Linux machine. `skarstrom run Perez2019_D1.json` does the same from the command line.
+The run stops at cyclic steady state, at cycle 155. It took under 30 s natively on one core of a shared 4-core Linux machine. `skarstrom run Perez2019_D1.json` does the same from the command line.
 
 ## 4. Interpret the results
 
-**KPIs.** `sim.kpis(cycle=-1)` gives the last logged cycle, 181 (the 182nd cycle, numbered from 0):
+**KPIs.** `sim.kpis(cycle=-1)` gives the last logged cycle, 154 (the 155th cycle, numbered from 0):
 
 ```python
 k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")
@@ -74,12 +74,12 @@ print(k.purity, k.recovery, k.production_rate, k.productivity_mass)
 
 | KPI | Simulated | Experiment D1 | Repeat D2 | Paper's model |
 |---|---|---|---|---|
-| CO₂ purity | 93.72 % | 97.1 % | 94.5 % | 96.1 % |
-| CO₂ recovery | 90.22 % | 86.1 % | 83.4 % | 86.8 % |
+| CO₂ purity | 93.76 % | 97.1 % | 94.5 % | 96.1 % |
+| CO₂ recovery | 89.11 % | 86.1 % | 83.4 % | 86.8 % |
 
 Production rate is 5.79 × 10⁻⁵ mol/s and the mass productivity 1.57 × 10⁻⁵ kg CO₂ per kg adsorbent per second. The energy KPI is 0 because no pump has power calculation switched on (see below).
 
-The model is 3.4 points low on purity and 4.1 points high on recovery against D1. The test README lists two known causes: the engine's macropore LDF coefficient omits the capacity factor the paper uses, which makes the kinetics faster, and the Kozeny–Carman constant is 180 against the paper's 150.
+The model is 3.3 points low on purity and 3.0 points high on recovery against D1, and within 0.7 and 6 points of the repeat D2. The deck uses the paper's model forms (the test README traces every value and attributes the remaining error): for the four-step cycles A and B the same decks are within 0.6 points of purity and 1.1 points of recovery of the experiments. The remaining LPP excess is the composition-coupled light-product connection, an open item.
 
 **Approach to CSS.** Plot the KPI against the cycle number (only the last `settings.max_cycles_to_keep` = 10 cycles are logged):
 
@@ -98,7 +98,7 @@ for i, name in enumerate(sim.steps):
     print(f"{name:15s} {p.values[-1].min() / 1e3:7.2f} - {p.values[-1].max() / 1e3:7.2f} kPa")
 ```
 
-In our run the bed sat at 1.000–1.001 bar during the feed steps, reached 8.1–8.2 kPa at the end of Blowdown (the exponential ramp aims at 7.2 kPa but has not got there after 21 s), 3.05 kPa at the end of Evacuation, and was back at 1.013 bar after Pressurisation.
+In our run the bed sat at 1.000–1.001 bar during the feed steps, reached 8.1–8.2 kPa at the end of Blowdown (the exponential ramp aims at 7.2 kPa but has not got there after 21 s), about 3.1 kPa at the end of Evacuation (the two-term decay's slow term is still 2 % above its end value), and was back at 1.013 bar after Pressurisation.
 
 **Fronts.** `sim.profile("mole_fraction", "CarbonDioxide", cycle=-1, step=1)` holds the CO₂ profile through Feed 2 (`values[i]` is the profile at `time[i]`): plot a few rows to see how far the CO₂ front advances towards the top of the bed, then do the same for Evacuation (`step=3`) to see the bed being emptied through the feed end.
 
