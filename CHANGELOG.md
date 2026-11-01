@@ -8,6 +8,13 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed
+- `CreateBoundaryValue` and `CreateInletTemperatureProfile` know the double-exponential
+  profile. The web document layer builds profiles through the first factory, so a deck
+  with a double-exponential pressure boundary (the Perez 2019 decks) lost it to a null
+  profile, i.e. a constant 1 bar, in the browser. A unit test now checks every listed
+  kind has a factory entry.
+
 ### Added
 - A **double exponential** profile (`DoubleExponentialBoundaryValue`,
   `BoundaryValueType::DOUBLE_EXPONENTIAL`, builder kind `double_exponential`, Python

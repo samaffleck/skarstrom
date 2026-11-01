@@ -8,6 +8,7 @@
 
 #include "adsim/math/expression_param.h"
 
+#include <cmath>
 #include <optional>
 
 
@@ -244,6 +245,7 @@ namespace adsim {
 		case BoundaryValueType::LINEAR: return std::make_unique<LinearBoundaryValue>();
 		case BoundaryValueType::EXPONENTIAL: return std::make_unique<ExponentialBoundaryValue>();
 		case BoundaryValueType::LOG_LINEAR: return std::make_unique<LogLinearBoundaryValue>();
+		case BoundaryValueType::DOUBLE_EXPONENTIAL: return std::make_unique<DoubleExponentialBoundaryValue>();
 		default: return nullptr;
 		}
 	}
@@ -289,6 +291,18 @@ namespace adsim {
 			p->start_value_ = temperature;
 			p->end_value_ = temperature;
 			p->ramp_time_ = ramp_time;
+			return p;
+		}
+		if (type == BoundaryValueType::DOUBLE_EXPONENTIAL) {
+			// Rates such that the slow term has covered 99 % of its change by
+			// ramp_time and the fast one has settled well before.
+			auto p = std::make_unique<DoubleExponentialBoundaryValue>();
+			p->start_value_ = temperature;
+			p->end_value_ = temperature;
+			const double slow = ramp_time > 0.0 ? std::log(100.0) / ramp_time : 0.0;
+			p->rate_1_ = slow;
+			p->rate_2_ = 5.0 * slow;
+			p->weight_ = 0.5;
 			return p;
 		}
 		return nullptr;
