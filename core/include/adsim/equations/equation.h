@@ -244,6 +244,26 @@ namespace adsim {
     // Domain vector
     DomainVectors domain_vectors;
 
+    // Component-independent terms of the mole-fraction residual, filled once
+    // per residual evaluation by the first component's UpdateMoleFraction and
+    // read by every component's cell loop (see there). Array-of-structs so the
+    // cell loop carries two base pointers, not one per term.
+    struct MoleFractionFaceTerms {   // face f sits between cells f and f+1
+      double P;          // 0.5 * (P[f] + P[f+1])
+      double T;          // DenomFloor(0.5 * (T[f] + T[f+1]))
+      double P_over_T;   // P / T
+      double d;          // harmonic-mean axial dispersion across the face
+    };
+    struct MoleFractionCellTerms {
+      double Pc, Tc;              // DenomFloor'ed cell P and T
+      double dx_et;               // dx * et
+      double D_e_coef, D_w_coef;  // (eb * Tc * d_e) / (Pc * dx), west likewise
+      double Tc_over_Pc;          // Tc / Pc
+      double R_Tc_dx;             // R * Tc * dx
+    };
+    std::vector<MoleFractionFaceTerms> mole_fraction_face_terms;
+    std::vector<MoleFractionCellTerms> mole_fraction_cell_terms;
+
   private:
     std::vector<Equation*> equations_;
     // All independent fields in registration order (what gets logged), split

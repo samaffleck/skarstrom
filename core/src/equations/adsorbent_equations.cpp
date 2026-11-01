@@ -811,6 +811,60 @@ namespace adsim {
     const auto& rho_b = domain_vectors.bulk_density;
     const auto& et = domain_vectors.et;
     const auto& eb = domain_vectors.eb;
+
+    int N = yi.size();
+
+    // The floors, face averages, dispersion harmonic means and the prefactors
+    // built from them are the same for every component, so they are computed
+    // once per residual evaluation, on the first component's call, into the
+    // state's scratch vectors; the later components' calls read them. This
+    // relies on P, T, u, Dax and the domain not changing between the
+    // components' calls within one UpdateDifferentialEquations, which holds
+    // because the mole-fraction equations are registered consecutively
+    // (Equations::Initialise) and nothing in between writes those fields.
+    //
+    // Every stored value is a sub-expression the per-cell formulas below used
+    // to evaluate as a unit, in the same operation order (C++ left-to-right
+    // for * and /), so the residual is bit-for-bit what the per-component
+    // recomputation gave. The per-component factors are left exactly as they
+    // were written.
+    //
+    // Face terms are computed once per face f (between cells f and f+1): the
+    // east face of cell n and the west face of cell n+1 are the same face, and
+    // their formulas evaluate bit-for-bit alike (0.5 * (P[n] + P[n+1]) and
+    // 0.5 * (P[n+1] + P[n]) - IEEE addition is commutative; the west-face
+    // weight dx[n+1] / (dx[n] + dx[n+1]) and harmonic mean have exactly the
+    // operands and order of the east-face ones of cell n).
+    auto& face_terms = state.mole_fraction_face_terms;
+    auto& cell_terms = state.mole_fraction_cell_terms;
+    if (component == fluid.components_.front()) {
+      if ((int)face_terms.size() != N) face_terms.assign(N, {});
+      if ((int)cell_terms.size() != N) cell_terms.assign(N, {});
+      for (int f = 0; f < N - 1; ++f) {
+        double Pf = 0.5 * (P[f] + P[f + 1]);
+        double Tf = 0.5 * (T[f] + T[f + 1]);
+        Tf = detail::DenomFloor(Tf, constants::kMinDenomTemperature);
+        double ff = dx[f + 1] / (dx[f] + dx[f + 1]);
+        double d = 1 / ((1 - ff) / Dax[f] + ff / Dax[f + 1]);
+        face_terms[f] = { Pf, Tf, Pf / Tf, d };
+      }
+      for (int n = 1; n < N - 1; ++n) { // Interior cells
+        // Floor pressure/temperature denominators against a transient non-positive
+        // state (no-op for physical P,T; floor << any real value). See constants.h.
+        const double Pc = detail::DenomFloor(P[n], constants::kMinDenomPressure);
+        const double Tc = detail::DenomFloor(T[n], constants::kMinDenomTemperature);
+        const double d_e = face_terms[n].d;
+        const double d_w = face_terms[n - 1].d;
+        auto& c = cell_terms[n];
+        c.Pc = Pc;
+        c.Tc = Tc;
+        c.dx_et = dx[n] * et[n];
+        c.D_e_coef = (eb[n] * Tc * d_e) / (Pc * dx[n]);
+        c.D_w_coef = (eb[n] * Tc * d_w) / (Pc * dx[n]);
+        c.Tc_over_Pc = Tc / Pc;
+        c.R_Tc_dx = R * Tc * dx[n];
+      }
+    }
     
     // Hoist the per-adsorbent lookup for THIS component out of the cell loop:
     // resolve &(dq/dt) once per adsorbent id (the map is the same object every
@@ -827,19 +881,12 @@ namespace adsim {
       throw std::out_of_range("UpdateMoleFraction: unknown adsorbent");
     };
 
-    int N = yi.size();
+    const Equations::MoleFractionFaceTerms* const face = face_terms.data();
+    const Equations::MoleFractionCellTerms* const cell = cell_terms.data();
     for (int n = 1; n < N - 1; ++n) { // Interior cells
-      // Floor pressure/temperature denominators against a transient non-positive
-      // state (no-op for physical P,T; floor << any real value). See constants.h.
-      const double Pc = detail::DenomFloor(P[n], constants::kMinDenomPressure);
-      const double Tc = detail::DenomFloor(T[n], constants::kMinDenomTemperature);
-
-      double Pe = 0.5 * (P[n] + P[n + 1]);
-      double Pw = 0.5 * (P[n] + P[n - 1]);
-      double Te = 0.5 * (T[n] + T[n + 1]);
-      double Tw = 0.5 * (T[n] + T[n - 1]);
-      Te = detail::DenomFloor(Te, constants::kMinDenomTemperature);
-      Tw = detail::DenomFloor(Tw, constants::kMinDenomTemperature);
+      const auto& c = cell[n];
+      const auto& fe = face[n];      // east face of cell n
+      const auto& fw = face[n - 1];  // west face of cell n
 
       double u_e = u[n];
       double u_w = u[n - 1];
@@ -847,19 +894,17 @@ namespace adsim {
       double yie = yi_face[n];
       double yiw = yi_face[n - 1];
 
-      double acc = dx[n] * et[n] * (-ddt_yi[n] - (yi[n] / Pc) * ddt_P[n] + (yi[n] / Tc) * ddt_T[n]);
+      // acc = dx * et * (...): the (dx * et) factor is the stored unit.
+      double acc = c.dx_et * (-ddt_yi[n] - (yi[n] / c.Pc) * ddt_P[n] + (yi[n] / c.Tc) * ddt_T[n]);
 
-      double fe = dx[n + 1] / (dx[n] + dx[n + 1]);
-      double fw = dx[n] / (dx[n - 1] + dx[n]);
+      // D = ((eb Tc d) / (Pc dx)) * ((P_face / T_face) * dy): both stored units.
+      double D_e = c.D_e_coef * (fe.P_over_T * (yi[n + 1] - yi[n]));
+      double D_w = c.D_w_coef * (fw.P_over_T * (yi[n] - yi[n - 1]));
 
-      double d_e = 1 / ((1 - fe) / Dax[n] + fe / Dax[n + 1]);
-      double d_w = 1 / ((1 - fw) / Dax[n - 1] + fw / Dax[n]);
-
-      double D_e = ((eb[n] * Tc * d_e) / (Pc * dx[n])) * (Pe / Te * (yi[n + 1] - yi[n]));
-      double D_w = ((eb[n] * Tc * d_w) / (Pc * dx[n])) * (Pw / Tw * (yi[n] - yi[n - 1]));
-
-      double F_e = Tc / Pc * (yie * Pe * u_e / Te);
-      double F_w = Tc / Pc * (yiw * Pw * u_w / Tw);
+      // F = (Tc / Pc) * (((y_face * P_face) * u_face) / T_face): the component
+      // value comes first in the right factor, which therefore stays as written.
+      double F_e = c.Tc_over_Pc * (yie * fe.P * u_e / fe.T);
+      double F_w = c.Tc_over_Pc * (yiw * fw.P * u_w / fw.T);
 
       // Adsorption source for this component, summed over the adsorbents present
       // in this cell, each weighted by its own bulk density: sum_k rho_b,k * dq_k/dt.
@@ -867,7 +912,8 @@ namespace adsim {
       for (const auto& ca : cell_ads[n]) {
         rho_b_ddt_q += ca.bulk_density * ddt_q_of(ca.id)[n];
       }
-      double adsorption_source = R * Tc * dx[n] * rho_b_ddt_q / Pc;
+      // ((R Tc) dx) * rho_b_ddt_q / Pc: the ((R Tc) dx) factor is the stored unit.
+      double adsorption_source = c.R_Tc_dx * rho_b_ddt_q / c.Pc;
 
       res_yi[n] =
         acc                   // Accumulation

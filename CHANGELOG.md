@@ -64,6 +64,20 @@ root `CMakeLists.txt`.
   `<head>_log_linear_start/_end/_time` and `pressure_log_linear_end`.
 
 ### Changed
+- Solver residual, byte-identical: the mole-fraction residual
+  (`UpdateMoleFraction`, registered once per component) computes its
+  component-independent terms once per residual evaluation instead of once per
+  component. The first component's call fills the floored cell pressure and
+  temperature, the face averages and their floors, the harmonic-mean axial
+  dispersion and the accumulation, diffusion, convection and source prefactors
+  into scratch vectors on the state (`Equations::mole_fraction_face_terms`,
+  `mole_fraction_cell_terms`), and every component's cell loop reads them; the
+  face terms are evaluated once per face rather than twice per cell (a cell's
+  east face and its neighbour's west face evaluate bit-for-bit alike). Every
+  stored value is a sub-expression the old per-cell formulas evaluated as a
+  unit, in the same order, so the residual is unchanged (CSV output identical on
+  eight example decks): 18-20% fewer instructions in the function, 2% in the
+  residual, on FiveStepProductPurge and Illustrative TSA.
 - Solver residual, byte-identical: the competitive concentration-based
   Langmuir isotherms (`ExtendedLangmuirIsotherm_Concentration`,
   `ExtendedDualSiteLangmuirIsotherm_Concentration`, the kinds most example
