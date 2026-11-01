@@ -48,44 +48,13 @@ namespace adsim {
 
   } // namespace
 
-  // Small two-step deck: a short feed step followed by a closed hold step.
+  // The shared feed/hold deck (UserDataTest::AddFeedHoldDeck).
   class SolverReinitialiseTest : public UserDataTest {
   protected:
     void SetUp() override {
       UserDataTest::SetUp();
 
-      AddComponents({ "Oxygen", "Nitrogen" });
-
-      auto [layer_id, ads_id] = AddLayer("13X");
-      GetLayer(layer_id).domain_.n_cells = 10;
-      AddConstantInternalHeatTransferCoefficientModel(0, layer_id);
-      AddConstantExternalHeatTransferCoefficientModel(0, layer_id);
-
-      AddInitialConditions(101325, 298, 298, { {"Oxygen", 0.0}, {"Nitrogen", 1.0} });
-
-      AddStep("Feed", 5.0);
-      Step& feed = data.cycle.GetStep("Feed");
-      auto feed_flow_bc = std::make_unique<FlowBoundaryCondition>();
-      feed_flow_bc->direction_ = BoundaryDirection::INLET;
-      feed_flow_bc->location_ = BoundaryLocation::BOTTOM;
-      feed_flow_bc->streams_.push_back(CreateNoValveInletStream(
-        CreateMolarFlowBC(0.1), { {"Oxygen", 0.21}, {"Nitrogen", 0.79} }, 298));
-      feed.bottom_boundary_condition_ = std::move(feed_flow_bc);
-
-      auto feed_pressure_out = std::make_unique<PressureBoundaryCondition>();
-      feed_pressure_out->direction_ = BoundaryDirection::OUTLET;
-      feed_pressure_out->location_ = BoundaryLocation::TOP;
-      feed_pressure_out->pressure_ = CreateConstantBoundaryValue(101325);
-      feed_pressure_out->mole_fraction_["Oxygen"] = 0.0;
-      feed_pressure_out->mole_fraction_["Nitrogen"] = 1.0;
-      feed.top_boundary_condition_ = std::move(feed_pressure_out);
-
-      AddStep("Hold", 5.0);
-      AddClosedBC(BoundaryLocation::BOTTOM, "Hold");
-      AddClosedBC(BoundaryLocation::TOP, "Hold");
-
-      ConfigureCycle(2);
-      data.settings.max_step = 1.0;
+      AddFeedHoldDeck(2);
     }
 
     RunResult Run(CoupledSolver& solver) {

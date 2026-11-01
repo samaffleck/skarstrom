@@ -280,36 +280,31 @@ namespace adsim {
     return integral * area;
   }
 
-  static double CalculateAccumulation_Volume(
-    const adsim::EquationLog& logger,
-    int cycle_index,
-    int step_index,
-    adsim::VariableType variable_type
+  // Amount accumulated in the bed over the logged step: the change of
+  // sum_i value[i] * volume[i] * factor[i] over the interior cells between the
+  // first and the last logged instant (0 when nothing was logged). The factor
+  // turns the per-cell value into an amount: the void fraction for a gas
+  // concentration, the bulk density for an adsorbed loading.
+  static double AccumulatedInBed(
+    const adsim::VariableLogEntry& variable,
+    const std::vector<double>& volume,
+    const std::vector<double>& factor
   ) {
-    const auto& variable = logger.GetVariable(cycle_index, step_index, variable_type);
     if (variable.values.empty()) {
       return 0.0;
     }
-
-    const auto& domain = logger.GetDomain();
-    const auto& volume = domain.volume;
-    const auto& et = domain.et;
-
-    // Get initial and final values
     const auto& values_t0 = variable.values[0];
     const auto& values_tend = variable.values.back();
 
-    // Integrate over volume: sum(variable * volume * void_fraction) for each cell
     double accumulation = 0.0;
-    for (size_t i = 1; i < values_t0.size() - 1; ++i) { // Skip ghost cells
-      double value_start = values_t0[i];
-      double value_end = values_tend[i];
-      accumulation += (value_end - value_start) * volume[i] * et[i];
+    for (size_t i = 1; i + 1 < values_t0.size(); ++i) { // Skip ghost cells
+      accumulation += (values_tend[i] - values_t0[i]) * volume[i] * factor[i];
     }
-
     return accumulation;
   }
 
+  // Gas-phase accumulation [mol] of a component: molar concentration times the
+  // void volume of each cell.
   static double CalculateComponentAccumulation_Volume(
     const adsim::EquationLog& logger,
     int cycle_index,
@@ -317,28 +312,13 @@ namespace adsim {
     adsim::ComponentVariableType variable_type,
     const std::string& component
   ) {
-    const auto& variable = logger.GetComponentVariable(cycle_index, step_index, variable_type, component);
-    if (variable.values.empty()) {
-      return 0.0;
-    }
-
     const auto& domain = logger.GetDomain();
-    const auto& volume = domain.volume;
-    const auto& et = domain.et;
-
-    const auto& values_t0 = variable.values[0];
-    const auto& values_tend = variable.values.back();
-
-    double accumulation = 0.0;
-    for (size_t i = 1; i < values_t0.size() - 1; ++i) { // Skip ghost cells
-      double value_start = values_t0[i];
-      double value_end = values_tend[i];
-      accumulation += (value_end - value_start) * volume[i] * et[i];
-    }
-
-    return accumulation;
+    return AccumulatedInBed(logger.GetComponentVariable(cycle_index, step_index, variable_type, component),
+                            domain.volume, domain.et);
   }
 
+  // Adsorbed-phase accumulation [mol] of a component: loading [mol/kg] times
+  // the adsorbent mass of each cell.
   static double CalculateComponentAccumulation_Mass(
     const adsim::EquationLog& logger,
     int cycle_index,
@@ -346,26 +326,9 @@ namespace adsim {
     adsim::ComponentVariableType variable_type,
     const std::string& component
   ) {
-    const auto& variable = logger.GetComponentVariable(cycle_index, step_index, variable_type, component);
-    if (variable.values.empty()) {
-      return 0.0;
-    }
-
     const auto& domain = logger.GetDomain();
-    const auto& volume = domain.volume;
-    const auto& bulk_density = domain.bulk_density;
-
-    const auto& values_t0 = variable.values[0];
-    const auto& values_tend = variable.values.back();
-
-    double accumulation = 0.0;
-    for (size_t i = 1; i < values_t0.size() - 1; ++i) { // Skip ghost cells
-      double value_start = values_t0[i];
-      double value_end = values_tend[i];
-      accumulation += (value_end - value_start) * volume[i] * bulk_density[i];
-    }
-
-    return accumulation;
+    return AccumulatedInBed(logger.GetComponentVariable(cycle_index, step_index, variable_type, component),
+                            domain.volume, domain.bulk_density);
   }
 
   // Net moles leaving the bed across the selected product endpoints. Signed sum:

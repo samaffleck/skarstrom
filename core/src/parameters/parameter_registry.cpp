@@ -685,14 +685,13 @@ namespace adsim {
     }
 
     void AddFlow(IFlowBoundaryValue* flow, const EndpointScope& ep) {
-      if (auto* fb = dynamic_cast<VelocityBoundaryValue*>(flow)) {
-        AddProfile(fb->profile_.get(), ep, "velocity", "velocity", "m/s", 0.0, 10.0);
-      } else if (auto* fb = dynamic_cast<MolarFlowBoundaryValue*>(flow)) {
-        AddProfile(fb->profile_.get(), ep, "molar_flow", "molar flow", "mol/s", 0.0, 100.0);
-      } else if (auto* fb = dynamic_cast<VolumetricFlowBoundaryValue*>(flow)) {
-        AddProfile(fb->profile_.get(), ep, "volumetric_flow", "volumetric flow", "m3/s", 0.0, 1.0);
-      } else if (auto* fb = dynamic_cast<MassFlowBoundaryValue*>(flow)) {
-        AddProfile(fb->profile_.get(), ep, "mass_flow", "mass flow", "kg/s", 0.0, 10.0);
+      if (!flow) return;
+      IBoundaryValue* profile = flow->profile_.get();
+      switch (flow->GetType()) {
+        case FlowType::VELOCITY: AddProfile(profile, ep, "velocity", "velocity", "m/s", 0.0, 10.0); break;
+        case FlowType::MOLAR:    AddProfile(profile, ep, "molar_flow", "molar flow", "mol/s", 0.0, 100.0); break;
+        case FlowType::VOLUME:   AddProfile(profile, ep, "volumetric_flow", "volumetric flow", "m3/s", 0.0, 1.0); break;
+        case FlowType::MASS:     AddProfile(profile, ep, "mass_flow", "mass flow", "kg/s", 0.0, 10.0); break;
       }
     }
 

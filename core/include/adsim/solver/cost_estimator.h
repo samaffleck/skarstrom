@@ -372,13 +372,16 @@ namespace adsim {
   // in CompressorBank / VacuumPumpBank to model mixed-size configurations.
   // ===========================================================================
 
-  struct CompressorUnit {
-    std::string label             = "Compressor";
-    double rated_power_kW         = 100.0; // Design shaft power [kW]
-    double reference_cost         = 30000; // Reference purchase cost [£]
-    double reference_power_kW     = 100.0;
-    double cost_exponent          = 0.67;
-    int    count                  = 1;     // Number of identical units
+  // A rotating machine costed by the power law
+  //   cost = reference_cost * (rated_power / reference_power)^cost_exponent * count.
+  // CompressorUnit and VacuumPumpUnit differ only in their defaults.
+  struct PoweredUnit {
+    std::string label;
+    double rated_power_kW;        // Design shaft power [kW]
+    double reference_cost;        // Reference purchase cost [£]
+    double reference_power_kW;
+    double cost_exponent = 0.67;
+    int    count         = 1;     // Number of identical units
 
     double CalculateCost() const {
       if (rated_power_kW <= 0.0) return 0.0;
@@ -398,35 +401,19 @@ namespace adsim {
     }
   };
 
-  struct VacuumPumpUnit {
-    std::string label             = "Vacuum pump";
-    double rated_power_kW         = 50.0;
-    double reference_cost         = 20000;
-    double reference_power_kW     = 50.0;
-    double cost_exponent          = 0.67;
-    int    count                  = 1;
-
-    double CalculateCost() const {
-      if (rated_power_kW <= 0.0) return 0.0;
-      return reference_cost
-           * std::pow(rated_power_kW / reference_power_kW, cost_exponent)
-           * count;
-    }
-
-    template<class Archive>
-    void serialize(Archive& ar) {
-      ar(cereal::make_nvp("label", label),
-         cereal::make_nvp("rated_power_kW", rated_power_kW),
-         cereal::make_nvp("reference_cost", reference_cost),
-         cereal::make_nvp("reference_power_kW", reference_power_kW),
-         cereal::make_nvp("cost_exponent", cost_exponent),
-         cereal::make_nvp("count", count));
-    }
+  struct CompressorUnit : PoweredUnit {
+    CompressorUnit() : PoweredUnit{"Compressor", 100.0, 30000, 100.0} {}
   };
 
-  class CompressorBank {
+  struct VacuumPumpUnit : PoweredUnit {
+    VacuumPumpUnit() : PoweredUnit{"Vacuum pump", 50.0, 20000, 50.0} {}
+  };
+
+  // One or more units of the same kind, costed together.
+  template <class Unit>
+  class EquipmentBank {
   public:
-    std::vector<CompressorUnit> units = { CompressorUnit{} };
+    std::vector<Unit> units = { Unit{} };
 
     double CalculateCost() const {
       double cost = 0.0;
@@ -442,23 +429,8 @@ namespace adsim {
     }
   };
 
-  class VacuumPumpBank {
-  public:
-    std::vector<VacuumPumpUnit> units = { VacuumPumpUnit{} };
-
-    double CalculateCost() const {
-      double cost = 0.0;
-      for (const auto& u : units) cost += u.CalculateCost();
-      return cost;
-    }
-
-  private:
-    friend class cereal::access;
-    template<class Archive>
-    void serialize(Archive& ar) {
-      ar(cereal::make_nvp("units", units));
-    }
-  };
+  using CompressorBank = EquipmentBank<CompressorUnit>;
+  using VacuumPumpBank = EquipmentBank<VacuumPumpUnit>;
 
   class HeatExchangerCost {
   public:
