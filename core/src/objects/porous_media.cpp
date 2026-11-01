@@ -194,7 +194,7 @@ namespace adsim {
 
   void AdsorptionSource::UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const std::string& component, const Fluid& fluid, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry, double solid_density) {
     auto& model = mass_transfer_models_.at(component)->mtc_model_;
-    model->SetEquilibriumContext(GetIsotherm(component).get(), solid_density);
+    model->SetEquilibriumContext(GetIsotherm(component).get(), solid_density, this);
     model->UpdateMassTransferCoefficient(state, ads_id, fluid, component, layer, registry);
   }
 

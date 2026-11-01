@@ -408,15 +408,16 @@ struct Breakthrough {
   AdsorbentID ads = 0;
 };
 
-void BuildBreakthrough(Breakthrough& b, const std::string& isotherm_kind, const std::string& mixing_rule) {
+void BuildBreakthrough(Breakthrough& b, const std::string& isotherm_kind, const std::string& mixing_rule,
+                       const std::string& coefficient = "constant") {
   UserData& d = b.sim.Data();
   build::AddComponent(d, "CarbonDioxide");
   build::AddComponent(d, "Nitrogen");
   b.ads = build::AddAdsorbent(d, "13X");
   build::SetIsotherm(d, b.ads, isotherm_kind, {"CarbonDioxide", "Nitrogen"});
   build::SetMixingRule(d, b.ads, mixing_rule);
-  build::SetRateModel(d, b.ads, "CarbonDioxide", "ldf", "constant");
-  build::SetRateModel(d, b.ads, "Nitrogen", "ldf", "constant");
+  build::SetRateModel(d, b.ads, "CarbonDioxide", "ldf", coefficient);
+  build::SetRateModel(d, b.ads, "Nitrogen", "ldf", coefficient);
   build::SetBedShape(d, "cylinder");
   build::SetWallMaterial(d, "ss316l");
   build::SetWallBoundary(d, "zero_flux");
@@ -450,8 +451,6 @@ void BuildBreakthrough(Breakthrough& b, const std::string& isotherm_kind, const 
       {"adsorbent[13X].isotherm[Nitrogen].m1", std::to_string(m)},
       {"adsorbent[13X].isotherm[Nitrogen].b1", "3e-10"},
       {"adsorbent[13X].isotherm[Nitrogen].q1", "15000"},
-      {"adsorbent[13X].kinetics[CarbonDioxide].k", "0.3"},
-      {"adsorbent[13X].kinetics[Nitrogen].k", "0.5"},
       {"adsorbent[13X].heat_of_adsorption[CarbonDioxide]", "30000"},
       {"adsorbent[13X].heat_of_adsorption[Nitrogen]", "15000"},
       {"layer[13X].length", "0.1"},
@@ -471,6 +470,43 @@ void BuildBreakthrough(Breakthrough& b, const std::string& isotherm_kind, const 
       {"step[Feed].top.pressure", "1e5"},
   };
   for (const auto& [path, text] : values) b.sim.SetParameterText(path, text);
+  if (coefficient == "constant") {
+    b.sim.SetParameterText("adsorbent[13X].kinetics[CarbonDioxide].k", "0.3");
+    b.sim.SetParameterText("adsorbent[13X].kinetics[Nitrogen].k", "0.5");
+  } else {
+    for (const char* c : {"CarbonDioxide", "Nitrogen"}) {
+      b.sim.SetParameterText(std::string("adsorbent[13X].kinetics[") + c + "].tortuosity", "3");
+      b.sim.SetParameterText(std::string("adsorbent[13X].kinetics[") + c + "].macropore_void_fraction", "0.35");
+    }
+  }
+}
+
+// Outlet curves of two runs compared on the first run's times (the runs log
+// at their own integrator steps). Returns the largest difference relative to
+// the largest value, over mole fractions and loadings of both components.
+double MaxRelativeDifference(const Simulation& a_sim, const Simulation& b_sim) {
+  auto at = [](const TimeSeries& s, double t) {
+    if (t <= s.time.front()) return s.values.front();
+    if (t >= s.time.back()) return s.values.back();
+    const auto it = std::upper_bound(s.time.begin(), s.time.end(), t);
+    const size_t i = static_cast<size_t>(it - s.time.begin());
+    const double w = (t - s.time[i - 1]) / (s.time[i] - s.time[i - 1]);
+    return s.values[i - 1] + w * (s.values[i] - s.values[i - 1]);
+  };
+  double worst = 0.0;
+  for (const char* variable : {"mole_fraction", "adsorbed_concentration"}) {
+    for (const char* component : {"CarbonDioxide", "Nitrogen"}) {
+      const TimeSeries a = a_sim.Series(variable, component, SeriesLocation::Top);
+      const TimeSeries b = b_sim.Series(variable, component, SeriesLocation::Top);
+      double max_diff = 0.0, max_val = 0.0;
+      for (size_t i = 0; i < a.values.size(); ++i) {
+        max_diff = std::max(max_diff, std::abs(a.values[i] - at(b, a.time[i])));
+        max_val = std::max(max_val, std::abs(a.values[i]));
+      }
+      if (max_val > 0.0) worst = std::max(worst, max_diff / max_val);
+    }
+  }
+  return worst;
 }
 
 }  // namespace
@@ -596,6 +632,24 @@ TEST(IastDeck, BreakthroughUnderIastReproducesExtendedLangmuirWithEqualCapacitie
   const RunResult again = iast.sim.Run(options);
   ASSERT_TRUE(again.Ok()) << again.message;
   EXPECT_EQ(iast.sim.Series("mole_fraction", "CarbonDioxide", SeriesLocation::Top).values, first);
+}
+
+// The capacity-factor macropore coefficient evaluates q* itself. Under IAST
+// it must take the IAST mixture loading, not the component's own isotherm on
+// its own: with equal capacities IAST is extended Langmuir, so the two runs
+// agree only if the coefficient sees the competitive loading in both.
+TEST(IastDeck, CapacityFactorCoefficientUsesTheIastLoading) {
+  Breakthrough extended, iast;
+  BuildBreakthrough(extended, "extended_single_site_langmuir_p", "none", "macropore_capacity");
+  BuildBreakthrough(iast, "single_site_langmuir_p", "iast", "macropore_capacity");
+  RunOptions options;
+  options.cycles = 1;
+  const RunResult re = extended.sim.Run(options);
+  ASSERT_TRUE(re.Ok()) << re.message;
+  const RunResult ri = iast.sim.Run(options);
+  ASSERT_TRUE(ri.Ok()) << ri.message;
+  EXPECT_LT(MaxRelativeDifference(extended.sim, iast.sim), 1e-6);
+  EXPECT_GT(extended.sim.Series("adsorbed_concentration", "CarbonDioxide", SeriesLocation::Top).values.back(), 0.1);
 }
 
 }  // namespace adsim

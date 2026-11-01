@@ -29,6 +29,8 @@ root `CMakeLists.txt`.
   smooth through zero mole fraction. The evaluation functions are public in
   `adsim/equations/iast.h` and in Python as `skarstrom.evaluate_iast`. The
   solver log warns when IAST is combined with an extended (competitive) kind.
+  The capacity-factor macropore coefficient (`macropore_capacity`), which
+  evaluates q\* itself, takes the IAST mixture loading under the IAST rule.
   `AdsorptionSource` is at cereal version 1; older decks load with `none` and
   run exactly as before. Docs: the isotherms page.
 - `IsCompetitiveIsothermKind(type)` and `PairedIsothermKind(type, out)` in
