@@ -1599,6 +1599,10 @@ class Kinetics(_Node):
     """Capacity-factor concentration floor: the gas concentration below which the ratio c / (rho_p q*) is evaluated at this value [mol/m3]."""
     pore_radius = Real()
     """Mean pore radius [m]."""
+    molecular_diffusion_coefficient = Real()
+    """Constant molecular diffusivity D_m of the macropore coefficients (``macropore``, ``macropore_capacity``,
+    ``macropore_knudsen``) [m2/s]; 0 (the default) uses the binary-diffusion value from the local T and P,
+    which scales as 1/P. Haghpanah et al. (2013) and Estupinan Perez et al. (2019) use a constant 1.6e-5 m2/s."""
 
 
 class Adsorbent(_Node):
@@ -1679,7 +1683,9 @@ class Adsorbent(_Node):
         ``"macropore"`` / ``"haynes"`` (tortuosity, macropore_void_fraction),
         ``"macropore_knudsen"`` (+ pore_radius) or ``"macropore_capacity"`` (the macropore
         coefficient times the capacity factor c / (rho_p q*) of Haghpanah et al. 2013;
-        + concentration_floor)."""
+        + concentration_floor). The three macropore kinds also take
+        molecular_diffusion_coefficient, a constant D_m [m2/s] in place of the
+        (T, P)-dependent binary-diffusion value (0, the default, keeps the latter)."""
         name = self._sim._component(component)
         self._sim._build("set_rate_model", self._id, name, model, coefficient)
         ads = self._fresh()

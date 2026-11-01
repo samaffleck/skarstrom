@@ -957,11 +957,15 @@ namespace adsim {
           E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
           E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
             m->macropore_void_fraction_, 0.01, 0.8);
+          E(kp + "molecular_diffusion_coefficient", "adsorbent", sub,
+            "constant molecular diffusivity", "m2/s", m->molecular_diffusion_coefficient_, 0.0, 1e-3);
         } else if (auto* m = dynamic_cast<MassTransferCoefficientMacroporeKnudsen*>(mtc)) {
           E(kp + "pore_radius", "adsorbent", sub, "pore radius", "m", m->pore_radius_, 1e-10, 1e-6);
           E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
           E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
             m->macropore_void_fraction_, 0.01, 0.8);
+          E(kp + "molecular_diffusion_coefficient", "adsorbent", sub,
+            "constant molecular diffusivity", "m2/s", m->molecular_diffusion_coefficient_, 0.0, 1e-3);
         } else if (auto* m = dynamic_cast<MassTransferCoefficient_Haynes*>(mtc)) {
           E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
           E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
@@ -972,6 +976,8 @@ namespace adsim {
             m->macropore_void_fraction_, 0.01, 0.8);
           E(kp + "concentration_floor", "adsorbent", sub, "capacity-factor concentration floor", "mol/m3",
             m->concentration_floor_, 0.0, 10.0);
+          E(kp + "molecular_diffusion_coefficient", "adsorbent", sub,
+            "constant molecular diffusivity", "m2/s", m->molecular_diffusion_coefficient_, 0.0, 1e-3);
         }
       }
 
