@@ -11,6 +11,8 @@
 #include "adsim/objects/reactor.h"
 #include "adsim/objects/valve.h"
 
+#include <limits>
+
 
 namespace adsim {
 
@@ -51,6 +53,57 @@ namespace adsim {
     double B = 0.0;
     if (!ErgunFaceCoefficients(state, nullptr, face, A, B)) return;
     res_u[face] = u[face] - ErgunVelocity(g, A, B);
+  }
+
+  // Root of a scalar function by Brent's method, from a bracket [a, b] with
+  // fa = h(a) and fb = h(b) of opposite sign (or one of them zero). Converges
+  // to within 4 eps |x| + tol_abs of the root; the function is evaluated at
+  // most max_iter times. Returns false when the bracket is invalid.
+  template <class H>
+  static bool BrentRoot(H&& h, double a, double b, double fa, double fb, double tol_abs,
+                        int max_iter, double& root) {
+    if (fa == 0.0) { root = a; return true; }
+    if (fb == 0.0) { root = b; return true; }
+    if ((fa > 0.0) == (fb > 0.0)) return false;
+    double c = a, fc = fa;
+    double d_step = b - a, e_step = d_step;
+    for (int iter = 0; iter < max_iter; ++iter) {
+      if ((fb > 0.0) == (fc > 0.0)) { c = a; fc = fa; d_step = b - a; e_step = d_step; }
+      if (std::abs(fc) < std::abs(fb)) {
+        a = b; b = c; c = a;
+        fa = fb; fb = fc; fc = fa;
+      }
+      const double tol = 2.0 * std::numeric_limits<double>::epsilon() * std::abs(b) + 0.5 * tol_abs;
+      const double m = 0.5 * (c - b);
+      if (std::abs(m) <= tol || fb == 0.0) { root = b; return true; }
+      if (std::abs(e_step) >= tol && std::abs(fa) > std::abs(fb)) {
+        // Inverse quadratic interpolation (secant when only two points differ).
+        const double s = fb / fa;
+        double p, q;
+        if (a == c) {
+          p = 2.0 * m * s;
+          q = 1.0 - s;
+        } else {
+          const double qq = fa / fc, r = fb / fc;
+          p = s * (2.0 * m * qq * (qq - r) - (b - a) * (r - 1.0));
+          q = (qq - 1.0) * (r - 1.0) * (s - 1.0);
+        }
+        if (p > 0.0) q = -q; else p = -p;
+        if (2.0 * p < std::min(3.0 * m * q - std::abs(tol * q), std::abs(e_step * q))) {
+          e_step = d_step; d_step = p / q;
+        } else {
+          d_step = m; e_step = m;
+        }
+      } else {
+        d_step = m; e_step = m;
+      }
+      a = b; fa = fb;
+      if (std::abs(d_step) > tol) b += d_step;
+      else b += (m > 0.0 ? tol : -tol);
+      fb = h(b);
+    }
+    root = b;
+    return true;
   }
 
   // Pressure Boundary Conditions
@@ -307,6 +360,113 @@ namespace adsim {
     }
   }
 
+  // Boundary face of an Ergun layer under a flow condition. The condition
+  // relates the molar flow through the face to the face pressure (a valve or
+  // pump stream follows the pressure drop across it; a set flow is fixed; a
+  // connected stream carries the previous cycle's series), and the Ergun law
+  // relates the face velocity to the ghost pressure, so the two unknowns of
+  // the face, u and P_ghost, are determined together by
+  //   Cf(u) A_c u = F(P_face(u), t),   P_ghost(u) = P_1 + d (A u + B |u| u).
+  // Written as the pair of residuals "flow condition" and "implicit momentum
+  // law" (the form Darcy faces use, where both are linear), the Jacobian
+  // block of the two unknowns changes by an order of magnitude when the face
+  // velocity jumps at a step switch: the momentum law's slope in u is
+  // (A + 2 B |u|) / A, and the explicit root's slope in the ghost pressure is
+  // 1 / sqrt(A^2 + 4 B |g|). A feed step opening a valve on a bed that the
+  // previous step left above the valve's downstream pressure (Perez 2019 D1:
+  // pressurised to 101325 Pa, vented through a Cv = 10 valve at 1e5 Pa) asks
+  // the face for a surge of several m/s from a standstill; IDA's modified
+  // Newton, whose Jacobian is evaluated at the pre-switch state, then
+  // overshoots (or contracts by less than a tenth per iteration) at every
+  // step size down to hmin, and the consistent-IC restart gave out after a
+  // few cycles. Solving the face problem here instead and imposing
+  //   res_u = u - u*,   res_P = P_ghost - P_ghost(u*)
+  // leaves the two unknowns' Jacobian block the identity, and u* depends
+  // only on the first bed cell's state (continuous through the switch), the
+  // ghost temperature and the time: the corrector resolves the jump in one
+  // iteration. The solution is the same, so results move only within the
+  // solver tolerance. Returns false (nothing imposed) when the face problem
+  // has no root with a positive ghost pressure, e.g. a set outflow the bed
+  // cannot deliver, which the fallback residuals then fail on as before.
+  bool FlowBoundaryCondition::ImposeFlowFace(Equations& state, double time, int i, int d, int ui) {
+    auto& P = state.pressure.var;
+    auto& res_P = state.pressure.res_var;
+    auto& u = state.velocity.var;
+    auto& res_u = state.velocity.res_var;
+    const auto& T = state.fluid_temperature.var;
+    const auto& area = state.domain_vectors.area;
+    if (u.empty() || res_u.size() != u.size() || ui < 0 || ui >= (int)u.size()) return false;
+
+    double A = 0.0;
+    double B = 0.0;
+    if (!ErgunFaceCoefficients(state, nullptr, ui, A, B) || !(A > 0.0)) return false;
+
+    const double R = constants::kIdealGasConstant;
+    const double P1 = P[i + d];
+    const double T_face = 0.5 * (T[i] + T[i + d]);
+    const double Tc = detail::DenomFloor(T_face, constants::kMinDenomTemperature);
+    const double A_c = area[i];
+    const double P_ghost_saved = P[i];
+
+    auto ghost_pressure = [&](double v) { return P1 + d * (A * v + B * std::abs(v) * v); };
+    // Mismatch between the flow through the face at velocity v and the flow
+    // the streams give at the face pressure that v implies. Evaluating the
+    // streams at that pressure means writing it to the ghost cell for the
+    // call: the streams read the state's boundary pressure.
+    auto mismatch = [&](double v) {
+      const double Pg = ghost_pressure(v);
+      P[i] = Pg;
+      const double F = GetTotalMolarFlow(state, time);
+      P[i] = P_ghost_saved;
+      const double Cf = 0.5 * (Pg + P1) / (R * Tc);
+      return Cf * A_c * v - F;
+    };
+
+    // The ghost pressure is positive for u on one side of u_zero only: the
+    // velocity whose pressure drop across the face equals the first-cell
+    // pressure (outflow at the top is positive, outflow at the bottom
+    // negative).
+    const double u_zero = ErgunVelocity(P1, A, B);
+    const double margin = 1.0 - 1.0e-9;
+    auto clamp = [&](double v) {
+      if (d < 0) return std::min(v, margin * u_zero);
+      return std::max(v, -margin * u_zero);
+    };
+
+    // Bracket the root by expanding away from the current iterate. The
+    // mismatch increases with u (more flow through the face than the streams
+    // pass at the lower face pressure it implies), so step down when it is
+    // positive and up when negative.
+    double a = clamp(std::isfinite(u[ui]) ? u[ui] : 0.0);
+    double fa = mismatch(a);
+    if (!std::isfinite(fa)) return false;
+    double b = a;
+    double fb = fa;
+    if (fa != 0.0) {
+      const double dir = (fa > 0.0) ? -1.0 : 1.0;
+      double step = std::max(1.0e-3, 0.25 * std::abs(a));
+      bool bracketed = false;
+      for (int k = 0; k < 64; ++k) {
+        const double next = clamp(a + dir * step);
+        const double fn = mismatch(next);
+        if (!std::isfinite(fn)) return false;
+        if (fn == 0.0 || (fn > 0.0) != (fa > 0.0)) { b = next; fb = fn; bracketed = true; break; }
+        if (next == a) break;  // pinned at the physical bound: no root there
+        a = next; fa = fn;
+        step *= 2.0;
+      }
+      if (!bracketed) return false;
+    }
+
+    double u_star = 0.0;
+    if (!BrentRoot(mismatch, a, b, fa, fb, 1.0e-15, 200, u_star)) return false;
+    if (!std::isfinite(u_star)) return false;
+
+    res_u[ui] = u[ui] - u_star;
+    res_P[i] = P[i] - ghost_pressure(u_star);
+    return true;
+  }
+
   void FlowBoundaryCondition::Apply(Equations& state, double time) {
     auto& molar_concentration_map = state.molar_concentration;
     
@@ -361,20 +521,24 @@ namespace adsim {
     
     double Cf = P_face / (R * T_face);
     double molar_flow_face = 0.0;
+    bool face_imposed = false;
     const double beta_i = state.domain_vectors.inertial_coefficient[i];
     if (beta_i == 0.0) {
       // Darcy (Kozeny-Carman) layer: legacy closed form, unchanged.
       molar_flow_face = (Cf * K[i] * A[i] / (vis[i] * dx[i])) * d * (P[i] - P[i + d]);
     } else {
       // Ergun layer: the flow through the boundary face is carried by the
-      // face's own velocity unknown, whose (implicit) Ergun momentum residual
-      // UpdateVelocity sets between the ghost and the first bed cell. Using
-      // it, rather than re-solving the quadratic here, keeps one momentum law
-      // per face and the residual free of the square-root characteristic.
-      molar_flow_face = Cf * A[i] * u_face;
+      // face's own velocity unknown. The face problem (the streams' molar
+      // flow at the face pressure, and the Ergun law between the ghost and
+      // the first bed cell) is solved here for the face velocity and the
+      // ghost pressure, which the residuals then impose directly (see
+      // ImposeFlowFace); the implicit momentum residual UpdateVelocity set on
+      // the face is the fallback when the face problem has no bracketed root.
+      face_imposed = ImposeFlowFace(state, time, i, d, ui);
+      if (!face_imposed) molar_flow_face = Cf * A[i] * u_face;
     }
     double total_molar_flow = GetTotalMolarFlow(state, time);
-    res_P[i] = molar_flow_face - total_molar_flow;
+    if (!face_imposed) res_P[i] = molar_flow_face - total_molar_flow;
 
     // The inlet stream's temperature/composition (flow-weighted over the
     // streams) applies while gas flows in; at zero flow the ghost cell takes the

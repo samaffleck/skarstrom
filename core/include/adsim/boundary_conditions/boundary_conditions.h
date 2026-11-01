@@ -187,6 +187,11 @@ namespace adsim {
 		double GetTotalMolarFlow(const Equations& state, double time) const;
 		double GetTotalComponentMolarFlow(const Equations& state, const std::string& component, double time) const;
 		double GetTotalEnthalpyFlow(const Equations& state, double time) const;
+		// Ergun layer: solves the boundary face's velocity and ghost pressure
+		// from the streams' flow law and the Ergun law, and imposes them as the
+		// face's velocity and ghost-pressure residuals (ghost cell i, interior
+		// direction d, face ui). Returns false when nothing was imposed.
+		bool ImposeFlowFace(Equations& state, double time, int i, int d, int ui);
 
 		friend class cereal::access;
 		template <class Archive>

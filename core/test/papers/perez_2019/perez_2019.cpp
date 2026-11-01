@@ -364,6 +364,12 @@ namespace adsim {
     const std::string N2  = "Nitrogen";
 
     SetUpPerez2019();
+    // The engine's default pressure drop, not the deck's: the fast feed into a
+    // bed pressurised to 101325 Pa behind a vent valve at 1 bar asks the top
+    // face of an Ergun layer for a surge of several m/s at the feed switch
+    // (regression test ErgunValveSurgeTest), which kept this test on
+    // Kozeny-Carman until FlowBoundaryCondition solved the face explicitly.
+    data.bed.layers_.layers_.front().momentum_model_ = MomentumModel::Ergun;
 
     const double press_time    = 150.0;
     const double feed1_time    = press_time;

@@ -112,10 +112,12 @@ their 3 pp recovery excess is a separate item (the composition-coupled LPP
 connection, as in the Nguyen 2023 decks). The capacity-factor LDF, the wall
 ends and the pressure-drop constant are each worth under 0.5 pp. Ergun (the
 Blake–Kozeny constant of SI Eq. S5 plus the inertial term) is left out of the
-decks: it is worth 0.3 pp, the paper calls the pressure drop negligible, and it
-fails the initial-condition calculation of the fast-feed connected
-configuration of `ConfigD1_ConnectedBC` (reproduced in Python with every other
-form switched off), which is an engine follow-up. The paper's
+decks: it is worth 0.3 pp and the paper calls the pressure drop negligible.
+(It used to fail the initial-condition calculation of the fast-feed connected
+configuration of `ConfigD1_ConnectedBC`: the feed switch opens the vent valve
+on a bed pressurised 1325 Pa above it, and the Ergun face could not take the
+surge. The flow boundary now solves its face explicitly, regression test
+`ErgunValveSurgeTest`, and `ConfigD1_ConnectedBC` runs on Ergun.) The paper's
 blowdown rate hurts purity because the deck's 19 s blowdown does not reach
 P_int at that rate (the experiment ended the step on a pressure trigger, whose
 duration is not printed), so the deck keeps its blowdown profile.

@@ -54,10 +54,9 @@ namespace adsim {
       _13X.eb_ = eb;
       _13X.domain_.n_cells = 30;
       // SI Eq. S5 is the Blake-Kozeny law (constant 150); the deck keeps Darcy /
-      // Kozeny-Carman (180): the paper calls the pressure drop negligible, the
-      // difference is 0.3 pp of recovery (README), and Ergun fails the
-      // initial-condition calculation of ConfigD1_ConnectedBC (fast feed with a
-      // connected LPP stream) - an engine follow-up, not a deck choice.
+      // Kozeny-Carman (180): the paper calls the pressure drop negligible and
+      // the difference is 0.3 pp of recovery (README). ConfigD1_ConnectedBC
+      // runs on Ergun (see there).
       std::get<CylinderBed>(data.bed.shape_).diameter = Di;
 
       auto& _13X_ads = GetAdsorbent(ads_id);
