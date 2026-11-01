@@ -126,18 +126,25 @@ namespace adsim {
   //   Ergun:        A = 150 mu (1 - eb)^2 / (eb^3 dp^2),
   //                 B = 1.75 rho (1 - eb) / (eb^3 dp)
   //                 (viscous Blake-Kozeny + inertial Burke-Plummer terms; the
-  //                 PSA-literature standard, default for new layers).
-  // Enumerator values are what the deck stores, so never renumber them.
+  //                 PSA-literature standard, default for new layers);
+  //   BlakeKozeny:  A = mu / K,  K = eb^3 dp^2 / (150 (1 - eb)^2),  B = 0
+  //                 (Darcy's law with the Blake-Kozeny permeability: Ergun's
+  //                 viscous term without the inertial one, as used by
+  //                 Haghpanah et al. 2013 and Estupinan Perez et al. 2019).
+  // Enumerator values are what the deck stores, so never renumber them; new
+  // models are appended.
   enum class MomentumModel {
     KarmenCozeny = 0,
-    Ergun = 1
+    Ergun = 1,
+    BlakeKozeny = 2
   };
   // Legacy name: the selector used to choose only the permeability.
   using PermeabilityModel = MomentumModel;
 
   static const char* MomentumModelList[] = {
     "Darcy (Kozeny-Carman)",  // 0
-    "Ergun"                   // 1
+    "Ergun",                  // 1
+    "Darcy (Blake-Kozeny)"    // 2
   };
 
   class Adsorbent {
@@ -381,11 +388,12 @@ namespace adsim {
 
   // Viscous permeability K [m2] of a packed layer: Kozeny-Carman (constant
   // 180) for KarmenCozeny, the Ergun/Blake-Kozeny viscous term (constant 150)
-  // for Ergun.
+  // for Ergun and BlakeKozeny.
   double GetLayerPermeability(double eb, double dp, MomentumModel model);
   // Inertial (Burke-Plummer) coefficient beta [1/m] such that the inertial
   // pressure gradient is beta * rho * |u| * u: 1.75 (1 - eb) / (eb^3 dp) for
-  // Ergun, 0 for KarmenCozeny.
+  // Ergun, 0 for KarmenCozeny and BlakeKozeny (which therefore take the
+  // linear Darcy face path everywhere).
   double GetLayerInertialCoefficient(double eb, double dp, MomentumModel model);
 
   // Superficial velocity u solving  g = A u + B |u| u  for a driving pressure

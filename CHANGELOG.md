@@ -16,6 +16,14 @@ root `CMakeLists.txt`.
   kind has a factory entry.
 
 ### Added
+- A **Blake–Kozeny** momentum model (`MomentumModel::BlakeKozeny` = 2, builder kind and
+  registry choice `blake_kozeny`, Python `layer.set_momentum("blake_kozeny")` /
+  `add_layer(..., momentum="blake_kozeny")`, display name "Darcy (Blake-Kozeny)"):
+  Darcy's law with K = ε³ d_p² / (150 (1 − ε)²), i.e. Ergun's viscous term without the
+  inertial one. It is the pressure-drop law of Haghpanah et al. (2013) and Estupiñan
+  Perez et al. (2019, SI Eq. S5). It takes the Darcy face path everywhere, like
+  Kozeny–Carman. The stored values 0 (Kozeny–Carman) and 1 (Ergun) are unchanged, so
+  existing decks load as before; a deck that uses the new value needs this engine.
 - A **double exponential** profile (`DoubleExponentialBoundaryValue`,
   `BoundaryValueType::DOUBLE_EXPONENTIAL`, builder kind `double_exponential`, Python
   `sk.double_exponential(end, rate_1, rate_2, weight, start=)`): a two-term decay

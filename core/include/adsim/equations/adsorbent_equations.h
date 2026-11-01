@@ -27,9 +27,9 @@ namespace adsim {
   // Momentum coefficients of the Ergun face `face` (between cells face and
   // face + 1), such that the face velocity u solves
   //   P[face] - P[face + 1] = A u + B |u| u.
-  // Returns false, leaving A and B untouched, for a Darcy (Kozeny-Carman) face
-  // (no inertial resistance on either side), whose residual keeps its legacy
-  // closed form. Interior faces take the two half-cells in series; a face
+  // Returns false, leaving A and B untouched, for a Darcy (Kozeny-Carman or
+  // Blake-Kozeny) face (no inertial resistance on either side), whose
+  // residual keeps its legacy closed form. Interior faces take the two half-cells in series; a face
   // with a void cell on one side takes the bed-side cell over its full width
   // plus, on a void-bed (not ghost-void) face, the void region's resistance
   // coefficient, read from `bed`. `bed` may be null only for the two

@@ -864,11 +864,11 @@ namespace adsim {
       E("bed_void_fraction", "bed void fraction", "-", layer.eb_, 0.2, 0.8);
       E("particle_diameter", "particle diameter", "m", layer.particle_diameter_, 1e-5, 0.01);
       {
-        // 0 = Darcy (Kozeny-Carman), 1 = Ergun.
+        // 0 = Darcy (Kozeny-Carman), 1 = Ergun, 2 = Darcy (Blake-Kozeny).
         auto& p = Add(Info(lp + ".momentum_model", la + ".momentum_model", "layer", ln, "momentum model", "-",
                            ParameterKind::Integer, std::numeric_limits<double>::quiet_NaN(),
                            std::numeric_limits<double>::quiet_NaN()));
-        p.info_.choices = {"kozeny_carman", "ergun"};
+        p.info_.choices = {"kozeny_carman", "ergun", "blake_kozeny"};
         MixedAdsorbentLayer* l = &layer;
         p.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->momentum_model_)); };
         p.set_int_ = [l](long long x) { l->momentum_model_ = static_cast<MomentumModel>(static_cast<int>(x)); };

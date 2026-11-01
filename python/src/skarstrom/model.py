@@ -1476,7 +1476,8 @@ class Layer(_Node):
     particle_diameter = Real()
     """Particle diameter [m]."""
     momentum_model = Choice()
-    """Pressure-drop model: "kozeny_carman" (Darcy) or "ergun"."""
+    """Pressure-drop model: "kozeny_carman" (Darcy, constant 180), "ergun" (viscous + inertial terms) or
+    "blake_kozeny" (Darcy, constant 150: Ergun's viscous term without the inertial one)."""
     dispersion_coefficient = Real()
     """Constant axial dispersion coefficient [m2/s]."""
     molecular_diffusion_coefficient = Real()
@@ -1531,7 +1532,14 @@ class Layer(_Node):
         return self._fresh()
 
     def set_momentum(self, kind: str) -> "Layer":
-        """The pressure-drop model: ``"ergun"`` or ``"kozeny_carman"``."""
+        """The pressure-drop model.
+
+        ``"ergun"`` (viscous term with the constant 150 plus the inertial
+        Burke-Plummer term), ``"kozeny_carman"`` (Darcy's law, constant 180) or
+        ``"blake_kozeny"`` (Darcy's law, constant 150: Ergun without its
+        inertial term, as in Haghpanah et al. 2013 and Estupinan Perez et al.
+        2019). See docs/momentum-balance.md.
+        """
         self._sim._build("set_momentum", self._id, kind)
         return self._fresh()
 

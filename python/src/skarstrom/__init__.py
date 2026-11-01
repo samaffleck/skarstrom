@@ -743,7 +743,8 @@ class Simulation:
         """A new layer at the product end of the bed.
 
         ``composition`` maps adsorbents (names, IDs or Adsorbent objects) to
-        mass fractions; ``momentum`` is ``"ergun"`` or ``"kozeny_carman"``;
+        mass fractions; ``momentum`` is ``"ergun"``, ``"kozeny_carman"`` or
+        ``"blake_kozeny"`` (see ``Layer.set_momentum``);
         ``values`` set its fields (length, cells, bed_void_fraction,
         particle_diameter...). The transport models start as constant
         dispersion and constant heat transfer; change them with
