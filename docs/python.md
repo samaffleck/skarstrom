@@ -276,6 +276,7 @@ What each part takes:
 | `sim.add_component(name)` | a CoolProp name or formula |
 | `sim.add_adsorbent(name, **values)` | `solid_density`, `heat_capacity`, `thermal_conductivity`, `particle_void_fraction`; new components get an inert isotherm and a constant LDF rate |
 | `ads.set_isotherm(kind, {component: {param: value}}, components=None)` | `build_kinds()["isotherm"]`; the parameters are those of `skarstrom.isotherm_parameters(kind)`. Components given together share one (competitive) isotherm |
+| `ads.set_mixing_rule(kind)` | `none` (each isotherm on its own) or `iast` (Ideal Adsorbed Solution Theory over the pure isotherms; see [Isotherms](isotherms.md#mixture-loadings-the-mixing-rule-and-iast)); also the field `ads.mixing_rule` |
 | `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf` or `ldf2`; coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity` |
 | `sim.bed.set_shape(kind, **values)` | `cylinder` (diameter), `square` (width), `rectangle` (width, length) |
 | `sim.bed.set_thermal_equilibrium(kind)`, `sim.bed.set_particle_heat_transfer("constant", particle_htc=...)` | `lte` or `ltne` |
@@ -375,6 +376,11 @@ q = skarstrom.evaluate_isotherm("single_site_langmuir_p", {"m1": 4.0, "b1": 2e-9
                                 pressure=p_pa, temperature=303.15)
 fit = skarstrom.fit_isotherm("sips", p_pa, q_molkg, temperature=T_K)
 fit["params"], fit["std_errors"], fit["r2"], fit["rmse"]
+# IAST mixture loadings [mol/kg] from one pure isotherm per component:
+q_mix = skarstrom.evaluate_iast(["toth", "dual_site_langmuir_p"],
+                                [{"q_sat": 4.0, "b": 2e-5, "v": 0.6},
+                                 {"m1": 2.0, "b1": 3e-9, "q1": 2.5e4, "m2": 1.5, "b2": 1e-10, "q2": 3e4}],
+                                pressure=2e5, temperature=298.15, mole_fraction=[0.3, 0.7])
 ```
 
 `fit_isotherm` accepts `fixed={...}` to hold parameters, and `initial={...}` and `bounds={...}` to override the starting guesses and search bounds derived from the data.

@@ -16,6 +16,27 @@ root `CMakeLists.txt`.
   kind has a factory entry.
 
 ### Added
+- **Ideal Adsorbed Solution Theory (IAST)** as a per-adsorbent **mixing rule**
+  (`AdsorptionSource::mixing_rule_`, `MixingRule::None|IAST`; registry
+  `adsorbent[<id>].mixing_rule` with choices `none`, `iast`; builder
+  `SetMixingRule` and kind list `MixingRuleKinds()`; Python `ads.mixing_rule`,
+  `ads.set_mixing_rule(kind)`). Under `iast` the mixture loadings come from the
+  components' pure isotherms (any kinds, mixed freely), solved per cell by a
+  bracketed Newton iteration on the reduced spreading pressure, warm-started
+  from the cell's last solve. Closed-form spreading pressures for most kinds,
+  Gauss–Legendre quadrature for Toth, Toth 2 and Redlich–Peterson. Absent
+  components (y ≤ 0) take the infinite-dilution limit, so the loading is
+  smooth through zero mole fraction. The evaluation functions are public in
+  `adsim/equations/iast.h` and in Python as `skarstrom.evaluate_iast`. The
+  solver log warns when IAST is combined with an extended (competitive) kind.
+  The capacity-factor macropore coefficient (`macropore_capacity`), which
+  evaluates q\* itself, takes the IAST mixture loading under the IAST rule.
+  `AdsorptionSource` is at cereal version 1; older decks load with `none` and
+  run exactly as before. Docs: the isotherms page.
+- `IsCompetitiveIsothermKind(type)` and `PairedIsothermKind(type, out)` in
+  `adsim/equations/isotherm_kinds.h`: which kinds couple components through a
+  shared denominator, and each one's pure counterpart with the same parameters
+  (and back). The IAST warning uses them and names the pure kind to switch to.
 - A **double exponential** profile (`DoubleExponentialBoundaryValue`,
   `BoundaryValueType::DOUBLE_EXPONENTIAL`, builder kind `double_exponential`, Python
   `sk.double_exponential(end, rate_1, rate_2, weight, start=)`): a two-term decay

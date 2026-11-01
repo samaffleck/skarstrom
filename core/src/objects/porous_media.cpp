@@ -131,6 +131,11 @@ namespace adsim {
 	}
 
   void AdsorptionSource::UpdateIsothermAll(Equations& state, AdsorbentID ads_id, const std::vector<std::string>& components, int start_index, int end_index, const UserVariableRegistry* registry) {
+    if (mixing_rule_ == MixingRule::IAST) {
+      UpdateIsothermIast(state, ads_id, components, start_index, end_index);
+      return;
+    }
+
     // Group components by isotherm object (preserving component order) so
     // competitive isotherms can share their per-cell denominators.
     std::vector<std::pair<IIsotherm*, std::vector<std::string>>> groups;
@@ -153,9 +158,43 @@ namespace adsim {
     }
   }
 
+  void AdsorptionSource::UpdateIsothermIast(Equations& state, AdsorbentID ads_id, const std::vector<std::string>& components, int start_index, int end_index) {
+    const int n = static_cast<int>(components.size());
+    auto& T = state.solid_temperature.var;
+    auto& P = state.pressure.var;
+    auto& q_map = state.eq_ads_concentration.at(ads_id);
+
+    // Resolve each component's pure isotherm once per update; the cell loop
+    // then only applies the temperature factors.
+    iast_refs_.resize(n);
+    iast_pure_.resize(n);
+    iast_y_.resize(n);
+    iast_q_.resize(n);
+    iast_y_of_.resize(n);
+    iast_q_of_.resize(n);
+    for (int i = 0; i < n; ++i) {
+      const auto& comp = components[i];
+      iast_refs_[i] = ResolvePureIsotherm(GetIsotherm(comp).get(), comp);
+      iast_y_of_[i] = &state.mole_fraction.at(comp).var;
+      iast_q_of_[i] = &q_map.at(comp).var;
+    }
+    if (iast_psi_.size() != P.size()) iast_psi_.assign(P.size(), 0.0);
+
+    for (int c = start_index; c <= end_index; ++c) {
+      for (int i = 0; i < n; ++i) {
+        iast_pure_[i] = PreparePureIsotherm(iast_refs_[i], T[c]);
+        iast_y_[i] = (*iast_y_of_[i])[c];
+      }
+      const IastResult r = SolveIast(iast_pure_.data(), n, P[c], iast_y_.data(), iast_q_.data(),
+                                     iast_scratch_, iast_psi_[c]);
+      iast_psi_[c] = r.converged ? r.psi : 0.0;
+      for (int i = 0; i < n; ++i) (*iast_q_of_[i])[c] = iast_q_[i];
+    }
+  }
+
   void AdsorptionSource::UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const std::string& component, const Fluid& fluid, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry, double solid_density) {
     auto& model = mass_transfer_models_.at(component)->mtc_model_;
-    model->SetEquilibriumContext(GetIsotherm(component).get(), solid_density);
+    model->SetEquilibriumContext(GetIsotherm(component).get(), solid_density, this);
     model->UpdateMassTransferCoefficient(state, ads_id, fluid, component, layer, registry);
   }
 
@@ -376,6 +415,7 @@ namespace adsim {
 
 } // end adsim namespace
 
+CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
 CEREAL_CLASS_VERSION(adsim::Adsorbent, 4);
 CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
 CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 3);

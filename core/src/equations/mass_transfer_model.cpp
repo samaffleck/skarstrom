@@ -9,6 +9,7 @@
 #include "adsim/equations/equation.h"
 #include "adsim/equations/isotherm.h"
 #include "adsim/objects/reactor.h"
+#include "adsim/objects/porous_media.h"
 
 
 namespace adsim {
@@ -130,10 +131,29 @@ namespace adsim {
         const double y_floor = c_floor * R * T[n] / P[n];
         if (yi[n] < y_floor) yi[n] = y_floor;
       }
-      IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id),
-                                  state.solid_temperature.var, state.pressure.var, component, start, end, registry);
-      isotherm_->Update(params);
-      std::swap(q_scratch_, qi_sat);   // q_scratch_ = q* at the floored state; qi_sat = the original, restored
+      if (source_ && source_->mixing_rule_ == MixingRule::IAST) {
+        // IAST couples the components: re-solve the whole adsorbent at the
+        // floored state, keep this component's loading, restore every other one.
+        auto& q_map = state.eq_ads_concentration.at(ads_id);
+        const auto& components = fluid.components_;
+        q_all_scratch_.resize(components.size());
+        for (size_t i = 0; i < components.size(); ++i) {
+          const auto& q = q_map.at(components[i]).var;
+          q_all_scratch_[i].assign(q.begin(), q.end());
+        }
+        source_->UpdateIsothermAll(state, ads_id, components, start, end, registry);
+        std::swap(q_scratch_, qi_sat);
+        for (size_t i = 0; i < components.size(); ++i) {
+          auto& q = q_map.at(components[i]).var;
+          if (&q == &qi_sat) continue;  // restored by the swap above
+          std::copy(q_all_scratch_[i].begin(), q_all_scratch_[i].end(), q.begin());
+        }
+      } else {
+        IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id),
+                                    state.solid_temperature.var, state.pressure.var, component, start, end, registry);
+        isotherm_->Update(params);
+        std::swap(q_scratch_, qi_sat);   // q_scratch_ = q* at the floored state; qi_sat = the original, restored
+      }
       std::copy(y_scratch_.begin(), y_scratch_.end(), yi.begin());
     }
 

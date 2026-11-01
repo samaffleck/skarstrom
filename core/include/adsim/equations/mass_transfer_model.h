@@ -33,6 +33,7 @@ namespace adsim {
   class Equations;
   class Fluid;
   class IIsotherm;
+  class AdsorptionSource;
   using AdsorbentID = std::size_t; // mirrors porous_media.h; identical typedef redeclaration is legal
 	
 	enum class MassTransferModelType {
@@ -72,7 +73,11 @@ namespace adsim {
 		// The adsorbent's isotherm for this component and its particle density
 		// [kg/m3], handed over by AdsorptionSource before every update. Only the
 		// capacity-factor model reads them (it evaluates the isotherm itself).
-		virtual void SetEquilibriumContext(IIsotherm* /*isotherm*/, double /*solid_density*/) {}
+		// The component's isotherm, the adsorbent's solid density and the
+		// adsorbent's AdsorptionSource (whose UpdateIsothermAll applies its
+		// mixing rule), for the models that evaluate q* themselves.
+		virtual void SetEquilibriumContext(IIsotherm* /*isotherm*/, double /*solid_density*/,
+		                                   AdsorptionSource* /*source*/) {}
 		virtual void EvaluateExpressions(const EvalContext& ctx) {}
 		// Compiles the parameters evaluated per cell in the residual (see
 		// ExpressionParam::CompileForRun). Called once at the start of a run.
@@ -189,14 +194,17 @@ namespace adsim {
 	// taken at max(c_i, c_floor), with the isotherm re-evaluated at that
 	// concentration (every other component at its actual value), which stays
 	// finite and smooth where the state's own c / q* is 0 / 0. The ratio is
-	// capped at 1 (the plain macropore coefficient).
+	// capped at 1 (the plain macropore coefficient). Under the adsorbent's IAST
+	// mixing rule, q* is the IAST mixture loading at that state (all of the
+	// adsorbent's components solved together), not the component's own
+	// isotherm on its own.
 	class MassTransferCoefficientMacroporeCapacity : public IMassTransferCoefficientModel {
 	public:
     void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
 		MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::MACROPORE_CAPACITY; }
 		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
-		void SetEquilibriumContext(IIsotherm* isotherm, double solid_density) override {
-			isotherm_ = isotherm; solid_density_ = solid_density;
+		void SetEquilibriumContext(IIsotherm* isotherm, double solid_density, AdsorptionSource* source) override {
+			isotherm_ = isotherm; solid_density_ = solid_density; source_ = source;
 		}
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx); concentration_floor_.Evaluate(ctx);
@@ -208,7 +216,9 @@ namespace adsim {
 
 	private:
 		IIsotherm* isotherm_ = nullptr;   // transient, set by AdsorptionSource
+		AdsorptionSource* source_ = nullptr;  // transient: under IAST, q* comes from its UpdateIsothermAll
 		double solid_density_ = 0.0;      // transient [kg/m3]
+		std::vector<std::vector<double>> q_all_scratch_;  // transient: every component's q* before the IAST re-evaluation
 		std::vector<double> y_scratch_;   // transient: the mole fraction before flooring
 		std::vector<double> q_scratch_;   // transient: q* at the floored concentration
 
