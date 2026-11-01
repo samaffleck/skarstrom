@@ -15,6 +15,11 @@
 // the metadata (no C++ class changes, so every existing adsorbent file and
 // deck still loads).
 //
+// Entries are grouped into materials (schema 3): every material has one
+// recommended entry, and a material's other entries are variants (a different
+// product, form or data range, named in `variant`). Resolve() turns a material
+// id, an entry key, or the alias of a removed entry into an entry.
+//
 // This header is a small read-only view of the catalog (list + citation) for
 // front ends and the library tests. scripts/docs/gen_adsorbent_library.py
 // validates the catalog against the blobs and renders the docs page from it.
@@ -40,12 +45,24 @@ namespace adsim {
     std::string refs;       // tables / figures / sections used
   };
 
+  struct AdsorbentLibraryMaterial {
+    std::string id;           // lower case words joined by hyphens, e.g. "zeolite-13x"
+    std::string name;         // display name, e.g. "Zeolite 13X"
+    std::string family;       // zeolite / carbon / MOF / silica / amine / ...
+    std::string recommended;  // key of the recommended entry
+    std::string recommended_reason;
+    std::vector<std::string> aliases;  // removed entry keys that resolve to this material
+  };
+
   struct AdsorbentLibraryEntry {
     std::string key;       // stable id (also the web add_example_adsorbent key)
     std::string file;      // cereal blob, relative to the catalog directory
-    std::string label;     // display name (== the blob's Name)
-    std::string material;  // material name without the source suffix
-    std::string family;    // zeolite / carbon / MOF / silica / amine / ...
+    std::string label;     // display name: the material name, plus the variant in brackets
+    std::string material;  // the sample as the source describes it
+    std::string material_id;  // key into AdsorbentLibrary::materials
+    std::string variant;      // what sets this entry apart (empty when it is its material's only entry)
+    bool recommended = false;  // the recommended entry of its material
+    std::string family;    // the material's family
     std::string status;    // "sourced" or "legacy"
     std::string legacy_note;
     std::vector<std::string> applications;
@@ -59,6 +76,7 @@ namespace adsim {
   struct AdsorbentLibrary {
     int schema_version = 0;
     std::vector<AdsorbentLibrarySource> sources;
+    std::vector<AdsorbentLibraryMaterial> materials;
     std::vector<AdsorbentLibraryEntry> entries;
 
     const AdsorbentLibrarySource* FindSource(const std::string& id) const {
@@ -71,6 +89,31 @@ namespace adsim {
       for (const auto& e : entries)
         if (e.key == key) return &e;
       return nullptr;
+    }
+    const AdsorbentLibraryMaterial* FindMaterial(const std::string& id) const {
+      for (const auto& m : materials)
+        if (m.id == id) return &m;
+      return nullptr;
+    }
+    // An entry by its key; else a material's recommended entry by the
+    // material id or by the alias of a removed entry. nullptr if none.
+    const AdsorbentLibraryEntry* Resolve(const std::string& key_or_material) const {
+      if (const AdsorbentLibraryEntry* e = Find(key_or_material)) return e;
+      for (const auto& m : materials) {
+        bool hit = m.id == key_or_material;
+        for (const auto& a : m.aliases) hit = hit || a == key_or_material;
+        if (hit) return Find(m.recommended);
+      }
+      return nullptr;
+    }
+    // The entries of one material, recommended first, then in catalog order.
+    std::vector<const AdsorbentLibraryEntry*> Variants(const std::string& material_id) const {
+      std::vector<const AdsorbentLibraryEntry*> out;
+      for (const auto& e : entries)
+        if (e.material_id == material_id && e.recommended) out.push_back(&e);
+      for (const auto& e : entries)
+        if (e.material_id == material_id && !e.recommended) out.push_back(&e);
+      return out;
     }
 
     // One line per cited source: "<citation> doi:<doi> (<refs>)".
@@ -122,6 +165,18 @@ namespace adsim {
         lib.sources.push_back(std::move(s));
       }
     }
+    if (doc.HasMember("materials") && doc["materials"].IsObject()) {
+      for (auto it = doc["materials"].MemberBegin(); it != doc["materials"].MemberEnd(); ++it) {
+        AdsorbentLibraryMaterial m;
+        m.id = it->name.GetString();
+        m.name = d::Str(it->value, "name");
+        m.family = d::Str(it->value, "family");
+        m.recommended = d::Str(it->value, "recommended");
+        m.recommended_reason = d::Str(it->value, "recommended_reason");
+        m.aliases = d::StrList(it->value, "aliases");
+        lib.materials.push_back(std::move(m));
+      }
+    }
     if (!doc.HasMember("entries") || !doc["entries"].IsArray())
       throw std::runtime_error("adsorbent library: catalog has no 'entries' array");
     for (const auto& v : doc["entries"].GetArray()) {
@@ -130,7 +185,12 @@ namespace adsim {
       e.file = d::Str(v, "file");
       e.label = d::Str(v, "label");
       e.material = d::Str(v, "material");
-      e.family = d::Str(v, "family");
+      e.material_id = d::Str(v, "material_id");
+      e.variant = d::Str(v, "variant");
+      if (const AdsorbentLibraryMaterial* m = lib.FindMaterial(e.material_id)) {
+        e.family = m->family;
+        e.recommended = m->recommended == e.key;
+      }
       e.status = d::Str(v, "status");
       e.legacy_note = d::Str(v, "legacy_note");
       e.applications = d::StrList(v, "applications");

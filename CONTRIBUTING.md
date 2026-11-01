@@ -72,6 +72,17 @@ negotiable:
   its reference begins `Not stated in source (checked: ...)`.
   `python scripts/docs/gen_adsorbent_library.py` validates the catalogue against
   the files and must pass; the `AdsorbentLibrary*` tests must pass.
+- **One recommended entry per material.** Every entry names its material
+  (`material_id`, a key of `materials`), and every material has exactly one
+  `recommended` entry with a one-line `recommended_reason`. The recommended
+  entry has the best data quality (each isotherm's `data_quality`:
+  `measured_tabulated` > `measured_fit` > `refit` > `secondary`), then the best
+  coverage of the material's usual components, then the widest range. A
+  material gets a second entry only when it is a different product, form or
+  data range a user can name: that entry's `variant`. Otherwise the better
+  entry replaces the weaker one, whose key goes into the material's `aliases`
+  so it keeps resolving. An entry's label is the material name, plus the
+  variant in brackets; no author names.
 - **Reference values are printed numbers.** `reference_values.csv` in a paper
   folder holds only numbers printed in the paper (tables, values stated in the
   text), each with its table/figure/page. Anything derived is marked as such.

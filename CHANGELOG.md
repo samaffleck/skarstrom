@@ -8,6 +8,22 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed
+- **Adsorbent library: one recommended entry per material** (catalogue schema 3).
+  `library.json` groups its entries into 22 `materials` (id, name, family,
+  `recommended` entry and why, `aliases`). A material's other entries are
+  *variants*, each naming the product, form or data range that sets it apart;
+  labels are the material name plus the variant ("Zeolite 13X (Zeochem Z10-02,
+  CO2/N2 to 1 bar)") instead of "Material (Author year)". Each isotherm records
+  its `data_quality` (measured with tabulated data, measured fit only, refit of
+  other authors' data, copied from an earlier paper, not yet checked). The
+  validator, the native library tests and the generated docs page (now grouped
+  by material) enforce it. `family` moved from the entry to its material.
+- `AddLibraryAdsorbent`, `Simulation.add_library_adsorbent` and
+  `skarstrom.adsorbent_path` accept a material id (e.g. `"zeolite-13x"`) and add
+  or return that material's recommended entry; `AdsorbentLibrary` gains
+  `materials`, `FindMaterial`, `Resolve` and `Variants`. Entry keys are unchanged.
+
 ### Fixed
 - `CreateBoundaryValue` and `CreateInletTemperatureProfile` know the double-exponential
   profile. The web document layer builds profiles through the first factory, so a deck

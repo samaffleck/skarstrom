@@ -81,7 +81,7 @@ sim.save("modified.json")
 
 CLI: `skarstrom params deck.json [--all] [--search TEXT] [--json]`; `--set PATH=VALUE` on `run` (repeatable). Path families: `cycle.*`, `step[ID].time|fraction`, `endpoint[ID].<field>` (flows, pressures, temperatures, `y[Component]`, pump settings), `bed.*`, `wall.*`, `layer[ID].*`, `adsorbent[ID].<property>|isotherm[C].<param>|kinetics[C].<param>|heat_of_adsorption[C]`, `variable[name]`, `settings.*`, `css.*`, `energy_balance.*`, `info.*`. Unknown paths raise `KeyError` (CLI: exit with "unknown parameter").
 
-Structural edits: `sim.add_component(name)`, `sim.remove_component(name)`, `sim.add_library_adsorbent(key)` (returns the adsorbent ID), and the builder below.
+Structural edits: `sim.add_component(name)`, `sim.remove_component(name)`, `sim.add_library_adsorbent(key)` (an entry key, or a material id such as `"zeolite-13x"` for its recommended entry; returns the adsorbent ID), and the builder below.
 
 ### Building a simulation in Python
 
@@ -142,7 +142,7 @@ CLI: `skarstrom sensitivity deck.json --input "PATH=10%" --input "PATH=LO:HI" --
 skarstrom.isotherm_kinds(); skarstrom.isotherm_parameters("sips")
 skarstrom.evaluate_isotherm("sips", {"q_sat": 5, "b": 1e-5, "v": 0.8}, pressure=p_pa, temperature=298.15)
 skarstrom.fit_isotherm("dual_site_langmuir_p", p_pa, q_molkg, temperature=T_K)   # params, std_errors, r2, rmse, ...
-skarstrom.adsorbent_library()["entries"]; skarstrom.adsorbent_path("zeolite_13x_perez2019")
+skarstrom.adsorbent_library()["materials"]; skarstrom.adsorbent_library()["entries"]; skarstrom.adsorbent_path("zeolite-13x")
 ```
 
 All values are SI base units (Pa, K, mol/kg, J/mol, m, s).
@@ -188,7 +188,8 @@ pip install -r requirements-docs.txt && mkdocs build --strict
 
 - **Never commit `core/Results/`** (test output, git-ignored) or build trees.
 - **Keep generated docs generated.** `docs/validation.md` comes from `core/test/papers/validation_summary.json` (`python scripts/docs/gen_validation_page.py`, `--merge <build>/validation` after running the paper tests); `docs/adsorbent-library.md` from `data/adsorbents/library.json` (`python scripts/docs/gen_adsorbent_library.py`, which also validates the catalogue). Never edit the generated pages; CI runs both with `--check`.
-- **Cite every adsorbent parameter.** A library entry needs a DOI and table/figure reference for each value, or an explicit `Not stated in source (checked: ...)`. Paper reference values (`reference_values.csv`) must be numbers printed in the paper; never eyeball values off a plot, never commit PDFs or full-text extractions.
+- **Cite every adsorbent parameter.** A library entry needs a DOI and table/figure reference for each value, or an explicit `Not stated in source (checked: ...)`.
+- **One recommended entry per material.** Every library entry belongs to a material (`materials` in `library.json`); each material has exactly one `recommended` entry, chosen on data quality (each isotherm's `data_quality`: measured with tabulated data > measured, fit only > refit of others' data > copied from an earlier paper). Add a second entry for a material only when it is a different product, form or data range that a user can name (its `variant`); otherwise replace the weaker entry and list its key in the material's `aliases`. Labels are the material name plus the variant in brackets, never author names. Paper reference values (`reference_values.csv`) must be numbers printed in the paper; never eyeball values off a plot, never commit PDFs or full-text extractions.
 - **Tolerances in paper tests are regression bounds** set from the measured error; never loosen one to hide a disagreement — document it in the paper's README.
 - **Regenerated example decks are expected.** The test suite re-saves `examples/decks/*.json` and some `data/adsorbents/*.json`; embedded result numbers move in the last digits. Commit those changes with the code change that caused them.
 - **Data file names must be shell-safe** (`[A-Za-z0-9._,=+@-]`; checked by the `DataFileNamesAreShellSafe` test).

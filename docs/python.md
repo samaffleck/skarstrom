@@ -204,7 +204,8 @@ Parameters change values; a few methods change the deck's structure, with the ca
 ```python
 sim.add_component("Argon")            # 0 mole fraction everywhere, default physics on every adsorbent
 sim.remove_component("Argon")
-ads = sim.add_library_adsorbent("zeolite_13x_perez2019")   # returns the new adsorbent's ID
+ads = sim.add_library_adsorbent("zeolite-13x")   # a material's recommended entry; returns the new adsorbent's ID
+ads = sim.add_library_adsorbent("zeolite_13x_streb2021")   # or one entry (a variant) by its key
 ```
 
 A library adsorbent is added to the deck's adsorbent directory; it is used (and its values appear in `sim.parameters()`) once a layer contains it — automatically for a layer that had no adsorbent yet.
@@ -408,7 +409,8 @@ The exit code is 0 when the run completes or reaches CSS, 1 when it fails and 13
 ```python
 skarstrom.examples.Perez2019_A.path        # the example decks (see Example decks above)
 lib = skarstrom.adsorbent_library()        # data/adsorbents/library.json as a dict
-skarstrom.adsorbent_path("zeolite_13x_perez2019")
+lib["materials"]["zeolite-13x"]["recommended"]   # each material's recommended entry key
+skarstrom.adsorbent_path("zeolite-13x")    # a material id, or an entry key
 ```
 
 The decks are those of `examples/decks/` in the repository and the library is `data/adsorbents/` ([Adsorbent Library](adsorbent-library.md)).

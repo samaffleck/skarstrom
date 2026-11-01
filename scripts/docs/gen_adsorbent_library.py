@@ -7,6 +7,10 @@ The library has ONE source of truth:
 
 This script VALIDATES the catalogue against the blobs (every entry cited or
 marked legacy, metadata values equal to the blob values, no orphan blob files)
+and the MATERIALS rule: every entry belongs to one material, every material has
+exactly one recommended entry, and a material's second entry is a variant with
+a name that sets it apart (the entry's label is the material name, plus the
+variant in brackets). Each isotherm records its data quality
 and enforces the COMPLETENESS rule: for a sourced entry every required field
 (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity,
 particle size, example decks) is either sourced/derived or carries a ref
@@ -77,7 +81,24 @@ ISOTHERM_LABELS = {
 
 FAMILIES = ["zeolite", "carbon", "MOF", "silica", "alumina", "amine", "other"]
 STATUSES = ["sourced", "legacy"]
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+# Per-isotherm data quality, best first. measured_tabulated: measured by the
+# cited authors, and the entry holds their tabulated data (source_points);
+# measured_fit: measured by the cited authors, fit only; refit: the cited paper
+# fitted data measured by others; secondary: the cited paper copied the
+# parameters from another paper; not_checked: the source has not yet been read
+# for this (needs a data_quality_note); unknown: legacy entries only.
+DATA_QUALITY = ["measured_tabulated", "measured_fit", "refit", "secondary", "not_checked", "unknown"]
+DATA_QUALITY_LABELS = {
+    "measured_tabulated": "measured, data tabulated",
+    "measured_fit": "measured, fit only",
+    "refit": "fitted to other authors' data",
+    "secondary": "copied from an earlier paper",
+    "not_checked": "not yet checked",
+    "unknown": "unknown (legacy)",
+}
+MATERIAL_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+ASCII_RE = re.compile(r"^[ -~]+$")
 PROVENANCE = ["source", "derived", "repo", "default", "not_stated", "unknown"]
 NOT_STATED_RE = re.compile(r"^Not stated in source(?: as a [^(]+)? \(checked: [^)]+\)")
 UNVERIFIABLE_FIELDS = ["T_range_K", "P_range_Pa", "heat_of_adsorption", "particle_density", "heat_capacity", "particle_diameter"]
@@ -158,6 +179,25 @@ def load_library(catalog=None):
         if not DOI_RE.match(s.get("doi") or ""):
             err(f"source {sid}", f"invalid DOI '{s.get('doi')}'")
 
+    materials = catalog.get("materials")
+    if not isinstance(materials, dict) or not materials:
+        errors.append("catalog needs a 'materials' object (material id -> name, family, recommended entry)")
+        materials = {}
+    for mid, mat in materials.items():
+        where = f"material {mid}"
+        if not MATERIAL_ID_RE.match(mid):
+            err(where, "id must be lower case words joined by hyphens ([a-z0-9]+(-[a-z0-9]+)*)")
+        if not mat.get("name") or not ASCII_RE.match(mat.get("name") or ""):
+            err(where, "needs a name (printable ASCII: it becomes the adsorbent name in a deck)")
+        if mat.get("family") not in FAMILIES:
+            err(where, f"family '{mat.get('family')}' not in {'/'.join(FAMILIES)}")
+        if not mat.get("recommended"):
+            err(where, "needs a recommended entry key")
+        if not mat.get("recommended_reason"):
+            err(where, "needs a recommended_reason (one line: why this entry)")
+        if not isinstance(mat.get("aliases"), list):
+            err(where, "aliases must be an array (removed entry keys that now resolve to this material)")
+
     seen_keys, seen_files, entries = set(), set(), []
     for e in catalog.get("entries") or []:
         k = e.get("key") or "<no key>"
@@ -170,8 +210,19 @@ def load_library(catalog=None):
             err(k, "missing label")
         if not e.get("material"):
             err(k, "missing material")
-        if e.get("family") not in FAMILIES:
-            err(k, f"family '{e.get('family')}' not in {'/'.join(FAMILIES)}")
+        if "family" in e:
+            err(k, "family belongs to the material (materials.<id>.family), not the entry")
+        mat = materials.get(e.get("material_id"))
+        if mat is None:
+            err(k, f"material_id '{e.get('material_id')}' is not in materials")
+            mat = {}
+        variant = e.get("variant") or ""
+        if variant and not ASCII_RE.match(variant):
+            err(k, "variant must be printable ASCII (it becomes part of the adsorbent name)")
+        if mat.get("name"):
+            want = f"{mat['name']} ({variant})" if variant else mat["name"]
+            if e.get("label") != want:
+                err(k, f"label must be the material name plus the variant in brackets: '{want}'")
         if e.get("status") not in STATUSES:
             err(k, f"status '{e.get('status')}' not in {'/'.join(STATUSES)}")
         if not isinstance(e.get("applications"), list) or not e.get("applications"):
@@ -256,6 +307,16 @@ def load_library(catalog=None):
                 continue
             if not im.get("ref"):
                 err(k, f"isotherm {comp} needs a ref")
+            dq = im.get("data_quality")
+            if dq not in DATA_QUALITY:
+                err(k, f"isotherm {comp}: data_quality '{dq}' not one of {'/'.join(DATA_QUALITY)}")
+            if (dq == "unknown") != legacy:
+                err(k, f"isotherm {comp}: data_quality 'unknown' is for legacy entries, and only it")
+            if dq == "not_checked" and not im.get("data_quality_note"):
+                err(k, f"isotherm {comp}: data_quality 'not_checked' needs a data_quality_note saying what is left to check")
+            sp_kind = (im.get("source_points") or {}).get("kind")
+            if (dq == "measured_tabulated") != (sp_kind == "measured"):
+                err(k, f"isotherm {comp}: data_quality 'measured_tabulated' goes with, and only with, measured source_points")
             for rk, nk in (("T_range_K", "T_range_not_stated"), ("P_range_Pa", "P_range_not_stated")):
                 r = im.get(rk)
                 if r is None:
@@ -394,7 +455,11 @@ def load_library(catalog=None):
             "key": k,
             "label": e.get("label"),
             "material": e.get("material"),
-            "family": e.get("family"),
+            "material_id": e.get("material_id"),
+            "material_name": mat.get("name", ""),
+            "variant": variant,
+            "recommended": mat.get("recommended") == k,
+            "family": mat.get("family"),
             "status": e.get("status"),
             "legacy_note": e.get("legacy_note") or "",
             "applications": e.get("applications") or [],
@@ -411,6 +476,8 @@ def load_library(catalog=None):
                 "kind_label": ISOTHERM_LABELS.get(ISOTHERM_KINDS[b["iso_map"][comp]], "unknown") if comp in b["iso_map"] else "unknown",
                 "params": b["params_for"](comp),
                 "ref": (iso_meta.get(comp) or {}).get("ref", ""),
+                "data_quality": (iso_meta.get(comp) or {}).get("data_quality", ""),
+                "data_quality_note": (iso_meta.get(comp) or {}).get("data_quality_note", ""),
                 "T_range_K": (iso_meta.get(comp) or {}).get("T_range_K"),
                 "P_range_Pa": (iso_meta.get(comp) or {}).get("P_range_Pa"),
                 "T_range_not_stated": (iso_meta.get(comp) or {}).get("T_range_not_stated", ""),
@@ -431,6 +498,38 @@ def load_library(catalog=None):
     for f in sorted(LIB_DIR.iterdir()):
         if f.suffix == ".json" and f.name != "library.json" and f.name not in seen_files:
             errors.append(f"orphan blob '{f.name}' is not listed in library.json")
+
+    # Materials: one recommended entry each; variants only where a material
+    # has more than one entry, each with its own name; ids, keys and aliases
+    # never collide (a material id or an alias resolves to the recommended entry).
+    by_key = {en["meta"]["key"]: en["meta"] for en in entries}
+    seen_aliases: set = set()
+    for mid, mat in materials.items():
+        where = f"material {mid}"
+        members = [m for m in by_key.values() if m["material_id"] == mid]
+        if not members:
+            err(where, "has no entries")
+            continue
+        rec = by_key.get(mat.get("recommended"))
+        if rec is None or rec["material_id"] != mid:
+            err(where, f"recommended '{mat.get('recommended')}' is not one of its entries")
+        elif rec["status"] == "legacy" and any(m["status"] == "sourced" for m in members):
+            err(where, "a legacy entry cannot be recommended while a sourced entry exists")
+        if len(members) == 1 and members[0]["variant"]:
+            err(where, f"its only entry {members[0]['key']} must not have a variant")
+        if len(members) > 1:
+            names = [m["variant"] for m in members]
+            for m in members:
+                if not m["variant"]:
+                    err(m["key"], f"material {mid} has {len(members)} entries, so this one needs a variant naming what sets it apart")
+            if len(set(names)) != len(names):
+                err(where, "variants must be unique within the material")
+        if mid in seen_keys:
+            err(where, "id collides with an entry key")
+        for a in mat.get("aliases") or []:
+            if a in seen_keys or a in materials or a in seen_aliases:
+                err(where, f"alias '{a}' collides with an entry key, a material id or another alias")
+            seen_aliases.add(a)
     return entries, errors
 
 
@@ -466,15 +565,27 @@ def anchor(key: str) -> str:
     return key.replace("_", "-")
 
 
+def material_groups(entries):
+    """[(material_id, name, family, [entries, recommended first])] in catalogue order of materials."""
+    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    groups = []
+    for mid, mat in (catalog.get("materials") or {}).items():
+        members = [e for e in entries if e["meta"]["material_id"] == mid]
+        members.sort(key=lambda e: not e["meta"]["recommended"])
+        groups.append((mid, mat, members))
+    return groups
+
+
 def render_docs(entries) -> str:
     L: list = []
     out = L.append
     n_sourced = sum(1 for e in entries if e["meta"]["status"] == "sourced")
+    groups = material_groups(entries)
     out("<!-- GENERATED by scripts/docs/gen_adsorbent_library.py from data/adsorbents/library.json — do not edit. -->")
     out("")
     out("# Adsorbent Library")
     out("")
-    out(f"Skarstrom ships a curated library of **{len(entries)}** adsorbents ({n_sourced} sourced, {len(entries) - n_sourced} legacy) in `data/adsorbents/`. Every sourced entry cites the publication (DOI and table/figure) its parameters were transcribed from, and every property records its provenance:")
+    out(f"Skarstrom ships a curated library of **{len(groups)}** materials ({len(entries)} entries: {n_sourced} sourced, {len(entries) - n_sourced} legacy) in `data/adsorbents/`. Every material has one **recommended** entry, chosen for the quality of its experimental data; that is the entry you get when you add the material by its id. A material has a second entry only as a *variant*: a different product, form or data range, named in the entry's label. Every sourced entry cites the publication (DOI and table/figure) its parameters were transcribed from, and every property records its provenance:")
     out("")
     out("- **source** — transcribed from the cited table or figure;")
     out("- **derived** — computed from cited values (the formula is given);")
@@ -485,6 +596,16 @@ def render_docs(entries) -> str:
     out("A quantity the source does not state is never filled in silently: its reference says *Not stated in source (checked: …)* and names what was checked. Fields that could not be checked against the source at all are listed per entry as *unverified*.")
     out("")
     out("Legacy entries predate the curated library; their origin has not been verified and they are labelled *source unknown*.")
+    out("")
+    out("Each isotherm also records the **quality of its data**, best first:")
+    out("")
+    out("- **measured, data tabulated** — measured by the cited authors, and their tabulated data are stored with the entry;")
+    out("- **measured, fit only** — measured by the cited authors, who publish the fit but no table of the data;")
+    out("- **fitted to other authors' data** — the cited paper fitted data measured by another group (cited there);")
+    out("- **copied from an earlier paper** — the cited paper took the parameters from earlier work;")
+    out("- **not yet checked** — the source has not yet been read for this; the note says what is left.")
+    out("")
+    out("The recommended entry is the one with the best data quality, then the best coverage of the material's usual components, then the widest range. A legacy entry is never recommended while a sourced one exists.")
     out("")
     complete = sum(1 for e in entries if e["meta"]["completeness"]["complete"])
     with_points = sum(1 for e in entries if any(i["source_points"] for i in e["meta"]["isotherms"]))
@@ -497,95 +618,119 @@ def render_docs(entries) -> str:
     out("```python")
     out("import skarstrom")
     out("lib = skarstrom.adsorbent_library()               # the catalogue as a dict")
-    out('[e["key"] for e in lib["entries"]]')
-    out('path = skarstrom.adsorbent_path("zeolite_13x_perez2019")')
+    out('list(lib["materials"])                             # material ids')
+    out('path = skarstrom.adsorbent_path("zeolite-13x")      # the recommended 13X entry')
+    out('path = skarstrom.adsorbent_path("zeolite_13x_streb2021")  # one variant, by its key')
+    out('sim.add_library_adsorbent("zeolite-13x")           # add the recommended entry to a deck')
     out("```")
     out("")
-    out("In C++, `adsim/objects/adsorbent_library.h` reads the catalogue, `LoadAdsorbentFromJSON` loads an entry's file, and `AddLibraryAdsorbent` (`adsim/objects/deck_edit.h`) adds an entry to a deck with default physics for any component the entry does not cover. The library is curated: see `CONTRIBUTING.md` for the data-integrity rules a new entry must meet (every parameter cited).")
+    out("In C++, `adsim/objects/adsorbent_library.h` reads the catalogue (`AdsorbentLibrary::Resolve` turns a material id, an entry key or the alias of a removed entry into an entry), `LoadAdsorbentFromJSON` loads an entry's file, and `AddLibraryAdsorbent` (`adsim/objects/deck_edit.h`) adds an entry, or a material's recommended entry, to a deck with default physics for any component the entry does not cover. The library is curated: see `CONTRIBUTING.md` for the data-integrity rules a new entry must meet (every parameter cited).")
     out("")
     out("!!! warning \"Before you run\"")
     out("    Check the heat of adsorption (some sources report only site energies, so the value is left at 0) and the heat-of-adsorption convention of your deck (isosteric vs internal energy) against the source. Fit ranges are listed per component; outside them the isotherm is an extrapolation.")
     out("")
-    out("| Material | Family | Components | Applications | Source |")
-    out("|---|---|---|---|---|")
-    for e in entries:
-        m = e["meta"]
-        src = "source unknown (legacy)" if m["status"] == "legacy" else ", ".join(f"[{md(s['doi'])}]({s['url']})" for s in m["sources"])
-        out(f"| [{md(m['label'])}](#{anchor(m['key'])}) | {md(m['family'])} | {', '.join(md(c) for c in m['components'])} | {', '.join(md(a) for a in m['applications'])} | {src} |")
+    out("| Material | Id | Family | Recommended entry | Components | Source | Other variants |")
+    out("|---|---|---|---|---|---|---|")
+    for mid, mat, members in groups:
+        if not members:
+            continue
+        r = members[0]["meta"]
+        src = "source unknown (legacy)" if r["status"] == "legacy" else ", ".join(f"[{md(s['doi'])}]({s['url']})" for s in r["sources"])
+        others = ", ".join(f"[{md(e['meta']['variant'])}](#{anchor(e['meta']['key'])})" for e in members[1:]) or "—"
+        out(f"| [{md(mat['name'])}](#material-{mid}) | `{mid}` | {md(mat['family'])} | [{md(r['variant'] or r['label'])}](#{anchor(r['key'])}) | {', '.join(md(c) for c in r['components'])} | {src} | {others} |")
     out("")
-    for e in entries:
-        m, f = e["meta"], e["file"]
+    for mid, mat, members in groups:
+        if not members:
+            continue
         out("---")
         out("")
-        out(f"### {md(m['label'])} {{#{anchor(m['key'])}}}")
+        out(f"## {md(mat['name'])} {{#material-{mid}}}")
         out("")
-        out(f"**Material:** {md(m['material'])} · **Family:** {md(m['family'])} · **Applications:** {', '.join(md(a) for a in m['applications'])} · **Library key:** `{m['key']}` · **File:** `{f}`")
+        rec_line = f"**Material id:** `{mid}` · **Family:** {md(mat['family'])} · **Recommended:** [{md(members[0]['meta']['label'])}](#{anchor(members[0]['meta']['key'])}). {md(mat['recommended_reason'])}"
+        if mat.get("aliases"):
+            rec_line += f" Removed keys that now resolve here: {', '.join(f'`{a}`' for a in mat['aliases'])}."
+        out(rec_line)
         out("")
-        if m["status"] == "legacy":
-            out(f"> **{md(m['legacy_note'])}**")
-            out("")
-        else:
-            out("**Sources**")
-            out("")
-            for s in m["sources"]:
-                out(f"- {md(s['citation'])} [doi:{md(s['doi'])}]({s['url']}) — {md(s['refs'])}")
-            out("")
-        out("| Component | Isotherm | Parameters | T range of fit | P range of fit | Ref. |")
-        out("|---|---|---|---|---|---|")
-        for i in m["isotherms"]:
-            params = "; ".join(f"{md(p['name'])} = {fmt_num(p['value'])}" for p in i["params"])
-            out(f"| {md(i['component'])} | {md(i['kind_label'])} | {params} | {fmt_range(i['T_range_K'], 1, ' K')} | {fmt_range(i['P_range_Pa'], 1e-5, ' bar')} | {md(i['ref'])} |")
-        out("")
-        notes = []
-        for i in m["isotherms"]:
-            parts = [x for x in (i["T_range_not_stated"] and f"T range: {i['T_range_not_stated']}",
-                                 i["P_range_not_stated"] and f"P range: {i['P_range_not_stated']}",
-                                 i["range_note"]) if x]
-            if parts:
-                notes.append(" ".join(f"{md(i['component'])}: {md(t)}" for t in parts))
-        if notes:
-            out(f"*Fit ranges.* {' '.join(notes)}")
-            out("")
-        out("| Quantity | Value | Provenance | Reference |")
-        out("|---|---|---|---|")
-        for h in m["heat_of_adsorption"]:
-            val = "not set (0)" if h["value"] is None else f"{fmt_num(h['value'] / 1000)} kJ/mol"
-            out(f"| Heat of adsorption, {md(h['component'])} | {val} | {PROV.get(h['provenance'], h['provenance'])} | {md(h['ref'])} |")
-        for p in m["properties"]:
-            val = "—" if p["value"] is None else f"{fmt_num(p['value'])}{'' if p['unit'] == '-' else ' ' + md(p['unit'])}"
-            out(f"| {md(p['label'])} | {val} | {PROV.get(p['provenance'], p['provenance'])} | {md(p['ref'])} |")
-        out("")
-        sp = [i for i in m["isotherms"] if i["source_points"]]
-        if sp:
-            out("**Tabulated source data** (stored in `library.json`)")
-            out("")
-            out("| Component | Points | Temperatures [K] | Quantity | Data | Transcribed from |")
-            out("|---|---|---|---|---|---|")
-            for i in sp:
-                s = i["source_points"]
-                temps = ", ".join(fmt_num(t) for t in s["temperatures_K"])
-                out(f"| {md(i['component'])} | {s['n']} | {temps} | {md(s['quantity'].replace('_', ' ', 1))} | {md(s['kind'].replace('_', ' '))} | {md(s['ref'])} |")
-            out("")
-            for i in sp:
-                out(f"- {md(i['component'])}: {md(i['source_points']['note'])}")
-            out("")
-        else:
-            out("*No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).")
-            out("")
-        if m["example_decks"]:
-            out(f"**Used by example decks:** {', '.join(f'`{d}`' for d in m['example_decks'])}")
-        else:
-            out(f"**Used by example decks:** none. {md(m['example_deck_note'])}")
-        out("")
-        if not m["completeness"]["complete"]:
-            vn = m["completeness"]["verification_note"]
-            out(f"> **Incomplete entry.** Missing or unverified: {', '.join(md(x) for x in m['completeness']['missing'])}.{' ' + md(vn) if vn else ''}")
-            out("")
-        if m["notes"]:
-            for n in m["notes"]:
-                out(f"- {md(n)}")
-            out("")
+        for e in members:
+            render_entry(out, e)
     return "\n".join(L)
+
+
+def render_entry(out, e) -> None:
+    m, f = e["meta"], e["file"]
+    tag = "Recommended" if m["recommended"] else "Variant"
+    out(f"### {md(m['label'])} {{#{anchor(m['key'])}}}")
+    out("")
+    out(f"**{tag}** · **Material:** {md(m['material'])} · **Applications:** {', '.join(md(a) for a in m['applications'])} · **Library key:** `{m['key']}` · **File:** `{f}`")
+    out("")
+    if m["status"] == "legacy":
+        out(f"> **{md(m['legacy_note'])}**")
+        out("")
+    else:
+        out("**Sources**")
+        out("")
+        for s in m["sources"]:
+            out(f"- {md(s['citation'])} [doi:{md(s['doi'])}]({s['url']}) — {md(s['refs'])}")
+        out("")
+    out("| Component | Isotherm | Parameters | T range of fit | P range of fit | Data quality | Ref. |")
+    out("|---|---|---|---|---|---|---|")
+    for i in m["isotherms"]:
+        params = "; ".join(f"{md(p['name'])} = {fmt_num(p['value'])}" for p in i["params"])
+        out(f"| {md(i['component'])} | {md(i['kind_label'])} | {params} | {fmt_range(i['T_range_K'], 1, ' K')} | {fmt_range(i['P_range_Pa'], 1e-5, ' bar')} | {DATA_QUALITY_LABELS.get(i['data_quality'], md(i['data_quality']))} | {md(i['ref'])} |")
+    out("")
+    dq_notes = [f"{md(i['component'])}: {md(i['data_quality_note'])}" for i in m["isotherms"] if i["data_quality_note"]]
+    if dq_notes:
+        out(f"*Data quality.* {' '.join(dq_notes)}")
+        out("")
+    notes = []
+    for i in m["isotherms"]:
+        parts = [x for x in (i["T_range_not_stated"] and f"T range: {i['T_range_not_stated']}",
+                             i["P_range_not_stated"] and f"P range: {i['P_range_not_stated']}",
+                             i["range_note"]) if x]
+        if parts:
+            notes.append(" ".join(f"{md(i['component'])}: {md(t)}" for t in parts))
+    if notes:
+        out(f"*Fit ranges.* {' '.join(notes)}")
+        out("")
+    out("| Quantity | Value | Provenance | Reference |")
+    out("|---|---|---|---|")
+    for h in m["heat_of_adsorption"]:
+        val = "not set (0)" if h["value"] is None else f"{fmt_num(h['value'] / 1000)} kJ/mol"
+        out(f"| Heat of adsorption, {md(h['component'])} | {val} | {PROV.get(h['provenance'], h['provenance'])} | {md(h['ref'])} |")
+    for p in m["properties"]:
+        val = "—" if p["value"] is None else f"{fmt_num(p['value'])}{'' if p['unit'] == '-' else ' ' + md(p['unit'])}"
+        out(f"| {md(p['label'])} | {val} | {PROV.get(p['provenance'], p['provenance'])} | {md(p['ref'])} |")
+    out("")
+    sp = [i for i in m["isotherms"] if i["source_points"]]
+    if sp:
+        out("**Tabulated source data** (stored in `library.json`)")
+        out("")
+        out("| Component | Points | Temperatures [K] | Quantity | Data | Transcribed from |")
+        out("|---|---|---|---|---|---|")
+        for i in sp:
+            s = i["source_points"]
+            temps = ", ".join(fmt_num(t) for t in s["temperatures_K"])
+            out(f"| {md(i['component'])} | {s['n']} | {temps} | {md(s['quantity'].replace('_', ' ', 1))} | {md(s['kind'].replace('_', ' '))} | {md(s['ref'])} |")
+        out("")
+        for i in sp:
+            out(f"- {md(i['component'])}: {md(i['source_points']['note'])}")
+        out("")
+    else:
+        out("*No tabulated source data* (the source gives its equilibrium data only as plots, which are not digitised).")
+        out("")
+    if m["example_decks"]:
+        out(f"**Used by example decks:** {', '.join(f'`{d}`' for d in m['example_decks'])}")
+    else:
+        out(f"**Used by example decks:** none. {md(m['example_deck_note'])}")
+    out("")
+    if not m["completeness"]["complete"]:
+        vn = m["completeness"]["verification_note"]
+        out(f"> **Incomplete entry.** Missing or unverified: {', '.join(md(x) for x in m['completeness']['missing'])}.{' ' + md(vn) if vn else ''}")
+        out("")
+    if m["notes"]:
+        for n in m["notes"]:
+            out(f"- {md(n)}")
+        out("")
 
 
 def completeness_summary(entries) -> str:
