@@ -32,6 +32,15 @@ root `CMakeLists.txt`.
   gone).
 
 ### Changed
+- **Native WebAssembly exceptions by default.** A new CMake option, `ADSIM_EMSCRIPTEN_EXCEPTIONS`, chooses the C++
+  exception scheme of an Emscripten build: `wasm` (the new default, `-fwasm-exceptions`) or `js` (`-fexceptions`,
+  the previous behaviour). The whole engine tree is compiled with the chosen flag, and `Adsim::adsim` now passes it to
+  the consumer's compile and link. On the Skarstrom web solver, native exceptions ran 10 % faster on six example decks
+  (4–17 %) with a 12 % smaller `.wasm`; they need Chrome 95, Firefox 100, Safari 15.2 or Node 17. **Consumers:** drop
+  your own exception flags. `-sNO_DISABLE_EXCEPTION_CATCHING=1` is rejected by Emscripten together with
+  `-fwasm-exceptions`; keep the old scheme with `-DADSIM_EMSCRIPTEN_EXCEPTIONS=js`. The subproject consumer test now
+  checks that an exception thrown inside the engine reaches the consumer's catch, and CI runs it with each scheme.
+- CI builds the Emscripten consumer with Emscripten 6.0.13 (was 4.0.10).
 - **Perez 2019 example decks** (`Perez2019_A/B/C1/D1/E/F`) now use the paper's model
   forms, after an audit of the deck against the paper and its SI
   (`core/test/papers/perez_2019/README.md`, provenance and attribution tables): the

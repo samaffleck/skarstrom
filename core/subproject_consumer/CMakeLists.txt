@@ -34,8 +34,7 @@ add_executable(frontend main.cpp)
 target_link_libraries(frontend PRIVATE Adsim::adsim)
 
 if(EMSCRIPTEN)
-    # The engine throws and catches C++ exceptions; NODERAWFS lets the test
-    # read the deck from the host file system under Node.js.
-    target_compile_options(frontend PRIVATE -fexceptions)
-    target_link_options(frontend PRIVATE -fexceptions -sALLOW_MEMORY_GROWTH=1 -sNODERAWFS=1 -sENVIRONMENT=node)
+    # The C++ exception flag comes with Adsim::adsim (ADSIM_EMSCRIPTEN_EXCEPTIONS);
+    # NODERAWFS lets the test read the deck from the host file system under Node.js.
+    target_link_options(frontend PRIVATE -sALLOW_MEMORY_GROWTH=1 -sNODERAWFS=1 -sENVIRONMENT=node)
 endif()

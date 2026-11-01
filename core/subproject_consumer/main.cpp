@@ -2,12 +2,16 @@
 //
 // Touches the public API a front end uses: the Simulation facade, deck I/O,
 // the structural deck edits, the parameter registry and the isotherm fitter.
-// Runs one cycle of the deck given on the command line. Exit code 0 = ok.
+// Runs one cycle of the deck given on the command line, and checks that an
+// exception thrown inside the engine reaches the front end's catch (under
+// Emscripten, with the engine's ADSIM_EMSCRIPTEN_EXCEPTIONS scheme). Exit code
+// 0 = ok.
 
 #include <cstdio>
 #include <exception>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include "adsim/equations/isotherm_kinds.h"
@@ -55,7 +59,17 @@ int main(int argc, char** argv) {
     if (!adsim::isofit::DefaultSpecs(sips, pts, specs, t_ref, err)) throw std::runtime_error(err);
     const auto fit = adsim::isofit::Fit(sips, pts, specs, t_ref);
     std::printf("isotherm fit: %s, R2 = %.6f\n", fit.ok ? "ok" : fit.error.c_str(), fit.r2);
-    return (r.Ok() && fit.ok) ? 0 : 1;
+
+    // LoadDeckFlexible throws std::invalid_argument on empty input.
+    bool caught = false;
+    try {
+      adsim::UserData empty;
+      adsim::LoadDeckFlexible(empty, "");
+    } catch (const std::invalid_argument&) {
+      caught = true;
+    }
+    std::printf("engine exception caught: %s\n", caught ? "yes" : "no");
+    return (r.Ok() && fit.ok && caught) ? 0 : 1;
   } catch (const std::exception& e) {
     std::fprintf(stderr, "error: %s\n", e.what());
     return 1;

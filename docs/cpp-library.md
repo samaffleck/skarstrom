@@ -65,14 +65,21 @@ target_link_libraries(my_frontend PRIVATE Adsim::adsim)
 
 ## WebAssembly (Emscripten)
 
-The engine compiles with Emscripten, as a subproject of a front end configured with `emcmake`. The engine's own code is compiled with `-fexceptions` (it throws and catches C++ exceptions); the front end must link its module with `-fexceptions` (or `-sNO_DISABLE_EXCEPTION_CATCHING=1`) and chooses everything else (threads, memory growth, the file system, exported functions). For a browser, drive the solver with `CoupledSolverChuncked` (or `Simulation::Start` / `Advance(max_time_ms)`) so the host stays responsive; see [Numerics](numerics.md#the-chunked-solver-for-cooperative-front-ends).
+The engine compiles with Emscripten, as a subproject of a front end configured with `emcmake`. The engine, cereal and CoolProp throw and catch C++ exceptions, and `ADSIM_EMSCRIPTEN_EXCEPTIONS` chooses how:
+
+| `ADSIM_EMSCRIPTEN_EXCEPTIONS` | Flag | Notes |
+|---|---|---|
+| `wasm` (default) | `-fwasm-exceptions` | Native WebAssembly exceptions. Needs Chrome 95, Firefox 100, Safari 15.2 or Node 17 or later. On the Skarstrom web solver it ran 10 % faster than `js`, with a 12 % smaller `.wasm`. |
+| `js` | `-fexceptions` | Emscripten's JavaScript-based exceptions: each call that may throw goes out to JavaScript and back. For hosts without WebAssembly exception support. |
+
+Every object in a module must use the same scheme, so the whole engine tree is compiled with the chosen flag and `Adsim::adsim` passes it to your target's compile and link. Do not add your own exception flags; in particular, `-sNO_DISABLE_EXCEPTION_CATCHING=1` cannot be combined with `wasm`. The front end chooses everything else (threads, memory growth, the file system, exported functions). For a browser, drive the solver with `CoupledSolverChuncked` (or `Simulation::Start` / `Advance(max_time_ms)`) so the host stays responsive; see [Numerics](numerics.md#the-chunked-solver-for-cooperative-front-ends).
 
 ```bash
 source /path/to/emsdk/emsdk_env.sh
 bash scripts/test_subproject_consumer.sh --emscripten   # builds adsim + a tiny module, runs it under Node.js
 ```
 
-CI builds the engine this way on every push.
+CI builds the engine this way on every push, with each exception scheme (`CMAKE_ARGS="-DADSIM_EMSCRIPTEN_EXCEPTIONS=js"` selects the other one in the script).
 
 ## Deck files and versioning
 
