@@ -135,11 +135,16 @@ namespace adsim {
 		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			pore_radius_.Evaluate(ctx); tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx);
+			molecular_diffusion_coefficient_.Evaluate(ctx);
 		}
 
 		ExpressionParam pore_radius_{1e-9};              // [m]
 		ExpressionParam tortuosity_{3.0};                // particle tortuosity [-]
 		ExpressionParam macropore_void_fraction_{0.2};   // [-]
+		// Constant molecular diffusivity D_m [m2/s] used in place of the
+		// state's (T, P)-dependent one when > 0; 0 (the default) keeps the
+		// binary-diffusion model's value.
+		ExpressionParam molecular_diffusion_coefficient_{0.0};
 
 	private:
 		friend class cereal::access;
@@ -151,6 +156,8 @@ namespace adsim {
 				cereal::make_nvp("Tortuosity", tortuosity_),
 				cereal::make_nvp("Macropore_Void_Fraction", macropore_void_fraction_)
 			);
+			// v3 added the optional constant D_m; older archives keep 0 (state D_m).
+			if (version >= 3) ar(cereal::make_nvp("Molecular_Diffusion_Coefficient", molecular_diffusion_coefficient_));
 		}
 	};
 
@@ -161,10 +168,16 @@ namespace adsim {
 		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx);
+			molecular_diffusion_coefficient_.Evaluate(ctx);
 		}
 
 		ExpressionParam tortuosity_{3.0};                // particle tortuosity [-]
 		ExpressionParam macropore_void_fraction_{0.35};  // [-]
+		// Constant molecular diffusivity D_m [m2/s] used in place of the
+		// state's (T, P)-dependent one when > 0 (Haghpanah et al. 2013 and
+		// Estupinan Perez et al. 2019 use a constant 1.6e-5 m2/s); 0 (the
+		// default) keeps the binary-diffusion model's value.
+		ExpressionParam molecular_diffusion_coefficient_{0.0};
 
 	private:
 		friend class cereal::access;
@@ -175,6 +188,8 @@ namespace adsim {
 				cereal::make_nvp("Tortuosity", tortuosity_),
 				cereal::make_nvp("Macropore_Void_Fraction", macropore_void_fraction_)
 			);
+			// v3 added the optional constant D_m; older archives keep 0 (state D_m).
+			if (version >= 3) ar(cereal::make_nvp("Molecular_Diffusion_Coefficient", molecular_diffusion_coefficient_));
 		}
 	};
 
@@ -200,11 +215,17 @@ namespace adsim {
 		}
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx); concentration_floor_.Evaluate(ctx);
+			molecular_diffusion_coefficient_.Evaluate(ctx);
 		}
 
 		ExpressionParam tortuosity_{3.0};                // particle tortuosity [-]
 		ExpressionParam macropore_void_fraction_{0.35};  // [-]
 		ExpressionParam concentration_floor_{1e-3};      // [mol/m3] c below which the Henry-limit ratio is used
+		// Constant molecular diffusivity D_m [m2/s] used in place of the
+		// state's (T, P)-dependent one when > 0 (the papers above use a
+		// constant 1.6e-5 m2/s); 0 (the default) keeps the binary-diffusion
+		// model's value.
+		ExpressionParam molecular_diffusion_coefficient_{0.0};
 
 	private:
 		IIsotherm* isotherm_ = nullptr;   // transient, set by AdsorptionSource
@@ -214,13 +235,15 @@ namespace adsim {
 
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const /*version*/) {
+		void serialize(Archive& ar, std::uint32_t const version) {
 			ar(
 				cereal::virtual_base_class<IMassTransferCoefficientModel>(this),
 				cereal::make_nvp("Tortuosity", tortuosity_),
 				cereal::make_nvp("Macropore_Void_Fraction", macropore_void_fraction_),
 				cereal::make_nvp("Concentration_Floor", concentration_floor_)
 			);
+			// v2 added the optional constant D_m; older archives keep 0 (state D_m).
+			if (version >= 2) ar(cereal::make_nvp("Molecular_Diffusion_Coefficient", molecular_diffusion_coefficient_));
 		}
 	};
 

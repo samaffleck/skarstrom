@@ -62,6 +62,7 @@ namespace adsim {
     double dp = layer.particle_diameter_;
     double tortuosity = tortuosity_;
     double Mr = fluid.molar_mass_.at(component);
+    const double Dm_const = molecular_diffusion_coefficient_;  // > 0: constant D_m in place of the state's
 
     int N = mtc.size();
     for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
@@ -72,7 +73,7 @@ namespace adsim {
 
       Dki = (2.0 / 3.0) * pore_radius_ * sqrt(8.0 * R * T[n] / (constants::kPI * Mr));
       Dki_eff = Dki * ep / tortuosity;
-      Dmi_eff = Dmi[n] * ep / tortuosity;
+      Dmi_eff = (Dm_const > 0.0 ? Dm_const : Dmi[n]) * ep / tortuosity;
       Di_eff = 1.0 / ((1.0 / Dki_eff) + (1.0 / Dmi_eff));
       mtc[n] = 60.0 * Di_eff / (dp * dp);
     }
@@ -85,6 +86,7 @@ namespace adsim {
     double ep = macropore_void_fraction_;
     double dp = layer.particle_diameter_;
     double tortuosity = tortuosity_;
+    const double Dm_const = molecular_diffusion_coefficient_;  // > 0: constant D_m in place of the state's
 
     int N = mtc.size();
     for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
@@ -95,7 +97,7 @@ namespace adsim {
 
       // The plain macropore coefficient, 15 eps_p D_m / (tau r_p^2); the
       // capacity-factor variant is MassTransferCoefficientMacroporeCapacity.
-      double Dmi_eff = Dmi[n] * ep / tortuosity;
+      double Dmi_eff = (Dm_const > 0.0 ? Dm_const : Dmi[n]) * ep / tortuosity;
       mtc[n] = 60.0 * Dmi_eff / (dp * dp);
     }
   }
@@ -114,6 +116,7 @@ namespace adsim {
     const double tortuosity = tortuosity_;
     const double c_floor = std::max(concentration_floor_.Get(), 0.0);
     const double rho_p = solid_density_;
+    const double Dm_const = molecular_diffusion_coefficient_;  // > 0: constant D_m in place of the state's
     const int start = layer.domain_.start_index, end = layer.domain_.end_index;
 
     // q* at max(c_i, c_floor) from the isotherm itself, evaluated here so it is
@@ -139,7 +142,7 @@ namespace adsim {
 
     for (int n = start; n <= end; ++n) {
       if (T[n] < 0) continue;  // Newton iterates can probe T < 0; skip the cell
-      const double Dmi_eff = Dmi[n] * ep / tortuosity;
+      const double Dmi_eff = (Dm_const > 0.0 ? Dm_const : Dmi[n]) * ep / tortuosity;
       const double k_macro = 60.0 * Dmi_eff / (dp * dp);
       double ratio = 1.0;
       if (evaluate && T[n] > 0.0 && P[n] > 0.0) {
@@ -199,10 +202,10 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientMacroporeCapacity)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientArrhenius)
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientConstant, 3);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeKnudsen, 2);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacropore, 2);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeKnudsen, 3);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacropore, 3);
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficient_Haynes, 2);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeCapacity, 1);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeCapacity, 2);
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientArrhenius, 3);
 
 CEREAL_REGISTER_TYPE(adsim::LinearDrivingForce)

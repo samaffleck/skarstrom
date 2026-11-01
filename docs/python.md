@@ -280,7 +280,7 @@ What each part takes:
 | `sim.bed.set_shape(kind, **values)` | `cylinder` (diameter), `square` (width), `rectangle` (width, length) |
 | `sim.bed.set_thermal_equilibrium(kind)`, `sim.bed.set_particle_heat_transfer("constant", particle_htc=...)` | `lte` or `ltne` |
 | `sim.wall.set_material(kind, **values)`, `sim.wall.set_boundary(kind, **values)` | a library material or `custom`; `zero_flux` or `fixed` |
-| `sim.add_layer(name, composition=, momentum=, **values)` | composition by adsorbent name; momentum `ergun` or `kozeny_carman`; `length`, `cells`, `bed_void_fraction`, `particle_diameter` |
+| `sim.add_layer(name, composition=, momentum=, **values)` | composition by adsorbent name; momentum `ergun`, `kozeny_carman` or `blake_kozeny`; `length`, `cells`, `bed_void_fraction`, `particle_diameter` |
 | `layer.set_dispersion`, `set_heat_dispersion`, `set_internal_heat_transfer`, `set_external_heat_transfer` | `constant` or a correlation (`ruthven`, `yagi_kunii`, `dixon`, `leva`, `holman`) with its values |
 | `sim.add_step(name, time=)` or `fraction=` | appended to the cycle |
 | `end.set_streams(direction, [streams])` | `"inlet"` or `"outlet"`; `sk.Stream(name, flow=, y=, temperature=, pump=)`, `sk.ValveStream(name, pressure=, cv=, xt=)` or `sk.PumpStream(name, power=, pump=, y=, temperature=)` |

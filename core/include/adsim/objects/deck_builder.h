@@ -23,7 +23,7 @@
 //                        "extended_dual_site_langmuir_c", "sips", "inert"
 //   rate model           "ldf", "ldf2"
 //   rate coefficient     "constant", "macropore", "macropore_knudsen", "haynes", "arrhenius"
-//   momentum             "kozeny_carman", "ergun"
+//   momentum             "kozeny_carman", "ergun", "blake_kozeny"
 //   dispersion           "constant", "ruthven"
 //   heat dispersion      "constant", "ruthven", "yagi_kunii"
 //   internal heat transfer "constant", "dixon", "leva"

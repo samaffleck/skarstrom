@@ -16,6 +16,25 @@ root `CMakeLists.txt`.
   kind has a factory entry.
 
 ### Added
+- A **Blake–Kozeny** momentum model (`MomentumModel::BlakeKozeny` = 2, builder kind and
+  registry choice `blake_kozeny`, Python `layer.set_momentum("blake_kozeny")` /
+  `add_layer(..., momentum="blake_kozeny")`, display name "Darcy (Blake-Kozeny)"):
+  Darcy's law with K = ε³ d_p² / (150 (1 − ε)²), i.e. Ergun's viscous term without the
+  inertial one. It is the pressure-drop law of Haghpanah et al. (2013) and Estupiñan
+  Perez et al. (2019, SI Eq. S5). It takes the Darcy face path everywhere, like
+  Kozeny–Carman. The stored values 0 (Kozeny–Carman) and 1 (Ergun) are unchanged, so
+  existing decks load as before; a deck that uses the new value needs this engine.
+- An optional **constant molecular diffusivity** for the macropore LDF coefficients
+  (`macropore`, `macropore_capacity`, `macropore_knudsen`): registry leaf
+  `adsorbent[...].kinetics[<component>].molecular_diffusion_coefficient` [m2/s], Python
+  `set_rate_model(..., molecular_diffusion_coefficient=1.6e-5)` / `kinetics[c].molecular_diffusion_coefficient`.
+  Above 0 it replaces the binary-diffusion D_m computed from T and P (which scales as
+  1/P, so at 3-10 kPa evacuation pressures the coefficient was 10-33 times the value
+  of the papers that use a constant D_m, e.g. Haghpanah et al. 2013 and Estupiñan Perez
+  et al. 2019, Table 1). The default 0 keeps the previous behaviour bit for bit. Class
+  versions bumped (macropore and macropore + Knudsen to 3, capacity factor to 2); older
+  decks load with 0. Haynes is unchanged: its film term uses D_m with the Sherwood
+  correlation, so a constant there is not a drop-in.
 - A **double exponential** profile (`DoubleExponentialBoundaryValue`,
   `BoundaryValueType::DOUBLE_EXPONENTIAL`, builder kind `double_exponential`, Python
   `sk.double_exponential(end, rate_1, rate_2, weight, start=)`): a two-term decay

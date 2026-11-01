@@ -56,7 +56,7 @@ def test_build_kinds():
                    "pump", "pump_energy", "pump_efficiency"):
         assert kinds[family], family
     assert set(sk.isotherm_kinds()) <= set(kinds["isotherm"]) and "inert" in kinds["isotherm"]
-    assert "ergun" in kinds["momentum"] and "kozeny_carman" in kinds["momentum"]
+    assert kinds["momentum"] == ["kozeny_carman", "ergun", "blake_kozeny"]
     assert kinds["flow"] == ["velocity", "volumetric_flow", "molar_flow", "mass_flow"]
 
 
@@ -256,6 +256,57 @@ def test_from_scratch_round_trips_through_a_script():
     ns = {}
     exec(compile(sk.to_script(sim), "<vsa>", "exec"), ns)
     assert_same_deck(sim, ns["sim"])
+
+
+def test_blake_kozeny_momentum_builds_and_round_trips():
+    sim, parts = build_vsa()
+    layer = parts["layer"].set_momentum("blake_kozeny")
+    assert sim.describe()["layers"][0]["momentum"] == "blake_kozeny"
+    assert layer.momentum_model == "blake_kozeny"
+    assert sim.get("layer[13X].momentum_model") == 2
+    assert '"Momentum_Model": 2' in sim.to_json()
+    copy = sk.Simulation.from_json(sim.to_json())
+    assert copy.describe()["layers"][0]["momentum"] == "blake_kozeny"
+    assert_same_deck(sim, copy)
+    script = sk.to_script(sim)
+    assert "momentum='blake_kozeny'" in script
+    ns = {}
+    exec(compile(script, "<blake_kozeny>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    # By registry name too, and back.
+    sim["layer[13X].momentum_model"] = "ergun"
+    assert sim.describe()["layers"][0]["momentum"] == "ergun"
+    sim["layer[13X].momentum_model"] = "blake_kozeny"
+    assert sim.describe()["layers"][0]["momentum"] == "blake_kozeny"
+    assert sim.run(cycles=1).ok
+
+
+def test_constant_macropore_diffusivity_builds_and_round_trips():
+    sim, _ = build_vsa()
+    ads = sim.adsorbents["13X"]
+    for kind in ("macropore", "macropore_capacity", "macropore_knudsen"):
+        ads = ads.set_rate_model("CO2", "ldf", kind, tortuosity=3.0, macropore_void_fraction=0.35)
+        assert ads.kinetics["CO2"].molecular_diffusion_coefficient == 0.0  # default: from T and P
+        ads = ads.set_rate_model("CO2", "ldf", kind, tortuosity=3.0, macropore_void_fraction=0.35,
+                                 molecular_diffusion_coefficient=1.6e-5)
+        kn = ads.kinetics["CO2"]
+        assert kn.molecular_diffusion_coefficient == pytest.approx(1.6e-5)
+        path = kn.path("molecular_diffusion_coefficient")
+        assert path.endswith("kinetics[CarbonDioxide].molecular_diffusion_coefficient")
+        sim[path] = "0.16 [cm**2/s]"
+        assert sim.get(path) == pytest.approx(1.6e-5)
+        with pytest.raises(ValueError):
+            kn.molecular_diffusion_coefficient = 2 * sk.ureg.bar
+        assert '"Molecular_Diffusion_Coefficient"' in sim.to_json()
+        copy = sk.Simulation.from_json(sim.to_json())
+        assert copy.adsorbents["13X"].kinetics["CO2"].molecular_diffusion_coefficient == pytest.approx(1.6e-5)
+        assert_same_deck(sim, copy)
+        script = sk.to_script(sim)
+        assert "molecular_diffusion_coefficient=" in script
+        ns = {}
+        exec(compile(script, f"<{kind}>", "exec"), ns)
+        assert_same_deck(sim, ns["sim"])
+    assert sim.run(cycles=1).ok
 
 
 def test_log_linear_profiles_build_and_round_trip():

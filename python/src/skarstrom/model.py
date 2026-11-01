@@ -1476,7 +1476,8 @@ class Layer(_Node):
     particle_diameter = Real()
     """Particle diameter [m]."""
     momentum_model = Choice()
-    """Pressure-drop model: "kozeny_carman" (Darcy) or "ergun"."""
+    """Pressure-drop model: "kozeny_carman" (Darcy, constant 180), "ergun" (viscous + inertial terms) or
+    "blake_kozeny" (Darcy, constant 150: Ergun's viscous term without the inertial one)."""
     dispersion_coefficient = Real()
     """Constant axial dispersion coefficient [m2/s]."""
     molecular_diffusion_coefficient = Real()
@@ -1531,7 +1532,14 @@ class Layer(_Node):
         return self._fresh()
 
     def set_momentum(self, kind: str) -> "Layer":
-        """The pressure-drop model: ``"ergun"`` or ``"kozeny_carman"``."""
+        """The pressure-drop model.
+
+        ``"ergun"`` (viscous term with the constant 150 plus the inertial
+        Burke-Plummer term), ``"kozeny_carman"`` (Darcy's law, constant 180) or
+        ``"blake_kozeny"`` (Darcy's law, constant 150: Ergun without its
+        inertial term, as in Haghpanah et al. 2013 and Estupinan Perez et al.
+        2019). See docs/momentum-balance.md.
+        """
         self._sim._build("set_momentum", self._id, kind)
         return self._fresh()
 
@@ -1591,6 +1599,10 @@ class Kinetics(_Node):
     """Capacity-factor concentration floor: the gas concentration below which the ratio c / (rho_p q*) is evaluated at this value [mol/m3]."""
     pore_radius = Real()
     """Mean pore radius [m]."""
+    molecular_diffusion_coefficient = Real()
+    """Constant molecular diffusivity D_m of the macropore coefficients (``macropore``, ``macropore_capacity``,
+    ``macropore_knudsen``) [m2/s]; 0 (the default) uses the binary-diffusion value from the local T and P,
+    which scales as 1/P. Haghpanah et al. (2013) and Estupinan Perez et al. (2019) use a constant 1.6e-5 m2/s."""
 
 
 class Adsorbent(_Node):
@@ -1671,7 +1683,9 @@ class Adsorbent(_Node):
         ``"macropore"`` / ``"haynes"`` (tortuosity, macropore_void_fraction),
         ``"macropore_knudsen"`` (+ pore_radius) or ``"macropore_capacity"`` (the macropore
         coefficient times the capacity factor c / (rho_p q*) of Haghpanah et al. 2013;
-        + concentration_floor)."""
+        + concentration_floor). The three macropore kinds also take
+        molecular_diffusion_coefficient, a constant D_m [m2/s] in place of the
+        (T, P)-dependent binary-diffusion value (0, the default, keeps the latter)."""
         name = self._sim._component(component)
         self._sim._build("set_rate_model", self._id, name, model, coefficient)
         ads = self._fresh()

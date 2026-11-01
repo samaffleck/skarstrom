@@ -168,7 +168,7 @@ const std::vector<std::string>& RateCoefficientKinds() {
   return k;
 }
 const std::vector<std::string>& MomentumKinds() {
-  static const std::vector<std::string> k{"kozeny_carman", "ergun"};
+  static const std::vector<std::string> k{"kozeny_carman", "ergun", "blake_kozeny"};
   return k;
 }
 const std::vector<std::string>& DispersionKinds() {

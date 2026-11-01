@@ -159,7 +159,7 @@ TEST(DeckBuilder, KindListsMatchTheEngineEnums) {
   EXPECT_EQ(build::FlowKinds(), (std::vector<std::string>{"velocity", "volumetric_flow", "molar_flow", "mass_flow"}));
   EXPECT_EQ(build::ProfileKinds(), (std::vector<std::string>{"constant", "linear", "exponential", "log_linear", "double_exponential"}));
   EXPECT_EQ(build::BedShapeKinds(), (std::vector<std::string>{"cylinder", "square", "rectangle"}));
-  EXPECT_EQ(build::MomentumKinds(), (std::vector<std::string>{"kozeny_carman", "ergun"}));
+  EXPECT_EQ(build::MomentumKinds(), (std::vector<std::string>{"kozeny_carman", "ergun", "blake_kozeny"}));
   EXPECT_EQ(build::WallMaterialKinds().front(), "custom");
 }
 
@@ -195,6 +195,46 @@ TEST(DeckBuilder, UnknownKindsAndObjectsThrowWithTheValidChoices) {
   EXPECT_THROW(build::AddVariable(d, "T", "temperature", "", ""), std::invalid_argument);    // reserved
   EXPECT_THROW(build::AddVariable(d, "2x", "time", "", ""), std::invalid_argument);          // not a name
   EXPECT_THROW(build::AddVariable(d, "t_feed", "minutes", "", ""), std::invalid_argument);   // category
+}
+
+// The Blake-Kozeny momentum model (Darcy with the constant 150) is reachable
+// by kind name from the builder and the registry, keeps its stored value 2
+// (0 and 1 stay Kozeny-Carman and Ergun) and survives a JSON round trip.
+TEST(DeckBuilder, BlakeKozenyMomentumBuildsSetsAndRoundTrips) {
+  Built b;
+  Build(b);
+  UserData& d = b.sim.Data();
+  EXPECT_EQ(static_cast<int>(MomentumModel::KarmenCozeny), 0);
+  EXPECT_EQ(static_cast<int>(MomentumModel::Ergun), 1);
+  EXPECT_EQ(static_cast<int>(MomentumModel::BlakeKozeny), 2);
+  EXPECT_STREQ(MomentumModelList[2], "Darcy (Blake-Kozeny)");
+
+  build::SetMomentum(d, b.layer, "blake_kozeny");
+  EXPECT_EQ(d.bed.layers_.layers_.front().momentum_model_, MomentumModel::BlakeKozeny);
+  b.sim.RefreshParameters();
+  EXPECT_EQ(b.sim.GetParameter("layer[13X].momentum_model"), 2.0);
+
+  // Registry: by name (any case / separator) and by number.
+  b.sim.SetParameterText("layer[13X].momentum_model", "ergun");
+  EXPECT_EQ(d.bed.layers_.layers_.front().momentum_model_, MomentumModel::Ergun);
+  b.sim.SetParameterText("layer[13X].momentum_model", "Blake-Kozeny");
+  EXPECT_EQ(d.bed.layers_.layers_.front().momentum_model_, MomentumModel::BlakeKozeny);
+  b.sim.SetParameter("layer[13X].momentum_model", 0.0);
+  EXPECT_EQ(d.bed.layers_.layers_.front().momentum_model_, MomentumModel::KarmenCozeny);
+  b.sim.SetParameter("layer[13X].momentum_model", 2.0);
+  EXPECT_EQ(d.bed.layers_.layers_.front().momentum_model_, MomentumModel::BlakeKozeny);
+  EXPECT_THROW(b.sim.SetParameter("layer[13X].momentum_model", 3.0), std::invalid_argument);
+  EXPECT_NE(ThrowMessage([&] { b.sim.SetParameterText("layer[13X].momentum_model", "darcy"); }).find("blake_kozeny"),
+            std::string::npos);
+
+  const std::string json = b.sim.ToJson();
+  EXPECT_NE(json.find("\"Momentum_Model\": 2"), std::string::npos);
+  Simulation back;
+  back.LoadJson(json);
+  EXPECT_EQ(back.Data().bed.layers_.layers_.front().momentum_model_, MomentumModel::BlakeKozeny);
+  EXPECT_EQ(back.GetParameter("layer[13X].momentum_model"), 2.0);
+  std::string error;
+  EXPECT_TRUE(back.Check(error)) << error;
 }
 
 TEST(DeckBuilder, UserVariablesDriveOtherValues) {

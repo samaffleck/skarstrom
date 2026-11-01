@@ -360,7 +360,7 @@ namespace adsim {
     if (model == MomentumModel::KarmenCozeny) {
       return eb * eb * eb * dp * dp / (180 * (1 - eb) * (1 - eb));
     }
-    if (model == MomentumModel::Ergun) {
+    if (model == MomentumModel::Ergun || model == MomentumModel::BlakeKozeny) {
       return eb * eb * eb * dp * dp / (150 * (1 - eb) * (1 - eb));
     }
 
