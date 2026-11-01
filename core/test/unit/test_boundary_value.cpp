@@ -258,4 +258,28 @@ TEST(LogLinearBoundaryValue, FactoryAndTemperatureProfileCreateIt) {
   EXPECT_DOUBLE_EQ(t->GetValue(30.0), 300.0);
 }
 
+// The factories the document layers use (the web contract builds a profile
+// from its kind string through CreateBoundaryValue; a null here collapses the
+// profile to a constant downstream).
+TEST(DoubleExponentialBoundaryValue, FactoryAndTemperatureProfileCreateIt) {
+  auto v = CreateBoundaryValue(BoundaryValueType::DOUBLE_EXPONENTIAL);
+  ASSERT_NE(v, nullptr);
+  EXPECT_EQ(v->GetType(), BoundaryValueType::DOUBLE_EXPONENTIAL);
+  EXPECT_STREQ(BoundaryValueTypeList[static_cast<int>(BoundaryValueType::DOUBLE_EXPONENTIAL)], "Double exponential");
+  auto t = CreateInletTemperatureProfile(BoundaryValueType::DOUBLE_EXPONENTIAL, 300.0, 60.0);
+  ASSERT_NE(t, nullptr);
+  EXPECT_EQ(t->GetType(), BoundaryValueType::DOUBLE_EXPONENTIAL);
+  EXPECT_DOUBLE_EQ(t->GetValue(30.0), 300.0);
+}
+
+// Every listed kind has a factory entry.
+TEST(BoundaryValueFactory, MakesEveryListedKind) {
+  const int n = static_cast<int>(sizeof(BoundaryValueTypeList) / sizeof(BoundaryValueTypeList[0]));
+  for (int i = 0; i < n; ++i) {
+    auto v = CreateBoundaryValue(static_cast<BoundaryValueType>(i));
+    ASSERT_NE(v, nullptr) << BoundaryValueTypeList[i];
+    EXPECT_EQ(static_cast<int>(v->GetType()), i) << BoundaryValueTypeList[i];
+  }
+}
+
 } // namespace adsim
