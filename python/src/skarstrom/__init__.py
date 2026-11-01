@@ -231,20 +231,36 @@ def adsorbent_library_dir() -> str:
 def adsorbent_library() -> Dict[str, Any]:
     """The curated adsorbent library catalogue (``library.json``) as a dict.
 
-    ``adsorbent_library()["entries"]`` lists every adsorbent with its ``key``,
-    ``label``, components, sources and properties; ``["sources"]`` maps source
-    ids to citations and DOIs.
+    ``adsorbent_library()["materials"]`` maps each material id (e.g.
+    ``"zeolite-13x"``) to its name, family and ``recommended`` entry key;
+    ``["entries"]`` lists every adsorbent with its ``key``, ``label``,
+    ``material_id``, ``variant``, components, sources and properties;
+    ``["sources"]`` maps source ids to citations and DOIs.
     """
     with open(os.path.join(adsorbent_library_dir(), "library.json"), encoding="utf-8") as f:
         return json.load(f)
 
 
+def _resolve_library_key(lib: Dict[str, Any], key: str) -> Dict[str, Any]:
+    """The entry for an entry key, or a material's recommended entry for a
+    material id or the alias of a removed entry (as ``AdsorbentLibrary::Resolve``)."""
+    by_key = {e["key"]: e for e in lib["entries"]}
+    if key in by_key:
+        return by_key[key]
+    for mid, mat in (lib.get("materials") or {}).items():
+        if key == mid or key in (mat.get("aliases") or []):
+            return by_key[mat["recommended"]]
+    raise KeyError(f"no adsorbent or material {key!r} in the library")
+
+
 def adsorbent_path(key: str) -> str:
-    """Absolute path of one library adsorbent file, by its library key."""
-    for e in adsorbent_library()["entries"]:
-        if e["key"] == key:
-            return os.path.join(adsorbent_library_dir(), e["file"])
-    raise KeyError(f"no adsorbent {key!r} in the library")
+    """Absolute path of one library adsorbent file.
+
+    ``key`` is an entry key (``"zeolite_13x_streb2021"``) or a material id
+    (``"zeolite-13x"``), which gives the material's recommended entry.
+    """
+    e = _resolve_library_key(adsorbent_library(), key)
+    return os.path.join(adsorbent_library_dir(), e["file"])
 
 
 _NUMERIC_KINDS = ("real", "expression")
@@ -805,7 +821,10 @@ class Simulation:
         self._invalidate()
 
     def add_library_adsorbent(self, key: str) -> int:
-        """Add an adsorbent from the bundled library by its key; returns its adsorbent ID.
+        """Add an adsorbent from the bundled library; returns its adsorbent ID.
+
+        ``key`` is an entry key, or a material id (``"zeolite-13x"``) to add
+        that material's recommended entry.
 
         Components of the deck that the entry does not cover get default
         physics. A layer with no adsorbent yet gets it automatically; otherwise

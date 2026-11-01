@@ -42,7 +42,7 @@ def test_version_and_examples(tmp_path):
 
 def test_adsorbent_library_ships_with_the_package():
     lib = skarstrom.adsorbent_library()
-    assert lib["schema_version"] == 2
+    assert lib["schema_version"] == 3
     keys = [e["key"] for e in lib["entries"]]
     assert "zeolite_13x_perez2019" in keys and len(keys) == len(set(keys))
     for e in lib["entries"]:
@@ -51,6 +51,11 @@ def test_adsorbent_library_ships_with_the_package():
             assert e["sources"], e["key"]
     with pytest.raises(KeyError):
         skarstrom.adsorbent_path("no_such_adsorbent")
+    # A material id gives its recommended entry.
+    for mid, mat in lib["materials"].items():
+        rec = next(e for e in lib["entries"] if e["key"] == mat["recommended"])
+        assert rec["material_id"] == mid
+        assert skarstrom.adsorbent_path(mid) == skarstrom.adsorbent_path(rec["key"])
 
 
 def test_structural_edits():
@@ -67,6 +72,8 @@ def test_structural_edits():
     before = n_adsorbents()
     ads = sim.add_library_adsorbent("zeolite_13x_perez2019")
     assert ads > 0 and n_adsorbents() == before + 1
+    assert sim.add_library_adsorbent("zeolite-13x") > ads  # a material id: its recommended entry
+    assert n_adsorbents() == before + 2
     with pytest.raises(ValueError):
         sim.add_library_adsorbent("no_such_key")
     sim["cycle.number_of_cycles"] = 1
