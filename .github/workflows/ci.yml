@@ -188,8 +188,10 @@ jobs:
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: 6.0.13
-      - name: Build the subproject consumer with emcmake and run it under Node.js
+      - name: Build the subproject consumer with emcmake and run it under Node.js (native Wasm exceptions, the default)
         run: JOBS=4 bash scripts/test_subproject_consumer.sh --emscripten
+      - name: The same with JavaScript-based exceptions (ADSIM_EMSCRIPTEN_EXCEPTIONS=js)
+        run: BUILD_DIR=build_subproject_emscripten_js JOBS=4 CMAKE_ARGS="-DADSIM_EMSCRIPTEN_EXCEPTIONS=js" bash scripts/test_subproject_consumer.sh --emscripten
 
   subproject:
     name: Subproject build (add_subdirectory)

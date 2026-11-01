@@ -102,6 +102,14 @@ target_compile_options(adsim PUBLIC
     "$<BUILD_INTERFACE:$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/utf-8>>"
     "$<BUILD_INTERFACE:$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/bigobj>>")
 
+# Emscripten: every object linked into a module must use the engine's C++
+# exception scheme (ADSIM_EMSCRIPTEN_EXCEPTIONS in the root CMakeLists.txt), so
+# the consumer's compile and link get the same flag.
+if(EMSCRIPTEN AND ADSIM_EMSCRIPTEN_EXCEPTIONS_FLAG)
+    target_compile_options(adsim INTERFACE ${ADSIM_EMSCRIPTEN_EXCEPTIONS_FLAG})
+    target_link_options(adsim INTERFACE ${ADSIM_EMSCRIPTEN_EXCEPTIONS_FLAG})
+endif()
+
 # MSVC debugger visualization
 if(MSVC)
     set_property(TARGET adsim PROPERTY

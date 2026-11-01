@@ -5,7 +5,8 @@
 # with emcmake (the engine compiled to WebAssembly) and run under Node.js.
 #
 # Usage: bash scripts/test_subproject_consumer.sh [--emscripten] [deck.json]
-# Env knobs: BUILD_DIR (default build_subproject[_emscripten]), JOBS (default 2).
+# Env knobs: BUILD_DIR (default build_subproject[_emscripten]), JOBS (default 2),
+# CMAKE_ARGS (extra configure arguments, e.g. -DADSIM_EMSCRIPTEN_EXCEPTIONS=js).
 # For --emscripten, emcmake/emcc and node must be on PATH (source emsdk_env.sh).
 set -euo pipefail
 
@@ -22,7 +23,8 @@ command -v ninja >/dev/null 2>&1 && GEN=(-G Ninja)
 
 if [ "$EMSCRIPTEN" = 1 ]; then
   BUILD_DIR="${BUILD_DIR:-build_subproject_emscripten}"
-  emcmake cmake -S core/subproject_consumer -B "$BUILD_DIR" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release
+  # shellcheck disable=SC2086 # CMAKE_ARGS is a list of arguments
+  emcmake cmake -S core/subproject_consumer -B "$BUILD_DIR" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release ${CMAKE_ARGS:-}
   cmake --build "$BUILD_DIR" -j "$JOBS" --target frontend
   node "$BUILD_DIR/frontend.js" "$DECK"
 else
