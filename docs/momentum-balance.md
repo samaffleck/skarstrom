@@ -74,7 +74,23 @@ For two Darcy cells this is exactly the harmonic-mean permeability used before, 
 
 **Void regions.** A void region (dead volume) is well mixed and has no packing resistance. The face between a void and the bed uses the bed-side cell's resistance over its full width — $\mu\thinspace \Delta z / K$ plus, for an Ergun layer, $\beta\thinspace \rho\thinspace \Delta z$ — in series with the optional void **resistance coefficient** (a linear Pa s m⁻¹ term, applied only at the void–bed face).
 
-**Flow boundaries.** On a flow boundary the imposed molar flow is matched against the flow through the boundary face, which obeys the same law between the ghost cell and the first bed cell (for an Ergun layer, the boundary face's own velocity unknown carries this flow). Here the flow condition fixes the face velocity, so the implicit residual, which is linear in the ghost pressure, is the well-conditioned form and is kept.
+**Flow boundaries.** On a flow boundary the streams' molar flow is matched against the flow through the boundary face, which obeys the same law between the ghost cell and the first bed cell. The streams' flow may itself follow the face pressure (a valve or a pump), so the face velocity $u$ and the ghost pressure are determined together by
+
+$$
+C_f(u)\thinspace A_c\thinspace u = Fig(P_{face}(u), tig),
+\qquad
+P_{ghost}(u) = P_1 \pm \left(A\thinspace u + B\thinspace \lvert u\rvert\thinspace u\right)
+$$
+
+where $F$ is the streams' total molar flow, $A_c$ the cross-section and $P_1$ the first bed cell's pressure. For a Darcy layer both relations are linear and are solved as they stand. For an Ergun layer the face velocity can jump by a large factor at a step switch (a feed step opening a vent valve on a bed that the previous step pressurised above the valve's downstream pressure asks for a surge of several m/s from a standstill), across which the implicit residual's slope in $u$ changes by an order of magnitude and IDA's corrector failed. The flow boundary of an Ergun layer therefore solves the scalar face problem above for $u^\*$ inside the residual (a bracketed root find; the function increases monotonically with $u$) and imposes
+
+$$
+r_u = u - u^\*,
+\qquad
+r_P = P_{ghost} - P_{ghost}(u^\*),
+$$
+
+whose Jacobian block is the identity: $u^\*$ depends only on the first bed cell's state, which is continuous through the switch, the ghost temperature and the time, so the corrector resolves the jump in one iteration. The solution is the same, so results change only within the solver tolerance.
 
 | Symbol        | Description                              | Unit           |
 |---------------|------------------------------------------|----------------|

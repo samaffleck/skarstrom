@@ -332,6 +332,23 @@ First public release of the Skarstrom engine under the Apache License 2.0.
   `examples` command lists names without `.json`.
 
 ### Fixed
+- Ergun layers no longer fail at a step switch that opens a flow boundary
+  whose streams follow the face pressure (a vent valve, a pump) on a bed the
+  previous step left away from the streams' pressure: the Perez 2019 D1 cycle
+  with a 0.2 m/s feed, the light product vented through a Cv = 10 valve at
+  1 bar and recycled through a connection to a 150 s pressurisation ending at
+  101325 Pa failed IDA's corrector at the start of every feed step and the
+  consistent-IC restart in the third cycle ("convergence test failure (may
+  indicate initial condition calculation failure)"). The face velocity has to
+  jump from a standstill to several m/s, and the implicit Ergun residual's
+  slope in it changes by an order of magnitude across the jump. The flow
+  boundary of an Ergun layer now solves its face problem (the streams' flow
+  law and the Ergun law) for the face velocity and ghost pressure inside the
+  residual and imposes the root, so the two unknowns' Jacobian block is the
+  identity (`FlowBoundaryCondition::ImposeFlowFace`). Results of Ergun decks
+  change only within the solver tolerance; Darcy (Kozeny-Carman) faces are
+  untouched. Regression test `ErgunValveSurgeTest`;
+  `Perez2019Test.ConfigD1_ConnectedBC` is back on Ergun.
 - Ergun layers no longer fail at a step switch that moves the boundary
   pressure by a large factor (a constant-pressure feed re-pressurising an
   evacuated bed, 0.05 -> 1 bar, failed IDA's corrector at the start of every

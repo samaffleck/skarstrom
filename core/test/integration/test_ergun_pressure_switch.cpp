@@ -21,6 +21,19 @@
 // interior neighbour (ErgunFaceCoefficients in adsorbent_equations.cpp).
 //
 // Both momentum models must complete the cycles with no step retry.
+//
+// ErgunValveSurgeTest covers the other boundary-face switch: a flow
+// condition whose streams follow the face pressure (a valve), opened on a bed
+// that the previous step left above the valve's downstream pressure. This is
+// the Perez 2019 D1 configuration (feed at 0.2 m/s with the light product
+// vented through a Cv = 10 valve at 1 bar and recycled, connected, to a
+// 150 s pressurisation that ends at 101325 Pa) on which an Ergun layer failed
+// the corrector at the start of every feed step and the consistent-IC restart
+// in the third cycle. The face velocity has to jump from a standstill to
+// several m/s, and the implicit momentum residual's slope in it changes by an
+// order of magnitude across the jump, so IDA's modified Newton diverged.
+// The flow boundary now solves the face problem (stream flow law + Ergun
+// law) and imposes its root (FlowBoundaryCondition::ImposeFlowFace).
 
 #include <string>
 
@@ -29,6 +42,7 @@
 #include "adsim/boundary_conditions/boundary_conditions.h"
 #include "adsim/boundary_conditions/boundary_stream.h"
 #include "adsim/boundary_conditions/step.h"
+#include "adsim/boundary_conditions/connection.h"
 #include "adsim/equations/heat_transfer_model.h"
 #include "adsim/equations/isotherm.h"
 
@@ -152,6 +166,135 @@ namespace adsim {
   }
 
   TEST_F(ErgunPressureSwitchTest, ConstantPressureRepressurisationKozenyCarman) {
+    Run(MomentumModel::KarmenCozeny);
+  }
+
+  class ErgunValveSurgeTest : public UserDataTest {
+  protected:
+    static constexpr double kStepTime = 25.0;          // [s], every step
+    static constexpr double kAmbientPressure = 1.0e5;  // [Pa], the vent valve's downstream
+    static constexpr double kPressurisationEnd = 101325.0;  // [Pa], 1325 Pa above the vent
+    static constexpr double kBlowdownPressure = 30000.0;    // [Pa]
+    static constexpr double kEvacuationPressure = 5000.0;   // [Pa]
+    static constexpr double kFeedVelocity = 0.2;       // [m/s]
+    static constexpr double kValveCv = 10.0;
+    static constexpr double kTemperature = 293.0;      // [K]
+    // The unpatched face survived cycle 2 on the consistent-IC restart and
+    // failed in cycle 3; the zero-retry check catches it in cycle 2.
+    static constexpr int kCycles = 5;
+
+    void Run(MomentumModel momentum) {
+      const std::string CO2 = "CarbonDioxide";
+      const std::string N2 = "Nitrogen";
+      AddComponents({ CO2, N2 });
+      const std::unordered_map<std::string, double> feed{ {CO2, 0.15}, {N2, 0.85} };
+      const std::unordered_map<std::string, double> light{ {CO2, 0.0}, {N2, 1.0} };
+
+      // The Perez 2019 column: 0.3 m of 1.5 mm beads in a 32 mm tube, so a
+      // 1325 Pa surge through the Cv = 10 vent (0.13 mol/s) is a face
+      // velocity of several m/s against a 0.2 m/s feed.
+      auto [layer_id, ads_id] = AddLayer("Adsorbent 1");
+      auto& layer = GetLayer(layer_id);
+      layer.momentum_model_ = momentum;
+      layer.domain_.n_cells = 30;
+      layer.domain_.length = 0.3;
+      layer.eb_ = 0.41;
+      layer.particle_diameter_ = 1.5e-3;
+      std::get<CylinderBed>(data.bed.shape_).diameter = 0.032;
+
+      auto& ads = GetAdsorbent(ads_id);
+      ads.solid_density_ = 1200.0;
+      ads.heat_capacity_ = 500.0;
+      ads.thermal_conductivity_ = 0.5;
+      ads.ep_ = 0.35;
+      AddIsotherm({ N2 }, ads_id, std::make_unique<HenryIsotherm>(N2));
+      AddIsotherm({ CO2 }, ads_id, std::make_unique<LangmuirIsotherm>(CO2));
+      AddLinearDrivingForceModel(ads_id, CO2, 0.5);
+      AddLinearDrivingForceModel(ads_id, N2, 0.5);
+      SetHOA(ads_id, CO2, 0.0);
+      SetHOA(ads_id, N2, 0.0);
+      AddConstantInternalHeatTransferCoefficientModel(0.0, layer_id);
+      AddConstantExternalHeatTransferCoefficientModel(0.0, layer_id);
+
+      AddInitialConditions(kAmbientPressure, kTemperature, kTemperature, light);
+
+      // 1. Feed: velocity inlet at the bottom; at the top a vent valve to
+      // ambient and the light-product stream (zero flow until connected).
+      AddStep("Feed", kStepTime);
+      {
+        std::vector<std::unique_ptr<IBoundaryStream>> streams;
+        streams.push_back(CreateNoValveInletStream(CreateVelocityBC(kFeedVelocity), feed, kTemperature));
+        AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, "Feed");
+      }
+      auto vent = CreateValveOutletStream(CreateConstantBoundaryValue(kAmbientPressure), kValveCv);
+      vent->name_ = "Vent";
+      auto lpp = CreateNoValveOutletStream(CreateVelocityBC(0.0));
+      lpp->name_ = "LPP";
+
+      // 2. Blowdown through the top to 0.3 bar, bottom closed.
+      AddStep("Blowdown", kStepTime);
+      AddPressureOutletBC(CreateExponentialBoundaryValue(kBlowdownPressure, 1.0), BoundaryLocation::TOP, "Blowdown");
+      AddClosedBC(BoundaryLocation::BOTTOM, "Blowdown");
+
+      // 3. Evacuation through the bottom to 0.05 bar, top closed.
+      AddStep("Evacuation", kStepTime);
+      AddClosedBC(BoundaryLocation::TOP, "Evacuation");
+      AddPressureOutletBC(CreateExponentialBoundaryValue(kEvacuationPressure, 1.0), BoundaryLocation::BOTTOM, "Evacuation");
+
+      // 4. Light-product pressurisation from the top, ramping to 1325 Pa
+      // above the vent's downstream pressure, fed by the connected LPP
+      // stream (the previous cycle's series from the second cycle on).
+      AddStep("Pressurisation", kStepTime);
+      AddClosedBC(BoundaryLocation::BOTTOM, "Pressurisation");
+      auto repressurisation = CreatePressureInletBoundary(
+          CreateLinearBoundaryValue(kEvacuationPressure, kPressurisationEnd, kStepTime), light, kTemperature);
+      repressurisation->location_ = BoundaryLocation::TOP;
+      repressurisation->direction_ = BoundaryDirection::INLET;
+      auto end_press = MakeEndpoint(data.cycle.GetStep("Pressurisation"), *repressurisation);
+      auto end_feed = MakeEndpoint(data.cycle.GetStep("Feed"), *lpp);
+      ASSERT_TRUE(MakeMutualConnection(end_press, end_feed));
+      data.cycle.GetStep("Pressurisation").top_boundary_condition_ = std::move(repressurisation);
+      {
+        std::vector<std::unique_ptr<IBoundaryStream>> streams;
+        streams.push_back(std::move(vent));
+        streams.push_back(std::move(lpp));
+        AddFlowBC(std::move(streams), BoundaryLocation::TOP, BoundaryDirection::OUTLET, "Feed");
+      }
+
+      ConfigureCycle(kCycles);
+      data.settings.css.method_ = CSSMethod::NONE;
+
+      std::string error;
+      ASSERT_TRUE(data.PerformChecks(error)) << error;
+
+      CoupledSolver solver{data};
+      int step_retries = 0;
+      solver.SetLogLevel(LogLevel::MEDIUM);
+      solver.SetMessageCallback([&step_retries](LogLevel, const std::string& msg) {
+        if (msg.find("IDA failure") != std::string::npos) {
+          ++step_retries;
+          std::cout << "[ErgunValveSurge] " << msg << std::endl;
+        }
+      });
+      const int retval = solver.IntegrateCycle(data.cycle, false);
+      ASSERT_GE(retval, 0) << "Solver did not complete ("
+                           << MomentumModelList[static_cast<int>(momentum)] << ")";
+      EXPECT_EQ(step_retries, 0) << "step switches needed solver retries ("
+                                 << MomentumModelList[static_cast<int>(momentum)] << ")";
+
+      const auto& cycles = solver.GetLog().sys_data.cycle_index_set_;
+      ASSERT_FALSE(cycles.empty());
+      EXPECT_EQ(*cycles.rbegin() + 1, kCycles);
+      EXPECT_TRUE(IsMassConserved(solver.GetLog()));
+      EXPECT_TRUE(IsMolesConserved(solver.GetLog()));
+    }
+  };
+
+  TEST_F(ErgunValveSurgeTest, VentValveOpensAboveAmbientErgun) {
+    Run(MomentumModel::Ergun);
+  }
+
+  TEST_F(ErgunValveSurgeTest, VentValveOpensAboveAmbientKozenyCarman) {
     Run(MomentumModel::KarmenCozeny);
   }
 
