@@ -2,7 +2,7 @@
 
 The **isotherm** describes the equilibrium adsorbed-phase loading of a component, $q_i^*$, as a function of the local gas state (temperature, pressure and composition). It is the thermodynamic ceiling that the kinetic [rate model](kinetic-models.md) drives the actual loading $q_i$ towards.
 
-Each component in each adsorbent material is assigned its own isotherm. In a deck, every component of every adsorbent has an **isotherm type** and the parameters of that model. To plot or check an isotherm outside a simulation, evaluate it with the engine's own code from Python: `skarstrom.evaluate_isotherm(kind, params, pressure, temperature)` (see [Isotherm Fitting](isotherm-fitting.md)).
+Each component in each adsorbent material is assigned its own isotherm. In a deck, every component of every adsorbent has an **isotherm type** and the parameters of that model. How the components' isotherms combine in a mixture is the adsorbent's [mixing rule](#mixture-loadings-the-mixing-rule-and-iast): each on its own (the default), or Ideal Adsorbed Solution Theory over their pure isotherms. To plot or check an isotherm outside a simulation, evaluate it with the engine's own code from Python: `skarstrom.evaluate_isotherm(kind, params, pressure, temperature)` (see [Isotherm Fitting](isotherm-fitting.md)).
 
 > **Partial pressure vs. concentration.** Several models come in two forms. *Partial-pressure* models are written in terms of the partial pressure $P_i = y_i P$. *Concentration* models use the molar concentration $C_i = P_i / (R T)$, computed internally from the ideal gas law. The two forms are otherwise identical; choose whichever matches how your isotherm parameters were regressed.
 
@@ -241,6 +241,47 @@ $$
 | $\Delta H_0$ | Isosteric heat parameter | J mol⁻¹ |
 | $w_0$ | Exponent at $T_0$ | - |
 | $\alpha$ | Exponent temperature coefficient | - |
+
+---
+
+## Mixture loadings: the mixing rule and IAST
+
+Every adsorbent has a **mixing rule**, which says how its components' isotherms combine into mixture loadings. It is one switch per adsorbent: the registry parameter `adsorbent[<id>].mixing_rule`, `ads.mixing_rule` or `ads.set_mixing_rule(kind)` in Python.
+
+- **`none`** (the default, and what every deck written before the switch existed loads as). Each component's isotherm is evaluated on its own at its partial pressure. Components compete only if they share an extended (competitive) kind, through that kind's own denominator.
+- **`iast`**: **Ideal Adsorbed Solution Theory** (Myers and Prausnitz, *AIChE J.* 11 (1965) 121). The mixture loadings are predicted from the components' **pure-component** isotherms alone. Each component keeps its own kind and parameters, so the kinds can differ (Toth for one component and dual-site Langmuir for another, for example). No mixture data are needed.
+
+Under IAST the adsorbed phase is treated as an ideal solution in which every component sits at the same reduced spreading pressure $\psi$. With $q_i^\circ$ the pure isotherm of component $i$ at the local temperature:
+
+$$
+\psi_i(P) = \int_0^{P} \frac{q_i^\circ(p)}{p}\thinspace dp, \qquad
+P \thinspace y_i = x_i \thinspace P_i^\circ, \qquad
+\psi_i(P_i^\circ) = \psi \ \text{for every } i, \qquad
+\sum_i x_i = 1
+$$
+
+$$
+\frac{1}{q_T} = \sum_i \frac{x_i}{q_i^\circ(P_i^\circ)}, \qquad q_i^* = x_i \thinspace q_T
+$$
+
+| Symbol | Description | Unit |
+|--------|-------------|------|
+| $\psi$ | Reduced spreading pressure of the mixture | mol kg⁻¹ |
+| $P_i^\circ$ | Pressure at which pure $i$ reaches $\psi$ | Pa |
+| $x_i$ | Mole fraction of $i$ in the adsorbed phase | - |
+| $q_T$ | Total mixture loading | mol kg⁻¹ |
+
+**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips and anti-Langmuir. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, Langmuir, Freundlich, Sips and anti-Langmuir, and a Newton iteration otherwise.
+
+**Limits that hold exactly.** A single adsorbing component gives its pure isotherm at its partial pressure. Langmuir isotherms with **equal saturation capacities** give the extended Langmuir model. With unequal capacities, extended Langmuir is thermodynamically inconsistent and IAST is not.
+
+**Absent components.** A component with zero or negative gas mole fraction, which the integrator produces ahead of a front, gets the infinite-dilution limit of IAST, $q_i^* = y_i P q_T / P_i^\circ(\psi)$. That is linear in $y_i$, so the loading is smooth through $y_i = 0$, as the extended kinds are. Inert components never adsorb.
+
+**Which kinds to use.** Give each component its pure-component kind. An extended kind under IAST is taken in its pure-component limit, so its own competition term is not applied. The solver log warns about such a combination at the start of a run.
+
+**Limitations.** IAST assumes an ideal adsorbed phase. Strongly non-ideal mixtures need activity coefficients (Real Adsorbed Solution Theory, RAST), which the engine does not offer. Each component's isotherm also has to describe its pure loading well down to low pressure, because the spreading-pressure integral starts at zero. IAST costs more per residual evaluation than an extended kind: a few Newton iterations per cell, each inverting every component's spreading pressure. On the example decks with dual-site Langmuir isotherms, a residual evaluation takes about three times as long, while the number of integrator steps barely changes.
+
+To check mixture loadings outside a simulation, call `skarstrom.evaluate_iast(kinds, params, pressure, temperature, mole_fraction)` with one pure kind and parameter set per component.
 
 ---
 

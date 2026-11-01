@@ -19,7 +19,7 @@
             "DisplayUnitIndex": 0
         },
         "Adsorption_Source": {
-            "cereal_class_version": 0,
+            "cereal_class_version": 1,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
@@ -144,7 +144,8 @@
                     "key": "CarbonDioxide",
                     "value": 18
                 }
-            ]
+            ],
+            "Mixing_Rule": 0
         },
         "Particle_Void_Fraction": {
             "Value": 0.422,

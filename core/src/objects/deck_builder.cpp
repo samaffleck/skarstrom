@@ -167,6 +167,10 @@ const std::vector<std::string>& RateCoefficientKinds() {
   static const std::vector<std::string> k{"constant", "macropore", "macropore_knudsen", "haynes", "arrhenius", "macropore_capacity"};
   return k;
 }
+const std::vector<std::string>& MixingRuleKinds() {
+  static const std::vector<std::string> k{"none", "iast"};
+  return k;
+}
 const std::vector<std::string>& MomentumKinds() {
   static const std::vector<std::string> k{"kozeny_carman", "ergun"};
   return k;
@@ -311,6 +315,11 @@ void SetIsotherm(UserData& data, AdsorbentID adsorbent, const std::string& kind,
   if (components.empty()) throw std::invalid_argument("SetIsotherm needs at least one component");
   for (const auto& c : components) CheckComponent(data, c);
   GetAdsorbent(data, adsorbent).adsorption_source_.AssignIsotherm(components, type);
+}
+
+void SetMixingRule(UserData& data, AdsorbentID adsorbent, const std::string& kind) {
+  GetAdsorbent(data, adsorbent).adsorption_source_.mixing_rule_ =
+      KindEnum<MixingRule>(MixingRuleKinds(), kind, "mixing rule");
 }
 
 void SetRateModel(UserData& data, AdsorbentID adsorbent, const std::string& component, const std::string& model,

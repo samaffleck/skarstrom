@@ -24,6 +24,7 @@
 #include "adsim/version.h"
 
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/equations/iast.h"
 #include "adsim/math/unit_parser.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_edit.h"
@@ -547,6 +548,7 @@ PYBIND11_MODULE(_core, m) {
         if (op == "add_component") b::AddComponent(d, str(0));
         else if (op == "add_adsorbent") out = py::int_(b::AddAdsorbent(d, str(0)));
         else if (op == "set_isotherm") b::SetIsotherm(d, id(0), str(1), args[2].cast<std::vector<std::string>>());
+        else if (op == "set_mixing_rule") b::SetMixingRule(d, id(0), str(1));
         else if (op == "set_rate_model") b::SetRateModel(d, id(0), str(1), str(2), str(3));
         else if (op == "set_bed_shape") b::SetBedShape(d, str(0));
         else if (op == "set_wall_material") b::SetWallMaterial(d, str(0));
@@ -620,6 +622,7 @@ PYBIND11_MODULE(_core, m) {
             isotherms.append(iso);
           }
           a["isotherms"] = isotherms;
+          a["mixing_rule"] = kind(b::MixingRuleKinds(), static_cast<int>(src.mixing_rule_));
           py::dict rates;
           for (const auto& c : d.fluid.components_) {
             auto it = src.mass_transfer_models_.find(c);
@@ -795,6 +798,7 @@ PYBIND11_MODULE(_core, m) {
     k["variable_category"] = b::VariableCategoryKinds();
     k["rate_model"] = b::RateModelKinds();
     k["rate_coefficient"] = b::RateCoefficientKinds();
+    k["mixing_rule"] = b::MixingRuleKinds();
     k["momentum"] = b::MomentumKinds();
     k["dispersion"] = b::DispersionKinds();
     k["heat_dispersion"] = b::HeatDispersionKinds();
@@ -863,6 +867,35 @@ PYBIND11_MODULE(_core, m) {
     return ToArray(q);
   }, py::arg("kind"), py::arg("params"), py::arg("pressure"), py::arg("temperature"),
      py::arg("mole_fraction") = std::vector<double>{});
+  // IAST mixture loadings from several pure (kind, params) isotherms at one
+  // (T, P, y): the engine's adsim/equations/iast.h.
+  m.def("evaluate_iast", [](const std::vector<std::string>& kinds,
+                            const std::vector<std::map<std::string, double>>& params,
+                            double pressure, double temperature, const std::vector<double>& mole_fraction) {
+    if (kinds.size() != params.size() || kinds.size() != mole_fraction.size())
+      throw py::value_error("kinds, params and mole_fraction must have one entry per component");
+    std::vector<std::unique_ptr<adsim::IIsotherm>> owned;
+    std::vector<adsim::IIsotherm*> isos;
+    std::vector<std::string> names;
+    for (size_t i = 0; i < kinds.size(); ++i) {
+      const std::string name = "component_" + std::to_string(i);
+      auto iso = adsim::CreateIsotherm(ParseIsothermKind(kinds[i]), name);
+      if (!iso) throw py::value_error("cannot build an isotherm of kind '" + kinds[i] + "'");
+      auto fields = adsim::IsothermFields(iso.get(), name);
+      for (const auto& [nm, v] : params[i]) {
+        bool found = false;
+        for (auto& f : fields) if (f.first == nm) { f.second->Get() = v; found = true; }
+        if (!found) throw py::value_error("unknown parameter '" + nm + "' for isotherm kind '" + kinds[i] + "'");
+      }
+      isos.push_back(iso.get());
+      names.push_back(name);
+      owned.push_back(std::move(iso));
+    }
+    std::vector<double> q;
+    const auto r = adsim::EvalIastMixture(isos, names, temperature, pressure, mole_fraction, q);
+    if (!r.converged) throw py::value_error("the IAST solve did not converge at this state");
+    return ToArray(q);
+  }, py::arg("kinds"), py::arg("params"), py::arg("pressure"), py::arg("temperature"), py::arg("mole_fraction"));
   m.def("default_fit_specs", [](const std::string& kind, const std::vector<double>& pressure,
                                 const std::vector<double>& loading, const std::vector<double>& temperature) {
     const auto pts = MakePoints(pressure, loading, temperature, {});

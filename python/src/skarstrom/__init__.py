@@ -158,6 +158,7 @@ __all__ = [
     "bulk_variables",
     "component_variables",
     "constant",
+    "evaluate_iast",
     "evaluate_isotherm",
     "examples",
     "exponential",
@@ -969,6 +970,25 @@ def evaluate_isotherm(
     """
     p = _as_list(pressure)
     return _core.evaluate_isotherm(kind, dict(params), p, _as_list(temperature, len(p)), _as_list(mole_fraction, len(p)))
+
+
+def evaluate_iast(
+    kinds: Sequence[str],
+    params: Sequence[Mapping[str, float]],
+    pressure: float,
+    temperature: float,
+    mole_fraction: Sequence[float],
+) -> np.ndarray:
+    """Mixture loadings q_i [mol/kg] by Ideal Adsorbed Solution Theory.
+
+    One pure isotherm per component: ``kinds[i]`` (see ``isotherm_kinds()``)
+    with its parameters ``params[i]`` (those left out keep the engine default),
+    at total ``pressure`` [Pa], ``temperature`` [K] and gas mole fractions
+    ``mole_fraction``. An inert kind or a zero mole fraction gives zero loading.
+    The engine's ``adsim/equations/iast.h``; see the isotherms page of the docs.
+    """
+    return _core.evaluate_iast(list(kinds), [dict(p) for p in params], float(pressure), float(temperature),
+                               _as_list(mole_fraction, len(kinds)))
 
 
 def fit_isotherm(

@@ -1606,6 +1606,10 @@ class Adsorbent(_Node):
     """Thermal conductivity [W/(m-K)]."""
     particle_void_fraction = Real()
     """Intraparticle void fraction [-]."""
+    mixing_rule = Choice()
+    """How the components' isotherms combine into mixture loadings: "none" (each
+    isotherm on its own) or "iast" (Ideal Adsorbed Solution Theory over the pure
+    isotherms)."""
 
     def __init__(self, sim: "Simulation", tree: Optional[_Tree], label: str, id: int, name: str) -> None:
         super().__init__(sim, tree, label)
@@ -1663,6 +1667,16 @@ class Adsorbent(_Node):
         for component, values in params.items():
             _apply(ads.isotherm[self._sim._component(component)], values)
         return ads
+
+    def set_mixing_rule(self, kind: str) -> "Adsorbent":
+        """How this adsorbent's components share its surface: ``"none"`` (each
+        component's isotherm is evaluated on its own; the extended kinds couple
+        components themselves) or ``"iast"`` (Ideal Adsorbed Solution Theory
+        over the components' pure isotherms, which then needs no competitive
+        kind: give every component its pure-component isotherm). The same
+        switch is the ``mixing_rule`` field."""
+        self._sim._build("set_mixing_rule", self._id, kind)
+        return self._fresh()
 
     def set_rate_model(self, component: str, model: str = "ldf", coefficient: str = "constant",
                        **values: Value) -> "Adsorbent":

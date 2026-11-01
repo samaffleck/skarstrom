@@ -467,3 +467,59 @@ def test_double_exponential_pressure_and_capacity_factor_build_and_round_trip():
     k = sim.series("mass_transfer_coefficient", "CarbonDioxide", location="bottom")
     import numpy as np
     assert np.all(np.isfinite(k.values)) and np.all(k.values >= 0.0)
+
+
+def test_iast_mixing_rule_builds_describes_and_round_trips():
+    """The per-adsorbent mixing rule: a builder call, a registry field, the
+    describe() output, and the generated script."""
+    sim = sk.examples.Perez2019_A.load()
+    ads = sim.adsorbents[0]
+    assert ads.mixing_rule == "none"
+    assert sk.build_kinds()["mixing_rule"] == ["none", "iast"]
+    assert "set_mixing_rule" not in sk.to_script(sim)
+
+    ads = ads.set_mixing_rule("iast")
+    assert ads.mixing_rule == "iast"
+    assert sim.describe()["adsorbents"][0]["mixing_rule"] == "iast"
+    script = sk.to_script(sim)
+    assert ".set_mixing_rule('iast')" in script
+    ns = {}
+    exec(compile(script, "<iast>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+
+    ads.mixing_rule = "none"
+    assert sim.describe()["adsorbents"][0]["mixing_rule"] == "none"
+    with pytest.raises(ValueError, match="iast"):
+        ads.set_mixing_rule("rast")
+
+
+def test_evaluate_iast_equal_capacity_langmuir_is_extended_langmuir():
+    """The textbook identity behind the IAST tests: equal-capacity Langmuir
+    isotherms under IAST give the extended Langmuir loadings."""
+    m, P, T = 3.2, 2e5, 300.0
+    R = 8.31446261815324
+    params = [{"m1": m, "b1": 2e-9, "q1": 2.5e4}, {"m1": m, "b1": 3e-10, "q1": 1.8e4}]
+    y = [0.15, 0.85]
+    q = sk.evaluate_iast(["single_site_langmuir_p"] * 2, params, pressure=P, temperature=T, mole_fraction=y)
+    B = [p["b1"] * np.exp(p["q1"] / (R * T)) for p in params]
+    denominator = 1 + sum(b * P * yi for b, yi in zip(B, y))
+    expected = [m * b * P * yi / denominator for b, yi in zip(B, y)]
+    np.testing.assert_allclose(q, expected, rtol=1e-10)
+
+    # Mixed kinds and an inert carrier; the inert loads nothing and each
+    # adsorbing component loads less than it would alone at its partial pressure.
+    kinds = ["toth", "dual_site_langmuir_p", "inert"]
+    params = [{"q_sat": 4.0, "b": 2e-5, "v": 0.6},
+              {"m1": 2.0, "b1": 3e-9, "q1": 2.5e4, "m2": 1.5, "b2": 1e-10, "q2": 3e4}, {}]
+    y = [0.3, 0.3, 0.4]
+    q = sk.evaluate_iast(kinds, params, pressure=P, temperature=T, mole_fraction=y)
+    assert q[2] == 0.0
+    for i in range(2):
+        alone = sk.evaluate_isotherm(kinds[i], params[i], pressure=P, temperature=T, mole_fraction=y[i])[0]
+        assert 0.0 < q[i] < alone
+
+    with pytest.raises(ValueError, match="unknown parameter"):
+        sk.evaluate_iast(["sips", "sips"], [{"q_sat": 4.0, "nope": 1.0}, {}], pressure=P, temperature=T,
+                         mole_fraction=[0.5, 0.5])
+    with pytest.raises(ValueError, match="one entry per component"):
+        sk._core.evaluate_iast(["sips", "sips"], [{}], P, T, [0.5, 0.5])

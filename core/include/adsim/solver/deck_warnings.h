@@ -14,8 +14,10 @@
 
 namespace adsim {
 
+  class AdsorbentDirectory;
   class Bed;
   class Cycle;
+  class Fluid;
 
   // One warning per step end whose CONSTANT pressure boundary value differs
   // from the bed pressure the step is expected to start at by more than
@@ -39,5 +41,11 @@ namespace adsim {
   // is not cylindrical, a Custom material, a pressure no wall can hold).
   // Expressions must already be evaluated.
   std::vector<std::string> WallDesignWarnings(const Bed& bed);
+
+  // One warning per adsorbent whose mixing rule is IAST while one of its
+  // components uses an extended (competitive) isotherm kind: IAST evaluates
+  // every isotherm in its pure-component limit, so the kind's own competition
+  // term is not applied and the plain kind with the same parameters is meant.
+  std::vector<std::string> MixingRuleWarnings(const AdsorbentDirectory& adsorbents, const Fluid& fluid);
 
 } // namespace adsim

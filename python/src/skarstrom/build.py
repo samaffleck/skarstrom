@@ -491,6 +491,8 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                 w(f"}}, components={iso['components']!r})")
             else:
                 w(f"{v}.set_isotherm({iso['kind']!r}, components={iso['components']!r})")
+        if a.get("mixing_rule", "none") != "none":
+            w(f"{v}.set_mixing_rule({a['mixing_rule']!r})")
         for c, r in a["rate_models"].items():
             kn = node.kinetics[c]
             kw = _kwargs(sim, kn)

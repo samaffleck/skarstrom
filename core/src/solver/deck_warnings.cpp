@@ -11,8 +11,13 @@
 #include "adsim/boundary_conditions/boundary_value.h"
 #include "adsim/objects/reactor.h"
 #include "adsim/objects/wall_design.h"
+#include "adsim/objects/porous_media.h"
+#include "adsim/objects/fluid.h"
+#include "adsim/equations/isotherm_kinds.h"
 
+#include <algorithm>
 #include <cmath>
+#include <map>
 #include <iomanip>
 #include <optional>
 #include <sstream>
@@ -140,6 +145,46 @@ namespace adsim {
          << " requires for its design" << (design.external_governs ? " (full vacuum governs)" : "")
          << ". Use Calculate in the wall design, or a thicker wall.";
       warnings.push_back(ss.str());
+    }
+    return warnings;
+  }
+
+
+  std::vector<std::string> MixingRuleWarnings(const AdsorbentDirectory& adsorbents, const Fluid& fluid) {
+    std::vector<std::string> warnings;
+    std::vector<AdsorbentID> ids;
+    for (const auto& [id, ads] : adsorbents.GetAll()) ids.push_back(id);
+    std::sort(ids.begin(), ids.end());
+    for (AdsorbentID id : ids) {
+      const Adsorbent& ads = adsorbents.Get(id);
+      const auto& source = ads.adsorption_source_;
+      if (source.mixing_rule_ != MixingRule::IAST) continue;
+      std::map<IsothermType, std::vector<std::string>> extended;
+      for (const auto& component : fluid.components_) {
+        auto it = source.IsothermMap().find(component);
+        if (it == source.IsothermMap().end()) continue;
+        switch (it->second) {
+          case IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_P:
+          case IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_C:
+          case IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_P:
+          case IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_C:
+          case IsothermType::EXTENDED_SIPS_2:
+          case IsothermType::ARRHENIUS_SIPS:
+            extended[it->second].push_back(component);
+            break;
+          default:
+            break;
+        }
+      }
+      for (const auto& [type, components] : extended) {
+        std::ostringstream ss;
+        ss << "Warning: adsorbent '" << ads.name_ << "' uses the IAST mixing rule with the competitive isotherm '"
+           << isothermModelNames[static_cast<int>(type)] << "' (" << IsothermKindString(type) << ") for ";
+        for (size_t i = 0; i < components.size(); ++i) ss << (i ? ", " : "") << components[i];
+        ss << ". IAST takes every isotherm in its pure-component limit, so that kind's own competition term"
+              " is not applied; use the plain kind with the same parameters.";
+        warnings.push_back(ss.str());
+      }
     }
     return warnings;
   }
