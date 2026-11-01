@@ -59,9 +59,9 @@ namespace adsim::validation {
     adsorbent.adsorption_source_.AddIsotherm({"Oxygen", "Nitrogen"}, std::move(isotherm));
     for (const auto& component : {"Oxygen", "Nitrogen"}) {
       auto ldf = std::make_unique<LinearDrivingForce>();
-      auto mtc = std::make_unique<MassTransferCoefficientConstant>();
-      mtc->constant_mtc_ = mtc;
-      ldf->mtc_model_ = std::move(mtc);
+      auto mtc_model = std::make_unique<MassTransferCoefficientConstant>();
+      mtc_model->constant_mtc_ = mtc;
+      ldf->mtc_model_ = std::move(mtc_model);
       adsorbent.adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
       adsorbent.adsorption_source_.heat_of_adsorption_[component] =
         (std::string(component) == "Nitrogen") ? 24000.0 : 20000.0;
