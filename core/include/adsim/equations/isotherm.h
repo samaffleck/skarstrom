@@ -537,8 +537,7 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::HENRY; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::HENRY; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -566,8 +565,7 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::SINGLE_SITE_LANGMUIR_P; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::SINGLE_SITE_LANGMUIR_P; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -670,8 +668,7 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::SIPS_2; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::SIPS_2; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -696,8 +693,7 @@ namespace adsim {
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SIPS_2; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SIPS_2; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -726,8 +722,7 @@ namespace adsim {
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::ARRHENIUS_SIPS; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::ARRHENIUS_SIPS; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -826,8 +821,7 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::TOTH_2; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::TOTH_2; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -852,8 +846,7 @@ namespace adsim {
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_P; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_P; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -879,10 +872,10 @@ namespace adsim {
     ExtendedLangmuirIsotherm_Concentration() = default;
     explicit ExtendedLangmuirIsotherm_Concentration(std::string component) { params_[std::move(component)]; }
     void Update(IsothermUpdateParams& state) override;
+    void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_C; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_C; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -910,8 +903,7 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::DUAL_SITE_LANGMUIR_P; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::DUAL_SITE_LANGMUIR_P; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -940,8 +932,7 @@ namespace adsim {
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_P; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_P; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -967,10 +958,10 @@ namespace adsim {
     ExtendedDualSiteLangmuirIsotherm_Concentration() = default;
     explicit ExtendedDualSiteLangmuirIsotherm_Concentration(std::string component) { params_[std::move(component)]; }
     void Update(IsothermUpdateParams& state) override;
+    void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_C; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_C; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -998,8 +989,7 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::SINGLE_SITE_LANGMUIR_C; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::SINGLE_SITE_LANGMUIR_C; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
@@ -1027,8 +1017,7 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::DUAL_SITE_LANGMUIR_C; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
+    IsothermType GetIsothermType() override { return IsothermType::DUAL_SITE_LANGMUIR_C; }    void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 

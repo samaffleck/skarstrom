@@ -64,6 +64,19 @@ root `CMakeLists.txt`.
   `<head>_log_linear_start/_end/_time` and `pressure_log_linear_end`.
 
 ### Changed
+- Solver residual, byte-identical: the competitive concentration-based
+  Langmuir isotherms (`ExtendedLangmuirIsotherm_Concentration`,
+  `ExtendedDualSiteLangmuirIsotherm_Concentration`, the kinds most example
+  decks use) gain the single-pass `UpdateAll` the pressure-based ones had, so
+  their shared denominators and exponentials are computed once per cell
+  instead of once per component (Illustrative TSA: 17% fewer instructions for
+  the run, the isotherm 2.6x cheaper). Every competitive isotherm's
+  per-component `Update` is now that pass for one component, which also
+  serves the capacity-factor MTC that re-runs the isotherm. The binary
+  diffusion model memoises the Neufield collision integral and `T^1.5` per
+  cell on the exact temperature bits (`TemperatureCache`), since most residual
+  evaluations repeat the previous temperature in most cells (15% fewer
+  instructions in that model).
 - Solver residual, byte-identical: the Langmuir and dual-site Langmuir isotherm
   functions (and their concentration-based variants) compute each `exp(q/(R T))`
   factor once instead of twice (GCC's default `-fmath-errno` does not merge the

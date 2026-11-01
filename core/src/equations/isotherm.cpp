@@ -28,13 +28,61 @@ namespace adsim {
 
   constexpr double kSoftplusTau = 1e-6;
 
+  namespace {
+    inline double ExpOverRT(double T, double q) {
+      return std::exp(q / (constants::kIdealGasConstant * T));
+    }
+
+    // The loading expressions with their temperature-only factors passed in,
+    // shared by the per-cell functions below and the Update loops (which
+    // compute each factor once per cell and component), so both paths do the
+    // same arithmetic in the same order.
+    inline double HenryQ(double e, double P, double yi, const HenryIsothermParameters& ips) {
+      return ips.k * P * yi * e;
+    }
+    inline double LangmuirQ(double e1, double P, double yi, const LangmuirIsothermParameters& ips) {
+      return ips.m1 * ips.b1 * e1 * P * yi / (1 + ips.b1 * e1 * P * yi);
+    }
+    inline double DualSiteLangmuirQ(double e1, double e2, double P, double yi, const DualSiteLangmuirIsothermParameters& ips) {
+      return (ips.m1 * ips.b1 * e1 * P * yi / (1 + ips.b1 * e1 * P * yi)) +
+        (ips.m2 * ips.b2 * e2 * P * yi / (1 + ips.b2 * e2 * P * yi));
+    }
+    inline double LangmuirConcentrationQ(double e1, double ci, const LangmuirIsothermParametersConcentration& ips) {
+      return ips.m1 * ips.b1 * e1 * ci / (1 + ips.b1 * e1 * ci);
+    }
+    inline double DualSiteLangmuirConcentrationQ(double e1, double e2, double ci, const DualSiteLangmuirIsothermParametersConcentration& ips) {
+      return (ips.m1 * ips.b1 * e1 * ci / (1 + ips.b1 * e1 * ci)) +
+        (ips.m2 * ips.b2 * e2 * ci / (1 + ips.b2 * e2 * ci));
+    }
+    // eB = exp(B2 / (R T)), eA = exp(A2 ((T / T_ref) - 1)).
+    inline double Sips2Q(double eB, double eA, double T, double P, double yi, const Sips2IsothermParameters& ips) {
+      double yi_pos = softplus(yi, kSoftplusTau);
+      double b_i = ips.B1 * eB;
+      double s_i = ips.C1 + ips.C2 * ((T / ips.T_ref) - 1);
+      double z = safe_pow(b_i * P * yi_pos, s_i);
+      double q_max = ips.A1 * eA;
+      return q_max * z / (1 + z);
+    }
+    // eX = exp(x (1 - T / T_0)), eH = exp(dH0 / (R T_0) (T_0 / T - 1)).
+    inline double Toth2Q(double eX, double eH, double T, double P, double yi, const Toth2IsothermParameters& ips) {
+      double yi_pos = softplus(yi, kSoftplusTau);
+      double qs = ips.q_sat * eX;
+      double b = ips.b0 * eH;
+      double w = ips.w0 + ips.alpha * (1 - ips.T_0 / T);
+      double bp = b * P * yi_pos;
+      double bpv = safe_pow(bp, w);
+      double denom = safe_pow(1 + bpv, (1 / w));
+      return qs * bp / denom;
+    }
+  } // namespace
+
 	void IsothermFunction::Henry(double& qi, double T, double P, double yi, const HenryIsothermParameters& ips) {
-		qi = ips.k * P * yi * std::exp(ips.Q / (constants::kIdealGasConstant * T));
+		qi = HenryQ(std::exp(ips.Q / (constants::kIdealGasConstant * T)), P, yi, ips);
 	}
 
 	void IsothermFunction::Langmuir(double& qi, double T, double P, double yi, const LangmuirIsothermParameters& ips) {
 		const double e1 = std::exp(ips.q1 / (constants::kIdealGasConstant * T));
-		qi = ips.m1 * ips.b1 * e1 * P * yi / (1 + ips.b1 * e1 * P * yi);
+		qi = LangmuirQ(e1, P, yi, ips);
 	}
 	
 	void IsothermFunction::AntiLangmuir(double& qi, double T, double P, double yi, const AntiLangmuirIsothermParameters& ips) {
@@ -54,12 +102,9 @@ namespace adsim {
 
 	void IsothermFunction::Sips2(double& qi, double T, double P, double yi, const Sips2IsothermParameters& ips) {
 		const double& R = constants::kIdealGasConstant;
-    double yi_pos = softplus(yi, kSoftplusTau);
-    double b_i = ips.B1 * std::exp(ips.B2 / (R * T));
-    double s_i = ips.C1 + ips.C2 * ((T / ips.T_ref) - 1);
-    double z = safe_pow(b_i * P * yi_pos, s_i);
-		double q_max = ips.A1 * std::exp(ips.A2 * ((T / ips.T_ref) - 1));
-    qi = q_max * z / (1 + z);
+    const double eB = std::exp(ips.B2 / (R * T));
+    const double eA = std::exp(ips.A2 * ((T / ips.T_ref) - 1));
+    qi = Sips2Q(eB, eA, T, P, yi, ips);
 	}
 
 	void IsothermFunction::ArrheniusSips(double& qi, double T, double P, double yi, const ArrheniusSipsIsothermParameters& ips) {
@@ -100,35 +145,28 @@ namespace adsim {
 
 	void IsothermFunction::Toth2(double& qi, double T, double P, double yi, const Toth2IsothermParameters& ips) {
 		const double& R = constants::kIdealGasConstant;
-		double yi_pos = softplus(yi, kSoftplusTau);
-    double qs = ips.q_sat * std::exp(ips.x * (1 - T / ips.T_0));
-    double b = ips.b0 * std::exp(ips.dH0 / (R * ips.T_0) * (ips.T_0 / T - 1));
-    double w = ips.w0 + ips.alpha * (1 - ips.T_0 / T);
-    double bp = b * P * yi_pos;
-    double bpv = safe_pow(bp, w);
-		double denom = safe_pow(1 + bpv, (1 / w));
-		qi = qs * bp / denom;
+    const double eX = std::exp(ips.x * (1 - T / ips.T_0));
+    const double eH = std::exp(ips.dH0 / (R * ips.T_0) * (ips.T_0 / T - 1));
+		qi = Toth2Q(eX, eH, T, P, yi, ips);
 	}
 
 	void IsothermFunction::DualSiteLangmuir(double& qi, double T, double P, double yi, const DualSiteLangmuirIsothermParameters& ips) {
 		const double e1 = std::exp(ips.q1 / (constants::kIdealGasConstant * T));
 		const double e2 = std::exp(ips.q2 / (constants::kIdealGasConstant * T));
-		qi = (ips.m1 * ips.b1 * e1 * P * yi / (1 + ips.b1 * e1 * P * yi)) +
-			(ips.m2 * ips.b2 * e2 * P * yi / (1 + ips.b2 * e2 * P * yi));
+		qi = DualSiteLangmuirQ(e1, e2, P, yi, ips);
 	}
 
 	void IsothermFunction::Langmuir_Concentration(double& qi, double T, double P, double yi, const LangmuirIsothermParametersConcentration& ips) {
 		double ci = P * yi / (constants::kIdealGasConstant * T);
 		const double e1 = std::exp(ips.q1 / (constants::kIdealGasConstant * T));
-		qi = ips.m1 * ips.b1 * e1 * ci / (1 + ips.b1 * e1 * ci);
+		qi = LangmuirConcentrationQ(e1, ci, ips);
 	}
 
 	void IsothermFunction::DualSiteLangmuir_Concentration(double& qi, double T, double P, double yi, const DualSiteLangmuirIsothermParametersConcentration& ips) {
 		double ci = P * yi / (constants::kIdealGasConstant * T);
 		const double e1 = std::exp(ips.q1 / (constants::kIdealGasConstant * T));
 		const double e2 = std::exp(ips.q2 / (constants::kIdealGasConstant * T));
-		qi = (ips.m1 * ips.b1 * e1 * ci / (1 + ips.b1 * e1 * ci)) +
-			(ips.m2 * ips.b2 * e2 * ci / (1 + ips.b2 * e2 * ci));
+		qi = DualSiteLangmuirConcentrationQ(e1, e2, ci, ips);
 	}
 
   void InertIsotherm::Update(IsothermUpdateParams& state) {
@@ -151,8 +189,9 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    const double Q = params.Q;
     for (int n = start_index; n <= end_index; ++n) {
-      IsothermFunction::Henry(qi_sat[n], T[n], P[n], yi[n], params);
+      qi_sat[n] = HenryQ(ExpOverRT(T[n], Q), P[n], yi[n], params);
     }
 	}
 
@@ -166,8 +205,9 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    const double q1 = params.q1;
     for (int n = start_index; n <= end_index; ++n) {
-      IsothermFunction::Langmuir(qi_sat[n], T[n], P[n], yi[n], params);
+      qi_sat[n] = LangmuirQ(ExpOverRT(T[n], q1), P[n], yi[n], params);
     }
 	}
 
@@ -226,8 +266,12 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    const double R = constants::kIdealGasConstant;
+    const double B2 = params.B2, A2 = params.A2, T_ref = params.T_ref;
     for (int n = start_index; n <= end_index; ++n) {
-      IsothermFunction::Sips2(qi_sat[n], T[n], P[n], yi[n], params);
+      const double eB = std::exp(B2 / (R * T[n]));
+      const double eA = std::exp(A2 * ((T[n] / T_ref) - 1));
+      qi_sat[n] = Sips2Q(eB, eA, T[n], P[n], yi[n], params);
     }
 	}
 
@@ -286,8 +330,12 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    const double R = constants::kIdealGasConstant;
+    const double x = params.x, T_0 = params.T_0, dH0 = params.dH0;
     for (int n = start_index; n <= end_index; ++n) {
-      IsothermFunction::Toth2(qi_sat[n], T[n], P[n], yi[n], params);
+      const double eX = std::exp(x * (1 - T[n] / T_0));
+      const double eH = std::exp(dH0 / (R * T_0) * (T_0 / T[n] - 1));
+      qi_sat[n] = Toth2Q(eX, eH, T[n], P[n], yi[n], params);
     }
 	}
 
@@ -301,8 +349,11 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    const double q1 = params.q1, q2 = params.q2;
     for (int n = start_index; n <= end_index; ++n) {
-      IsothermFunction::DualSiteLangmuir(qi_sat[n], T[n], P[n], yi[n], params);
+      const double e1 = ExpOverRT(T[n], q1);
+      const double e2 = ExpOverRT(T[n], q2);
+      qi_sat[n] = DualSiteLangmuirQ(e1, e2, P[n], yi[n], params);
     }
 	}
 
@@ -316,9 +367,10 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    const double q1 = params.q1;
     for (int n = start_index; n <= end_index; ++n) {
-      // Langmuir_Concentration calculates ci internally from yi, P, T
-      IsothermFunction::Langmuir_Concentration(qi_sat[n], T[n], P[n], yi[n], params);
+      double ci = P[n] * yi[n] / (constants::kIdealGasConstant * T[n]);
+      qi_sat[n] = LangmuirConcentrationQ(ExpOverRT(T[n], q1), ci, params);
     }
 	}
 
@@ -332,98 +384,42 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    const double q1 = params.q1, q2 = params.q2;
     for (int n = start_index; n <= end_index; ++n) {
-      IsothermFunction::DualSiteLangmuir_Concentration(qi_sat[n], T[n], P[n], yi[n], params);
+      double ci = P[n] * yi[n] / (constants::kIdealGasConstant * T[n]);
+      const double e1 = ExpOverRT(T[n], q1);
+      const double e2 = ExpOverRT(T[n], q2);
+      qi_sat[n] = DualSiteLangmuirConcentrationQ(e1, e2, ci, params);
     }
 	}
+
+  // --- Competitive isotherms --------------------------------------------------
+  // Each class's UpdateAll evaluates every requested component of the adsorbent
+  // in one pass so the per-cell denominators (sums over all components, in
+  // params_ map order) are shared; the per-component Update is the same pass
+  // for a single component, so both give bit-identical loadings.
 
   void ExtendedLangmuirIsotherm::Update(IsothermUpdateParams& state) {
-    auto& component = state.component;
-    auto& qi_sat = state.qi_sat_map.at(component).var;
-    auto& T = state.T;
-    auto& P = state.P;
-    auto& params = params_[component];
-    int start_index = state.start_index;
-    int end_index = state.end_index;
-    const double R = constants::kIdealGasConstant;
-
-    for (int n = start_index; n <= end_index; ++n) {
-      // Calculate denominator over all components
-      double denominator = 0.0;
-      for (const auto& [comp, comp_params] : params_) {
-        auto& yi = state.yi_map.at(comp).var;
-        denominator += comp_params.b1 * std::exp(comp_params.q1 / (R * T[n])) * P[n] * yi[n];
-      }
-
-      // Calculate equilibrium adsorbed concentration for current component
-      auto& yi = state.yi_map.at(component).var;
-      double qsat = params.m1 * params.b1 * std::exp(params.q1 / (R * T[n])) * P[n] * yi[n] / (1 + denominator);
-      qi_sat[n] = qsat;
-    }
-	}
-
-	void ExtendedSips2Isotherm::Update(IsothermUpdateParams& state) {
-    const double& R = constants::kIdealGasConstant;
-    auto& component = state.component;
-    auto& qi_sat = state.qi_sat_map.at(component).var;
-    auto& T = state.T;
-    auto& P = state.P;
-    auto& params = params_[component];
-    int start_index = state.start_index;
-    int end_index = state.end_index;
-
-    // Regularized competitive Sips loading.
-    // z_raw = (b_i*P*mf_pos)^s uses the solver-stable softplus (tau=1e-6).
-    // Multiplied by a smooth step mf_pos²/(mf_pos²+δ²) that → 0 as mf → 0 and → 1
-    // for mf >> δ. This makes z(mf=0) effectively zero while suppressing the Jacobian
-    // spike at mf=0. δ=1e-3 (not 1e-4) keeps the peak Jacobian gradient at mf=δ to
-    // ~500 per unit vs ~5000 with δ=1e-4, preventing solver stalls in multi-cycle PSA
-    // when CO2 mole fractions pass through the near-zero transition region.
-    constexpr double kDelta = 1e-3;
-    auto get_z = [&](double temp, double press, double mf, const Sips2IsothermParameters& params) -> double {
-      const double b_i = params.B1 * std::exp(params.B2 / (R * temp));
-      const double s_i = params.C1 + params.C2 * ((temp / params.T_ref) - 1);
-      const double mf_pos = softplus(mf, kSoftplusTau);
-      const double z_raw = safe_pow(b_i * press * mf_pos, s_i);
-      return z_raw * (mf_pos * mf_pos) / (mf_pos * mf_pos + kDelta * kDelta);
-    };
-
-    for (int n = start_index; n <= end_index; ++n) {
-      // Calculate denominator over all components
-      double denominator = 0.0;
-      for (const auto& [comp, comp_params] : params_) {
-        auto& yi = state.yi_map.at(comp).var;
-        denominator += get_z(T[n], P[n], yi[n], comp_params);
-      }
-
-      // Calculate equilibrium adsorbed concentration for current component
-      auto& yi = state.yi_map.at(component).var;
-      double q_max = params.A1 * std::exp(params.A2 * ((T[n] / params.T_ref) - 1));
-      double z = get_z(T[n], P[n], yi[n], params);
-      double qsat = q_max * z / (1 + denominator);
-      qi_sat[n] = qsat;
-    }
-	}
+    UpdateAll(state, std::vector<std::string>{ state.component });
+  }
 
   void ExtendedLangmuirIsotherm::UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) {
     auto& T = state.T;
     auto& P = state.P;
     int start_index = state.start_index;
     int end_index = state.end_index;
-    const double R = constants::kIdealGasConstant;
 
     // Materialise params for every requested component first (matches the
-    // operator[] insertion behaviour of the per-component Update).
+    // operator[] insertion behaviour of the former per-component Update).
     for (const auto& comp : components) params_[comp];
 
     // Hoist map lookups out of the cell loop. The denominator terms iterate
-    // params_ in map order, exactly as the per-component Update does, so the
-    // shared sum is bit-identical.
-    struct Term { const LangmuirIsothermParameters* p; const std::vector<double>* yi; double e = 0.0; };
+    // params_ in map order: summation order is observable in the result.
+    struct Term { const LangmuirIsothermParameters* p; const std::vector<double>* yi; double q1; double e = 0.0; };
     std::vector<Term> terms;
     terms.reserve(params_.size());
     for (const auto& [comp, comp_params] : params_) {
-      terms.push_back({ &comp_params, &state.yi_map.at(comp).var });
+      terms.push_back({ &comp_params, &state.yi_map.at(comp).var, comp_params.q1 });
     }
 
     struct Output { const LangmuirIsothermParameters* p; const std::vector<double>* yi; std::vector<double>* qi_sat; size_t term_index; };
@@ -437,11 +433,11 @@ namespace adsim {
     }
 
     for (int n = start_index; n <= end_index; ++n) {
-      // Calculate denominator over all components, caching the exponential so
-      // each output component reuses it with the original operation order.
+      // Denominator over all components, keeping each exponential so every
+      // output component reuses it with the original operation order.
       double denominator = 0.0;
       for (auto& t : terms) {
-        t.e = std::exp(t.p->q1 / (R * T[n]));
+        t.e = ExpOverRT(T[n], t.q1);
         denominator += t.p->b1 * t.e * P[n] * (*t.yi)[n];
       }
 
@@ -453,32 +449,7 @@ namespace adsim {
   }
 
 	void ExtendedDualSiteLangmuirIsotherm::Update(IsothermUpdateParams& state) {
-    auto& component = state.component;
-    auto& qi_sat = state.qi_sat_map.at(component).var;
-    auto& T = state.T;
-    auto& P = state.P;
-    auto& params = params_[component];
-    int start_index = state.start_index;
-    int end_index = state.end_index;
-    const double R = constants::kIdealGasConstant;
-
-    for (int n = start_index; n <= end_index; ++n) {
-      // Calculate denominators over all components
-      double denominator1 = 0.0;
-      double denominator2 = 0.0;
-      for (const auto& [comp, comp_params] : params_) {
-        auto& yi = state.yi_map.at(comp).var;
-        denominator1 += comp_params.b1 * std::exp(comp_params.q1 / (R * T[n])) * P[n] * yi[n];
-        denominator2 += comp_params.b2 * std::exp(comp_params.q2 / (R * T[n])) * P[n] * yi[n];
-      }
-
-      // Calculate equilibrium adsorbed concentration for current component
-      auto& yi = state.yi_map.at(component).var;
-      double qsat =
-        params.m1 * params.b1 * std::exp(params.q1 / (R * T[n])) * P[n] * yi[n] / (1 + denominator1) +
-        params.m2 * params.b2 * std::exp(params.q2 / (R * T[n])) * P[n] * yi[n] / (1 + denominator2);
-      qi_sat[n] = qsat;
-    }
+    UpdateAll(state, std::vector<std::string>{ state.component });
 	}
 
   void ExtendedDualSiteLangmuirIsotherm::UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) {
@@ -486,20 +457,14 @@ namespace adsim {
     auto& P = state.P;
     int start_index = state.start_index;
     int end_index = state.end_index;
-    const double R = constants::kIdealGasConstant;
 
-    // Materialise params for every requested component first (matches the
-    // operator[] insertion behaviour of the per-component Update).
     for (const auto& comp : components) params_[comp];
 
-    // Hoist map lookups out of the cell loop. The denominator terms iterate
-    // params_ in map order, exactly as the per-component Update does, so the
-    // shared sums are bit-identical.
-    struct Term { const DualSiteLangmuirIsothermParameters* p; const std::vector<double>* yi; double e1 = 0.0; double e2 = 0.0; };
+    struct Term { const DualSiteLangmuirIsothermParameters* p; const std::vector<double>* yi; double q1; double q2; double e1 = 0.0; double e2 = 0.0; };
     std::vector<Term> terms;
     terms.reserve(params_.size());
     for (const auto& [comp, comp_params] : params_) {
-      terms.push_back({ &comp_params, &state.yi_map.at(comp).var });
+      terms.push_back({ &comp_params, &state.yi_map.at(comp).var, comp_params.q1, comp_params.q2 });
     }
 
     struct Output { const DualSiteLangmuirIsothermParameters* p; const std::vector<double>* yi; std::vector<double>* qi_sat; size_t term_index; };
@@ -513,13 +478,11 @@ namespace adsim {
     }
 
     for (int n = start_index; n <= end_index; ++n) {
-      // Calculate denominators over all components, caching the exponentials
-      // so each output component reuses them with the original operation order.
       double denominator1 = 0.0;
       double denominator2 = 0.0;
       for (auto& t : terms) {
-        t.e1 = std::exp(t.p->q1 / (R * T[n]));
-        t.e2 = std::exp(t.p->q2 / (R * T[n]));
+        t.e1 = ExpOverRT(T[n], t.q1);
+        t.e2 = ExpOverRT(T[n], t.q2);
         denominator1 += t.p->b1 * t.e1 * P[n] * (*t.yi)[n];
         denominator2 += t.p->b2 * t.e2 * P[n] * (*t.yi)[n];
       }
@@ -533,6 +496,109 @@ namespace adsim {
     }
   }
 
+	void ExtendedLangmuirIsotherm_Concentration::Update(IsothermUpdateParams& state) {
+    UpdateAll(state, std::vector<std::string>{ state.component });
+	}
+
+  void ExtendedLangmuirIsotherm_Concentration::UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) {
+    auto& T = state.T;
+    auto& P = state.P;
+    int start_index = state.start_index;
+    int end_index = state.end_index;
+    const double R = constants::kIdealGasConstant;
+
+    for (const auto& comp : components) params_[comp];
+
+    struct Term { const LangmuirIsothermParametersConcentration* p; const std::vector<double>* yi; double q1; double e = 0.0; };
+    std::vector<Term> terms;
+    terms.reserve(params_.size());
+    for (const auto& [comp, comp_params] : params_) {
+      terms.push_back({ &comp_params, &state.yi_map.at(comp).var, comp_params.q1 });
+    }
+
+    struct Output { const LangmuirIsothermParametersConcentration* p; const std::vector<double>* yi; std::vector<double>* qi_sat; size_t term_index; };
+    std::vector<Output> outputs;
+    outputs.reserve(components.size());
+    for (const auto& comp : components) {
+      const auto* p = &params_.at(comp);
+      size_t idx = 0;
+      while (idx < terms.size() && terms[idx].p != p) ++idx;
+      outputs.push_back({ p, &state.yi_map.at(comp).var, &state.qi_sat_map.at(comp).var, idx });
+    }
+
+    for (int n = start_index; n <= end_index; ++n) {
+      // Denominator over all components (using concentration)
+      double denominator = 0.0;
+      for (auto& t : terms) {
+        double ci = P[n] * (*t.yi)[n] / (R * T[n]);
+        t.e = ExpOverRT(T[n], t.q1);
+        denominator += t.p->b1 * t.e * ci;
+      }
+
+      for (const auto& out : outputs) {
+        const double e = terms[out.term_index].e;
+        double ci = P[n] * (*out.yi)[n] / (R * T[n]);
+        (*out.qi_sat)[n] = out.p->m1 * out.p->b1 * e * ci / (1 + denominator);
+      }
+    }
+  }
+
+  void ExtendedDualSiteLangmuirIsotherm_Concentration::Update(IsothermUpdateParams& state) {
+    UpdateAll(state, std::vector<std::string>{ state.component });
+  }
+
+  void ExtendedDualSiteLangmuirIsotherm_Concentration::UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) {
+    auto& T = state.T;
+    auto& P = state.P;
+    int start_index = state.start_index;
+    int end_index = state.end_index;
+    const double R = constants::kIdealGasConstant;
+
+    for (const auto& comp : components) params_[comp];
+
+    struct Term { const DualSiteLangmuirIsothermParametersConcentration* p; const std::vector<double>* yi; double q1; double q2; double e1 = 0.0; double e2 = 0.0; };
+    std::vector<Term> terms;
+    terms.reserve(params_.size());
+    for (const auto& [comp, comp_params] : params_) {
+      terms.push_back({ &comp_params, &state.yi_map.at(comp).var, comp_params.q1, comp_params.q2 });
+    }
+
+    struct Output { const DualSiteLangmuirIsothermParametersConcentration* p; const std::vector<double>* yi; std::vector<double>* qi_sat; size_t term_index; };
+    std::vector<Output> outputs;
+    outputs.reserve(components.size());
+    for (const auto& comp : components) {
+      const auto* p = &params_.at(comp);
+      size_t idx = 0;
+      while (idx < terms.size() && terms[idx].p != p) ++idx;
+      outputs.push_back({ p, &state.yi_map.at(comp).var, &state.qi_sat_map.at(comp).var, idx });
+    }
+
+    for (int n = start_index; n <= end_index; ++n) {
+      // Denominators over all components (using concentration)
+      double denominator1 = 0.0;
+      double denominator2 = 0.0;
+      for (auto& t : terms) {
+        double ci = P[n] * (*t.yi)[n] / (R * T[n]);
+        t.e1 = ExpOverRT(T[n], t.q1);
+        t.e2 = ExpOverRT(T[n], t.q2);
+        denominator1 += t.p->b1 * t.e1 * ci;
+        denominator2 += t.p->b2 * t.e2 * ci;
+      }
+
+      for (const auto& out : outputs) {
+        const auto& t = terms[out.term_index];
+        double ci = P[n] * (*out.yi)[n] / (R * T[n]);
+        (*out.qi_sat)[n] =
+          out.p->m1 * out.p->b1 * t.e1 * ci / (1 + denominator1) +
+          out.p->m2 * out.p->b2 * t.e2 * ci / (1 + denominator2);
+      }
+    }
+  }
+
+	void ExtendedSips2Isotherm::Update(IsothermUpdateParams& state) {
+    UpdateAll(state, std::vector<std::string>{ state.component });
+	}
+
   void ExtendedSips2Isotherm::UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) {
     const double& R = constants::kIdealGasConstant;
     auto& T = state.T;
@@ -540,15 +606,19 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
-    // Materialise params for every requested component first (matches the
-    // operator[] insertion behaviour of the per-component Update).
     for (const auto& comp : components) params_[comp];
 
-    // Same regularised competitive Sips loading as the per-component Update —
-    // see the comment there for the smooth-step rationale.
+    // Regularized competitive Sips loading.
+    // z_raw = (b_i*P*mf_pos)^s uses the solver-stable softplus (tau=1e-6).
+    // Multiplied by a smooth step mf_pos²/(mf_pos²+δ²) that → 0 as mf → 0 and → 1
+    // for mf >> δ. This makes z(mf=0) effectively zero while suppressing the Jacobian
+    // spike at mf=0. δ=1e-3 (not 1e-4) keeps the peak Jacobian gradient at mf=δ to
+    // ~500 per unit vs ~5000 with δ=1e-4, preventing solver stalls in multi-cycle PSA
+    // when CO2 mole fractions pass through the near-zero transition region.
     constexpr double kDelta = 1e-3;
-    auto get_z = [&](double temp, double press, double mf, const Sips2IsothermParameters& params) -> double {
-      const double b_i = params.B1 * std::exp(params.B2 / (R * temp));
+    // eB = exp(B2 / (R T)) for this cell.
+    auto get_z = [&](double temp, double press, double mf, double eB, const Sips2IsothermParameters& params) -> double {
+      const double b_i = params.B1 * eB;
       const double s_i = params.C1 + params.C2 * ((temp / params.T_ref) - 1);
       const double mf_pos = softplus(mf, kSoftplusTau);
       const double z_raw = safe_pow(b_i * press * mf_pos, s_i);
@@ -556,35 +626,37 @@ namespace adsim {
     };
 
     // Hoist map lookups out of the cell loop. The denominator terms iterate
-    // params_ in map order, exactly as the per-component Update does, so the
-    // shared sum is bit-identical; each output component reuses its own z.
-    struct Term { const Sips2IsothermParameters* p; const std::vector<double>* yi; double z = 0.0; };
+    // params_ in map order, so the shared sum is bit-identical whichever
+    // components are requested; each output component reuses its own z.
+    struct Term { const Sips2IsothermParameters* p; const std::vector<double>* yi; double B2; double z = 0.0; };
     std::vector<Term> terms;
     terms.reserve(params_.size());
     for (const auto& [comp, comp_params] : params_) {
-      terms.push_back({ &comp_params, &state.yi_map.at(comp).var });
+      terms.push_back({ &comp_params, &state.yi_map.at(comp).var, comp_params.B2 });
     }
 
-    struct Output { const Sips2IsothermParameters* p; std::vector<double>* qi_sat; size_t term_index; };
+    struct Output { const Sips2IsothermParameters* p; std::vector<double>* qi_sat; double A2; double T_ref; size_t term_index; };
     std::vector<Output> outputs;
     outputs.reserve(components.size());
     for (const auto& comp : components) {
       const auto* p = &params_.at(comp);
       size_t idx = 0;
       while (idx < terms.size() && terms[idx].p != p) ++idx;
-      outputs.push_back({ p, &state.qi_sat_map.at(comp).var, idx });
+      outputs.push_back({ p, &state.qi_sat_map.at(comp).var, p->A2, p->T_ref, idx });
     }
 
     for (int n = start_index; n <= end_index; ++n) {
       // Calculate denominator over all components
       double denominator = 0.0;
       for (auto& t : terms) {
-        t.z = get_z(T[n], P[n], (*t.yi)[n], *t.p);
+        const double eB = std::exp(t.B2 / (R * T[n]));
+        t.z = get_z(T[n], P[n], (*t.yi)[n], eB, *t.p);
         denominator += t.z;
       }
 
       for (const auto& out : outputs) {
-        double q_max = out.p->A1 * std::exp(out.p->A2 * ((T[n] / out.p->T_ref) - 1));
+        const double eA = std::exp(out.A2 * ((T[n] / out.T_ref) - 1));
+        double q_max = out.p->A1 * eA;
         double z = terms[out.term_index].z;
         (*out.qi_sat)[n] = q_max * z / (1 + denominator);
       }
@@ -625,25 +697,7 @@ namespace adsim {
   } // namespace
 
   void ArrheniusSipsIsotherm::Update(IsothermUpdateParams& state) {
-    auto& component = state.component;
-    auto& qi_sat = state.qi_sat_map.at(component).var;
-    auto& T = state.T;
-    auto& P = state.P;
-    auto& params = params_[component];
-    int start_index = state.start_index;
-    int end_index = state.end_index;
-
-    for (int n = start_index; n <= end_index; ++n) {
-      double denominator = 0.0;
-      for (const auto& [comp, comp_params] : params_) {
-        auto& yi = state.yi_map.at(comp).var;
-        denominator += ArrSips_z(T[n], P[n], yi[n], comp_params);
-      }
-      auto& yi = state.yi_map.at(component).var;
-      const double n_inf = ArrSips_ninf(T[n], params);
-      const double z = ArrSips_z(T[n], P[n], yi[n], params);
-      qi_sat[n] = n_inf * z / (1 + denominator);
-    }
+    UpdateAll(state, std::vector<std::string>{ state.component });
   }
 
   void ArrheniusSipsIsotherm::UpdateAll(IsothermUpdateParams& state,
@@ -656,7 +710,7 @@ namespace adsim {
     for (const auto& comp : components) params_[comp];
 
     // Hoist map lookups; iterate params_ in map order for a shared denominator
-    // that is bit-identical to the per-component Update.
+    // that is bit-identical whichever components are requested.
     struct Term { const ArrheniusSipsIsothermParameters* p; const std::vector<double>* yi; double z = 0.0; };
     std::vector<Term> terms;
     terms.reserve(params_.size());
@@ -680,6 +734,7 @@ namespace adsim {
         t.z = ArrSips_z(T[n], P[n], (*t.yi)[n], *t.p);
         denominator += t.z;
       }
+
       for (const auto& out : outputs) {
         const double n_inf = ArrSips_ninf(T[n], *out.p);
         const double z = terms[out.term_index].z;
@@ -687,64 +742,6 @@ namespace adsim {
       }
     }
   }
-
-	void ExtendedLangmuirIsotherm_Concentration::Update(IsothermUpdateParams& state) {
-    auto& component = state.component;
-    auto& qi_sat = state.qi_sat_map.at(component).var;
-    auto& T = state.T;
-    auto& P = state.P;
-    auto& params = params_[component];
-    int start_index = state.start_index;
-    int end_index = state.end_index;
-    const double R = constants::kIdealGasConstant;
-
-    for (int n = start_index; n <= end_index; ++n) {
-      // Calculate denominator over all components (using concentration)
-      double denominator = 0.0;
-      for (const auto& [comp, comp_params] : params_) {
-        auto& yi = state.yi_map.at(comp).var;
-        double ci = P[n] * yi[n] / (R * T[n]);
-        denominator += comp_params.b1 * std::exp(comp_params.q1 / (R * T[n])) * ci;
-      }
-
-      // Calculate equilibrium adsorbed concentration for current component
-      auto& yi = state.yi_map.at(component).var;
-      double ci = P[n] * yi[n] / (R * T[n]);
-      double qsat = params.m1 * params.b1 * std::exp(params.q1 / (R * T[n])) * ci / (1 + denominator);
-      qi_sat[n] = qsat;
-    }
-	}
-
-  void ExtendedDualSiteLangmuirIsotherm_Concentration::Update(IsothermUpdateParams& state) {
-    auto& component = state.component;
-    auto& qi_sat = state.qi_sat_map.at(component).var;
-    auto& T = state.T;
-    auto& P = state.P;
-    auto& params = params_[component];
-    int start_index = state.start_index;
-    int end_index = state.end_index;
-    const double R = constants::kIdealGasConstant;
-
-    for (int n = start_index; n <= end_index; ++n) {
-      // Calculate denominators over all components (using concentration)
-      double denominator1 = 0.0;
-      double denominator2 = 0.0;
-      for (const auto& [comp, comp_params] : params_) {
-        auto& yi = state.yi_map.at(comp).var;
-        double ci = P[n] * yi[n] / (R * T[n]);
-        denominator1 += comp_params.b1 * std::exp(comp_params.q1 / (R * T[n])) * ci;
-        denominator2 += comp_params.b2 * std::exp(comp_params.q2 / (R * T[n])) * ci;
-      }
-
-      // Calculate equilibrium adsorbed concentration for current component
-      auto& yi = state.yi_map.at(component).var;
-      double ci = P[n] * yi[n] / (R * T[n]);
-      double qsat =
-        params.m1 * params.b1 * std::exp(params.q1 / (R * T[n])) * ci / (1 + denominator1) +
-        params.m2 * params.b2 * std::exp(params.q2 / (R * T[n])) * ci / (1 + denominator2);
-      qi_sat[n] = qsat;
-    }
-	}
 
 } // end adsim namespace
 
