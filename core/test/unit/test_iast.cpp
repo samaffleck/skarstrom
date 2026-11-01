@@ -481,27 +481,28 @@ void BuildBreakthrough(Breakthrough& b, const std::string& isotherm_kind, const 
   }
 }
 
-// Outlet curves of two runs compared on the first run's times (the runs log
-// at their own integrator steps). Returns the largest difference relative to
-// the largest value, over mole fractions and loadings of both components.
-double MaxRelativeDifference(const Simulation& a_sim, const Simulation& b_sim) {
-  auto at = [](const TimeSeries& s, double t) {
-    if (t <= s.time.front()) return s.values.front();
-    if (t >= s.time.back()) return s.values.back();
-    const auto it = std::upper_bound(s.time.begin(), s.time.end(), t);
-    const size_t i = static_cast<size_t>(it - s.time.begin());
-    const double w = (t - s.time[i - 1]) / (s.time[i] - s.time[i - 1]);
-    return s.values[i - 1] + w * (s.values[i] - s.values[i - 1]);
-  };
+// Outlet curves of two runs compared at the log times both runs share (the
+// solver logs at fixed output times as well as at its own steps). Two runs of
+// different code paths take slightly different steps, so interpolating one
+// run's curve at the other's step times would measure interpolation error
+// across the steep breakthrough front, not the difference between the runs.
+// Returns the largest difference relative to the largest value, over mole
+// fractions and loadings of both components; `shared` gets the number of
+// common times of the last series compared.
+double MaxRelativeDifference(const Simulation& a_sim, const Simulation& b_sim, size_t& shared) {
   double worst = 0.0;
   for (const char* variable : {"mole_fraction", "adsorbed_concentration"}) {
     for (const char* component : {"CarbonDioxide", "Nitrogen"}) {
       const TimeSeries a = a_sim.Series(variable, component, SeriesLocation::Top);
       const TimeSeries b = b_sim.Series(variable, component, SeriesLocation::Top);
       double max_diff = 0.0, max_val = 0.0;
-      for (size_t i = 0; i < a.values.size(); ++i) {
-        max_diff = std::max(max_diff, std::abs(a.values[i] - at(b, a.time[i])));
+      shared = 0;
+      for (size_t i = 0; i < a.time.size(); ++i) {
         max_val = std::max(max_val, std::abs(a.values[i]));
+        const auto it = std::lower_bound(b.time.begin(), b.time.end(), a.time[i]);
+        if (it == b.time.end() || *it != a.time[i]) continue;
+        ++shared;
+        max_diff = std::max(max_diff, std::abs(a.values[i] - b.values[static_cast<size_t>(it - b.time.begin())]));
       }
       if (max_val > 0.0) worst = std::max(worst, max_diff / max_val);
     }
@@ -601,29 +602,13 @@ TEST(IastDeck, BreakthroughUnderIastReproducesExtendedLangmuirWithEqualCapacitie
   // of the front), so the integrator takes the same path: a residual with a
   // kink or solver noise would show up here as many more steps.
   EXPECT_LE(ri.stats.num_steps, re.stats.num_steps * 11 / 10 + 5);
-  // The runs log at their own integrator steps: compare on the first run's times.
-  auto at = [](const TimeSeries& s, double t) {
-    if (t <= s.time.front()) return s.values.front();
-    if (t >= s.time.back()) return s.values.back();
-    const auto it = std::upper_bound(s.time.begin(), s.time.end(), t);
-    const size_t i = static_cast<size_t>(it - s.time.begin());
-    const double w = (t - s.time[i - 1]) / (s.time[i] - s.time[i - 1]);
-    return s.values[i - 1] + w * (s.values[i] - s.values[i - 1]);
-  };
-  for (const char* variable : {"mole_fraction", "adsorbed_concentration"}) {
-    for (const char* component : {"CarbonDioxide", "Nitrogen"}) {
-      const TimeSeries a = extended.sim.Series(variable, component, SeriesLocation::Top);
-      const TimeSeries b = iast.sim.Series(variable, component, SeriesLocation::Top);
-      ASSERT_GT(a.values.size(), 10u);
-      ASSERT_GT(b.values.size(), 10u);
-      double max_diff = 0.0, max_val = 0.0;
-      for (size_t i = 0; i < a.values.size(); ++i) {
-        max_diff = std::max(max_diff, std::abs(a.values[i] - at(b, a.time[i])));
-        max_val = std::max(max_val, std::abs(a.values[i]));
-      }
-      EXPECT_LT(max_diff, 1e-6 * max_val) << variable << " " << component;
-    }
-  }
+  // Agreement to the integration tolerance at the shared output times (8e-7
+  // measured at the default relative tolerance of 1e-6, shrinking as it is
+  // tightened); the bound leaves a margin for platform differences and is
+  // still well below a real modelling difference (see the capacity test).
+  size_t shared = 0;
+  EXPECT_LT(MaxRelativeDifference(extended.sim, iast.sim, shared), 1e-5);
+  EXPECT_GE(shared, 20u);
   EXPECT_GT(extended.sim.Series("adsorbed_concentration", "CarbonDioxide", SeriesLocation::Top).values.back(), 0.1);
 
   // A rerun of the same simulation starts its IAST iterations cold and
@@ -642,13 +627,25 @@ TEST(IastDeck, CapacityFactorCoefficientUsesTheIastLoading) {
   Breakthrough extended, iast;
   BuildBreakthrough(extended, "extended_single_site_langmuir_p", "none", "macropore_capacity");
   BuildBreakthrough(iast, "single_site_langmuir_p", "iast", "macropore_capacity");
+  // Strong competition (N2's affinity a hundredfold up: b P is about 1 for each
+  // component in the feed), so the competitive and pure CO2 loadings differ by
+  // a factor of about two and a coefficient that used the pure one would show.
+  // 6 mm particles make the macropore coefficient 16 times smaller than with
+  // 1.5 mm, so the uptake is rate-limited and the coefficient shapes the front.
+  for (Breakthrough* b : {&extended, &iast}) {
+    b->sim.SetParameterText("adsorbent[13X].isotherm[Nitrogen].b1", "3e-8");
+    b->sim.SetParameterText("layer[13X].particle_diameter", "0.006");
+  }
   RunOptions options;
   options.cycles = 1;
   const RunResult re = extended.sim.Run(options);
   ASSERT_TRUE(re.Ok()) << re.message;
   const RunResult ri = iast.sim.Run(options);
   ASSERT_TRUE(ri.Ok()) << ri.message;
-  EXPECT_LT(MaxRelativeDifference(extended.sim, iast.sim), 1e-6);
+  size_t shared = 0;
+  // 1.4e-6 with the fix; 5e-2 when the coefficient takes the pure loading.
+  EXPECT_LT(MaxRelativeDifference(extended.sim, iast.sim, shared), 1e-5);
+  EXPECT_GE(shared, 20u);
   EXPECT_GT(extended.sim.Series("adsorbed_concentration", "CarbonDioxide", SeriesLocation::Top).values.back(), 0.1);
 }
 
