@@ -31,6 +31,10 @@ root `CMakeLists.txt`.
   solver log warns when IAST is combined with an extended (competitive) kind.
   `AdsorptionSource` is at cereal version 1; older decks load with `none` and
   run exactly as before. Docs: the isotherms page.
+- `IsCompetitiveIsothermKind(type)` and `PairedIsothermKind(type, out)` in
+  `adsim/equations/isotherm_kinds.h`: which kinds couple components through a
+  shared denominator, and each one's pure counterpart with the same parameters
+  (and back). The IAST warning uses them and names the pure kind to switch to.
 - A **double exponential** profile (`DoubleExponentialBoundaryValue`,
   `BoundaryValueType::DOUBLE_EXPONENTIAL`, builder kind `double_exponential`, Python
   `sk.double_exponential(end, rate_1, rate_2, weight, start=)`): a two-term decay

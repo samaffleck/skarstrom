@@ -163,18 +163,7 @@ namespace adsim {
       for (const auto& component : fluid.components_) {
         auto it = source.IsothermMap().find(component);
         if (it == source.IsothermMap().end()) continue;
-        switch (it->second) {
-          case IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_P:
-          case IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_C:
-          case IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_P:
-          case IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_C:
-          case IsothermType::EXTENDED_SIPS_2:
-          case IsothermType::ARRHENIUS_SIPS:
-            extended[it->second].push_back(component);
-            break;
-          default:
-            break;
-        }
+        if (IsCompetitiveIsothermKind(it->second)) extended[it->second].push_back(component);
       }
       for (const auto& [type, components] : extended) {
         std::ostringstream ss;
@@ -182,7 +171,13 @@ namespace adsim {
            << isothermModelNames[static_cast<int>(type)] << "' (" << IsothermKindString(type) << ") for ";
         for (size_t i = 0; i < components.size(); ++i) ss << (i ? ", " : "") << components[i];
         ss << ". IAST takes every isotherm in its pure-component limit, so that kind's own competition term"
-              " is not applied; use the plain kind with the same parameters.";
+              " is not applied";
+        IsothermType pure{};
+        if (PairedIsothermKind(type, pure))
+          ss << "; use '" << isothermModelNames[static_cast<int>(pure)] << "' (" << IsothermKindString(pure)
+             << "), which takes the same parameters.";
+        else
+          ss << "; give these components a pure-component isotherm.";
         warnings.push_back(ss.str());
       }
     }

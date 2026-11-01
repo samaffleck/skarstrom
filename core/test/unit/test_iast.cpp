@@ -361,6 +361,42 @@ TEST(Iast, AWarmStartConvergesInAStepOrTwo) {
   EXPECT_LE(next.iterations, 4);
 }
 
+// ---- kind classification ---------------------------------------------------------------
+
+// The competitive kinds and the pure / competitive pairs a front end uses to
+// switch an adsorbent between independent, extended and IAST modes.
+TEST(Iast, CompetitiveKindsAndTheirPureCounterparts) {
+  int competitive = 0;
+  for (IsothermType t : AllIsothermTypes()) {
+    SCOPED_TRACE(IsothermKindString(t));
+    if (IsCompetitiveIsothermKind(t)) ++competitive;
+    // Every kind tagged extended_* is competitive.
+    if (std::string(IsothermKindString(t)).rfind("extended_", 0) == 0) EXPECT_TRUE(IsCompetitiveIsothermKind(t));
+    IsothermType other{};
+    if (!PairedIsothermKind(t, other)) continue;
+    // Pairs cross the families, are symmetric, and share the parameter layout.
+    EXPECT_NE(IsCompetitiveIsothermKind(t), IsCompetitiveIsothermKind(other));
+    IsothermType back{};
+    ASSERT_TRUE(PairedIsothermKind(other, back));
+    EXPECT_EQ(back, t);
+    auto a = CreateIsotherm(t, kComp), b = CreateIsotherm(other, kComp);
+    std::vector<std::string> na, nb;
+    for (const auto& f : IsothermFields(a.get(), kComp)) na.push_back(f.first);
+    for (const auto& f : IsothermFields(b.get(), kComp)) nb.push_back(f.first);
+    EXPECT_EQ(na, nb);
+    // The pure-component limit is the same function.
+    std::map<std::string, double> values;
+    for (const auto& c : AllCases()) if (c.kind == t) values = c.values;
+    auto pa = Make(t, values), pb = Make(other, values);
+    EXPECT_DOUBLE_EQ(EvalIsotherm(pa.get(), kComp, kT, 1e5, 1.0), EvalIsotherm(pb.get(), kComp, kT, 1e5, 1.0));
+  }
+  EXPECT_EQ(competitive, 6);
+  IsothermType none{};
+  EXPECT_FALSE(PairedIsothermKind(IsothermType::ARRHENIUS_SIPS, none));
+  EXPECT_FALSE(PairedIsothermKind(IsothermType::TOTH, none));
+  EXPECT_FALSE(PairedIsothermKind(IsothermType::INERT, none));
+}
+
 // ---- the deck -----------------------------------------------------------------------
 
 namespace {
@@ -497,6 +533,7 @@ TEST(IastDeck, WarnsWhenIastIsCombinedWithACompetitiveKind) {
   EXPECT_NE(warnings[0].find("13X"), std::string::npos);
   EXPECT_NE(warnings[0].find("extended_single_site_langmuir_p"), std::string::npos);
   EXPECT_NE(warnings[0].find("CarbonDioxide, Nitrogen"), std::string::npos);
+  EXPECT_NE(warnings[0].find("use 'Single Site Langmuir' (single_site_langmuir_p)"), std::string::npos);
 
   Breakthrough plain;
   BuildBreakthrough(plain, "single_site_langmuir_p", "iast");
