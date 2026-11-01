@@ -121,6 +121,19 @@ root `CMakeLists.txt`.
   differential unknown). `bench_solver` gets `--unknowns`, `--band`,
   `--suppress-alg`, `--dcj`, `--p-diff` and `--reltol`; its report adds the
   band widths, out-of-band count and whether the band was widened.
+- **Engine internals de-duplicated** (no behaviour or deck-format change): the
+  twenty concrete isotherm classes share one `ParamIsotherm<Params, kType>` base and
+  only declare their `Update` (archives are byte-identical: the parameter map keeps
+  its name and each class its `cereal_class_version`); the four flow boundary value
+  kinds keep their `profile_` and serialisation in `IFlowBoundaryValue`; the
+  per-stream `GetComponentMolarFlow` / `GetEnthalpyFlow`, which were copied into
+  every stream kind, live once in `IBoundaryStream` with a `BedInletTemperature`
+  hook for the pump-driven kinds' compression heating; `EquationLog` / `BoundaryLog`
+  getters and face interpolation, the KPI bed-accumulation integrals and the
+  compressor / vacuum-pump cost structs each have a single implementation. The
+  unused `CalculateAccumulation_Volume` is gone. Test fixtures that were copied
+  across files (the validation PSA cycle, the feed/hold integration deck, the
+  Ogata-Banks solution) are shared headers now.
 
 ## [0.3.0] — 2026-10-25
 

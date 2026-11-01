@@ -127,6 +127,27 @@ namespace adsim {
     return true;  
   }
 
+  namespace {
+    // Gas-phase value at the bed end `loc`: the average of the ghost cell and
+    // the first interior cell, as the boundary fluxes see it.
+    double BedEndValue(const std::vector<double>& v, BoundaryLocation loc) {
+      const int N = static_cast<int>(v.size()) - 1;
+      return loc == BoundaryLocation::TOP ? 0.5 * (v[N] + v[N - 1]) : 0.5 * (v[0] + v[1]);
+    }
+  }
+
+  double IBoundaryStream::GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) {
+    const double n = GetMolarFlow(state, time, loc);
+    if (direction_ == BoundaryDirection::INLET) return n * InletMoleFraction(time, component);
+    return n * BedEndValue(state.mole_fraction.at(component).var, loc);
+  }
+
+  double IBoundaryStream::GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) {
+    const double n = GetMolarFlow(state, time, loc);
+    if (direction_ == BoundaryDirection::INLET) return n * BedInletTemperature(state, time, loc);
+    return n * BedEndValue(state.fluid_temperature.var, loc);
+  }
+
   ValveBoundaryStream::ValveBoundaryStream() {
     boundary_value_ = std::make_unique<ConstantBoundaryValue>(101325.0);
   }
@@ -215,46 +236,6 @@ namespace adsim {
     }
   }
 
-  double ValveBoundaryStream::GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) {
-    double n = GetMolarFlow(state, time, loc);
-    auto& yi = state.mole_fraction.at(component).var;
-
-    double inlet_mole_fraction = 0.0;
-    if (direction_ == BoundaryDirection::INLET) {
-      inlet_mole_fraction = InletMoleFraction(time, component);
-    }
-
-    int N = (int)yi.size() - 1;
-    if (direction_ == BoundaryDirection::INLET)
-      return n * inlet_mole_fraction;
-    else { // OUTLET
-      if (loc == BoundaryLocation::TOP)
-        return n * 0.5 * (yi[N] + yi[N - 1]); 
-      else // BOTTOM
-        return n * 0.5 * (yi[0] + yi[1]);
-    }
-  }
-
-  double ValveBoundaryStream::GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) {
-    double n = GetMolarFlow(state, time, loc);
-    auto& T = state.fluid_temperature.var;
-
-    double inlet_temperature = 0.0;
-    if (direction_ == BoundaryDirection::INLET) {
-      inlet_temperature = InletTemperature(time);
-    }
-
-    int N = (int)T.size() - 1;
-    if (direction_ == BoundaryDirection::INLET)
-      return n * inlet_temperature;
-    else { // OUTLET
-      if (loc == BoundaryLocation::TOP)
-        return n * 0.5 * (T[N] + T[N - 1]); 
-      else // BOTTOM
-        return n * 0.5 * (T[0] + T[1]);
-    }
-  }
-
   bool ValveBoundaryStream::PerformSpecificChecks(std::string& error_msg, const Fluid& fluid) {
     return true;
   }
@@ -298,60 +279,13 @@ namespace adsim {
       return -mol_flow;
   }
 
-  double BoundaryStream::GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) {
-    double n = GetMolarFlow(state, time, loc);
-    auto& yi = state.mole_fraction.at(component).var;
-
-    double inlet_mole_fraction = 0.0;
-    if (direction_ == BoundaryDirection::INLET) {
-      inlet_mole_fraction = InletMoleFraction(time, component);
-    }
-
-    int N = (int)yi.size() - 1;
-
-    if (direction_ == BoundaryDirection::INLET)
-      return n * inlet_mole_fraction;
-    else { // OUTLET
-      if (loc == BoundaryLocation::TOP)
-        return n * 0.5 * (yi[N] + yi[N - 1]);
-      else // BOTTOM
-        return n * 0.5 * (yi[0] + yi[1]);
-    }
-  }
-
-  double BoundaryStream::GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) {
-    double n = GetMolarFlow(state, time, loc);
-    auto& T = state.fluid_temperature.var;
-    auto& P = state.pressure.var;
-
-    double inlet_temperature = 0.0;
-    double outlet_pressure = 0.0;
-    const int N = (int)P.size() - 1;
-
-    if (loc == BoundaryLocation::TOP) {
-      outlet_pressure = 0.5 * (P[N] + P[N - 1]);
-    } else {
-      outlet_pressure = 0.5 * (P[0] + P[1]);
-    }
-
-    if (direction_ == BoundaryDirection::INLET) {
-      inlet_temperature = InletTemperature(time);
-
-      if (pump_->use_pump_ && !isothermal_temperature_) { // no compression heating in an isothermal run
-        // Increases the inlet temperature due to compression
-        double outlet_temperature = pump_->CalculateOutletTemperature(outlet_pressure, inlet_temperature);
-        inlet_temperature = outlet_temperature; // The outlet temp from the compressor is used as the inlet temp to the bed.
-      }
-    }
-
-    if (direction_ == BoundaryDirection::INLET)
-      return n * inlet_temperature;
-    else { // OUTLET
-      if (loc == BoundaryLocation::TOP)
-        return n * 0.5 * (T[N] + T[N - 1]);
-      else // BOTTOM
-        return n * 0.5 * (T[0] + T[1]);
-    }
+  double BoundaryStream::BedInletTemperature(const Equations& state, double time, BoundaryLocation loc) {
+    const double inlet_temperature = InletTemperature(time);
+    // No compression heating without a pump, or in an isothermal run.
+    if (!pump_->use_pump_ || isothermal_temperature_) return inlet_temperature;
+    // The compressor discharges at the bed-end pressure; its outlet temperature
+    // is what enters the bed.
+    return pump_->CalculateOutletTemperature(BedEndValue(state.pressure.var, loc), inlet_temperature);
   }
 
   double BoundaryStream::GetPower(double pressure, double molar_flow, double time) {
@@ -496,69 +430,21 @@ namespace adsim {
     return true; // all checks passed
   }
 
-  double PumpBoundaryStream::GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) {
-    double n = GetMolarFlow(state, time, loc);
-    auto& yi = state.mole_fraction.at(component).var;
-
-    double inlet_mole_fraction = 0.0;
-    if (direction_ == BoundaryDirection::INLET) {
-      inlet_mole_fraction = InletMoleFraction(time, component);
-    }
-
-    int N = (int)yi.size() - 1;
-
-    if (direction_ == BoundaryDirection::INLET)
-      return n * inlet_mole_fraction;
-    else { // OUTLET
-      if (loc == BoundaryLocation::TOP)
-        return n * 0.5 * (yi[N] + yi[N - 1]);
-      else // BOTTOM
-        return n * 0.5 * (yi[0] + yi[1]);
-    }
-  }
-  
-  double PumpBoundaryStream::GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) {
-    double n = GetMolarFlow(state, time, loc);
-    auto& T = state.fluid_temperature.var;
-    auto& P = state.pressure.var;
-
-    double inlet_temperature = 0.0;
-    double outlet_pressure = 0.0;
-    const int N = (int)P.size() - 1;
-
-    if (loc == BoundaryLocation::TOP) {
-      outlet_pressure = 0.5 * (P[N] + P[N - 1]);
-    } else {
-      outlet_pressure = 0.5 * (P[0] + P[1]);
-    }
-
-    if (direction_ == BoundaryDirection::INLET) {
-      inlet_temperature = InletTemperature(time);
-
-      if (pump_->use_pump_ && !isothermal_temperature_) { // no compression heating in an isothermal run
-        // Increases the inlet temperature due to compression
-        double outlet_temperature = pump_->CalculateOutletTemperature(outlet_pressure, inlet_temperature);
-        // When connected (with logged data) the suction pressure is the
-        // connected stream's pressure, consistent with GetMolarFlow.
-        if (connection_.IsConnected() && connection_.stream_->molar_flow_.size() > 0) {
-          if (auto* comp = dynamic_cast<Compressor*>(pump_.get())) {
-            outlet_temperature = comp->CalculateOutletTemperature(outlet_pressure, inlet_temperature, connection_.stream_->GetPressure(time));
-          }
-        }
-        inlet_temperature = outlet_temperature; // The outlet temp from the compressor is used as the inlet temp to the bed.
+  double PumpBoundaryStream::BedInletTemperature(const Equations& state, double time, BoundaryLocation loc) {
+    const double inlet_temperature = InletTemperature(time);
+    // No compression heating without a pump, or in an isothermal run.
+    if (!pump_->use_pump_ || isothermal_temperature_) return inlet_temperature;
+    const double outlet_pressure = BedEndValue(state.pressure.var, loc);
+    // When connected (with logged data) the suction pressure is the connected
+    // stream's pressure, consistent with GetMolarFlow.
+    if (connection_.IsConnected() && connection_.stream_->molar_flow_.size() > 0) {
+      if (auto* comp = dynamic_cast<Compressor*>(pump_.get())) {
+        return comp->CalculateOutletTemperature(outlet_pressure, inlet_temperature, connection_.stream_->GetPressure(time));
       }
     }
-
-    if (direction_ == BoundaryDirection::INLET)
-      return n * inlet_temperature;
-    else { // OUTLET
-      if (loc == BoundaryLocation::TOP)
-        return n * 0.5 * (T[N] + T[N - 1]);
-      else // BOTTOM
-        return n * 0.5 * (T[0] + T[1]);
-    }
+    return pump_->CalculateOutletTemperature(outlet_pressure, inlet_temperature);
   }
-  
+
   double PumpBoundaryStream::GetPower(double pressure, double molar_flow, double /*time*/) {
     return power_->CalculatePower(PumpPowerModelParams{pressure});
   }

@@ -403,162 +403,72 @@ namespace adsim {
     return step_it->second;
   }
 
+  namespace {
+    // Public entry rebuilt from the compact per-step storage (times are kept
+    // once per step, the rows per variable).
+    VariableLogEntry MakeEntry(const StepData& step, const VariableData& var) {
+      VariableLogEntry entry;
+      entry.cycle_index = step.cycle_index;
+      entry.step_index = step.step_index;
+      entry.times = step.times;
+      entry.values = var.values;
+      entry.variable_name = var.variable_name;
+      entry.units = var.units;
+      entry.step_name = var.step_name;
+      entry.object_name = var.object_name;
+      return entry;
+    }
+
+    std::vector<double> LinearInterpolateCellCenter(const std::vector<double>& data,
+      const std::vector<double>& dx)
+    {
+      assert(data.size() == dx.size());
+
+      std::vector<double> out(data.size() - 1);
+      for (int i = 0; i < out.size(); ++i) {
+        double rdx1 = dx[i] / (dx[i] + dx[i + 1]);
+        double rdx2 = dx[i + 1] / (dx[i] + dx[i + 1]);
+        out[i] = rdx1 * data[i] + rdx2 * data[i + 1];
+      }
+      return out;
+    }
+
+    // The entry with every row interpolated from the cell centres to the cell
+    // faces. An entry that is already face-centred (e.g. velocity: one value
+    // fewer than there are cells) or empty is returned as it is.
+    VariableLogEntry InterpolateToFaces(VariableLogEntry entry, const std::vector<double>& dx) {
+      if (entry.values.empty()) return VariableLogEntry{};
+      if (entry.values[0].size() == dx.size() - 1) return entry;
+      for (auto& row : entry.values) row = LinearInterpolateCellCenter(row, dx);
+      return entry;
+    }
+  }
+
   VariableLogEntry EquationLog::GetVariable(int cycle_index, int step_index, VariableType type) const {
-    // Check if cycle_index and step_index exist
-    auto cycle_it = var_log_.find(cycle_index);
-    if (cycle_it == var_log_.end()) {
-      return VariableLogEntry{}; // Return empty entry if cycle doesn't exist
-    }
-    
-    auto step_it = cycle_it->second.find(step_index);
-    if (step_it == cycle_it->second.end()) {
-      return VariableLogEntry{}; // Return empty entry if step doesn't exist
-    }
-    
-    const auto& sim_log = step_it->second;
-    auto var_it = sim_log.variables.find(type);
-    if (var_it == sim_log.variables.end()) {
-      return VariableLogEntry{}; // Return empty entry if variable type doesn't exist
-    }
-    
-    // Reconstruct VariableLogEntry from optimized structure
-    VariableLogEntry entry;
-    entry.cycle_index = sim_log.step_data.cycle_index;
-    entry.step_index = sim_log.step_data.step_index;
-    entry.times = sim_log.step_data.times;  // Already double, no conversion needed
-    entry.values = var_it->second.values;
-    entry.variable_name = var_it->second.variable_name;
-    entry.units = var_it->second.units;
-    entry.step_name = var_it->second.step_name;
-    entry.object_name = var_it->second.object_name;
-    
-    return entry;
+    const Log& log = GetLog(cycle_index, step_index);
+    auto var_it = log.variables.find(type);
+    if (var_it == log.variables.end()) return VariableLogEntry{};
+    return MakeEntry(log.step_data, var_it->second);
   }
 
   VariableLogEntry EquationLog::GetComponentVariable(int cycle_index, int step_index,
-      ComponentVariableType type, const std::string& component) const 
+      ComponentVariableType type, const std::string& component) const
   {
-    // Check if cycle_index and step_index exist
-    auto cycle_it = var_log_.find(cycle_index);
-    if (cycle_it == var_log_.end()) {
-      return VariableLogEntry{}; // Return empty entry if cycle doesn't exist
-    }
-    
-    auto step_it = cycle_it->second.find(step_index);
-    if (step_it == cycle_it->second.end()) {
-      return VariableLogEntry{}; // Return empty entry if step doesn't exist
-    }
-    
-    const auto& sim_log = step_it->second;
-    auto comp_it = sim_log.component_variables.find(component);
-    if (comp_it == sim_log.component_variables.end()) {
-      return VariableLogEntry{}; // Return empty entry if component doesn't exist
-    }
-    
+    const Log& log = GetLog(cycle_index, step_index);
+    auto comp_it = log.component_variables.find(component);
+    if (comp_it == log.component_variables.end()) return VariableLogEntry{};
     auto type_it = comp_it->second.find(type);
-    if (type_it == comp_it->second.end()) {
-      return VariableLogEntry{}; // Return empty entry if component variable type doesn't exist
-    }
-    
-    // Reconstruct VariableLogEntry from optimized structure
-    VariableLogEntry entry;
-    entry.cycle_index = sim_log.step_data.cycle_index;
-    entry.step_index = sim_log.step_data.step_index;
-    entry.times = sim_log.step_data.times;  // Already double, no conversion needed
-    entry.values = type_it->second.values;
-    entry.variable_name = type_it->second.variable_name;
-    entry.units = type_it->second.units;
-    entry.step_name = type_it->second.step_name;
-    entry.object_name = type_it->second.object_name;
-    
-    return entry;
-  }
-
-  static std::vector<double> LinearInterpolateCellCenter(const std::vector<double>& data,
-    const std::vector<double>& dx)
-  {
-    assert(data.size() == dx.size());
-
-    std::vector<double> out(data.size() - 1);
-    for (int i = 0; i < out.size(); ++i) {
-      double rdx1 = dx[i] / (dx[i] + dx[i + 1]);
-      double rdx2 = dx[i + 1] / (dx[i] + dx[i + 1]);
-      out[i] = rdx1 * data[i] + rdx2 * data[i + 1];
-    }
-    return out;
+    if (type_it == comp_it->second.end()) return VariableLogEntry{};
+    return MakeEntry(log.step_data, type_it->second);
   }
 
   VariableLogEntry EquationLog::GetFaceVariable(int cycle_index, int step_index, VariableType type) const {
-    // Get the base variable entry first
-    VariableLogEntry cell_centre_entry = GetVariable(cycle_index, step_index, type);
-    if (cell_centre_entry.values.empty()) {
-      return VariableLogEntry{}; // Return empty if not found
-    }
-    
-    // Check if variable is already at cell faces (e.g., velocity)
-    if (cell_centre_entry.values[0].size() == domain.cell_width.size() - 1) {
-      // Already face-centered, return as-is
-      return cell_centre_entry;
-    }
-    
-    // Interpolate cell-centered values to face values
-    const auto& dx = domain.cell_width;
-    VariableLogEntry cell_face_entry;
-    // Copy all metadata from the original entry
-    cell_face_entry.cycle_index = cell_centre_entry.cycle_index;
-    cell_face_entry.step_index = cell_centre_entry.step_index;
-    cell_face_entry.variable_name = cell_centre_entry.variable_name;
-    cell_face_entry.units = cell_centre_entry.units;
-    cell_face_entry.step_name = cell_centre_entry.step_name;
-    cell_face_entry.object_name = cell_centre_entry.object_name;
-    // Copy times and interpolate values
-    cell_face_entry.times = cell_centre_entry.times;
-    cell_face_entry.values.reserve(cell_centre_entry.values.size());
-    
-    for (size_t i = 0; i < cell_centre_entry.values.size(); ++i) {
-      cell_face_entry.values.push_back(
-        LinearInterpolateCellCenter(cell_centre_entry.values[i], dx)
-      );
-    }
-
-    return cell_face_entry;
+    return InterpolateToFaces(GetVariable(cycle_index, step_index, type), domain.cell_width);
   }
 
   VariableLogEntry EquationLog::GetComponentFaceVariable(int cycle_index, int step_index,
       ComponentVariableType type, const std::string& component) const {
-    
-    // Get the base component variable entry first
-    VariableLogEntry cell_centre_entry = GetComponentVariable(cycle_index, step_index, type, component);
-    if (cell_centre_entry.values.empty()) {
-      return VariableLogEntry{}; // Return empty if not found
-    }
-    
-    // Check if variable is already at cell faces
-    if (cell_centre_entry.values[0].size() == domain.cell_width.size() - 1) {
-      return cell_centre_entry;
-    }
-    
-    // Interpolate cell-centered values to face values
-    const auto& dx = domain.cell_width;
-    VariableLogEntry cell_face_entry;
-    // Copy all metadata from the original entry
-    cell_face_entry.cycle_index = cell_centre_entry.cycle_index;
-    cell_face_entry.step_index = cell_centre_entry.step_index;
-    cell_face_entry.variable_name = cell_centre_entry.variable_name;
-    cell_face_entry.units = cell_centre_entry.units;
-    cell_face_entry.step_name = cell_centre_entry.step_name;
-    cell_face_entry.object_name = cell_centre_entry.object_name;
-    // Copy times and interpolate values
-    cell_face_entry.times = cell_centre_entry.times;
-    cell_face_entry.values.reserve(cell_centre_entry.values.size());
-    
-    for (size_t i = 0; i < cell_centre_entry.values.size(); ++i) {
-      cell_face_entry.values.push_back(
-        LinearInterpolateCellCenter(cell_centre_entry.values[i], dx)
-      );
-    }
-
-    return cell_face_entry;
+    return InterpolateToFaces(GetComponentVariable(cycle_index, step_index, type, component), domain.cell_width);
   }
 
     void BoundaryLog::LogStep(const StreamData& stream, const std::string& stream_name, int cycle_idx, int step_idx) {
@@ -645,41 +555,40 @@ namespace adsim {
     }
   }
 
+  const BoundaryLogEntry* BoundaryLog::FindEntry(int cycle_idx, int step_idx, const std::string& stream_name) const {
+    auto cycle_it = log_.find(cycle_idx);
+    if (cycle_it == log_.end()) return nullptr;
+    auto step_it = cycle_it->second.find(step_idx);
+    if (step_it == cycle_it->second.end()) return nullptr;
+    auto stream_it = step_it->second.find(stream_name);
+    if (stream_it == step_it->second.end()) return nullptr;
+    return &stream_it->second;
+  }
+
+  BoundaryVariableData BoundaryLog::MakeVariableData(const BoundaryLogEntry& entry, const std::string& stream_name,
+      std::vector<double> values, std::string variable_name, std::string units) const {
+    BoundaryVariableData out;
+    out.variable_timeseries = std::move(values);
+    out.time = entry.stream_data.time_series_;
+    out.units = std::move(units);
+    out.variable_name = std::move(variable_name);
+    out.cycle_idx = entry.cycle_index;
+    out.step_name = sys_data.step_list_[entry.step_index];
+    out.object_name = stream_name;
+    return out;
+  }
+
   BoundaryVariableData BoundaryLog::GetVariableData(
     int cycle_idx, 
     int step_idx, 
     const std::string& stream_name, 
     BoundaryVariableType variable
   ) const {
-    BoundaryVariableData out;
-
-    // Check if cycle_index and step_index exist
-    auto cycle_it = log_.find(cycle_idx);
-    if (cycle_it == log_.end()) {
-      return BoundaryVariableData{}; // Return empty entry if cycle doesn't exist
-    }
-    
-    auto step_it = cycle_it->second.find(step_idx);
-    if (step_it == cycle_it->second.end()) {
-      return BoundaryVariableData{}; // Return empty entry if step doesn't exist
-    }
-    
-    const auto& sim_log = step_it->second;
-    auto var_it = sim_log.find(stream_name);
-    if (var_it == sim_log.end()) {
-      return BoundaryVariableData{}; // Return empty entry if variable type doesn't exist
-    }
-
-    const auto& entry = log_.at(cycle_idx).at(step_idx).at(stream_name); 
-    out.variable_timeseries = GetBoundaryVariableVector(variable, entry.stream_data);
-    out.time = entry.stream_data.time_series_;
-    out.units = GetVariableUnits(variable);
-    out.variable_name = kBoundaryVariableTypeList[static_cast<int>(variable)];
-    out.cycle_idx = cycle_idx;
-    // out.step_name = sys_data.step_list_.at(step_idx);
-    out.step_name = sys_data.step_list_[step_idx];
-    out.object_name = stream_name;
-    return out;
+    const BoundaryLogEntry* entry = FindEntry(cycle_idx, step_idx, stream_name);
+    if (!entry) return BoundaryVariableData{};
+    return MakeVariableData(*entry, stream_name,
+      GetBoundaryVariableVector(variable, entry->stream_data),
+      std::string(kBoundaryVariableTypeList[static_cast<int>(variable)]), GetVariableUnits(variable));
   }
 
   BoundaryVariableData BoundaryLog::GetComponentVariableData(
@@ -689,36 +598,11 @@ namespace adsim {
     BoundaryComponentVariableType variable, 
     const std::string& component
   ) const {
-    BoundaryVariableData out;
-    
-    // Check if cycle_index and step_index exist
-    auto cycle_it = log_.find(cycle_idx);
-    if (cycle_it == log_.end()) {
-      return BoundaryVariableData{}; // Return empty entry if cycle doesn't exist
-    }
-    
-    auto step_it = cycle_it->second.find(step_idx);
-    if (step_it == cycle_it->second.end()) {
-      return BoundaryVariableData{}; // Return empty entry if step doesn't exist
-    }
-    
-    const auto& sim_log = step_it->second;
-    auto var_it = sim_log.find(stream_name);
-    if (var_it == sim_log.end()) {
-      return BoundaryVariableData{}; // Return empty entry if variable type doesn't exist
-    }
-
-    const auto& entry = log_.at(cycle_idx).at(step_idx).at(stream_name); 
-
-    out.variable_timeseries = GetBoundaryComponentVariableVector(variable, entry.stream_data, component);
-    out.time = entry.stream_data.time_series_;
-    out.units = GetComponentVariableUnits(variable);
-    out.variable_name = kBoundaryComponentVariableTypeList[static_cast<int>(variable)];
-    out.cycle_idx = cycle_idx;
-    // out.step_name = sys_data.step_list_.at(step_idx);
-    out.step_name = sys_data.step_list_[step_idx];
-    out.object_name = stream_name;
-    return out;
+    const BoundaryLogEntry* entry = FindEntry(cycle_idx, step_idx, stream_name);
+    if (!entry) return BoundaryVariableData{};
+    return MakeVariableData(*entry, stream_name,
+      GetBoundaryComponentVariableVector(variable, entry->stream_data, component),
+      std::string(kBoundaryComponentVariableTypeList[static_cast<int>(variable)]), GetComponentVariableUnits(variable));
   }
 
   std::vector<double> GetBoundaryVariableVector(BoundaryVariableType variable, const StreamData& stream_data) {

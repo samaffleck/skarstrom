@@ -49,7 +49,32 @@ namespace adsim {
 		virtual double GetVolumeFlow(const Equations& state, double time, BoundaryLocation loc) = 0;
 		virtual double GetMolarFlow(const Equations& state, double time, BoundaryLocation loc) = 0;
 		virtual void Initialise(double step_time) {}
-		virtual void EvaluateExpressions(const EvalContext& ctx) {}
+		void EvaluateExpressions(const EvalContext& ctx) { if (profile_) profile_->EvaluateExpressions(ctx); }
+
+		// Time profile of the flow, in the unit of the concrete kind (velocity,
+		// volume, molar or mass flow). Constant unless the user sets a ramp.
+		std::unique_ptr<IBoundaryValue> profile_;
+
+	protected:
+		IFlowBoundaryValue() = default;
+		explicit IFlowBoundaryValue(double default_value)
+			: profile_(std::make_unique<ConstantBoundaryValue>(default_value)) {}
+
+		// Archive layout shared by every kind: the profile from version 2 on; a
+		// version-1 archive holds a plain number under the kind's legacy name,
+		// which loads as a constant profile. `self` is the concrete kind, so the
+		// base-class relation cereal records is the concrete one.
+		template <class Archive, class Derived>
+		static void SerializeProfile(Archive& ar, Derived* self, std::uint32_t const version, const char* legacy_name) {
+			ar(cereal::virtual_base_class<IFlowBoundaryValue>(self));
+			if (version >= 2) {
+				ar(cereal::make_nvp("Profile", self->profile_));
+			} else {
+				double value = 0.0;
+				ar(cereal::make_nvp(legacy_name, value));
+				self->profile_ = std::make_unique<ConstantBoundaryValue>(value);
+			}
+		}
 
 	private:
 		friend class cereal::access;
@@ -59,110 +84,58 @@ namespace adsim {
 
 	class VelocityBoundaryValue : public IFlowBoundaryValue {
 	public:
-		VelocityBoundaryValue() { profile_ = std::make_unique<ConstantBoundaryValue>(0.1); }
+		VelocityBoundaryValue() : IFlowBoundaryValue(0.1) {}
 		FlowType GetType() override { return FlowType::VELOCITY; }
 		double GetVelocity(const Equations& state, double time, BoundaryLocation loc) override;
 		double GetVolumeFlow(const Equations& state, double time, BoundaryLocation loc) override;
 		double GetMolarFlow(const Equations& state, double time, BoundaryLocation loc) override;
-		void Initialise(double step_time) override {}
-		void EvaluateExpressions(const EvalContext& ctx) override { if (profile_) profile_->EvaluateExpressions(ctx); }
-
-		std::unique_ptr<IBoundaryValue> profile_;
 
 	private:
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(cereal::virtual_base_class<IFlowBoundaryValue>(this));
-			if (version >= 2) {
-				ar(cereal::make_nvp("Profile", profile_));
-			} else {
-				double velocity = 0.1;
-				ar(cereal::make_nvp("Velocity", velocity));
-				profile_ = std::make_unique<ConstantBoundaryValue>(velocity);
-			}
-		}
+		void serialize(Archive& ar, std::uint32_t const version) { SerializeProfile(ar, this, version, "Velocity"); }
 	};
 
 	class VolumetricFlowBoundaryValue : public IFlowBoundaryValue {
 	public:
-		VolumetricFlowBoundaryValue() { profile_ = std::make_unique<ConstantBoundaryValue>(1e-5); }
+		VolumetricFlowBoundaryValue() : IFlowBoundaryValue(1e-5) {}
 		FlowType GetType() override { return FlowType::VOLUME; }
-    double GetVelocity(const Equations& state, double time, BoundaryLocation loc) override;
+		double GetVelocity(const Equations& state, double time, BoundaryLocation loc) override;
 		double GetVolumeFlow(const Equations& state, double time, BoundaryLocation loc) override;
 		double GetMolarFlow(const Equations& state, double time, BoundaryLocation loc) override;
-		void Initialise(double step_time) override {}
-		void EvaluateExpressions(const EvalContext& ctx) override { if (profile_) profile_->EvaluateExpressions(ctx); }
-
-		std::unique_ptr<IBoundaryValue> profile_;
 
 	private:
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(cereal::virtual_base_class<IFlowBoundaryValue>(this));
-			if (version >= 2) {
-				ar(cereal::make_nvp("Profile", profile_));
-			} else {
-				double volume_flow = 1e-5;
-				ar(cereal::make_nvp("Volume_Flow", volume_flow));
-				profile_ = std::make_unique<ConstantBoundaryValue>(volume_flow);
-			}
-		}
+		void serialize(Archive& ar, std::uint32_t const version) { SerializeProfile(ar, this, version, "Volume_Flow"); }
 	};
 
 	class MolarFlowBoundaryValue : public IFlowBoundaryValue {
 	public:
-		MolarFlowBoundaryValue() { profile_ = std::make_unique<ConstantBoundaryValue>(1.0); }
+		MolarFlowBoundaryValue() : IFlowBoundaryValue(1.0) {}
 		FlowType GetType() override { return FlowType::MOLAR; }
-    double GetVelocity(const Equations& state, double time, BoundaryLocation loc) override;
+		double GetVelocity(const Equations& state, double time, BoundaryLocation loc) override;
 		double GetVolumeFlow(const Equations& state, double time, BoundaryLocation loc) override;
 		double GetMolarFlow(const Equations& state, double time, BoundaryLocation loc) override;
-		void Initialise(double step_time) override {}
-		void EvaluateExpressions(const EvalContext& ctx) override { if (profile_) profile_->EvaluateExpressions(ctx); }
-
-		std::unique_ptr<IBoundaryValue> profile_;
 
 	private:
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(cereal::virtual_base_class<IFlowBoundaryValue>(this));
-			if (version >= 2) {
-				ar(cereal::make_nvp("Profile", profile_));
-			} else {
-				double molar_flow = 1.0;
-				ar(cereal::make_nvp("Molar_Flow", molar_flow));
-				profile_ = std::make_unique<ConstantBoundaryValue>(molar_flow);
-			}
-		}
+		void serialize(Archive& ar, std::uint32_t const version) { SerializeProfile(ar, this, version, "Molar_Flow"); }
 	};
 
 	class MassFlowBoundaryValue : public IFlowBoundaryValue {
 	public:
-		MassFlowBoundaryValue() { profile_ = std::make_unique<ConstantBoundaryValue>(1e-3); }
+		MassFlowBoundaryValue() : IFlowBoundaryValue(1e-3) {}
 		FlowType GetType() override { return FlowType::MASS; }
-    double GetVelocity(const Equations& state, double time, BoundaryLocation loc) override;
+		double GetVelocity(const Equations& state, double time, BoundaryLocation loc) override;
 		double GetVolumeFlow(const Equations& state, double time, BoundaryLocation loc) override;
 		double GetMolarFlow(const Equations& state, double time, BoundaryLocation loc) override;
-		void Initialise(double step_time) override {}
-		void EvaluateExpressions(const EvalContext& ctx) override { if (profile_) profile_->EvaluateExpressions(ctx); }
-
-		std::unique_ptr<IBoundaryValue> profile_;
 
 	private:
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(cereal::virtual_base_class<IFlowBoundaryValue>(this));
-			if (version >= 2) {
-				ar(cereal::make_nvp("Profile", profile_));
-			} else {
-				double mass_flow = 1e-3;
-				ar(cereal::make_nvp("Mass_Flow", mass_flow));
-				profile_ = std::make_unique<ConstantBoundaryValue>(mass_flow);
-			}
-		}
+		void serialize(Archive& ar, std::uint32_t const version) { SerializeProfile(ar, this, version, "Mass_Flow"); }
 	};
 
 	/* Factory function */

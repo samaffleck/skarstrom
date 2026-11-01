@@ -58,17 +58,6 @@ namespace adsim {
 
   namespace {
 
-    // Ogata-Banks outlet concentration ratio C/C0 at z = L for a step inlet.
-    double OgataBanks(double L, double u, double D, double t) {
-      if (t <= 0.0) return 0.0;
-      const double s = 2.0 * std::sqrt(D * t);
-      const double term1 = std::erfc((L - u * t) / s);
-      const double exponent = u * L / D;
-      double term2 = 0.0;
-      if (exponent < 700.0) term2 = std::exp(exponent) * std::erfc((L + u * t) / s);
-      return 0.5 * (term1 + term2);
-    }
-
     // Fixed time grid the outlet curves are sampled onto so that runs at
     // different cell counts (and hence different internal time steps) can be
     // differenced pointwise.

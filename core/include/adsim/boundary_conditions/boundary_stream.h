@@ -128,8 +128,13 @@ namespace adsim {
     virtual double GetPower(double outlet_pressure, double molar_flow, double time) = 0;
 
     virtual double GetMolarFlow(const Equations& state,double time, BoundaryLocation loc) = 0;
-		virtual double GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) = 0;
-		virtual double GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) = 0;
+    // Molar flow of one component and the enthalpy flow (molar flow times the
+    // gas temperature) through this stream, with the sign of GetMolarFlow. An
+    // inlet carries the stream-side composition and the temperature from
+    // BedInletTemperature; an outlet carries the bed-end gas (the average of
+    // the ghost and first interior cell). The same for every stream kind.
+    double GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component);
+    double GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc);
 		virtual void EvaluateExpressions(const EvalContext& ctx) {
 			temperature_.Evaluate(ctx);
 			if (temperature_profile_) temperature_profile_->EvaluateExpressions(ctx);
@@ -198,6 +203,14 @@ namespace adsim {
     double step_time_cached_ = 0.0;
 
   protected:
+    // Temperature of the gas an INLET delivers to the bed at `time`: the
+    // stream-side InletTemperature, raised by compression heating in the
+    // pump-driven stream kinds (they override this).
+    virtual double BedInletTemperature(const Equations& state, double time, BoundaryLocation loc) {
+      (void)state; (void)loc;
+      return InletTemperature(time);
+    }
+
     // Set during initialisation to be equal to parent boundary condition direction
 		BoundaryDirection direction_ = BoundaryDirection::OUTLET;
 
@@ -243,8 +256,6 @@ namespace adsim {
     double GetPower(double outlet_pressure, double molar_flow, double time) override { return 0.0; } // No compressor
 
     double GetMolarFlow(const Equations& state,double time, BoundaryLocation loc) override;
-		double GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) override;
-		double GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) override;
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			IBoundaryStream::EvaluateExpressions(ctx);
 			if (boundary_value_) boundary_value_->EvaluateExpressions(ctx);
@@ -279,8 +290,6 @@ namespace adsim {
     double GetPower(double outlet_pressure, double molar_flow, double time) override;
 
     double GetMolarFlow(const Equations& state,double time, BoundaryLocation loc) override;
-		double GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) override;
-		double GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) override;
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			IBoundaryStream::EvaluateExpressions(ctx);
 			if (boundary_flow_) boundary_flow_->EvaluateExpressions(ctx);
@@ -289,6 +298,9 @@ namespace adsim {
 
 		std::unique_ptr<IFlowBoundaryValue> boundary_flow_;
     std::unique_ptr<IPump> pump_{};
+
+	protected:
+		double BedInletTemperature(const Equations& state, double time, BoundaryLocation loc) override;
 
 	private:
 		friend class cereal::access;
@@ -311,8 +323,6 @@ namespace adsim {
     double GetPower(double outlet_pressure, double molar_flow, double time) override;
 
     double GetMolarFlow(const Equations& state,double time, BoundaryLocation loc) override;
-		double GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) override;
-		double GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) override;
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			IBoundaryStream::EvaluateExpressions(ctx);
 			if (power_) power_->EvaluateExpressions(ctx);
@@ -321,6 +331,9 @@ namespace adsim {
 
     std::unique_ptr<IPumpPowerModel> power_{};
     std::unique_ptr<IPump> pump_{};
+
+	protected:
+		double BedInletTemperature(const Equations& state, double time, BoundaryLocation loc) override;
 
 	private:
 		friend class cereal::access;

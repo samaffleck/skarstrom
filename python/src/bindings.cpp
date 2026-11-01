@@ -710,12 +710,7 @@ PYBIND11_MODULE(_core, m) {
               if (auto* bs = dynamic_cast<BoundaryStream*>(st.get())) {
                 sd["type"] = "stream";
                 sd["flow"] = kind(b::FlowKinds(), static_cast<int>(bs->boundary_flow_->GetType()));
-                IBoundaryValue* prof = nullptr;
-                if (auto* fv = dynamic_cast<VelocityBoundaryValue*>(bs->boundary_flow_.get())) prof = fv->profile_.get();
-                else if (auto* fv = dynamic_cast<VolumetricFlowBoundaryValue*>(bs->boundary_flow_.get())) prof = fv->profile_.get();
-                else if (auto* fv = dynamic_cast<MolarFlowBoundaryValue*>(bs->boundary_flow_.get())) prof = fv->profile_.get();
-                else if (auto* fv = dynamic_cast<MassFlowBoundaryValue*>(bs->boundary_flow_.get())) prof = fv->profile_.get();
-                sd["profile"] = tprofile(prof);
+                sd["profile"] = tprofile(bs->boundary_flow_->profile_.get());
                 sd["pump"] = pump_of(bs->pump_.get());
               } else if (auto* vs = dynamic_cast<ValveBoundaryStream*>(st.get())) {
                 sd["type"] = "valve";

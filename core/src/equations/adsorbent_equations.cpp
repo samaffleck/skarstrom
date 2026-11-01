@@ -879,18 +879,9 @@ namespace adsim {
 
   void UpdateMoleFractionFaceUpwind(UserData* udata, Component component) {
     auto& state = udata->state;
-    auto& bed = udata->bed;
-    auto& fluid = udata->fluid;
-    auto& domain_vectors = state.domain_vectors;
-    
-    auto& mole_fraction_face = state.mole_fraction_face.at(component);
-    auto& yi_face = mole_fraction_face.var;
-    
-    const auto& mole_fraction = state.mole_fraction.at(component);
-    const auto& yi = mole_fraction.var;
-
-    const auto& velocity = state.velocity;
-    const auto& u = velocity.var;
+    auto& yi_face = state.mole_fraction_face.at(component).var;
+    const auto& yi = state.mole_fraction.at(component).var;
+    const auto& u = state.velocity.var;
 
     int N = yi_face.size();
     for (int n = 0; n < N; ++n) { 
@@ -901,18 +892,9 @@ namespace adsim {
 
   void UpdateMoleFractionFaceWENO(UserData* udata, Component component) {
     auto& state = udata->state;
-    auto& bed = udata->bed;
-    auto& fluid = udata->fluid;
-    auto& domain_vectors = state.domain_vectors;
-    
-    auto& mole_fraction_face = state.mole_fraction_face.at(component);
-    auto& yi_face = mole_fraction_face.var;
-    
-    const auto& mole_fraction = state.mole_fraction.at(component);
-    const auto& yi = mole_fraction.var;
-
-    const auto& velocity = state.velocity;
-    const auto& u = velocity.var;
+    auto& yi_face = state.mole_fraction_face.at(component).var;
+    const auto& yi = state.mole_fraction.at(component).var;
+    const auto& u = state.velocity.var;
 
     const double eps = 1e-12;
 
@@ -963,18 +945,9 @@ namespace adsim {
 
   void UpdateMoleFractionFaceVanLeer(UserData* udata, Component component) {
     auto& state = udata->state;
-    auto& bed = udata->bed;
-    auto& fluid = udata->fluid;
-    auto& domain_vectors = state.domain_vectors;
-    
-    auto& mole_fraction_face = state.mole_fraction_face.at(component);
-    auto& yi_face = mole_fraction_face.var;
-    
-    const auto& mole_fraction = state.mole_fraction.at(component);
-    const auto& yi = mole_fraction.var;
-
-    const auto& velocity = state.velocity;
-    const auto& u = velocity.var;
+    auto& yi_face = state.mole_fraction_face.at(component).var;
+    const auto& yi = state.mole_fraction.at(component).var;
+    const auto& u = state.velocity.var;
 
     const double eps = 1e-12;
 

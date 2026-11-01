@@ -94,6 +94,9 @@ namespace adsim {
                 "isothermModelNames must have one entry per IsothermType");
 
   class InertIsothermParameters {
+  public:
+    void EvaluateExpressions(const EvalContext&) {}  // nothing to evaluate
+
   private:
     friend class cereal::access;
     template <class Archive>
@@ -507,535 +510,169 @@ namespace adsim {
     void serialize(Archive& ar) {}
   };
 
-  class InertIsotherm : public IIsotherm {
+  // Every concrete isotherm is a per-component map of one parameter class plus
+  // the same bookkeeping: construction for one component, component removal,
+  // key listing, expression evaluation and serialisation. This base supplies
+  // all of it; a concrete isotherm only adds Update (and UpdateAll when it is
+  // competitive). The archive layout is unchanged: the parameter map is still
+  // written under kParamsNvp directly after the IIsotherm base, and each
+  // concrete class keeps its own cereal_class_version.
+  inline constexpr char kIsothermParamsNvp[] = "Isotherm_Params";
+  inline constexpr char kIsoParamsNvp[] = "ISO_Params";  // the Inert and Henry archives
+
+  template <class Params, IsothermType kType, const char* kParamsNvp = kIsothermParamsNvp>
+  class ParamIsotherm : public IIsotherm {
   public:
-    InertIsotherm() = default;
-    explicit InertIsotherm(std::string component) { params_[component]; }
-    void Update(IsothermUpdateParams& state) override;
+    ParamIsotherm() = default;
+    explicit ParamIsotherm(std::string component) { params_[std::move(component)]; }
     void RemoveComponent(const std::string& component) override { params_.erase(component); }
     std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::INERT; }
-    void EvaluateExpressions(const EvalContext&) override {}
-
-    ParamMap<InertIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("ISO_Params", params_)
-      );
-    }
-  };
-
-  class HenryIsotherm : public IIsotherm {
-  public:
-    HenryIsotherm() = default;
-    explicit HenryIsotherm(std::string component) { params_[std::move(component)]; }
-    void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::HENRY; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<HenryIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("ISO_Params", params_)
-      );
-
-      if (version >= 2) {
-          // Future expansion
-      }
-    }
-  };
-
-  class LangmuirIsotherm : public IIsotherm {
-  public:
-    LangmuirIsotherm() = default;
-    explicit LangmuirIsotherm(std::string component) { params_[std::move(component)]; }
-    void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::SINGLE_SITE_LANGMUIR_P; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<LangmuirIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-
-      if (version >= 2) {
-        // Future expansion
-      }
-    }
-  };
-
-  class AntiLangmuirIsotherm : public IIsotherm {
-  public:
-    AntiLangmuirIsotherm() = default;
-    explicit AntiLangmuirIsotherm(std::string component) { params_[std::move(component)]; }
-    void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::ANTI_LANGMUIR; }
+    IsothermType GetIsothermType() override { return kType; }
     void EvaluateExpressions(const EvalContext& ctx) override {
       for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
     }
 
-    ParamMap<AntiLangmuirIsothermParameters> params_{};
+    ParamMap<Params> params_{};
 
   private:
     friend class cereal::access;
     template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
+    void serialize(Archive& ar, std::uint32_t const /*version*/) {
       ar(
         cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
+        cereal::make_nvp(kParamsNvp, params_)
       );
     }
   };
 
-  class FreundlichIsotherm : public IIsotherm {
+  class InertIsotherm : public ParamIsotherm<InertIsothermParameters, IsothermType::INERT, kIsoParamsNvp> {
   public:
-    FreundlichIsotherm() = default;
-    explicit FreundlichIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::FREUNDLICH; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
+  };
 
-    ParamMap<FreundlichIsothermParameters> params_{};
+  class HenryIsotherm : public ParamIsotherm<HenryIsothermParameters, IsothermType::HENRY, kIsoParamsNvp> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+  };
 
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
+  class LangmuirIsotherm : public ParamIsotherm<LangmuirIsothermParameters, IsothermType::SINGLE_SITE_LANGMUIR_P> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+  };
+
+  class AntiLangmuirIsotherm : public ParamIsotherm<AntiLangmuirIsothermParameters, IsothermType::ANTI_LANGMUIR> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+  };
+
+  class FreundlichIsotherm : public ParamIsotherm<FreundlichIsothermParameters, IsothermType::FREUNDLICH> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
   };
   
-  class SipsIsotherm : public IIsotherm {
+  class SipsIsotherm : public ParamIsotherm<SipsIsothermParameters, IsothermType::SIPS> {
   public:
-    SipsIsotherm() = default;
-    explicit SipsIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::SIPS; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<SipsIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
   };
 
-  class Sips2Isotherm : public IIsotherm {
+  class Sips2Isotherm : public ParamIsotherm<Sips2IsothermParameters, IsothermType::SIPS_2> {
   public:
-    Sips2Isotherm() = default;
-    explicit Sips2Isotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::SIPS_2; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<Sips2IsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
   };
 
-  class ExtendedSips2Isotherm : public IIsotherm {
+  class ExtendedSips2Isotherm : public ParamIsotherm<Sips2IsothermParameters, IsothermType::EXTENDED_SIPS_2> {
   public:
-    ExtendedSips2Isotherm() = default;
-    explicit ExtendedSips2Isotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SIPS_2; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<Sips2IsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
   };
   
   // Competitive Sips with Arrhenius n_inf(T), k(T) and an arctan-shaped exponent
   // c(T), matching Schell/Casas et al. (2012). See ArrheniusSipsIsothermParameters
   // for the exact functional forms. Like ExtendedSips2Isotherm this is inherently
   // competitive: the loading of each component shares a common denominator.
-  class ArrheniusSipsIsotherm : public IIsotherm {
+  class ArrheniusSipsIsotherm : public ParamIsotherm<ArrheniusSipsIsothermParameters, IsothermType::ARRHENIUS_SIPS> {
   public:
-    ArrheniusSipsIsotherm() = default;
-    explicit ArrheniusSipsIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::ARRHENIUS_SIPS; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<ArrheniusSipsIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
   };
 
-  class DualSiteSipsIsotherm : public IIsotherm {
+  class DualSiteSipsIsotherm : public ParamIsotherm<DualSiteSipsIsothermParameters, IsothermType::DUAL_SITE_SIPS> {
   public:
-    DualSiteSipsIsotherm() = default;
-    explicit DualSiteSipsIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::DUAL_SITE_SIPS; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<DualSiteSipsIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
   };
   
-  class RedlichPetersonIsotherm : public IIsotherm {
+  class RedlichPetersonIsotherm : public ParamIsotherm<RedlichPetersonIsothermParameters, IsothermType::REDLICH_PETERSON> {
   public:
-    RedlichPetersonIsotherm() = default;
-    explicit RedlichPetersonIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::REDLICH_PETERSON; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<RedlichPetersonIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
   };
   
-  class TothIsotherm : public IIsotherm {
+  class TothIsotherm : public ParamIsotherm<TothIsothermParameters, IsothermType::TOTH> {
   public:
-    TothIsotherm() = default;
-    explicit TothIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::TOTH; }
-    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<TothIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
   };
 
-  class Toth2Isotherm : public IIsotherm {
+  class Toth2Isotherm : public ParamIsotherm<Toth2IsothermParameters, IsothermType::TOTH_2> {
   public:
-    Toth2Isotherm() = default;
-    explicit Toth2Isotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::TOTH_2; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<Toth2IsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-    }
   };
 
-  class ExtendedLangmuirIsotherm : public IIsotherm {
+  class ExtendedLangmuirIsotherm : public ParamIsotherm<LangmuirIsothermParameters, IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_P> {
   public:
-    ExtendedLangmuirIsotherm() = default;
-    explicit ExtendedLangmuirIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_P; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<LangmuirIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-
-      if (version >= 2) {
-        // Future expansion
-      }
-    }
   };
 
-  class ExtendedLangmuirIsotherm_Concentration : public IIsotherm {
+  class ExtendedLangmuirIsotherm_Concentration : public ParamIsotherm<LangmuirIsothermParametersConcentration, IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_C> {
   public:
-    ExtendedLangmuirIsotherm_Concentration() = default;
-    explicit ExtendedLangmuirIsotherm_Concentration(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_C; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<LangmuirIsothermParametersConcentration> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-
-      if (version >= 2) {
-        // Future expansion
-      }
-    }
   };
 
-  class DualSiteLangmuirIsotherm : public IIsotherm {
+  class DualSiteLangmuirIsotherm : public ParamIsotherm<DualSiteLangmuirIsothermParameters, IsothermType::DUAL_SITE_LANGMUIR_P> {
   public:
-    DualSiteLangmuirIsotherm() = default;
-    explicit DualSiteLangmuirIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::DUAL_SITE_LANGMUIR_P; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<DualSiteLangmuirIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-
-      if (version >= 2) {
-        // Future expansion
-      }
-    }
   };
 
-  class ExtendedDualSiteLangmuirIsotherm : public IIsotherm {
+  class ExtendedDualSiteLangmuirIsotherm : public ParamIsotherm<DualSiteLangmuirIsothermParameters, IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_P> {
   public:
-    ExtendedDualSiteLangmuirIsotherm() = default;
-    explicit ExtendedDualSiteLangmuirIsotherm(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_P; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<DualSiteLangmuirIsothermParameters> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-
-      if (version >= 2) {
-        // Future expansion
-      }
-    }
   };
 
-  class ExtendedDualSiteLangmuirIsotherm_Concentration : public IIsotherm {
+  class ExtendedDualSiteLangmuirIsotherm_Concentration : public ParamIsotherm<DualSiteLangmuirIsothermParametersConcentration, IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_C> {
   public:
-    ExtendedDualSiteLangmuirIsotherm_Concentration() = default;
-    explicit ExtendedDualSiteLangmuirIsotherm_Concentration(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_C; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<DualSiteLangmuirIsothermParametersConcentration> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-
-      if (version >= 2) {
-        // Future expansion
-      }
-    }
   };
 
-  class LangmuirIsotherm_Concentration : public IIsotherm {
+  class LangmuirIsotherm_Concentration : public ParamIsotherm<LangmuirIsothermParametersConcentration, IsothermType::SINGLE_SITE_LANGMUIR_C> {
   public:
-    LangmuirIsotherm_Concentration() = default;
-    explicit LangmuirIsotherm_Concentration(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::SINGLE_SITE_LANGMUIR_C; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<LangmuirIsothermParametersConcentration> params_{};
-
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-
-      if (version >= 2) {
-        // Future expansion
-      }
-    }
   };
 
-  class DualSiteLangmuirIsotherm_Concentration : public IIsotherm {
+  class DualSiteLangmuirIsotherm_Concentration : public ParamIsotherm<DualSiteLangmuirIsothermParametersConcentration, IsothermType::DUAL_SITE_LANGMUIR_C> {
   public:
-    DualSiteLangmuirIsotherm_Concentration() = default;
-    explicit DualSiteLangmuirIsotherm_Concentration(std::string component) { params_[std::move(component)]; }
+    using ParamIsotherm::ParamIsotherm;
     void Update(IsothermUpdateParams& state) override;
-    void RemoveComponent(const std::string& component) override { params_.erase(component); }
-    std::vector<std::string> GetComponents() const override { return ComponentKeys(params_); }
-    IsothermType GetIsothermType() override { return IsothermType::DUAL_SITE_LANGMUIR_C; }    void EvaluateExpressions(const EvalContext& ctx) override {
-      for (auto& [c, p] : params_) p.EvaluateExpressions(ctx);
-    }
-
-    ParamMap<DualSiteLangmuirIsothermParametersConcentration> params_{};
-  
-  private:
-    friend class cereal::access;
-    template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::virtual_base_class<IIsotherm>(this),
-        cereal::make_nvp("Isotherm_Params", params_)
-      );
-
-      if (version >= 2) {
-        // Future expansion
-      }
-    }
   };
 
   // Factory Functions

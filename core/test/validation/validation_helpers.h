@@ -54,6 +54,27 @@ namespace adsim::validation {
   }
 
   // ---------------------------------------------------------------------------
+  // Analytic solutions
+  // ---------------------------------------------------------------------------
+
+  // Ogata-Banks (1961) outlet concentration ratio C/C0 at z = L of the
+  // advection-dispersion equation for a step inlet into a semi-infinite column
+  // (interstitial velocity u, dispersion coefficient D):
+  //   C/C0 = 0.5 [ erfc((L - u t)/(2 sqrt(D t))) + exp(uL/D) erfc((L + u t)/(2 sqrt(D t))) ].
+  inline double OgataBanks(double L, double u, double D, double t) {
+    if (t <= 0.0) return 0.0;
+    const double s = 2.0 * std::sqrt(D * t);
+    const double term1 = std::erfc((L - u * t) / s);
+    // exp(uL/D) overflows at high Peclet; the paired erfc underflows faster, so
+    // drop the boundary term where the exponent is out of range (it is then
+    // negligible anyway).
+    const double exponent = u * L / D;
+    double term2 = 0.0;
+    if (exponent < 700.0) term2 = std::exp(exponent) * std::erfc((L + u * t) / s);
+    return 0.5 * (term1 + term2);
+  }
+
+  // ---------------------------------------------------------------------------
   // Log access
   // ---------------------------------------------------------------------------
 

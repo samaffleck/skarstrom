@@ -218,6 +218,12 @@ namespace adsim {
     void LogStep(const StreamData& state, const std::string& stream_name, int cycle_idx, int step_idx);
     void Clear();
     void EvictOldCyclesIfNeeded();
+    // The logged entry of one stream, or nullptr when the cycle, step or
+    // stream was not logged.
+    const BoundaryLogEntry* FindEntry(int cycle_idx, int step_idx, const std::string& stream_name) const;
+    // One variable's time series of `entry` with its description filled in.
+    BoundaryVariableData MakeVariableData(const BoundaryLogEntry& entry, const std::string& stream_name,
+        std::vector<double> values, std::string variable_name, std::string units) const;
 
   };
 
