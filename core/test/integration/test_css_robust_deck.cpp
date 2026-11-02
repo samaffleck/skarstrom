@@ -40,10 +40,20 @@ namespace adsim {
     ASSERT_TRUE(run.css_reached);
     EXPECT_GT(run.css_cycle, 50);
 
+    // On failure, say which cycles are logged and what each one's KPIs are.
+    std::string diag = "css_cycle " + std::to_string(run.css_cycle) + ", last logged " +
+                       std::to_string(sim.LastCycle()) + "; logged cycles:";
+    for (int c : sim.Cycles()) {
+      const KPIRecord* k = CarbonDioxide(sim.KPIs(c));
+      diag += " " + std::to_string(c);
+      if (k) diag += "(valid " + std::to_string(k->valid) + ", purity " + std::to_string(k->purity) +
+                     ", recovery " + std::to_string(k->recovery) + ")";
+    }
+
     const KPIRecord* co2 = CarbonDioxide(sim.KPIs(-1));
-    ASSERT_NE(co2, nullptr);
-    EXPECT_NEAR(co2->purity, kConvergedPurity, 1e-4);
-    EXPECT_NEAR(co2->recovery, kConvergedRecovery, 1e-4);
+    ASSERT_NE(co2, nullptr) << diag;
+    EXPECT_NEAR(co2->purity, kConvergedPurity, 1e-4) << diag;
+    EXPECT_NEAR(co2->recovery, kConvergedRecovery, 1e-4) << diag;
 
     // The last record is the stopping cycle: the balance and the state change
     // within their tolerances on every cycle of the window, which the log holds.
