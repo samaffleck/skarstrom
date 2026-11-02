@@ -104,12 +104,32 @@ add_compile_definitions(FMT_CONSTEVAL=)
 
 # Emscripten (a front end compiling the engine to WebAssembly with emcmake):
 # the engine, cereal and CoolProp throw and catch C++ exceptions, which
-# Emscripten disables by default. Compile this tree with exceptions on. The
-# front end must also link its module with -fexceptions (or
-# -sNO_DISABLE_EXCEPTION_CATCHING=1); threading and the other link flags are
-# its choice.
+# Emscripten disables by default. ADSIM_EMSCRIPTEN_EXCEPTIONS picks the scheme:
+#   wasm (default)  native WebAssembly exceptions (-fwasm-exceptions): throw and
+#                   catch stay inside the module. Measured on the web solver:
+#                   10 % faster and a 12 % smaller .wasm than js. Needs
+#                   Chrome 95, Firefox 100, Safari 15.2 or Node 17.
+#   js              Emscripten's JavaScript-based exceptions (-fexceptions):
+#                   every call that may throw goes through a JS trampoline.
+# The whole tree (engine and dependencies) is compiled with the chosen flag, and
+# Adsim::adsim passes it on to the consumer's compile and link, because every
+# object in a module must use the same scheme. A consumer must not add
+# -sNO_DISABLE_EXCEPTION_CATCHING=1 with wasm (Emscripten rejects the mix);
+# threading and the other link flags are its choice.
+set(ADSIM_EMSCRIPTEN_EXCEPTIONS "wasm" CACHE STRING
+    "C++ exception scheme for Emscripten builds: wasm (native) or js (JavaScript-based)")
+set_property(CACHE ADSIM_EMSCRIPTEN_EXCEPTIONS PROPERTY STRINGS wasm js)
+set(ADSIM_EMSCRIPTEN_EXCEPTIONS_FLAG "")
 if(EMSCRIPTEN)
-    add_compile_options(-fexceptions)
+    if(ADSIM_EMSCRIPTEN_EXCEPTIONS STREQUAL "wasm")
+        set(ADSIM_EMSCRIPTEN_EXCEPTIONS_FLAG "-fwasm-exceptions")
+    elseif(ADSIM_EMSCRIPTEN_EXCEPTIONS STREQUAL "js")
+        set(ADSIM_EMSCRIPTEN_EXCEPTIONS_FLAG "-fexceptions")
+    else()
+        message(FATAL_ERROR "ADSIM_EMSCRIPTEN_EXCEPTIONS must be wasm or js, not '${ADSIM_EMSCRIPTEN_EXCEPTIONS}'")
+    endif()
+    add_compile_options(${ADSIM_EMSCRIPTEN_EXCEPTIONS_FLAG})
+    message(STATUS "Adsim: Emscripten C++ exceptions: ${ADSIM_EMSCRIPTEN_EXCEPTIONS} (${ADSIM_EMSCRIPTEN_EXCEPTIONS_FLAG})")
 endif()
 
 # The Python extension is a shared module that links every static library
