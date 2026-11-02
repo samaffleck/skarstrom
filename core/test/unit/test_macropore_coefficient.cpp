@@ -168,10 +168,12 @@ TEST(MacroporeCoefficient, RegistryLeafAndRoundTrip) {
 }
 
 // Decks written before the field existed (macropore v2, macropore_capacity v1)
-// load with 0, i.e. the state's D_m, exactly as before.
+// load with 0, i.e. the state's D_m, exactly as before. Frozen copies of the
+// example decks as they were before the field (test/fixtures/legacy): the
+// bundled decks are re-saved by the paper tests and so gain the field.
 TEST(MacroporeCoefficient, OlderDecksLoadWithTheStateDiffusivity) {
   for (const char* deck : {"Perez2019_A", "Nguyen2022_Fig4"}) {
-    const std::string file = std::string("../examples/decks/") + deck + ".json";
+    const std::string file = std::string("test/fixtures/legacy/") + deck + "_pre_macropore_dm.json";
     std::ifstream in(file);
     ASSERT_TRUE(in) << file;
     std::stringstream text;
