@@ -487,11 +487,6 @@ namespace adsim {
     const auto& velocity = state.velocity;
     const auto& u = velocity.var;
 
-    const auto& viscosity = state.viscosity;
-    const auto& vis = viscosity.var;
-
-    const auto& dx = state.domain_vectors.cell_width;
-    const auto& K = state.domain_vectors.permeability;
     const auto& eb = state.domain_vectors.eb;
     const auto& A = state.domain_vectors.area;
 
@@ -524,8 +519,17 @@ namespace adsim {
     bool face_imposed = false;
     const double beta_i = state.domain_vectors.inertial_coefficient[i];
     if (beta_i == 0.0) {
-      // Darcy (Kozeny-Carman) layer: legacy closed form, unchanged.
-      molar_flow_face = (Cf * K[i] * A[i] / (vis[i] * dx[i])) * d * (P[i] - P[i + d]);
+      // Darcy (Kozeny-Carman) layer: the flow through the boundary face is
+      // carried by the face's velocity unknown, whose own residual
+      // (UpdateVelocity) is the Darcy law of the face with the two half-cells
+      // in series. A closed form here with only the ghost cell's mobility,
+      // K / (mu_ghost dx), disagreed with it whenever the ghost and first-cell
+      // viscosities differ (the ghost holds the feed composition and the
+      // mirrored temperature 2 T_in - T_1), so the bed took in a different
+      // flow from the one the streams log: about 1 % with the first cell
+      // 20 K off the feed temperature, several per cent while the feed
+      // displaces a lighter gas (Streb 2021: CO2/CH4 into helium).
+      molar_flow_face = Cf * A[i] * u_face;
     } else {
       // Ergun layer: the flow through the boundary face is carried by the
       // face's own velocity unknown. The face problem (the streams' molar
