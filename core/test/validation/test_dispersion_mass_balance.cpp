@@ -214,7 +214,13 @@ namespace adsim {
       ASSERT_GT(in, 0.1) << component;
       ASSERT_LT(std::abs(inventory_change) / in, 1e-5)
         << component << ": not at CSS, the bed gained " << inventory_change << " mol over the last cycle";
-      EXPECT_NEAR(out / in, 1.0, 1e-4)
+      // The tolerance is the stream logs' time-quadrature error, as in the
+      // per-step test: the first point of a step holds the pre-switch flow,
+      // and how much that misses depends on IDA's first step after the switch,
+      // which differs between compilers (O2: 1.7e-5 with GCC, 1.0e-4 with
+      // MSVC, with the inflow identical to 7 digits). The unlogged dispersive
+      // flux this guards against gave O2 1.053 and N2 0.983.
+      EXPECT_NEAR(out / in, 1.0, 5e-4)
         << component << " over cycle " << last + 1 << ": in " << in << " mol, out " << out << " mol";
     }
   }

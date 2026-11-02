@@ -45,7 +45,7 @@ root `CMakeLists.txt`.
   a pressure-condition inlet at the top. Per step and component, the moles the
   stream logs record entering the bed equal the bed's inventory change (before
   the fix: errors of 0.4–50 %), and at cyclic steady state out/in of every
-  component is 1 within 1e-4 (before: O₂ 1.053, N₂ 0.983).
+  component is 1 within 5e-4, the log quadrature error (before: O₂ 1.053, N₂ 0.983).
 - Verification tests adjusted: `OpenSystemEnergyBalanceConvergesUnderGridRefinement`
   asserted first-order convergence of an energy closure error that came from the
   inlet ghost upwinding; the error is now 1.5e-3 → 6.6e-5 over the four grids
