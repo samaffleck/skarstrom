@@ -214,8 +214,10 @@ namespace adsim {
         // double Ci_inlet = Cf_inlet * Y_inlet;
         // res_Ci[i] = Ci[i] + Ci[i + d] - 2 * Ci_inlet;
 
-        // Enforce inlet composition directly on the ghost cell.
-        // This matches the upwind face reconstruction used by the species equation.
+        // Enforce inlet composition directly on the ghost cell: it is the
+        // upwind face value of the inlet face, and no dispersive flux crosses
+        // that face (UpdateMoleFraction), so the species flux into the bed is
+        // exactly the logged molar_flow * y_inlet (Danckwerts).
         res_Yi[i] = Yi[i] - Y_inlet;
       } else { // OUTLET
         // Zero flux boundary condition
@@ -546,7 +548,8 @@ namespace adsim {
 
     // The inlet stream's temperature/composition (flow-weighted over the
     // streams) applies while gas flows in; at zero flow the ghost cell takes the
-    // interior value instead (no dispersive injection through a stagnant inlet).
+    // interior value instead. (No dispersion or conduction crosses the boundary
+    // face either way: the residuals drop those terms there, Danckwerts.)
     // Blend smoothly between the two: a hard switch at a tiny flow threshold
     // makes the residual jump whenever the boundary flow decays through zero
     // (e.g. a valve at pressure equalisation) and Newton cannot converge.
@@ -587,8 +590,10 @@ namespace adsim {
         // Calculate inlet mole fraction from specified component and total molar flows
         double Y_inlet = inlet_value(total_component_molar_flow, Yi[interior_idx]);
 
-        // Enforce inlet composition directly on the ghost cell.
-        // This matches the upwind face reconstruction used by the species equation.
+        // Enforce inlet composition directly on the ghost cell: it is the
+        // upwind face value of the inlet face, and no dispersive flux crosses
+        // that face (UpdateMoleFraction), so the species flux into the bed is
+        // exactly the logged molar_flow * y_inlet (Danckwerts).
         res_Yi[i] = Yi[i] - Y_inlet;
       } else { // OUTLET
         // Zero flux boundary condition (zero gradient)

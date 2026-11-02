@@ -170,8 +170,9 @@ namespace adsim {
   }
 
   // Face-reconstruction of per-component boundary flux (positive = entering the
-  // bed), matching the discrete species-equation flux (upwind convection + axial
-  // dispersion). Used by cyclic-steady-state detection, the mass-balance plotter
+  // bed), matching the discrete species-equation flux at the boundary face:
+  // upwind convection only, since no axial dispersion crosses a boundary face
+  // of the bed (Danckwerts; see UpdateMoleFraction). Used by cyclic-steady-state detection, the mass-balance plotter
   // panels and the validation tests. NOT used by the endpoint-keyed feed/product
   // KPIs, which sample per-stream logs instead.
   static double GetTotalComponentMolesIn(
@@ -181,8 +182,10 @@ namespace adsim {
     adsim::BoundaryLocation location,
     const std::string& component
   ) {
-    // Use the same discrete boundary flux form as the species equation:
-    // convective upwind flux + axial-dispersion flux at the boundary face.
+    // Use the same discrete boundary flux form as the species equation: the
+    // convective upwind flux through the boundary face. (The residual carries
+    // no dispersive flux there: at an inlet the total flux is u C y_in, at an
+    // outlet or closed end the ghost mirrors the first cell.)
     const auto& pressure = logger.GetVariable(cycle_index, step_index, adsim::VariableType::PRESSURE);
     const std::vector<adsim::vec>& P_ = pressure.values;
 
@@ -192,15 +195,11 @@ namespace adsim {
     const auto& mole_fraction = logger.GetComponentVariable(cycle_index, step_index, adsim::ComponentVariableType::MOLE_FRACTION, component);
     const std::vector<adsim::vec>& yi_ = mole_fraction.values;
 
-    const auto& axial_dispersion = logger.GetVariable(cycle_index, step_index, adsim::VariableType::AXIAL_DISPERSION_COEFFICIENT);
-    const std::vector<adsim::vec>& Dax_ = axial_dispersion.values;
 
     const adsim::vec& time = pressure.times;
 
     const auto& domain = logger.GetDomain();
     const auto& A = domain.area;
-    const auto& dx = domain.cell_width;
-    const auto& eb = domain.eb;
     const auto& velocity = logger.GetFaceVariable(cycle_index, step_index, adsim::VariableType::VELOCITY).values;
 
     if (P_.empty()) return 0.0;
@@ -208,7 +207,7 @@ namespace adsim {
     // Guard against mismatched sizes (can occur if data is still being written).
     const size_t n_snapshots = P_.size();
     if (T_.size() != n_snapshots || yi_.size() != n_snapshots ||
-        Dax_.size() != n_snapshots || velocity.size() != n_snapshots) {
+        velocity.size() != n_snapshots) {
       return 0.0;
     }
 
@@ -225,25 +224,13 @@ namespace adsim {
       const auto& Tvec = T_[i];
       const auto& uvec = velocity[i];
       const auto& yivec = yi_[i];
-      const auto& Daxvec = Dax_[i];
 
       if (location == adsim::BoundaryLocation::BOTTOM) {
         const double u_face = uvec[0];
         const double yi_face = (u_face > 0.0) ? yivec[0] : yivec[1];
         const double Pw = 0.5 * (Pvec[0] + Pvec[1]);
         const double Tw = 0.5 * (Tvec[0] + Tvec[1]);
-        const double convective_in = u_face * Pw * yi_face / (R * Tw);
-
-        // D_w term at n=1 (first interior cell), matching UpdateMoleFraction.
-        const double fw = dx[1] / (dx[0] + dx[1]);
-        double d_w = 0.0;
-        if (Daxvec[0] > 0.0 && Daxvec[1] > 0.0) {
-          d_w = 1.0 / ((1.0 - fw) / Daxvec[0] + fw / Daxvec[1]);
-        }
-        const double D_w_ci = (eb[1] * d_w / (R * dx[1])) * (Pw / Tw * (yivec[1] - yivec[0]));
-
-        // Bottom inflow is F_w - D_w.
-        flux_in[i] = convective_in - D_w_ci;
+        flux_in[i] = u_face * Pw * yi_face / (R * Tw);
       }
       else {
         const int Nf = static_cast<int>(uvec.size()) - 1;
@@ -253,18 +240,7 @@ namespace adsim {
         const double yi_face = (u_face > 0.0) ? yivec[n] : yivec[n + 1];
         const double Pe = 0.5 * (Pvec[n] + Pvec[n + 1]);
         const double Te = 0.5 * (Tvec[n] + Tvec[n + 1]);
-        const double convective_in = -u_face * Pe * yi_face / (R * Te);
-
-        // D_e term at n=N-2 (last interior cell), matching UpdateMoleFraction.
-        const double fe = dx[n + 1] / (dx[n] + dx[n + 1]);
-        double d_e = 0.0;
-        if (Daxvec[n] > 0.0 && Daxvec[n + 1] > 0.0) {
-          d_e = 1.0 / ((1.0 - fe) / Daxvec[n] + fe / Daxvec[n + 1]);
-        }
-        const double D_e_ci = (eb[n] * d_e / (R * dx[n])) * (Pe / Te * (yivec[n + 1] - yivec[n]));
-
-        // Top inflow is -F_e + D_e.
-        flux_in[i] = convective_in + D_e_ci;
+        flux_in[i] = -u_face * Pe * yi_face / (R * Te);
       }
     }
 

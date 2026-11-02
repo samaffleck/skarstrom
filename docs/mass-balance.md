@@ -37,3 +37,13 @@ $$
 | $t$           | Time                                     | s              |
 | $z$           | Axial coordinate                         | m              |
 | $R$           | Ideal gas constant                        | J mol⁻¹ K⁻¹ |
+
+### Inlet and outlet conditions
+
+At an **inlet** the boundary condition is of the Danckwerts type: the total flux of each component entering the bed (convection plus dispersion) equals the feed's,
+
+$$
+u\thinspace C\thinspace y_{i,in} = u\thinspace C\thinspace y_i\rvert_{0^+} - \epsilon_b D_{ax} C \frac{\partial y_i}{\partial z}\bigg\rvert_{0^+}
+$$
+
+so the gas in the first cell can differ from the feed, and the moles of each component the bed takes in are exactly the moles the inlet stream supplies (the amounts the stream logs, the performance metrics and the cyclic-steady-state mass balance count). At an **outlet** or a **closed** end the composition has zero gradient. The energy balance treats heat conduction at the inlet the same way. [Numerics](numerics.md#spatial-discretisation-cell-centred-finite-volumes) gives the discrete form.
