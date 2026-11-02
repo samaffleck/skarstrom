@@ -204,7 +204,8 @@ Parameters change values; a few methods change the deck's structure, with the ca
 ```python
 sim.add_component("Argon")            # 0 mole fraction everywhere, default physics on every adsorbent
 sim.remove_component("Argon")
-ads = sim.add_library_adsorbent("zeolite_13x_perez2019")   # returns the new adsorbent's ID
+ads = sim.add_library_adsorbent("zeolite-13x")   # a material's recommended entry; returns the new adsorbent's ID
+ads = sim.add_library_adsorbent("zeolite_13x_streb2021")   # or one entry (a variant) by its key
 ```
 
 A library adsorbent is added to the deck's adsorbent directory; it is used (and its values appear in `sim.parameters()`) once a layer contains it — automatically for a layer that had no adsorbent yet.
@@ -281,7 +282,7 @@ What each part takes:
 | `sim.bed.set_shape(kind, **values)` | `cylinder` (diameter), `square` (width), `rectangle` (width, length) |
 | `sim.bed.set_thermal_equilibrium(kind)`, `sim.bed.set_particle_heat_transfer("constant", particle_htc=...)` | `lte` or `ltne` |
 | `sim.wall.set_material(kind, **values)`, `sim.wall.set_boundary(kind, **values)` | a library material or `custom`; `zero_flux` or `fixed` |
-| `sim.add_layer(name, composition=, momentum=, **values)` | composition by adsorbent name; momentum `ergun` or `kozeny_carman`; `length`, `cells`, `bed_void_fraction`, `particle_diameter` |
+| `sim.add_layer(name, composition=, momentum=, **values)` | composition by adsorbent name; momentum `ergun`, `kozeny_carman` or `blake_kozeny`; `length`, `cells`, `bed_void_fraction`, `particle_diameter` |
 | `layer.set_dispersion`, `set_heat_dispersion`, `set_internal_heat_transfer`, `set_external_heat_transfer` | `constant` or a correlation (`ruthven`, `yagi_kunii`, `dixon`, `leva`, `holman`) with its values |
 | `sim.add_step(name, time=)` or `fraction=` | appended to the cycle |
 | `end.set_streams(direction, [streams])` | `"inlet"` or `"outlet"`; `sk.Stream(name, flow=, y=, temperature=, pump=)`, `sk.ValveStream(name, pressure=, cv=, xt=)` or `sk.PumpStream(name, power=, pump=, y=, temperature=)` |
@@ -414,7 +415,8 @@ The exit code is 0 when the run completes or reaches CSS, 1 when it fails and 13
 ```python
 skarstrom.examples.Perez2019_A.path        # the example decks (see Example decks above)
 lib = skarstrom.adsorbent_library()        # data/adsorbents/library.json as a dict
-skarstrom.adsorbent_path("zeolite_13x_perez2019")
+lib["materials"]["zeolite-13x"]["recommended"]   # each material's recommended entry key
+skarstrom.adsorbent_path("zeolite-13x")    # a material id, or an entry key
 ```
 
 The decks are those of `examples/decks/` in the repository and the library is `data/adsorbents/` ([Adsorbent Library](adsorbent-library.md)).

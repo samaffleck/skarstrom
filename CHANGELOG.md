@@ -29,7 +29,7 @@ root `CMakeLists.txt`.
   `GetTotalComponentMolesIn` (CSS mass-balance check, mass-balance panels)
   reconstructs the boundary flux without the dispersive term, matching the
   residual.
-- **Flow boundaries on Kozeny–Carman layers deliver exactly the stream flow.**
+- **Flow boundaries on Darcy layers (Kozeny–Carman, Blake–Kozeny) deliver exactly the stream flow.**
   `FlowBoundaryCondition::Apply` computed the boundary-face flow of a Darcy
   layer with the ghost cell's mobility alone, K/(μ_ghost·Δz), while the face
   velocity that carries the gas into the bed obeys the face's Darcy law with
@@ -74,6 +74,22 @@ root `CMakeLists.txt`.
     17.32 → 17.54 %; Ward & Pini 2024 ≤ 0.2 %. `docs/validation.md` and
     `validation_summary.json` are regenerated.
 
+### Changed
+- **Adsorbent library: one recommended entry per material** (catalogue schema 3).
+  `library.json` groups its entries into 22 `materials` (id, name, family,
+  `recommended` entry and why, `aliases`). A material's other entries are
+  *variants*, each naming the product, form or data range that sets it apart;
+  labels are the material name plus the variant ("Zeolite 13X (Zeochem Z10-02,
+  CO2/N2 to 1 bar)") instead of "Material (Author year)". Each isotherm records
+  its `data_quality` (measured with tabulated data, measured fit only, refit of
+  other authors' data, copied from an earlier paper, not yet checked). The
+  validator, the native library tests and the generated docs page (now grouped
+  by material) enforce it. `family` moved from the entry to its material.
+- `AddLibraryAdsorbent`, `Simulation.add_library_adsorbent` and
+  `skarstrom.adsorbent_path` accept a material id (e.g. `"zeolite-13x"`) and add
+  or return that material's recommended entry; `AdsorbentLibrary` gains
+  `materials`, `FindMaterial`, `Resolve` and `Variants`. Entry keys are unchanged.
+
 ### Fixed
 - `CreateBoundaryValue` and `CreateInletTemperatureProfile` know the double-exponential
   profile. The web document layer builds profiles through the first factory, so a deck
@@ -82,6 +98,25 @@ root `CMakeLists.txt`.
   kind has a factory entry.
 
 ### Added
+- A **Blake–Kozeny** momentum model (`MomentumModel::BlakeKozeny` = 2, builder kind and
+  registry choice `blake_kozeny`, Python `layer.set_momentum("blake_kozeny")` /
+  `add_layer(..., momentum="blake_kozeny")`, display name "Darcy (Blake-Kozeny)"):
+  Darcy's law with K = ε³ d_p² / (150 (1 − ε)²), i.e. Ergun's viscous term without the
+  inertial one. It is the pressure-drop law of Haghpanah et al. (2013) and Estupiñan
+  Perez et al. (2019, SI Eq. S5). It takes the Darcy face path everywhere, like
+  Kozeny–Carman. The stored values 0 (Kozeny–Carman) and 1 (Ergun) are unchanged, so
+  existing decks load as before; a deck that uses the new value needs this engine.
+- An optional **constant molecular diffusivity** for the macropore LDF coefficients
+  (`macropore`, `macropore_capacity`, `macropore_knudsen`): registry leaf
+  `adsorbent[...].kinetics[<component>].molecular_diffusion_coefficient` [m2/s], Python
+  `set_rate_model(..., molecular_diffusion_coefficient=1.6e-5)` / `kinetics[c].molecular_diffusion_coefficient`.
+  Above 0 it replaces the binary-diffusion D_m computed from T and P (which scales as
+  1/P, so at 3-10 kPa evacuation pressures the coefficient was 10-33 times the value
+  of the papers that use a constant D_m, e.g. Haghpanah et al. 2013 and Estupiñan Perez
+  et al. 2019, Table 1). The default 0 keeps the previous behaviour bit for bit. Class
+  versions bumped (macropore and macropore + Knudsen to 3, capacity factor to 2); older
+  decks load with 0. Haynes is unchanged: its film term uses D_m with the Sherwood
+  correlation, so a constant there is not a drop-in.
 - **Ideal Adsorbed Solution Theory (IAST)** as a per-adsorbent **mixing rule**
   (`AdsorptionSource::mixing_rule_`, `MixingRule::None|IAST`; registry
   `adsorbent[<id>].mixing_rule` with choices `none`, `iast`; builder

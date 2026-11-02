@@ -9,7 +9,9 @@
 //
 //   A. Ergun pressure drop (MomentumModel::Ergun) vs the legacy Darcy /
 //      Kozeny-Carman law, checked against the closed-form steady-state Ergun
-//      pressure drop of an isothermal ideal gas and its low-Reynolds limit;
+//      pressure drop of an isothermal ideal gas and its low-Reynolds limit,
+//      and the Blake-Kozeny law (MomentumModel::BlakeKozeny: Darcy with the
+//      constant 150, Ergun without its inertial term);
 //   B. the explicit isothermal mode (EnergyBalanceMode::ISOTHERMAL), which
 //      drops the temperature unknowns from the DAE, checked against the
 //      "fake isothermal" (zero heat-transfer coefficient, zero heat of
@@ -208,6 +210,29 @@ namespace adsim {
     EXPECT_EQ(GetLayerInertialCoefficient(e, dp, MomentumModel::KarmenCozeny), 0.0);
     EXPECT_DOUBLE_EQ(GetLayerInertialCoefficient(e, dp, MomentumModel::Ergun),
                      1.75 * (1 - e) / (e * e * e * dp));
+    EXPECT_DOUBLE_EQ(GetLayerPermeability(e, dp, MomentumModel::BlakeKozeny),
+                     e * e * e * dp * dp / (150 * (1 - e) * (1 - e)));
+    EXPECT_EQ(GetLayerInertialCoefficient(e, dp, MomentumModel::BlakeKozeny), 0.0);
+  }
+
+  // Blake-Kozeny as Estupinan Perez et al. (2019, SI Eq. S5) write it, in the
+  // interstitial velocity v and particle radius r_p:
+  //   -dP/dz = (150/4) (1/r_p^2) ((1 - e)/e)^2 mu v.
+  // With the engine's superficial velocity u = e v and d_p = 2 r_p this is
+  // Darcy's law -dP/dz = (mu/K) u with the layer's Blake-Kozeny permeability.
+  TEST(BlakeKozenyPressureDrop, PermeabilityIsThePapersInterstitialLaw) {
+    const double mu = 1.8e-5, u = 0.07;  // [Pa s], superficial [m/s]
+    for (double e : {0.3, 0.37, 0.45}) {
+      for (double dp : {1.0e-3, 2.0e-3}) {
+        const double rp = 0.5 * dp, v = u / e;
+        const double grad_paper = (150.0 / 4.0) / (rp * rp) * ((1 - e) / e) * ((1 - e) / e) * mu * v;
+        const double K = GetLayerPermeability(e, dp, MomentumModel::BlakeKozeny);
+        EXPECT_NEAR(mu * u / K, grad_paper, 1e-12 * grad_paper) << "e " << e << ", dp " << dp;
+        // Ergun's viscous term exactly, and 150/180 of the Kozeny-Carman one.
+        EXPECT_DOUBLE_EQ(K, GetLayerPermeability(e, dp, MomentumModel::Ergun));
+        EXPECT_NEAR(GetLayerPermeability(e, dp, MomentumModel::KarmenCozeny) / K, 150.0 / 180.0, 1e-14);
+      }
+    }
   }
 
   // Steady flow at a Reynolds number where the inertial term is about as large
@@ -248,6 +273,36 @@ namespace adsim {
     EXPECT_NEAR(ergun.dP, dP_darcy150, 3e-3 * dP_darcy150);
     EXPECT_NEAR(kc.dP, dP_darcy180, 2e-3 * dP_darcy180);
     EXPECT_NEAR(kc.dP / ergun.dP, 1.2, 4e-3);
+  }
+
+  // Blake-Kozeny at the flow rate where Ergun's inertial term doubles the
+  // pressure drop: no inertial term, so the simulated drop is the closed-form
+  // Darcy result with the constant 150, well below Ergun's. For an isothermal
+  // ideal gas P_in^2 - P_out^2 is proportional to the viscous constant, so the
+  // Kozeny-Carman bed's P_in^2 - P_out^2 is exactly 180/150 times this one.
+  TEST(BlakeKozenyPressureDrop, SteadyFlowMatchesAnalyticDarcy150) {
+    const double molar_flow = 0.128;  // [mol/s], as in SteadyFlowMatchesAnalyticErgun
+    const auto bk = RunSteadyFlow(molar_flow, MomentumModel::BlakeKozeny);
+    const auto kc = RunSteadyFlow(molar_flow, MomentumModel::KarmenCozeny);
+    const double dP_darcy150 = AnalyticPressureDrop(ErgunA(150.0), 0.0, bk.mu, bk.M, molar_flow);
+    const double dP_ergun = AnalyticPressureDrop(ErgunA(150.0), ErgunB(), bk.mu, bk.M, molar_flow);
+
+    ASSERT_GT(bk.dP, 0.0);
+    EXPECT_NEAR(bk.dP, dP_darcy150, 1e-5 * dP_darcy150)
+      << "simulated dP " << bk.dP << " Pa, analytic Blake-Kozeny " << dP_darcy150 << " Pa";
+    EXPECT_LT(bk.dP, 0.75 * dP_ergun) << "Blake-Kozeny must not carry Ergun's inertial term";
+
+    // Superficial velocity: u = F R T / (P A) at the middle face.
+    const double area = 0.25 * M_PI * kErgunDiameter * kErgunDiameter;
+    EXPECT_GT(bk.u_mid, 0.0);
+    EXPECT_LT(bk.u_mid, molar_flow * kR * kErgunT / (kErgunPout * area));
+
+    const auto sq = [](const SteadyFlowResult& r) {
+      const double P_in = kErgunPout + r.dP;
+      return P_in * P_in - kErgunPout * kErgunPout;
+    };
+    ASSERT_NEAR(kc.mu, bk.mu, 1e-12 * bk.mu);
+    EXPECT_NEAR(sq(kc) / sq(bk), 180.0 / 150.0, 2e-5);
   }
 
   // ===========================================================================

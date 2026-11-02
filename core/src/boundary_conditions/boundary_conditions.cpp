@@ -521,7 +521,7 @@ namespace adsim {
     bool face_imposed = false;
     const double beta_i = state.domain_vectors.inertial_coefficient[i];
     if (beta_i == 0.0) {
-      // Darcy (Kozeny-Carman) layer: the flow through the boundary face is
+      // Darcy layer (Kozeny-Carman or Blake-Kozeny): the flow through the boundary face is
       // carried by the face's velocity unknown, whose own residual
       // (UpdateVelocity) is the Darcy law of the face with the two half-cells
       // in series. A closed form here with only the ghost cell's mobility,

@@ -1,6 +1,30 @@
 {
-  "_about": "Curated in-house adsorbent library (no user-contributed entries). Each entry's physics is the cereal blob named by `file` (loadable by LoadAdsorbentFromJSON); this catalog adds citation + per-parameter provenance. Provenance codes: source = transcribed from the cited table/figure; derived = computed from cited values (formula in `ref`); repo = value used by the repo deck/validation test that cites the source, but not stated in the source itself; default = engine default, not from any source; not_stated = the source does not state it (value null); unknown = legacy entry, origin not verified. Completeness rule (enforced by scripts/gen_adsorbent_library.mjs and the native library test): for every sourced entry each required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) is either sourced/derived or carries a ref beginning 'Not stated in source (checked: ...)'; fields that could not be checked against the source are listed in `unverified_fields`. `source_points` holds TABULATED equilibrium data from the source (tables, SI files, datasets; never digitised plots), in the source's units. The web header, docs page and capabilities are GENERATED from this file + the blobs by scripts/gen_adsorbent_library.mjs.",
-  "schema_version": 2,
+  "_about": "Curated in-house adsorbent library (no user-contributed entries). Entries are grouped into `materials` (schema 3): each material has a name, a family, exactly one `recommended` entry with a one-line `recommended_reason`, and `aliases` (removed entry keys that now resolve to the recommended entry). An entry names its `material_id`; when its material has more than one entry it also names its `variant` (the product, form or data range that sets it apart), and its label is the material name plus the variant in brackets. Each isotherm records `data_quality`: measured_tabulated (measured by the cited authors; their tabulated data are in source_points), measured_fit (measured by the cited authors, fit only), refit (the cited paper fitted data measured by others), secondary (the cited paper copied the parameters from earlier work), not_checked (with a data_quality_note), unknown (legacy entries only). Each entry's physics is the cereal blob named by `file` (loadable by LoadAdsorbentFromJSON); this catalog adds citation + per-parameter provenance. Provenance codes: source = transcribed from the cited table/figure; derived = computed from cited values (formula in `ref`); repo = value used by the repo deck/validation test that cites the source, but not stated in the source itself; default = engine default, not from any source; not_stated = the source does not state it (value null); unknown = legacy entry, origin not verified. Completeness rule (enforced by scripts/gen_adsorbent_library.mjs and the native library test): for every sourced entry each required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) is either sourced/derived or carries a ref beginning 'Not stated in source (checked: ...)'; fields that could not be checked against the source are listed in `unverified_fields`. `source_points` holds TABULATED equilibrium data from the source (tables, SI files, datasets; never digitised plots), in the source's units. The web header, docs page and capabilities are GENERATED from this file + the blobs by scripts/gen_adsorbent_library.mjs.",
+  "schema_version": 3,
+  "materials": {
+    "zeolite-13x": {"name": "Zeolite 13X", "family": "zeolite", "recommended": "zeolite_13x_perez2019", "recommended_reason": "Measured by the authors on a named commercial grade (CO2 and N2, 298-348 K, 0-1 bar); the engine's Perez 2019 paper tests check it against VSA experiments. The CO2/CH4/H2 variant has a CO2 fit copied from an earlier paper; the CO2/CH4 variant is a refit of another group's data.", "aliases": []},
+    "zeolite-5a": {"name": "Zeolite 5A", "family": "zeolite", "recommended": "zeolite_5a_vysyaraju2024", "recommended_reason": "The only 5A entry measured by its authors (N2, 298-338 K, 0.01-20 bar). For O2 or CO2/CH4 use a variant: the N2/O2 parameters are copied from earlier papers and the CO2/CH4 parameters are a refit of another group's data.", "aliases": []},
+    "lix": {"name": "LiX zeolite", "family": "zeolite", "recommended": "lix_ferre2026", "recommended_reason": "A fit by Ferre et al. to data measured by Park et al. (2014). The N2/O2 variant's parameters are copied from earlier papers, so it ranks below a refit of measured data.", "aliases": []},
+    "lilsx": {"name": "LiLSX zeolite", "family": "zeolite", "recommended": "lilsx_arora2021", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "zeolite-nay": {"name": "Zeolite NaY", "family": "zeolite", "recommended": "zeolite_na_y_azzan2023", "recommended_reason": "Measured by the authors on a NIST reference material (CO2, N2 and H2, 298-393 K, up to 3 MPa), with the data tabulated. The two CO2/CH4 variants are refits of other groups' data on commercial NaY.", "aliases": []},
+    "zeolite-h-y": {"name": "Zeolite H-Y", "family": "zeolite", "recommended": "zeolite_h_y_azzan2023", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "zeolite-natma-y": {"name": "Zeolite NaTMA-Y", "family": "zeolite", "recommended": "zeolite_natma_y_azzan2023", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "activated-carbon": {"name": "Activated carbon", "family": "carbon", "recommended": "ap3_60_schell2012", "recommended_reason": "Measured by the authors on a named commercial carbon (CO2 at 298-413 K up to 21 MPa, H2 up to 14 MPa), with the data tabulated.", "aliases": []},
+    "silica-gel": {"name": "Silica gel", "family": "silica", "recommended": "silica_gel_ganesan2026", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "carbon-molecular-sieve": {"name": "Carbon molecular sieve", "family": "carbon", "recommended": "cms_3kt_zhang2021", "recommended_reason": "Measured by the authors (CH4, O2 and N2 at 308 K); the CMS-3K entry's source is unknown. Both are equilibrium descriptions of a kinetically selective sorbent.", "aliases": []},
+    "mg-mof-74": {"name": "Mg-MOF-74", "family": "MOF", "recommended": "mg_mof_74", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "cpo-27-ni": {"name": "CPO-27-Ni (Ni-MOF-74)", "family": "MOF", "recommended": "cpo_27_ni_krishnamurthy2020", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "calf-20": {"name": "CALF-20", "family": "MOF", "recommended": "calf_20_nguyen2023", "recommended_reason": "Measured by the authors (CO2 and N2, 295-373 K) and checked against the paper. The powder entry's values come from the repository's decks and have not yet been checked against its paper.", "aliases": []},
+    "zif-8": {"name": "ZIF-8", "family": "MOF", "recommended": "zif_8_ferre2026", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "zif-71": {"name": "ZIF-71", "family": "MOF", "recommended": "zif_71_ferre2026", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "mil-160-al": {"name": "MIL-160(Al)", "family": "MOF", "recommended": "mil_160_al_ferre2026", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "mof-508b": {"name": "MOF-508b", "family": "MOF", "recommended": "mof_508b", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "tifsix-3-ni": {"name": "TIFSIX-3-Ni", "family": "MOF", "recommended": "tifsix_3_ni_low2024", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "lewatit-vp-oc-1065": {"name": "Lewatit VP OC 1065", "family": "amine", "recommended": "lewatit_vp_oc_1065_low2023", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "purolite-a110": {"name": "Purolite A110", "family": "amine", "recommended": "purolite_a110_low2023", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "apdes-nfc": {"name": "APDES-NFC", "family": "amine", "recommended": "apdes_nfc_stampi2020", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "triamine-alumina": {"name": "Triamine-grafted alumina", "family": "amine", "recommended": "triamine_alumina_grossmann2025", "recommended_reason": "The only entry for this material.", "aliases": []}
+  },
   "sources": {
     "arora2021": {
       "citation": "Arora, A., Hasan, M.M.F. (2021). Flexible oxygen concentrators for medical applications. Scientific Reports 11, 14317.",
@@ -91,16 +115,16 @@
     {
       "key": "lilsx_arora2021",
       "file": "lilsx_arora2021.json",
-      "label": "LiLSX zeolite (Arora 2021)",
+      "label": "LiLSX zeolite",
       "material": "LiLSX zeolite",
-      "family": "zeolite",
+      "material_id": "lilsx",
       "status": "sourced",
       "applications": ["air separation / O2"],
       "components": ["Nitrogen", "Oxygen"],
       "sources": [{"id": "arora2021", "refs": "Table 2 (isotherm, dH, LDF, particle properties); SI model-input table (particle diameter)"}],
       "isotherms": [
-        {"component": "Nitrogen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 27.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)"},
-        {"component": "Oxygen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 27.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)"}
+        {"component": "Nitrogen", "ref": "Table 2", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 27.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)"},
+        {"component": "Oxygen", "ref": "Table 2", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 27.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 27)"}
       ],
       "heat_of_adsorption": {
         "Nitrogen": {"value": 25451.65, "provenance": "source", "ref": "Table 2, -dH"},
@@ -123,16 +147,17 @@
     {
       "key": "lix_arora2021",
       "file": "lix_arora2021.json",
-      "label": "LiX zeolite (Arora 2021)",
+      "label": "LiX zeolite (N2/O2 for air separation, compiled)",
       "material": "LiX zeolite",
-      "family": "zeolite",
+      "material_id": "lix",
+      "variant": "N2/O2 for air separation, compiled",
       "status": "sourced",
       "applications": ["air separation / O2"],
       "components": ["Nitrogen", "Oxygen"],
       "sources": [{"id": "arora2021", "refs": "Table 2 (isotherm, dH, particle properties); SI model-input table (particle diameter)"}],
       "isotherms": [
-        {"component": "Nitrogen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 25.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)"},
-        {"component": "Oxygen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 25.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)"}
+        {"component": "Nitrogen", "ref": "Table 2", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 25.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)"},
+        {"component": "Oxygen", "ref": "Table 2", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 13 and 25.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 13 and 25)"}
       ],
       "heat_of_adsorption": {
         "Nitrogen": {"value": 23430.4, "provenance": "source", "ref": "Table 2, -dH"},
@@ -154,16 +179,17 @@
     {
       "key": "zeolite_5a_arora2021",
       "file": "zeolite_5a_arora2021.json",
-      "label": "Zeolite 5A (Arora 2021)",
+      "label": "Zeolite 5A (N2/O2 for air separation, compiled)",
       "material": "Zeolite 5A",
-      "family": "zeolite",
+      "material_id": "zeolite-5a",
+      "variant": "N2/O2 for air separation, compiled",
       "status": "sourced",
       "applications": ["air separation / O2"],
       "components": ["Nitrogen", "Oxygen"],
       "sources": [{"id": "arora2021", "refs": "Table 2 (isotherm, dH, LDF, particle properties); SI model-input table (particle diameter)"}],
       "isotherms": [
-        {"component": "Nitrogen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 26 and 28.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)"},
-        {"component": "Oxygen", "ref": "Table 2", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 26 and 28.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)"}
+        {"component": "Nitrogen", "ref": "Table 2", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 26 and 28.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)"},
+        {"component": "Oxygen", "ref": "Table 2", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "Arora & Hasan compile the parameters from their refs 26 and 28.", "T_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)", "P_range_not_stated": "Not stated in source (checked: Arora & Hasan 2021 Table 2 and Methods; the parameters are compiled from their refs 26 and 28)"}
       ],
       "heat_of_adsorption": {
         "Nitrogen": {"value": 22886.48, "provenance": "source", "ref": "Table 2, -dH"},
@@ -185,16 +211,16 @@
     {
       "key": "mg_mof_74",
       "file": "mg_mof_74.json",
-      "label": "Mg-MOF-74 (Ward & Pini 2024)",
+      "label": "Mg-MOF-74",
       "material": "Mg-MOF-74",
-      "family": "MOF",
+      "material_id": "mg-mof-74",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen"],
       "sources": [{"id": "ward_pini2024", "refs": "Table 1 (DSL isotherm, bed and pellet properties), Sect. 2.1 (extended / competitive DSL)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "Table 1", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"},
-        {"component": "Nitrogen", "ref": "Table 1", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"}
+        {"component": "CarbonDioxide", "ref": "Table 1", "data_quality": "not_checked", "data_quality_note": "Not checked: Ward & Pini (2024) has not yet been read for whether the authors measured these isotherms or took them from earlier work.", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"},
+        {"component": "Nitrogen", "ref": "Table 1", "data_quality": "not_checked", "data_quality_note": "Not checked: Ward & Pini (2024) has not yet been read for whether the authors measured these isotherms or took them from earlier work.", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 30850.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ward & Pini 2024 Table 1, PR #137 curation; the model uses the site energies dU_b, dU_d). 30.85 kJ/mol is the value used by the Ward2024 deck / ward_pini_2024.cpp; it equals the Perez 2019 13X value."},
@@ -216,16 +242,17 @@
     {
       "key": "activated_carbon",
       "file": "activated_carbon.json",
-      "label": "Activated carbon (Ward & Pini 2024)",
+      "label": "Activated carbon (CO2/N2 to 1 bar)",
       "material": "Activated carbon",
-      "family": "carbon",
+      "material_id": "activated-carbon",
+      "variant": "CO2/N2 to 1 bar",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen"],
       "sources": [{"id": "ward_pini2024", "refs": "Table 1 (DSL isotherm, bed and pellet properties), Sect. 2.1 (extended / competitive DSL)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "Table 1", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"},
-        {"component": "Nitrogen", "ref": "Table 1", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"}
+        {"component": "CarbonDioxide", "ref": "Table 1", "data_quality": "not_checked", "data_quality_note": "Not checked: Ward & Pini (2024) has not yet been read for whether the authors measured these isotherms or took them from earlier work.", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"},
+        {"component": "Nitrogen", "ref": "Table 1", "data_quality": "not_checked", "data_quality_note": "Not checked: Ward & Pini (2024) has not yet been read for whether the authors measured these isotherms or took them from earlier work.", "T_range_K": null, "P_range_Pa": null, "range_note": "Fig. 1 plots the isotherms at 298 K for 0-1 bar.", "T_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)", "P_range_not_stated": "Not stated in source (checked: Ward & Pini 2024 Table 1 and Fig. 1, PR #137 curation; parameters taken from the paper's refs 22, 28, 33)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ward & Pini 2024 Table 1, PR #137 curation; the model uses the site energies dU_b, dU_d). Left unset (0) - set it before a non-isothermal run."},
@@ -249,16 +276,17 @@
     {
       "key": "zeolite_13x_perez2019",
       "file": "zeolite_13x_perez2019.json",
-      "label": "Zeolite 13X Z10-02 (Perez 2019)",
+      "label": "Zeolite 13X (Zeochem Z10-02, CO2/N2 to 1 bar)",
       "material": "Zeolite 13X (Zeochem Z10-02)",
-      "family": "zeolite",
+      "material_id": "zeolite-13x",
+      "variant": "Zeochem Z10-02, CO2/N2 to 1 bar",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen"],
       "sources": [{"id": "perez2019", "refs": "Table 2 (DSL isotherm), Sect. 4.1 and Fig. 2c (DSL used to predict the competitive CO2/N2 loadings), Table 1 (dH, Cp, voidage, particle radius), Section 2 (162 g per 0.30 m x 3.2 cm column)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "Table 2", "T_range_K": [298.15, 348.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 25, 50 and 75 C, 0-100 kPa (Section 3.1)."},
-        {"component": "Nitrogen", "ref": "Table 2", "T_range_K": [298.15, 348.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 25, 50 and 75 C, 0-100 kPa (Section 3.1)."}
+        {"component": "CarbonDioxide", "ref": "Table 2", "data_quality": "measured_fit", "T_range_K": [298.15, 348.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 25, 50 and 75 C, 0-100 kPa (Section 3.1)."},
+        {"component": "Nitrogen", "ref": "Table 2", "data_quality": "measured_fit", "T_range_K": [298.15, 348.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 25, 50 and 75 C, 0-100 kPa (Section 3.1)."}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 30850.0, "provenance": "source", "ref": "Table 1 (measured, Clausius-Clapeyron average)"},
@@ -281,9 +309,10 @@
     {
       "key": "ap3_60_schell2012",
       "file": "ap3_60_schell2012.json",
-      "label": "Activated carbon AP3-60 (Schell / Casas 2012)",
+      "label": "Activated carbon (Chemviron AP3-60)",
       "material": "Activated carbon (Chemviron AP3-60)",
-      "family": "carbon",
+      "material_id": "activated-carbon",
+      "variant": "Chemviron AP3-60",
       "status": "sourced",
       "applications": ["pre-combustion CO2 capture", "hydrogen purification"],
       "components": ["CarbonDioxide", "Hydrogen"],
@@ -295,6 +324,7 @@
         {
           "component": "CarbonDioxide",
           "ref": "Schell 2012 Table 3 refit to the Casas 2012 Table 4 form",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 413.15],
           "P_range_Pa": [10000, 21200000],
           "range_note": "Measured 25-140 C, 0.01-21.2 MPa (Schell Table 1). The constants are the repo's refit of Schell Table 3 (core/test/papers/casas_2012/casas_2012.h); they reproduce Casas Table 4 to 3-4 significant figures.",
@@ -313,6 +343,7 @@
         {
           "component": "Hydrogen",
           "ref": "Schell 2012 Table 3 refit to the Casas 2012 Table 4 form",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 338.15],
           "P_range_Pa": [40000, 14100000],
           "range_note": "Measured 25-65 C, 0.04-14.1 MPa (Schell Table 1). Repo refit; the H2 constants differ from Casas Table 4 by a few percent (k: 6.69e-10 vs 0.70e-9 1/Pa; exponent 0.96 vs 0.9556).",
@@ -351,16 +382,17 @@
     {
       "key": "nay_f_ferre2026",
       "file": "nay_f_ferre2026.json",
-      "label": "Zeolite NaY, Feng data (Ferré 2026)",
+      "label": "Zeolite NaY (CO2/CH4, data set F, refit)",
       "material": "Zeolite NaY",
-      "family": "zeolite",
+      "material_id": "zeolite-nay",
+      "variant": "CO2/CH4, data set F, refit",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p, D_m, tau); data of Feng et al. (ref 36)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [298, 338], "P_range_Pa": null, "range_note": "Fitted at 298, 318, 338 K (SI Table S3); selection required data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [298, 338], "P_range_Pa": null, "range_note": "Fitted at 298, 318, 338 K (SI Table S3); selection required data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [298, 338], "P_range_Pa": null, "range_note": "Fitted at 298, 318, 338 K (SI Table S3); selection required data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [298, 338], "P_range_Pa": null, "range_note": "Fitted at 298, 318, 338 K (SI Table S3); selection required data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 27028.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from core/test/papers/ferre_2026/ferre_2026.cpp (DSL isosteric heat at the feed loading), also used by the Ferre2026_NaYF deck"},
@@ -383,16 +415,17 @@
     {
       "key": "nay_w_ferre2026",
       "file": "nay_w_ferre2026.json",
-      "label": "Zeolite NaY, Wedler data (Ferré 2026)",
+      "label": "Zeolite NaY (CO2/CH4, data set W, refit)",
       "material": "Zeolite NaY",
-      "family": "zeolite",
+      "material_id": "zeolite-nay",
+      "variant": "CO2/CH4, data set W, refit",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Wedler et al. (ref 37)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [298, 353], "P_range_Pa": null, "range_note": "Fitted at 298, 333, 353 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [298, 353], "P_range_Pa": null, "range_note": "Fitted at 298, 333, 353 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [298, 353], "P_range_Pa": null, "range_note": "Fitted at 298, 333, 353 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [298, 353], "P_range_Pa": null, "range_note": "Fitted at 298, 333, 353 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 31726.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp (DSL isosteric heat at the feed loading)"},
@@ -415,16 +448,17 @@
     {
       "key": "lix_ferre2026",
       "file": "lix_ferre2026.json",
-      "label": "LiX zeolite (Ferré 2026)",
+      "label": "LiX zeolite (CO2/CH4 to 8 bar, refit)",
       "material": "LiX zeolite",
-      "family": "zeolite",
+      "material_id": "lix",
+      "variant": "CO2/CH4 to 8 bar, refit",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Park et al. (ref 35)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
@@ -448,16 +482,17 @@
     {
       "key": "zeolite_13x_ferre2026",
       "file": "zeolite_13x_ferre2026.json",
-      "label": "Zeolite 13X (Ferré 2026)",
+      "label": "Zeolite 13X (CO2/CH4 to 8 bar, refit)",
       "material": "Zeolite 13X",
-      "family": "zeolite",
+      "material_id": "zeolite-13x",
+      "variant": "CO2/CH4 to 8 bar, refit",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Gholipour et al. (ref 33)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 20012.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp (DSL isosteric heat at the feed loading)"},
@@ -480,16 +515,17 @@
     {
       "key": "zeolite_5a_ferre2026",
       "file": "zeolite_5a_ferre2026.json",
-      "label": "Zeolite 5A (Ferré 2026)",
+      "label": "Zeolite 5A (CO2/CH4 to 8 bar, refit)",
       "material": "Zeolite 5A",
-      "family": "zeolite",
+      "material_id": "zeolite-5a",
+      "variant": "CO2/CH4 to 8 bar, refit",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Mofarahi et al. (ref 34)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [283, 323], "P_range_Pa": null, "range_note": "Fitted at 283, 303, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
@@ -513,16 +549,17 @@
     {
       "key": "activated_carbon_ferre2026",
       "file": "activated_carbon_ferre2026.json",
-      "label": "Activated carbon (Ferré 2026)",
+      "label": "Activated carbon (CO2/CH4 to 8 bar, refit)",
       "material": "Activated carbon",
-      "family": "carbon",
+      "material_id": "activated-carbon",
+      "variant": "CO2/CH4 to 8 bar, refit",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Park et al. (ref 35)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [293, 323], "P_range_Pa": null, "range_note": "Fitted at 293, 308, 323 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
@@ -546,16 +583,16 @@
     {
       "key": "zif_8_ferre2026",
       "file": "zif_8_ferre2026.json",
-      "label": "ZIF-8 (Ferré 2026)",
+      "label": "ZIF-8",
       "material": "ZIF-8",
-      "family": "MOF",
+      "material_id": "zif-8",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Danaci et al. (ref 32)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
@@ -580,16 +617,16 @@
     {
       "key": "zif_71_ferre2026",
       "file": "zif_71_ferre2026.json",
-      "label": "ZIF-71 (Ferré 2026)",
+      "label": "ZIF-71",
       "material": "ZIF-71",
-      "family": "MOF",
+      "material_id": "zif-71",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Danaci et al. (ref 32)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [293, 313], "P_range_Pa": null, "range_note": "Fitted at 293, 303, 313 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": null, "provenance": "not_stated", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Table S1, site energies only; PR #137 curation). Left unset (0) - set it before a non-isothermal run."},
@@ -613,16 +650,16 @@
     {
       "key": "mil_160_al_ferre2026",
       "file": "mil_160_al_ferre2026.json",
-      "label": "MIL-160(Al) (Ferré 2026)",
+      "label": "MIL-160(Al)",
       "material": "MIL-160(Al)",
-      "family": "MOF",
+      "material_id": "mil-160-al",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [{"id": "ferre2026", "refs": "SI Tables S1, S2 (DSL), S3 (density, T range); Table 2 (Cp,s, eps_p, r_p); data of Karimi et al. (ref 31)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [313, 373], "P_range_Pa": null, "range_note": "Fitted at 313, 343, 373 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
-        {"component": "Methane", "ref": "SI Table S2", "T_range_K": [313, 373], "P_range_Pa": null, "range_note": "Fitted at 313, 343, 373 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "refit", "T_range_K": [313, 373], "P_range_Pa": null, "range_note": "Fitted at 313, 343, 373 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"},
+        {"component": "Methane", "ref": "SI Table S2", "data_quality": "refit", "T_range_K": [313, 373], "P_range_Pa": null, "range_note": "Fitted at 313, 343, 373 K (SI Table S3); data up to at least 8 bar (Section 2).", "P_range_not_stated": "Not stated in source (checked: Ferré 2026 SI Table S3 and Section 2, PR #137 curation; the material selection required data up to at least 8 bar)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 22851.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ferré 2026 SI Tables S1-S2, site energies only; PR #137 curation). Value from ferre_2026.cpp (DSL isosteric heat at the feed loading)"},
@@ -646,16 +683,17 @@
     {
       "key": "calf_20_nguyen2022",
       "file": "calf_20_nguyen2022.json",
-      "label": "CALF-20 (Nguyen 2022)",
+      "label": "CALF-20 (powder)",
       "material": "CALF-20",
-      "family": "MOF",
+      "material_id": "calf-20",
+      "variant": "powder",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen"],
       "sources": [{"id": "nguyen2022", "refs": "Table 3 (ESS/extended DSL parameters) per the repo fixture core/test/papers/nguyen_2022/nguyen_2022.h"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "Table 3 (via the Nguyen_2022 decks)", "T_range_K": null, "P_range_Pa": null, "range_note": "Values copied verbatim from the repo's Nguyen_2022 decks, which cite Table 3; the paper itself was not available to this PR, so the fit range is not recorded."},
-        {"component": "Nitrogen", "ref": "Table 3 (via the Nguyen_2022 decks)", "T_range_K": null, "P_range_Pa": null, "range_note": "Values copied verbatim from the repo's Nguyen_2022 decks, which cite Table 3; fit range not recorded."}
+        {"component": "CarbonDioxide", "ref": "Table 3 (via the Nguyen_2022 decks)", "data_quality": "not_checked", "data_quality_note": "Not checked: the paper was not available; the values are copied from the repository's Nguyen 2022 decks.", "T_range_K": null, "P_range_Pa": null, "range_note": "Values copied verbatim from the repo's Nguyen_2022 decks, which cite Table 3; the paper itself was not available to this PR, so the fit range is not recorded."},
+        {"component": "Nitrogen", "ref": "Table 3 (via the Nguyen_2022 decks)", "data_quality": "not_checked", "data_quality_note": "Not checked: the paper was not available; the values are copied from the repository's Nguyen 2022 decks.", "T_range_K": null, "P_range_Pa": null, "range_note": "Values copied verbatim from the repo's Nguyen_2022 decks, which cite Table 3; fit range not recorded."}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 38000.0, "provenance": "repo", "ref": "Value used by the Nguyen_2022 decks; not checked against the paper"},
@@ -680,16 +718,17 @@
     {
       "key": "calf_20_nguyen2023",
       "file": "calf_20_nguyen2023.json",
-      "label": "CALF-20, structured (Nguyen 2023)",
+      "label": "CALF-20 (structured, phase inversion)",
       "material": "CALF-20 (structured, phase inversion)",
-      "family": "MOF",
+      "material_id": "calf-20",
+      "variant": "structured, phase inversion",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen"],
       "sources": [{"id": "nguyen2023", "refs": "SI Table S1 (DSL / EES isotherm), Section 2 (competitive forms described by the DSL, paper ref 10; pellet size, isotherm temperatures), Table 1 (density, Cp, voidage)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "SI Table S1", "T_range_K": [295.15, 373.15], "P_range_Pa": null, "range_note": "Single-component isotherms measured at 22-100 C on a Micromeritics ASAP 2020 (Section 2); pressure range not stated.", "P_range_not_stated": "Not stated in source (checked: Nguyen 2023 Section 2 and SI Table S1, PR #137 curation)"},
-        {"component": "Nitrogen", "ref": "SI Table S1", "T_range_K": [295.15, 373.15], "P_range_Pa": null, "range_note": "Measured at 22-100 C (Section 2); pressure range not stated.", "P_range_not_stated": "Not stated in source (checked: Nguyen 2023 Section 2 and SI Table S1, PR #137 curation)"}
+        {"component": "CarbonDioxide", "ref": "SI Table S1", "data_quality": "measured_fit", "T_range_K": [295.15, 373.15], "P_range_Pa": null, "range_note": "Single-component isotherms measured at 22-100 C on a Micromeritics ASAP 2020 (Section 2); pressure range not stated.", "P_range_not_stated": "Not stated in source (checked: Nguyen 2023 Section 2 and SI Table S1, PR #137 curation)"},
+        {"component": "Nitrogen", "ref": "SI Table S1", "data_quality": "measured_fit", "T_range_K": [295.15, 373.15], "P_range_Pa": null, "range_note": "Measured at 22-100 C (Section 2); pressure range not stated.", "P_range_not_stated": "Not stated in source (checked: Nguyen 2023 Section 2 and SI Table S1, PR #137 curation)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 38000.0, "provenance": "repo", "ref": "Not stated in source (checked: Nguyen 2023 Table 1 and SI Table S1, PR #137 curation); 38 kJ/mol is the value used by the Nguyen2023 decks"},
@@ -712,17 +751,18 @@
     {
       "key": "zeolite_13x_streb2021",
       "file": "zeolite_13x_streb2021.json",
-      "label": "Zeolite 13X (Streb 2021)",
+      "label": "Zeolite 13X (CO2/CH4/H2 to 30 bar)",
       "material": "Zeolite 13X",
-      "family": "zeolite",
+      "material_id": "zeolite-13x",
+      "variant": "CO2/CH4/H2 to 30 bar",
       "status": "sourced",
       "applications": ["hydrogen purification", "pre-combustion CO2 capture", "biogas upgrading"],
       "components": ["CarbonDioxide", "Methane", "Hydrogen"],
       "sources": [{"id": "streb2021", "refs": "Table 3 (Sips isotherms), Table 1 (particle diameter, densities, Cs), Fig. 4 (isosteric heats)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "Table 3", "T_range_K": null, "P_range_Pa": null, "range_note": "The CO2 parameters are those of the paper's ref 14 (Hefti et al. 2015).", "T_range_not_stated": "Not stated in source (checked: Streb & Mazzotti 2021 Table 3 and Section 2.1; the CO2 parameters are taken from their ref 14, Hefti et al. 2015)", "P_range_not_stated": "Not stated in source (checked: Streb & Mazzotti 2021 Table 3 and Section 2.1; the CO2 parameters are taken from their ref 14, Hefti et al. 2015)"},
-        {"component": "Methane", "ref": "Table 3", "T_range_K": [298.15, 338.15], "P_range_Pa": [0, 3000000], "range_note": "Measured at 25, 45, 65 C up to 30 bar (Section 2.1)."},
-        {"component": "Hydrogen", "ref": "Table 3", "T_range_K": [298.15, 338.15], "P_range_Pa": [0, 3000000], "range_note": "Measured at 25, 45, 65 C up to 30 bar (Section 2.1). Not part of the repo decks; transcribed from Table 3 for this entry."}
+        {"component": "CarbonDioxide", "ref": "Table 3", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "The CO2 parameters are those of the paper's ref 14 (Hefti et al. 2015).", "T_range_not_stated": "Not stated in source (checked: Streb & Mazzotti 2021 Table 3 and Section 2.1; the CO2 parameters are taken from their ref 14, Hefti et al. 2015)", "P_range_not_stated": "Not stated in source (checked: Streb & Mazzotti 2021 Table 3 and Section 2.1; the CO2 parameters are taken from their ref 14, Hefti et al. 2015)"},
+        {"component": "Methane", "ref": "Table 3", "data_quality": "measured_fit", "T_range_K": [298.15, 338.15], "P_range_Pa": [0, 3000000], "range_note": "Measured at 25, 45, 65 C up to 30 bar (Section 2.1)."},
+        {"component": "Hydrogen", "ref": "Table 3", "data_quality": "measured_fit", "T_range_K": [298.15, 338.15], "P_range_Pa": [0, 3000000], "range_note": "Measured at 25, 45, 65 C up to 30 bar (Section 2.1). Not part of the repo decks; transcribed from Table 3 for this entry."}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 36300.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Streb & Mazzotti 2021 Fig. 4, isosteric heat shown graphically only); 36.3 kJ/mol is the value used by the streb_2021 decks"},
@@ -747,14 +787,15 @@
     {
       "key": "zeolite_5a_vysyaraju2024",
       "file": "zeolite_5a_vysyaraju2024.json",
-      "label": "Binderless zeolite 5A (Vysyaraju 2024)",
+      "label": "Zeolite 5A (binderless beads (Zeochem), N2)",
       "material": "Binderless zeolite 5A (Zeochem)",
-      "family": "zeolite",
+      "material_id": "zeolite-5a",
+      "variant": "binderless beads (Zeochem), N2",
       "status": "sourced",
       "applications": ["helium purification"],
       "components": ["Nitrogen"],
       "sources": [{"id": "vysyaraju2024", "refs": "Table 2 (DSL), Table 1 (density, voidage, Cp, particle radius), Section 2.1 (isotherm ranges), Fig. 3c (isosteric heat)"}],
-      "isotherms": [{"component": "Nitrogen", "ref": "Table 2", "T_range_K": [298, 338], "P_range_Pa": [1000, 2000000], "range_note": "HPVA-100: 0.05-20 bar at 298, 308, 318 K; ASAP-2020C: 0.01-1.2 bar at 308-338 K; both sets fitted together (Section 2.1)."}],
+      "isotherms": [{"component": "Nitrogen", "ref": "Table 2", "data_quality": "measured_fit", "T_range_K": [298, 338], "P_range_Pa": [1000, 2000000], "range_note": "HPVA-100: 0.05-20 bar at 298, 308, 318 K; ASAP-2020C: 0.01-1.2 bar at 308-338 K; both sets fitted together (Section 2.1)."}],
       "heat_of_adsorption": {
         "Nitrogen": {"value": 18700.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Vysyaraju 2024 Fig. 3c, isosteric heat vs loading shown graphically; PR #137 curation); 18.7 kJ/mol is the value used by the Vysyaraju2024 deck"}
       },
@@ -775,14 +816,15 @@
     {
       "key": "activated_carbon_ward2022",
       "file": "activated_carbon_ward2022.json",
-      "label": "Activated carbon (Ward & Pini 2022)",
+      "label": "Activated carbon (CO2, 293-313 K)",
       "material": "Activated carbon",
-      "family": "carbon",
+      "material_id": "activated-carbon",
+      "variant": "CO2, 293-313 K",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture"],
       "components": ["CarbonDioxide"],
       "sources": [{"id": "ward2022", "refs": "Table 2 (DSL), Table 1 (bed density, voidages, Cs, ks, particle radius), Section 2 (fit range)"}],
-      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2", "T_range_K": [293, 313], "P_range_Pa": [0, 100000], "range_note": "Fitted to volumetric data at p = 0-1 bar, T = 293-313 K (Section 2)."}],
+      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2", "data_quality": "not_checked", "data_quality_note": "Not checked: whether Ward & Pini (2022) measured these isotherms themselves has not been confirmed from the paper.", "T_range_K": [293, 313], "P_range_Pa": [0, 100000], "range_note": "Fitted to volumetric data at p = 0-1 bar, T = 293-313 K (Section 2)."}],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 29980.0, "provenance": "repo", "ref": "Not stated in source as a single value (checked: Ward & Pini 2022 Table 2, DSL site energies only); |dU_1| = 29.98 kJ/mol. The paper's energy balance (Eq. A4) releases -dU_1 + RT per mole adsorbed, and the Ward_2022 decks use that (32.42 kJ/mol at 293 K)"}
       },
@@ -803,9 +845,9 @@
     {
       "key": "silica_gel_ganesan2026",
       "file": "silica_gel_ganesan2026.json",
-      "label": "Silica gel (Ganesan & Grande 2026)",
+      "label": "Silica gel",
       "material": "Silica gel",
-      "family": "silica",
+      "material_id": "silica-gel",
       "status": "sourced",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
@@ -814,8 +856,8 @@
         {"id": "shen2018", "refs": "original isotherm source cited by Ganesan & Grande (ESM ref 6)"}
       ],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "ESM S.I. 4", "T_range_K": null, "P_range_Pa": null, "range_note": "Parameters taken from Shen et al. 2018 (ESM ref 6).", "T_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)", "P_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)"},
-        {"component": "Methane", "ref": "ESM S.I. 4", "T_range_K": null, "P_range_Pa": null, "range_note": "Parameters taken from Shen et al. 2018 (ESM ref 6).", "T_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)", "P_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)"}
+        {"component": "CarbonDioxide", "ref": "ESM S.I. 4", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "Parameters taken from Shen et al. 2018 (ESM ref 6).", "T_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)", "P_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)"},
+        {"component": "Methane", "ref": "ESM S.I. 4", "data_quality": "secondary", "T_range_K": null, "P_range_Pa": null, "range_note": "Parameters taken from Shen et al. 2018 (ESM ref 6).", "T_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)", "P_range_not_stated": "Not stated in source (checked: Ganesan & Grande 2026 ESM S.I. 3-4; the parameters are taken from Shen et al. 2018)"}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 24967.0, "provenance": "source", "ref": "ESM S.I. 4, -dH = 24.967 kJ/mol"},
@@ -839,9 +881,9 @@
     {
       "key": "apdes_nfc_stampi2020",
       "file": "apdes_nfc_stampi2020.json",
-      "label": "APDES-NFC amine sorbent (Stampi-Bombelli 2020)",
+      "label": "APDES-NFC",
       "material": "APDES-NFC (amine-functionalised nanofibrillated cellulose)",
-      "family": "amine",
+      "material_id": "apdes-nfc",
       "status": "sourced",
       "applications": ["direct air capture"],
       "components": ["CarbonDioxide"],
@@ -849,7 +891,7 @@
         {"id": "stampi2020", "refs": "Table 2 (temperature-dependent Toth, dry CO2), Table 1 (densities, particle size, Cs, dH, k), Eqs. 7-10, Section 2.2.1"},
         {"id": "stampi2021corr", "refs": "corrected b0 = 70.7 kPa^-1 (replaces the value printed in Table 2)"}
       ],
-      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2 + correction", "T_range_K": [296, 343], "P_range_Pa": null, "range_note": "Dry CO2 data of Gebald et al. 2014 at 296-343 K (Section 2.2.1); the partial-pressure range is shown only in Fig. 1b.", "P_range_not_stated": "Not stated in source (checked: Stampi-Bombelli 2020 Section 2.2.1 and Table 2; the CO2 partial-pressure range of the Gebald et al. 2014 data is shown only in Fig. 1b)"}],
+      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2 + correction", "data_quality": "refit", "T_range_K": [296, 343], "P_range_Pa": null, "range_note": "Dry CO2 data of Gebald et al. 2014 at 296-343 K (Section 2.2.1); the partial-pressure range is shown only in Fig. 1b.", "P_range_not_stated": "Not stated in source (checked: Stampi-Bombelli 2020 Section 2.2.1 and Table 2; the CO2 partial-pressure range of the Gebald et al. 2014 data is shown only in Fig. 1b)"}],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 57000.0, "provenance": "source", "ref": "Table 1, dH_CO2 = -57 kJ/mol"}
       },
@@ -874,17 +916,18 @@
     {
       "key": "cms_3k",
       "file": "cms_3k.json",
-      "label": "CMS-3K, CO2/CH4 (legacy)",
+      "label": "Carbon molecular sieve (CMS-3K, source unknown)",
       "material": "Carbon molecular sieve 3K",
-      "family": "carbon",
+      "material_id": "carbon-molecular-sieve",
+      "variant": "CMS-3K, source unknown",
       "status": "legacy",
       "legacy_note": "Source unknown - legacy entry. The generating unit test (AdsorbentTest.CMS3K_CO2CH4_ExtendedSingleSiteLangmuir) sits under a comment pointing to Santos et al. 2010 / Wu et al. 2015 (J. Clean. Prod. 101, 251-261), but the values have not been verified against either.",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."},
-        {"component": "Methane", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."}
+        {"component": "CarbonDioxide", "ref": "unknown", "data_quality": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."},
+        {"component": "Methane", "ref": "unknown", "data_quality": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 38947.0, "provenance": "unknown", "ref": "unverified"},
@@ -907,17 +950,17 @@
     {
       "key": "mof_508b",
       "file": "mof_508b.json",
-      "label": "MOF-508b, CO2/CH4 (legacy)",
+      "label": "MOF-508b",
       "material": "MOF-508b",
-      "family": "MOF",
+      "material_id": "mof-508b",
       "status": "legacy",
       "legacy_note": "Source unknown - legacy entry. The generating unit test (AdsorbentTest.MOF508b_CO2CH4_ExtendedSingleSiteLangmuir) sits under a comment pointing to Santos et al. 2010 / Wu et al. 2015 (J. Clean. Prod. 101, 251-261), but the values have not been verified against either.",
       "applications": ["biogas upgrading"],
       "components": ["CarbonDioxide", "Methane"],
       "sources": [],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."},
-        {"component": "Methane", "ref": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."}
+        {"component": "CarbonDioxide", "ref": "unknown", "data_quality": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."},
+        {"component": "Methane", "ref": "unknown", "data_quality": "unknown", "T_range_K": null, "P_range_Pa": null, "range_note": "Unknown."}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 18800.0, "provenance": "unknown", "ref": "unverified"},
@@ -938,9 +981,9 @@
     {
       "key": "lewatit_vp_oc_1065_low2023",
       "file": "lewatit_vp_oc_1065_low2023.json",
-      "label": "Lewatit VP OC 1065 (Low 2023)",
+      "label": "Lewatit VP OC 1065",
       "material": "Lewatit VP OC 1065 (amine-functionalised polystyrene-divinylbenzene resin)",
-      "family": "amine",
+      "material_id": "lewatit-vp-oc-1065",
       "status": "sourced",
       "applications": ["direct air capture (DAC)"],
       "components": ["CarbonDioxide", "Nitrogen"],
@@ -949,6 +992,7 @@
         {
           "component": "CarbonDioxide",
           "ref": "Table 7 (td-Toth, eqs 8-11)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [288.15, 393.15],
           "P_range_Pa": [0, 100000],
           "range_note": "Volumetric CO2 isotherms at 288-393 K up to 100 kPa (Section 3.2.1). The authors report that td-Toth does not fit their data well at 288-308 K and propose a chemi-physisorption model the engine does not support (Figure 5).",
@@ -967,6 +1011,7 @@
         {
           "component": "Nitrogen",
           "ref": "Table 8 (SSL, eq 15)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [288.15, 308.15],
           "P_range_Pa": [0, 100000],
           "range_note": "Volumetric N2 isotherms at 288, 298 and 308 K up to 100 kPa (Section 3.2.2).",
@@ -1006,9 +1051,9 @@
     {
       "key": "purolite_a110_low2023",
       "file": "purolite_a110_low2023.json",
-      "label": "Purolite A110 (Low 2023)",
+      "label": "Purolite A110",
       "material": "Purolite A110 (amine-functionalised polystyrene-divinylbenzene resin)",
-      "family": "amine",
+      "material_id": "purolite-a110",
       "status": "sourced",
       "applications": ["direct air capture (DAC)"],
       "components": ["CarbonDioxide", "Nitrogen"],
@@ -1017,6 +1062,7 @@
         {
           "component": "CarbonDioxide",
           "ref": "Table 7 (td-Toth, eqs 8-11)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [288.15, 393.15],
           "P_range_Pa": [0, 100000],
           "range_note": "Volumetric CO2 isotherms at 288-393 K up to 100 kPa (Section 3.2.1). The authors report that td-Toth does not fit their data well at 288-308 K and propose a chemi-physisorption model the engine does not support (Figure 5).",
@@ -1035,6 +1081,7 @@
         {
           "component": "Nitrogen",
           "ref": "Table 8 (SSL, eq 15)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [288.15, 308.15],
           "P_range_Pa": [0, 100000],
           "range_note": "Volumetric N2 isotherms at 288, 298 and 308 K up to 100 kPa (Section 3.2.2).",
@@ -1074,14 +1121,14 @@
     {
       "key": "triamine_alumina_grossmann2025",
       "file": "triamine_alumina_grossmann2025.json",
-      "label": "Triamine-grafted alumina (Grossmann 2025)",
+      "label": "Triamine-grafted alumina",
       "material": "Triamine-grafted gamma-alumina pellets (amine-functionalised alumina)",
-      "family": "amine",
+      "material_id": "triamine-alumina",
       "status": "sourced",
       "applications": ["direct air capture (DAC)"],
       "components": ["CarbonDioxide"],
       "sources": [{"id": "grossmann2025", "refs": "Table 4 (dry temperature-dependent Toth, eqs 8-11), Table 2 (sorbent properties), Section 2.1.1 (pellet size), Section 3.2.1 and SI Fig. S4 (dry isotherms up to 100 kPa)"}],
-      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 4 (dry Toth, eqs 8-11)", "T_range_K": [288.15, 373.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric dry CO2 isotherms at 15, 25, 35 and 100 C up to 100 kPa (Section 3.2.1, SI Fig. S4); the authors note the 95% CI of b0 is very large."}],
+      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 4 (dry Toth, eqs 8-11)", "data_quality": "measured_fit", "T_range_K": [288.15, 373.15], "P_range_Pa": [0, 100000], "range_note": "Volumetric dry CO2 isotherms at 15, 25, 35 and 100 C up to 100 kPa (Section 3.2.1, SI Fig. S4); the authors note the 95% CI of b0 is very large."}],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 77800.0, "provenance": "source", "ref": "Table 4, dH = -77.8 kJ/mol of the Toth fit"}
       },
@@ -1103,16 +1150,16 @@
     {
       "key": "cpo_27_ni_krishnamurthy2020",
       "file": "cpo_27_ni_krishnamurthy2020.json",
-      "label": "CPO-27-Ni beads (Krishnamurthy 2020)",
+      "label": "CPO-27-Ni (Ni-MOF-74)",
       "material": "CPO-27-Ni (Ni-MOF-74) alginate beads",
-      "family": "MOF",
+      "material_id": "cpo-27-ni",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen"],
       "sources": [{"id": "krishnamurthy2020", "refs": "Table 1 (dual-site Langmuir, eq 1), Section 4 (heats of adsorption), Table 2 (porosity), Section 2 (bead size), Section 3 (isotherm temperatures and range)"}],
       "isotherms": [
-        {"component": "CarbonDioxide", "ref": "Table 1 (DSL, eq 1)", "T_range_K": [283.0, 323.0], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 283, 308 and 323 K up to 100 kPa (Section 3)."},
-        {"component": "Nitrogen", "ref": "Table 1 (DSL, eq 1; equal site affinities)", "T_range_K": [283.0, 323.0], "P_range_Pa": [0, 100000], "range_note": "Section 3 also mentions N2 measurements at 263 and 273 K; the stated range is the three temperatures common to both gases."}
+        {"component": "CarbonDioxide", "ref": "Table 1 (DSL, eq 1)", "data_quality": "measured_fit", "T_range_K": [283.0, 323.0], "P_range_Pa": [0, 100000], "range_note": "Volumetric isotherms at 283, 308 and 323 K up to 100 kPa (Section 3)."},
+        {"component": "Nitrogen", "ref": "Table 1 (DSL, eq 1; equal site affinities)", "data_quality": "measured_fit", "T_range_K": [283.0, 323.0], "P_range_Pa": [0, 100000], "range_note": "Section 3 also mentions N2 measurements at 263 and 273 K; the stated range is the three temperatures common to both gases."}
       ],
       "heat_of_adsorption": {
         "CarbonDioxide": {"value": 39700.0, "provenance": "source", "ref": "Section 4: -39.7 kJ/mol (Table 1 lists the site energies dH1 = -39.9, dH2 = -23.6 kJ/mol)"},
@@ -1135,9 +1182,9 @@
     {
       "key": "zeolite_h_y_azzan2023",
       "file": "zeolite_h_y_azzan2023.json",
-      "label": "Zeolite H-Y (Azzan 2023)",
+      "label": "Zeolite H-Y",
       "material": "Zeolite H-Y (Zeolyst CBV400 powder)",
-      "family": "zeolite",
+      "material_id": "zeolite-h-y",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture", "pre-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Hydrogen"],
@@ -1146,6 +1193,7 @@
         {
           "component": "CarbonDioxide",
           "ref": "Table 8 (SSL, eq 12)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 393.15],
           "P_range_Pa": [0, 3000000],
           "range_note": "Gravimetric isotherms (magnetic suspension balance) at 298.15-393.15 K from vacuum to 3 MPa; fitted to absolute adsorption.",
@@ -1164,6 +1212,7 @@
         {
           "component": "Hydrogen",
           "ref": "Table 8 (SSL, eq 12)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 353.15],
           "P_range_Pa": [0, 3000000],
           "range_note": "Gravimetric isotherms at 298.15-353.15 K up to 3 MPa.",
@@ -1204,9 +1253,10 @@
     {
       "key": "zeolite_na_y_azzan2023",
       "file": "zeolite_na_y_azzan2023.json",
-      "label": "Zeolite Na-Y (Azzan 2023)",
+      "label": "Zeolite NaY (NIST RM8850 powder)",
       "material": "Zeolite Na-Y (NIST RM8850 powder)",
-      "family": "zeolite",
+      "material_id": "zeolite-nay",
+      "variant": "NIST RM8850 powder",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture", "pre-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen", "Hydrogen"],
@@ -1215,6 +1265,7 @@
         {
           "component": "CarbonDioxide",
           "ref": "Table 8 (SSL, eq 12)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 393.15],
           "P_range_Pa": [0, 3000000],
           "range_note": "Gravimetric isotherms (magnetic suspension balance) at 298.15-393.15 K from vacuum to 3 MPa; fitted to absolute adsorption.",
@@ -1233,6 +1284,7 @@
         {
           "component": "Nitrogen",
           "ref": "Table 8 (SSL, eq 12)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 393.15],
           "P_range_Pa": [0, 3000000],
           "range_note": "Gravimetric isotherms at 298.15-393.15 K up to 3 MPa.",
@@ -1251,6 +1303,7 @@
         {
           "component": "Hydrogen",
           "ref": "Table 8 (SSL, eq 12)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 353.15],
           "P_range_Pa": [0, 3000000],
           "range_note": "Gravimetric isotherms at 298.15-353.15 K up to 3 MPa.",
@@ -1290,9 +1343,9 @@
     {
       "key": "zeolite_natma_y_azzan2023",
       "file": "zeolite_natma_y_azzan2023.json",
-      "label": "Zeolite NaTMA-Y (Azzan 2023)",
+      "label": "Zeolite NaTMA-Y",
       "material": "Zeolite NaTMA-Y (Na-Y (NIST RM8850) partially exchanged with tetramethylammonium)",
-      "family": "zeolite",
+      "material_id": "zeolite-natma-y",
       "status": "sourced",
       "applications": ["post-combustion CO2 capture", "pre-combustion CO2 capture"],
       "components": ["CarbonDioxide", "Nitrogen", "Hydrogen"],
@@ -1301,6 +1354,7 @@
         {
           "component": "CarbonDioxide",
           "ref": "Table 8 (SSL, eq 12)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 393.15],
           "P_range_Pa": [0, 3000000],
           "range_note": "Gravimetric isotherms (magnetic suspension balance) at 298.15-393.15 K from vacuum to 3 MPa; fitted to absolute adsorption.",
@@ -1319,6 +1373,7 @@
         {
           "component": "Nitrogen",
           "ref": "Table 8 (SSL, eq 12)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 393.15],
           "P_range_Pa": [0, 3000000],
           "range_note": "Gravimetric isotherms at 298.15-393.15 K up to 3 MPa.",
@@ -1337,6 +1392,7 @@
         {
           "component": "Hydrogen",
           "ref": "Table 8 (SSL, eq 12)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [298.15, 353.15],
           "P_range_Pa": [0, 3000000],
           "range_note": "Gravimetric isotherms at 298.15-353.15 K up to 3 MPa.",
@@ -1376,9 +1432,9 @@
     {
       "key": "tifsix_3_ni_low2024",
       "file": "tifsix_3_ni_low2024.json",
-      "label": "TIFSIX-3-Ni (Low 2024)",
+      "label": "TIFSIX-3-Ni",
       "material": "TIFSIX-3-Ni (fluorinated hybrid ultramicroporous MOF)",
-      "family": "MOF",
+      "material_id": "tifsix-3-ni",
       "status": "sourced",
       "applications": ["direct air capture (DAC)"],
       "components": ["CarbonDioxide", "Nitrogen"],
@@ -1387,6 +1443,7 @@
         {
           "component": "CarbonDioxide",
           "ref": "Table 1 (DSL, eqs 7-9)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [288.15, 393.15],
           "P_range_Pa": [0, 100000],
           "range_note": "Volumetric CO2 isotherms at 15, 25, 35, 60, 70, 80 and 120 C up to 1 bar on the powder (Section 3.2.1).",
@@ -1405,6 +1462,7 @@
         {
           "component": "Nitrogen",
           "ref": "Table 1 (SSL)",
+          "data_quality": "measured_tabulated",
           "T_range_K": [288.15, 308.15],
           "P_range_Pa": [0, 100000],
           "range_note": "Volumetric N2 isotherms at 15, 25 and 35 C up to 1 bar (Section 3.2.2).",
@@ -1444,17 +1502,18 @@
     {
       "key": "cms_3kt_zhang2021",
       "file": "cms_3kt_zhang2021.json",
-      "label": "CMS-3KT (Zhang 2021)",
+      "label": "Carbon molecular sieve (CMS-3KT (Gongyi Tenglong))",
       "material": "Carbon molecular sieve CMS-3KT (Gongyi Tenglong)",
-      "family": "carbon",
+      "material_id": "carbon-molecular-sieve",
+      "variant": "CMS-3KT (Gongyi Tenglong)",
       "status": "sourced",
       "applications": ["coal-bed methane enrichment (CH4/O2/N2)"],
       "components": ["Methane", "Oxygen", "Nitrogen"],
       "sources": [{"id": "zhang2021", "refs": "Table 1 (Sips fits at 308 K, eq 2), Section 2.2.1 (isotherm range), Section 2.2.2 (isosteric heats), Section 4.1.1 (material)"}],
       "isotherms": [
-        {"component": "Methane", "ref": "Table 1, Sips at 308 K (eq 2)", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."},
-        {"component": "Oxygen", "ref": "Table 1, Sips at 308 K (eq 2)", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."},
-        {"component": "Nitrogen", "ref": "Table 1, Sips at 308 K (eq 2)", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."}
+        {"component": "Methane", "ref": "Table 1, Sips at 308 K (eq 2)", "data_quality": "measured_fit", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."},
+        {"component": "Oxygen", "ref": "Table 1, Sips at 308 K (eq 2)", "data_quality": "measured_fit", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."},
+        {"component": "Nitrogen", "ref": "Table 1, Sips at 308 K (eq 2)", "data_quality": "measured_fit", "T_range_K": [308.0, 308.0], "P_range_Pa": [0, 600000], "range_note": "Volumetric isotherms at 0-0.6 MPa (Section 2.2.1); this entry is the 308 K fit (Table 1 also lists separate fits at 313 and 318 K). The engine Sips kind has no temperature dependence."}
       ],
       "heat_of_adsorption": {
         "Methane": {"value": 20600.0, "provenance": "source", "ref": "Section 2.2.2: isosteric heat ~20.6 kJ/mol (micro-calorimetry)"},
