@@ -56,6 +56,24 @@ namespace adsim {
       return w * left() + (1.0 - w) * right();
     }
 
+    // Danckwerts boundary faces for the fluid energy balance. The boundary
+    // conditions set the fluid-temperature ghost cell so that the FACE
+    // temperature is the boundary value (T_ghost + T_first = 2 T_in at an
+    // inlet; T_ghost = T_first at an outlet or closed end). Across a boundary
+    // face of the bed the enthalpy flux is the convective rho Cp u T_face
+    // alone, with no conduction (the residuals drop Lam dT/dz there), so the
+    // upstream value of a boundary face is the face temperature, not the ghost
+    // value: upwinding to the ghost, 2 T_in - T_1, would add
+    // rho Cp u (T_in - T_1) to the feed's enthalpy. For a face of an interior
+    // cell that is not on the boundary this is the neighbour's temperature.
+    // side = -1: the west face of cell i, +1: the east face.
+    inline double BoundaryFaceUpstreamT(const std::vector<double>& T, int i, int side) {
+      const int last = static_cast<int>(T.size()) - 1;
+      const int nb = i + side;
+      if (nb == 0 || nb == last) return 0.5 * (T[nb] + T[i]);
+      return T[nb];
+    }
+
     // Molar heat capacity Cpa of `comp` in the adsorbed phase [J/(mol.K)].
     double AdsorbedPhaseHeatCapacity(const Fluid& fluid, const Component& comp) {
       return (fluid.adsorbed_heat_capacity_mode_ == AdsorbedHeatCapacityMode::GAS_PHASE)
@@ -375,8 +393,8 @@ namespace adsim {
       double u_e = u[i];
       double u_w = u[i - 1];
 
-      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return T[i + 1]; });
-      double T_w = UpwindFace(u_w, [&] { return T[i - 1]; }, [&] { return T[i]; });
+      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return BoundaryFaceUpstreamT(T, i, +1); });
+      double T_w = UpwindFace(u_w, [&] { return BoundaryFaceUpstreamT(T, i, -1); }, [&] { return T[i]; });
 
       double u_avr = 0.5 * (u_e + u_w);
 
@@ -407,8 +425,10 @@ namespace adsim {
       // double Lam_e = 1 / ((1 - fe) / Lam[i] + fe / Lam[i + 1]);
       // double Lam_w = 1 / ((1 - fw) / Lam[i - 1] + fw / Lam[i]);
 
-      double D_e = Lam_e * (T[i + 1] - T[i]) / dx[i];
-      double D_w = Lam_w * (T[i] - T[i - 1]) / dx[i];
+      // No conduction through the bed's boundary faces (Danckwerts; see
+      // BoundaryFaceUpstreamT).
+      double D_e = (i == N - 2) ? 0.0 : Lam_e * (T[i + 1] - T[i]) / dx[i];
+      double D_w = (i == 1) ? 0.0 : Lam_w * (T[i] - T[i - 1]) / dx[i];
 
       res_T[i] =
         Acc
@@ -472,8 +492,8 @@ namespace adsim {
 
       double u_e = u[i];
       double u_w = u[i - 1];
-      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return T[i + 1]; });
-      double T_w = UpwindFace(u_w, [&] { return T[i - 1]; }, [&] { return T[i]; });
+      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return BoundaryFaceUpstreamT(T, i, +1); });
+      double T_w = UpwindFace(u_w, [&] { return BoundaryFaceUpstreamT(T, i, -1); }, [&] { return T[i]; });
       double u_avr = 0.5 * (u_e + u_w);
 
       double F_e = rho[i] * Cpg[i] * u_avr * T_e;
@@ -495,8 +515,10 @@ namespace adsim {
       double Lam_e = 0.5 * (Lam[i] + Lam[i + 1]);
       double Lam_w = 0.5 * (Lam[i] + Lam[i - 1]);
 
-      double D_e = Lam_e * (T[i + 1] - T[i]) / dx[i];
-      double D_w = Lam_w * (T[i] - T[i - 1]) / dx[i];
+      // No conduction through the bed's boundary faces (Danckwerts; see
+      // BoundaryFaceUpstreamT).
+      double D_e = (i == N - 2) ? 0.0 : Lam_e * (T[i + 1] - T[i]) / dx[i];
+      double D_w = (i == 1) ? 0.0 : Lam_w * (T[i] - T[i - 1]) / dx[i];
 
       res_T[i] =
         Acc
@@ -856,8 +878,19 @@ namespace adsim {
       double d_e = 1 / ((1 - fe) / Dax[n] + fe / Dax[n + 1]);
       double d_w = 1 / ((1 - fw) / Dax[n - 1] + fw / Dax[n]);
 
-      double D_e = ((eb[n] * Tc * d_e) / (Pc * dx[n])) * (Pe / Te * (yi[n + 1] - yi[n]));
-      double D_w = ((eb[n] * Tc * d_w) / (Pc * dx[n])) * (Pw / Tw * (yi[n] - yi[n - 1]));
+      // Danckwerts boundary faces: no dispersive flux crosses the two faces
+      // of the bed (n == 1 west, n == N - 2 east), so the species flux through
+      // a boundary face is the convective u C y_f alone, with y_f the boundary
+      // value (the ghost cell the boundary condition sets). At an outlet or a
+      // closed end the ghost mirrors the first cell and the term was zero
+      // anyway; at an inlet the ghost holds the feed composition, and a
+      // dispersive eb D C (y_1 - y_in) / dx would otherwise carry species into
+      // the bed on top of the feed u C y_in, unseen by the stream logs (the
+      // component balance then fails to close by an amount proportional to D).
+      double D_e = (n == N - 2) ? 0.0
+        : ((eb[n] * Tc * d_e) / (Pc * dx[n])) * (Pe / Te * (yi[n + 1] - yi[n]));
+      double D_w = (n == 1) ? 0.0
+        : ((eb[n] * Tc * d_w) / (Pc * dx[n])) * (Pw / Tw * (yi[n] - yi[n - 1]));
 
       double F_e = Tc / Pc * (yie * Pe * u_e / Te);
       double F_w = Tc / Pc * (yiw * Pw * u_w / Tw);
@@ -902,9 +935,12 @@ namespace adsim {
     int N = yi_face.size();
     for (int n = 0; n < N; ++n) { 
       // Positive velocity: left-biased reconstruction at face n (between cell n
-      // and n+1); at the first face fall back to the simple average.
+      // and n+1); at the first face (a boundary face) take the ghost cell,
+      // which holds the boundary value, so an inlet face carries exactly the
+      // feed composition (at an outlet or closed end the ghost mirrors the
+      // first cell, so this equals the old average there).
       auto left_biased = [&]() {
-        if (n == 0) return 0.5 * (yi[0] + yi[1]);
+        if (n == 0) return yi[0];  // boundary face: the ghost holds the boundary value
         // Stencil 0: uses cells {n-1, n}, reconstruction: 0.5*(yi[n-1] + yi[n])
         // Stencil 1: uses cells {n, n+1}, reconstruction: 0.5*(yi[n] + yi[n+1])
         double beta_0 = (yi[n] - yi[n - 1]) * (yi[n] - yi[n - 1]);
@@ -915,10 +951,10 @@ namespace adsim {
         double w_1 = alpha_1 / (alpha_0 + alpha_1);
         return w_0 * 0.5 * (yi[n - 1] + yi[n]) + w_1 * 0.5 * (yi[n] + yi[n + 1]);
       };
-      // Negative velocity: right-biased reconstruction; at the last face fall
-      // back to the simple average.
+      // Negative velocity: right-biased reconstruction; at the last face (a
+      // boundary face) take the ghost cell, as above.
       auto right_biased = [&]() {
-        if (n == N - 1) return 0.5 * (yi[N - 1] + yi[N]);
+        if (n == N - 1) return yi[N];  // boundary face: the ghost holds the boundary value
         // Stencil 0: uses cells {n, n+1}, reconstruction: 0.5*(yi[n] + yi[n+1])
         // Stencil 1: uses cells {n+1, n+2}, reconstruction: 0.5*(yi[n+1] + yi[n+2])
         double beta_0 = (yi[n + 1] - yi[n]) * (yi[n + 1] - yi[n]);
@@ -955,13 +991,13 @@ namespace adsim {
     int N = yi_face.size();
     for (int n = 0; n < N; ++n) { 
       auto left_biased = [&]() {
-        if (n == 0) return 0.5 * (yi[0] + yi[1]);
+        if (n == 0) return yi[0];  // boundary face: the ghost holds the boundary value
         double r = (yi[n] - yi[n - 1] + eps) / (yi[n + 1] - yi[n] + eps);
         double phi = (r + std::abs(r)) / (1 + std::abs(r));
         return yi[n] + 0.5 * phi * (yi[n + 1] - yi[n]);
       };
       auto right_biased = [&]() {
-        if (n == N - 1) return 0.5 * (yi[N - 1] + yi[N]);
+        if (n == N - 1) return yi[N];  // boundary face: the ghost holds the boundary value
         double r = (yi[n + 1] - yi[n + 2] + eps) / (yi[n] - yi[n + 1] + eps);
         double phi = (r + std::abs(r)) / (1 + std::abs(r));
         return yi[n + 1] + 0.5 * phi * (yi[n] - yi[n + 1]);
