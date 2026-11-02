@@ -56,6 +56,24 @@ namespace adsim {
       return w * left() + (1.0 - w) * right();
     }
 
+    // Danckwerts boundary faces for the fluid energy balance. The boundary
+    // conditions set the fluid-temperature ghost cell so that the FACE
+    // temperature is the boundary value (T_ghost + T_first = 2 T_in at an
+    // inlet; T_ghost = T_first at an outlet or closed end). Across a boundary
+    // face of the bed the enthalpy flux is the convective rho Cp u T_face
+    // alone, with no conduction (the residuals drop Lam dT/dz there), so the
+    // upstream value of a boundary face is the face temperature, not the ghost
+    // value: upwinding to the ghost, 2 T_in - T_1, would add
+    // rho Cp u (T_in - T_1) to the feed's enthalpy. For a face of an interior
+    // cell that is not on the boundary this is the neighbour's temperature.
+    // side = -1: the west face of cell i, +1: the east face.
+    inline double BoundaryFaceUpstreamT(const std::vector<double>& T, int i, int side) {
+      const int last = static_cast<int>(T.size()) - 1;
+      const int nb = i + side;
+      if (nb == 0 || nb == last) return 0.5 * (T[nb] + T[i]);
+      return T[nb];
+    }
+
     // Molar heat capacity Cpa of `comp` in the adsorbed phase [J/(mol.K)].
     double AdsorbedPhaseHeatCapacity(const Fluid& fluid, const Component& comp) {
       return (fluid.adsorbed_heat_capacity_mode_ == AdsorbedHeatCapacityMode::GAS_PHASE)
@@ -199,8 +217,9 @@ namespace adsim {
         continue;
       }
 
-      // Darcy (Kozeny-Carman) faces: the legacy closed forms, verbatim, so
-      // Kozeny-Carman decks reproduce their previous results bit for bit.
+      // Darcy faces (Kozeny-Carman or Blake-Kozeny, no inertial term): the
+      // legacy closed forms, verbatim, so Kozeny-Carman decks reproduce their
+      // previous results bit for bit.
       const bool void_left  = (i     < (int)is_void.size()) && is_void[i];
       const bool void_right = (i + 1 < (int)is_void.size()) && is_void[i + 1];
 
@@ -374,8 +393,8 @@ namespace adsim {
       double u_e = u[i];
       double u_w = u[i - 1];
 
-      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return T[i + 1]; });
-      double T_w = UpwindFace(u_w, [&] { return T[i - 1]; }, [&] { return T[i]; });
+      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return BoundaryFaceUpstreamT(T, i, +1); });
+      double T_w = UpwindFace(u_w, [&] { return BoundaryFaceUpstreamT(T, i, -1); }, [&] { return T[i]; });
 
       double u_avr = 0.5 * (u_e + u_w);
 
@@ -406,8 +425,10 @@ namespace adsim {
       // double Lam_e = 1 / ((1 - fe) / Lam[i] + fe / Lam[i + 1]);
       // double Lam_w = 1 / ((1 - fw) / Lam[i - 1] + fw / Lam[i]);
 
-      double D_e = Lam_e * (T[i + 1] - T[i]) / dx[i];
-      double D_w = Lam_w * (T[i] - T[i - 1]) / dx[i];
+      // No conduction through the bed's boundary faces (Danckwerts; see
+      // BoundaryFaceUpstreamT).
+      double D_e = (i == N - 2) ? 0.0 : Lam_e * (T[i + 1] - T[i]) / dx[i];
+      double D_w = (i == 1) ? 0.0 : Lam_w * (T[i] - T[i - 1]) / dx[i];
 
       res_T[i] =
         Acc
@@ -471,8 +492,8 @@ namespace adsim {
 
       double u_e = u[i];
       double u_w = u[i - 1];
-      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return T[i + 1]; });
-      double T_w = UpwindFace(u_w, [&] { return T[i - 1]; }, [&] { return T[i]; });
+      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return BoundaryFaceUpstreamT(T, i, +1); });
+      double T_w = UpwindFace(u_w, [&] { return BoundaryFaceUpstreamT(T, i, -1); }, [&] { return T[i]; });
       double u_avr = 0.5 * (u_e + u_w);
 
       double F_e = rho[i] * Cpg[i] * u_avr * T_e;
@@ -494,8 +515,10 @@ namespace adsim {
       double Lam_e = 0.5 * (Lam[i] + Lam[i + 1]);
       double Lam_w = 0.5 * (Lam[i] + Lam[i - 1]);
 
-      double D_e = Lam_e * (T[i + 1] - T[i]) / dx[i];
-      double D_w = Lam_w * (T[i] - T[i - 1]) / dx[i];
+      // No conduction through the bed's boundary faces (Danckwerts; see
+      // BoundaryFaceUpstreamT).
+      double D_e = (i == N - 2) ? 0.0 : Lam_e * (T[i + 1] - T[i]) / dx[i];
+      double D_w = (i == 1) ? 0.0 : Lam_w * (T[i] - T[i - 1]) / dx[i];
 
       res_T[i] =
         Acc
@@ -855,8 +878,19 @@ namespace adsim {
       double d_e = 1 / ((1 - fe) / Dax[n] + fe / Dax[n + 1]);
       double d_w = 1 / ((1 - fw) / Dax[n - 1] + fw / Dax[n]);
 
-      double D_e = ((eb[n] * Tc * d_e) / (Pc * dx[n])) * (Pe / Te * (yi[n + 1] - yi[n]));
-      double D_w = ((eb[n] * Tc * d_w) / (Pc * dx[n])) * (Pw / Tw * (yi[n] - yi[n - 1]));
+      // Danckwerts boundary faces: no dispersive flux crosses the two faces
+      // of the bed (n == 1 west, n == N - 2 east), so the species flux through
+      // a boundary face is the convective u C y_f alone, with y_f the boundary
+      // value (the ghost cell the boundary condition sets). At an outlet or a
+      // closed end the ghost mirrors the first cell and the term was zero
+      // anyway; at an inlet the ghost holds the feed composition, and a
+      // dispersive eb D C (y_1 - y_in) / dx would otherwise carry species into
+      // the bed on top of the feed u C y_in, unseen by the stream logs (the
+      // component balance then fails to close by an amount proportional to D).
+      double D_e = (n == N - 2) ? 0.0
+        : ((eb[n] * Tc * d_e) / (Pc * dx[n])) * (Pe / Te * (yi[n + 1] - yi[n]));
+      double D_w = (n == 1) ? 0.0
+        : ((eb[n] * Tc * d_w) / (Pc * dx[n])) * (Pw / Tw * (yi[n] - yi[n - 1]));
 
       double F_e = Tc / Pc * (yie * Pe * u_e / Te);
       double F_w = Tc / Pc * (yiw * Pw * u_w / Tw);
@@ -890,73 +924,46 @@ namespace adsim {
     }
   }
 
-  namespace {
-    // A cell whose value sits on a face rather than at a cell centre: the
-    // ghost cells (Dirichlet inlet composition, or a copy of the end cell at
-    // an outlet; either way the value at the bed-end face) and the lumped,
-    // well-mixed void cells. A reconstruction may not interpolate through
-    // such a cell as if it held a linear profile.
-    inline bool IsLumpedCell(const DomainVectors& dv, int cell, int last_cell) {
-      return cell <= 0 || cell >= last_cell || dv.IsVoidCell(static_cast<size_t>(cell));
-    }
-
-    // Third-order WENO face value (Jiang and Shu 1996, k = 2; the scheme of
-    // Haghpanah et al. 2013 and Yancy-Caballero et al. 2020, PEESEgroup/PSA
-    // CycleSteps/WENO.m) at the face between cell c and its downwind
-    // neighbour cd, reconstructed from the upwind side. cu is the cell
-    // upwind of c. Two candidate face values, both linear in y:
-    //   stencil {c, cd}: interpolation, y_c + (y_cd - y_c) dx_c / (dx_c + dx_cd)
-    //   stencil {cu, c}: extrapolation, y_c + (y_c - y_cu) dx_c / (dx_cu + dx_c)
-    // (uniform grid: (y_c + y_cd)/2 and 3/2 y_c - 1/2 y_cu), with linear
-    // weights 2/3 and 1/3 and smoothness indicators beta = (slope * dx_c)^2
-    // (uniform grid: (y_cd - y_c)^2 and (y_c - y_cu)^2). When cu is a lumped
-    // cell its value sits on the face of c, half a cell away, so the
-    // extrapolation becomes 2 y_c - y_cu with beta = (2 (y_c - y_cu))^2,
-    // exactly the reference's first interior face.
-    inline double WenoFace(double y_cu, double y_c, double y_cd,
-                           double dx_cu, double dx_c, double dx_cd, bool cu_lumped) {
-      constexpr double eps = 1e-12;
-      const double h_up = cu_lumped ? 0.5 * dx_c : 0.5 * (dx_cu + dx_c);
-      const double h_dn = 0.5 * (dx_c + dx_cd);
-      const double s_up = (y_c - y_cu) / h_up;   // slope on the upwind stencil
-      const double s_dn = (y_cd - y_c) / h_dn;   // slope on the central stencil
-      const double cand_up = y_c + 0.5 * dx_c * s_up;
-      const double cand_dn = y_c + 0.5 * dx_c * s_dn;
-      const double beta_up = (s_up * dx_c) * (s_up * dx_c);
-      const double beta_dn = (s_dn * dx_c) * (s_dn * dx_c);
-      const double alpha_up = (1.0 / 3.0) / ((beta_up + eps) * (beta_up + eps));
-      const double alpha_dn = (2.0 / 3.0) / ((beta_dn + eps) * (beta_dn + eps));
-      return (alpha_up * cand_up + alpha_dn * cand_dn) / (alpha_up + alpha_dn);
-    }
-  }
-
   void UpdateMoleFractionFaceWENO(UserData* udata, Component component) {
     auto& state = udata->state;
     auto& yi_face = state.mole_fraction_face.at(component).var;
     const auto& yi = state.mole_fraction.at(component).var;
     const auto& u = state.velocity.var;
-    const auto& dv = state.domain_vectors;
-    const auto& dx = dv.cell_width;
 
-    // Face n lies between cells n and n + 1; cells 0 and N are the ghosts.
-    const int N = static_cast<int>(yi_face.size());
-    for (int n = 0; n < N; ++n) {
-      // Positive velocity: reconstruct from the left (cells n - 1, n, n + 1).
+    const double eps = 1e-12;
+
+    int N = yi_face.size();
+    for (int n = 0; n < N; ++n) { 
+      // Positive velocity: left-biased reconstruction at face n (between cell n
+      // and n+1); at the first face (a boundary face) take the ghost cell,
+      // which holds the boundary value, so an inlet face carries exactly the
+      // feed composition (at an outlet or closed end the ghost mirrors the
+      // first cell, so this equals the old average there).
       auto left_biased = [&]() {
-        // Upwind cell lumped (ghost: the inlet face value; void: well mixed,
-        // its outflow has its composition) or downwind cell lumped (the
-        // outlet face, or the inlet of a void): the upwind value, as the
-        // reference's boundary faces. This keeps the boundary fluxes equal to
-        // the stream integrals the cycle balance and KPIs are built from.
-        if (IsLumpedCell(dv, n, N) || IsLumpedCell(dv, n + 1, N)) return yi[n];
-        return WenoFace(yi[n - 1], yi[n], yi[n + 1], dx[n - 1], dx[n], dx[n + 1],
-                        IsLumpedCell(dv, n - 1, N));
+        if (n == 0) return yi[0];  // boundary face: the ghost holds the boundary value
+        // Stencil 0: uses cells {n-1, n}, reconstruction: 0.5*(yi[n-1] + yi[n])
+        // Stencil 1: uses cells {n, n+1}, reconstruction: 0.5*(yi[n] + yi[n+1])
+        double beta_0 = (yi[n] - yi[n - 1]) * (yi[n] - yi[n - 1]);
+        double beta_1 = (yi[n + 1] - yi[n]) * (yi[n + 1] - yi[n]);
+        double alpha_0 = (1.0 / 3.0) / ((beta_0 + eps) * (beta_0 + eps));
+        double alpha_1 = (2.0 / 3.0) / ((beta_1 + eps) * (beta_1 + eps));
+        double w_0 = alpha_0 / (alpha_0 + alpha_1);
+        double w_1 = alpha_1 / (alpha_0 + alpha_1);
+        return w_0 * 0.5 * (yi[n - 1] + yi[n]) + w_1 * 0.5 * (yi[n] + yi[n + 1]);
       };
-      // Negative velocity: mirror image (cells n + 2, n + 1, n).
+      // Negative velocity: right-biased reconstruction; at the last face (a
+      // boundary face) take the ghost cell, as above.
       auto right_biased = [&]() {
-        if (IsLumpedCell(dv, n + 1, N) || IsLumpedCell(dv, n, N)) return yi[n + 1];
-        return WenoFace(yi[n + 2], yi[n + 1], yi[n], dx[n + 2], dx[n + 1], dx[n],
-                        IsLumpedCell(dv, n + 2, N));
+        if (n == N - 1) return yi[N];  // boundary face: the ghost holds the boundary value
+        // Stencil 0: uses cells {n, n+1}, reconstruction: 0.5*(yi[n] + yi[n+1])
+        // Stencil 1: uses cells {n+1, n+2}, reconstruction: 0.5*(yi[n+1] + yi[n+2])
+        double beta_0 = (yi[n + 1] - yi[n]) * (yi[n + 1] - yi[n]);
+        double beta_1 = (yi[n + 2] - yi[n + 1]) * (yi[n + 2] - yi[n + 1]);
+        double alpha_0 = (2.0 / 3.0) / ((beta_0 + eps) * (beta_0 + eps));
+        double alpha_1 = (1.0 / 3.0) / ((beta_1 + eps) * (beta_1 + eps));
+        double w_0 = alpha_0 / (alpha_0 + alpha_1);
+        double w_1 = alpha_1 / (alpha_0 + alpha_1);
+        return w_0 * 0.5 * (yi[n] + yi[n + 1]) + w_1 * 0.5 * (yi[n + 1] + yi[n + 2]);
       };
       yi_face[n] = UpwindFace(u[n], left_biased, right_biased);
     }
@@ -965,68 +972,11 @@ namespace adsim {
     // produce a face mole fraction just outside [0,1]. Clamp the reconstructed
     // FACE value (the quantity used in the convective flux) back into the
     // physical range so a limiter overshoot cannot inject a negative or >1
-    // composition. Each face is single-valued, so every species stays
-    // conserved.
+    // composition. This clamps only the interpolated face value, not the
+    // cell-centred yi that the species balance conserves, so total species mass
+    // is unaffected.
     for (int n = 0; n < N; ++n) {
       yi_face[n] = std::clamp(yi_face[n], 0.0, 1.0);
-    }
-  }
-
-  namespace {
-    // Van Leer face value at the face between cell c and its downwind
-    // neighbour cd, from the upwind side (cu upwind of c):
-    // y_c + phi(r)/2 (y_cd - y_c), r = upwind slope / downwind slope,
-    // phi(r) = (r + |r|)/(1 + |r|). r = a b / (b^2 + delta) is the ratio a/b
-    // written so that it is the same for y and 1 - y (a two-component face
-    // pair sums to one) and goes smoothly to 0 when b vanishes. A lumped cu
-    // (ghost or void) sits on the face of c, half a cell away, which doubles
-    // its slope.
-    inline double VanLeerFace(double y_cu, double y_c, double y_cd, bool cu_lumped) {
-      constexpr double delta = 1e-24;
-      const double a = (cu_lumped ? 2.0 : 1.0) * (y_c - y_cu);
-      const double b = y_cd - y_c;
-      const double r = a * b / (b * b + delta);
-      const double phi = (r + std::abs(r)) / (1.0 + std::abs(r));
-      return y_c + 0.5 * phi * b;
-    }
-
-    // The species fluxes add up to the total-mass flux only if the face mole
-    // fractions sum to what the total balance carries. Upwind faces sum to the
-    // upwind cell's sum, so a departure of the cell sum from one (which no
-    // equation restores: every species and the total have their own balance)
-    // is simply carried along and out of the bed. The nonlinear
-    // reconstructions (WENO, van Leer), built component by component, do not
-    // keep that sum, and worse, their linearisation about a steep front
-    // weights the downwind cell, so a departure of the cell sum grows instead
-    // of being carried: van Leer drove the cell sum to 90 in a CO2/N2
-    // breakthrough. Rescaling each interior face so that its mole fractions
-    // sum to the (smoothed) upwind cell's sum restores the upwind behaviour of
-    // the sum while keeping the high-order profile of each component. Each
-    // face stays single-valued, so every species stays conserved; the bed-end
-    // faces are upwind already. Called after the last component's faces are
-    // computed (the face equations run in the fluid's component order, see
-    // Equations::Initialise); the coupling of each face to every component
-    // over the stencil is why the high-order schemes widen the Jacobian band
-    // (see BandReach in coupled_solver.cpp).
-    void RescaleInteriorMoleFractionFaces(UserData* udata) {
-      auto& state = udata->state;
-      auto& faces = state.mole_fraction_face;
-      if (faces.size() < 2) return;
-      const auto& u = state.velocity.var;
-      const int N = static_cast<int>(faces.begin()->second.var.size());
-      for (int n = 1; n < N - 1; ++n) {
-        double face_sum = 0.0, left_sum = 0.0, right_sum = 0.0;
-        for (const auto& [comp, eq] : faces) {
-          face_sum += eq.var[n];
-          const auto& y = state.mole_fraction.at(comp).var;
-          left_sum += y[n];
-          right_sum += y[n + 1];
-        }
-        if (!(face_sum > 0.0)) continue;
-        const double target = UpwindFace(u[n], [&] { return left_sum; }, [&] { return right_sum; });
-        const double scale = target / face_sum;
-        for (auto& [comp, eq] : faces) { (void)comp; eq.var[n] *= scale; }
-      }
     }
   }
 
@@ -1035,25 +985,31 @@ namespace adsim {
     auto& yi_face = state.mole_fraction_face.at(component).var;
     const auto& yi = state.mole_fraction.at(component).var;
     const auto& u = state.velocity.var;
-    const auto& dv = state.domain_vectors;
 
-    // Same stencil and boundary treatment as UpdateMoleFractionFaceWENO: the
-    // bed-end faces and the faces of void cells take the upwind value.
-    const int N = static_cast<int>(yi_face.size());
-    for (int n = 0; n < N; ++n) {
+    const double eps = 1e-12;
+
+    int N = yi_face.size();
+    for (int n = 0; n < N; ++n) { 
       auto left_biased = [&]() {
-        if (IsLumpedCell(dv, n, N) || IsLumpedCell(dv, n + 1, N)) return yi[n];
-        return VanLeerFace(yi[n - 1], yi[n], yi[n + 1], IsLumpedCell(dv, n - 1, N));
+        if (n == 0) return yi[0];  // boundary face: the ghost holds the boundary value
+        double r = (yi[n] - yi[n - 1] + eps) / (yi[n + 1] - yi[n] + eps);
+        double phi = (r + std::abs(r)) / (1 + std::abs(r));
+        return yi[n] + 0.5 * phi * (yi[n + 1] - yi[n]);
       };
       auto right_biased = [&]() {
-        if (IsLumpedCell(dv, n + 1, N) || IsLumpedCell(dv, n, N)) return yi[n + 1];
-        return VanLeerFace(yi[n + 2], yi[n + 1], yi[n], IsLumpedCell(dv, n + 2, N));
+        if (n == N - 1) return yi[N];  // boundary face: the ghost holds the boundary value
+        double r = (yi[n + 1] - yi[n + 2] + eps) / (yi[n] - yi[n + 1] + eps);
+        double phi = (r + std::abs(r)) / (1 + std::abs(r));
+        return yi[n + 1] + 0.5 * phi * (yi[n] - yi[n + 1]);
       };
       yi_face[n] = UpwindFace(u[n], left_biased, right_biased);
     }
 
-    // The limited face value lies between its two cells, so this clamp only
-    // acts when a cell itself is marginally outside [0, 1].
+    // Clamp the reconstructed FACE value into the physical range [0,1]. The van
+    // Leer limiter is TVD in principle, but at a very steep front a face value
+    // can still land marginally outside [0,1]; clamping the face value (used in
+    // the convective flux) prevents a negative or >1 composition from entering
+    // the flux, without touching the conserved cell-centred yi.
     for (int n = 0; n < N; ++n) {
       yi_face[n] = std::clamp(yi_face[n], 0.0, 1.0);
     }
@@ -1063,9 +1019,6 @@ namespace adsim {
   // solver settings. Upwind is the default; WENO and van Leer are higher-order
   // interior reconstructions. All three write the same face variable, so the
   // choice is a drop-in swap that leaves the conserved cell state untouched.
-  // The high-order interior faces are rescaled to the upwind cell's sum of
-  // mole fractions once the last component's are computed (see
-  // RescaleInteriorMoleFractionFaces).
   void UpdateMoleFractionFace(UserData* udata, Component component) {
     switch (udata->settings.advection_scheme_) {
       case AdvectionScheme::WENO:
@@ -1077,11 +1030,8 @@ namespace adsim {
       case AdvectionScheme::Upwind:
       default:
         UpdateMoleFractionFaceUpwind(udata, component);
-        return;
+        break;
     }
-    const auto& components = udata->fluid.components_;
-    if (!components.empty() && component == components.back())
-      RescaleInteriorMoleFractionFaces(udata);
   }
 
   void UpdateMassTransferCoefficient(UserData* udata, AdsorbentID ads_id, Component component){

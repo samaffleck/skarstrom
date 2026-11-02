@@ -77,7 +77,9 @@ bool AddAdsorbentFromJson(UserData& data, const std::string& label, const std::s
                           AdsorbentID& id, std::string& err);
 
 // Add an entry of the curated adsorbent library (data/adsorbents/library.json
-// in `library_dir`) by its key. Uses the entry's label as the adsorbent name.
+// in `library_dir`) by its key, or a material's recommended entry by the
+// material id (e.g. "zeolite-13x") or the alias of a removed entry. The
+// adsorbent takes the name stored in the entry's file.
 bool AddLibraryAdsorbent(UserData& data, const std::string& library_dir, const std::string& key,
                          AdsorbentID& id, std::string& err);
 

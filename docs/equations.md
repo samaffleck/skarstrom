@@ -7,7 +7,7 @@ Skarstrom is a one-dimensional adsorption process simulator that uses a finite v
 The simulation is based on five conservation equations:
 
 1. [Overall Mass Balance](mass-balance.md) - Ensures mass conservation throughout the packed bed
-2. [Momentum Balance](momentum-balance.md) - Describes fluid flow with the Ergun equation or Darcy's law (Kozeny–Carman)
+2. [Momentum Balance](momentum-balance.md) - Describes fluid flow with the Ergun equation or Darcy's law (Kozeny–Carman or Blake–Kozeny permeability)
 3. [Component Mass Balance](mass-balance.md) - Accounts for axial dispersion, convection, and adsorption
 4. [Energy Balance](energy-balance.md) - Thermal balance between gas and adsorbent phases
 5. [Wall Energy Balance](wall-energy-balance.md) - Heat transfer between wall and surroundings

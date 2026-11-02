@@ -277,9 +277,9 @@ namespace adsim {
                             "to validate the solver performance. This test demonstrates the ability to model competitive adsorption in binary systems "
                             "at high pressure conditions.";
     data.info.author = "Sam Affleck";
-    // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.229047, y_CH4 0.211947, T RMSE 15.7688 K, front time CO2 0.0694006, CH4 0.00268535).
+    // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.201765, y_CH4 0.49749, T RMSE 13.9904 K, front time CO2 0.0574662, CH4 0.0309611; before: y_CH4 0.211947, CH4 front 0.00268535).
     StrebCase c{ "A3", 10e5, 298, 20e-6, false, 4100.0,
-                 0.27, 0.25, kNotUsed, 19, 0.08, 0.013 };
+                 0.27, 0.58, kNotUsed, 19, 0.08, 0.036 };
     SetUpStreb(c);
     RunAndValidate(c, true);
   }
@@ -308,9 +308,9 @@ namespace adsim {
   // for which digitised data exist. Durations cover the digitised record.
   TEST_F(Streb2021Test, ExperimentA2) {
     data.info.title = "Streb 2021 - Experiment A2";
-    // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.301897, y_CH4 0.829396, T RMSE 14.0688 K, front time CO2 0.0400125, CH4 0.0763443).
+    // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.33839, y_CH4 0.83685, T RMSE 18.6337 K, front time CO2 0.0504398, CH4 0.104931; before: T RMSE 14.0688 K, CH4 front 0.0763443).
     StrebCase c{ "A2", 10e5, 298, 10e-6, false, 1500.0,
-                 0.35, 0.96, kNotUsed, 17, 0.051, 0.088 };
+                 0.35, 0.96, kNotUsed, 22, 0.058, 0.13 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
@@ -326,36 +326,36 @@ namespace adsim {
 
   TEST_F(Streb2021Test, ExperimentA5) {
     data.info.title = "Streb 2021 - Experiment A5";
-    // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.131341, y_CH4 0.653662, T RMSE 17.4737 K, front time CO2 0.0422112, CH4 0.121104).
+    // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.154613, y_CH4 0.657717, T RMSE 18.2889 K, front time CO2 0.0515382, CH4 0.141526; before: CH4 front 0.121104).
     StrebCase c{ "A5", 25e5, 298, 20e-6, false, 750.0,
-                 0.16, 0.76, kNotUsed, 21, 0.053, 0.14 };
+                 0.16, 0.76, kNotUsed, 21, 0.053, 0.17 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentA6) {
     data.info.title = "Streb 2021 - Experiment A6";
-    // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.0477283, y_CH4 0.738786, T RMSE 11.2291 K, front time CO2 0.00465399, CH4 0.08679).
+    // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.101707, y_CH4 0.743853, T RMSE 12.6494 K, front time CO2 0.0148029, CH4 0.116675; before: y_CO2 0.0477283, CH4 front 0.08679).
     StrebCase c{ "A6", 10e5, 318.15, 20e-6, false, 1050.0,
-                 0.058, 0.85, kNotUsed, 13, 0.015, 0.1 };
+                 0.12, 0.85, kNotUsed, 13, 0.018, 0.14 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentA7) {
     data.info.title = "Streb 2021 - Experiment A7";
-    // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.117396, y_CH4 0.623244, T RMSE 11.5975 K, front time CO2 0.0292221, CH4 0.0726965).
+    // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.0794838, y_CH4 0.692014, T RMSE 11.1461 K, front time CO2 0.0195941, CH4 0.102098; before: CH4 front 0.0726965).
     StrebCase c{ "A7", 10e5, 338.15, 20e-6, false, 1100.0,
-                 0.14, 0.72, kNotUsed, 14, 0.04, 0.084 };
+                 0.14, 0.72, kNotUsed, 14, 0.04, 0.12 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentB1) {
     data.info.title = "Streb 2021 - Experiment B1";
-    // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.388174, y_CH4 0.128736, y_H2 0.361326, T RMSE 16.6016 K, front time CO2 0.0700834, CH4 0.00657385).
+    // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.38662, y_CH4 0.129532, y_H2 0.35401, T RMSE 16.5201 K, front time CO2 0.0695421, CH4 0.0207352; before: CH4 front 0.00657385).
     StrebCase c{ "B1", 1e5, 298, 20e-6, true, 10400.0,
-                 0.45, 0.15, 0.42, 20, 0.081, 0.017 };
+                 0.45, 0.15, 0.42, 20, 0.081, 0.024 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }

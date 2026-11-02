@@ -123,9 +123,9 @@ bool AddLibraryAdsorbent(UserData& data, const std::string& library_dir, const s
   namespace fs = std::filesystem;
   try {
     const AdsorbentLibrary lib = LoadAdsorbentLibraryFile((fs::path(library_dir) / "library.json").string());
-    const AdsorbentLibraryEntry* e = lib.Find(key);
+    const AdsorbentLibraryEntry* e = lib.Resolve(key);
     if (!e) {
-      err = "no adsorbent '" + key + "' in the library";
+      err = "no adsorbent or material '" + key + "' in the library";
       return false;
     }
     std::ifstream in(fs::path(library_dir) / e->file, std::ios::binary);

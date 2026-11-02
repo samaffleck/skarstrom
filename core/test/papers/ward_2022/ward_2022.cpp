@@ -31,13 +31,19 @@ namespace adsim {
   namespace {
     // Validation tolerances = measured error rounded up (decks with the paper's
     // model forms, WP10 audit 2026-10-31; before it: NRMSE 0.34-0.38, T RMSE
-    // 2.6-4.2 K, front time 4-6 % early).
-    // Q50ccm: measured NRMSE 0.1837, T RMSE 1.186 K, front-time error 0.0193
-    constexpr double kTolY_50 = 0.21, kTolT_50 = 1.4, kTolT50_50 = 0.025;
-    // Q100ccm: measured NRMSE 0.1287, T RMSE 2.058 K, front-time error 0.0165
-    constexpr double kTolY_100 = 0.15, kTolT_100 = 2.4, kTolT50_100 = 0.022;
-    // Q200ccm: measured NRMSE 0.0289, T RMSE 4.007 K, front-time error 0.0010
-    constexpr double kTolY_200 = 0.035, kTolT_200 = 4.6, kTolT50_200 = 0.006;
+    // 2.6-4.2 K, front time 4-6 % early). Re-measured after the Danckwerts
+    // inlet fix (2026-11): the inlet face no longer lets dispersion carry
+    // unlogged CO2 into the bed (2 % of the fed CO2 at 50 ccm), so the front
+    // arrives 2-4 % later than the experiment instead of 0-2 %; see README.md.
+    // Q50ccm: measured NRMSE 0.3324, T RMSE 1.181 K, front-time error 0.0421
+    //   (before the fix: 0.1837, 1.186 K, 0.0193)
+    constexpr double kTolY_50 = 0.39, kTolT_50 = 1.4, kTolT50_50 = 0.049;
+    // Q100ccm: measured NRMSE 0.2440, T RMSE 1.178 K, front-time error 0.0331
+    //   (before the fix: 0.1287, 2.058 K, 0.0165)
+    constexpr double kTolY_100 = 0.29, kTolT_100 = 2.4, kTolT50_100 = 0.039;
+    // Q200ccm: measured NRMSE 0.1203, T RMSE 2.758 K, front-time error 0.0148
+    //   (before the fix: 0.0289, 4.007 K, 0.0010)
+    constexpr double kTolY_200 = 0.14, kTolT_200 = 4.6, kTolT50_200 = 0.018;
 
     // The paper's model forms (WP10 audit, see README.md "Provenance"): its
     // dispersion coefficient is Eq. 4, D_L = 0.7 D_m + v_F r_p with the

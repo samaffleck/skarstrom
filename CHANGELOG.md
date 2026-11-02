@@ -8,70 +8,89 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed — component mass balance with axial dispersion (Danckwerts inlets)
+- **Inlet faces are Danckwerts.** With non-zero axial dispersion the component
+  balance did not close at cyclic steady state: the species residual let a
+  dispersive flux eb·D·C·(y₁ − y_in)/Δz cross the inlet face on top of the
+  convective u·C·y_in, because the inlet ghost cell holds the feed composition.
+  Totals still balanced (the dispersive fluxes sum to zero over components) but
+  each component did not, by an amount proportional to D and nearly independent
+  of the grid, and the stream logs, KPIs and the CSS mass-balance check never
+  saw the extra species (reported: CO₂ out/in 1.0035 at D = 3.1e-4 m²/s and
+  1.032 at 3e-3 m²/s). No dispersive flux now crosses the two boundary faces of
+  the bed (`UpdateMoleFraction`), so an inlet face carries exactly u·C·y_in and
+  the first cell may differ from the feed; at outlets and closed ends the ghost
+  mirrors the first cell, so nothing changes there. The energy balance had the
+  same defect: conduction across the inlet face, and an upwind value at the
+  inlet face equal to the mirrored ghost temperature 2·T_in − T₁ rather than
+  T_in. Both are fixed (`UpdateTemperature`, `UpdateFluidTemperature`). The WENO
+  and van Leer reconstructions take the ghost value at the boundary faces
+  (they averaged ghost and first cell, which at an inlet is not the feed).
+  `GetTotalComponentMolesIn` (CSS mass-balance check, mass-balance panels)
+  reconstructs the boundary flux without the dispersive term, matching the
+  residual.
+- **Flow boundaries on Darcy layers (Kozeny–Carman, Blake–Kozeny) deliver exactly the stream flow.**
+  `FlowBoundaryCondition::Apply` computed the boundary-face flow of a Darcy
+  layer with the ghost cell's mobility alone, K/(μ_ghost·Δz), while the face
+  velocity that carries the gas into the bed obeys the face's Darcy law with
+  the two half-cells in series. Whenever the ghost and first-cell viscosities
+  differ (feed composition vs the bed gas, or the mirrored ghost temperature)
+  the bed took in a different flow from the one the stream logs record (≈1 %
+  in the new test; several per cent in the Streb 2021 decks, whose beds start
+  in helium). The condition now matches the stream flow against the face's own
+  velocity unknown, as Ergun faces (and the momentum-balance docs) already did.
+- New regression tests `DispersionMassBalance.*`
+  (`core/test/validation/test_dispersion_mass_balance.cpp`): a dispersive
+  (D = 3e-3 m²/s) single-bed cycle with a flow-condition inlet at the bottom and
+  a pressure-condition inlet at the top. Per step and component, the moles the
+  stream logs record entering the bed equal the bed's inventory change (before
+  the fix: errors of 0.4–50 %), and at cyclic steady state out/in of every
+  component is 1 within 5e-4, the log quadrature error (before: O₂ 1.053, N₂ 0.983).
+- Verification tests adjusted: `OpenSystemEnergyBalanceConvergesUnderGridRefinement`
+  asserted first-order convergence of an energy closure error that came from the
+  inlet ghost upwinding; the error is now 1.5e-3 → 6.6e-5 over the four grids
+  (at least first order is asserted, and < 2e-4 on the finest grid instead of
+  < 5e-3). `EndOfCycleProfileConverges` allows an absolute 2e-4 mol/m³ wobble at
+  the ~1e-3 mol/m³ floor the gaps level off at.
+- **Validation numbers that moved** (example decks re-saved; tolerances
+  re-measured where they no longer held, each documented in the paper's
+  README):
+  - Ward 2022 (species fix; the bed had taken in ~2 % more CO₂ than fed): CO₂
+    front time vs experiment +1.9/+1.7/+0.1 % → +4.2/+3.3/+1.5 % at 50/100/200
+    cm³/min, outlet-curve NRMSE 0.18/0.13/0.029 → 0.33/0.24/0.12; thermocouple
+    RMSE 1.19/2.06/4.01 → 1.18/1.18/2.76 K.
+  - Streb 2021 (flow-face fix): CH₄ fronts ~3 % earlier; CH₄ front-time error
+    A2 7.6 → 10.5 %, A3 0.3 → 3.1 %, A5 12.1 → 14.2 %, A6 8.7 → 11.7 %,
+    A7 7.3 → 10.2 %, B1 0.7 → 2.1 %; A3 y_CH₄ NRMSE 0.21 → 0.50; A6 y_CO₂ NRMSE
+    0.048 → 0.10; A2 thermocouple RMSE 14.1 → 18.6 K.
+  - Nguyen 2023: CO₂ recovery of IX and X no longer exceeds 100 %
+    (100.35/100.78 → 98.27/97.64 %); purity X 80.84 → 79.67 %, IX 84.69 →
+    84.28 %; VIII productivity 0.1566 → 0.1545 (−1.4 %).
+  - Within their bounds: Perez 2019 A–F recovery down by up to 1.1 pp
+    (purity ≤ 0.2 pp); Arora 2021 O₂ recovery at cycle 50 4.24 → 4.53 % (PSA)
+    and 19.88 → 20.74 % (PVSA); Ferré 2026 CH₄ recovery up by up to 0.75 pp;
+    Casas 2012 H₂ breakthrough times ≤ 1.2 % earlier; Nguyen 2022 outlet-curve
+    NRMSE improves (Fig. 4 50 %: 0.061 → 0.042); Vysyaraju 2024 He recovery
+    17.32 → 17.54 %; Ward & Pini 2024 ≤ 0.2 %. `docs/validation.md` and
+    `validation_summary.json` are regenerated.
+
 ### Changed
-- **Cyclic steady state: the mass-balance methods no longer stop by accident.**
-  On the way to CSS the per-cycle balance error swings through zero (a bed
-  alternately gaining and losing a component), so the old single-cycle test
-  with its 0.5 % band passed early: on the Yancy-Caballero (2020) 13X cycle at
-  10 cells it stopped at the fifth cycle with purity and recovery 4–13 × 10⁻³
-  from their converged values, and on `Perez2019_A`…`_F` 26 to 166 cycles
-  early (KPIs up to 1.8 × 10⁻³ off). *Mass Balance (Total)* and *Mass Balance
-  (Per-Component)* now also require the **end-of-cycle bed state** to have
-  stopped changing: the largest relative RMS change since the previous cycle
-  of the component loadings (scaled by the total loading), the mole fractions
-  and the fluid, solid and wall temperatures
-  (`CyclicSteadyState::EndOfCycleStateChange`) must be within the new
-  **`css.state_tolerance`** (default 2 × 10⁻⁵; 0 switches it off). Every
-  method's test must now hold on **`css.consecutive_cycles`** cycles in a row
-  (default 3) before CSS is declared. The balance tolerance is unchanged: a
-  tighter one cannot be relied on, because the balance carries a small
-  systematic error of its own (up to 1 × 10⁻⁴ at CSS on `Perez2019_E`).
-  With the defaults the Yancy cycle stops at cycles 59 and 100 (C1, C2,
-  0-based) instead of 4, within 1.4 × 10⁻⁵ of the 150-cycle KPIs, and the
-  example decks within 4.7 × 10⁻⁵ of their converged KPIs (`Perez2019_F`, which
-  closes only ~1.5 % of its gap per cycle, 1.3 × 10⁻⁴); the stopping cycles
-  and errors of 14 decks are tabulated in `docs/cyclic-steady-state.md`.
-  `CyclicSteadyState` is class version 2: decks saved before it load with the
-  defaults, so **existing decks that use a mass-balance method run longer and
-  report converged (different) purity and recovery**, and Molar Profile decks
-  stop at least two cycles later. `css.state_tolerance = 0` with
-  `css.consecutive_cycles = 1` restores the old test. The solver's logs keep at
-  least the cycles the check reads (one more than `consecutive_cycles`), even
-  when `settings.max_cycles_to_keep` is smaller. `CSSResult`, `CSSRecord` and
-  Python's `sim.css_history()` gain `state_change`, `state_tolerance`,
-  `passing_cycles` and `required_cycles`; the solver log at level *medium*
-  prints them after every cycle. Every paper case that runs to CSS moved
-  (`docs/validation.md`): Perez 2019 A–F by up to 0.17 pp (A's recovery
-  against the experiment crossed its bound, 0.294 → 0.417 pp; the bound is now
-  0.5, see the Perez README), Nguyen 2023 I–X by up to 0.22 pp, Ferre 2026 by
-  up to 0.32 pp, Ward & Pini 2024 by 0.04 pp and Vysyaraju 2024's He recovery
-  by 0.64 pp (17.32 → 16.69 %); all within their bounds. Every bundled deck is
-  re-saved with the two new fields, and the CSS decks with their new results.
+- **Adsorbent library: one recommended entry per material** (catalogue schema 3).
+  `library.json` groups its entries into 22 `materials` (id, name, family,
+  `recommended` entry and why, `aliases`). A material's other entries are
+  *variants*, each naming the product, form or data range that sets it apart;
+  labels are the material name plus the variant ("Zeolite 13X (Zeochem Z10-02,
+  CO2/N2 to 1 bar)") instead of "Material (Author year)". Each isotherm records
+  its `data_quality` (measured with tabulated data, measured fit only, refit of
+  other authors' data, copied from an earlier paper, not yet checked). The
+  validator, the native library tests and the generated docs page (now grouped
+  by material) enforce it. `family` moved from the entry to its material.
+- `AddLibraryAdsorbent`, `Simulation.add_library_adsorbent` and
+  `skarstrom.adsorbent_path` accept a material id (e.g. `"zeolite-13x"`) and add
+  or return that material's recommended entry; `AdsorbentLibrary` gains
+  `materials`, `FindMaterial`, `Resolve` and `Variants`. Entry keys are unchanged.
 
 ### Fixed
-- **WENO and van Leer advection** (`advection_scheme = weno | van_leer`) are fixed; Upwind (the
-  default, and every bundled deck) is unchanged. Compared line by line with the WENO of
-  Haghpanah et al. (2013) / Yancy-Caballero et al. (2020) (PEESEgroup/PSA `CycleSteps/WENO.m`):
-  (1) WENO's upwind-side candidate was the face value one face upstream, `(y[n-1] + y[n])/2`,
-  instead of the extrapolation `3/2 y[n] - 1/2 y[n-1]`, which made the scheme first order;
-  (2) both schemes gave the bed-end faces the average of the ghost and the first cell, but the
-  ghost holds the inlet composition itself, so the bed received `(y_feed + y_1)/2` while the
-  stream logs, KPIs and cycle mass balance counted `y_feed` (CO2 balance 0.94-0.98 on the
-  Yancy-Caballero 13X cycle at 10 cells with dispersion off, where upwind closes to 1.0000);
-  (3) built component by component, the limited faces did not sum to the cell sum, and
-  linearised about a steep front they weight the downwind cell, so a departure of the cell sum
-  of mole fractions from one grew without bound (van Leer reached a sum of 90 in a CO2/N2
-  breakthrough). Now the bed-end faces take the upwind value; the first interior face next to
-  an inlet extrapolates from the inlet value half a cell away (`2 y_1 - y_0`, as the reference;
-  van Leer doubles that slope likewise); void cells are treated as well mixed; WENO uses the
-  cell widths on non-uniform grids; and the interior faces are rescaled so their mole fractions
-  sum to the upwind cell's sum, which couples the mole fractions two cells apart, so the
-  Jacobian half-bandwidth for these schemes grows from `2 neq` to `2 neq + components - 1`.
-  On the Yancy-Caballero 13X cycle at 10 cells, WENO now gives a CO2 recovery of 90.0 % for
-  the minimum-energy case (PSASimulator.jl WENO reference 89.7 %; was 77.5 %), and its CO2
-  balance with dispersion off closes to 1e-5 at every grid. Tests:
-  `AdvectionSchemeConservation.EachSpeciesIsConservedThroughTheBedEnds` and
-  `AdvectionSchemeConservation.CellMoleFractionsKeepSummingToOneAtASteepFront`.
 - `CreateBoundaryValue` and `CreateInletTemperatureProfile` know the double-exponential
   profile. The web document layer builds profiles through the first factory, so a deck
   with a double-exponential pressure boundary (the Perez 2019 decks) lost it to a null
@@ -79,6 +98,25 @@ root `CMakeLists.txt`.
   kind has a factory entry.
 
 ### Added
+- A **Blake–Kozeny** momentum model (`MomentumModel::BlakeKozeny` = 2, builder kind and
+  registry choice `blake_kozeny`, Python `layer.set_momentum("blake_kozeny")` /
+  `add_layer(..., momentum="blake_kozeny")`, display name "Darcy (Blake-Kozeny)"):
+  Darcy's law with K = ε³ d_p² / (150 (1 − ε)²), i.e. Ergun's viscous term without the
+  inertial one. It is the pressure-drop law of Haghpanah et al. (2013) and Estupiñan
+  Perez et al. (2019, SI Eq. S5). It takes the Darcy face path everywhere, like
+  Kozeny–Carman. The stored values 0 (Kozeny–Carman) and 1 (Ergun) are unchanged, so
+  existing decks load as before; a deck that uses the new value needs this engine.
+- An optional **constant molecular diffusivity** for the macropore LDF coefficients
+  (`macropore`, `macropore_capacity`, `macropore_knudsen`): registry leaf
+  `adsorbent[...].kinetics[<component>].molecular_diffusion_coefficient` [m2/s], Python
+  `set_rate_model(..., molecular_diffusion_coefficient=1.6e-5)` / `kinetics[c].molecular_diffusion_coefficient`.
+  Above 0 it replaces the binary-diffusion D_m computed from T and P (which scales as
+  1/P, so at 3-10 kPa evacuation pressures the coefficient was 10-33 times the value
+  of the papers that use a constant D_m, e.g. Haghpanah et al. 2013 and Estupiñan Perez
+  et al. 2019, Table 1). The default 0 keeps the previous behaviour bit for bit. Class
+  versions bumped (macropore and macropore + Knudsen to 3, capacity factor to 2); older
+  decks load with 0. Haynes is unchanged: its film term uses D_m with the Sherwood
+  correlation, so a constant there is not a drop-in.
 - **Ideal Adsorbed Solution Theory (IAST)** as a per-adsorbent **mixing rule**
   (`AdsorptionSource::mixing_rule_`, `MixingRule::None|IAST`; registry
   `adsorbent[<id>].mixing_rule` with choices `none`, `iast`; builder
