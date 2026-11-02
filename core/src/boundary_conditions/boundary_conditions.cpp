@@ -524,7 +524,7 @@ namespace adsim {
     bool face_imposed = false;
     const double beta_i = state.domain_vectors.inertial_coefficient[i];
     if (beta_i == 0.0) {
-      // Darcy (Kozeny-Carman) layer: legacy closed form, unchanged.
+      // Darcy layer (Kozeny-Carman or Blake-Kozeny): legacy closed form, unchanged.
       molar_flow_face = (Cf * K[i] * A[i] / (vis[i] * dx[i])) * d * (P[i] - P[i + d]);
     } else {
       // Ergun layer: the flow through the boundary face is carried by the

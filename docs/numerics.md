@@ -34,7 +34,7 @@ with $P$ and $T$ at a face taken as the mean of the two cells. This staggering a
 
 ### Momentum: Darcy and Ergun as face residuals
 
-For a face between cells $n$ and $n+1$ the two half-cells act in series, each with its own viscous resistance $\mu\thinspace \Delta z/2K$ and, for Ergun, inertial resistance $\beta\rho\thinspace \Delta z/2$. Darcy (Kozeny–Carman) faces use the explicit residual $u - \Delta P / A = 0$. **Ergun faces are solved implicitly**: instead of imposing the root of the quadratic $\Delta P = A u + B\lvert u\rvert u$, which behaves like a square root near zero flow, each face carries the residual
+For a face between cells $n$ and $n+1$ the two half-cells act in series, each with its own viscous resistance $\mu\thinspace \Delta z/2K$ and, for Ergun, inertial resistance $\beta\rho\thinspace \Delta z/2$. Darcy faces (Kozeny–Carman or Blake–Kozeny, no inertial term) use the explicit residual $u - \Delta P / A = 0$. **Ergun faces are solved implicitly**: instead of imposing the root of the quadratic $\Delta P = A u + B\lvert u\rvert u$, which behaves like a square root near zero flow, each face carries the residual
 
 $$
 r_u = u - \frac{\Delta P - B\thinspace \lvert u\rvert\thinspace u}{A} = 0

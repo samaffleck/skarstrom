@@ -199,8 +199,9 @@ namespace adsim {
         continue;
       }
 
-      // Darcy (Kozeny-Carman) faces: the legacy closed forms, verbatim, so
-      // Kozeny-Carman decks reproduce their previous results bit for bit.
+      // Darcy faces (Kozeny-Carman or Blake-Kozeny, no inertial term): the
+      // legacy closed forms, verbatim, so Kozeny-Carman decks reproduce their
+      // previous results bit for bit.
       const bool void_left  = (i     < (int)is_void.size()) && is_void[i];
       const bool void_right = (i + 1 < (int)is_void.size()) && is_void[i + 1];
 
