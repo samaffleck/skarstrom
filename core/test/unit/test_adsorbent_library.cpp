@@ -84,7 +84,7 @@ namespace {
 
 TEST(AdsorbentLibraryTest, CatalogParsesWithUniqueKeysAndFiles) {
   const auto& lib = Cat().lib;
-  EXPECT_EQ(lib.schema_version, 2);
+  EXPECT_EQ(lib.schema_version, 3);
   ASSERT_GE(lib.entries.size(), 20u);
   std::set<std::string> keys, files;
   for (const auto& e : lib.entries) {
@@ -98,14 +98,81 @@ TEST(AdsorbentLibraryTest, CatalogParsesWithUniqueKeysAndFiles) {
     EXPECT_FALSE(e.family.empty()) << e.key;
     EXPECT_FALSE(e.applications.empty()) << e.key;
   }
-  // Keys the web build has always exposed stay available.
+  // Keys the web build has always exposed stay available (as an entry, or as
+  // the alias of a removed entry that resolves to its material).
   for (const char* k : {"activated_carbon", "mg_mof_74"})
-    EXPECT_NE(lib.Find(k), nullptr) << k;
+    EXPECT_NE(lib.Resolve(k), nullptr) << k;
   // No orphan blobs: every adsorbent file in the folder is catalogued.
   for (const auto& f : std::filesystem::directory_iterator(kLibDir)) {
     const auto name = f.path().filename().string();
     if (f.path().extension() != ".json" || name == "library.json") continue;
     EXPECT_TRUE(files.count(name)) << "orphan adsorbent file " << name;
+  }
+}
+
+// One recommended entry per material; a material's other entries are named
+// variants; material ids, entry keys and aliases resolve without ambiguity.
+TEST(AdsorbentLibraryTest, EveryMaterialHasOneRecommendedEntryAndNamedVariants) {
+  const auto& lib = Cat().lib;
+  ASSERT_FALSE(lib.materials.empty());
+  const std::regex id_re(R"(^[a-z0-9]+(-[a-z0-9]+)*$)");
+  std::set<std::string> ids, names;
+  for (const auto& m : lib.materials) {
+    EXPECT_TRUE(std::regex_match(m.id, id_re)) << m.id;
+    EXPECT_TRUE(ids.insert(m.id).second) << "duplicate material " << m.id;
+    EXPECT_TRUE(names.insert(m.name).second) << "duplicate material name " << m.name;
+    EXPECT_EQ(lib.Find(m.id), nullptr) << m.id << " collides with an entry key";
+    EXPECT_FALSE(m.recommended_reason.empty()) << m.id;
+    const auto variants = lib.Variants(m.id);
+    ASSERT_FALSE(variants.empty()) << m.id << " has no entries";
+    int n_recommended = 0;
+    std::set<std::string> variant_names;
+    for (const AdsorbentLibraryEntry* e : variants) {
+      n_recommended += e->recommended ? 1 : 0;
+      EXPECT_EQ(e->family, m.family) << e->key;
+      if (variants.size() == 1) {
+        EXPECT_TRUE(e->variant.empty()) << e->key << ": the only entry of " << m.id << " has a variant";
+        EXPECT_EQ(e->label, m.name) << e->key;
+      } else {
+        EXPECT_FALSE(e->variant.empty()) << e->key << ": " << m.id << " has several entries, so each needs a variant";
+        EXPECT_TRUE(variant_names.insert(e->variant).second) << e->key << ": duplicate variant";
+        EXPECT_EQ(e->label, m.name + " (" + e->variant + ")") << e->key;
+      }
+    }
+    EXPECT_EQ(n_recommended, 1) << m.id;
+    ASSERT_NE(variants.front(), nullptr);
+    EXPECT_TRUE(variants.front()->recommended) << m.id << ": Variants() lists the recommended entry first";
+    EXPECT_EQ(lib.Resolve(m.id), variants.front()) << m.id;
+    for (const auto& a : m.aliases) {
+      EXPECT_EQ(lib.Find(a), nullptr) << "alias " << a << " is still an entry key";
+      EXPECT_EQ(lib.Resolve(a), variants.front()) << "alias " << a;
+    }
+  }
+  for (const auto& e : lib.entries) {
+    EXPECT_NE(lib.FindMaterial(e.material_id), nullptr) << e.key << ": unknown material " << e.material_id;
+    EXPECT_EQ(lib.Resolve(e.key), &e) << e.key;
+  }
+  EXPECT_EQ(lib.Resolve("no-such-material"), nullptr);
+}
+
+// Each isotherm records the quality of its data; measured_tabulated goes with
+// the tabulated source data stored in the entry.
+TEST(AdsorbentLibraryTest, EveryIsothermRecordsItsDataQuality) {
+  const std::set<std::string> levels{"measured_tabulated", "measured_fit", "refit", "secondary", "not_checked", "unknown"};
+  for (const auto& e : Cat().lib.entries) {
+    const auto& raw = Cat().RawEntry(e.key);
+    ASSERT_TRUE(raw.HasMember("isotherms")) << e.key;
+    for (const auto& iso : raw["isotherms"].GetArray()) {
+      const std::string comp = iso["component"].GetString();
+      ASSERT_TRUE(iso.HasMember("data_quality") && iso["data_quality"].IsString()) << e.key << " " << comp;
+      const std::string dq = iso["data_quality"].GetString();
+      EXPECT_TRUE(levels.count(dq)) << e.key << " " << comp << ": " << dq;
+      EXPECT_EQ(dq == "unknown", e.IsLegacy()) << e.key << " " << comp;
+      if (dq == "not_checked") EXPECT_TRUE(iso.HasMember("data_quality_note")) << e.key << " " << comp;
+      const bool measured_points = iso.HasMember("source_points") &&
+                                   std::string(iso["source_points"]["kind"].GetString()) == "measured";
+      EXPECT_EQ(dq == "measured_tabulated", measured_points) << e.key << " " << comp;
+    }
   }
 }
 

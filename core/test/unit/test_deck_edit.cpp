@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 
 #include "adsim/objects/deck_builder.h"
+#include "adsim/objects/adsorbent_library.h"
 #include "adsim/objects/deck_edit.h"
 #include "adsim/objects/deck_io.h"
 #include "adsim/objects/user_data.h"
@@ -101,6 +102,18 @@ TEST(DeckEdit, LibraryAdsorbentAddAndRemove) {
   EXPECT_FALSE(AddLibraryAdsorbent(data, kLibDir.string(), "no_such_key", id, err));
   ASSERT_TRUE(AddLibraryAdsorbent(data, kLibDir.string(), "zeolite_13x_perez2019", id, err)) << err;
   EXPECT_EQ(data.adsorbent_directory.GetAll().size(), before + 1);
+  // A material id adds that material's recommended entry.
+  AdsorbentID by_material{};
+  ASSERT_TRUE(AddLibraryAdsorbent(data, kLibDir.string(), "zeolite-13x", by_material, err)) << err;
+  const AdsorbentLibrary lib = LoadAdsorbentLibraryFile((kLibDir / "library.json").string());
+  const AdsorbentLibraryEntry* rec = lib.Resolve("zeolite-13x");
+  ASSERT_NE(rec, nullptr);
+  EXPECT_TRUE(rec->recommended);
+  Adsorbent rec_blob;
+  LoadAdsorbentFromJSON((kLibDir / rec->file).string(), rec_blob);
+  EXPECT_EQ(data.adsorbent_directory.Get(by_material).name_, rec_blob.name_);
+  RemoveAdsorbentFromDeck(data, by_material);
+  EXPECT_FALSE(AddLibraryAdsorbent(data, kLibDir.string(), "no-such-material", by_material, err));
   // Every deck component has physics on the new adsorbent.
   auto& ads = data.adsorbent_directory.Get(id);
   for (const auto& c : data.fluid.components_)
