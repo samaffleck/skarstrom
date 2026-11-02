@@ -42,7 +42,14 @@ namespace adsim {
 
     // On failure, say which cycles are logged and what each one's KPIs are.
     std::string diag = "css_cycle " + std::to_string(run.css_cycle) + ", last logged " +
-                       std::to_string(sim.LastCycle()) + "; logged cycles:";
+                       std::to_string(sim.LastCycle()) + "; KPI config:";
+    for (const auto& cfg : sim.Data().kpi_config.per_component)
+      diag += " [" + cfg.product_component + " tracked " + std::to_string(cfg.tracked) + " feed " +
+              std::to_string(cfg.feed_endpoints.size()) + " product " +
+              std::to_string(cfg.product_endpoints.size()) + "]";
+    diag += "; log molar masses:";
+    for (const auto& [name, m] : sim.Log().sys_data.molar_mass) diag += " " + name + "=" + std::to_string(m);
+    diag += "; logged cycles:";
     for (int c : sim.Cycles()) {
       const KPIRecord* k = CarbonDioxide(sim.KPIs(c));
       diag += " " + std::to_string(c);
