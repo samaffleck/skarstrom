@@ -20,6 +20,8 @@ namespace adsim {
     constexpr double kConvergedPurity = 0.9948831;    // CO2, cycle 1000
     constexpr double kConvergedRecovery = 0.5911967;  // CO2, cycle 1000
 
+    // Returns a pointer into `kpis`: keep the vector alive while it is used
+    // (a temporary from sim.KPIs() is freed at the end of the statement).
     const KPIRecord* CarbonDioxide(const std::vector<KPIRecord>& kpis) {
       for (const auto& k : kpis)
         if (k.component == "CarbonDioxide") return &k;
@@ -51,13 +53,15 @@ namespace adsim {
     for (const auto& [name, m] : sim.Log().sys_data.molar_mass) diag += " " + name + "=" + std::to_string(m);
     diag += "; logged cycles:";
     for (int c : sim.Cycles()) {
-      const KPIRecord* k = CarbonDioxide(sim.KPIs(c));
+      const auto cycle_kpis = sim.KPIs(c);  // keep the vector alive: CarbonDioxide points into it
+      const KPIRecord* k = CarbonDioxide(cycle_kpis);
       diag += " " + std::to_string(c);
       if (k) diag += "(valid " + std::to_string(k->valid) + ", purity " + std::to_string(k->purity) +
                      ", recovery " + std::to_string(k->recovery) + ")";
     }
 
-    const KPIRecord* co2 = CarbonDioxide(sim.KPIs(-1));
+    const auto kpis = sim.KPIs(-1);  // keep the vector alive: CarbonDioxide points into it
+    const KPIRecord* co2 = CarbonDioxide(kpis);
     ASSERT_NE(co2, nullptr) << diag;
     EXPECT_NEAR(co2->purity, kConvergedPurity, 1e-4) << diag;
     EXPECT_NEAR(co2->recovery, kConvergedRecovery, 1e-4) << diag;
@@ -88,8 +92,10 @@ namespace adsim {
     ASSERT_TRUE(run.Ok()) << run.message;
     ASSERT_TRUE(run.css_reached);
     EXPECT_LT(run.css_cycle, 50);
-    const KPIRecord* co2 = CarbonDioxide(sim.KPIs(-1));
+    const auto kpis = sim.KPIs(-1);
+    const KPIRecord* co2 = CarbonDioxide(kpis);
     ASSERT_NE(co2, nullptr);
+    ASSERT_TRUE(co2->valid);
     EXPECT_GT(std::abs(co2->recovery - kConvergedRecovery), 5e-4);
     EXPECT_EQ(sim.Cycles().size(), 2u);  // the last cycle and one earlier
   }
