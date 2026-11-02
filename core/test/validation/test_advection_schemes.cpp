@@ -32,11 +32,16 @@
 //   1. Upwind converges at first order on the smooth solution.
 //   2. WENO reduces numerical diffusion vs upwind (more accurate at every grid).
 //   3. van Leer reduces numerical diffusion vs upwind (same).
+// and a conservation check:
+//   4. Every scheme conserves each species through the bed ends (the bed-end
+//      faces must carry the boundary composition) on a coarse adsorbing
+//      breakthrough fed from either end, and keeps the cell mole fractions
+//      summing to one at a steep front.
 //
 // NOTE on observed order: the breakthrough is measured at the OUTLET FACE, and
-// the face reconstruction at the domain boundary is first-order (WENO/van Leer
-// fall back to a simple average at the boundary face, and the outlet boundary
-// condition is upwinded). So the OUTLET-measured self-convergence order is capped
+// the face reconstruction at the domain boundary is first-order (the bed-end
+// faces take the upwind value in every scheme: the ghost holds a face value,
+// not a cell-centre value). So the OUTLET-measured self-convergence order is capped
 // at ~1 for every scheme, including WENO/van Leer -- the interior high-order
 // reconstruction cannot raise the order of a quantity read at a first-order
 // boundary. What the higher-order schemes do deliver is a smaller error CONSTANT
@@ -274,6 +279,141 @@ namespace adsim {
 
   TEST(AdvectionSchemeOrder, VanLeerIsLessDiffusiveThanUpwind) {
     CheckLessDiffusiveThanUpwind(AdvectionScheme::VanLeer, "van Leer");
+  }
+
+  // ===========================================================================
+  // 4. Each species is conserved through the bed ends, and the cell mole
+  //    fractions keep summing to one, whatever the scheme
+  // ===========================================================================
+
+  namespace {
+
+    struct SchemeConsistency {
+      double worst_balance_error = 0.0;  // max over components of |in - held| / fed
+      std::string worst_component;
+      double inlet_face_error = 0.0;     // |y_O2 at the inlet face - y_feed| (final state)
+      double face_sum_error = 0.0;       // max over faces of |sum_i y_i,face - 1| (final state)
+      double cell_sum_error = 0.0;       // max over snapshots and cells of |sum_i y_i - 1|
+    };
+
+    // A dispersion-free adsorbing breakthrough with the given scheme. The
+    // balance of each component compares the moles that crossed the two bed
+    // ends, as the engine's discrete boundary flux (GetTotalComponentMolesIn:
+    // the upwind bed-end face value times the face flow, the flux the CSS
+    // mass-balance check and the stream logs assume), with the change of the
+    // gas and adsorbed inventory.
+    // favourable: O2 on a strongly favourable Langmuir isotherm instead of the
+    // case's linear Henry one, so the front self-sharpens into a shock.
+    SchemeConsistency RunConsistency(AdvectionScheme scheme, bool feed_from_top, int n_cells,
+                                     double y_feed, double molar_flow, double run_time,
+                                     bool favourable = false) {
+      BreakthroughCase c;
+      c.n_cells = n_cells;
+      c.adsorbing = !favourable;
+      c.feed_from_top = feed_from_top;
+      c.y_feed = y_feed;
+      c.molar_flow = molar_flow;
+      c.run_time = run_time;
+      c.max_step = 1.0;
+      c.reltol = 1e-8;
+
+      UserData data;
+      Build(data, c);
+      data.settings.advection_scheme_ = scheme;
+      if (favourable) {
+        auto& adsorbent = data.adsorbent_directory.Get(data.bed.layers_.layers_.front().composition_.begin()->first);
+        auto isotherm = std::make_unique<LangmuirIsotherm>();
+        isotherm->params_["Oxygen"].m1 = 3.0;      // [mol/kg]
+        isotherm->params_["Oxygen"].b1 = 2.0e-7;   // [1/Pa]: b p ~ 10 at the feed partial pressure
+        isotherm->params_["Oxygen"].q1 = 20000.0;  // [J/mol]
+        adsorbent.adsorption_source_.AddIsotherm({"Oxygen"}, std::move(isotherm));
+        auto ldf = std::make_unique<LinearDrivingForce>();
+        auto mtc = std::make_unique<MassTransferCoefficientConstant>();
+        mtc->constant_mtc_ = 0.5;
+        ldf->mtc_model_ = std::move(mtc);
+        adsorbent.adsorption_source_.mass_transfer_models_["Oxygen"] = std::move(ldf);
+        adsorbent.adsorption_source_.heat_of_adsorption_["Oxygen"] = 0.0;
+      }
+
+      CoupledSolver solver{data};
+      std::string error;
+      EXPECT_TRUE(data.PerformChecks(error)) << error;
+      EXPECT_GE(solver.IntegrateCycle(data.cycle, false), 0)
+        << "Solver did not complete (scheme=" << static_cast<int>(scheme) << ")";
+
+      const auto& log = solver.GetLog();
+      SchemeConsistency out;
+      for (const std::string comp : {"Oxygen", "Nitrogen"}) {
+        const double in = GetTotalComponentMolesIn(log, 0, 0, BoundaryLocation::BOTTOM, comp)
+                        + GetTotalComponentMolesIn(log, 0, 0, BoundaryLocation::TOP, comp);
+        const double held = GasMoles(log, 0, 0, comp, true) - GasMoles(log, 0, 0, comp, false)
+                          + AdsorbedMoles(log, 0, 0, comp, true) - AdsorbedMoles(log, 0, 0, comp, false);
+        const double fed = c.molar_flow * c.run_time * ((comp == "Oxygen") ? c.y_feed : 1.0 - c.y_feed);
+        const double rel = std::abs(in - held) / fed;
+        if (rel > out.worst_balance_error) {
+          out.worst_balance_error = rel;
+          out.worst_component = comp;
+        }
+      }
+
+      const auto y_total = log.GetVariable(0, 0, VariableType::TOTAL_MOLE_FRACTION);
+      for (const auto& snapshot : y_total.values)
+        for (size_t i = 1; i + 1 < snapshot.size(); ++i)
+          out.cell_sum_error = std::max(out.cell_sum_error, std::abs(snapshot[i] - 1.0));
+
+      const auto& y_o2 = data.state.mole_fraction_face.at("Oxygen").var;
+      const auto& y_n2 = data.state.mole_fraction_face.at("Nitrogen").var;
+      for (size_t n = 0; n < y_o2.size(); ++n)
+        out.face_sum_error = std::max(out.face_sum_error, std::abs(y_o2[n] + y_n2[n] - 1.0));
+      const size_t inlet_face = feed_from_top ? y_o2.size() - 1 : 0;
+      out.inlet_face_error = std::abs(y_o2[inlet_face] - c.y_feed);
+      return out;
+    }
+
+    std::string Label(AdvectionScheme scheme, bool feed_from_top) {
+      return "scheme " + std::to_string(static_cast<int>(scheme))
+           + (feed_from_top ? ", fed from the top" : ", fed from the bottom");
+    }
+
+    constexpr AdvectionScheme kAllSchemes[] = {
+      AdvectionScheme::Upwind, AdvectionScheme::WENO, AdvectionScheme::VanLeer };
+
+  } // namespace
+
+  // A coarse (10-cell) grid keeps the inlet cell far from the feed for much of
+  // the run, so a bed-end face that does not carry the boundary composition
+  // shows at the percent level: WENO and van Leer used to put the average of
+  // the inlet ghost (the feed composition itself) and the first cell there.
+  TEST(AdvectionSchemeConservation, EachSpeciesIsConservedThroughTheBedEnds) {
+    for (auto scheme : kAllSchemes) {
+      for (bool feed_from_top : { false, true }) {
+        const auto r = RunConsistency(scheme, feed_from_top, 10, 0.2, 0.005, 300.0);
+        const std::string label = Label(scheme, feed_from_top);
+        EXPECT_LT(r.worst_balance_error, 1e-5)
+          << label << ": " << r.worst_component << " moles in through the bed ends differ from the "
+          << "inventory change by " << r.worst_balance_error << " of the moles fed";
+        EXPECT_LT(r.inlet_face_error, 1e-6) << label << ": the inlet face does not carry the feed composition";
+        EXPECT_LT(r.face_sum_error, 1e-6) << label << ": face mole fractions do not sum to one";
+      }
+    }
+  }
+
+  // Every species and the total have their own balance, so only consistent
+  // fluxes keep the cell mole fractions summing to one. A limited
+  // reconstruction linearised about a steep front weights the downwind cell;
+  // built component by component it let a departure of the sum grow (van
+  // Leer reached a sum of 90 in a CO2/N2 breakthrough on 13X; without the
+  // face rescaling this case reaches 1.05 with WENO and van Leer). A
+  // self-sharpening front: O2 on a strongly favourable Langmuir isotherm.
+  TEST(AdvectionSchemeConservation, CellMoleFractionsKeepSummingToOneAtASteepFront) {
+    for (auto scheme : kAllSchemes) {
+      const auto r = RunConsistency(scheme, false, 50, 0.15, 0.05, 2500.0, /*favourable=*/true);
+      const std::string label = Label(scheme, false);
+      EXPECT_LT(r.cell_sum_error, 1e-5) << label << ": the cell mole fractions sum to 1 +- " << r.cell_sum_error;
+      EXPECT_LT(r.face_sum_error, 1e-6) << label << ": face mole fractions do not sum to one";
+      EXPECT_LT(r.worst_balance_error, 1e-5)
+        << label << ": " << r.worst_component << " not conserved (" << r.worst_balance_error << " of the moles fed)";
+    }
   }
 
 } // namespace adsim

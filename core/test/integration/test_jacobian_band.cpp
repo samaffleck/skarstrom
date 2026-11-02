@@ -8,8 +8,10 @@
 // dependency map of the residual (one column per residual call, at a randomised
 // generic state with both flow directions) and require every nonzero to lie
 // inside the band the solver actually allocates, for every advection scheme.
-// WENO and van Leer faces reach two cells away, but only within the same mole
-// fraction, so their reach in the cell-major layout is exactly 2*neq.
+// WENO and van Leer faces reach two cells away, and their interior faces are
+// rescaled over the components, so a mole fraction's residual
+// reads every mole fraction two cells away: the solver widens the band to
+// 2*neq + (components - 1) for those schemes.
 
 #include <algorithm>
 #include <cmath>

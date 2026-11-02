@@ -19,6 +19,20 @@
 namespace adsim {
 
   namespace {
+    // Half-bandwidth that covers every residual coupling in the cell-major
+    // banded layout (neq unknowns per cell). Cross-variable couplings reach
+    // one cell (|i - j| < 2 neq). The WENO / van Leer face stencils reach two
+    // cells, and their interior faces are rescaled over the components
+    // (RescaleInteriorMoleFractionFaces), so a mole-fraction
+    // residual also reads the other mole fractions two cells away: that adds
+    // at most (number of components - 1) to 2 neq.
+    sunindextype BandReach(const UserData& user_data) {
+      const auto neq = static_cast<sunindextype>(user_data.state.GetEquations().size());
+      const auto n_comp = static_cast<sunindextype>(user_data.fluid.components_.size());
+      const bool high_order = user_data.settings.advection_scheme_ != AdvectionScheme::Upwind;
+      return 2 * neq + ((high_order && n_comp > 1) ? n_comp - 1 : 0);
+    }
+
     // Without a tight max-step cap IDA can take steps much longer than the
     // logging resolution. KPIs and the conservation checks integrate the logged
     // boundary flows, so when an accepted step (t_prev, t_curr] is longer than
@@ -991,16 +1005,13 @@ namespace adsim {
       return retval;
     }
 
-    // The banded layout is cell-major. Cross-variable couplings reach one cell
-    // (|i - j| < 2*neq); the WENO / van Leer face stencils reach two cells but
-    // only within the same mole fraction, i.e. exactly 2*neq. So 2*neq covers
+    // The banded layout is cell-major. BandReach covers every coupling of
     // every scheme (pinned by JacobianBand.* in test_jacobian_band.cpp) and is
     // the reach the band audits scan. The matrix itself is sized from the
     // reach a DQ probe measures at the initial state (about 12 / 16 instead of
     // 20 / 20 at neq = 10); a coupling later found outside it widens the band
     // to the full reach (WidenBand, called from the one-step loop).
-    size_t num_equations = state.GetEquations().size();
-    const sunindextype reach = static_cast<sunindextype>(num_equations * 2);
+    const sunindextype reach = BandReach(user_data);
     sunindextype mu = reach; // Upper bandwidth
     sunindextype ml = reach; // Lower bandwidth
     if (settings.band_from_probe_) {
@@ -1306,7 +1317,7 @@ namespace adsim {
     auto& settings = user_data.settings;
     const double t0 = GetTime();
     const int sys_size = state.GetSystemSize();
-    const sunindextype bw = static_cast<sunindextype>(state.GetEquations().size() * 2);
+    const sunindextype bw = BandReach(user_data);
 
     // Buffer the extrapolated state so it can be re-applied after validation
     // (residual evaluations during the scratch solve overwrite user_data.state).

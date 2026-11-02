@@ -9,6 +9,29 @@ root `CMakeLists.txt`.
 ## [Unreleased]
 
 ### Fixed
+- **WENO and van Leer advection** (`advection_scheme = weno | van_leer`) are fixed; Upwind (the
+  default, and every bundled deck) is unchanged. Compared line by line with the WENO of
+  Haghpanah et al. (2013) / Yancy-Caballero et al. (2020) (PEESEgroup/PSA `CycleSteps/WENO.m`):
+  (1) WENO's upwind-side candidate was the face value one face upstream, `(y[n-1] + y[n])/2`,
+  instead of the extrapolation `3/2 y[n] - 1/2 y[n-1]`, which made the scheme first order;
+  (2) both schemes gave the bed-end faces the average of the ghost and the first cell, but the
+  ghost holds the inlet composition itself, so the bed received `(y_feed + y_1)/2` while the
+  stream logs, KPIs and cycle mass balance counted `y_feed` (CO2 balance 0.94-0.98 on the
+  Yancy-Caballero 13X cycle at 10 cells with dispersion off, where upwind closes to 1.0000);
+  (3) built component by component, the limited faces did not sum to the cell sum, and
+  linearised about a steep front they weight the downwind cell, so a departure of the cell sum
+  of mole fractions from one grew without bound (van Leer reached a sum of 90 in a CO2/N2
+  breakthrough). Now the bed-end faces take the upwind value; the first interior face next to
+  an inlet extrapolates from the inlet value half a cell away (`2 y_1 - y_0`, as the reference;
+  van Leer doubles that slope likewise); void cells are treated as well mixed; WENO uses the
+  cell widths on non-uniform grids; and the interior faces are rescaled so their mole fractions
+  sum to the upwind cell's sum, which couples the mole fractions two cells apart, so the
+  Jacobian half-bandwidth for these schemes grows from `2 neq` to `2 neq + components - 1`.
+  On the Yancy-Caballero 13X cycle at 10 cells, WENO now gives a CO2 recovery of 90.0 % for
+  the minimum-energy case (PSASimulator.jl WENO reference 89.7 %; was 77.5 %), and its CO2
+  balance with dispersion off closes to 1e-5 at every grid. Tests:
+  `AdvectionSchemeConservation.EachSpeciesIsConservedThroughTheBedEnds` and
+  `AdvectionSchemeConservation.CellMoleFractionsKeepSummingToOneAtASteepFront`.
 - `CreateBoundaryValue` and `CreateInletTemperatureProfile` know the double-exponential
   profile. The web document layer builds profiles through the first factory, so a deck
   with a double-exponential pressure boundary (the Perez 2019 decks) lost it to a null
