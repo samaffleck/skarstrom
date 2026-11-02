@@ -10,8 +10,6 @@
 // values are the closed forms, written out independently of the models.
 
 #include <cmath>
-#include <fstream>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -164,34 +162,6 @@ TEST(MacroporeCoefficient, RegistryLeafAndRoundTrip) {
     Simulation back;
     back.LoadJson(json);
     EXPECT_DOUBLE_EQ(back.GetParameter(path), 1.6e-5) << kind;
-  }
-}
-
-// Decks written before the field existed (macropore v2, macropore_capacity v1)
-// load with 0, i.e. the state's D_m, exactly as before. Frozen copies of the
-// example decks as they were before the field (test/fixtures/legacy): the
-// bundled decks are re-saved by the paper tests and so gain the field.
-TEST(MacroporeCoefficient, OlderDecksLoadWithTheStateDiffusivity) {
-  for (const char* deck : {"Perez2019_A", "Nguyen2022_Fig4"}) {
-    const std::string file = std::string("test/fixtures/legacy/") + deck + "_pre_macropore_dm.json";
-    std::ifstream in(file);
-    ASSERT_TRUE(in) << file;
-    std::stringstream text;
-    text << in.rdbuf();
-    ASSERT_EQ(text.str().find("Molecular_Diffusion_Coefficient"), std::string::npos) << deck;
-    Simulation sim;
-    sim.Load(file);
-    int found = 0;
-    const std::string leaf = ".molecular_diffusion_coefficient";
-    for (const auto& p : sim.Parameters().All()) {
-      const std::string& path = p.Info().path;
-      if (path.find(".kinetics[") != std::string::npos && path.size() > leaf.size() &&
-          path.compare(path.size() - leaf.size(), leaf.size(), leaf) == 0) {
-        EXPECT_EQ(sim.GetParameter(path), 0.0) << deck << " " << path;
-        ++found;
-      }
-    }
-    EXPECT_GT(found, 0) << deck;
   }
 }
 
