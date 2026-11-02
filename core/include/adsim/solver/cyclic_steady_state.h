@@ -7,6 +7,7 @@
 #pragma once
 
 // STL includes
+#include <functional>
 #include <vector>
 #include <string>
 
@@ -54,12 +55,46 @@ namespace adsim {
   };
 
   struct CSSResult {
+    // True when the method's stopping rule holds at this cycle: its single-cycle
+    // test passed on `required_cycles` consecutive cycles ending here, and the
+    // minimum number of cycles has run.
     bool converged = false;
+    // The method's own measure at this cycle (the relative balance error for the
+    // mass-balance methods, the profile change for Molar Profile) and its tolerance.
     double error = 0.0;
     double tolerance = 0.0;
     std::string method_name;
+    // The relative cycle-to-cycle change of the end-of-cycle bed state
+    // (EndOfCycleStateChange), checked alongside the balance by the
+    // mass-balance methods. state_tolerance is 0 when the state test is off.
+    double state_change = 0.0;
+    double state_tolerance = 0.0;
+    // Consecutive cycles, ending at this one, on which the single-cycle test
+    // passed (capped at required_cycles), and how many the rule needs.
+    int passing_cycles = 0;
+    int required_cycles = 1;
   };
 
+  // Cyclic-steady-state detection: the stopping rule applied after every cycle.
+  //
+  // Each method has a single-cycle test; the run stops at the first cycle at
+  // which that test has passed on consecutive_cycles_ cycles in a row (and at
+  // least min_cycles_ cycles have run).
+  //
+  //  * Molar Profile: the total-concentration profile at the end of the first
+  //    step changed by at most abs + rel * |profile| since the previous cycle.
+  //  * Mass Balance (Total / Per-Component): the relative balance error of the
+  //    cycle is within mass_balance_tolerance_, AND the end-of-cycle bed state
+  //    changed by at most state_tolerance_ since the previous cycle
+  //    (EndOfCycleStateChange). The balance alone is not a safe stopping test:
+  //    on the way to CSS it can swing through zero (accumulation changing sign),
+  //    so a single cycle can pass by accident while purity and recovery are
+  //    still moving by a point or more. The state change is a norm, so it does
+  //    not cross zero, and it measures the drift directly. state_tolerance_ = 0
+  //    switches the state test off (the balance-only test of class version < 2).
+  //
+  // The check is a pure function of the equation log, so it needs the last
+  // CyclesToLog() cycles to be logged; the solver's logs keep at least that many.
   class CyclicSteadyState {
   public:
     CSSMethod method_ = CSSMethod::NONE;
@@ -71,24 +106,65 @@ namespace adsim {
     // Mass balance method settings
     ExpressionParam mass_balance_tolerance_{0.005};  // 0.5%
 
+    // Largest relative cycle-to-cycle change of the end-of-cycle bed state that
+    // the mass-balance methods accept (EndOfCycleStateChange). 0 disables it.
+    ExpressionParam state_tolerance_{kDefaultStateTolerance};
+
     // Minimum number of cycles to run before ANY method may declare convergence.
     // Applies to every CSS method (a floor on early stopping). A large value hides
     // the benefit of CSS acceleration, which is why it is surfaced in the GUI.
     int min_cycles_ = 5;
 
+    // Number of consecutive cycles on which the method's single-cycle test must
+    // pass before CSS is declared (values below 1 count as 1).
+    int consecutive_cycles_ = kDefaultConsecutiveCycles;
+
+    static constexpr double kDefaultStateTolerance = 2e-5;
+    static constexpr int kDefaultConsecutiveCycles = 3;
+
     void EvaluateExpressions(const EvalContext& ctx) {
       molar_absolute_tolerance.Evaluate(ctx);
       molar_relative_tolerance.Evaluate(ctx);
       mass_balance_tolerance_.Evaluate(ctx);
+      state_tolerance_.Evaluate(ctx);
     }
 
     bool IsAtCSS(const EquationLog& logger, int cycle_index);
+    // The stopping rule at cycle_index (0-based): see the class comment.
     CSSResult CheckCSS(const EquationLog& logger, int cycle_index);
+    // The method's single-cycle test at cycle_index, without the
+    // consecutive-cycles and minimum-cycles rules (converged = the test passed).
+    CSSResult CheckCycle(const EquationLog& logger, int cycle_index);
+
+    // Number of most recent cycles the check reads from the log (0 for None).
+    int CyclesToLog() const;
+
+    // The rule's two building blocks, on plain numbers (CheckCSS applies them to
+    // the log; tests apply them to synthetic histories).
+    //
+    // Single-cycle test of the mass-balance methods: the balance error within its
+    // tolerance and, when state_tolerance > 0, the state change within its own
+    // (a negative state_change, meaning "not available", fails).
+    static bool MassBalanceCyclePasses(double balance_error, double balance_tolerance,
+                                       double state_change, double state_tolerance);
+    // Number of consecutive cycles ending at cycle_index (counting back to cycle
+    // 0 at most) for which passes(c) is true, capped at `required`.
+    static int TrailingPasses(int cycle_index, int required, const std::function<bool(int)>& passes);
+
+    // Relative change of the bed state at the end of the cycle (the end of its
+    // last step) since the previous cycle: the largest, over the slow fields, of
+    // RMS(x_c - x_{c-1}) / scale. The fields and scales are the adsorbed loading
+    // of each component (scaled by the RMS total loading, so a trace component's
+    // round-off cannot dominate), the gas mole fractions (absolute) and the
+    // fluid, solid and wall temperatures (scaled by their RMS). Returns a
+    // negative value when either cycle is not in the log.
+    static double EndOfCycleStateChange(const EquationLog& logger, int cycle_index);
 
   private:
     CSSResult CheckProfileResult(const EquationLog& logger, int cycle_index);
     CSSResult CheckMassBalanceTotalResult(const EquationLog& logger, int cycle_index);
     CSSResult CheckMassBalanceComponentResult(const EquationLog& logger, int cycle_index);
+    void ApplyStateTest(const EquationLog& logger, int cycle_index, CSSResult& result);
 
     friend class cereal::access;
     template <class Archive>
@@ -100,6 +176,17 @@ namespace adsim {
         cereal::make_nvp("mass_balance_tolerance", mass_balance_tolerance_),
         cereal::make_nvp("min_cycles", min_cycles_)
       );
+      // Version 2 added the state test and the consecutive-cycles rule. Decks
+      // saved before that load with the defaults, i.e. the robust rule.
+      if (version >= 2) {
+        ar(
+          cereal::make_nvp("state_tolerance", state_tolerance_),
+          cereal::make_nvp("consecutive_cycles", consecutive_cycles_)
+        );
+      } else if constexpr (Archive::is_loading::value) {
+        state_tolerance_ = ExpressionParam{kDefaultStateTolerance};
+        consecutive_cycles_ = kDefaultConsecutiveCycles;
+      }
     }
   };
 
@@ -144,3 +231,7 @@ namespace adsim {
   };
 
 } // end adsim namespace
+
+// Here rather than in the .cpp, so that every archive that serialises the CSS
+// settings sees the version. 2: state_tolerance and consecutive_cycles.
+CEREAL_CLASS_VERSION(adsim::CyclicSteadyState, 2);

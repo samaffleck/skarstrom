@@ -127,6 +127,13 @@ namespace adsim {
     double error = 0.0;
     double tolerance = 0.0;
     std::string method;
+    // The end-of-cycle state change and its tolerance (mass-balance methods;
+    // tolerance 0 = not checked), and the consecutive passing cycles ending here
+    // out of the number required (CSSResult).
+    double state_change = 0.0;
+    double state_tolerance = 0.0;
+    int passing_cycles = 0;
+    int required_cycles = 1;
   };
 
   struct TimeSeries {
@@ -252,7 +259,8 @@ namespace adsim {
     const EquationLog& Log() const;
     const BoundaryLog& Boundaries() const;
     // Logged cycle indices (0-based, ascending; old cycles are evicted beyond
-    // settings.max_cycles_to_keep).
+    // settings.max_cycles_to_keep, or beyond the cycles the CSS check reads if
+    // that is more: CyclicSteadyState::CyclesToLog).
     std::vector<int> Cycles() const;
     int LastCycle() const;  // -1 when nothing is logged
     std::vector<std::string> Components() const;
@@ -265,7 +273,9 @@ namespace adsim {
     std::vector<KPIRecord> KPIs() const;
     // KPIs of every tracked component at one cycle (-1 = last).
     std::vector<KPIRecord> KPIs(int cycle) const;
-    // The deck's CSS check evaluated at every logged cycle.
+    // The deck's CSS check evaluated at every logged cycle. The consecutive-
+    // cycles rule only sees logged cycles, so the earliest logged cycles can
+    // show fewer passing cycles than the run counted.
     std::vector<CSSRecord> CSSHistory();
     // Pressure, wall temperature and fluidisation extremes of one cycle (-1 =
     // last) with the warnings where it leaves the wall design or lifts the bed

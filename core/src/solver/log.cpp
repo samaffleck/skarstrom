@@ -28,7 +28,10 @@ namespace adsim {
     Clear();
 
     domain = state.domain_vectors;
-    max_cycles_to_keep_ = std::max(1, settings.max_cycles_to_keep_);
+    // Keep at least the cycles the CSS check reads (it is a function of the log).
+    // When a cycle is checked the log holds it plus max_cycles_to_keep_ earlier
+    // cycles (eviction happens when the next cycle starts), hence the - 1.
+    max_cycles_to_keep_ = std::max({1, settings.max_cycles_to_keep_, settings.css.CyclesToLog() - 1});
     max_log_points_per_step_ = settings.max_log_points_per_step_;
 
     sys_data.components_ = fluid.components_;
@@ -511,7 +514,8 @@ namespace adsim {
     auto& bed = user_data.bed;
     auto& cycle = user_data.cycle;
 
-    max_cycles_to_keep_ = std::max(1, settings.max_cycles_to_keep_);
+    // Same floor as the equation log, so both logs hold the same cycles.
+    max_cycles_to_keep_ = std::max({1, settings.max_cycles_to_keep_, settings.css.CyclesToLog() - 1});
     
     Clear();
     for (const auto& step : cycle.step_list_) {

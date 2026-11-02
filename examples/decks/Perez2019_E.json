@@ -638,19 +638,19 @@
                                                     "Cycle_Endpoint_Summary": {
                                                         "cereal_class_version": 1,
                                                         "Is_Valid": true,
-                                                        "Total_Moles": -0.01859496093582859,
-                                                        "Average_Temperature": 295.5713632009224,
+                                                        "Total_Moles": -0.018482135860036859,
+                                                        "Average_Temperature": 295.3716708049996,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.006995629996177383
+                                                                "value": 0.007422207284918549
                                                             },
                                                             {
                                                                 "key": "Nitrogen",
-                                                                "value": 0.9930043700038226
+                                                                "value": 0.9925777927150815
                                                             }
                                                         ],
-                                                        "Source_Cycle_Index": 351
+                                                        "Source_Cycle_Index": 425
                                                     },
                                                     "Temperature_Profile": {
                                                         "polymorphic_id": 0
@@ -739,19 +739,19 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.03794432740628054,
-                                                        "Average_Temperature": 295.571510305985,
+                                                        "Total_Moles": 0.0378340118324701,
+                                                        "Average_Temperature": 295.3723035763692,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.007001498289215817
+                                                                "value": 0.007428280086921354
                                                             },
                                                             {
                                                                 "key": "Nitrogen",
-                                                                "value": 0.9929985017107842
+                                                                "value": 0.9925717199130786
                                                             }
                                                         ],
-                                                        "Source_Cycle_Index": 351
+                                                        "Source_Cycle_Index": 425
                                                     },
                                                     "Temperature_Profile": {
                                                         "polymorphic_id": 0
@@ -903,19 +903,19 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.021601318626328627,
-                                                        "Average_Temperature": 298.0,
+                                                        "Total_Moles": 0.02160132991702338,
+                                                        "Average_Temperature": 298.00000000000008,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.15000000000000006
+                                                                "value": 0.15000000000000003
                                                             },
                                                             {
                                                                 "key": "Nitrogen",
                                                                 "value": 0.85
                                                             }
                                                         ],
-                                                        "Source_Cycle_Index": 351
+                                                        "Source_Cycle_Index": 425
                                                     },
                                                     "Temperature_Profile": {
                                                         "polymorphic_id": 0
@@ -1069,19 +1069,19 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.07727641447427881,
-                                                        "Average_Temperature": 295.6504567299345,
+                                                        "Total_Moles": 0.07730920835868566,
+                                                        "Average_Temperature": 295.49571992816046,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.007238290914708495
+                                                                "value": 0.0077053706502504819
                                                             },
                                                             {
                                                                 "key": "Nitrogen",
-                                                                "value": 0.9927617090852916
+                                                                "value": 0.9922946293497496
                                                             }
                                                         ],
-                                                        "Source_Cycle_Index": 351
+                                                        "Source_Cycle_Index": 425
                                                     },
                                                     "Temperature_Profile": {
                                                         "polymorphic_id": 0
@@ -1179,19 +1179,19 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.08838072443243013,
-                                                        "Average_Temperature": 297.99999999999997,
+                                                        "Total_Moles": 0.0883807269764039,
+                                                        "Average_Temperature": 297.99999999999985,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.14999999999999998
+                                                                "value": 0.1499999999999999
                                                             },
                                                             {
                                                                 "key": "Nitrogen",
                                                                 "value": 0.8500000000000001
                                                             }
                                                         ],
-                                                        "Source_Cycle_Index": 351
+                                                        "Source_Cycle_Index": 425
                                                     },
                                                     "Temperature_Profile": {
                                                         "polymorphic_id": 0
@@ -1410,19 +1410,19 @@
                                 },
                                 "Cycle_Endpoint_Summary": {
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.03294672064549836,
-                                    "Average_Temperature": 293.98085890938679,
+                                    "Total_Moles": 0.03287754078692028,
+                                    "Average_Temperature": 293.8843399451417,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.981360755709092
+                                            "value": 0.980114077809215
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.01863924429090805
+                                            "value": 0.01988592219078502
                                         }
                                     ],
-                                    "Source_Cycle_Index": 351
+                                    "Source_Cycle_Index": 425
                                 },
                                 "Inlet_Temperature_Profile": {
                                     "polymorphic_id": 0
@@ -1602,19 +1602,19 @@
                                 },
                                 "Cycle_Endpoint_Summary": {
                                     "Is_Valid": true,
-                                    "Total_Moles": -0.017864475693397234,
-                                    "Average_Temperature": 289.5979466641136,
+                                    "Total_Moles": -0.01786403540250126,
+                                    "Average_Temperature": 289.59636704389558,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.13311838597988774
+                                            "value": 0.1325692876146497
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.8668816140201123
+                                            "value": 0.8674307123853503
                                         }
                                     ],
-                                    "Source_Cycle_Index": 351
+                                    "Source_Cycle_Index": 425
                                 },
                                 "Inlet_Temperature_Profile": {
                                     "polymorphic_id": 0
@@ -1758,19 +1758,19 @@
                                 },
                                 "Cycle_Endpoint_Summary": {
                                     "Is_Valid": true,
-                                    "Total_Moles": -0.037940483150530859,
-                                    "Average_Temperature": 295.5715101424678,
+                                    "Total_Moles": -0.03783402617907069,
+                                    "Average_Temperature": 295.3723032728714,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.992998500993717
+                                            "value": 0.9925717187737178
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.007001499006282984
+                                            "value": 0.0074282812262823389
                                         }
                                     ],
-                                    "Source_Cycle_Index": 351
+                                    "Source_Cycle_Index": 425
                                 },
                                 "Inlet_Temperature_Profile": {
                                     "polymorphic_id": 0
@@ -1836,7 +1836,7 @@
             "Maximum_Nonlinear_Convergence_Failures": 200,
             "Maximum_Error_Test_Failures": 40,
             "Cyclic_Steady_State": {
-                "cereal_class_version": 1,
+                "cereal_class_version": 2,
                 "CSS_Method": 3,
                 "molar_absolute_tolerance": {
                     "Value": 0.0001,
@@ -1853,7 +1853,13 @@
                     "Expression": "0.005",
                     "DisplayUnitIndex": 0
                 },
-                "min_cycles": 5
+                "min_cycles": 5,
+                "state_tolerance": {
+                    "Value": 0.00002,
+                    "Expression": "2e-05",
+                    "DisplayUnitIndex": 0
+                },
+                "consecutive_cycles": 3
             },
             "max_cycles_to_keep": 10,
             "Maximum_Iterations_Per_Step": 50000,

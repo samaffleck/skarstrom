@@ -4,7 +4,7 @@ Reference: [Estupiñan Perez, L., Sarkar, P., Rajendran, A. Experimental validat
 
 **Goal.** Run a five-step vacuum swing adsorption (VPSA) cycle that captures CO₂ from a 15 % CO₂ / 85 % N₂ flue gas on zeolite 13X, see how **light-product pressurisation** (LPP) is wired with a step connection, run it to **cyclic steady state**, and compare purity and recovery with the experiment. The deck is experiment D1 of Table 3 in the paper.
 
-**What you will get.** CSS after 155 cycles, a CO₂ purity of 93.8 % and a recovery of 89.1 %, against 97.1 % and 86.1 % measured. See [Validation](validation.md#perez-2019) for all six Perez experiments.
+**What you will get.** CSS after 190 cycles, a CO₂ purity of 93.8 % and a recovery of 89.2 %, against 97.1 % and 86.1 % measured. See [Validation](validation.md#perez-2019) for all six Perez experiments.
 
 ---
 
@@ -49,7 +49,7 @@ Blowdown removes N₂ from the light end at an intermediate vacuum, so the evacu
 
 The two steps represent two beds working at the same time, which is why they have the same duration, 27.5 s. The coupling lags by one cycle: each side uses what its partner did in the previous cycle, and on the first cycle the typed-in values (pure N₂, zero LPP flow) stand in. See [Connecting Beds](connecting-beds.md) and [Light Product Pressurisation](light-product-pressurization.md).
 
-**Cyclic steady state.** *Mass Balance (Per-Component)* (`css.method` = 3) with a tolerance of 0.005: the run stops once, for every component, the moles entering the column over a cycle match the moles leaving to within 0.5 %. The minimum is 5 cycles (`css.min_cycles`) and the cycle limit is 250 (`cycle.number_of_cycles`).
+**Cyclic steady state.** *Mass Balance (Per-Component)* (`css.method` = 3) with a tolerance of 0.005: the run stops once, for every component, the moles entering the column over a cycle match the moles leaving to within 0.5 %, and the bed state at the end of the cycle has changed by less than 2×10⁻⁵ since the previous cycle (`css.state_tolerance`), on three cycles in a row (`css.consecutive_cycles`). The minimum is 5 cycles (`css.min_cycles`) and the cycle limit is 250 (`cycle.number_of_cycles`). See [Cyclic Steady State](cyclic-steady-state.md#state-test).
 
 **KPI configuration.** CO₂ is tracked. **Feed**: *Feed 1 inlet* and *Feed 2 inlet*. **Product**: *Evacuation Pressure Boundary Bottom*.
 
@@ -58,14 +58,14 @@ The two steps represent two beds working at the same time, which is why they hav
 ```python
 result = sim.run()
 print(result.status, result.css_cycle + 1, f"{result.wall_time_s:.0f} s")
-# reached_css 155 27 s
+# reached_css 190 24 s
 ```
 
-The run stops at cyclic steady state, at cycle 155. It took under 30 s natively on one core of a shared 4-core Linux machine. `skarstrom run Perez2019_D1.json` does the same from the command line.
+The run stops at cyclic steady state, at cycle 190. It took under 30 s natively on one core of a shared 4-core Linux machine. `skarstrom run Perez2019_D1.json` does the same from the command line.
 
 ## 4. Interpret the results
 
-**KPIs.** `sim.kpis(cycle=-1)` gives the last logged cycle, 154 (the 155th cycle, numbered from 0):
+**KPIs.** `sim.kpis(cycle=-1)` gives the last logged cycle, 189 (the 190th cycle, numbered from 0):
 
 ```python
 k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")
@@ -74,12 +74,12 @@ print(k.purity, k.recovery, k.production_rate, k.productivity_mass)
 
 | KPI | Simulated | Experiment D1 | Repeat D2 | Paper's model |
 |---|---|---|---|---|
-| CO₂ purity | 93.76 % | 97.1 % | 94.5 % | 96.1 % |
-| CO₂ recovery | 89.11 % | 86.1 % | 83.4 % | 86.8 % |
+| CO₂ purity | 93.78 % | 97.1 % | 94.5 % | 96.1 % |
+| CO₂ recovery | 89.17 % | 86.1 % | 83.4 % | 86.8 % |
 
-Production rate is 5.79 × 10⁻⁵ mol/s and the mass productivity 1.57 × 10⁻⁵ kg CO₂ per kg adsorbent per second. The energy KPI is 0 because no pump has power calculation switched on (see below).
+Production rate is 5.72 × 10⁻⁵ mol/s and the mass productivity 1.55 × 10⁻⁵ kg CO₂ per kg adsorbent per second. The energy KPI is 0 because no pump has power calculation switched on (see below).
 
-The model is 3.3 points low on purity and 3.0 points high on recovery against D1, and within 0.7 and 6 points of the repeat D2. The deck uses the paper's model forms (the test README traces every value and attributes the remaining error): for the four-step cycles A and B the same decks are within 0.6 points of purity and 1.1 points of recovery of the experiments. The remaining LPP excess is the composition-coupled light-product connection, an open item.
+The model is 3.3 points low on purity and 3.1 points high on recovery against D1, and within 0.7 and 6 points of the repeat D2. The deck uses the paper's model forms (the test README traces every value and attributes the remaining error): for the four-step cycles A and B the same decks are within 0.6 points of purity and 1.1 points of recovery of the experiments. The remaining LPP excess is the composition-coupled light-product connection, an open item.
 
 **Approach to CSS.** Plot the KPI against the cycle number (only the last `settings.max_cycles_to_keep` = 10 cycles are logged):
 
@@ -93,7 +93,7 @@ print(sim.css_history()[-1])        # the CSS check of the last cycle
 **Pressure history.** The axial pressure profile at the end of each step of the last cycle:
 
 ```python
-for i, name in enumerate(sim.steps):
+for i, name in enumerate(sim.steps.names):
     p = sim.profile("pressure", cycle=-1, step=i)       # p.values: (time, z)
     print(f"{name:15s} {p.values[-1].min() / 1e3:7.2f} - {p.values[-1].max() / 1e3:7.2f} kPa")
 ```
@@ -104,7 +104,7 @@ In our run the bed sat at 1.000–1.001 bar during the feed steps, reached 8.1�
 
 ## 5. What to try next
 
-- **Accelerate CSS.** Switch on the Aitken (Graves-Morris) extrapolation: `sim["settings.acceleration_method"] = 1`. In our run CSS came at cycle 176 instead of 182 with the same purity and recovery to four significant figures. The 100-cycle minimum limits the gain; lower `css.min_cycles` to let it stop sooner. See [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration).
+- **Accelerate CSS.** Switch on the Aitken (Graves-Morris) extrapolation: `sim["settings.acceleration_method"] = 1`. In our run CSS came at cycle 182 instead of 190 with the same purity and recovery to six significant figures. See [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration).
 - **Add the vacuum pump energy.** Pump power is calculated on boundaries that have a pump model. The Python registry exposes the pump settings of boundaries that already have one (`endpoint[N].pump.*`); switching power calculation on for the Evacuation and Blowdown boundaries is a deck edit (in C++, or in the deck JSON). With a discharge pressure of 1 bar, the default constant efficiency of 0.7 and a polytropic constant of 1.4, the specific energy came out at about **0.51 MJ per kg of CO₂**; purity and recovery do not change, because power calculation is post-processing only.
 - **Switch off LPP** by disconnecting the pair (`adsim::DisconnectPair` in `adsim/objects/deck_edit.h`), and compare with the four-step decks *Perez2019_A* to *C1*.
 - **Map the trade-off.** Sweep the Feed 2 time (`step[Feed 2].time`) or the evacuation end pressure (`step[Evacuation].bottom.pressure_exponential_end`) in a [parametric study](parameterisation.md), or [optimise](parameterisation.md#optimisation) recovery subject to purity ≥ 0.95, as the paper does with its multi-objective optimiser.

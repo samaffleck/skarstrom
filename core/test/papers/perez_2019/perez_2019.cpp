@@ -44,12 +44,15 @@ namespace adsim {
       // evacuation exponential, wall ends at T_a, Blake-Kozeny / Ergun,
       // capacity-factor LDF. Before the audit the four-step recoveries were
       // 8-10 pp above the experiments (measured errors in the git history).
-      { "ConfigA",  { 0.3, 0.4, 0.3, 1.2 } },  // measured 0.215, 0.294, 0.185, 1.006 pp
-      { "ConfigB",  { 0.7, 1.7, 1.8, 4.3 } },  // measured 0.604, 1.443, 1.504, 3.743 pp
-      { "ConfigC1", { 0.62, 5.5, 4.8, 9.7 } },  // measured 0.536, 4.767, 4.164, 8.367 pp
-      { "ConfigD1", { 3.9, 3.5, 2.7, 2.7 } },  // measured 3.337, 3.012, 2.337, 2.312 pp
-      { "ConfigE",  { 2.1, 2.5, 4.3, 3.2 } },  // measured 1.812, 2.172, 3.712, 2.772 pp
-      { "ConfigF",  { 1.9, 1.9, 4.4, 3.0 } },  // measured 1.619, 1.575, 3.819, 2.575 pp
+      // Measured at the CSS of the state-test rule (2026-11-02); the old
+      // balance-only rule stopped 26-166 cycles earlier (A's recovery was
+      // 0.12 pp lower, hence its re_exp bound moved from 0.4 to 0.5).
+      { "ConfigA",  { 0.3, 0.5, 0.3, 1.2 } },  // measured 0.212, 0.417, 0.188, 0.883 pp
+      { "ConfigB",  { 0.7, 1.7, 1.8, 4.3 } },  // measured 0.599, 1.397, 1.499, 3.697 pp
+      { "ConfigC1", { 0.62, 5.5, 4.8, 9.7 } },  // measured 0.542, 4.744, 4.158, 8.344 pp
+      { "ConfigD1", { 3.9, 3.5, 2.7, 2.7 } },  // measured 3.324, 3.068, 2.324, 2.368 pp
+      { "ConfigE",  { 2.1, 2.5, 4.3, 3.2 } },  // measured 1.757, 2.229, 3.657, 2.829 pp
+      { "ConfigF",  { 1.9, 1.9, 4.4, 3.0 } },  // measured 1.452, 1.623, 3.652, 2.623 pp
     };
 
     void ValidatePerez(const std::string& id, double purity, double recovery) {

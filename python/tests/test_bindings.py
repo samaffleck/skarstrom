@@ -154,6 +154,12 @@ def test_run_results(perez_run):
 
     css = sim.css_history()
     assert [c.cycle for c in css] == [0, 1, 2]
+    # Mass Balance (Per-Component): the balance plus the end-of-cycle state test,
+    # on three consecutive cycles; three cycles are far from CSS.
+    assert sim.css.state_tolerance == pytest.approx(2e-5) and sim.css.consecutive_cycles == 3
+    assert not any(c.converged for c in css)
+    assert all(c.required_cycles == 3 and c.state_tolerance == pytest.approx(2e-5) for c in css)
+    assert math.isnan(css[0].state_change) and css[2].state_change > 2e-5
 
     y = sim.series("mole_fraction", "CarbonDioxide", location="top")
     assert isinstance(y.time, np.ndarray) and y.time.shape == y.values.shape

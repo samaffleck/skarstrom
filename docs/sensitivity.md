@@ -41,7 +41,7 @@ study = sa.Study(sim, [
     sa.relative("endpoint[1].velocity", 0.05),
     sa.uniform("layer[1].bed_void_fraction", 0.39, 0.43),
     sa.normal("adsorbent[1].isotherm[CarbonDioxide].b1", 3.934e-7, 0.2e-7, lower=0),
-], settings={"css.mass_balance_tolerance": 2e-3}, workers=4)   # the deck checks CSS by mass balance
+], settings={"css.state_tolerance": 5e-6}, workers=4)   # the deck checks CSS by mass balance
 
 screen = study.screen(trajectories=10)       # 10 x (4 + 1) = 50 runs
 print(screen.table())                        # mu*, its 95 % interval, mu, sigma
@@ -62,7 +62,7 @@ skarstrom sensitivity Perez2019_A \
     --input "step[1].time=10%" --input "layer[1].bed_void_fraction=0.39:0.43" \
     --input "adsorbent[1].isotherm[CarbonDioxide].b1=normal:3.934e-7:2e-8:0:" \
     --output CarbonDioxide.purity --output CarbonDioxide.recovery \
-    --setting css.mass_balance_tolerance=2e-3 --workers 4 --save study.json
+    --setting css.state_tolerance=5e-6 --workers 4 --save study.json
 ```
 
 `--method both` (the default) screens all inputs, then propagates those whose μ\* reaches `--threshold` (0.1) of the largest; `screen` or `propagate` runs one stage. `--json` prints everything as JSON.
@@ -83,7 +83,7 @@ skarstrom sensitivity Perez2019_A \
 
 ## Rules that keep the numbers honest
 
-- **Every run must reach cyclic steady state.** A run that stops at the cycle limit is not settled, and the difference would read as sensitivity. Such runs are counted as not accepted (`require_css=True`, the default). Tighten the CSS tolerance of the deck's CSS method for a study with `settings` (`css.mass_balance_tolerance` for the mass-balance methods, `css.molar_relative_tolerance` for the molar profile), so that the remaining drift stays well below the effects being measured. A deck with no CSS check (`css.method` none) needs one switched on, e.g. `settings={"css.method": 3}`.
+- **Every run must reach cyclic steady state.** A run that stops at the cycle limit is not settled, and the difference would read as sensitivity. Such runs are counted as not accepted (`require_css=True`, the default). Tighten the CSS tolerance of the deck's CSS method for a study with `settings` (`css.state_tolerance` for the mass-balance methods, whose balance band only screens out gross imbalance; `css.molar_relative_tolerance` for the molar profile), so that the remaining drift stays well below the effects being measured ([Cyclic Steady State](cyclic-steady-state.md#state-test)). A deck with no CSS check (`css.method` none) needs one switched on, e.g. `settings={"css.method": 3}`.
 - **Failed runs are reported, never dropped silently.** `failed` and `warnings` say how many runs did not count and why. Failures tend to cluster in one corner of the ranges, so the results then describe the rest of it.
 - **Fixed-cycle screening** (`require_css=False`, `cycles=N`) is fine for a quick ranking when every run gets the same number of cycles. Do not use it for error bars.
 

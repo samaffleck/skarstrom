@@ -33,6 +33,19 @@ namespace adsim {
       return 2 * neq + ((high_order && n_comp > 1) ? n_comp - 1 : 0);
     }
 
+    // One line describing a CSS check for the solver log, e.g.
+    // "Mass Balance (Component), error 3.4e-03 / 5.0e-03, state change 8.9e-03 / 5.0e-05, 0 of 3 cycles".
+    std::string DescribeCSSResult(const CSSResult& r) {
+      std::ostringstream ss;
+      ss << r.method_name << std::scientific << std::setprecision(2)
+         << ", error " << r.error << " / " << r.tolerance;
+      if (r.state_tolerance > 0.0)
+        ss << ", state change " << r.state_change << " / " << r.state_tolerance;
+      ss << ", " << r.passing_cycles << " of " << r.required_cycles
+         << (r.required_cycles == 1 ? " cycle" : " cycles");
+      return ss.str();
+    }
+
     // Without a tight max-step cap IDA can take steps much longer than the
     // logging resolution. KPIs and the conservation checks integrate the logged
     // boundary flows, so when an accepted step (t_prev, t_curr] is longer than
@@ -431,20 +444,12 @@ namespace adsim {
       CSSResult css_result = css.CheckCSS(equation_log_, cycle_index);
 
       if (css_result.converged) {
-        std::ostringstream ss;
-        ss << "CSS reached at cycle " << i
-           << " (" << css_result.method_name
-           << ", error: " << std::scientific << std::setprecision(3) << css_result.error
-           << ", tolerance: " << css_result.tolerance << ")";
-        LogMessage(LogLevel::LOW, ss.str());
+        LogMessage(LogLevel::LOW, "CSS reached at cycle " + std::to_string(i)
+                   + " (" + DescribeCSSResult(css_result) + ")");
         css_cycle_index_ = cycle_index;
         break;
-      } else if (css.method_ != CSSMethod::NONE && css_result.tolerance > 0.0) {
-        std::ostringstream ss;
-        ss << "  CSS check: not converged (" << css_result.method_name
-           << ", error: " << std::scientific << std::setprecision(3) << css_result.error
-           << ", tolerance: " << css_result.tolerance << ")";
-        LogMessage(LogLevel::MEDIUM, ss.str());
+      } else if (css.method_ != CSSMethod::NONE) {
+        LogMessage(LogLevel::MEDIUM, "  CSS check: not converged (" + DescribeCSSResult(css_result) + ")");
       }
 
       auto& state = user_data_.state;
@@ -619,13 +624,16 @@ namespace adsim {
       if (status_.GetStepIndex() >= total_steps) {
 
         // Check for cyclic steady state before moving to next cycle
-        bool is_at_css = css.IsAtCSS(equation_log_, status_.GetCycleIndex());
-        if (is_at_css) {
+        const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex());
+        if (css_result.converged) {
           LogMessage(LogLevel::LOW, "CSS reached at cycle "
-                     + std::to_string(status_.GetCycleIndex() + 1));
+                     + std::to_string(status_.GetCycleIndex() + 1)
+                     + " (" + DescribeCSSResult(css_result) + ")");
           LogRunSummary(true);
           status_.ReachedCSS(status_.GetCycleIndex(), IDA_SUCCESS);
           return;
+        } else if (css.method_ != CSSMethod::NONE) {
+          LogMessage(LogLevel::MEDIUM, "  CSS check: not converged (" + DescribeCSSResult(css_result) + ")");
         }
 
         auto& acc_css = user_data_.settings.acc_css;

@@ -254,6 +254,10 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("error", &adsim::CSSRecord::error)
       .def_readonly("tolerance", &adsim::CSSRecord::tolerance)
       .def_readonly("method", &adsim::CSSRecord::method)
+      .def_readonly("state_change", &adsim::CSSRecord::state_change)
+      .def_readonly("state_tolerance", &adsim::CSSRecord::state_tolerance)
+      .def_readonly("passing_cycles", &adsim::CSSRecord::passing_cycles)
+      .def_readonly("required_cycles", &adsim::CSSRecord::required_cycles)
       .def("__repr__", [](const adsim::CSSRecord& c) {
         return "<CSSRecord cycle=" + std::to_string(c.cycle) + (c.converged ? " converged" : "") +
                " error=" + std::to_string(c.error) + ">";

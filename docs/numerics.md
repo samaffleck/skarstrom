@@ -111,14 +111,16 @@ The benchmark output of `bench_solver` reports the number of colours, audits and
 
 ### Cyclic steady state: detection and acceleration
 
-After the last step of every cycle the solver applies the deck's [cyclic steady state](cyclic-steady-state.md) test (`CyclicSteadyState::CheckCSS`); if it passes, the run stops and the status becomes *Cyclic steady state reached at cycle n*. No method may declare convergence before **Minimum cycles** cycles have run.
+After the last step of every cycle the solver applies the deck's [cyclic steady state](cyclic-steady-state.md) rule (`CyclicSteadyState::CheckCSS`); if it holds, the run stops and the status becomes *Cyclic steady state reached at cycle n*. Each method has a single-cycle test (below), and the rule holds when that test has passed on **Consecutive cycles** cycles in a row (default 3) and at least **Minimum cycles** cycles have run. The check reads only the equation log, so the logs keep at least the cycles it needs.
 
-| Method | Test |
+| Method | Single-cycle test |
 |---|---|
 | None | never; the run does every cycle |
 | Molar Profile | $\lVert \mathbf{C}^{\text{curr}} - \mathbf{C}^{\text{prev}}\rVert_2 \le \varepsilon_{abs} + \varepsilon_{rel}\lVert \mathbf{C}^{\text{curr}}\rVert_2$, where $\mathbf{C}$ is the total-concentration profile over all cells at the end of the **first step** of the current and the previous cycle |
-| Mass Balance (Total) | $\lvert n_{in} - n_{out}\rvert / n_{in} \le \varepsilon_{mb}$ over the whole cycle, summing every face of every step by the sign of its net flow |
-| Mass Balance (Per-Component) | the same for each component that is fed, taking the worst |
+| Mass Balance (Total) | $\lvert n_{in} - n_{out}\rvert / n_{in} \le \varepsilon_{mb}$ over the whole cycle, summing every face of every step by the sign of its net flow, **and** $\Delta_{\text{state}} \le \varepsilon_{\text{state}}$ |
+| Mass Balance (Per-Component) | the balance for each component that is fed, taking the worst, **and** $\Delta_{\text{state}} \le \varepsilon_{\text{state}}$ |
+
+$\Delta_{\text{state}}$ (`CyclicSteadyState::EndOfCycleStateChange`) compares the last logged row of the cycle's last step with the previous cycle's: the largest of $\operatorname{RMS}(x^{c} - x^{c-1}) / s$ over the adsorbed loading of each component ($s$ the RMS total loading), the mole fractions ($s = 1$) and the fluid, solid and wall temperatures ($s$ their RMS). The boundary flux in the balance is reconstructed from the logged face values and integrated over the logged points, so the balance carries a small systematic error of its own; the state test does not, and it does not cross zero the way the balance does on its way to CSS. The [Cyclic Steady State](cyclic-steady-state.md#state-test) page gives the reasoning and the measured stopping cycles.
 
 **Aitken (Graves–Morris) acceleration.** The approach to CSS is often a slow geometric decay: each cycle closes a fixed fraction of the remaining gap. With **CSS acceleration method** set to *Aitken (Graves-Morris)*, the solver extrapolates the end-of-cycle state towards the fixed point (`AccelerateCyclicSteadyState::Accelerate`):
 
@@ -135,7 +137,7 @@ $$
 5. The extrapolated state is first integrated for a short probe (the smaller of 2 s and a tenth of the first step) in a throwaway copy of the integrator. Only if that succeeds is it committed to the live run, with a fresh `IDACalcIC`; otherwise it is discarded and the log says *CSS acceleration skipped*.
 6. The three samples are then discarded, so the next extrapolation uses three fresh cycles. Jumps are therefore at least three cycles apart and the bed relaxes between them.
 
-The gain depends on the deck. For the [Perez 2019 VPSA tutorial](perez-2019-vpsa.md), acceleration moved CSS from cycle 182 to cycle 176, with the same purity and recovery; its 100-cycle minimum limits the possible saving.
+The gain depends on the deck. For the [Perez 2019 VPSA tutorial](perez-2019-vpsa.md), acceleration moved CSS from cycle 190 to cycle 182, with the same purity and recovery.
 
 ### The chunked solver for cooperative front ends
 
