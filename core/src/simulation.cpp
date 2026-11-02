@@ -513,7 +513,7 @@ namespace adsim {
     if (c < 0) throw std::logic_error("no results: run the simulation first");
     if (Log().GetSimulationLog().find(c) == Log().GetSimulationLog().end())
       throw std::out_of_range("cycle " + std::to_string(c) + " is not in the log (logged cycles are the last " +
-                              std::to_string(data_->settings.max_cycles_to_keep_) + ")");
+                              std::to_string(Log().max_cycles_to_keep_) + ")");
     return c;
   }
 
@@ -593,7 +593,8 @@ namespace adsim {
     std::vector<CSSRecord> out;
     for (int c : Cycles()) {
       CSSResult r = data_->settings.css.CheckCSS(Log(), c);
-      out.push_back({c, r.converged, r.error, r.tolerance, r.method_name});
+      out.push_back({c, r.converged, r.error, r.tolerance, r.method_name, r.state_change,
+                     r.state_tolerance, r.passing_cycles, r.required_cycles});
     }
     return out;
   }

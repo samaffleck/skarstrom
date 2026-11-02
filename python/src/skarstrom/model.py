@@ -802,6 +802,11 @@ class CSS(_Node):
     """Relative tolerance on the cycle-to-cycle molar change [-]."""
     mass_balance_tolerance = Real()
     """Mass-balance closure tolerance [-]."""
+    state_tolerance = Real()
+    """Largest relative cycle-to-cycle change of the end-of-cycle bed state that the
+    mass-balance methods accept [-]; 0 switches the state test off."""
+    consecutive_cycles = Integer()
+    """Number of consecutive cycles on which the method's test must pass."""
 
 
 class EnergyBalance(_Node):

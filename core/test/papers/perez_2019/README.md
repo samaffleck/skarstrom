@@ -66,7 +66,7 @@ CO₂/N₂ separation reported by Perez et al. (2019).
 | Idle | none | Sect. 6: a one-second hold with all valves closed between steps | |
 | Feed | 15 % CO₂ / 85 % N₂, 298 K, interstitial velocity of Table 3 × ε | Sect. 2, Table 3 | the deck converts v_feed (Table 3, interstitial) to superficial with ε = 0.41 |
 | Dead volume | none | Sect. 2: about 5 % of the column volume (12 cm³ of 240 cm³ measured for the DCB rig) | |
-| CSS | component balance to 0.5 % | Sect. 3: < 1 % for each species over 5 consecutive cycles, 80–150 cycles | |
+| CSS | component balance to 0.5 % and end-of-cycle state change ≤ 2×10⁻⁵, on 3 consecutive cycles | Sect. 3: < 1 % for each species over 5 consecutive cycles, 80–150 cycles | |
 | Cells | 30 | not printed | |
 
 Bold entries differ from the paper's model. Optimisation set-up (Sect. 5.2, for
@@ -135,7 +135,8 @@ value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#perez-2019)
 (generated from `../validation_summary.json`).
 
-- Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 1.9-3.4 pp low and recovery 2.7-4.1 pp high, at the cyclic steady state of the per-component mass balance (E and F need about 450 and 1000 cycles to reach it).
+- Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 1.9-3.4 pp low and recovery 2.7-4.1 pp high, at cyclic steady state (per-component balance plus the end-of-cycle state test; A to F stop after 70, 81, 97, 190, 426 and 840 cycles).
+- 2026-11-02, CSS rule: the balance-only test used before stopped 26 to 166 cycles short of CSS (A to F after 44, 55, 71, 155, 352 and 674 cycles), while purity and recovery were still moving by up to 0.17 pp (F). Every number on the validation page moved by that much; the only bound crossed was A's recovery against the experiment (0.294 → 0.417 pp, bound 0.4 → 0.5). The bound follows the measured error at CSS; nothing in the model changed.
 - adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K).
 
 ### Kinetics check (Config A, 2026-10-31)

@@ -211,6 +211,11 @@ namespace adsim {
                 [](UserData& u) -> ExpressionParam& { return u.settings.css.molar_relative_tolerance; }),
       ExprField("css", "mass_balance_tolerance", "-", "mass balance tolerance",
                 [](UserData& u) -> ExpressionParam& { return u.settings.css.mass_balance_tolerance_; }),
+      ExprField("css", "state_tolerance", "-", "state change tolerance",
+                [](UserData& u) -> ExpressionParam& { return u.settings.css.state_tolerance_; }),
+      IntField("css", "consecutive_cycles", "consecutive cycles",
+               [](const UserData& u) { return (long long)u.settings.css.consecutive_cycles_; },
+               [](UserData& u, long long x) { u.settings.css.consecutive_cycles_ = (int)x; }),
 
       // energy_balance: the isothermal switch (the web document emits these
       // inside its "energy_balance" object, next to hand-written fields).

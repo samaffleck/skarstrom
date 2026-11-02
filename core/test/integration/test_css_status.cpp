@@ -56,13 +56,60 @@ namespace adsim {
     int flag = solver.IntegrateCycle(data.cycle, false);
     ASSERT_GE(flag, 0) << "Solver did not complete";
 
+    // The profile test differences consecutive cycles, so it first passes at
+    // cycle 1; it must then pass on consecutive_cycles_ (3) cycles: 1, 2, 3.
     EXPECT_TRUE(solver.ReachedCSS());
-    EXPECT_EQ(solver.GetCSSCycleIndex(), 1);    // min_cycles_ = 2 -> 0-based cycle 1
-    EXPECT_EQ(LastLoggedCycle(solver), 1);      // run stopped there
+    EXPECT_EQ(solver.GetCSSCycleIndex(), 3);
+    EXPECT_EQ(LastLoggedCycle(solver), 3);      // run stopped there
 
     // The check the GUI used to make (CSS at the last configured cycle) says
     // "not at CSS" for this run, because that cycle never ran.
     EXPECT_FALSE(css.IsAtCSS(solver.GetLog(), kNumberOfCycles - 1));
+  }
+
+  // With one consecutive cycle the run stops at the minimum-cycle floor.
+  TEST_F(CSSStatusTest, OneConsecutiveCycleStopsAtTheFloor) {
+    auto& css = data.settings.css;
+    css.method_ = CSSMethod::MOLAR_PROFILE;
+    css.min_cycles_ = 2;
+    css.consecutive_cycles_ = 1;
+    css.molar_absolute_tolerance = 1e12;
+    css.molar_relative_tolerance = 0.0;
+
+    CoupledSolver solver{data};
+    ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+    EXPECT_TRUE(solver.ReachedCSS());
+    EXPECT_EQ(solver.GetCSSCycleIndex(), 1);    // min_cycles_ = 2 -> 0-based cycle 1
+  }
+
+  // The logs keep the cycles the CSS check reads even when the deck asks for
+  // fewer. (After a run the log holds the last cycle plus max_cycles_to_keep_
+  // earlier ones.)
+  TEST_F(CSSStatusTest, LogsKeepTheCyclesTheCheckReads) {
+    auto& css = data.settings.css;
+    css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
+    css.mass_balance_tolerance_ = 0.0;  // never converges: run every cycle
+    data.settings.max_cycles_to_keep_ = 1;
+
+    {
+      CoupledSolver solver{data};
+      ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+      EXPECT_EQ(solver.GetLog().GetSimulationLog().size(),
+                static_cast<size_t>(CyclicSteadyState::kDefaultConsecutiveCycles + 1));
+      // Every cycle ran the state test against the previous one.
+      const CSSResult r = css.CheckCSS(solver.GetLog(), kNumberOfCycles - 1);
+      EXPECT_FALSE(r.converged);
+      EXPECT_GE(r.state_change, 0.0);
+      EXPECT_DOUBLE_EQ(r.state_tolerance, CyclicSteadyState::kDefaultStateTolerance);
+    }
+
+    css.state_tolerance_ = 0.0;
+    css.consecutive_cycles_ = 1;
+    {
+      CoupledSolver solver{data};
+      ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+      EXPECT_EQ(solver.GetLog().GetSimulationLog().size(), 2u);  // no floor: 1 + 1
+    }
   }
 
   // Without a CSS method the run goes to the last cycle and reports no CSS.

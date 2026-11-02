@@ -75,6 +75,44 @@ root `CMakeLists.txt`.
     `validation_summary.json` are regenerated.
 
 ### Changed
+- **Cyclic steady state: the mass-balance methods no longer stop by accident.**
+  On the way to CSS the per-cycle balance error swings through zero (a bed
+  alternately gaining and losing a component), so the old single-cycle test
+  with its 0.5 % band passed early: on the Yancy-Caballero (2020) 13X cycle at
+  10 cells it stopped at the fifth cycle with purity and recovery 4–13 × 10⁻³
+  from their converged values, and on `Perez2019_A`…`_F` 26 to 166 cycles
+  early (KPIs up to 1.8 × 10⁻³ off). *Mass Balance (Total)* and *Mass Balance
+  (Per-Component)* now also require the **end-of-cycle bed state** to have
+  stopped changing: the largest relative RMS change since the previous cycle
+  of the component loadings (scaled by the total loading), the mole fractions
+  and the fluid, solid and wall temperatures
+  (`CyclicSteadyState::EndOfCycleStateChange`) must be within the new
+  **`css.state_tolerance`** (default 2 × 10⁻⁵; 0 switches it off). Every
+  method's test must now hold on **`css.consecutive_cycles`** cycles in a row
+  (default 3) before CSS is declared. The balance tolerance is unchanged: a
+  tighter one cannot be relied on, because the balance carries a small
+  systematic error of its own (up to 1 × 10⁻⁴ at CSS on `Perez2019_E`).
+  With the defaults the Yancy cycle stops at cycles 59 and 100 (C1, C2,
+  0-based) instead of 4, within 1.4 × 10⁻⁵ of the 150-cycle KPIs, and the
+  example decks within 4.7 × 10⁻⁵ of their converged KPIs (`Perez2019_F`, which
+  closes only ~1.5 % of its gap per cycle, 1.3 × 10⁻⁴); the stopping cycles
+  and errors of 14 decks are tabulated in `docs/cyclic-steady-state.md`.
+  `CyclicSteadyState` is class version 2: decks saved before it load with the
+  defaults, so **existing decks that use a mass-balance method run longer and
+  report converged (different) purity and recovery**, and Molar Profile decks
+  stop at least two cycles later. `css.state_tolerance = 0` with
+  `css.consecutive_cycles = 1` restores the old test. The solver's logs keep at
+  least the cycles the check reads (one more than `consecutive_cycles`), even
+  when `settings.max_cycles_to_keep` is smaller. `CSSResult`, `CSSRecord` and
+  Python's `sim.css_history()` gain `state_change`, `state_tolerance`,
+  `passing_cycles` and `required_cycles`; the solver log at level *medium*
+  prints them after every cycle. Every paper case that runs to CSS moved
+  (`docs/validation.md`): Perez 2019 A–F by up to 0.17 pp (A's recovery
+  against the experiment crossed its bound, 0.294 → 0.417 pp; the bound is now
+  0.5, see the Perez README), Nguyen 2023 I–X by up to 0.22 pp, Ferre 2026 by
+  up to 0.32 pp, Ward & Pini 2024 by 0.04 pp and Vysyaraju 2024's He recovery
+  by 0.64 pp (17.32 → 16.69 %); all within their bounds. Every bundled deck is
+  re-saved with the two new fields, and the CSS decks with their new results.
 - **Adsorbent library: one recommended entry per material** (catalogue schema 3).
   `library.json` groups its entries into 22 `materials` (id, name, family,
   `recommended` entry and why, `aliases`). A material's other entries are
@@ -91,6 +129,29 @@ root `CMakeLists.txt`.
   `materials`, `FindMaterial`, `Resolve` and `Variants`. Entry keys are unchanged.
 
 ### Fixed
+- **WENO and van Leer advection** (`advection_scheme = weno | van_leer`) are fixed; Upwind (the
+  default, and every bundled deck) is unchanged. Compared line by line with the WENO of
+  Haghpanah et al. (2013) / Yancy-Caballero et al. (2020) (PEESEgroup/PSA `CycleSteps/WENO.m`):
+  (1) WENO's upwind-side candidate was the face value one face upstream, `(y[n-1] + y[n])/2`,
+  instead of the extrapolation `3/2 y[n] - 1/2 y[n-1]`, which made the scheme first order;
+  (2) both schemes gave the bed-end faces the average of the ghost and the first cell, but the
+  ghost holds the inlet composition itself, so the bed received `(y_feed + y_1)/2` while the
+  stream logs, KPIs and cycle mass balance counted `y_feed` (CO2 balance 0.94-0.98 on the
+  Yancy-Caballero 13X cycle at 10 cells with dispersion off, where upwind closes to 1.0000);
+  (3) built component by component, the limited faces did not sum to the cell sum, and
+  linearised about a steep front they weight the downwind cell, so a departure of the cell sum
+  of mole fractions from one grew without bound (van Leer reached a sum of 90 in a CO2/N2
+  breakthrough). Now the bed-end faces take the upwind value; the first interior face next to
+  an inlet extrapolates from the inlet value half a cell away (`2 y_1 - y_0`, as the reference;
+  van Leer doubles that slope likewise); void cells are treated as well mixed; WENO uses the
+  cell widths on non-uniform grids; and the interior faces are rescaled so their mole fractions
+  sum to the upwind cell's sum, which couples the mole fractions two cells apart, so the
+  Jacobian half-bandwidth for these schemes grows from `2 neq` to `2 neq + components - 1`.
+  On the Yancy-Caballero 13X cycle at 10 cells, WENO now gives a CO2 recovery of 90.0 % for
+  the minimum-energy case (PSASimulator.jl WENO reference 89.7 %; was 77.5 %), and its CO2
+  balance with dispersion off closes to 1e-5 at every grid. Tests:
+  `AdvectionSchemeConservation.EachSpeciesIsConservedThroughTheBedEnds` and
+  `AdvectionSchemeConservation.CellMoleFractionsKeepSummingToOneAtASteepFront`.
 - `CreateBoundaryValue` and `CreateInletTemperatureProfile` know the double-exponential
   profile. The web document layer builds profiles through the first factory, so a deck
   with a double-exponential pressure boundary (the Perez 2019 decks) lost it to a null
