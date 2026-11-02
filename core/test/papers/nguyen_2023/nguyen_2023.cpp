@@ -60,12 +60,15 @@ namespace adsim {
       { "ExperimentVI",   { 1.3, 7.8, 0.076, 0.74, 5.9, 0.011 } },
       // measured: 0.70128 pp, 7.74829 pp, 0.139047 rel | 1.90128 pp, 8.04829 pp, 0.139047 rel
       { "ExperimentVII",  { 1.1, 9, 0.16, 2.3, 9.3, 0.16 } },
-      // measured: 2.62136 pp, 9.23821 pp, 0.0788527 rel | 3.52136 pp, 7.13821 pp, 0.021281 rel
-      { "ExperimentVIII", { 3.1, 11, 0.091, 4.1, 8.3, 0.032 } },
-      // measured: 0.981537 pp, 9.84982 pp, 0.116667 rel | 3.61154 pp, 8.74982 pp, 0.0369047 rel
-      { "ExperimentIX",   { 1.3, 12, 0.14, 4.2, 11, 0.047 } },
-      // measured: 0.236556 pp, 8.37753 pp, 0.0182035 rel | 0.236556 pp, 7.17753 pp, 0.17485 rel
-      { "ExperimentX",    { 0.54, 9.7, 0.029, 0.54, 8.3, 0.21 } },
+      // measured: 2.8352 pp, 7.91579 pp, 0.091404 rel | 3.7352 pp, 5.81579 pp, 0.0346167 rel
+      // (Danckwerts inlet and Darcy flow-face fixes, 2026-11; before: 0.0788527 and 0.021281 rel productivity)
+      { "ExperimentVIII", { 3.1, 11, 0.11, 4.1, 8.3, 0.04 } },
+      // measured: 1.38693 pp, 7.76563 pp, 0.0935361 rel | 4.01693 pp, 6.66563 pp, 0.0154264 rel
+      // (Danckwerts inlet and Darcy flow-face fixes, 2026-11; before: 0.981537 pp purity vs experiment)
+      { "ExperimentIX",   { 1.6, 12, 0.14, 4.2, 11, 0.047 } },
+      // measured: 0.929014 pp, 5.24427 pp, 0.0127986 rel | 0.929014 pp, 4.04427 pp, 0.139079 rel
+      // (Danckwerts inlet and Darcy flow-face fixes, 2026-11; before: 0.236556 pp purity)
+      { "ExperimentX",    { 1.1, 9.7, 0.029, 1.1, 8.3, 0.21 } },
     };
 
     void ValidateNguyen2023(const std::string& experiment_name, const UserData& data,

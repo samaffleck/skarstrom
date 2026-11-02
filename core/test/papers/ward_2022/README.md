@@ -107,3 +107,28 @@ value in a comment next to it. Results of the last run:
 
 - The CO2 front (y = 0.5) arrives 4-6 % earlier than measured. The simulated front is much sharper than the measured one, so the curve NRMSE is 34-38 %; the thermocouple RMSE is 2.6-4.2 K, and the simulated temperature rise (15-33 K) is above the paper model's 95 % interval (7-27 K).
 - No transcription error was found (column length, radius, voidage, bed density, flows and isotherm match Tables 1-2). Likely causes: a single constant heat of adsorption of 29.98 kJ/mol (the site-1 internal energy, while most of the loading sits on site 2 at 20.4 kJ/mol) heats the bed more and lowers its capacity; the deck uses air as carrier where the paper uses He; the sampling line is not modelled. The ambient temperature was corrected to Table 1's 291.4 K.
+
+### Danckwerts inlet fix (2026-11)
+
+The inlet face of the bed used to let axial dispersion carry CO₂ into the bed
+on top of the feed, eb·D·C·(1 − y₁)/Δz with the ghost cell at the feed's
+y = 1. With the paper's (×4) dispersion coefficient that is about 2 % of the
+fed CO₂ at 50 cm³/min (the per-step component balance against the stream log
+was off by 2.1 %), which the stream log and the breakthrough indicators never
+saw. The inlet is now Danckwerts (the face carries exactly the feed's
+u·C·y_in), so the bed holds the same capacity but is fed less CO₂ and the
+front arrives later:
+
+| Case | front time sim / exp [s], before → after | y NRMSE, before → after | T RMSE [K], before → after |
+|---|---|---|---|
+| 50 ccm | 2623 → 2682 / 2574 (+1.9 % → +4.2 %) | 0.184 → 0.332 | 1.19 → 1.18 |
+| 100 ccm | 1280 → 1301 / 1259 (+1.7 % → +3.3 %) | 0.129 → 0.244 | 2.06 → 1.18 |
+| 200 ccm | 591.7 → 599.8 / 591.1 (+0.1 % → +1.5 %) | 0.029 → 0.120 | 4.01 → 2.76 |
+
+The temperature fit improves (the inlet energy balance now carries exactly
+the feed enthalpy, with no conduction across the inlet face), the front-time
+and curve fits get worse: part of the previous agreement came from the
+unaccounted CO₂. The front-time and NRMSE tolerances were re-measured
+accordingly (see `ward_2022.cpp`). At 100 ccm ΔT_ads is now 12.89 K, just
+below the paper model's 95 % interval [12.9, 17.2] K (informational metric).
+

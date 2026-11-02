@@ -676,10 +676,9 @@ namespace adsim {
       ehtc->heat_transfer_coefficient_ = 0.0;
       layer.equations_.external_heat_transfer_model_ = std::move(ehtc);
 
-      // No axial conduction. The inlet ghost cell sits at the feed temperature,
-      // so a non-zero effective conductivity would pump heat across the bottom
-      // face on top of the convected enthalpy -- a second energy path that the
-      // two-term balance below does not model.
+      // No axial conduction, so the balance below needs no conduction term
+      // at the outlet. (None crosses the bottom face whatever the
+      // conductivity: the inlet is Danckwerts.)
       auto heat_disp = std::make_unique<HeatDispersionModelConstant>();
       heat_disp->dispersion_coefficient_ = 0.0;
       layer.equations_.heat_dispersion_model_ = std::move(heat_disp);
@@ -767,20 +766,25 @@ namespace adsim {
 
     ASSERT_EQ(relative_imbalance.size(), 4u);
 
-    // Halving the cell width must halve the closure error: that is first-order
-    // convergence, which is the expected order for the upwind discretisation.
-    // Asserting the observed *order* is far stronger than asserting any single
-    // tolerance -- it says the scheme is consistent, not merely accurate enough
-    // on one grid.
+    // Halving the cell width must at least halve the closure error: first-order
+    // convergence (or better) is the expected order for the upwind
+    // discretisation. Asserting the observed *order* is far stronger than
+    // asserting any single tolerance -- it says the scheme is consistent, not
+    // merely accurate enough on one grid. The bottom face carries exactly the
+    // feed enthalpy (Danckwerts: no conduction across it, upstream value the
+    // face temperature T_in), so what is left is the outlet and time
+    // discretisation: measured 1.5e-3, 7.0e-4, 2.8e-4, 6.6e-5 (ratios 2.2, 2.5,
+    // 4.2). Upwinding the inlet face to the mirrored ghost value 2 T_in - T_1,
+    // as the residual did before, added a first-order error of its own.
     for (size_t i = 1; i < relative_imbalance.size(); ++i) {
       const double order_ratio = relative_imbalance[i - 1] / relative_imbalance[i];
-      EXPECT_NEAR(order_ratio, 2.0, 0.3)
+      EXPECT_GT(order_ratio, 1.7)
         << "Energy-balance closure error is not converging at first order: "
         << relative_imbalance[i - 1] << " -> " << relative_imbalance[i]
         << " (ratio " << order_ratio << ")";
     }
 
-    EXPECT_LT(relative_imbalance.back(), 0.005)
+    EXPECT_LT(relative_imbalance.back(), 2e-4)
       << "Open-system energy balance does not close on the finest grid (error = "
       << 100.0 * relative_imbalance.back() << "% of the enthalpy input)";
   }

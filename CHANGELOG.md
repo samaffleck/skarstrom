@@ -8,6 +8,72 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed — component mass balance with axial dispersion (Danckwerts inlets)
+- **Inlet faces are Danckwerts.** With non-zero axial dispersion the component
+  balance did not close at cyclic steady state: the species residual let a
+  dispersive flux eb·D·C·(y₁ − y_in)/Δz cross the inlet face on top of the
+  convective u·C·y_in, because the inlet ghost cell holds the feed composition.
+  Totals still balanced (the dispersive fluxes sum to zero over components) but
+  each component did not, by an amount proportional to D and nearly independent
+  of the grid, and the stream logs, KPIs and the CSS mass-balance check never
+  saw the extra species (reported: CO₂ out/in 1.0035 at D = 3.1e-4 m²/s and
+  1.032 at 3e-3 m²/s). No dispersive flux now crosses the two boundary faces of
+  the bed (`UpdateMoleFraction`), so an inlet face carries exactly u·C·y_in and
+  the first cell may differ from the feed; at outlets and closed ends the ghost
+  mirrors the first cell, so nothing changes there. The energy balance had the
+  same defect: conduction across the inlet face, and an upwind value at the
+  inlet face equal to the mirrored ghost temperature 2·T_in − T₁ rather than
+  T_in. Both are fixed (`UpdateTemperature`, `UpdateFluidTemperature`). The WENO
+  and van Leer reconstructions take the ghost value at the boundary faces
+  (they averaged ghost and first cell, which at an inlet is not the feed).
+  `GetTotalComponentMolesIn` (CSS mass-balance check, mass-balance panels)
+  reconstructs the boundary flux without the dispersive term, matching the
+  residual.
+- **Flow boundaries on Kozeny–Carman layers deliver exactly the stream flow.**
+  `FlowBoundaryCondition::Apply` computed the boundary-face flow of a Darcy
+  layer with the ghost cell's mobility alone, K/(μ_ghost·Δz), while the face
+  velocity that carries the gas into the bed obeys the face's Darcy law with
+  the two half-cells in series. Whenever the ghost and first-cell viscosities
+  differ (feed composition vs the bed gas, or the mirrored ghost temperature)
+  the bed took in a different flow from the one the stream logs record (≈1 %
+  in the new test; several per cent in the Streb 2021 decks, whose beds start
+  in helium). The condition now matches the stream flow against the face's own
+  velocity unknown, as Ergun faces (and the momentum-balance docs) already did.
+- New regression tests `DispersionMassBalance.*`
+  (`core/test/validation/test_dispersion_mass_balance.cpp`): a dispersive
+  (D = 3e-3 m²/s) single-bed cycle with a flow-condition inlet at the bottom and
+  a pressure-condition inlet at the top. Per step and component, the moles the
+  stream logs record entering the bed equal the bed's inventory change (before
+  the fix: errors of 0.4–50 %), and at cyclic steady state out/in of every
+  component is 1 within 1e-4 (before: O₂ 1.053, N₂ 0.983).
+- Verification tests adjusted: `OpenSystemEnergyBalanceConvergesUnderGridRefinement`
+  asserted first-order convergence of an energy closure error that came from the
+  inlet ghost upwinding; the error is now 1.5e-3 → 6.6e-5 over the four grids
+  (at least first order is asserted, and < 2e-4 on the finest grid instead of
+  < 5e-3). `EndOfCycleProfileConverges` allows an absolute 2e-4 mol/m³ wobble at
+  the ~1e-3 mol/m³ floor the gaps level off at.
+- **Validation numbers that moved** (example decks re-saved; tolerances
+  re-measured where they no longer held, each documented in the paper's
+  README):
+  - Ward 2022 (species fix; the bed had taken in ~2 % more CO₂ than fed): CO₂
+    front time vs experiment +1.9/+1.7/+0.1 % → +4.2/+3.3/+1.5 % at 50/100/200
+    cm³/min, outlet-curve NRMSE 0.18/0.13/0.029 → 0.33/0.24/0.12; thermocouple
+    RMSE 1.19/2.06/4.01 → 1.18/1.18/2.76 K.
+  - Streb 2021 (flow-face fix): CH₄ fronts ~3 % earlier; CH₄ front-time error
+    A2 7.6 → 10.5 %, A3 0.3 → 3.1 %, A5 12.1 → 14.2 %, A6 8.7 → 11.7 %,
+    A7 7.3 → 10.2 %, B1 0.7 → 2.1 %; A3 y_CH₄ NRMSE 0.21 → 0.50; A6 y_CO₂ NRMSE
+    0.048 → 0.10; A2 thermocouple RMSE 14.1 → 18.6 K.
+  - Nguyen 2023: CO₂ recovery of IX and X no longer exceeds 100 %
+    (100.35/100.78 → 98.27/97.64 %); purity X 80.84 → 79.67 %, IX 84.69 →
+    84.28 %; VIII productivity 0.1566 → 0.1545 (−1.4 %).
+  - Within their bounds: Perez 2019 A–F recovery down by up to 1.1 pp
+    (purity ≤ 0.2 pp); Arora 2021 O₂ recovery at cycle 50 4.24 → 4.53 % (PSA)
+    and 19.88 → 20.74 % (PVSA); Ferré 2026 CH₄ recovery up by up to 0.75 pp;
+    Casas 2012 H₂ breakthrough times ≤ 1.2 % earlier; Nguyen 2022 outlet-curve
+    NRMSE improves (Fig. 4 50 %: 0.061 → 0.042); Vysyaraju 2024 He recovery
+    17.32 → 17.54 %; Ward & Pini 2024 ≤ 0.2 %. `docs/validation.md` and
+    `validation_summary.json` are regenerated.
+
 ### Fixed
 - `CreateBoundaryValue` and `CreateInletTemperatureProfile` know the double-exponential
   profile. The web document layer builds profiles through the first factory, so a deck
