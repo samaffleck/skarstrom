@@ -17,8 +17,8 @@
 namespace adsim {
 
   namespace {
-    constexpr double kConvergedPurity = 0.9948831;    // CO2, cycle 1000
-    constexpr double kConvergedRecovery = 0.5911967;  // CO2, cycle 1000
+    constexpr double kConvergedPurity = 0.9948428;    // CO2, cycle 1000 (Danckwerts inlets, #37)
+    constexpr double kConvergedRecovery = 0.5904760;  // CO2, cycle 1000 (Danckwerts inlets, #37)
 
     // Returns a pointer into `kpis`: keep the vector alive while it is used
     // (a temporary from sim.KPIs() is freed at the end of the statement).
