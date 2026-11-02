@@ -74,6 +74,23 @@ std::vector<std::pair<std::string, ExpressionParam*>> IsothermFields(IIsotherm* 
 // True when IsothermFields covers this kind (INERT counts: supported, zero params).
 bool IsSupportedIsothermKind(IsothermType t);
 
+// True for the competitive kinds, whose loadings couple the components through
+// a shared denominator when the adsorbent's mixing rule is none: the extended
+// Langmuir kinds (single- and dual-site, both bases), extended Sips 2 and
+// Arrhenius Sips. Under the IAST mixing rule (porous_media.h) these are taken in
+// their pure-component limit, so a front end offers the non-competitive kinds
+// there instead.
+bool IsCompetitiveIsothermKind(IsothermType t);
+
+// The kind with the same parameter layout in the other family: a competitive
+// kind's pure-component counterpart, or a pure kind's competitive form
+// (single_site_langmuir_p <-> extended_single_site_langmuir_p, and likewise for
+// the dual-site and concentration forms, sips_2 <-> extended_sips_2). Switching
+// a component to its paired kind keeps every parameter. False when there is
+// none (Arrhenius Sips has no pure kind with its layout; Toth, Freundlich and
+// the rest have no competitive form).
+bool PairedIsothermKind(IsothermType t, IsothermType& out);
+
 // Reverse of IsothermKindString: kind tag -> IsothermType. False if unknown.
 bool KindFromString(const std::string& kind, IsothermType& out);
 

@@ -928,6 +928,9 @@ namespace adsim {
       E("particle_void_fraction", "adsorbent", an, "particle void fraction", "-", ads.ep_, 0.0, 0.8);
 
       auto& source = ads.adsorption_source_;
+      // 0 = none (each isotherm on its own), 1 = IAST over the pure isotherms.
+      EmplaceEnum(ap + ".mixing_rule", aa + ".mixing_rule", "adsorbent", an, "mixing rule",
+                  source.mixing_rule_, "none,iast");
       for (auto& [component, dH] : source.heat_of_adsorption_) {
         E("heat_of_adsorption[" + component + "]", "adsorbent", an, component + " heat of adsorption",
           "J/mol", dH, 0.0, 1e6);

@@ -26,7 +26,7 @@ fit = skarstrom.fit_isotherm("dual_site_langmuir_p", p_all, q_all, temperature=T
 
 `skarstrom.isotherm_kinds()` lists the kinds the fitter offers: Henry; single- and dual-site Langmuir (pressure and concentration forms); extended single- and dual-site Langmuir; Freundlich; Sips; dual-site Sips; Toth; and the temperature-dependent Sips 2, extended Sips 2 and Toth 2. `skarstrom.isotherm_parameters(kind)` gives a kind's parameter names, which are the names used in deck files and in parameter paths (`adsorbent[<id>].isotherm[<component>].<name>`). The [Isotherms](isotherms.md) page has the definitions.
 
-`skarstrom.evaluate_isotherm(kind, params, pressure, temperature, mole_fraction=1.0)` evaluates any kind with given parameters (unspecified parameters keep the engine default), for plotting or checking a fit.
+`skarstrom.evaluate_isotherm(kind, params, pressure, temperature, mole_fraction=1.0)` evaluates any kind with given parameters (unspecified parameters keep the engine default), for plotting or checking a fit. Pure-component fits are exactly what the [IAST mixing rule](isotherms.md#mixture-loadings-the-mixing-rule-and-iast) needs; `skarstrom.evaluate_iast(kinds, params, pressure, temperature, mole_fraction)` gives the mixture loadings they predict.
 
 ## Starting values and bounds
 

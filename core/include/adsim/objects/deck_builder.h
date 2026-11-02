@@ -63,6 +63,7 @@ namespace adsim::build {
 std::vector<std::string> IsothermKinds();
 const std::vector<std::string>& RateModelKinds();
 const std::vector<std::string>& RateCoefficientKinds();
+const std::vector<std::string>& MixingRuleKinds();
 const std::vector<std::string>& MomentumKinds();
 const std::vector<std::string>& DispersionKinds();
 const std::vector<std::string>& HeatDispersionKinds();
@@ -97,6 +98,12 @@ AdsorbentID AddAdsorbent(UserData& data, const std::string& name);
 // component is removed.
 void SetIsotherm(UserData& data, AdsorbentID adsorbent, const std::string& kind,
                  const std::vector<std::string>& components);
+
+// How the adsorbent combines its components' isotherms into mixture loadings:
+// "none" (each isotherm on its own; the extended kinds couple components
+// themselves) or "iast" (Ideal Adsorbed Solution Theory over the pure
+// isotherms, iast.h).
+void SetMixingRule(UserData& data, AdsorbentID adsorbent, const std::string& kind);
 
 // The rate model of one component: `model` with a `coefficient` model.
 void SetRateModel(UserData& data, AdsorbentID adsorbent, const std::string& component,

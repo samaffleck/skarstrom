@@ -206,6 +206,51 @@ bool IsSupportedIsothermKind(IsothermType t) {
   return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
 }
 
+bool IsCompetitiveIsothermKind(IsothermType t) {
+  using T = IsothermType;
+  switch (t) {
+    case T::EXTENDED_SINGLE_SITE_LANGMUIR_P:
+    case T::EXTENDED_SINGLE_SITE_LANGMUIR_C:
+    case T::EXTENDED_DUAL_SITE_LANGMUIR_P:
+    case T::EXTENDED_DUAL_SITE_LANGMUIR_C:
+    case T::EXTENDED_SIPS_2:
+    case T::ARRHENIUS_SIPS:
+      return true;
+    case T::INERT:
+    case T::HENRY:
+    case T::SINGLE_SITE_LANGMUIR_P:
+    case T::SINGLE_SITE_LANGMUIR_C:
+    case T::DUAL_SITE_LANGMUIR_P:
+    case T::DUAL_SITE_LANGMUIR_C:
+    case T::FREUNDLICH:
+    case T::SIPS:
+    case T::TOTH:
+    case T::ANTI_LANGMUIR:
+    case T::REDLICH_PETERSON:
+    case T::SIPS_2:
+    case T::DUAL_SITE_SIPS:
+    case T::TOTH_2:
+      return false;
+  }
+  return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
+}
+
+bool PairedIsothermKind(IsothermType t, IsothermType& out) {
+  using T = IsothermType;
+  static constexpr std::pair<T, T> kPairs[] = {
+      {T::SINGLE_SITE_LANGMUIR_P, T::EXTENDED_SINGLE_SITE_LANGMUIR_P},
+      {T::SINGLE_SITE_LANGMUIR_C, T::EXTENDED_SINGLE_SITE_LANGMUIR_C},
+      {T::DUAL_SITE_LANGMUIR_P, T::EXTENDED_DUAL_SITE_LANGMUIR_P},
+      {T::DUAL_SITE_LANGMUIR_C, T::EXTENDED_DUAL_SITE_LANGMUIR_C},
+      {T::SIPS_2, T::EXTENDED_SIPS_2},
+  };
+  for (const auto& [pure, competitive] : kPairs) {
+    if (t == pure) { out = competitive; return true; }
+    if (t == competitive) { out = pure; return true; }
+  }
+  return false;
+}
+
 bool KindFromString(const std::string& kind, IsothermType& out) {
   for (auto t : AllIsothermTypes()) {
     if (kind == IsothermKindString(t)) {

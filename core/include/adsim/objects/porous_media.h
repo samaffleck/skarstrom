@@ -39,6 +39,7 @@
 // ads includes
 #include "adsim/objects/fluid.h"
 #include "adsim/equations/isotherm.h"
+#include "adsim/equations/iast.h"
 #include "adsim/equations/mass_transfer_model.h"
 #include "adsim/objects/reactor_equations.h"
 #include "adsim/objects/domain.h"
@@ -49,6 +50,24 @@
 namespace adsim {
 
   class MixedAdsorbentLayer;
+
+  // How one adsorbent combines its components' isotherms into mixture loadings.
+  //   None: each component's isotherm is evaluated on its own at the partial
+  //         pressure (the extended kinds couple components through their own
+  //         shared denominators).
+  //   IAST: Ideal Adsorbed Solution Theory over the components' pure isotherms
+  //         (iast.h); every component keeps its own kind and parameters, and an
+  //         extended kind is taken in its pure-component limit.
+  // Enumerator values are what the deck stores, so never renumber them.
+  enum class MixingRule {
+    None = 0,
+    IAST = 1
+  };
+
+  static const char* MixingRuleList[] = {
+    "None",  // 0
+    "IAST"   // 1
+  };
 
   class AdsorptionSource {
   public:
@@ -76,8 +95,11 @@ namespace adsim {
     void UpdateIsotherm(Equations& state, AdsorbentID ads_id, const std::string& component, int start_index, int end_index, const UserVariableRegistry* registry);
     // Update every component's isotherm in one pass for a single adsorbent.
     // Components sharing a competitive (extended) isotherm reuse its per-cell
-    // denominator instead of recomputing it once per component. Writes into the
-    // adsorbent's own equilibrium-loading map (eq_ads_concentration[ads_id]).
+    // denominator instead of recomputing it once per component. Under
+    // MixingRule::IAST the loadings are the IAST solution over the components'
+    // pure isotherms instead (one solve per cell, warm-started from the cell's
+    // last solve). Writes into the adsorbent's own equilibrium-loading map
+    // (eq_ads_concentration[ads_id]).
     void UpdateIsothermAll(Equations& state, AdsorbentID ads_id, const std::vector<std::string>& components, int start_index, int end_index, const UserVariableRegistry* registry);
     // solid_density [kg/m3] is the owning adsorbent's particle density, which
     // the capacity-factor coefficient needs (0 when unknown).
@@ -86,6 +108,7 @@ namespace adsim {
 
     std::unordered_map<std::string, std::unique_ptr<IMassTransferModel>> mass_transfer_models_{};
     std::unordered_map<std::string, ExpressionParam> heat_of_adsorption_{}; // Heat of adsorption [J/mol]
+    MixingRule mixing_rule_ = MixingRule::None;
 
     void EvaluateExpressions(const EvalContext& ctx) {
       for (auto& [c, mtm] : mass_transfer_models_) if (mtm) mtm->EvaluateExpressions(ctx);
@@ -94,13 +117,28 @@ namespace adsim {
     }
     void CompileForRun(const UserVariableRegistry* registry) {
       for (auto& [c, mtm] : mass_transfer_models_) if (mtm) mtm->CompileForRun(registry);
+      // Every run starts the IAST iterations cold, so a rerun of the same deck
+      // reproduces the first run bit for bit.
+      iast_psi_.clear();
+      iast_scratch_ = IastScratch{};
     }
 
   private:
     std::unique_ptr<IIsotherm>& GetIsotherm(IsothermType type, const std::string& component);
+    void UpdateIsothermIast(Equations& state, AdsorbentID ads_id, const std::vector<std::string>& components, int start_index, int end_index);
 
     std::unordered_map<IsothermType, std::unique_ptr<IIsotherm>> isotherms_{};
     std::unordered_map<std::string, IsothermType> isotherm_map_{};
+
+    // IAST working storage (not serialised): the resolved pure isotherms, the
+    // per-cell mixture state and the reduced spreading pressure of each cell's
+    // last solve, the warm start of the next one.
+    std::vector<PureIsothermRef> iast_refs_{};
+    std::vector<PureIsotherm> iast_pure_{};
+    std::vector<double> iast_y_{}, iast_q_{}, iast_psi_{};
+    std::vector<const std::vector<double>*> iast_y_of_{};
+    std::vector<std::vector<double>*> iast_q_of_{};
+    IastScratch iast_scratch_{};
 
     friend class cereal::access;
     template<class Archive>
@@ -112,8 +150,11 @@ namespace adsim {
         cereal::make_nvp("Isotherm_Map", isotherm_map_)
       );
 
-      if (version >= 2) {
-        // Future expansion
+      // Version 1 adds the mixing rule; older archives mean None.
+      if (version >= 1) {
+        ar(cereal::make_nvp("Mixing_Rule", mixing_rule_));
+      } else {
+        mixing_rule_ = MixingRule::None;
       }
     }
   };

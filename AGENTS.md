@@ -141,6 +141,8 @@ CLI: `skarstrom sensitivity deck.json --input "PATH=10%" --input "PATH=LO:HI" --
 ```python
 skarstrom.isotherm_kinds(); skarstrom.isotherm_parameters("sips")
 skarstrom.evaluate_isotherm("sips", {"q_sat": 5, "b": 1e-5, "v": 0.8}, pressure=p_pa, temperature=298.15)
+skarstrom.evaluate_iast(["sips", "toth"], [{...}, {...}], pressure=p_pa, temperature=298.15, mole_fraction=[0.3, 0.7])
+ads.set_mixing_rule("iast")   # per adsorbent: "none" (default) or "iast" over the components' pure isotherms
 skarstrom.fit_isotherm("dual_site_langmuir_p", p_pa, q_molkg, temperature=T_K)   # params, std_errors, r2, rmse, ...
 skarstrom.adsorbent_library()["entries"]; skarstrom.adsorbent_path("zeolite_13x_perez2019")
 ```

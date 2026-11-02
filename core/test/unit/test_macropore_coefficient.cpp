@@ -111,7 +111,7 @@ TEST(MacroporeCoefficient, CapacityFactorWithConstantDiffusivity) {
   MassTransferCoefficientMacroporeCapacity m;
   m.tortuosity_ = kTau;
   m.macropore_void_fraction_ = kEp;
-  m.SetEquilibriumContext(&iso, rho_p);
+  m.SetEquilibriumContext(&iso, rho_p, nullptr);  // no mixing rule
   EXPECT_EQ(m.molecular_diffusion_coefficient_.Get(), 0.0);
 
   for (double P : {1.0e5, 1.0e4, 3.0e3}) {
