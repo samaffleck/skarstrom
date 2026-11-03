@@ -277,7 +277,7 @@ namespace adsim {
                             "to validate the solver performance. This test demonstrates the ability to model competitive adsorption in binary systems "
                             "at high pressure conditions.";
     data.info.author = "Sam Affleck";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.177171, y_CH4 0.559266, T RMSE 11.4257 K, front time CO2 0.0480148, CH4 0.0383447; before: CH4 front 0.0309611).
+    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.177171, y_CH4 0.559265, T RMSE 11.4257 K, front time CO2 0.0480052, CH4 0.0383386; before: CH4 front 0.0309611).
     StrebCase c{ "A3", 10e5, 298, 20e-6, false, 4100.0,
                  0.27, 0.58, kNotUsed, 19, 0.08, 0.041 };
     SetUpStreb(c);
@@ -308,7 +308,7 @@ namespace adsim {
   // for which digitised data exist. Durations cover the digitised record.
   TEST_F(Streb2021Test, ExperimentA2) {
     data.info.title = "Streb 2021 - Experiment A2";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.35042, y_CH4 0.838922, T RMSE 18.5785 K, front time CO2 0.0546576, CH4 0.110434; before: y_CO2 0.33839).
+    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.350419, y_CH4 0.838922, T RMSE 18.5785 K, front time CO2 0.0546649, CH4 0.110449; before: y_CO2 0.33839).
     StrebCase c{ "A2", 10e5, 298, 10e-6, false, 1500.0,
                  0.37, 0.96, kNotUsed, 22, 0.058, 0.13 };
     SetUpStreb(c);
@@ -317,7 +317,7 @@ namespace adsim {
 
   TEST_F(Streb2021Test, ExperimentA4) {
     data.info.title = "Streb 2021 - Experiment A4";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.286414, y_CH4 0.792048, T RMSE 16.3808 K, front time CO2 0.0997068, CH4 0.184937; before: CO2 front 0.0874, CH4 front 0.1784).
+    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.286413, y_CH4 0.792048, T RMSE 16.3808 K, front time CO2 0.0997051, CH4 0.184871; before: CO2 front 0.0874, CH4 front 0.1784).
     StrebCase c{ "A4", 10e5, 298, 40e-6, false, 1000.0,
                  0.29, 0.91, kNotUsed, 20, 0.105, 0.195 };
     SetUpStreb(c);
@@ -326,7 +326,7 @@ namespace adsim {
 
   TEST_F(Streb2021Test, ExperimentA5) {
     data.info.title = "Streb 2021 - Experiment A5";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.167568, y_CH4 0.659749, T RMSE 16.0716 K, front time CO2 0.0572654, CH4 0.148167; before: y_CO2 0.154613, CO2 front 0.0515382).
+    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.167568, y_CH4 0.659749, T RMSE 16.0716 K, front time CO2 0.0572674, CH4 0.148211; before: y_CO2 0.154613, CO2 front 0.0515382).
     StrebCase c{ "A5", 25e5, 298, 20e-6, false, 750.0,
                  0.18, 0.76, kNotUsed, 21, 0.061, 0.17 };
     SetUpStreb(c);
@@ -335,7 +335,7 @@ namespace adsim {
 
   TEST_F(Streb2021Test, ExperimentA6) {
     data.info.title = "Streb 2021 - Experiment A6";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.156654, y_CH4 0.749958, T RMSE 11.7501 K, front time CO2 0.0258143, CH4 0.122818; before: y_CO2 0.101707, CO2 front 0.0148029).
+    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.156654, y_CH4 0.749957, T RMSE 11.7501 K, front time CO2 0.0258134, CH4 0.122827; before: y_CO2 0.101707, CO2 front 0.0148029).
     StrebCase c{ "A6", 10e5, 318.15, 20e-6, false, 1050.0,
                  0.17, 0.85, kNotUsed, 13, 0.028, 0.14 };
     SetUpStreb(c);

@@ -789,20 +789,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 9.190158041947966,
-                                    "Average_Temperature": 306.2921839370844,
+                                    "Total_Moles": 9.247582040512427,
+                                    "Average_Temperature": 307.11131905984049,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.028793681034354414
+                                            "value": 0.028614814432316277
                                         },
                                         {
                                             "key": "Hydrogen",
-                                            "value": 0.28728414794415565
+                                            "value": 0.2856085397889719
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.68392217102149
+                                            "value": 0.6857766457787118
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -885,8 +885,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 10.891925165498368,
-                                                        "Average_Temperature": 298.15000000000006,
+                                                        "Total_Moles": 10.891929491834704,
+                                                        "Average_Temperature": 298.1499999999999,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
