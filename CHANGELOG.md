@@ -8,6 +8,13 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: parameter limits and degenerate mixtures
+- `core/test/validation/test_parameter_limits.cpp`: the rate at which the
+  model reaches its limits (LDF k to infinity and to zero, heat of adsorption
+  to zero, wall heat capacity and bed-wall coefficient to infinity, Langmuir b
+  to zero, pressure ratio to one, trace feed), and two degenerate mixtures
+  (identical components keep their feed ratio; zero affinity is inert).
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of

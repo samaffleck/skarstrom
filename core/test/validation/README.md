@@ -67,6 +67,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_parameter_limits.cpp` | Rates of approach to parameter limits (k_LDF, dH, wall, Langmuir b, pressure ratio, trace feed); degenerate mixtures |
 
 ## `test_energy_balance.cpp`
 
@@ -221,6 +222,52 @@ cell the front has not reached — that an integral comparison averages away.
   pressurise/feed/blowdown cycle with two competing adsorbates, which reverses
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
+
+## `test_parameter_limits.cpp`
+
+Limits as a parameter goes to zero or infinity, asserted through the RATE of
+approach over a geometric sequence (observed order, tolerance from the next
+term of the expansion), plus two degenerate mixtures.
+
+- **`LdfFrontApproachesEquilibriumTheoryAsOneOverK`** — linear isotherm, no
+  dispersion. The cumulants of the semi-discrete column are exact: the mean is
+  t_st whatever k is, and the variance is 2 (L/u_s) H / k plus a k-free
+  upwind part, so var(k) - var(2k) = (L/u_s) H / k. Measured: mean constant
+  to 1e-3, order in 1/k 1.002, and the size within 1.1-1.3 % at y = 0.005,
+  0.5-0.6 % at y = 0.0025; the error is O(y) (the uptake changes the gas
+  velocity) and its extrapolation to y = 0 leaves 0.04 %.
+- **`VanishingLdfCoefficientGivesAnInertTracer`** — k -> 0: the outlet curve
+  approaches the inert tracer's at order 0.98-0.99 in k, and the deficit behind the
+  front, 1 - exp(-k H L/u_s), gives deficit/k = 120.775 s extrapolated to k = 0
+  against H L/u_s = 120.766 s.
+- **`AdiabaticRunApproachesIsothermalAsHeatOfAdsorptionVanishes`** — the
+  temperature rise and the outlet-curve shift are O(dH) (order 1.000 for
+  dH = 10, 5, 2.5 kJ/mol); at dH = 0 the run matches the isothermal mode to
+  1.3e-5 y_feed, 1.3 % of the smallest dH effect.
+- **`WallAndBedBecomeIsothermalAsHeatCapacityAndExchangeGrow`** — the wall's
+  excursion falls as 1/C (order 0.998, 1.000 per decade of wall heat
+  capacity); with that wall, the bed's falls as 1/h_i once the bed-wall time
+  constant is below the uptake time (order 0.99, 1.00 from h_i = 1e5 W/m2K).
+- **`LangmuirRunReducesToHenryRunAsAffinityVanishes`** — b -> 0 with m b fixed:
+  the simulated outlet curve approaches the Henry run's at order 1.00 in b' p.
+- **`PressureSwingSeparationVanishesAsThePressureRatioGoesToOne`** — at CSS
+  the heavy product's composition deviation is O(s) (order 0.92, 0.90) and the
+  light product's enrichment O(s^2) (order 1.91, 1.87) for P_high/P_low =
+  1 + s, s = 0.1 .. 0.025; with no swing the enrichment is 2.3e-7 (the feed
+  step's own pressure drop).
+- **`TraceFeedReducesToTheSingleComponentLimit`** — a trace of O2 in N2 on a
+  competitive Langmuir: the carrier's loading tends to the pure-N2 run's at
+  order 1.00 in y, the normalised trace curve to a limit at order ~0.95, and
+  that limit's first moment (50.524 s, extrapolated) to linear chromatography
+  with the trace's Henry constant at the carrier loading (50.507 s).
+- **`DegenerateMixtures.IdenticalComponentsKeepTheirFeedRatio`** — O2 split
+  into O2 and Ar with identical isotherm, kinetics and heat of adsorption,
+  2:1, through three PSA cycles: y_O2 = 2 y_Ar to 1.3e-10 and q_O2 = 2 q_Ar to
+  1.2e-12 mol/kg in every cell at every instant (tolerance one error-test
+  weight), while the pair is separated from N2 (y_O2 0.04 .. 0.34).
+- **`DegenerateMixtures.ZeroAffinityComponentBehavesAsAnInert`** — a Henry
+  constant of zero (and a 40 kJ/mol heat of adsorption that must do nothing)
+  reproduces the inert tracer to 3e-11, with the loading at 3e-19 mol/kg.
 
 ## Fixed along the way
 
