@@ -1,19 +1,29 @@
 # Continuous integration: C++ build + tests on Linux, macOS and Windows, the
 # Python wheel and its tests, the Emscripten build of the engine, and the docs.
 #
+# When it runs: on pull requests, on pushes to main, nightly, and by hand
+# (Actions > CI > Run workflow, on any branch). A push to a feature branch does
+# not start a run of its own; open a pull request (a draft is fine) or start it
+# by hand. A new commit on a pull request cancels the run for the previous one.
+#
 # Test scope (ctest):
-#   * pull requests and pushes to other branches run the FAST subset: every
-#     test except the paper replications (core/test/papers/, about 25 minutes
-#     of CPU) and the slow CSS-acceleration test. That is ~600 tests in a few
-#     minutes.
-#   * pushes to main, the nightly schedule and manual runs (workflow_dispatch)
-#     run the FULL suite (~670 tests, ~10 minutes on 4 cores on Linux).
+#   * Linux and macOS always run the FULL suite, including the paper
+#     replications (core/test/papers/). Those are the tests that catch
+#     numerical regressions, so they run before a pull request merges, not
+#     after.
+#   * Windows runs the FAST subset on pull requests (everything except the
+#     paper replications and the slow CSS-acceleration test) and the full
+#     suite on main, nightly and manual runs.
+#   * ctest's per-test timings are cached between runs, so the next run starts
+#     the longest tests first (the Nguyen 2023 cases take up to 5 minutes each).
+#
+# Build caching: every C++ build goes through ccache, Windows included (Ninja
+# + MSVC, preset windows-ninja-release).
 name: CI
 
 on:
   push:
-    branches: ["**"]
-    tags-ignore: ["**"]
+    branches: [main]
   pull_request:
   schedule:
     - cron: "17 3 * * *"
@@ -23,8 +33,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   # Paper-replication tests and the slow CSS-acceleration test (excluded from the fast subset).
@@ -43,18 +53,18 @@ jobs:
           - name: Linux (GCC)
             runner: ubuntu-24.04
             preset: linux-release
-            build_preset: linux-release
-            test_preset: linux-release
+            jobs: 4
+            full_on_prs: true
           - name: macOS arm64 (Apple clang)
             runner: macos-14
             preset: macos-release
-            build_preset: macos-release
-            test_preset: macos-release
+            jobs: 3
+            full_on_prs: true
           - name: Windows x64 (MSVC 2022)
             runner: windows-2022
-            preset: windows
-            build_preset: windows-release
-            test_preset: windows-release
+            preset: windows-ninja-release
+            jobs: 4
+            full_on_prs: false
     defaults:
       run:
         shell: bash
@@ -80,37 +90,53 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install ninja
 
+      # Ninja + MSVC needs the Visual Studio developer environment (cl, link,
+      # the Windows SDK) on PATH.
+      - name: MSVC developer environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Compiler cache
-        if: runner.os != 'Windows'
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.preset }}
           max-size: 1G
 
       - name: Configure
-        run: |
-          # The Visual Studio generator (Windows preset) ignores compiler
-          # launchers, so only the Ninja builds are cached.
-          extra=()
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            extra=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
-          fi
-          cmake --preset ${{ matrix.preset }} "${extra[@]}"
+        run: cmake --preset ${{ matrix.preset }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
-        run: cmake --build --preset ${{ matrix.build_preset }} --parallel 4
+        run: cmake --build --preset ${{ matrix.preset }} --parallel ${{ matrix.jobs }}
+
+      # ctest keeps each test's last duration in CTestCostData.txt and starts
+      # the longest ones first. The file is restored from the previous run.
+      - name: Restore test timings
+        uses: actions/cache/restore@v4
+        with:
+          path: build/${{ matrix.preset }}/Testing/Temporary/CTestCostData.txt
+          key: ctest-cost-${{ matrix.preset }}-${{ github.run_id }}
+          restore-keys: ctest-cost-${{ matrix.preset }}-
 
       - name: Test (fast subset)
         if: >-
-          !(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+          !matrix.full_on_prs && !(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
             (github.event_name == 'push' && github.ref == 'refs/heads/main'))
-        run: ctest --preset ${{ matrix.test_preset }} -E "$SLOW_TESTS" --parallel 3 --timeout 1800
+        run: ctest --preset ${{ matrix.preset }} -E "$SLOW_TESTS" --parallel ${{ matrix.jobs }} --timeout 1800
 
       - name: Test (full suite)
         if: >-
-          github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+          matrix.full_on_prs || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
           (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        run: ctest --preset ${{ matrix.test_preset }} --parallel 3 --timeout 3600
+        run: ctest --preset ${{ matrix.preset }} --parallel ${{ matrix.jobs }} --timeout 3600
+
+      - name: Save test timings
+        if: always() && hashFiles(format('build/{0}/Testing/Temporary/CTestCostData.txt', matrix.preset)) != ''
+        uses: actions/cache/save@v4
+        with:
+          path: build/${{ matrix.preset }}/Testing/Temporary/CTestCostData.txt
+          key: ctest-cost-${{ matrix.preset }}-${{ github.run_id }}
 
       - name: Install consumer (find_package)
         if: runner.os == 'Linux'
@@ -188,6 +214,22 @@ jobs:
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: 6.0.13
+      # "ccache em++" works as a compiler launcher (Emscripten docs, "Using a
+      # compiler wrapper"); CMake reads the launcher from these variables.
+      # emsdk is installed afresh on every run, so ccache identifies the
+      # compiler by the pinned version instead of em++'s file time.
+      - name: Compiler cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: emscripten-6.0.13
+          max-size: 1G
+      - name: Use ccache for the Emscripten builds
+        run: |
+          {
+            echo "CCACHE_COMPILERCHECK=string:emscripten-6.0.13"
+            echo "CMAKE_C_COMPILER_LAUNCHER=ccache"
+            echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"
+          } >> "$GITHUB_ENV"
       - name: Build the subproject consumer with emcmake and run it under Node.js (native Wasm exceptions, the default)
         run: JOBS=4 bash scripts/test_subproject_consumer.sh --emscripten
       - name: The same with JavaScript-based exceptions (ADSIM_EMSCRIPTEN_EXCEPTIONS=js)

@@ -23,7 +23,8 @@ runs it at build time) and, recommended, Ninja. Forgot `--recursive`? Run
 ```bash
 # C++ (working directory core/; ~670 tests, ~10 minutes on 4 cores)
 ctest --preset linux-release -j3
-# fast subset (what CI runs on pull requests): everything but the paper replications
+# fast subset: everything but the paper replications (CI runs the full suite on
+# Linux and macOS for every pull request, and this subset on Windows)
 ctest --preset linux-release -j3 -E "^(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)Test\.|^CSSAcceleration\."
 rm -rf core/Results                 # the suite writes ~4 GB of output there
 
@@ -47,6 +48,9 @@ it with Emscripten; `bash scripts/test_install_consumer.sh` checks
 
 - Open an issue first for anything large, so we can agree on the approach.
 - Keep pull requests focused; add or update tests with every behaviour change.
+- CI runs on pull requests (a draft is fine) and on main, not on a plain push
+  to a branch; to run it on a branch without a pull request, use Actions > CI >
+  Run workflow. A new commit on a pull request cancels the run for the last one.
   Physics changes need a test whose expected value is derived from physics
   (`core/test/validation/`) or a published reference (`core/test/papers/`),
   not one recorded from the current output.

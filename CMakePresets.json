@@ -66,6 +66,15 @@
             "generator": "Visual Studio 17 2022",
             "architecture": { "value": "x64", "strategy": "set" },
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+        },
+        {
+            "name": "windows-ninja-release",
+            "displayName": "Windows MSVC (x64) Release, Ninja",
+            "inherits": ["base", "release"],
+            "description": "MSVC with the Ninja generator (single-config Release). Run from a Visual Studio x64 developer prompt so cl.exe and link.exe are on PATH. CI uses this preset because Ninja, unlike the Visual Studio generator, honours a compiler launcher (ccache).",
+            "generator": "Ninja",
+            "cacheVariables": { "CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl" },
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
         }
     ],
     "buildPresets": [
@@ -76,7 +85,8 @@
         { "name": "macos-release",       "configurePreset": "macos-release" },
         { "name": "macos-debug",         "configurePreset": "macos-debug" },
         { "name": "windows-release",     "configurePreset": "windows", "configuration": "Release" },
-        { "name": "windows-debug",       "configurePreset": "windows", "configuration": "Debug" }
+        { "name": "windows-debug",       "configurePreset": "windows", "configuration": "Debug" },
+        { "name": "windows-ninja-release", "configurePreset": "windows-ninja-release" }
     ],
     "testPresets": [
         {
@@ -89,6 +99,7 @@
         { "name": "linux-debug",         "inherits": "test-base", "configurePreset": "linux-debug" },
         { "name": "linux-clang-release", "inherits": "test-base", "configurePreset": "linux-clang-release" },
         { "name": "macos-release",       "inherits": "test-base", "configurePreset": "macos-release" },
-        { "name": "windows-release",     "inherits": "test-base", "configurePreset": "windows", "configuration": "Release" }
+        { "name": "windows-release",     "inherits": "test-base", "configurePreset": "windows", "configuration": "Release" },
+        { "name": "windows-ninja-release", "inherits": "test-base", "configurePreset": "windows-ninja-release" }
     ]
 }
