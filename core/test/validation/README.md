@@ -67,6 +67,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_blowdown_composition_path.cpp` | Blowdown of a binary on linear isotherms: equilibrium-theory composition path y(P), departure scaling with the LDF lag |
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 | `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
@@ -225,6 +226,25 @@ cell the front has not reached — that an integral comparison averages away.
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
 
+## `test_blowdown_composition_path.cpp`
+
+A pressure-change step. A uniform bed of a binary on linear isotherms
+(`K_A = 8 K_B`, isothermal) blows down through a valve with the other end
+closed. In local equilibrium the composition stays uniform and the outflow
+carries it, so `d(a_A P y)/y = d(a_B P (1-y))/(1-y)` with
+`a_i = eps/(R T) + rho_b K_i`, which integrates to the Knaebel-Hill path
+`P/P0 = (y0/y)^(1/(1-beta)) ((1-y)/(1-y0))^(beta/(1-beta))`,
+`beta = a_B/a_A`. The path depends on the isotherm slopes only, not on the
+valve or the time.
+
+- **`FollowsEquilibriumTheoryPath`**: blowing down 5 -> 1 bar enriches the
+  strong component from 0.30 to 0.7615. The largest departure of `ln P` from
+  the path is 7.1e-4 at `k = 5 1/s` and 3.6e-4 at `k = 10 1/s`: it is the LDF
+  lag, halving with `1/k` (ratio 2.00), and its Richardson extrapolation to
+  `k -> inf` vanishes. The final composition matches the path at the final
+  pressure, and the composition stays uniform to 1.3e-5. Guard: `beta < 0.3`,
+  so a model without the adsorbed phase (`beta = 1`, `y` constant) fails by
+  0.46 in `y`. About 0.4 s.
 ## `test_competitive_langmuir_fronts.cpp`
 
 Competitive adsorption fronts. Two trace adsorbates on an extended Langmuir

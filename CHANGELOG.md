@@ -8,6 +8,12 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: blowdown composition path
+- `core/test/validation/test_blowdown_composition_path.cpp` checks that a
+  binary on linear isotherms follows the equilibrium-theory (Knaebel-Hill)
+  composition path `y(P)` during a valve blowdown, with the departure from
+  the path equal to the LDF lag (it halves when `k` doubles).
+
 ### Added — verification: binary competitive Langmuir fronts
 - `core/test/validation/test_competitive_langmuir_fronts.cpp` compares a
   binary extended-Langmuir breakthrough (constant separation factor) with
