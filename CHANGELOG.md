@@ -8,6 +8,13 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: parameter limits and degenerate mixtures
+- `core/test/validation/test_parameter_limits.cpp`: the rate at which the
+  model reaches its limits (LDF k to infinity and to zero, heat of adsorption
+  to zero, wall heat capacity and bed-wall coefficient to infinity, Langmuir b
+  to zero, pressure ratio to one, trace feed), and two degenerate mixtures
+  (identical components keep their feed ratio; zero affinity is inert).
+
 ### Added — verification: metamorphic relations
 - `core/test/validation/test_metamorphic_relations.cpp`: equivalent decks must
   give the same solution to within the integrator's measured error, for the
