@@ -48,10 +48,10 @@ namespace adsim {
 
   // PSA Exp. 1 validation tolerances [percentage points], from the measured error.
   namespace {
-    constexpr double kTolPuExp = 1.8;  // measured 1.35809 pp
-    constexpr double kTolPuModel = 0.85;  // measured 0.541909 pp
-    constexpr double kTolReExp = 36;  // measured 32.402 pp
-    constexpr double kTolReModel = 35;  // measured 31.702 pp
+    constexpr double kTolPuExp = 1.8;  // measured 1.3593 pp
+    constexpr double kTolPuModel = 0.85;  // measured 0.540702 pp
+    constexpr double kTolReExp = 36;  // measured 32.455 pp
+    constexpr double kTolReModel = 35;  // measured 31.755 pp
   }
 
   namespace {
@@ -396,7 +396,11 @@ namespace adsim {
       t.ConfigureCycle(60);
       data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
       data.settings.css.min_cycles_ = 60;
-      data.settings.max_step = 1.0;
+      // A 1 s cap let IDA stall at its minimum step in one PED step (cycle 19,
+      // corrector failures at h = 1e-15) once the molar-basis heat capacity
+      // landed. With 0.5 s (or reltol 1e-7 at 1 s) the run completes, and the
+      // two agree to 0.01 pp in purity and recovery.
+      data.settings.max_step = 0.5;
 
       std::string error{};
       ASSERT_TRUE(data.PerformChecks(error)) << "System checks failed: " << error;

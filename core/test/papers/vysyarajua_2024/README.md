@@ -61,6 +61,16 @@ experiment and the paper's model are a 3-bed cycle. The cause of the gap is
 not yet attributed. Recovery is computed by conservation
 (`1 − blow-down He / fed He`); it agrees with product He / fed He to ~0.1 pp.
 
+**Known failure on macOS and Windows.** The cycle can settle in more than one
+state, and which one depends on round-off: Linux (GCC) settles in the clean-top
+state above; macOS (Apple clang) stalls the solver in a PED step and Windows
+(MSVC) floods the top with N₂ (He purity < 1 %). Linux floods too when only the
+logging resolution changes (`max_log_points_per_step_ = 0`), and the web
+solver (WASM) oscillates from cycle to cycle with period 2. The likely cause is
+the single-bed equalisation itself: PED's valve discharges against the pressure
+PER logged in the previous cycle, so the two steps form a feedback loop across
+cycles. The deck needs reworking before the case is robust.
+
 Until November 2026 the connection replayed the magnitude of PED's flow, so
 the backflow through the PED valve for most of the step (the flow reverses
 about a second in) reached PER as more inflow: PER took in
