@@ -8,6 +8,13 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: thermal fronts
+- `core/test/validation/test_thermal_fronts.cpp` checks the speed of an
+  inert-bed thermal front against the energy-balance jump condition
+  (including the gas heat-capacity term), and the steady exponential axial
+  temperature profile of a flowing bed losing heat through the wall, with
+  first-order convergence to it.
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of
