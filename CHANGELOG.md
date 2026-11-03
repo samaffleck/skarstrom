@@ -8,6 +8,12 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: thermodynamic bound on the separation energy
+- `core/test/validation/test_thermodynamic_bound.cpp`: at cyclic steady state
+  the logged pump energy of a vacuum-swing and a pressure-swing cycle exceeds
+  the reversible pump work, the bed's exergy change and the minimum work of
+  separation of the products, in that order.
+
 ### Added — verification: parameter limits and degenerate mixtures
 - `core/test/validation/test_parameter_limits.cpp`: the rate at which the
   model reaches its limits (LDF k to infinity and to zero, heat of adsorption
