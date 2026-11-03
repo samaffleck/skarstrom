@@ -8,6 +8,19 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed — CI skips the builds for docs-only pull requests
+- A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
+  Windows), Python wheel, Emscripten and subproject jobs run only if one of
+  them is code: anything except Markdown, `docs/`, `mkdocs.yml`,
+  `requirements-docs.txt`, `.gitattributes`, `CITATION.cff` and issue
+  templates. `docs/python.md` (its example is run by `python/tests`),
+  `python/README.md`, `THIRD_PARTY_NOTICES.md`, `LICENSE` and `NOTICE` count as
+  code. The docs and workflow-lint jobs always run, and pushes to `main`,
+  nightly and manual runs build everything.
+- `.gitattributes`: `CHANGELOG.md` uses git's union merge driver, so two
+  pull requests adding entries at the top of Unreleased no longer conflict in
+  local merges.
+
 ### Fixed — connected streams conserve moles when the donor's flow reverses
 - A connected no-valve stream (e.g. a velocity-0 equalisation consumer)
   replayed the magnitude of the connected stream's logged flow. When the
