@@ -19,6 +19,16 @@
 #
 # Build caching: every C++ build goes through ccache, Windows included (Ninja
 # + MSVC, preset windows-ninja-release).
+#
+# Pull requests that change no code skip the builds: the `changes` job lists
+# the PR's files, and the C++, Python wheel, Emscripten and subproject jobs run
+# only if one of them is not docs or repository metadata (Markdown files,
+# docs/, mkdocs.yml, requirements-docs.txt, .gitattributes, CITATION.cff, issue
+# templates). The docs and workflow-lint jobs always run. Exceptions that DO
+# count as code: docs/python.md (python/tests runs its example),
+# python/README.md and THIRD_PARTY_NOTICES.md (packaged in the wheel, as are
+# LICENSE and NOTICE). Pushes to main, nightly and manual runs build
+# everything.
 name: CI
 
 on:
@@ -42,8 +52,54 @@ env:
   HOMEBREW_NO_AUTO_UPDATE: "1"
 
 jobs:
+  changes:
+    name: Code changed?
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - name: Classify the pull request's files
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Not a pull request: building everything." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Both names of a renamed file. The API lists at most 3000 files.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/files.txt"
+          code=false
+          if [ "$(wc -l < "$RUNNER_TEMP/files.txt")" -ge 3000 ]; then code=true; fi
+          while IFS= read -r f; do
+            case "$f" in
+              # Read by the tests or packaged in the wheel.
+              docs/python.md|python/README.md|THIRD_PARTY_NOTICES.md) code=true; echo "code: $f" ;;
+              # Docs and repository metadata.
+              *.md|docs/*|mkdocs.yml|requirements-docs.txt|.gitattributes|CITATION.cff|.github/ISSUE_TEMPLATE/*) echo "not code: $f" ;;
+              *) code=true; echo "code: $f" ;;
+            esac
+          done < "$RUNNER_TEMP/files.txt"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = true ]; then
+            echo "The pull request changes code: building everything." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Only docs and repository metadata changed: the C++, Python wheel, Emscripten and subproject jobs are skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   cpp:
     name: C++ ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 150
     strategy:
@@ -163,6 +219,8 @@ jobs:
 
   python:
     name: Python wheel (Linux)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -200,6 +258,8 @@ jobs:
 
   emscripten:
     name: Engine with Emscripten
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -237,6 +297,8 @@ jobs:
 
   subproject:
     name: Subproject build (add_subdirectory)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:

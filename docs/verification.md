@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "EnergyBalance|Analytic|Numerical|Invariant|Thermodynamic|Compressor|Shock|LDF|LTNE|Adiabatic|ExtendedLangmuir|CyclicSteadyState|Robustness"`).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -52,12 +52,27 @@ This complements the existing coverage rather than duplicating it:
 |---|---|
 | `validation_helpers.h` | Independent reference implementations: energy inventories, cylinder areas, moments |
 | `breakthrough_case.h` | One shared, deliberately plain isothermal breakthrough case |
+| `psa_cycle_case.h` | One shared minimal O2/N2 pressurise/feed/blowdown cycle on a 13X bed |
 | `test_energy_balance.cpp` | Closed and open-system energy balances, wall/ambient coupling, cyclic steady state |
 | `test_analytic_transport.cpp` | Residence time, pressure drop, breakthrough time, valve blowdown |
+| `test_analytic_dispersion.cpp` | Physical axial dispersion: inert outlet curve against Ogata-Banks |
+| `test_retarded_dispersion.cpp` | Linear-isotherm advection-dispersion: front retarded by R, width by R^2 |
+| `test_dispersion_mass_balance.cpp` | Component balance with dispersion and Danckwerts inlets, per step and at CSS |
+| `test_advection_schemes.cpp` | Upwind order on a smooth solution, WENO / van Leer less diffusive, conservation, sum y = 1 |
+| `test_equilibrium_shock.cpp` | Langmuir shock front speed against the equilibrium-theory secant balance |
+| `test_ldf_kinetics.cpp` | LDF relaxation at rate k, first- and second-order rate laws |
+| `test_extended_langmuir.cpp` | Extended (competitive) Langmuir loadings, single-component limit, selectivity |
 | `test_thermodynamic_consistency.cpp` | Isosteric heat vs van 't Hoff, Henry limits, monotonicity |
+| `test_adiabatic_adsorption.cpp` | Adiabatic breakthrough temperature plateau against the energy balance |
+| `test_ltne_relaxation.cpp` | Two-temperature (LTNE) gas-solid relaxation rate, bed-wall energy conservation |
+| `test_physics_parity.cpp` | Ergun / Blake-Kozeny pressure drop, isothermal mode, inlet temperature ramps, serialisation |
 | `test_compressor_work.cpp` | Polytropic work, isothermal and reversible-adiabatic limits |
 | `test_numerical_verification.cpp` | Order of accuracy, tolerance independence, scale invariance, flow symmetry |
+| `test_cyclic_steady_state.cpp` | End-of-cycle profile converges to a cyclic steady state |
+| `test_css_acceleration.cpp` | CSS acceleration reduces the cycles to CSS; reseeded ramps start at the step start |
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
+| `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
+| `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
 
 ### `test_energy_balance.cpp`
 
