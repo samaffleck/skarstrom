@@ -8,6 +8,14 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: metamorphic relations
+- `core/test/validation/test_metamorphic_relations.cpp`: equivalent decks must
+  give the same solution to within the integrator's measured error, for the
+  component order, a packing split into identical layers, a step cut in two,
+  inputs written in other units, and the step a cyclic steady state is started
+  from (with a connection whose lag changes under the rotation).
+  `BreakthroughCase` gains `n_layers`.
+
 ### Added — verification: evacuation, pressure equalisation and buffer tank
 - `core/test/validation/test_unit_operations.cpp` checks constant-speed
   evacuation (`P = P0 exp(-S t / V a R T)`), two-bed pressure equalisation
