@@ -290,6 +290,22 @@ namespace adsim {
     double GetActualInitStep() const;
     // Notifies the custom Jacobian (if any) that a new cycle step begins.
     void OnStepStart(int cycle_index) { if (custom_jacobian_) jacobian_.OnStepStart(cycle_index); }
+    // Starts a new cycle step at the current point (the end of the previous
+    // step, whose boundary conditions have just been replaced): restarts IDA
+    // with fresh history and hin = init_step (RestartFromConsistentIC), so the
+    // first step of every cycle step starts small instead of inheriting the
+    // previous step's step size. Without it, a step whose forcing is a short
+    // pulse at its start (a valve or a connected stream replaying a fast
+    // blowdown) could be stepped over in one step: the boundary condition's
+    // algebraic jump is out of the error test (IDASettings::suppress_alg_),
+    // the implicit step samples the forcing only at its end, where the pulse
+    // has died away, and so whether the step resolved the pulse hung on the
+    // length of the previous step's last, tstop-clipped, step. If the
+    // consistent IC fails, IDA restarts from the unchanged end-of-step point
+    // instead (still with fresh history and hin). Does nothing before the
+    // first accepted step since the last (re)initialisation. Returns true if
+    // the integrator was restarted.
+    bool RestartForNewStep();
     void Unpack(UserData& user_data);
     // Loads IDA's interpolated state at time t (which must lie within the last
     // accepted step) into user_data.state, with all derived fields updated.
@@ -329,6 +345,11 @@ namespace adsim {
     bool RestartFromConsistentIC();
     // The configured initial step (0 = IDA's own estimate).
     double GetInitStepSetting() const;
+    // IDAReInit at time t from y_ / yp_, first adding IDA's counters (which
+    // IDAReInit zeroes) to stats_carry_ so GetStatistics stays cumulative.
+    int ReInit(double t);
+    // IDA's own counters since the last IDAInit / IDAReInit.
+    IntegrationStats IdaCounters() const;
 
     // Owns the SUNContext. Declared first so it is destroyed last: every
     // SUNDIALS object below (including those held by jacobian_) is created
@@ -361,6 +382,8 @@ namespace adsim {
     bool band_widened_ = false;
     bool custom_jacobian_ = false;
     bool fail_next_reseed_commit_for_testing_ = false;
+    // IDA's counters accumulated over the re-initialisations of this run.
+    IntegrationStats stats_carry_{};
 
   };
 

@@ -8,6 +8,36 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed — every cycle step starts the integrator afresh
+- **A step can no longer step over a short pulse at its start.** Cycle steps
+  ran back to back on one IDA history, so the first internal step of a step
+  inherited the size of the previous step's last, `tstop`-clipped, step. The
+  boundary condition's algebraic jump is out of the error test
+  (`suppress_alg_`) and an implicit step samples the forcing only at its end,
+  so a step whose forcing is a pulse shorter than that inherited step was
+  integrated as if the pulse were not there. On `Vysyaraju2024_PSA_exp1` the
+  PER step replays the PED blowdown (2.8 mol/s decaying in about 0.1 s): when
+  BLO happened to end on a 0.2 s remainder instead of a 0.015 s one, PER's
+  first step jumped the whole pulse, the bed missed its equalisation gas and
+  the run restarted its approach to cyclic steady state (PRES uptake
+  0.1497 → 0.284 → −0.002 → 0.071 mol …). Which cycle tripped hung on
+  round-off: natively at cycle 3 (and at cycle 48 with a reltol 1e-4 away),
+  in the WebAssembly build at cycle 51, so the web solver disagreed with the
+  native one at the last cycle (relative error 0.72). The engine before
+  #36/#37 tripped too, but early (cycle 6 natively), and had re-converged by
+  cycle 60. Now
+  `SolverData::RestartForNewStep`, called by the blocking and the chunked
+  solver at the start of every cycle step, restarts IDA from a consistent
+  initial condition at the new boundary conditions with fresh history and
+  `hin = init_step` (falling back to the unchanged end-of-step point if the
+  consistent IC fails). Native and WebAssembly runs of the deck now agree to
+  3e-5 per cycle, and native runs no longer depend on the reltol's last
+  digits. The run's IDA statistics stay cumulative across re-initialisations
+  (they used to restart from zero at each retry restart). Tests:
+  `StepBoundaryRestart.*`. Costs about 6 % run time on the deck. Other
+  decks' endpoint totals move by at most 3.4e-4 relative (Nguyen 2023 VII);
+  Vysyaraju 2024's PRES uptake at cycle 60 by 1.2e-3.
+
 ### Fixed — gas-mixture heat capacity mixed on the molar basis
 - **The gas heat capacity of a mixture is mass-consistent.** `UpdateHeatCapacity`
   mixed the per-kilogram pure-component heat capacities that `Fluid` caches
