@@ -422,16 +422,32 @@ namespace adsim {
       return entry;
     }
 
+    // Face values of a cell-centred row: face i lies between cells i and i+1,
+    // dx[i] / 2 from the centre of cell i and dx[i+1] / 2 from that of cell
+    // i+1, so the linear interpolant weights each side by the OTHER cell's
+    // width, (y_i dx_{i+1} + y_{i+1} dx_i) / (dx_i + dx_{i+1}), and is exact
+    // for a linear profile on a non-uniform mesh. The ghost cells (first and
+    // last) mirror their neighbour: the boundary conditions set them so that
+    // the boundary face value is the plain mean of the ghost and the end cell
+    // (e.g. P_face = (P_0 + P_1) / 2), whatever width the ghost carries (it
+    // copies the first/last bed cell, which differs from a void end cell), so
+    // those two faces take equal weights.
     std::vector<double> LinearInterpolateCellCenter(const std::vector<double>& data,
       const std::vector<double>& dx)
     {
       assert(data.size() == dx.size());
+      const size_t n = data.size();
+      if (n < 2) return {};
 
-      std::vector<double> out(data.size() - 1);
-      for (int i = 0; i < out.size(); ++i) {
-        double rdx1 = dx[i] / (dx[i] + dx[i + 1]);
-        double rdx2 = dx[i + 1] / (dx[i] + dx[i + 1]);
-        out[i] = rdx1 * data[i] + rdx2 * data[i + 1];
+      std::vector<double> out(n - 1);
+      for (size_t i = 0; i + 1 < n; ++i) {
+        const bool boundary_face = (i == 0) || (i + 2 == n);
+        const double sum = dx[i] + dx[i + 1];
+        if (boundary_face || !(sum > 0.0)) {
+          out[i] = 0.5 * (data[i] + data[i + 1]);
+        } else {
+          out[i] = (data[i] * dx[i + 1] + data[i + 1] * dx[i]) / sum;
+        }
       }
       return out;
     }
