@@ -67,6 +67,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_metamorphic_relations.cpp` | Equivalent decks give the same solution: component order, identical layers, split steps, units, cycle phase at CSS |
 
 ## `test_energy_balance.cpp`
 
@@ -221,6 +222,54 @@ cell the front has not reached — that an integral comparison averages away.
   pressurise/feed/blowdown cycle with two competing adsorbates, which reverses
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
+
+## `test_metamorphic_relations.cpp`
+
+Pairs of runs that pose the same physical problem in two ways and must give
+the same answer, compared field by field (pressure, temperature, every mole
+fraction and loading, every cell, the end of every step). No reference
+solution is needed. The tolerance comes from the integrator: two equivalent
+runs are two adaptive-step integrations of one semi-discrete system, each
+within its global error E of it, so they may differ by 2E (E measured in the
+test by tightening reltol 100x) plus one error-test weight w = reltol |x| +
+atol (atol fixed in the code, `docs/numerics.md`).
+
+- **`ComponentOrderDoesNotChangeTheSolution`** — reversing the fluid's
+  component list on the shared PSA cycle (two adsorbates, heat of adsorption,
+  wall exchange, flow reversal). Measured: y differs by 1.4e-7 to 2.7e-7,
+  against a tolerance of 1.1e-6 to 1.6e-6 (E = 3.5e-7).
+- **`IdenticalLayersEqualOneLayer`** — the packing split into two and four
+  identical layers (dispersion, heat of adsorption, bed-wall exchange and
+  harmonic-mean face permeability all on, front across the interfaces).
+  Bitwise identical on Linux.
+- **`SplitStepEqualsSingleStep`** — a step cut into two halves with the same
+  boundary conditions. Approximate by construction: every step restarts the
+  integrator (first order, initial step, re-solved algebraic state), which may
+  move a single unknown by up to sqrt(N) w (the WRMS error test over N
+  unknowns), so the tolerance is 2E + sqrt(N) w. Measured on y_O2: 3.7e-8
+  (0.6 w); on a longer run it followed w down to the absolute-tolerance floor
+  as reltol was tightened, the signature of an integrator effect.
+- **`InputsInOtherUnitsGiveTheSameSolution`** — the same deck with its inputs
+  in cm, mm, bar, mbar, degC, min, g/cm3, kJ/(kg K) and mol/h. The converted
+  values equal the SI ones to 1e-14 and the solutions agree (y: 6.9e-8,
+  E = 6.5e-8).
+- **`RotatedCycleReachesTheSameCyclicSteadyState`** — the engine solves one
+  bed, so the beds of a symmetric multi-bed cycle are that bed at other phases
+  and are identical by construction; the testable consequence is that the
+  CSS cannot depend on which step is listed first. An isothermal
+  pressurise / feed / blowdown / purge cycle, the purge fed with the feed's
+  product through a connection, is started two steps later: listed before the
+  feed, the purge then reads the PREVIOUS cycle's feed instead of the same
+  cycle's. After 30 cycles the two CSS agree to 9.4e-8 in y (tolerance: twice
+  each run's own cycle-to-cycle change, 1.7e-7), while their first cycles
+  differ by 0.21.
+
+Not testable as a relation: "one bed = two beds in series of half length".
+Other beds exist only through connections that replay a partner step's
+previous run, so two beds working in series at the same time cannot be
+written as a deck that should equal one long bed. The layer split is the
+exact statement the engine can express (a series connection with no dead
+volume).
 
 ## Fixed along the way
 

@@ -8,6 +8,14 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: metamorphic relations
+- `core/test/validation/test_metamorphic_relations.cpp`: equivalent decks must
+  give the same solution to within the integrator's measured error, for the
+  component order, a packing split into identical layers, a step cut in two,
+  inputs written in other units, and the step a cyclic steady state is started
+  from (with a connection whose lag changes under the rotation).
+  `BreakthroughCase` gains `n_layers`.
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of
