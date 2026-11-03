@@ -355,14 +355,17 @@ y = sim.series("mole_fraction", "CarbonDioxide", location="top")   # NumPy array
 T = sim.series("temperature", z=0.25, cycle=0)                      # at z = 0.25 m in the first cycle
 prof = sim.profile("adsorbed_concentration", "CarbonDioxide", cycle=-1, step=0)
 prof.z, prof.time, prof.values                                       # values has shape (len(time), len(z))
+sim.positions, sim.face_positions                                    # cell centres, cell faces [m]
 for s in sim.streams():                                              # every endpoint: step, name, endpoint_id, location
     f = sim.stream_series(s["step"], s["name"], "molar_flow_rate")
     f = sim.endpoint_series(s["endpoint_id"], "molar_flow_rate")    # the same, by ID
 ```
 
 - **KPIs** are computed for the components ticked in the deck's [KPI configuration](performance-metrics.md): purity, recovery, productivity (mass and volume), specific energy consumption and production rate. A KPI that is undefined (no product drawn) is `nan`.
-- **Series** are one cycle long and start at `t = 0` at the start of that cycle. `location` is `"top"`, `"bottom"` or `"position"` (implied by `z=`). `cycle=-1` is the last logged cycle.
-- **Variable names**: `skarstrom.bulk_variables()` (pressure, temperature, velocity, ...) and `skarstrom.component_variables()` (mole_fraction, adsorbed_concentration, ...) list what `series` and `profile` accept. `stream_series` accepts `temperature`, `molar_flow_rate` and `compressor_power`, or `mole_fraction` and `molar_flow` with a component.
+- **Series** are one cycle long and start at `t = 0` at the start of that cycle. `location` is `"top"`, `"bottom"` or `"position"` (implied by `z=`, in metres from the bottom of the column). `cycle=-1` is the last logged cycle.
+- **Bed ends.** `"bottom"` ($z = 0$) and `"top"` ($z = L$) are the physical boundary values, not the value of a cell. For pressure, temperature and mole fraction they are the logged values of the step's endpoint at that end, the same numbers as `stream_series`: at an inlet the value the boundary imposes (the feed composition, the feed temperature after any compressor, the set pressure), at an outlet the value at the bed-end face. A closed end, and every other variable, gives the face value; for face variables (velocity, flow rates) that is the boundary face itself. Between a bed end and the centre of the end cell, `z=` interpolates between the two.
+- **Positions.** The solver stores cell variables at the cell centres and velocity, volumetric and molar flow rate and the approach to fluidisation at the cell faces; each end of the column also has a ghost cell that only carries the boundary condition. `profile(...).z` is `sim.positions` (cell centres, no ghost cells) for a cell variable and `sim.face_positions` (from 0 to the column length, `profile(...).faces` is `True`) for a face variable. Void regions are cells too, so positions run from the bottom of the bottom void.
+- **Variable names**: `skarstrom.bulk_variables()` (pressure, temperature, velocity, ...) and `skarstrom.component_variables()` (mole_fraction, adsorbed_concentration, ...) list what `series` and `profile` accept. `stream_series` accepts `temperature`, `molar_flow_rate`, `compressor_power` and `pressure` (the bed-end face pressure; a pressure boundary's set value), or `mole_fraction` and `molar_flow` with a component.
 - `sim.save_logs("out")` writes the full solver log as CSV files.
 
 The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory.

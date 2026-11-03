@@ -76,7 +76,14 @@ def test_example_runs_like_its_deck(family, deck):
                 # below the integrator's tolerance: 1e-3 of 1e-3 |max| is 1e-6
                 # relative, the deck's reltol.
                 scale = max(float(np.ptp(a.values)), 1e-3 * float(np.max(np.abs(a.values))), 1e-30)
-                np.testing.assert_allclose(np.interp(a.time, b.time, b.values), a.values, rtol=0,
+                # A bed-end value jumps at a step switch (an outlet face value
+                # becomes the inlet's feed value), where two rows share one
+                # time: interpolation is ambiguous there, so leave them out.
+                switch = np.zeros(a.time.size, dtype=bool)
+                same = np.diff(a.time) <= 0
+                switch[:-1] |= same
+                switch[1:] |= same
+                np.testing.assert_allclose(np.interp(a.time, b.time, b.values)[~switch], a.values[~switch], rtol=0,
                                            atol=1e-3 * scale, err_msg=f"{var} {comp} {loc}")
     for ka, kb in zip(shipped.kpis(), built.kpis()):
         for key, value in ka.as_dict().items():

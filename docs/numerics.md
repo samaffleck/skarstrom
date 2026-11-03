@@ -22,6 +22,8 @@ The cell-centred unknowns, in every cell, are:
 
 In an [isothermal run](energy-balance.md#isothermal-mode) the three temperatures are removed from the unknowns, and void cells carry no solid temperature or loadings.
 
+**Where results are reported.** A ghost-cell value is not a value anywhere in the bed (an inlet temperature ghost holds $2T_{in} - T_1$, so that the face between it and the first cell sits at $T_{in}$), so the results never report one. Axial profiles of cell quantities are given at the cell centres, and of face quantities (velocity, flow rates) at the faces. The bed ends report the physical boundary value: the composition, temperature and pressure an inlet imposes, or the bed-end face value at an outlet, which is what the boundary-stream logs record ([Results](python.md#results), `adsim/solver/bed_series.h`).
+
 **Staggered face velocities.** The superficial velocity $u$ is not stored at cell centres but on the **faces** between neighbouring cells, including the faces between the ghost cells and the bed. Each face carries the momentum balance as its residual, so the flux through every face is computed from the pressures on its two sides without interpolation. The finite-volume balances then use these face velocities directly: for example the convective term of the component balance in cell $n$ is the difference of the face fluxes
 
 $$

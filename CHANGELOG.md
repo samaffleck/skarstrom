@@ -8,6 +8,75 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed — gas-mixture heat capacity mixed on the molar basis
+- **The gas heat capacity of a mixture is mass-consistent.** `UpdateHeatCapacity`
+  mixed the per-kilogram pure-component heat capacities that `Fluid` caches
+  from CoolProp by mole fraction, `C_p,g = Σ y_i C_p,i`, which is right only
+  when every component has the same molar mass. It now uses
+  `C_p,g = Σ y_i M_i C_p,i / Σ y_i M_i` [J/(kg·K)] (the molar mixture heat
+  capacity over the mixture molar mass), so `ρ_g C_p,g = C Σ y_i M_i C_p,i`.
+  For 50/50 H₂/CO₂ the gas heat capacity was about 174 J/(mol·K) and is now
+  about 33; for CO₂/N₂ 15/85 it was 1.3 % high. Every user of the gas heat
+  capacity takes this one value: the LTE and LTNE energy balances, the
+  convective enthalpy terms, the thermal dispersion and heat-transfer
+  correlations, and the logged heat capacity. The rule lives in
+  `Fluid::MixtureHeatCapacity` / `Fluid::MixtureHeatCapacityFromSums`, with
+  `Fluid::MolarHeatCapacity` (`C_p,i M_i`) and
+  `Fluid::AdsorbedPhaseHeatCapacity` (the *Gas phase* adsorbed-phase option,
+  which was already per component and is unchanged) replacing the two copies
+  in the equations. A single-component gas, or a mixture with all but one
+  mole fraction zero, is unchanged. The stream "enthalpy flows" and the pump
+  and compressor energy do not use the gas heat capacity (they are molar flow
+  × temperature and polytropic relations) and are unchanged. Tests:
+  `GasHeatCapacityTest.*` and `GasHeatCapacitySolverTest.*`.
+  **Results move for decks with light components**: Casas 2012 (H₂/CO₂)
+  breakthrough times fall by 0.2–2.2 % (Fig. 4 50/50: H₂ 87.98 → 87.40 s,
+  CO₂ 445.1 → 436.0 s; Fig. 6 75/25: H₂ 133.2 → 131.5 s, CO₂ 359.3 →
+  351.4 s), the Streb 2021 He-carrier breakthroughs move (thermocouple RMSE
+  down 2–18 %, the A-series outlet and front-time errors up), Nguyen 2022
+  front times fall by up to 1.5 %, Vysyaraju 2024 He recovery rises from
+  17.54 to 17.91 %; CO₂/N₂ and O₂/N₂ cycles move in the fourth digit.
+
+### Fixed — bed-variable results at the right positions and boundary values
+- **`Simulation::Series` / `sim.series` and `Simulation::Profile` /
+  `sim.profile` read the log at the right places.** They mapped the raw cell
+  rows, ghost cells included, onto the face positions, so every profile and
+  every `z` query sat half a cell downstream, `bottom` returned the inlet ghost
+  cell and `top` the last cell. In an adiabatic CO2/N2 breakthrough (feed
+  313.15 K, 30 cells, t = 500 s) `series("temperature", location="bottom")`
+  read 281.3 K, the ghost's 2 T_feed − T_1 (as low as 269 K during the run),
+  and `top` pressure read 100004 Pa against the 100000 Pa set pressure. Now:
+  - cell variables are at the cell centres and face variables (velocity,
+    volumetric and molar flow rate, approach to fluidisation) at the faces;
+    profiles leave out the ghost cells (`AxialProfile::faces` / `prof.faces`
+    says which grid `z` is). `Simulation::Positions` / `sim.positions` are
+    the cell centres, as documented; the new `FacePositions` /
+    `sim.face_positions` are the faces.
+  - `top` and `bottom` are the physical boundary values. Pressure,
+    temperature and mole fraction are the logged values of the step's
+    endpoint at that end, identical to `stream_series` (several streams are
+    mixed by flow): at an inlet the value the boundary imposes (feed
+    composition, feed temperature after any compressor, set pressure), at an
+    outlet the bed-end face value. A closed end, and every other variable,
+    gives the face value (the mean of the ghost and the end cell; a mole
+    fraction's ghost, which is the face value itself; the nearest packed cell
+    for adsorbent-only variables). A `z` between a bed end and the first cell
+    centre interpolates between the two. The time base is unchanged.
+  - The same logic is the new public header `adsim/solver/bed_series.h`
+    (`ExtractBedTimeSeries`, `CellCentrePositions`, `IsFaceRow`);
+    `ExtractBulkTimeSeries` / `ExtractComponentTimeSeries`
+    (`parameterisation.h`) use it and take an optional `BedBoundarySources`
+    (boundary log and steps) for the endpoint values. Front ends that fit to
+    or plot these series move with it.
+- **`stream_series(..., "pressure")`**: the bed-end face pressure of an
+  endpoint (a pressure boundary's set value) is now readable
+  (`BoundaryVariableType::PRESSURE`, appended to `kBoundaryVariableTypeList`),
+  and `BoundaryLog::GetStreamData` returns an endpoint's logged data.
+- Fitted or validated numbers that compared bed-end or `z` series (the
+  example scripts' outlet curves and thermocouples) move slightly: outlet
+  compositions and temperatures were already the end cell, so mainly
+  thermocouple positions (half a cell) and inlet-end series change.
+
 ### Fixed — component mass balance with axial dispersion (Danckwerts inlets)
 - **Inlet faces are Danckwerts.** With non-zero axial dispersion the component
   balance did not close at cyclic steady state: the species residual let a

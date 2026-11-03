@@ -37,7 +37,7 @@ All mixture properties use **linear mole-fraction mixing**, evaluated in every c
 $$
 M = \sum_i y_i\thinspace M_i,\qquad
 \rho = \sum_i c_i\thinspace M_i = C\thinspace M,\qquad
-C_{p,g} = \sum_i y_i\thinspace C_{p,i}
+C_{p,g} = \frac{\sum_i y_i\thinspace M_i\thinspace C_{p,i}}{\sum_i y_i\thinspace M_i}
 $$
 
 $$
@@ -45,7 +45,9 @@ $$
 k_g = \sum_i y_i\thinspace k_i(T)
 $$
 
-Mixing the heat capacity by mole fraction, as the code does, is exact for a molar heat capacity; with the per-kilogram $C_{p,i}$ that the model stores it is an approximation for components of very different molar mass. The linear rules for viscosity and conductivity are likewise simpler than the Wilke or Wassiljewa mixing rules; they are adequate for the dilute, chemically similar mixtures typical of PSA, and are what the model uses.
+The heat capacity is mixed on the molar basis: mole fractions average the pure-component **molar** heat capacities $M_i C_{p,i}$ (exact for an ideal-gas mixture), and dividing by the mixture molar mass $M$ gives the per-kilogram $C_{p,g}$ [J kg⁻¹ K⁻¹] that the energy balance multiplies by $\rho$. The volumetric heat capacity is therefore $\rho\thinspace C_{p,g} = C \sum_i y_i\thinspace M_i\thinspace C_{p,i}$. Every user of the gas heat capacity (the energy balances, the convective enthalpy terms, the thermal dispersion and heat-transfer correlations and the logged heat capacity) takes this one value. For 50/50 H₂/CO₂ it is about 33 J mol⁻¹ K⁻¹, where averaging the per-kilogram $C_{p,i}$ by mole fraction would give about 174.
+
+The linear rules for viscosity and conductivity are simpler than the Wilke or Wassiljewa mixing rules; they are adequate for the dilute, chemically similar mixtures typical of PSA, and are what the model uses.
 
 ### Viscosity and thermal conductivity polynomials
 

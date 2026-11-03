@@ -321,6 +321,7 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("unit", &adsim::AxialProfile::unit)
       .def_readonly("cycle", &adsim::AxialProfile::cycle)
       .def_readonly("step", &adsim::AxialProfile::step)
+      .def_readonly("faces", &adsim::AxialProfile::faces)
       .def_property_readonly("z", [](const adsim::AxialProfile& p) { return ToArray(p.z); })
       .def_property_readonly("time", [](const adsim::AxialProfile& p) { return ToArray(p.time); })
       .def_property_readonly("values",
@@ -464,6 +465,7 @@ PYBIND11_MODULE(_core, m) {
       .def_property_readonly("components", &adsim::Simulation::Components)
       .def_property_readonly("steps", &adsim::Simulation::StepNames)
       .def_property_readonly("positions", [](const adsim::Simulation& s) { return ToArray(s.Positions()); })
+      .def_property_readonly("face_positions", [](const adsim::Simulation& s) { return ToArray(s.FacePositions()); })
       .def("streams", [](const adsim::Simulation& s) {
         py::list out;
         for (const auto& st : s.Streams()) {

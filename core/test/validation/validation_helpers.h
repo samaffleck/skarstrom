@@ -30,19 +30,17 @@ namespace adsim::validation {
   // Gas property helpers
   // ---------------------------------------------------------------------------
 
-  // Molar isobaric heat capacity [J/(mol-K)] of a mixture, using the same cached
-  // mass-basis Cp values the solver caches from the initial conditions.
-  // For a single-component gas (the case used by the energy tests) this is
-  // exactly Cp_mass * M.
+  // Molar isobaric heat capacity [J/(mol-K)] of a mixture, from the mass-basis
+  // Cp values the solver caches from the initial conditions: the mole-fraction
+  // average of the pure-component MOLAR heat capacities, sum_i y_i Cp_i M_i.
+  // (The solver's per-kilogram C_p,g times the mixture molar mass gives the
+  // same value.) For a single-component gas it is exactly Cp_mass * M.
   inline double MixtureMolarCp(const Fluid& fluid,
                                const std::unordered_map<std::string, double>& y) {
-    double cp_mass = 0.0;  // [J/(kg-K)]
-    double mm = 0.0;       // [kg/mol]
-    for (const auto& [component, yi] : y) {
-      cp_mass += yi * fluid.heat_capacity_.at(component);
-      mm += yi * fluid.molar_mass_.at(component);
-    }
-    return cp_mass * mm;
+    double cp_molar = 0.0;  // [J/(mol-K)]
+    for (const auto& [component, yi] : y)
+      cp_molar += yi * fluid.heat_capacity_.at(component) * fluid.molar_mass_.at(component);
+    return cp_molar;
   }
 
   // Molar isochoric heat capacity [J/(mol-K)]. The solver's equation of state is

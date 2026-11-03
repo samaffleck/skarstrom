@@ -93,6 +93,7 @@ namespace adsim {
       {"temperature", BoundaryVariableType::TEMPERATURE},
       {"molar_flow_rate", BoundaryVariableType::MOLAR_FLOW_RATE},
       {"compressor_power", BoundaryVariableType::COMPRESSOR_POWER},
+      {"pressure", BoundaryVariableType::PRESSURE},
     };
     constexpr StreamComponentName kStreamComponent[] = {
       {"mole_fraction", BoundaryComponentVariableType::MOLE_FRACTION},
@@ -540,7 +541,9 @@ namespace adsim {
     return out;
   }
 
-  std::vector<double> Simulation::Positions() const { return Log().GetDomain().positions; }
+  std::vector<double> Simulation::Positions() const { return CellCentrePositions(Log().GetDomain()); }
+
+  std::vector<double> Simulation::FacePositions() const { return Log().GetDomain().positions; }
 
   std::vector<KPIRecord> Simulation::KPIs(int cycle) const {
     std::vector<KPIRecord> out;
@@ -618,15 +621,18 @@ namespace adsim {
     TimeSeries ts;
     ts.variable = variable;
     ts.component = component;
+    // The bed-end pressure, temperature and mole fraction are the endpoint
+    // logs (what StreamSeries returns), not ghost-cell values.
+    const BedBoundarySources sources{&Boundaries(), &data_->cycle.step_list_};
     if (auto bulk = Lookup(kBulk, variable)) {
       if (!component.empty())
         throw std::invalid_argument("'" + variable + "' is a bulk variable; do not pass a component");
-      ExtractBulkTimeSeries(Log(), *bulk, loc, z, ts.time, ts.values, c);
+      ExtractBulkTimeSeries(Log(), *bulk, loc, z, ts.time, ts.values, c, sources);
       ts.unit = StripBrackets(GetVariableUnits(*bulk));
     } else if (auto comp = Lookup(kComponent, variable)) {
       if (component.empty())
         throw std::invalid_argument("'" + variable + "' is a component variable; pass a component");
-      ExtractComponentTimeSeries(Log(), *comp, component, loc, z, ts.time, ts.values, c);
+      ExtractComponentTimeSeries(Log(), *comp, component, loc, z, ts.time, ts.values, c, sources);
       ts.unit = StripBrackets(GetComponentVariableUnits(*comp));
     } else {
       throw std::invalid_argument("unknown variable '" + variable + "'. Bulk: " + Join(BulkVariableNames()) +
@@ -661,14 +667,20 @@ namespace adsim {
     p.component = component;
     p.cycle = c;
     p.step = step;
-    p.z = Log().GetDomain().positions;
+    // Face variables (velocity, flow rates) at the faces; cell variables at
+    // the cell centres, without the two ghost cells (index 0 and N-1 of a
+    // logged row), which hold boundary-condition values, not bed values.
+    const DomainVectors& domain = Log().GetDomain();
+    p.faces = !e.values.empty() && IsFaceRow(domain, e.values.front().size());
+    p.z = p.faces ? domain.positions : CellCentrePositions(domain);
+    const size_t first = p.faces ? 0 : 1;
     p.time = e.times;
     p.rows = e.values.size();
     p.cols = p.z.size();
     p.values.assign(p.rows * p.cols, std::numeric_limits<double>::quiet_NaN());
     for (size_t t = 0; t < p.rows; ++t) {
       const auto& row = e.values[t];
-      for (size_t i = 0; i < p.cols && i < row.size(); ++i) p.values[t * p.cols + i] = row[i];
+      for (size_t i = 0; i < p.cols && first + i < row.size(); ++i) p.values[t * p.cols + i] = row[first + i];
     }
     return p;
   }

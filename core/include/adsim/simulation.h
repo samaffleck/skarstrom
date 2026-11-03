@@ -145,14 +145,19 @@ namespace adsim {
   };
 
   // Axial profiles of one variable over one step: values is row-major
-  // [time][cell], with rows == time.size() and cols == z.size().
+  // [time][point], with rows == time.size() and cols == z.size(). A cell
+  // variable has one point per bed cell, at its centre (the ghost cells that
+  // carry the boundary conditions are left out); a face variable (velocity,
+  // volumetric and molar flow rate, approach to fluidisation) one per face,
+  // from the bottom of the column (z = 0) to the top (z = L).
   struct AxialProfile {
     std::string variable;
     std::string component;
     std::string unit;
     int cycle = 0;
     int step = 0;
-    std::vector<double> z;       // cell-centre positions [m]
+    bool faces = false;          // true: z are face positions, false: cell centres
+    std::vector<double> z;       // [m] from the bottom of the column
     std::vector<double> time;    // [s], absolute solver time
     std::vector<double> values;
     size_t rows = 0;
@@ -174,7 +179,8 @@ namespace adsim {
   // Names accepted by Series / Profile (snake_case of the log variables, e.g.
   // "pressure", "temperature", "velocity", "mole_fraction",
   // "adsorbed_concentration") and by StreamSeries ("temperature",
-  // "molar_flow_rate", "compressor_power", "mole_fraction", "molar_flow").
+  // "molar_flow_rate", "compressor_power", "pressure", "mole_fraction",
+  // "molar_flow").
   std::vector<std::string> BulkVariableNames();
   std::vector<std::string> ComponentVariableNames();
   std::vector<std::string> StreamVariableNames();
@@ -266,8 +272,12 @@ namespace adsim {
     std::vector<std::string> Components() const;
     std::vector<std::string> StepNames() const;
     std::vector<StreamInfo> Streams() const;
-    // Cell-centre positions [m].
+    // Centres of the bed cells [m] from the bottom of the column (no ghost
+    // cells): the z of a cell variable's Profile.
     std::vector<double> Positions() const;
+    // Cell-face positions [m], from 0 (bottom) to the column length (top):
+    // the z of a face variable's Profile.
+    std::vector<double> FacePositions() const;
 
     // KPIs of every tracked component at every logged cycle (cycle-major).
     std::vector<KPIRecord> KPIs() const;
@@ -288,7 +298,13 @@ namespace adsim {
     // Time series of a log variable at one point of the bed over one cycle
     // (-1 = last), concatenated across its steps, with time measured from the
     // start of that cycle. `component` is required for component variables and
-    // must be empty for bulk ones. z is used with SeriesLocation::Position.
+    // must be empty for bulk ones. z [m] (from the bottom of the column) is
+    // used with SeriesLocation::Position. Top and Bottom are the physical
+    // boundary values (bed_series.h): for pressure, temperature and mole
+    // fraction the endpoint's logged value where the step has an endpoint at
+    // that end (at an inlet, the feed composition and temperature or the set
+    // pressure; at an outlet, the bed-end face value; the same as
+    // StreamSeries), otherwise, and for every other variable, the face value.
     TimeSeries Series(const std::string& variable, const std::string& component = {},
                       SeriesLocation where = SeriesLocation::Top, double z = 0.0, int cycle = -1) const;
     // Axial profiles of a log variable over one step of one cycle (-1 = last).
