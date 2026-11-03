@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|ThermalFronts|UnitOperations|MetamorphicRelations|ParameterLimits|DegenerateMixtures|ThermodynamicBound)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|ThermalFronts|UnitOperations|MetamorphicRelations|ParameterLimits|DegenerateMixtures|ThermodynamicBound|ExtremeConditions)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -73,6 +73,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_extreme_conditions.cpp` | Extreme pressure ratios, near-zero flow, very short / long steps, high temperature: converge or fail cleanly |
 | `test_thermodynamic_bound.cpp` | Separation energy at CSS against the reversible pump work, the bed exergy change and the minimum work |
 | `test_parameter_limits.cpp` | Rates of approach to parameter limits (k_LDF, dH, wall, Langmuir b, pressure ratio, trace feed); degenerate mixtures |
 | `test_metamorphic_relations.cpp` | Equivalent decks give the same solution: component order, identical layers, split steps, units, cycle phase at CSS |
@@ -237,6 +238,20 @@ cell the front has not reached — that an integral comparison averages away.
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
 
+### `test_extreme_conditions.cpp`
+
+Targeted corners an operator reaches by turning one knob to an extreme on an
+ordinary deck (the fuzz samples at random): pressure ratio 500 (50 bar to
+0.1 bar) and 1.0001, blowdown to 1 mbar, feeds of 1e-9 and 1e-10 mol/s, steps
+of 1 ms and of 1e5 s (which packs ~10^4 bar into the closed bed), a 1e6 s
+breakthrough with no step cap, a bed at 600, 900 and 1200 K (above the 650 K
+end of the viscosity and conductivity fits) and the PSA cycle at 700 K. No
+accuracy is claimed. Each run must converge or fail cleanly (a negative IDA
+code or an exception, within tightened work caps), every logged state must be
+finite, and a converged run must be physical: P > 0, T > 0, 0 <= y <= 1 and
+q >= 0 to their absolute tolerance, sum y = 1 to 1e-3 (the fuzz bound;
+measured worst 4e-6, at 1 mbar). Each corner has a guard that it really is
+extreme (the pressure or temperature reached). All corners converge today.
 ### `test_thermodynamic_bound.cpp`
 
 At cyclic steady state the separation energy must be at least the minimum

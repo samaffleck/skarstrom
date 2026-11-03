@@ -8,6 +8,11 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: extreme operating corners
+- `core/test/validation/test_extreme_conditions.cpp`: very high and very low
+  pressure ratios, near-zero flow, very short and very long steps and high
+  temperatures each converge or fail cleanly, with finite and physical states.
+
 ### Added — verification: thermodynamic bound on the separation energy
 - `core/test/validation/test_thermodynamic_bound.cpp`: at cyclic steady state
   the logged pump energy of a vacuum-swing and a pressure-swing cycle exceeds
