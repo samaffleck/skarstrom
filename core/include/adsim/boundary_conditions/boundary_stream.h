@@ -123,7 +123,7 @@ namespace adsim {
 		std::vector<double> time_series_{};
 		std::unordered_map<std::string, std::vector<double>> component_molar_flow_{};
 		std::unordered_map<std::string, std::vector<double>> mole_fraction_boundary_{};
-		// The bed end the stream was logged at (set by IBoundaryStream::Log).
+		// The bed end the stream was logged at (set by IBoundaryStream::Log and PressureBoundaryCondition::Log).
 		BoundaryLocation location_ = BoundaryLocation::TOP;
 	};
 

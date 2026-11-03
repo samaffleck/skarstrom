@@ -22,6 +22,21 @@ root `CMakeLists.txt`.
 - CLI: `skarstrom sensitivity deck.json` without `--input` runs the deck's
   saved study; options given override it.
 
+### Fixed — a connection replays a bottom pressure boundary's outflow with the right sign
+- `PressureBoundaryCondition::Log` did not record the bed end it logged at,
+  so a pressure boundary's `StreamData` always said TOP. For a pressure
+  boundary at the BOTTOM of its bed, `StreamData::GetOutflow` then returned
+  gas leaving the bed as a negative outflow, and a no-valve stream connected
+  to it (e.g. a rinse or heavy-reflux inlet fed from a blowdown or evacuation)
+  drew that gas out of its own bed instead of taking it in: the connection
+  destroyed twice the transferred moles, and with a step-change blowdown IDA
+  failed at the start of the receiving step. The log now records the
+  boundary's location, as a stream's log does. A TOP pressure boundary was not
+  affected, and no bundled deck, cycle template or paper case connects a
+  stream to a BOTTOM pressure boundary, so no published result moves. Tests:
+  `ConnectedStreamTest.PressureBoundaryDonorLogRecordsItsBedEnd`,
+  `ConnectionSign.*`.
+
 ### Added — verification: extreme operating corners
 - `core/test/validation/test_extreme_conditions.cpp`: very high and very low
   pressure ratios, near-zero flow, very short and very long steps and high
