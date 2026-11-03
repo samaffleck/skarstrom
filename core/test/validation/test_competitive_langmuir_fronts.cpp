@@ -48,10 +48,25 @@
 // has stored behind it. So the moments are exact up to the neglected terms:
 //
 //   * the sorption effect: the carrier velocity changes by O(y) as the
-//     adsorbates leave the gas; y_A + y_B = 2e-3 here, so a few 0.1 %;
+//     adsorbates leave the gas. Measured by varying the feed level (y_A = y_B
+//     = 1e-4, 1e-3, 3e-3), the plateau error is +0.011 %, +0.073 % and +0.21 %,
+//     i.e. about 0.35 (y_A + y_B); the front times move by less than 3e-4;
 //   * front overlap: the plateau lasts about 220 s, and the test asserts that
 //     A is absent from its middle third, so the fronts' tails do not reach the
 //     mid-plateau split.
+//
+// The measured quantities are converged in everything numerical: changing
+// reltol 10x either way, max_step from 0.1 to 2 s, the grid from 100 to 400
+// cells or the LDF rate from 5 to 20 1/s moves the plateau by < 1e-6 relative
+// and the front times by < 1.5e-5. (Integrals over part of the run must
+// interpolate at the window ends: the solver logs at irregular instants, every
+// IDA step plus a minimum resolution, so clipping a window to whole samples
+// drops a sliver that depends on the step sequence; that made an earlier
+// version of this test move by 0.3 % between Linux and Windows.)
+//
+// Tolerance: 2e-3 relative on every quantity, an O(y) bound with coefficient
+// 1 on y_A + y_B = 2e-3 (about 3x the measured sorption effect on the
+// plateau); measured errors are 7.3e-4 (plateau), 3e-5 (t1) and 2.3e-4 (t2).
 //
 // GUARDS: the roll-up must be large (plateau > 1.4 p_B0) and visible in the
 // simulated outlet, and the two fronts must be well separated, so neither the
@@ -81,6 +96,7 @@ namespace adsim {
     constexpr double kM = 20.0;            // B Henry retardation minus one
     constexpr double kLdf = 5.0;           // [1/s], fast
     constexpr double kRunTime = 800.0;     // [s]
+    constexpr double kTol = 1.0 * (kYA + kYB);  // O(y) sorption-effect bound, see above
 
     const char* kCarrier = "Nitrogen";
     const char* kA = "CarbonDioxide";      // strong
@@ -193,7 +209,7 @@ namespace adsim {
       data.cycle.number_of_cycles_ = 1;
       data.settings.reltol = 1e-9;
       data.settings.max_step = 0.5;
-      data.settings.max_log_points_per_step_ = 800;  // one snapshot per second
+      data.settings.max_log_points_per_step_ = 800;  // at least one snapshot per second
 
       CoupledSolver solver{data};
       std::string error;
@@ -222,14 +238,19 @@ namespace adsim {
       return run;
     }
 
-    // int_{t_a}^{t_b} f dt over a logged series (trapezoid; the window is
-    // clipped to whole samples, which the 1 s sampling makes immaterial).
+    // int_{t_a}^{t_b} f dt over a logged series: trapezoids on the samples
+    // inside the window plus the partial intervals at both ends, with f
+    // interpolated linearly at t_a and t_b. The solver logs at irregular
+    // instants, so clipping the window to whole samples would drop a sliver
+    // at each end that depends on the integrator's step sequence.
     double Integral(const std::vector<double>& t, const std::vector<double>& f,
                     double t_a, double t_b) {
       double s = 0.0;
       for (size_t i = 1; i < t.size(); ++i) {
-        if (t[i - 1] < t_a || t[i] > t_b) continue;
-        s += 0.5 * (f[i] + f[i - 1]) * (t[i] - t[i - 1]);
+        const double lo = std::max(t[i - 1], t_a), hi = std::min(t[i], t_b);
+        if (hi <= lo) continue;
+        const double slope = (f[i] - f[i - 1]) / (t[i] - t[i - 1]);
+        s += 0.5 * ((f[i - 1] + slope * (lo - t[i - 1])) + (f[i - 1] + slope * (hi - t[i - 1]))) * (hi - lo);
       }
       return s;
     }
@@ -258,9 +279,10 @@ namespace adsim {
     const double t_a = th.t1 + (th.t2 - th.t1) / 3.0;
     const double t_b = th.t2 - (th.t2 - th.t1) / 3.0;
     const double yB_plateau = Integral(run.t, run.yB, t_a, t_b) / (t_b - t_a);
+    std::cout.precision(8);
     std::cout << "[CompetitiveLangmuir] u=" << run.u << " plateau yB=" << yB_plateau
               << " (theory " << yB_star << ", roll-up " << yB_star / kYB << ")";
-    EXPECT_NEAR(yB_plateau, yB_star, 5e-3 * yB_star)
+    EXPECT_NEAR(yB_plateau, yB_star, kTol * yB_star)
       << "Plateau of the weak component " << yB_plateau << " != equilibrium-theory roll-up "
       << yB_star << " (feed " << kYB << ")";
     // A is absent from the plateau.
@@ -282,12 +304,12 @@ namespace adsim {
     std::cout << " t1=" << t1_meas << " (theory " << th.t1 << ") t2=" << t2_meas
               << " / " << t2_meas_B << " (theory " << th.t2 << ")\n";
 
-    EXPECT_NEAR(t1_meas, th.t1, 5e-3 * th.t1)
+    EXPECT_NEAR(t1_meas, th.t1, kTol * th.t1)
       << "Fast (weak-component) front at " << t1_meas << " s, equilibrium theory " << th.t1 << " s";
-    EXPECT_NEAR(t2_meas, th.t2, 5e-3 * th.t2)
+    EXPECT_NEAR(t2_meas, th.t2, kTol * th.t2)
       << "Slow (strong-component) front at " << t2_meas << " s, equilibrium theory " << th.t2 << " s";
     // Coherence: both components see the slow front at the same time.
-    EXPECT_NEAR(t2_meas_B, th.t2, 5e-3 * th.t2)
+    EXPECT_NEAR(t2_meas_B, th.t2, kTol * th.t2)
       << "The weak component's drop from the plateau (" << t2_meas_B
       << " s) does not travel with the strong component's front (" << th.t2 << " s)";
   }
