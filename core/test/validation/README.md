@@ -67,6 +67,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_thermodynamic_bound.cpp` | Separation energy at CSS against the reversible pump work, the bed exergy change and the minimum work |
 
 ## `test_energy_balance.cpp`
 
@@ -221,6 +222,35 @@ cell the front has not reached — that an integral comparison averages away.
   pressurise/feed/blowdown cycle with two competing adsorbates, which reverses
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
+
+## `test_thermodynamic_bound.cpp`
+
+At cyclic steady state the separation energy must be at least the minimum
+(reversible) work of producing the product streams from the feed. For a
+plant at CSS exchanging heat with surroundings at T0 and handling ideal gases
+at T0 (the decks are isothermal), the second law gives
+W >= sum_out n b - sum_in n b, with b = R T0 [sum y ln y + ln(P/P0)]; with all
+streams at P0 this is the textbook minimum work of separation. The test
+checks it as a chain of separately meaningful inequalities on the last cycle:
+
+    W_electric  >=  W_rev  >=  dB_bed  >=  W_min
+
+W_electric is the engine's reported energy, the integral of every endpoint's
+logged pump power (the E_total of the energy KPI; polytropic, eta = 0.7,
+n = 1.4); W_rev the reversible isothermal work of the same pumps on the same
+logged flows (pump model consistency); dB_bed the exergy change of the
+instantaneous streams at the bed ends (the bed's own second law: dispersion,
+pressure drop and finite-rate adsorption can only destroy exergy); W_min the
+mixed products at their delivery pressures (the ideal-mixing bound). The
+slack for the not-quite-CSS cycle is R T0 (max |ln y| + max |ln P/P0|) times
+the measured component imbalance (< 0.15 J).
+
+- **`VacuumSwingEnergyExceedsMinimumSeparationWork`** — feed and product at
+  1 bar, blowdown to 0.2 bar through a vacuum pump: 2486 J >= 1513 J >=
+  1245 J >= 172 J (pure separation work); second-law efficiency 6.9 %.
+- **`PressureSwingEnergyExceedsMinimumWork`** — 1 -> 3 bar with compressors,
+  light product delivered at 3 bar (its pressure exergy counts): 15004 J >=
+  9050 J >= 8691 J >= 5851 J (of which 266 J separation).
 
 ## Fixed along the way
 
