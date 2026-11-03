@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -73,6 +73,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 
 ### `test_energy_balance.cpp`
 
@@ -227,3 +228,23 @@ cell the front has not reached — that an integral comparison averages away.
   pressurise/feed/blowdown cycle with two competing adsorbates, which reverses
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
+
+### `test_desorption_simple_wave.cpp`
+
+The unfavourable direction of the Langmuir front that `test_equilibrium_shock`
+pins: a bed saturated at a trace level (`K p0 = 3`) purged with clean carrier.
+The front spreads into a simple wave in which each concentration travels at
+`u / (1 + (rho_b/eps) f'(c))`, so the outlet sees `c` at
+`t(c) = (L/u) (1 + M / (1 + K p)^2)` (method of characteristics; de Vault 1943,
+Ruthven 1984 ch. 8), and the whole wave probes the isotherm slope rather than
+its secant.
+
+- **`LangmuirDesorptionFollowsCharacteristics`**: on 100 and 200 cells the
+  outlet times of the levels `c/c0 = 0.6, 0.5, 0.4` converge at first order
+  (measured 0.97, 1.00, 0.98) to `t(c)`, and the Richardson-extrapolated times
+  agree with `t(c)` to 3e-4, 1e-5 and 1.2e-4 (tolerance 1e-3: LDF lag
+  `1/(k t)`, the `O(y0)` sorption effect and the mole-fraction `abstol`).
+  The sorption effect was measured: `1.3e-3` of `t(c)` at `y0 = 1e-3`,
+  `1.3e-4` at `y0 = 1e-4`, which is why the test uses `y0 = 1e-4`. Guard: the
+  wave spreads over 450 s, more than 5x its head time, and `f'(c)` varies
+  16-fold across it. About 0.5 s.
