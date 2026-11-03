@@ -81,7 +81,7 @@ Stopping cycle (0-based) and the largest distance of the tracked purity and reco
 | `Ferre2026_NaYF` (no KPI configured) | 29 | — | 123 | — |
 | `Vysyaraju2024_PSA_exp1` (no KPI configured) | 59 | — | 96 | — |
 
-The error left at the stop grows with how slowly the deck approaches CSS: if each cycle closes a fraction $1-\rho$ of the remaining gap, what is left when the per-cycle change reaches the tolerance is proportional to $1/(1-\rho)$. `Perez2019_F` closes only about 1.5 % of its gap per cycle, which is why it ends furthest away; lower `css.state_tolerance` for such a deck. Keep it well above the noise of the state change itself, which is set by the integrator tolerance: about 10⁻⁶ at the default `settings.reltol` of 10⁻⁶ and up to 1.3×10⁻⁵ at 10⁻⁴ (both measured on the Yancy cycle). A tolerance below that floor stops the run only by chance.
+The error left at the stop grows with how slowly the deck approaches CSS: if each cycle closes a fraction $1-\rho$ of the remaining gap, what is left when the per-cycle change reaches the tolerance is proportional to $1/(1-\rho)$. `Perez2019_F` closes only about 1.5 % of its gap per cycle, which is why it ends furthest away; lower `css.state_tolerance` for such a deck. Keep it well above the noise of the state change itself, which is set by the integrator tolerance: about 10⁻⁶ at the default `settings.reltol` of 10⁻⁶ and up to 1.3×10⁻⁵ at 10⁻⁴ (both measured on the Yancy cycle). A tolerance below that floor stops the run only by chance. The verification suite checks this relation on a cycle with $\rho = 0.966$: the error left at the default stop matched the geometric prediction to within 8 % ([Numerics](numerics.md#convergence-of-the-results)).
 
 ### Decks saved before the state test
 

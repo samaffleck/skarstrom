@@ -143,6 +143,40 @@ $$
 
 The gain depends on the deck. For the [Perez 2019 VPSA tutorial](perez-2019-vpsa.md), acceleration moved CSS from cycle 190 to cycle 182, with the same purity and recovery.
 
+### Convergence of the results
+
+A KPI reported at cyclic steady state carries three numerical errors: the grid, the integrator tolerance and the distance from CSS. The [verification tests](verification.md#convergence-of-cycle-results) measure each one on a synthetic cycle; this section summarises them and gives the grid study of three example decks.
+
+**Grid.** Each deck was run to CSS on 10, 20, 40, 80 and 160 cells (`python scripts/verification/grid_convergence.py`, which writes the full table, with the productivity too; CSS state tolerance tightened to 10⁻⁶, everything else as in the deck). From the three finest grids, the observed order is $p = \log_2\big((f_{40}-f_{80})/(f_{80}-f_{160})\big)$, Roache's grid convergence index of the 160-cell value is $\text{GCI} = 1.25\thinspace\lvert(f_{160}-f_{80})/f_{160}\rvert/(2^p-1)$, and the Richardson extrapolation $f_{160} + (f_{160}-f_{80})/(2^p-1)$ estimates the grid-converged value $f^{*}$. The last column is the grid at which the error $\lvert f_N - f^{*}\rvert \approx \lvert f_{160} - f^{*}\rvert\thinspace(160/N)^p$ falls to 0.1 percentage points.
+
+| Deck | Scheme | KPI | 10 | 20 | 40 | 80 | 160 | $p$ | GCI | $f^{*}$ | Cells for 0.1 pt |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `Perez2019_A` | Upwind | CO₂ recovery | 0.5772 | 0.5874 | 0.5921 | 0.5945 | 0.5957 | 0.96 | 0.26 % | 0.5969 | 200 |
+| | WENO | | 0.5872 | 0.5934 | 0.5956 | 0.5965 | 0.5968 | 1.49 | 0.036 % | 0.5970 | 50 |
+| | van Leer | | 0.5897 | 0.5951 | 0.5963 | 0.5967 | 0.5969 | 1.40 | 0.023 % | 0.5970 | 35 |
+| | Upwind | CO₂ purity | 0.9942 | 0.9947 | 0.9949 | 0.9950 | 0.9950 | 1.14 | 0.004 % | 0.9951 | 10 |
+| `Ward2024` | Upwind | CO₂ recovery | 0.8936 | 0.9054 | 0.9120 | 0.9149 | 0.9165 | 0.86 | 0.27 % | 0.9185 | 360 |
+| | WENO | | 0.9040 | 0.9129 | 0.9166 | 0.9180 | 0.9187 | 1.14 | 0.074 % | 0.9192 | 95 |
+| | van Leer | | 0.9097 | 0.9157 | 0.9176 | 0.9185 | 0.9189 | 0.96 | 0.062 % | 0.9193 | 70 |
+| | Upwind | CO₂ purity | 0.9643 | 0.9628 | 0.9618 | 0.9613 | 0.9610 | 0.97 | 0.033 % | 0.9608 | 40 |
+| `Illustrative_TSA_13X` | Upwind | CO₂ recovery | 0.6602 | 0.6634 | 0.6649 | 0.6655 | 0.6658 | 1.12 | 0.05 % | 0.6661 | 50 |
+| | WENO | | 0.6648 | 0.6657 | 0.6660 | 0.6662 | 0.6662 | (3.2) | < 0.001 % | 0.6662 | 20 |
+| | van Leer | | 0.6651 | 0.6658 | 0.6661 | 0.6662 | 0.6662 | – | < 0.001 % | 0.6662 | 15 |
+| | Upwind | CO₂ purity | 0.8333 | 0.8343 | 0.8348 | 0.8350 | 0.8351 | 1.04 | 0.016 % | 0.8352 | 20 |
+
+What the study shows:
+
+- **Every deck converges monotonically**, and upwind at first order ($p$ = 0.86 to 1.14). WENO and van Leer have errors two to nine times smaller at the same grid, but on `Ward2024` their order also falls to about 1 on the finest grids: the two bed-end faces take the upwind value in every scheme (see [Advection schemes](#advection-schemes)), so a KPI read at a bed end is formally first order whatever the interior reconstruction; how soon that shows depends on the gradient at the product end. On the synthetic cycle of the tests, whose product end is almost flat, WENO and van Leer converge at $p \approx 2.5$ on 20 to 80 cells.
+- **Recovery is the KPI that needs the grid; purity much less so.** At the decks' 30 cells with upwind, the recovery of `Perez2019_A` is about 0.6 points and that of `Ward2024` about 0.8 points below its grid-converged value (from the fitted error), while the purities are within 0.02 and 0.13 points. This matches the open-source benchmark, in which the reference code's 10-cell recovery rose from 91.6 % to 96.3 % at 100 cells.
+- **The grid each deck needs.** For recovery within 0.1 points: `Perez2019_A` about 200 cells with upwind or 35 to 50 with WENO / van Leer; `Ward2024` about 360 with upwind or 70 to 95 with the higher-order schemes; `Illustrative_TSA_13X` 50 with upwind, 15 to 20 with WENO / van Leer. For a design study comparing small differences between runs, a higher-order scheme on 40 to 80 cells is far cheaper than upwind on several hundred. Other decks have not been studied; run the script on them before relying on a KPI to a fraction of a point.
+- On the TSA deck the higher-order schemes are converged to about 10⁻⁵ by 80 cells, which is the level of the integrator and CSS tolerances of the study: their 80-to-160 differences are noise, so $p$ there is not meaningful (van Leer's is reported as oscillatory).
+
+**Integrator tolerance.** IDA's error-per-step control gives a global error proportional to $\text{reltol}^{k/(k+1)}$ for BDF order $k$, a slope between 0.5 and 1 on a log-log plot: measured 0.68 on a breakthrough and 0.77 for the bed state of a cycle. Once $\text{reltol}\thinspace\lvert y\rvert$ falls below the absolute tolerance, the error stops falling and stays at about the absolute tolerance (10⁻⁸ for mole fractions and loadings). The KPIs converge more slowly (slope 0.42 for the recovery of the test cycle), because they integrate the logged boundary flows by the trapezoid rule and the flow transient after a step opens a pressure boundary lasts only the pressure diffusion time of one cell (about $\mu\thinspace\varepsilon_b\thinspace\Delta z^2/(K P) \approx 2\times10^{-5}$ s), which only IDA's own steps resolve. At the default reltol of 10⁻⁶ the recovery error of the test cycle is 6×10⁻⁵, a quarter of the change from 20 to 40 cells; tighten reltol only when comparing runs that differ by less than that.
+
+**Maximum step.** `max_step` caps IDA's step; it never relaxes the error test, so results do not depend on it beyond the integrator tolerance: in the tests a cap above IDA's own steps leaves a run bit-for-bit the same, and a 0.1 s cap (twice the steps) moves profiles and KPIs by less than the error of a 100 times looser reltol. Decks set it for robustness, not accuracy: `Vysyaraju2024_PSA_exp1` uses 0.5 s because with a 1 s cap IDA stalled at its minimum step in one equalisation step; with 0.5 s (or reltol 10⁻⁷ at 1 s) the run completes and the two agree to 0.01 points in purity and recovery.
+
+**Cyclic steady state.** Near CSS the end-of-cycle map contracts by a fixed factor $\rho$ per cycle, so the state change decays geometrically and every KPI converges at the same rate. The error a KPI still carries when the stopping rule fires at a state change $\Delta \le \varepsilon$ is then $g\thinspace\Delta\thinspace\rho/(1-\rho)$, with $g$ the KPI change per unit state change: proportional to the [state tolerance](cyclic-steady-state.md#state-test) and to $1/(1-\rho)$. On the test cycle with its energy balance on ($\rho = 0.966$) the default rule stops at cycle 108 with a recovery error of 6.0×10⁻⁵ against 6.4×10⁻⁵ predicted; isothermal ($\rho = 0.106$) each decade of state tolerance costs one cycle and buys a decade of KPI accuracy. Aitken acceleration stops 25 cycles earlier on the same cycle, on KPIs 3×10⁻⁵ from the CSS value, inside the error the rule allows a plain run.
+
 ### The chunked solver for cooperative front ends
 
 The C++ API (and the Python package) can run a whole cycle loop in one call (`CoupledSolver::IntegrateCycle`). A single-threaded host such as a browser worker cannot do that: a long blocking call could never receive a *Cancel* message. For such hosts the engine provides `CoupledSolverChuncked`, which performs the same steps, retries, CSS checks and acceleration with the same integrator code, but in slices: each call to `Integrate(max_time_ms)` advances the current step until the wall-clock budget is used or the step ends, then returns. A WebAssembly front end can call it with a short budget (e.g. 50 ms) in a loop, yielding between slices so that progress, log messages and cancel requests get through. Results are the same as a native run up to floating-point rounding differences between compilers.
