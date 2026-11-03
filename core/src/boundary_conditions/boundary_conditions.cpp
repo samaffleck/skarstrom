@@ -347,6 +347,10 @@ namespace adsim {
       power = pump_->CalculatePower(pressure, molar_flow, suction_temperature);
     }
 
+    // Record the bed end, as IBoundaryStream::Log does: GetOutflow (what a
+    // connected stream replays) turns the axial flow into flow out of the bed
+    // by it, and the default (TOP) has the wrong sign at the bottom.
+    stream_data_.location_ = location_;
     stream_data_.Log(molar_flow, enthalpy_flow, temperature, pressure, power, time, component_molar_flow, mole_fraction);
   }
 

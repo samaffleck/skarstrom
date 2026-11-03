@@ -753,4 +753,44 @@ namespace adsim {
     }
   }
 
+  // --------------------------------------------------------------------------
+  // The same replay with a pressure boundary as the donor. Its log must record
+  // the bed end it was taken at, as a stream's does: GetOutflow turns the
+  // axial flow (positive upwards) into flow out of the bed by that end. A
+  // pressure boundary used to leave the default (TOP) in place, so at the
+  // BOTTOM gas leaving the bed (axial < 0) read as a negative outflow and a
+  // connected inlet drew the same amount out of its own bed.
+  // --------------------------------------------------------------------------
+  TEST(ConnectedStreamTest, PressureBoundaryDonorLogRecordsItsBedEnd) {
+    constexpr int kCells = 6;  // includes the two ghost cells
+    const double out = 0.25;   // mol/s leaving the donor's bed
+    for (BoundaryLocation loc : {BoundaryLocation::BOTTOM, BoundaryLocation::TOP}) {
+      // Leaving through the bottom is downwards (negative), through the top upwards.
+      const double axial = (loc == BoundaryLocation::BOTTOM) ? -out : out;
+      Equations state = MakeUniformBedState(1e5, 300.0, kCells);
+      state.molar_flow_rate.var.assign(kCells + 1, axial);
+      Equation y{"Mole Fraction", CellType::CellCentre, EquationType::Algebraic, nullptr};
+      y.var.assign(kCells, 1.0);
+      state.mole_fraction.emplace("Nitrogen", std::move(y));
+
+      PressureBoundaryCondition donor;
+      donor.location_ = loc;
+      donor.direction_ = BoundaryDirection::OUTLET;
+      donor.Log(state, 0.0);
+      donor.Log(state, 10.0);
+
+      const StreamData& sd = donor.stream_data_;
+      EXPECT_EQ(sd.location_, loc);
+      EXPECT_DOUBLE_EQ(sd.GetMolarFlow(5.0), axial);
+      EXPECT_DOUBLE_EQ(sd.GetOutflow(5.0), out) << "Gas leaving the bed is a positive outflow";
+
+      // A connected inlet takes that gas in at either end of its own bed.
+      BoundaryStream receiver;
+      receiver.SetDirection(BoundaryDirection::INLET);
+      receiver.connection_.MakeConnection(1, donor);
+      EXPECT_DOUBLE_EQ(receiver.GetMolarFlow(state, 5.0, BoundaryLocation::BOTTOM), out);
+      EXPECT_DOUBLE_EQ(receiver.GetMolarFlow(state, 5.0, BoundaryLocation::TOP), -out);
+    }
+  }
+
 } // end adsim namespace
