@@ -333,5 +333,99 @@ TEST(Sensitivity, EvaluatesSamplesOfARealDeck) {
   EXPECT_THROW(EvaluateSample(deck, inputs, {}, outputs, bad), std::invalid_argument);
 }
 
+
+// ---- the study saved with the deck ----------------------------------------------
+
+TEST(Sensitivity, AStudyIsSavedWithTheDeck) {
+  const std::string deck = ReadDeck("Arora2021_LiLSX_PSA.json");
+  ASSERT_FALSE(deck.empty());
+  Simulation sim = Simulation::FromJson(deck);
+  EXPECT_TRUE(sim.Data().sensitivity_study.Empty());
+  const std::string time = FirstStepTime(sim);
+  ASSERT_FALSE(time.empty());
+  const double t = sim.GetParameter(time);
+
+  Study& study = sim.Data().sensitivity_study;
+  study.inputs = {Relative(time, t, 0.1), Normal("variable[x]", 2.0, 0.5, 0.0)};
+  study.outputs = {"Oxygen.purity", "Oxygen.recovery"};
+  study.policy.require_css = false;
+  study.policy.cycles = 20;
+  study.policy.settings = {{"css.method", "3"}};
+  study.seed = 7;
+  study.trajectories = 6;
+  study.levels = 6;
+  study.threshold = 0.2;
+  study.runs = 40;
+  study.batch = 20;
+  study.max_runs = 120;
+  study.rel_tol = 0.05;
+  study.bootstrap = 500;
+
+  const Simulation loaded = Simulation::FromJson(sim.ToJson());
+  const Study& back = loaded.Data().sensitivity_study;
+  ASSERT_EQ(back.inputs.size(), 2u);
+  EXPECT_EQ(back.inputs[0].path, time);
+  EXPECT_EQ(back.inputs[0].distribution, Distribution::Uniform);
+  EXPECT_EQ(back.inputs[0].lower, study.inputs[0].lower);
+  EXPECT_EQ(back.inputs[0].upper, study.inputs[0].upper);
+  EXPECT_TRUE(std::isnan(back.inputs[0].mean));
+  EXPECT_EQ(back.inputs[1].distribution, Distribution::Normal);
+  EXPECT_EQ(back.inputs[1].mean, 2.0);
+  EXPECT_EQ(back.inputs[1].sd, 0.5);
+  EXPECT_EQ(back.inputs[1].lower, 0.0);
+  EXPECT_TRUE(std::isnan(back.inputs[1].upper));  // an unset bound stays unset
+  EXPECT_EQ(back.outputs, study.outputs);
+  EXPECT_FALSE(back.policy.require_css);
+  EXPECT_EQ(back.policy.cycles, 20);
+  EXPECT_EQ(back.policy.settings, study.policy.settings);
+  EXPECT_EQ(back.seed, 7u);
+  EXPECT_EQ(back.trajectories, 6);
+  EXPECT_EQ(back.levels, 6);
+  EXPECT_EQ(back.threshold, 0.2);
+  EXPECT_EQ(back.runs, 40);
+  EXPECT_EQ(back.batch, 20);
+  EXPECT_EQ(back.max_runs, 120);
+  EXPECT_EQ(back.rel_tol, 0.05);
+  EXPECT_EQ(back.bootstrap, 500);
+}
+
+TEST(Sensitivity, ADeckFromBeforeStudiesLoadsWithNone) {
+  // UserData version 3 (before the study was saved): rewrite a saved deck's
+  // root version. A version 3 load does not read the study.
+  Simulation sim = Simulation::FromJson(ReadDeck("Arora2021_LiLSX_PSA.json"));
+  sim.Data().sensitivity_study.inputs = {Uniform("step[1].time", 1, 2)};
+  std::string json = sim.ToJson();
+  const std::string v4 = "\"cereal_class_version\": 4";
+  const auto root = json.find(v4);
+  ASSERT_NE(root, std::string::npos);
+  ASSERT_LT(root, json.find("\"Adsorbent_Directory\""));  // the root's own version
+  json.replace(root, v4.size(), "\"cereal_class_version\": 3");
+  const Simulation old = Simulation::FromJson(json);
+  EXPECT_TRUE(old.Data().sensitivity_study.Empty());
+  EXPECT_EQ(old.Data().sensitivity_study.trajectories, 10);
+}
+
+TEST(Sensitivity, ASavedStudyIsChecked) {
+  const std::string deck = ReadDeck("Arora2021_LiLSX_PSA.json");
+  Simulation sim = Simulation::FromJson(deck);
+  const std::string time = FirstStepTime(sim);
+  const double t = sim.GetParameter(time);
+  Study study;
+  EXPECT_THROW(CheckStudy(deck, study), std::invalid_argument);  // no inputs
+  study.inputs = {Relative(time, t, 0.1)};
+  study.policy.require_css = false;
+  EXPECT_NO_THROW(CheckStudy(deck, study));
+  // No outputs named: the deck's defaults.
+  EXPECT_EQ(StudyOutputs(study, sim.Data()).size(), DefaultOutputs(sim.Data()).size());
+  study.outputs = {"Oxygen.recovery"};
+  ASSERT_EQ(StudyOutputs(study, sim.Data()).size(), 1u);
+  EXPECT_EQ(StudyOutputs(study, sim.Data())[0].kpi, "recovery");
+  // A saved output whose component is not tracked is reported, not dropped.
+  study.outputs = {"Nitrogen.purity"};
+  EXPECT_THROW(CheckStudy(deck, study), std::invalid_argument);
+  study.outputs = {"Oxygen.speed"};
+  EXPECT_THROW(StudyOutputs(study, sim.Data()), std::invalid_argument);
+}
+
 }  // namespace sensitivity
 }  // namespace adsim
