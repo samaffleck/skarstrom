@@ -449,9 +449,7 @@ namespace adsim {
       const auto& dH = domain_vectors.dH_ads.at(ads_id);
       for (const auto& [component, qi] : comp_map) {
         rates.push_back(&qi.ddt_var);
-        const double Cpa = fluid.adsorbed_heat_capacity_mode_ == AdsorbedHeatCapacityMode::GAS_PHASE
-          ? fluid.heat_capacity_.at(component) * fluid.molar_mass_.at(component)
-          : fluid.adsorbed_heat_capacity_.at(component).Get();
+        const double Cpa = fluid.AdsorbedPhaseHeatCapacity(component);
         terms.push_back({ Cpa, &qi.var, &qi.ddt_var, &dH.at(component) });
       }
     }

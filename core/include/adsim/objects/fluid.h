@@ -207,7 +207,7 @@ namespace adsim {
 
   enum class AdsorbedHeatCapacityMode {
     CONSTANT,   // Use constant user-defined value from adsorbed_heat_capacity_ [J/(mol-K)]
-    GAS_PHASE   // Equal to gas-phase heat capacity: Cpa = Cpg * Mr [J/(mol-K)]
+    GAS_PHASE   // Equal to the component's gas-phase molar heat capacity: Cpa = Cp,i * M_i [J/(mol-K)]
   };
 
   static const char* AdsorbedHeatCapacityModeList[] = {
@@ -294,10 +294,48 @@ namespace adsim {
       return kg > 0.0 ? kg : 1.0e-4;                        // guard fit undershoot at edges
     }
 
+    // Gas-phase heat capacity of a pure component on a molar basis,
+    // C_p,i * M_i [J/(mol.K)], from the cached per-kilogram heat_capacity_.
+    // Requires Initialise().
+    double MolarHeatCapacity(const std::string& component) const {
+      return heat_capacity_.at(component) * molar_mass_.at(component);
+    }
+
+    // Molar heat capacity Cpa of `component` in the adsorbed phase [J/(mol.K)]:
+    // the gas-phase molar value (GAS_PHASE) or the user's constant (CONSTANT).
+    double AdsorbedPhaseHeatCapacity(const std::string& component) const {
+      return adsorbed_heat_capacity_mode_ == AdsorbedHeatCapacityMode::GAS_PHASE
+        ? MolarHeatCapacity(component)
+        : adsorbed_heat_capacity_.at(component).Get();
+    }
+
+    // Mass-specific heat capacity of a gas mixture [J/(kg.K)]:
+    //   C_p,g = sum_i y_i M_i C_p,i / sum_i y_i M_i,
+    // the molar mixture heat capacity divided by the mixture molar mass. Mole
+    // fractions mix MOLAR heat capacities; mixing the per-kilogram C_p,i by mole
+    // fraction is wrong unless every M_i is equal. Takes the two mole-fraction
+    // weighted sums, sum_i y_i C_p,i M_i and sum_i y_i M_i, so the solver's hot
+    // loop (UpdateHeatCapacity) and MixtureHeatCapacity below share one rule.
+    // Returns 0 when the molar-mass sum is not positive (no gas).
+    static double MixtureHeatCapacityFromSums(double sum_y_molar_cp, double sum_y_molar_mass) {
+      return sum_y_molar_mass > 0.0 ? sum_y_molar_cp / sum_y_molar_mass : 0.0;
+    }
+
+    // C_p,g [J/(kg.K)] of the mixture with mole fractions y (component -> y_i;
+    // components absent from y count as 0). Requires Initialise().
+    double MixtureHeatCapacity(const std::unordered_map<std::string, double>& y) const {
+      double sum_cp = 0.0, sum_m = 0.0;
+      for (const auto& [component, yi] : y) {
+        sum_cp += yi * MolarHeatCapacity(component);
+        sum_m += yi * molar_mass_.at(component);
+      }
+      return MixtureHeatCapacityFromSums(sum_cp, sum_m);
+    }
+
     std::vector<std::string> components_{};
     std::unordered_map<std::string, double> molar_mass_{};
     std::unordered_map<std::string, ExpressionParam> adsorbed_heat_capacity_{}; // [J/(mol-K)] - used when mode is CONSTANT
-    std::unordered_map<std::string, double> heat_capacity_{}; // [J/(kg-K)] - cached from initial conditions
+    std::unordered_map<std::string, double> heat_capacity_{}; // [J/(kg-K)] - pure-component, cached from initial conditions; mix with MixtureHeatCapacity
     AdsorbedHeatCapacityMode adsorbed_heat_capacity_mode_ = AdsorbedHeatCapacityMode::CONSTANT;
     HeatOfAdsorptionConvention heat_of_adsorption_convention_ = HeatOfAdsorptionConvention::ISOSTERIC;
 

@@ -51,7 +51,7 @@ When gas–solid heat transfer is not fast (for example large particles or fast 
 The **adsorbed phase heat capacity** setting of the energy balance controls how the adsorbed molecules' heat capacity is treated:
 
 - **Constant** — enter a molar heat capacity per component.
-- **Gas phase** — the adsorbed-phase heat capacity is taken equal to the gas-phase value.
+- **Gas phase** — each component's adsorbed-phase heat capacity is taken equal to its own pure-gas molar heat capacity, $C_{p,i}\thinspace M_i$ (see [Equation of State](equation-of-state.md#other-gas-properties)).
 
 ## Energy source (heating / cooling)
 

@@ -74,13 +74,6 @@ namespace adsim {
       return T[nb];
     }
 
-    // Molar heat capacity Cpa of `comp` in the adsorbed phase [J/(mol.K)].
-    double AdsorbedPhaseHeatCapacity(const Fluid& fluid, const Component& comp) {
-      return (fluid.adsorbed_heat_capacity_mode_ == AdsorbedHeatCapacityMode::GAS_PHASE)
-        ? fluid.heat_capacity_.at(comp) * fluid.molar_mass_.at(comp)
-        : fluid.adsorbed_heat_capacity_.at(comp).Get();
-    }
-
     // Heat released per mole adsorbed, as it enters the energy balances:
     // dH for the ISOSTERIC convention (dH is the isosteric heat q_st);
     // dH - Cpa*T for the INTERNAL_ENERGY convention (Haghpanah/Ward), which
@@ -1351,25 +1344,30 @@ namespace adsim {
     auto& state = udata->state;
     auto& Cp = state.heat_capacity.var;
     auto& mole_fraction_map = state.mole_fraction;
-    auto& heat_capacity_map = udata->fluid.heat_capacity_;
+    const auto& fluid = udata->fluid;
 
-    // Hoist the string-keyed heat-capacity lookup out of the cell loop: resolve
-    // (mole-fraction vector, Cp_component) once per component (map iteration
-    // order preserved → bit-identical sum), then the cell loop is pure FMA.
-    struct CpTerm { const std::vector<double>* yi; double cp; };
+    // Mass-specific mixture heat capacity [J/(kg.K)], mixed on the molar basis:
+    // Cp = sum_i y_i M_i Cp_i / sum_i y_i M_i (Fluid::MixtureHeatCapacityFromSums).
+    // Hoist the string-keyed lookups out of the cell loop: resolve
+    // (mole-fraction vector, M_i Cp_i, M_i) once per component (map iteration
+    // order preserved → deterministic sums), then the cell loop is pure FMA.
+    struct CpTerm { const std::vector<double>* yi; double molar_cp; double molar_mass; };
     static thread_local std::vector<CpTerm> terms;
     terms.clear();
     terms.reserve(mole_fraction_map.size());
     for (auto& [component, mole_fraction] : mole_fraction_map) {
-      terms.push_back({ &mole_fraction.var, heat_capacity_map.at(component) });
+      terms.push_back({ &mole_fraction.var, fluid.MolarHeatCapacity(component), fluid.molar_mass_.at(component) });
     }
 
     // Compute mixture heat capacity for each cell
     for (int n = 1; n < Cp.size() - 1; ++n) {
-      Cp[n] = 0;
+      double sum_cp = 0.0, sum_m = 0.0;
       for (const auto& t : terms) {
-        Cp[n] += (*t.yi)[n] * t.cp;
+        const double y = (*t.yi)[n];
+        sum_cp += y * t.molar_cp;
+        sum_m += y * t.molar_mass;
       }
+      Cp[n] = Fluid::MixtureHeatCapacityFromSums(sum_cp, sum_m);
     }
 
     Cp[0] = Cp[1];
@@ -1681,7 +1679,7 @@ namespace adsim {
     // solid temperature in LTNE (UpdateSolidTemperature).
     const auto& fluid = udata->fluid;
     const bool ie_convention = UsesInternalEnergyConvention(fluid);
-    const double Cpa = ie_convention ? AdsorbedPhaseHeatCapacity(fluid, component) : 0.0;
+    const double Cpa = ie_convention ? fluid.AdsorbedPhaseHeatCapacity(component) : 0.0;
     const auto& T_ads =
       (udata->bed.equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL)
         ? state.solid_temperature.var
