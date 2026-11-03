@@ -67,6 +67,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
 
 ## `test_energy_balance.cpp`
 
@@ -221,6 +222,32 @@ cell the front has not reached — that an integral comparison averages away.
   pressurise/feed/blowdown cycle with two competing adsorbates, which reverses
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
+
+## `test_ldf_thomas.cpp`
+
+A front shaped by the LDF rate rather than by dispersion: a Henry isotherm with
+`k = 0.1 1/s` (12 transfer units), dispersion off, isothermal, compared point
+by point with the Anzelius/Thomas closed form
+`c/c0 = J(x, tau) = 1 - int_0^x exp(-tau - s) I0(2 sqrt(tau s)) ds`
+(Ruthven 1984, ch. 8), which the test evaluates by quadrature with its own
+Bessel series. The upwind scheme makes the column `n` tanks in series, whose
+transfer function `(1 + (dx/u) g(s))^(-L/dx)` is known exactly, so the grid
+error is not a nuisance to be tolerated but a second prediction.
+
+- **`ReferenceSolutionSatisfiesItsIdentities`**: the two integral forms of `J`
+  agree, `J(a,b) + J(b,a) = 1 + exp(-a-b) I0(2 sqrt(ab))`, the analytic second
+  derivatives match finite differences, and the cumulants are `x` and `2x`. No
+  solver run.
+- **`LinearIsothermOutletCurveMatchesThomasSolution`**: on 50, 100 and 200
+  cells, (1) the outlet variance minus the exact upwind term `L dx R^2 / u^2`
+  equals the Thomas variance `2 (R-1) L / (u k)` (measured 2415.5 vs
+  2416.2 s^2, 0.03 %, on every grid); (2) `max |F - J|` falls at first order
+  (0.0246, 0.0128, 0.0065); (3) after subtracting the closed-form leading error
+  `(L dx / 2) d2F/dz2`, the residual falls at second order (2.2e-3, 6.1e-4,
+  1.7e-4; orders 1.89, 1.84) and is 2.6 % of the error on the finest grid.
+  Guard: a Gaussian curve with the same mean and variance misses the
+  simulated one by 0.042, 250x the finest residual, so the asymmetric Thomas
+  shape is what is being matched. About 1.3 s.
 
 ## Fixed along the way
 
