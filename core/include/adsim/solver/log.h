@@ -48,13 +48,15 @@ namespace adsim {
   enum class BoundaryVariableType {
     TEMPERATURE,
     MOLAR_FLOW_RATE,
-    COMPRESSOR_POWER
+    COMPRESSOR_POWER,
+    PRESSURE  // the bed-end face pressure (a pressure boundary's set value)
   };
   
   inline constexpr std::string_view kBoundaryVariableTypeList[] = {
     "Temperature", 
     "Molar Flow Rate", 
-    "Compressor Power"
+    "Compressor Power",
+    "Pressure"
   };
   
   enum class BoundaryComponentVariableType {
@@ -205,6 +207,9 @@ namespace adsim {
     void Initialise(UserData& user_data);
     BoundaryVariableData GetVariableData(int cycle_idx, int step_idx, const std::string& stream_name, BoundaryVariableType variable) const;
     BoundaryVariableData GetComponentVariableData(int cycle_idx, int step_idx, const std::string& stream_name, BoundaryComponentVariableType variable, const std::string& component) const;
+    // The logged data of one endpoint over one step (time from the step
+    // start), or nullptr when the cycle, step or endpoint was not logged.
+    const StreamData* GetStreamData(int cycle_idx, int step_idx, const std::string& stream_name) const;
     
     int max_cycles_to_keep_ = 10;
     SystemData sys_data;

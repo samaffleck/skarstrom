@@ -9,18 +9,13 @@
 #include <vector>
 
 // adsim includes
+#include "adsim/solver/bed_series.h"
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpis.h"
 #include "adsim/solver/experimental_data.h"
 
 
 namespace adsim {
-
-  // ---------------------------------------------------------------------------
-  // Spatial location for time-series extraction
-  // ---------------------------------------------------------------------------
-
-  enum class ParamSpatialLoc { Top = 0, Bottom = 1, Position = 2 };
 
   // ---------------------------------------------------------------------------
   // Linear interpolation
@@ -64,14 +59,19 @@ namespace adsim {
   // ---------------------------------------------------------------------------
   // ExtractBulkTimeSeries
   //
-  // Extracts a time series of a bulk VariableType from one cycle of eq_log
-  // (the FINAL logged cycle by default, or `cycle_index` when it is >= 0),
-  // concatenating across all steps. Times are relative to the start of that
-  // cycle (first point at t = 0, last point at ~cycle duration), independent
-  // of how many cycles were run before it.
+  // Time series of a bulk VariableType over one cycle of eq_log (the FINAL
+  // logged cycle by default, or `cycle_index` when it is >= 0), concatenated
+  // across all steps. Times are relative to the start of that cycle (first
+  // point at t = 0, last point at ~cycle duration), independent of how many
+  // cycles were run before it.
   //
-  // For each timestep the spatial profile is interpolated at query_z using
-  // InterpLinear and the cell-centre positions from eq_log.GetDomain().
+  // Each row is read at the bed end or at z_pos with the positions and
+  // bed-end values of ExtractBedTimeSeries (bed_series.h): cell centres
+  // (never the ghost cells) or faces, and at Top / Bottom the physical
+  // boundary value. Pass `sources` (the run's BoundaryLog and steps) so the
+  // bed-end pressure, temperature and mole fraction are the endpoint logs,
+  // as Simulation::Series does; without them they are the face values
+  // reconstructed from the ghost cells.
   //
   // Returns false (and empty out vectors) if no data is available (including
   // a `cycle_index` that is not in the log).
@@ -84,48 +84,11 @@ namespace adsim {
     double               z_pos,         // [m], used when spatial_loc == Position
     std::vector<double>& out_times,     // [s] from start of the selected cycle
     std::vector<double>& out_values,
-    int                  cycle_index = -1)  // < 0: the final logged cycle
+    int                  cycle_index = -1,  // < 0: the final logged cycle
+    const BedBoundarySources& sources = {})
   {
-    out_times.clear();
-    out_values.clear();
-    const auto& sim_log  = eq_log.GetSimulationLog();
-    if (sim_log.empty()) return false;
-    if (cycle_index >= 0 && sim_log.find(cycle_index) == sim_log.end()) return false;
-
-    const int last_cycle = cycle_index >= 0 ? cycle_index : sim_log.rbegin()->first;
-    const auto& positions = eq_log.GetDomain().positions;
-
-    double query_z = 0.0;
-    switch (spatial_loc) {
-      case ParamSpatialLoc::Top:
-        query_z = positions.empty() ? 0.0 : positions.back();
-        break;
-      case ParamSpatialLoc::Bottom:
-        query_z = positions.empty() ? 0.0 : positions.front();
-        break;
-      case ParamSpatialLoc::Position:
-        query_z = z_pos;
-        break;
-    }
-
-    const auto& cycle_log = sim_log.at(last_cycle);
-    const double cycle_start = CycleStartTime(cycle_log);
-
-    for (const auto& [step_idx, step_log] : cycle_log) {
-      VariableLogEntry vle = eq_log.GetVariable(last_cycle, step_idx, var_type);
-      if (vle.times.empty()) continue;
-
-      for (size_t t = 0; t < vle.times.size(); ++t) {
-        out_times.push_back(vle.times[t] - cycle_start);
-        double val = 0.0;
-        if (t < vle.values.size() && !positions.empty()) {
-          val = InterpLinear(positions, vle.values[t], query_z);
-        }
-        out_values.push_back(val);
-      }
-    }
-
-    return !out_times.empty();
+    return ExtractBedTimeSeries(eq_log, BedVariable::Bulk(var_type), spatial_loc, z_pos, out_times, out_values,
+                                cycle_index, sources);
   }
 
   // ---------------------------------------------------------------------------
@@ -142,43 +105,11 @@ namespace adsim {
     double                z_pos,
     std::vector<double>&  out_times,
     std::vector<double>&  out_values,
-    int                   cycle_index = -1)  // < 0: the final logged cycle
+    int                   cycle_index = -1,  // < 0: the final logged cycle
+    const BedBoundarySources& sources = {})
   {
-    out_times.clear();
-    out_values.clear();
-    const auto& sim_log = eq_log.GetSimulationLog();
-    if (sim_log.empty()) return false;
-    if (cycle_index >= 0 && sim_log.find(cycle_index) == sim_log.end()) return false;
-
-    const int last_cycle = cycle_index >= 0 ? cycle_index : sim_log.rbegin()->first;
-    const auto& positions = eq_log.GetDomain().positions;
-
-    double query_z = 0.0;
-    switch (spatial_loc) {
-      case ParamSpatialLoc::Top:    query_z = positions.empty() ? 0.0 : positions.back();  break;
-      case ParamSpatialLoc::Bottom: query_z = positions.empty() ? 0.0 : positions.front(); break;
-      case ParamSpatialLoc::Position: query_z = z_pos; break;
-    }
-
-    const auto& cycle_log = sim_log.at(last_cycle);
-    const double cycle_start = CycleStartTime(cycle_log);
-
-    for (const auto& [step_idx, step_log] : cycle_log) {
-      VariableLogEntry vle =
-        eq_log.GetComponentVariable(last_cycle, step_idx, comp_var_type, component_name);
-      if (vle.times.empty()) continue;
-
-      for (size_t t = 0; t < vle.times.size(); ++t) {
-        out_times.push_back(vle.times[t] - cycle_start);
-        double val = 0.0;
-        if (t < vle.values.size() && !positions.empty()) {
-          val = InterpLinear(positions, vle.values[t], query_z);
-        }
-        out_values.push_back(val);
-      }
-    }
-
-    return !out_times.empty();
+    return ExtractBedTimeSeries(eq_log, BedVariable::Component(comp_var_type, component_name), spatial_loc, z_pos,
+                                out_times, out_values, cycle_index, sources);
   }
 
   // ---------------------------------------------------------------------------

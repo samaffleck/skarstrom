@@ -863,8 +863,15 @@ class Simulation:
 
     @property
     def positions(self) -> np.ndarray:
-        """Cell-centre positions along the bed [m]."""
+        """Centres of the bed cells [m] from the bottom of the column (the ``z``
+        of a cell variable's :meth:`profile`; no ghost cells)."""
         return self._sim.positions
+
+    @property
+    def face_positions(self) -> np.ndarray:
+        """Cell-face positions [m], from 0 (bottom) to the column length (top):
+        the ``z`` of a face variable's :meth:`profile` (velocity, flow rates)."""
+        return self._sim.face_positions
 
     def kpis(self, cycle: Optional[int] = None) -> List[KPIRecord]:
         """KPIs of every tracked component: all logged cycles, or one (-1 = last)."""
@@ -907,15 +914,31 @@ class Simulation:
     ) -> TimeSeries:
         """A log variable over one cycle at one point of the bed.
 
-        ``location`` is "top", "bottom" or "position"; passing ``z`` [m]
-        implies "position". Time is measured from the start of the cycle.
+        ``location`` is "top", "bottom" or "position"; passing ``z`` [m, from
+        the bottom of the column] implies "position". Time is measured from
+        the start of the cycle.
+
+        "top" and "bottom" are the physical boundary values. For pressure,
+        temperature and mole fraction they are the logged values of the
+        step's endpoint at that end (the same as :meth:`stream_series`): at
+        an inlet the value the boundary imposes (feed composition, feed
+        temperature after any compressor, set pressure), at an outlet the
+        bed-end face value. A closed end, and every other variable, gives the
+        face value (face variables such as velocity: the boundary face).
         """
         if z is not None:
             location = "position"
         return self._sim.series(variable, component or "", location, 0.0 if z is None else float(z), cycle)
 
     def profile(self, variable: str, component: Optional[str] = None, cycle: int = -1, step: int = 0) -> AxialProfile:
-        """Axial profiles over one step: ``values`` has shape (len(time), len(z))."""
+        """Axial profiles over one step: ``values`` has shape (len(time), len(z)).
+
+        ``z`` [m] are the cell centres (:attr:`positions`) for a cell variable
+        and the faces (:attr:`face_positions`, ``faces`` True) for a face
+        variable (velocity, volumetric and molar flow rate, approach to
+        fluidisation). The bed-end values are :meth:`series` with
+        ``location="bottom"`` or ``"top"``.
+        """
         return self._sim.profile(variable, component or "", cycle, step)
 
     def stream_series(

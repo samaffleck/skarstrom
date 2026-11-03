@@ -194,7 +194,8 @@ TEST(SimulationFacade, BlockingRunMatchesTheEngine) {
 
   std::vector<double> t, v;
   ASSERT_TRUE(ExtractComponentTimeSeries(solver.GetLog(), ComponentVariableType::MOLE_FRACTION, "CarbonDioxide",
-                                         ParamSpatialLoc::Top, 0.0, t, v));
+                                         ParamSpatialLoc::Top, 0.0, t, v, -1,
+                                         {&solver.GetBoundaryLog(), &ref.cycle.step_list_}));
   const TimeSeries s = sim.Series("mole_fraction", "CarbonDioxide", SeriesLocation::Top);
   EXPECT_EQ(s.time, t);
   EXPECT_EQ(s.values, v);
@@ -218,7 +219,10 @@ TEST(SimulationFacade, ProfilesStreamsAndCSSHistory) {
   const AxialProfile prof = sim.Profile("temperature", "", -1, 1);
   EXPECT_EQ(prof.cycle, 2);
   EXPECT_EQ(prof.step, 1);
+  EXPECT_FALSE(prof.faces);
   EXPECT_EQ(prof.cols, sim.Positions().size());
+  EXPECT_EQ(prof.z, sim.Positions());
+  EXPECT_EQ(sim.FacePositions().size(), sim.Positions().size() + 1);
   EXPECT_EQ(prof.rows, prof.time.size());
   EXPECT_EQ(prof.values.size(), prof.rows * prof.cols);
   for (double x : prof.values) EXPECT_GT(x, 200.0);

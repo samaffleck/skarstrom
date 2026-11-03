@@ -569,6 +569,11 @@ namespace adsim {
     return &stream_it->second;
   }
 
+  const StreamData* BoundaryLog::GetStreamData(int cycle_idx, int step_idx, const std::string& stream_name) const {
+    const BoundaryLogEntry* entry = FindEntry(cycle_idx, step_idx, stream_name);
+    return entry ? &entry->stream_data : nullptr;
+  }
+
   BoundaryVariableData BoundaryLog::MakeVariableData(const BoundaryLogEntry& entry, const std::string& stream_name,
       std::vector<double> values, std::string variable_name, std::string units) const {
     BoundaryVariableData out;
@@ -614,6 +619,7 @@ namespace adsim {
     case BoundaryVariableType::TEMPERATURE: return stream_data.temperature_boundary_;
     case BoundaryVariableType::MOLAR_FLOW_RATE: return stream_data.molar_flow_;
     case BoundaryVariableType::COMPRESSOR_POWER: return stream_data.electrical_power_;
+    case BoundaryVariableType::PRESSURE: return stream_data.pressure_boundary_;
     default: return std::vector<double>();
     }
   }
@@ -645,6 +651,7 @@ namespace adsim {
       case BoundaryVariableType::TEMPERATURE: return "[K]";
       case BoundaryVariableType::MOLAR_FLOW_RATE: return "[mol/s]";
       case BoundaryVariableType::COMPRESSOR_POWER: return "[W]";
+      case BoundaryVariableType::PRESSURE: return "[Pa]";
       default: return "[-]";
     }
   }

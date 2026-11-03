@@ -125,10 +125,10 @@ In our run this took 18 simulations (about 15 s) and moved `m2` from 6.04 to 6.5
 
 Points to keep in mind:
 
-- **What to compare.** `sim.series(variable, component, location="top" | "bottom", z=...)` gives bulk and component variables at the bed ends or at a position $z$ [m], with time from the start of the cycle. Stream quantities (outlet molar flow, compressor power) come from `sim.stream_series(...)`, KPIs per cycle from `sim.kpis()`.
+- **What to compare.** `sim.series(variable, component, location="top" | "bottom", z=...)` gives bulk and component variables at the bed ends or at a position $z$ [m] from the bottom of the column, with time from the start of the cycle. At the bed ends these are the boundary values (an outlet composition is the composition leaving the bed; see [Results](python.md#results)); a thermocouple at height $z$ reads the profile interpolated between the cell centres. Stream quantities (outlet molar flow, compressor power) come from `sim.stream_series(...)`, KPIs per cycle from `sim.kpis()`.
 - **Which cycle.** A breakthrough deck has one cycle (`cycle=0`); for a cyclic process compare the last cycle (`cycle=-1`) at cyclic steady state, or KPIs against the cycle number.
 - **Search in log space** for positive scale parameters that span decades (rate coefficients, affinities, capacities).
 - **Check the sensitivity first.** A parameter the measured quantity barely responds to cannot be fitted; vary it by a factor of two and look at the change in the objective before starting a search.
 - **Identifiability.** Fit as few parameters as the data can determine; check the result by fitting a second dataset (another flow rate or feed composition) with the same parameters.
 
-The engine also exposes the same extraction and RMSE helpers in C++ (`adsim/solver/parameterisation.h`: `ExtractBulkTimeSeries`, `ExtractComponentTimeSeries`, `ComputeRMSE`, `ComputeKPIRMSE`), which front ends use to offer fitting with the same objective.
+The engine also exposes the same extraction and RMSE helpers in C++ (`adsim/solver/parameterisation.h`: `ExtractBulkTimeSeries`, `ExtractComponentTimeSeries`, `ComputeRMSE`, `ComputeKPIRMSE`), which front ends use to offer fitting with the same objective. Pass the run's boundary log and steps (`BedBoundarySources`) to the extraction helpers so their bed-end values are the endpoint logs, as `sim.series` does (`adsim/solver/bed_series.h`).

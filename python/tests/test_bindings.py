@@ -178,7 +178,15 @@ def test_run_results(perez_run):
 
     prof = sim.profile("temperature", step=1)
     assert prof.values.shape == (prof.time.size, prof.z.size)
-    assert prof.z.size == sim.positions.size
+    assert prof.z.size == sim.positions.size and not prof.faces
+    np.testing.assert_array_equal(prof.z, sim.positions)
+    # Cell centres sit halfway between the faces (no ghost cells); faces span 0..L.
+    zf = sim.face_positions
+    assert zf.size == sim.positions.size + 1 and zf[0] == 0.0
+    np.testing.assert_allclose(sim.positions, 0.5 * (zf[:-1] + zf[1:]))
+    u = sim.profile("velocity", step=1)
+    assert u.faces and u.values.shape == (u.time.size, zf.size)
+    np.testing.assert_array_equal(u.z, zf)
 
     streams = sim.streams()
     assert streams
@@ -188,6 +196,22 @@ def test_run_results(perez_run):
     assert f.time.shape == f.values.shape
     g = sim.endpoint_series(s["endpoint_id"], "molar_flow_rate")
     np.testing.assert_array_equal(f.values, g.values)
+    assert "pressure" in skarstrom.stream_variables()
+
+    # The bed ends are the endpoint logs: for a step with one endpoint at an
+    # end, series(location=...) over that step equals stream_series.
+    t_all = sim.series("pressure", location="bottom").time
+    for s in streams:
+        if sum(1 for o in streams if o["step"] == s["step"] and o["location"] == s["location"]) != 1:
+            continue
+        n = sim.stream_series(s["step"], s["name"], "pressure")
+        rows = [sim.profile("pressure", step=k).time.size for k in range(len(sim.steps))]
+        start = sum(rows[: s["step"]])
+        for var, comp in (("pressure", None), ("temperature", None), ("mole_fraction", "CarbonDioxide")):
+            bed = sim.series(var, comp, location=s["location"]).values[start : start + rows[s["step"]]]
+            log = sim.stream_series(s["step"], s["name"], var, comp).values
+            np.testing.assert_array_equal(bed, log, err_msg=f"{s['name']} {var}")
+        assert n.unit == "Pa" and t_all.size == sum(rows)
 
     with pytest.raises(ValueError):
         sim.series("not_a_variable")

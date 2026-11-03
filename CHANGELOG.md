@@ -8,6 +8,46 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed — bed-variable results at the right positions and boundary values
+- **`Simulation::Series` / `sim.series` and `Simulation::Profile` /
+  `sim.profile` read the log at the right places.** They mapped the raw cell
+  rows, ghost cells included, onto the face positions, so every profile and
+  every `z` query sat half a cell downstream, `bottom` returned the inlet ghost
+  cell and `top` the last cell. In an adiabatic CO2/N2 breakthrough (feed
+  313.15 K, 30 cells, t = 500 s) `series("temperature", location="bottom")`
+  read 281.3 K, the ghost's 2 T_feed − T_1 (as low as 269 K during the run),
+  and `top` pressure read 100004 Pa against the 100000 Pa set pressure. Now:
+  - cell variables are at the cell centres and face variables (velocity,
+    volumetric and molar flow rate, approach to fluidisation) at the faces;
+    profiles leave out the ghost cells (`AxialProfile::faces` / `prof.faces`
+    says which grid `z` is). `Simulation::Positions` / `sim.positions` are
+    the cell centres, as documented; the new `FacePositions` /
+    `sim.face_positions` are the faces.
+  - `top` and `bottom` are the physical boundary values. Pressure,
+    temperature and mole fraction are the logged values of the step's
+    endpoint at that end, identical to `stream_series` (several streams are
+    mixed by flow): at an inlet the value the boundary imposes (feed
+    composition, feed temperature after any compressor, set pressure), at an
+    outlet the bed-end face value. A closed end, and every other variable,
+    gives the face value (the mean of the ghost and the end cell; a mole
+    fraction's ghost, which is the face value itself; the nearest packed cell
+    for adsorbent-only variables). A `z` between a bed end and the first cell
+    centre interpolates between the two. The time base is unchanged.
+  - The same logic is the new public header `adsim/solver/bed_series.h`
+    (`ExtractBedTimeSeries`, `CellCentrePositions`, `IsFaceRow`);
+    `ExtractBulkTimeSeries` / `ExtractComponentTimeSeries`
+    (`parameterisation.h`) use it and take an optional `BedBoundarySources`
+    (boundary log and steps) for the endpoint values. Front ends that fit to
+    or plot these series move with it.
+- **`stream_series(..., "pressure")`**: the bed-end face pressure of an
+  endpoint (a pressure boundary's set value) is now readable
+  (`BoundaryVariableType::PRESSURE`, appended to `kBoundaryVariableTypeList`),
+  and `BoundaryLog::GetStreamData` returns an endpoint's logged data.
+- Fitted or validated numbers that compared bed-end or `z` series (the
+  example scripts' outlet curves and thermocouples) move slightly: outlet
+  compositions and temperatures were already the end cell, so mainly
+  thermocouple positions (half a cell) and inlet-end series change.
+
 ### Fixed — component mass balance with axial dispersion (Danckwerts inlets)
 - **Inlet faces are Danckwerts.** With non-zero axial dispersion the component
   balance did not close at cyclic steady state: the species residual let a
