@@ -125,6 +125,9 @@ namespace adsim {
     double t_final = t_start + step.step_time_;
     int flag = solver_data_.SetStopTime(t_final);
     solver_data_.OnStepStart(cycle_index);
+    // Fresh IDA history for the new boundary conditions (see
+    // SolverData::RestartForNewStep).
+    solver_data_.RestartForNewStep();
 
     double t_curr = t_start;
     
@@ -853,6 +856,9 @@ namespace adsim {
       return false;
     }
     solver_data_.OnStepStart(cycle_index);
+    // Fresh IDA history for the new boundary conditions (see
+    // SolverData::RestartForNewStep).
+    solver_data_.RestartForNewStep();
 
     // Clear logs for this step ??
     step.ClearOutletConditions();
@@ -951,6 +957,7 @@ namespace adsim {
     // Release the previous run's integrator: IntegrateCycle re-initialises the
     // same SolverData on every call (e.g. once per optimiser evaluation).
     Free();
+    stats_carry_ = IntegrationStats{};
 
     auto& state = user_data.state;
     auto& settings = user_data.settings;
@@ -1158,7 +1165,7 @@ namespace adsim {
       if (at_floor) return r;
       r.h = std::max(0.5 * h_cur, floor);
       IDASetInitStep(ida_mem_, r.h);
-      if (IDAReInit(ida_mem_, GetTime(), y_, yp_) != IDA_SUCCESS) return StepRetry{};
+      if (ReInit(GetTime()) != IDA_SUCCESS) return StepRetry{};
       r.retry = true;
       r.restarted = true;
       return r;
@@ -1197,9 +1204,10 @@ namespace adsim {
   }
 
   bool SolverData::RestartFromConsistentIC() {
-    // Steps run back to back without re-initialising IDA, so a cycle-step
+    // Every cycle step now starts here (RestartForNewStep). Before that, steps
+    // ran back to back without re-initialising IDA, so a cycle-step
     // boundary that switches a boundary condition (e.g. a flow inlet to a
-    // pressure outlet) makes the algebraic ghost-cell values jump. IDA can
+    // pressure outlet) made the algebraic ghost-cell values jump. IDA can
     // only absorb that jump with a step whose local error estimate, which
     // scales like h / h_prev times the jump, passes the error test. The first
     // step across therefore has to be a tiny fraction of the last step before
@@ -1229,7 +1237,7 @@ namespace adsim {
     }
 
     ResetInitStep(user_data.settings);
-    int flag = IDAReInit(ida_mem_, t, y_, yp_);
+    int flag = ReInit(t);
     if (flag == IDA_SUCCESS) flag = IDACalcIC(ida_mem_, IDA_YA_YDP_INIT, t + 1e-8);
     if (flag == IDA_SUCCESS) flag = IDAGetConsistentIC(ida_mem_, y_, yp_);
     if (flag != IDA_SUCCESS) {
@@ -1239,6 +1247,39 @@ namespace adsim {
       return false;
     }
     user_data.state.UnpackBanded(N_VGetArrayPointer(y_), N_VGetArrayPointer(yp_));
+    return true;
+  }
+
+  bool SolverData::RestartForNewStep() {
+    if (!ida_mem_ || GetNumSteps() == 0) return false;
+    void* ud = nullptr;
+    if (IDAGetUserData(ida_mem_, &ud) != IDA_SUCCESS || !ud) return false;
+    UserData& user_data = *static_cast<UserData*>(ud);
+
+    // The end-of-step point, to fall back on if the consistent IC fails
+    // (RestartFromConsistentIC has re-initialised IDA by then).
+    N_Vector y_end = N_VClone(y_);
+    N_Vector yp_end = N_VClone(yp_);
+    N_VScale(1.0, y_, y_end);
+    N_VScale(1.0, yp_, yp_end);
+    const double t = GetTime();
+
+    const bool consistent = RestartFromConsistentIC();
+    if (!consistent) {
+      N_VScale(1.0, y_end, y_);
+      N_VScale(1.0, yp_end, yp_);
+      const sunrealtype* id = N_VGetArrayPointer(id_);
+      sunrealtype* yp = N_VGetArrayPointer(yp_);
+      const sunindextype n = N_VGetLength(yp_);
+      for (sunindextype i = 0; i < n; ++i) {
+        if (id[i] == 0.0) yp[i] = 0.0;
+      }
+      ResetInitStep(user_data.settings);
+      ReInit(t);
+      user_data.state.UnpackBanded(N_VGetArrayPointer(y_), N_VGetArrayPointer(yp_));
+    }
+    N_VDestroy(y_end);
+    N_VDestroy(yp_end);
     return true;
   }
 
@@ -1294,7 +1335,7 @@ namespace adsim {
     user_data.state.PackBanded(y_data, yp_data);
 
     ResetInitStep(user_data.settings);
-    int flag = IDAReInit(ida_mem_, t_curr, y_, yp_);
+    int flag = ReInit(t_curr);
     if (flag == IDA_SUCCESS) {
       flag = IDACalcIC(ida_mem_, IDA_YA_YDP_INIT, t_curr + 1e-8);
     }
@@ -1306,7 +1347,7 @@ namespace adsim {
       // Restore original solver state
       N_VScale(1.0, y_backup, y_);
       N_VScale(1.0, yp_backup, yp_);
-      IDAReInit(ida_mem_, t_curr, y_, yp_);
+      ReInit(t_curr);
       // Restore state vectors
       user_data.state.UnpackBanded(N_VGetArrayPointer(y_), N_VGetArrayPointer(yp_));
     }
@@ -1390,7 +1431,7 @@ namespace adsim {
       N_VScale(1.0, y_acc, y_);
       N_VScale(1.0, yp_acc, yp_);
       ResetInitStep(settings);
-      int flag = IDAReInit(ida_mem_, t0, y_, yp_);
+      int flag = ReInit(t0);
       if (flag != IDA_SUCCESS) {
         why = "live IDAReInit failed with code " + std::to_string(flag);
       } else {
@@ -1420,7 +1461,7 @@ namespace adsim {
         N_VScale(1.0, y_pre, y_);
         N_VScale(1.0, yp_pre, yp_);
         ResetInitStep(settings);
-        flag = IDAReInit(ida_mem_, t0, y_, yp_);
+        flag = ReInit(t0);
         if (flag != IDA_SUCCESS) {
           why += "; restoring the pre-reseed state failed with code " + std::to_string(flag);
         }
@@ -1462,7 +1503,7 @@ namespace adsim {
     return true;
   }
 
-  IntegrationStats SolverData::GetStatistics() const {
+  IntegrationStats SolverData::IdaCounters() const {
     IntegrationStats stats;
     if (ida_mem_) {
       IDAGetNumSteps(ida_mem_, &stats.num_steps);
@@ -1473,9 +1514,35 @@ namespace adsim {
       IDAGetNumLinResEvals(ida_mem_, &stats.num_lin_res_evals);
       IDAGetNumJacEvals(ida_mem_, &stats.num_jac_evals);
       IDAGetNumLinSolvSetups(ida_mem_, &stats.num_lin_setups);
-      if (custom_jacobian_) stats.num_lin_res_evals += jacobian_.NumResidualEvals();
     }
     return stats;
+  }
+
+  IntegrationStats SolverData::GetStatistics() const {
+    IntegrationStats stats = IdaCounters();
+    stats.num_steps += stats_carry_.num_steps;
+    stats.num_res_evals += stats_carry_.num_res_evals;
+    stats.num_nonlin_iters += stats_carry_.num_nonlin_iters;
+    stats.num_err_test_fails += stats_carry_.num_err_test_fails;
+    stats.num_conv_fails += stats_carry_.num_conv_fails;
+    stats.num_lin_res_evals += stats_carry_.num_lin_res_evals;
+    stats.num_jac_evals += stats_carry_.num_jac_evals;
+    stats.num_lin_setups += stats_carry_.num_lin_setups;
+    if (ida_mem_ && custom_jacobian_) stats.num_lin_res_evals += jacobian_.NumResidualEvals();
+    return stats;
+  }
+
+  int SolverData::ReInit(double t) {
+    const IntegrationStats c = IdaCounters();
+    stats_carry_.num_steps += c.num_steps;
+    stats_carry_.num_res_evals += c.num_res_evals;
+    stats_carry_.num_nonlin_iters += c.num_nonlin_iters;
+    stats_carry_.num_err_test_fails += c.num_err_test_fails;
+    stats_carry_.num_conv_fails += c.num_conv_fails;
+    stats_carry_.num_lin_res_evals += c.num_lin_res_evals;
+    stats_carry_.num_jac_evals += c.num_jac_evals;
+    stats_carry_.num_lin_setups += c.num_lin_setups;
+    return IDAReInit(ida_mem_, t, y_, yp_);
   }
 
   double SolverData::GetLastStep() const {
