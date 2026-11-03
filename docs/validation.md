@@ -27,7 +27,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.11 pp (abs. error)<br/>8.69 % (rel. error) | 8.08 pp (abs. error)<br/>15.6 % (rel. error) |
 | [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 1.64 pp (abs. error) | 8.6 pp (abs. error) |
 | [Streb & Mazzotti (2021)](#streb-2021) | 9 | experiment | 47 | 37.6 % (NRMSE)<br/>6.46 % (rel. error)<br/>16.1 K (RMSE) | 83.9 % (NRMSE)<br/>18.5 % (rel. error)<br/>27 K (RMSE) |
-| [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.93 % (rel. error)<br/>0.242 K (abs. error)<br/>1.92 pp (abs. error) | 3.93 % (rel. error)<br/>0.242 K (abs. error)<br/>13.4 pp (abs. error) |
+| [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.93 % (rel. error)<br/>0.242 K (abs. error)<br/>1.91 pp (abs. error) | 3.93 % (rel. error)<br/>0.242 K (abs. error)<br/>13 pp (abs. error) |
 | [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 24.3 % (NRMSE)<br/>3.29 % (rel. error)<br/>1.18 K (RMSE) | 33.2 % (NRMSE)<br/>4.2 % (rel. error)<br/>2.76 K (RMSE) |
 | [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 1.97 pp (abs. error)<br/>0.938 % (rel. error) | 2.29 pp (abs. error)<br/>0.938 % (rel. error) |
 
@@ -46,7 +46,7 @@ A. Arora, M.M.F. Hasan, Flexible oxygen concentrators for medical applications, 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
 | LiLSX_PSA | O2 purity at cycle 50 | paper model | 88.25 % | 84.72 % | 3.53 pp abs. error | 4.5 pp | Table 4, PSA cycle with LiLSX adsorbent, column PC_O2 &gt;= 5 L/min, P_O2 &gt;= 85% |
-| LiLSX_PSA | O2 recovery at cycle 50 | paper model | 4.537 % | 30.14 % | 25.6 pp abs. error | 30 pp | Table 4, PSA cycle with LiLSX adsorbent, column PC_O2 &gt;= 5 L/min, P_O2 &gt;= 85% |
+| LiLSX_PSA | O2 recovery at cycle 50 | paper model | 4.54 % | 30.14 % | 25.6 pp abs. error | 30 pp | Table 4, PSA cycle with LiLSX adsorbent, column PC_O2 &gt;= 5 L/min, P_O2 &gt;= 85% |
 | LiLSX_PVSA | O2 purity at cycle 50 | paper model | 93.96 % | 89.97 % | 3.99 pp abs. error | 4.7 pp | Table 4, PVSA cycle with LiLSX adsorbent, column PC_O2 &gt;= 5 L/min, P_O2 &gt;= 90% |
 | LiLSX_PVSA | O2 recovery at cycle 50 | paper model | 20.73 % | 65.51 % | 44.8 pp abs. error | 53 pp | Table 4, PVSA cycle with LiLSX adsorbent, column PC_O2 &gt;= 5 L/min, P_O2 &gt;= 90% |
 
@@ -113,9 +113,9 @@ A. Ferré, C. Wedler, A. Ward, J. Burger, R. Pini, C. Petit, Co-production of hi
 | NaY_F | CO2 recovery | paper model | 97.18 % | 97.8 % | 0.618 pp abs. error | 1.3 pp | Table 5, NaY (F), recovery-recovery case, first row |
 | NaY_F | CH4 purity (light product) | paper model | 98.54 % | 98.8 % | 0.259 pp abs. error | 0.59 pp | Table 5, NaY (F), recovery-recovery case, first row |
 | NaY_F | CH4 recovery | paper model | 62.25 % | 66 % | 3.75 pp abs. error | 5.6 pp | Table 5, NaY (F), recovery-recovery case, first row |
-| NaY_F | CH4 productivity | paper model | 3.1 mol/(m3 s) | 3.2 mol/(m3 s) | 3.13 % rel. error | 4.6 % | Table 5, NaY (F), recovery-recovery case, first row |
+| NaY_F | CH4 productivity | paper model | 3.1 mol/(m3 s) | 3.2 mol/(m3 s) | 3.14 % rel. error | 4.6 % | Table 5, NaY (F), recovery-recovery case, first row |
 | NaY_W | CO2 purity (heavy product) | paper model | 93.73 % | 95 % | 1.27 pp abs. error | 1.8 pp | Table 5, NaY (W), recovery-recovery case, first row |
-| NaY_W | CO2 recovery | paper model | 95.83 % | 95.9 % | 0.0671 pp abs. error | 0.89 pp | Table 5, NaY (W), recovery-recovery case, first row |
+| NaY_W | CO2 recovery | paper model | 95.83 % | 95.9 % | 0.067 pp abs. error | 0.89 pp | Table 5, NaY (W), recovery-recovery case, first row |
 | NaY_W | CH4 purity (light product) | paper model | 97.82 % | 97.6 % | 0.218 pp abs. error | 0.45 pp | Table 5, NaY (W), recovery-recovery case, first row |
 | NaY_W | CH4 recovery | paper model | 59.85 % | 65.4 % | 5.55 pp abs. error | 7.6 pp | Table 5, NaY (W), recovery-recovery case, first row |
 | NaY_W | CH4 productivity | paper model | 2.893 mol/(m3 s) | 3.1 mol/(m3 s) | 6.67 % rel. error | 8.5 % | Table 5, NaY (W), recovery-recovery case, first row |
@@ -217,13 +217,13 @@ T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, CO2/N2 separation by vacuum swing a
 | ExperimentIV | CO2 productivity vs paper model | paper model | 0.4266 mol CO2/(m3 s) | 0.5 mol CO2/(m3 s) | 14.7 % rel. error | 17 % | Table 2, Exp. IV, Model Pr |
 | ExperimentIX | CO2 purity vs experiment | experiment | 84.5 % | 85.67 % | 1.17 pp abs. error | 1.6 pp | Table 2, Exp. IX, Experimental Pu |
 | ExperimentIX | CO2 recovery vs experiment | experiment | 98.58 % | 90.5 % | 8.08 pp abs. error | 12 pp | Table 2, Exp. IX, Experimental Re |
-| ExperimentIX | CO2 productivity vs experiment | experiment | 0.1426 mol CO2/(m3 s) | 0.13 mol CO2/(m3 s) | 9.69 % rel. error | 14 % | Table 2, Exp. IX, Experimental Pr |
+| ExperimentIX | CO2 productivity vs experiment | experiment | 0.1426 mol CO2/(m3 s) | 0.13 mol CO2/(m3 s) | 9.7 % rel. error | 14 % | Table 2, Exp. IX, Experimental Pr |
 | ExperimentIX | CO2 purity vs paper model | paper model | 84.5 % | 88.3 % | 3.8 pp abs. error | 4.2 pp | Table 2, Exp. IX, Model Pu |
 | ExperimentIX | CO2 recovery vs paper model | paper model | 98.58 % | 91.6 % | 6.98 pp abs. error | 11 pp | Table 2, Exp. IX, Model Re |
 | ExperimentIX | CO2 productivity vs paper model | paper model | 0.1426 mol CO2/(m3 s) | 0.14 mol CO2/(m3 s) | 1.86 % rel. error | 4.7 % | Table 2, Exp. IX, Model Pr |
 | ExperimentV | CO2 purity vs experiment | experiment | 73.49 % | 78.4 % | 4.91 pp abs. error | 5.7 pp | Table 2, Exp. V, Experimental Pu |
 | ExperimentV | CO2 recovery vs experiment | experiment | 76.58 % | 74.2 % | 2.38 pp abs. error | 3 pp | Table 2, Exp. V, Experimental Re |
-| ExperimentV | CO2 productivity vs experiment | experiment | 0.3791 mol CO2/(m3 s) | 0.4 mol CO2/(m3 s) | 5.21 % rel. error | 6 % | Table 2, Exp. V, Experimental Pr |
+| ExperimentV | CO2 productivity vs experiment | experiment | 0.3791 mol CO2/(m3 s) | 0.4 mol CO2/(m3 s) | 5.22 % rel. error | 6 % | Table 2, Exp. V, Experimental Pr |
 | ExperimentV | CO2 purity vs paper model | paper model | 73.49 % | 75.6 % | 2.11 pp abs. error | 2.4 pp | Table 2, Exp. V, Model Pu |
 | ExperimentV | CO2 recovery vs paper model | paper model | 76.58 % | 75.4 % | 1.18 pp abs. error | 1.7 pp | Table 2, Exp. V, Model Re |
 | ExperimentV | CO2 productivity vs paper model | paper model | 0.3791 mol CO2/(m3 s) | 0.44 mol CO2/(m3 s) | 13.8 % rel. error | 16 % | Table 2, Exp. V, Model Pr |
@@ -247,10 +247,10 @@ T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, CO2/N2 separation by vacuum swing a
 | ExperimentVIII | CO2 purity vs paper model | paper model | 89.91 % | 93.6 % | 3.69 pp abs. error | 4.1 pp | Table 2, Exp. VIII, Model Pu |
 | ExperimentVIII | CO2 recovery vs paper model | paper model | 95.75 % | 89.9 % | 5.85 pp abs. error | 8.3 pp | Table 2, Exp. VIII, Model Re |
 | ExperimentVIII | CO2 productivity vs paper model | paper model | 0.1545 mol CO2/(m3 s) | 0.16 mol CO2/(m3 s) | 3.43 % rel. error | 4 % | Table 2, Exp. VIII, Model Pr |
-| ExperimentX | CO2 purity vs experiment | experiment | 80.72 % | 80.6 % | 0.115 pp abs. error | 1.1 pp | Table 2, Exp. X, Experimental Pu |
+| ExperimentX | CO2 purity vs experiment | experiment | 80.72 % | 80.6 % | 0.117 pp abs. error | 1.1 pp | Table 2, Exp. X, Experimental Pu |
 | ExperimentX | CO2 recovery vs experiment | experiment | 99.15 % | 92.4 % | 6.75 pp abs. error | 9.7 pp | Table 2, Exp. X, Experimental Re |
-| ExperimentX | CO2 productivity vs experiment | experiment | 0.1503 mol CO2/(m3 s) | 0.15 mol CO2/(m3 s) | 0.176 % rel. error | 2.9 % | Table 2, Exp. X, Experimental Pr |
-| ExperimentX | CO2 purity vs paper model | paper model | 80.72 % | 80.6 % | 0.115 pp abs. error | 1.1 pp | Table 2, Exp. X, Model Pu |
+| ExperimentX | CO2 productivity vs experiment | experiment | 0.1503 mol CO2/(m3 s) | 0.15 mol CO2/(m3 s) | 0.177 % rel. error | 2.9 % | Table 2, Exp. X, Experimental Pr |
+| ExperimentX | CO2 purity vs paper model | paper model | 80.72 % | 80.6 % | 0.117 pp abs. error | 1.1 pp | Table 2, Exp. X, Model Pu |
 | ExperimentX | CO2 recovery vs paper model | paper model | 99.15 % | 93.6 % | 5.55 pp abs. error | 8.3 pp | Table 2, Exp. X, Model Re |
 | ExperimentX | CO2 productivity vs paper model | paper model | 0.1503 mol CO2/(m3 s) | 0.13 mol CO2/(m3 s) | 15.6 % rel. error | 21 % | Table 2, Exp. X, Model Pr |
 
@@ -306,7 +306,7 @@ L. Estupiñan Perez, P. Sarkar, A. Rajendran, Experimental validation of multi-o
 | ConfigE | CO2 purity vs paper model | paper model | 86.61 % | 90.4 % | 3.79 pp abs. error | 4.3 pp | Table 3, LPP, Experiment E, Model Purity |
 | ConfigE | CO2 recovery vs paper model | paper model | 92.97 % | 91.1 % | 1.87 pp abs. error | 3.2 pp | Table 3, LPP, Experiment E, Model Recovery |
 | ConfigF | CO2 purity vs experiment | experiment | 76.06 % | 77.7 % | 1.64 pp abs. error | 1.9 pp | Table 3, LPP, Experiment F, Experimental Purity |
-| ConfigF | CO2 recovery vs experiment | experiment | 96.14 % | 95.6 % | 0.539 pp abs. error | 1.9 pp | Table 3, LPP, Experiment F, Experimental Recovery |
+| ConfigF | CO2 recovery vs experiment | experiment | 96.14 % | 95.6 % | 0.542 pp abs. error | 1.9 pp | Table 3, LPP, Experiment F, Experimental Recovery |
 | ConfigF | CO2 purity vs paper model | paper model | 76.06 % | 79.9 % | 3.84 pp abs. error | 4.4 pp | Table 3, LPP, Experiment F, Model Purity |
 | ConfigF | CO2 recovery vs paper model | paper model | 96.14 % | 94.6 % | 1.54 pp abs. error | 3 pp | Table 3, LPP, Experiment F, Model Recovery |
 
@@ -436,10 +436,10 @@ R. Vysyaraju, J.A. Sawada, L. Estupiñan Perez, A. Rajendran, Simulation and exp
 | DCB_Ambient_N2 | N2 equilibrium loading | experiment | 0.538 mol/kg | 0.56 mol/kg | 3.93 % rel. error | 4.9 % | Sect. 4.2 text (Fig. 4a) |
 | DCB_Ambient_N2 | peak bed temperature | experiment | 304.2 K | 304 K | 0.242 K abs. error | 0.56 K | Sect. 4.2 text (Fig. 4) |
 | DCB_HighPressure_N2 | N2 equilibrium loading | isotherm (derived) | 2.125 mol/kg | 2.167 mol/kg | 1.93 % rel. error | 2.9 % | Table 2 DSL parameters evaluated at 11.2 bar, 298 K (Sect. 4.2, Fig. 5b) |
-| PSA_Exp1 | He purity vs experiment | experiment | 99.92 % | 98 % | 1.92 pp abs. error | 2.3 pp | Table 3, Exp. 1, Exp Pu_He |
-| PSA_Exp1 | He purity vs paper model | paper model | 99.92 % | 99.9 % | 0.02 pp abs. error | 0.32 pp | Table 3, Exp. 1, Model Pu_He |
-| PSA_Exp1 | He recovery vs experiment | experiment | 17.91 % | 30.6 % | 12.7 pp abs. error | 16 pp | Table 3, Exp. 1, Exp Re_He |
-| PSA_Exp1 | He recovery vs paper model | paper model | 17.91 % | 31.3 % | 13.4 pp abs. error | 17 pp | Table 3, Exp. 1, Model Re_He |
+| PSA_Exp1 | He purity vs experiment | experiment | 99.91 % | 98 % | 1.91 pp abs. error | 2.3 pp | Table 3, Exp. 1, Exp Pu_He |
+| PSA_Exp1 | He purity vs paper model | paper model | 99.91 % | 99.9 % | 0.0149 pp abs. error | 0.32 pp | Table 3, Exp. 1, Model Pu_He |
+| PSA_Exp1 | He recovery vs experiment | experiment | 18.29 % | 30.6 % | 12.3 pp abs. error | 16 pp | Table 3, Exp. 1, Exp Re_He |
+| PSA_Exp1 | He recovery vs paper model | paper model | 18.29 % | 31.3 % | 13 pp abs. error | 17 pp | Table 3, Exp. 1, Model Re_He |
 
 ??? note "Notes on these comparisons"
 
