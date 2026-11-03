@@ -8,6 +8,15 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: evacuation, pressure equalisation and buffer tank
+- `core/test/validation/test_unit_operations.cpp` checks constant-speed
+  evacuation (`P = P0 exp(-S t / V a R T)`), two-bed pressure equalisation
+  through connected valve steps at the cyclic steady state (mole balance and
+  the `exp(-2 cv t / 1e5 V a)` decay of the pressure difference; with a
+  Langmuir isotherm, conservation of the two beds' inventory), and a
+  buffer-tank fill (it delivers the set percentage of the vented moles), each
+  without and with Henry adsorption.
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of

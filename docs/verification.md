@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|UnitOperations)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -73,6 +73,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_unit_operations.cpp` | Constant-speed evacuation, two-bed pressure equalisation at CSS, buffer-tank fill, without and with Henry adsorption |
 
 ### `test_energy_balance.cpp`
 
@@ -227,3 +228,33 @@ cell the front has not reached — that an integral comparison averages away.
   pressurise/feed/blowdown cycle with two competing adsorbates, which reverses
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
+
+### `test_unit_operations.cpp`
+
+The unit operations between and around beds, each reduced to a lumped ODE: the
+bed is isothermal, the pressure drop negligible, and with the same Henry slope
+on both gases the inventory is `V a P`, `a = eps/(R T) + rho_b K`, whatever the
+composition.
+
+- **`ConstantSpeedEvacuationDecaysExponentially`**: a volumetric-flow outlet
+  (constant pump speed `S`) gives `P = P0 exp(-t/tau_S)`,
+  `tau_S = V a R T / S`. Fitted over three time constants: 52.366 s against
+  52.360 s inert and 247.03 s against 246.96 s with adsorption, which
+  stretches the decay by the Henry retardation factor (4.7). About 0.03 s.
+- **`TwoBedEqualisationConservesMolesAndDecaysAtTwiceTheRate`**: equalisation
+  through a linear valve, as two connected steps of the single-bed model
+  (pressurise, ED, blow down, EU) run to the cyclic steady state (30 cycles).
+  The mole balance keeps `P_ED + P_EU = P_H + P_L` (to 1.2e-5 inert, 2.7e-5
+  with adsorption) and the difference decays as `exp(-t/tau_E)`,
+  `tau_E = 1e5 V a / (2 cv)`: fitted 31.699 s against 31.699 s inert, 149.53 s
+  against 149.51 s with adsorption. The factor 2 is the signature of two beds
+  exchanging gas rather than one venting to a fixed pressure. About 2.8 s.
+- **`TwoBedEqualisationWithLangmuirConservesTheInventory`**: the same with
+  a Langmuir isotherm (`K P = 0.5 .. 1.5`). The pressures no longer add up (the
+  sum falls 9.0 % short, the guard); what is conserved is the inventory
+  `n(P_ED) + n(P_EU) = n(P_H) + n(P_L)`, `n = eps P/(R T) + rho_b q*(P)`,
+  measured to 1.1e-4 (tolerance 2e-3, the LDF lag). About 2.3 s.
+- **`BufferTankFillDeliversTheVentedMoles`**: a fill step drawing 60 % of a
+  vent step's moles from a buffer tank raises the pressure by 60 % of the
+  vent's pressure drop (103 760 Pa against 103 759 Pa inert; 103 766 against
+  103 757 with adsorption), linearly in time. About 0.04 s.
