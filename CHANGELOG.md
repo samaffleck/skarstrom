@@ -8,6 +8,18 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — cross-code regression against the PEESE model and toPSAil
+- `core/test/crosscode/`: twelve single-column breakthrough and purge cases
+  (CO2/N2 on 13X with concentration- and pressure-form Langmuir and Henry
+  isotherms, 1-50 % feeds, purge, adiabatic, a 25 % Ergun pressure drop,
+  CO2/CH4 on LiX, a steel wall with ambient loss) run in the PEESEgroup/PSA
+  column model (MIT) and in toPSAil (GPL-3.0; numerical outputs only), frozen
+  as data with their decks and replayed by `CrossCodePeese.*` and
+  `CrossCodeToPSAil.*` (about 15 s). Bounds come from the measured, attributed
+  differences: isothermal cases agree within 0.6 s on t50 at the same grid;
+  the adiabatic offsets (up to 14.5 s) are the CoolProp gas heat capacity and
+  the constant heat of adsorption. The folder README has the attribution.
+
 ### Fixed — a connection replays a bottom pressure boundary's outflow with the right sign
 - `PressureBoundaryCondition::Log` did not record the bed end it logged at,
   so a pressure boundary's `StreamData` always said TOP. For a pressure
