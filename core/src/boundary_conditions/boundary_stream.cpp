@@ -31,6 +31,7 @@ namespace adsim {
     const double boundary_temperature = 0.5 * (T[i] + T[i + d]);
     const double boundary_pressure = 0.5 * (P[i] + P[i + d]);
 
+    stream_data_.location_ = location;
     double molar_flow = GetMolarFlow(state, time, location);
     double enthalpy_flow = GetEnthalpyFlow(state, time, location);
     constexpr double kTinyFlow = 1e-12;
@@ -262,7 +263,13 @@ namespace adsim {
     } else {
       assert(connection_.stream_ != nullptr);
       if (connection_.stream_->molar_flow_.size() > 0) {
-        mol_flow = connection_.stream_->GetMolarFlow(time);
+        // What leaves the connected stream's bed enters this one, and what
+        // flowed back into it is drawn out of this one, so the connection
+        // conserves moles. The sign must be kept: taking the magnitude (as
+        // the unconnected branch below does) turned a donor's backflow into
+        // more inflow here and created gas.
+        const double into_this_bed = connection_.stream_->GetOutflow(time);
+        return (loc == BoundaryLocation::BOTTOM) ? into_this_bed : -into_this_bed;
       } else {
         mol_flow = boundary_flow_->GetMolarFlow(state, time, loc); // First cycle uses the specified values
       }
@@ -497,6 +504,11 @@ namespace adsim {
 
   double StreamData::GetMolarFlow(double time) const {
     return InterpolateTimeSeries(time_series_, molar_flow_, time);
+  }
+
+  double StreamData::GetOutflow(double time) const {
+    const double axial = GetMolarFlow(time);
+    return (location_ == BoundaryLocation::TOP) ? axial : -axial;
   }
 
   double StreamData::GetEnthalpyFlow(double time) const {

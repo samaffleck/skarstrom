@@ -102,6 +102,12 @@ namespace adsim {
 			std::unordered_map<std::string, double> mole_fraction_boundary
     );
     double GetMolarFlow(double time) const;
+    // Molar flow out of the bed the stream was logged on: positive when gas
+    // left that bed, negative when it flowed back in (e.g. a valve outlet
+    // whose bed fell below the downstream pressure). GetMolarFlow is signed
+    // along the bed axis instead (positive upwards), so this flips it for a
+    // stream at the bottom.
+    double GetOutflow(double time) const;
 		double GetEnthalpyFlow(double time) const;
 		double GetTemperature(double time) const;
 		double GetPressure(double time) const;
@@ -109,7 +115,7 @@ namespace adsim {
 		double GetMoleFraction(double time, const std::string& component) const;
     double GetAveragePurity(const std::string& component) const;
 		
-		std::vector<double> molar_flow_{};
+		std::vector<double> molar_flow_{};   // signed along the bed axis: positive upwards
 		std::vector<double> enthalpy_flow_{};
 		std::vector<double> temperature_boundary_{};
 		std::vector<double> pressure_boundary_{};
@@ -117,6 +123,8 @@ namespace adsim {
 		std::vector<double> time_series_{};
 		std::unordered_map<std::string, std::vector<double>> component_molar_flow_{};
 		std::unordered_map<std::string, std::vector<double>> mole_fraction_boundary_{};
+		// The bed end the stream was logged at (set by IBoundaryStream::Log).
+		BoundaryLocation location_ = BoundaryLocation::TOP;
 	};
 
 	class IBoundaryStream {
