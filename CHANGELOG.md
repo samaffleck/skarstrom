@@ -8,6 +8,13 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: thermal fronts
+- `core/test/validation/test_thermal_fronts.cpp` checks the speed of an
+  inert-bed thermal front against the energy-balance jump condition
+  (including the gas heat-capacity term), and the steady exponential axial
+  temperature profile of a flowing bed losing heat through the wall, with
+  first-order convergence to it.
+
 ### Added — verification: blowdown composition path
 - `core/test/validation/test_blowdown_composition_path.cpp` checks that a
   binary on linear isotherms follows the equilibrium-theory (Knaebel-Hill)

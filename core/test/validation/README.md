@@ -67,6 +67,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_thermal_fronts.cpp` | Inert-bed thermal front speed; steady exponential temperature profile with wall losses |
 | `test_blowdown_composition_path.cpp` | Blowdown of a binary on linear isotherms: equilibrium-theory composition path y(P), departure scaling with the LDF lag |
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
@@ -226,6 +227,29 @@ cell the front has not reached — that an integral comparison averages away.
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
 
+## `test_thermal_fronts.cpp`
+
+Convective heat transport in a flowing bed, which the sealed-bed energy tests
+cannot see.
+
+- **`InertBedFrontTravelsAtEnergyBalanceSpeed`**: a 10 K step in feed
+  temperature into an inert, adiabatic bed. At constant pressure the gas
+  internal energy per volume `eps Cv P/R` is constant, so the energy and mole
+  jump conditions give `w = G1 Cp / (rho_b Cps + eps C1 Cp)`. The outlet
+  temperature's first moment is 347.54 s against `L/w = 347.63` s (2.5e-4);
+  without the gas heat-capacity term it would be 323.1 s, so the test sees
+  that term (7 % of the total) with a 1e-3 tolerance. The jump conditions
+  make the characteristic speeds on both sides equal to `w` (a contact
+  discontinuity), so the smeared front still travels at `w`. About 0.1 s.
+- **`SteadyFlowWithWallLossGivesExponentialProfile`**: hot gas through a bed
+  losing heat through the bed-wall and wall-ambient films in series reaches
+  `T(z) = T_amb + (T_in - T_amb) exp(-lambda z)`,
+  `lambda = U pi d_i / (n_dot Cp)`,
+  `1/(U pi d_i) = 1/(h_i pi d_i) + 1/(h_o pi d_o)` (`lambda L = 1.34`). On
+  25, 50 and 100 cells the profile and outlet errors fall at first order
+  (outlet 9.3e-3, 4.7e-3, 2.35e-3), and the finest outlet error equals the
+  leading upwind term `theta (lambda L)(lambda dx)/2 = 2.352e-3` (measured
+  2.345e-3). About 0.5 s.
 ## `test_blowdown_composition_path.cpp`
 
 A pressure-change step. A uniform bed of a binary on linear isotherms
