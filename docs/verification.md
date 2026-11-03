@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|CompetitiveLangmuirFronts)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -73,6 +73,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 
 ### `test_energy_balance.cpp`
 
@@ -227,3 +228,25 @@ cell the front has not reached — that an integral comparison averages away.
   pressurise/feed/blowdown cycle with two competing adsorbates, which reverses
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
+
+### `test_competitive_langmuir_fronts.cpp`
+
+Competitive adsorption fronts. Two trace adsorbates on an extended Langmuir
+isotherm with a common capacity (constant separation factor `alpha = 3`) are
+fed into a clean bed. Equilibrium theory (Rhee, Aris & Amundson 1970; Ruthven
+1984 ch. 9) gives two shocks with the weak component alone, ROLLED UP above
+its feed level, between them. The coherence condition on the slow front (both
+components' jumps give the same speed) fixes the plateau as the positive root
+of `alpha x^2 - [(alpha-1) b0 - alpha + D_f] x - (alpha-1) b0 = 0`
+(`x = K_B p_B*`, `b0 = K_B p_B0`, `D_f = 1 + K_A p_A0 + K_B p_B0`), and the
+jump conditions give the two front times.
+
+- **`TwoFrontsAndRollUpMatchEquilibriumTheory`**: on 200 cells the plateau of
+  the weak component is `1.5325e-3` against `1.5352e-3` (a 1.54x roll-up; error
+  0.17 %), the fast front's first moment is 312.1 s against 312.4 s (0.09 %),
+  and the slow front is 532.6 s in the strong component and 533.2 s in the weak
+  one's drop from the plateau, against 532.7 s (0.02 % and 0.08 %). Tolerance
+  0.5 %, from the `O(y)` sorption effect at `y_A + y_B = 2e-3`; first moments
+  are mass balances, so the numerical and LDF smearing of the shocks does not
+  move them. Guards: the roll-up exceeds 1.4x and shows in the simulated
+  outlet, and A is absent from the plateau. About 3.4 s.

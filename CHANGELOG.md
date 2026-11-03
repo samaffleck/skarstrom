@@ -8,6 +8,12 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: binary competitive Langmuir fronts
+- `core/test/validation/test_competitive_langmuir_fronts.cpp` compares a
+  binary extended-Langmuir breakthrough (constant separation factor) with
+  equilibrium theory: the roll-up plateau of the weaker component from the
+  coherence condition, and the times of both fronts from the jump conditions.
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of
