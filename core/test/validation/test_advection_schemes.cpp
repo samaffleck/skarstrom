@@ -306,7 +306,7 @@ namespace adsim {
     // case's linear Henry one, so the front self-sharpens into a shock.
     SchemeConsistency RunConsistency(AdvectionScheme scheme, bool feed_from_top, int n_cells,
                                      double y_feed, double molar_flow, double run_time,
-                                     bool favourable = false) {
+                                     bool favourable = false, double reltol = 1e-8) {
       BreakthroughCase c;
       c.n_cells = n_cells;
       c.adsorbing = !favourable;
@@ -315,7 +315,7 @@ namespace adsim {
       c.molar_flow = molar_flow;
       c.run_time = run_time;
       c.max_step = 1.0;
-      c.reltol = 1e-8;
+      c.reltol = reltol;
 
       UserData data;
       Build(data, c);
@@ -407,7 +407,11 @@ namespace adsim {
   // self-sharpening front: O2 on a strongly favourable Langmuir isotherm.
   TEST(AdvectionSchemeConservation, CellMoleFractionsKeepSummingToOneAtASteepFront) {
     for (auto scheme : kAllSchemes) {
-      const auto r = RunConsistency(scheme, false, 50, 0.15, 0.05, 2500.0, /*favourable=*/true);
+      // reltol 1e-9: the cell sum drifts at the level of the integrator tolerance
+      // (about 1e-5 at 1e-8 for the high-order schemes), which this test does not
+      // measure; a broken reconstruction drifts by percent.
+      const auto r = RunConsistency(scheme, false, 50, 0.15, 0.05, 2500.0, /*favourable=*/true,
+                                    /*reltol=*/1e-9);
       const std::string label = Label(scheme, false);
       EXPECT_LT(r.cell_sum_error, 1e-5) << label << ": the cell mole fractions sum to 1 +- " << r.cell_sum_error;
       EXPECT_LT(r.face_sum_error, 1e-6) << label << ": face mole fractions do not sum to one";
