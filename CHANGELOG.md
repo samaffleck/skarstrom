@@ -23,6 +23,60 @@ root `CMakeLists.txt`.
   `ConnectedStreamTest.PressureBoundaryDonorLogRecordsItsBedEnd`,
   `ConnectionSign.*`.
 
+### Added — verification: extreme operating corners
+- `core/test/validation/test_extreme_conditions.cpp`: very high and very low
+  pressure ratios, near-zero flow, very short and very long steps and high
+  temperatures each converge or fail cleanly, with finite and physical states.
+
+### Added — verification: thermodynamic bound on the separation energy
+- `core/test/validation/test_thermodynamic_bound.cpp`: at cyclic steady state
+  the logged pump energy of a vacuum-swing and a pressure-swing cycle exceeds
+  the reversible pump work, the bed's exergy change and the minimum work of
+  separation of the products, in that order.
+
+### Added — verification: parameter limits and degenerate mixtures
+- `core/test/validation/test_parameter_limits.cpp`: the rate at which the
+  model reaches its limits (LDF k to infinity and to zero, heat of adsorption
+  to zero, wall heat capacity and bed-wall coefficient to infinity, Langmuir b
+  to zero, pressure ratio to one, trace feed), and two degenerate mixtures
+  (identical components keep their feed ratio; zero affinity is inert).
+
+### Added — verification: metamorphic relations
+- `core/test/validation/test_metamorphic_relations.cpp`: equivalent decks must
+  give the same solution to within the integrator's measured error, for the
+  component order, a packing split into identical layers, a step cut in two,
+  inputs written in other units, and the step a cyclic steady state is started
+  from (with a connection whose lag changes under the rotation).
+  `BreakthroughCase` gains `n_layers`.
+
+### Added — verification: evacuation, pressure equalisation and buffer tank
+- `core/test/validation/test_unit_operations.cpp` checks constant-speed
+  evacuation (`P = P0 exp(-S t / V a R T)`), two-bed pressure equalisation
+  through connected valve steps at the cyclic steady state (mole balance and
+  the `exp(-2 cv t / 1e5 V a)` decay of the pressure difference; with a
+  Langmuir isotherm, conservation of the two beds' inventory), and a
+  buffer-tank fill (it delivers the set percentage of the vented moles), each
+  without and with Henry adsorption.
+
+### Added — verification: thermal fronts
+- `core/test/validation/test_thermal_fronts.cpp` checks the speed of an
+  inert-bed thermal front against the energy-balance jump condition
+  (including the gas heat-capacity term), and the steady exponential axial
+  temperature profile of a flowing bed losing heat through the wall, with
+  first-order convergence to it.
+
+### Added — verification: blowdown composition path
+- `core/test/validation/test_blowdown_composition_path.cpp` checks that a
+  binary on linear isotherms follows the equilibrium-theory (Knaebel-Hill)
+  composition path `y(P)` during a valve blowdown, with the departure from
+  the path equal to the LDF lag (it halves when `k` doubles).
+
+### Added — verification: binary competitive Langmuir fronts
+- `core/test/validation/test_competitive_langmuir_fronts.cpp` compares a
+  binary extended-Langmuir breakthrough (constant separation factor) with
+  equilibrium theory: the roll-up plateau of the weaker component from the
+  coherence condition, and the times of both fronts from the jump conditions.
+
 ### Added — verification: Langmuir desorption simple wave
 - `core/test/validation/test_desorption_simple_wave.cpp` checks that a
   Langmuir desorption front spreads as the equilibrium-theory simple wave:

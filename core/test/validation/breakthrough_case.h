@@ -31,6 +31,9 @@ namespace adsim::validation {
     double bed_temperature = 298.0;
     bool feed_from_top = false;
     bool adsorbing = false;
+    // The packing split into this many identical layers of length / n_layers
+    // and n_cells / n_layers cells each (one adsorbent shared by all of them).
+    int n_layers = 1;
   };
 
   inline constexpr double kCasePressure = 1.0e5;      // [Pa]
@@ -49,14 +52,6 @@ namespace adsim::validation {
     data.fluid.AddComponent("Oxygen");
 
     auto ads = data.adsorbent_directory.Add("Packing");
-    auto lid = data.bed.layers_.Add("Packing");
-    auto& layer = data.bed.layers_.Get(lid);
-    layer.momentum_model_ = MomentumModel::KarmenCozeny;  // fixture predates Ergun: keep its Darcy / Kozeny-Carman pressure drop
-    layer.domain_.length = c.length;
-    layer.domain_.n_cells = c.n_cells;
-    layer.eb_ = kCaseVoidFraction;
-    layer.particle_diameter_ = 0.002;
-    layer.composition_[ads] = 1.0;
     std::get<CylinderBed>(data.bed.shape_).diameter = c.diameter;
 
     auto& adsorbent = data.adsorbent_directory.Get(ads);
@@ -78,19 +73,30 @@ namespace adsim::validation {
       adsorbent.adsorption_source_.heat_of_adsorption_["Oxygen"] = 0.0;
     }
 
-    // Isothermal and dispersion-free: the only smearing left is numerical.
-    auto ihtc = std::make_unique<ConstantInternalHeatTransferModel>();
-    ihtc->heat_transfer_coefficient_ = 0.0;
-    layer.equations_.internal_heat_transfer_model_ = std::move(ihtc);
-    auto ehtc = std::make_unique<ConstantExternalHeatTransferModel>();
-    ehtc->heat_transfer_coefficient_ = 0.0;
-    layer.equations_.external_heat_transfer_model_ = std::move(ehtc);
-    auto disp = std::make_unique<DispersionModelConstant>();
-    disp->dispersion_coefficient_ = 0.0;
-    layer.equations_.dispersion_model_ = std::move(disp);
-    auto heat_disp = std::make_unique<HeatDispersionModelConstant>();
-    heat_disp->dispersion_coefficient_ = 0.0;
-    layer.equations_.heat_dispersion_model_ = std::move(heat_disp);
+    for (int k = 0; k < c.n_layers; ++k) {
+      auto lid = data.bed.layers_.Add(k == 0 ? "Packing" : "Packing " + std::to_string(k + 1));
+      auto& layer = data.bed.layers_.Get(lid);
+      layer.momentum_model_ = MomentumModel::KarmenCozeny;  // fixture predates Ergun: keep its Darcy / Kozeny-Carman pressure drop
+      layer.domain_.length = c.length / c.n_layers;
+      layer.domain_.n_cells = c.n_cells / c.n_layers;
+      layer.eb_ = kCaseVoidFraction;
+      layer.particle_diameter_ = 0.002;
+      layer.composition_[ads] = 1.0;
+
+      // Isothermal and dispersion-free: the only smearing left is numerical.
+      auto ihtc = std::make_unique<ConstantInternalHeatTransferModel>();
+      ihtc->heat_transfer_coefficient_ = 0.0;
+      layer.equations_.internal_heat_transfer_model_ = std::move(ihtc);
+      auto ehtc = std::make_unique<ConstantExternalHeatTransferModel>();
+      ehtc->heat_transfer_coefficient_ = 0.0;
+      layer.equations_.external_heat_transfer_model_ = std::move(ehtc);
+      auto disp = std::make_unique<DispersionModelConstant>();
+      disp->dispersion_coefficient_ = 0.0;
+      layer.equations_.dispersion_model_ = std::move(disp);
+      auto heat_disp = std::make_unique<HeatDispersionModelConstant>();
+      heat_disp->dispersion_coefficient_ = 0.0;
+      layer.equations_.heat_dispersion_model_ = std::move(heat_disp);
+    }
 
     data.ic.pressure = kCasePressure;
     data.ic.temperature = c.bed_temperature;
