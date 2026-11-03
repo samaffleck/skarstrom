@@ -8,6 +8,11 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: extreme operating corners
+- `core/test/validation/test_extreme_conditions.cpp`: very high and very low
+  pressure ratios, near-zero flow, very short and very long steps and high
+  temperatures each converge or fail cleanly, with finite and physical states.
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of
