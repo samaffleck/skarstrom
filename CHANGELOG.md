@@ -8,6 +8,36 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed — face values of logged cell variables on non-uniform meshes
+- **`EquationLog::GetFaceVariable` / `GetComponentFaceVariable` interpolate
+  with the right weights.** The cell-centre-to-face interpolation weighted
+  each neighbour by its own width, `(y_L dx_L + y_R dx_R) / (dx_L + dx_R)`,
+  which biases the face value towards the larger cell. It is now
+  `(y_L dx_R + y_R dx_L) / (dx_L + dx_R)`, exact for a linear profile, so a
+  face between cells of different widths (between layers with different cell
+  sizes, or between a void cell and the bed) sits where it should. The two
+  boundary faces now take the plain mean of the ghost and end cells. That is
+  the face value the boundary conditions impose (`P_face = (P_0 + P_1) / 2`),
+  and it matters because the ghost cell copies the width of the first or last
+  *bed* cell, not of a void end cell. A uniform mesh is unchanged: every
+  example deck, the paper validation and `docs/validation.md` are unaffected.
+  Tests: `EquationLogFaces.*` (hand-built log, non-uniform mesh, linear
+  profile exact at every interior face) and
+  `VoidRegionSolverTest.FaceReconstructedBoundaryMolesMatchTheStreamLogs`
+  (with voids, the face-rebuilt boundary moles now equal the stream logs to
+  round-off; they were 1e-5 to 2e-5 off).
+  **What moves:** the feed/product KPIs (purity, recovery, productivity,
+  energy) do not use these face values and do not change. The total
+  mass-balance CSS check (`css.method` 2), which reads the boundary-face
+  pressure and temperature, changes for beds with void regions. Its error had
+  a spurious floor. On Perez 2019 case A with both voids enabled (1e-4 m³,
+  void cell 0.124 m against 0.01 m bed cells), the floor was about 3.46e-3
+  (tolerance 5e-3) and is now 2.4e-5, the same order as without voids
+  (1.9e-5); CSS is still reached at cycle 75. With 3e-4 m³ voids the old
+  floor of 1.26e-2 never passed the tolerance (no CSS in 200 cycles); CSS is
+  now reached at cycle 198. Face profiles plotted by front ends also move at
+  layer and void interfaces.
+
 ### Fixed — every cycle step starts the integrator afresh
 - **A step can no longer step over a short pulse at its start.** Cycle steps
   ran back to back on one IDA history, so the first internal step of a step

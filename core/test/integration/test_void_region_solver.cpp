@@ -124,6 +124,48 @@ namespace adsim {
       << "mole fractions should sum to 1 even with voids";
   }
 
+  TEST_F(VoidRegionSolverTest, FaceReconstructedBoundaryMolesMatchTheStreamLogs) {
+    // The total mass-balance CSS check integrates the boundary-face molar
+    // flux rebuilt from the log's face values (GetTotalMolesIn). Next to a
+    // void cell the ghost and the void have different widths, and the face
+    // value must still be the one the boundary condition imposes (the mean
+    // of ghost and end cell), so the rebuilt moles equal the moles the
+    // boundary streams logged.
+    BuildInertTracerFeed();
+    const double area = data.bed.GetArea();
+    const double layer_volume = data.bed.layers_.layers_[0].domain_.length.Get() * area;
+    data.bed.bottom_void_.enabled_ = true;
+    data.bed.bottom_void_.volume_ = 0.1 * layer_volume;  // void cell 2x the bed cell
+    data.bed.top_void_.enabled_ = true;
+    data.bed.top_void_.volume_ = 0.3 * layer_volume;     // 6x
+
+    std::string err;
+    ASSERT_TRUE(data.PerformChecks(err)) << err;
+    CoupledSolver solver{data};
+    ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0);
+
+    const Step& step = data.cycle.GetStep("Feed");
+    const auto* bottom_bc = dynamic_cast<const FlowBoundaryCondition*>(step.bottom_boundary_condition_.get());
+    ASSERT_NE(bottom_bc, nullptr);
+    KPIEndpointRef bottom;
+    bottom.endpoint_name = bottom_bc->streams_[0]->name_;
+    bottom.location = BoundaryLocation::BOTTOM;
+    KPIEndpointRef top;
+    top.endpoint_name = "Feed Pressure Boundary Top";
+    top.location = BoundaryLocation::TOP;
+
+    const double logged_in = EndpointMolesIn(solver.GetBoundaryLog(), 0, bottom);
+    const double logged_out = EndpointMolesIn(solver.GetBoundaryLog(), 0, top);
+    const double face_in = GetTotalMolesIn(solver.GetLog(), 0, 0, BoundaryLocation::BOTTOM);
+    const double face_out = GetTotalMolesIn(solver.GetLog(), 0, 0, BoundaryLocation::TOP);
+    ASSERT_GT(logged_in, 0.0);
+    ASSERT_LT(logged_out, 0.0);
+    // Same face values, same samples: equal to round-off (the width-weighted
+    // boundary faces were 1e-5 to 2e-5 off).
+    EXPECT_NEAR(face_in, logged_in, 1e-9 * logged_in);
+    EXPECT_NEAR(face_out, logged_out, 1e-9 * std::abs(logged_out));
+  }
+
   TEST_F(VoidRegionSolverTest, VoidCellSizeIsCorrect) {
     // Verify the lumped void physics: with the void enabled, the cell width
     // equals user volume / bed area, and the cell volume equals user volume.
