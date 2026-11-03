@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 3,
+        "cereal_class_version": 4,
         "Adsorbent_Directory": {
             "cereal_class_version": 1,
             "Adsorbents": [
@@ -1422,6 +1422,26 @@
             "maintenance_fraction": 0.03,
             "overhead_fraction": 0.02,
             "labour_cost_per_year": 50000.0
+        },
+        "Sensitivity_Study": {
+            "cereal_class_version": 0,
+            "Inputs": [],
+            "Outputs": [],
+            "Policy": {
+                "cereal_class_version": 0,
+                "Require_CSS": true,
+                "Cycles": 0,
+                "Settings": []
+            },
+            "Seed": 1,
+            "Trajectories": 10,
+            "Levels": 4,
+            "Threshold": 0.1,
+            "Runs": 100,
+            "Batch": 50,
+            "Max_Runs": 400,
+            "Rel_Tol": 0.1,
+            "Bootstrap": 1000
         }
     }
 }
