@@ -8,6 +8,12 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: blowdown composition path
+- `core/test/validation/test_blowdown_composition_path.cpp` checks that a
+  binary on linear isotherms follows the equilibrium-theory (Knaebel-Hill)
+  composition path `y(P)` during a valve blowdown, with the departure from
+  the path equal to the LDF lag (it halves when `k` doubles).
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of
