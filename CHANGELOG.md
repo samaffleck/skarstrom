@@ -8,6 +8,12 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: binary competitive Langmuir fronts
+- `core/test/validation/test_competitive_langmuir_fronts.cpp` compares a
+  binary extended-Langmuir breakthrough (constant separation factor) with
+  equilibrium theory: the roll-up plateau of the weaker component from the
+  coherence condition, and the times of both fronts from the jump conditions.
+
 ### Added — verification: Langmuir desorption simple wave
 - `core/test/validation/test_desorption_simple_wave.cpp` checks that a
   Langmuir desorption front spreads as the equilibrium-theory simple wave:
