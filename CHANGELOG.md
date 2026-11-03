@@ -23,6 +23,21 @@ root `CMakeLists.txt`.
   `ConnectedStreamTest.PressureBoundaryDonorLogRecordsItsBedEnd`,
   `ConnectionSign.*`.
 
+### Added — verification: Langmuir desorption simple wave
+- `core/test/validation/test_desorption_simple_wave.cpp` checks that a
+  Langmuir desorption front spreads as the equilibrium-theory simple wave:
+  the outlet times of three levels inside the wave converge at first order to
+  the method-of-characteristics times, and their Richardson extrapolation
+  agrees to 0.1 %.
+
+### Added — verification: LDF-limited front against the Thomas solution
+- `core/test/validation/test_ldf_thomas.cpp` compares the whole outlet curve of
+  a Henry-isotherm, LDF-limited, dispersion-free front with the
+  Anzelius/Thomas closed form, and checks that the grid error is exactly the
+  upwind scheme's: the variance minus `L dx R^2/u^2` is the Thomas variance,
+  the curve error falls at first order and, after the closed-form `O(dx)`
+  correction, at second order.
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of
