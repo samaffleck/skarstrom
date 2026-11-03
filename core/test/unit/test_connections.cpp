@@ -709,4 +709,48 @@ namespace adsim {
     EXPECT_NE(err.find("no valid partner"), std::string::npos) << err;
   }
 
+  // --------------------------------------------------------------------------
+  // A connected no-valve stream replays the moles that left the other stream's
+  // bed, keeping the sign: when the donor's flow reverses (e.g. a valve outlet
+  // whose bed fell below the downstream pressure draws gas back in), the
+  // receiver gives that gas back instead of taking in more. Taking the
+  // magnitude created gas: in Vysyaraju 2024 the receiving equalisation step
+  // took in 29 % more than the donor released.
+  // --------------------------------------------------------------------------
+  TEST(ConnectedStreamTest, ReplayKeepsTheSignOfTheDonorFlow) {
+    // Donor at the top of its bed: the log is signed along the bed axis, so
+    // +2 at t = 0 leaves the bed and -0.5 from t = 4 is backflow into it.
+    BoundaryStream donor_top;
+    donor_top.stream_data_.Clear();
+    donor_top.stream_data_.location_ = BoundaryLocation::TOP;
+    for (auto [t, F] : {std::pair{0.0, 2.0}, {2.0, 1.0}, {4.0, -0.5}, {10.0, -0.5}}) {
+      donor_top.stream_data_.Log(F, 300.0 * F, 300.0, 1e5, 0.0, t, {}, {});
+    }
+    EXPECT_DOUBLE_EQ(donor_top.stream_data_.GetOutflow(1.0), 1.5);
+    EXPECT_DOUBLE_EQ(donor_top.stream_data_.GetOutflow(6.0), -0.5);
+
+    // The same flows logged at the bottom of the bed carry the opposite sign.
+    BoundaryStream donor_bottom;
+    donor_bottom.stream_data_.Clear();
+    donor_bottom.stream_data_.location_ = BoundaryLocation::BOTTOM;
+    for (auto [t, F] : {std::pair{0.0, -2.0}, {2.0, -1.0}, {4.0, 0.5}, {10.0, 0.5}}) {
+      donor_bottom.stream_data_.Log(F, 300.0 * F, 300.0, 1e5, 0.0, t, {}, {});
+    }
+    EXPECT_DOUBLE_EQ(donor_bottom.stream_data_.GetOutflow(1.0), 1.5);
+    EXPECT_DOUBLE_EQ(donor_bottom.stream_data_.GetOutflow(6.0), -0.5);
+
+    const Equations state = MakeUniformBedState(1e5, 300.0);
+    for (IBoundaryStream* donor : {static_cast<IBoundaryStream*>(&donor_top), static_cast<IBoundaryStream*>(&donor_bottom)}) {
+      BoundaryStream receiver;
+      receiver.SetDirection(BoundaryDirection::INLET);
+      receiver.connection_.MakeConnection(1, *donor);
+      // Into the bed is negative at the top and positive at the bottom.
+      EXPECT_DOUBLE_EQ(receiver.GetMolarFlow(state, 1.0, BoundaryLocation::TOP), -1.5);
+      EXPECT_DOUBLE_EQ(receiver.GetMolarFlow(state, 1.0, BoundaryLocation::BOTTOM), 1.5);
+      // The donor's backflow is drawn out of the receiving bed.
+      EXPECT_DOUBLE_EQ(receiver.GetMolarFlow(state, 6.0, BoundaryLocation::TOP), 0.5);
+      EXPECT_DOUBLE_EQ(receiver.GetMolarFlow(state, 6.0, BoundaryLocation::BOTTOM), -0.5);
+    }
+  }
+
 } // end adsim namespace

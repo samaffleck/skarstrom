@@ -44,8 +44,8 @@ pressure equalisation (PED donor → PER consumer) via `MakeMutualConnection`.
 
 | Metric | Model | Paper |
 |--------|-------|-------|
-| He purity  | 99.9 % | 99.9 % |
-| He recovery | ~19 % | 31 % |
+| He purity  | 99.4 % | 99.9 % |
+| He recovery | 63 % | 31 % |
 
 Reaching a clean cyclic steady state required (see the header comment in the
 `.cpp`): **valve-limited** PRES to `P_H` (a fixed-velocity feed under/overshoots;
@@ -54,11 +54,29 @@ bistable), and a **flow-driven PER** (velocity-0, driven by the connection) so
 it receives what PED released rather than over-pulling. Blow-down from `P_INT`
 (not `P_H`) still vents enough N₂ to keep the front low.
 
-**Purity matches to <0.1 %.** Recovery lands in the paper's low-recovery regime
-but under-reads: the single-bed self-equalisation recovers less He than the
-reported 3-bed cycle, and adsim's inter-step connection couples composition
-(not exact moles) across PED→PER, so recovery is computed by conservation
-(`1 − blow-down He / fed He`).
+**Purity is 0.5 pp below the paper model** (1.4 pp above the experiment).
+**Recovery reads about twice the paper's**: in this single-bed deck the bed's
+own equalisation gives back to it every mole PED released, whereas the
+experiment and the paper's model are a 3-bed cycle. The cause of the gap is
+not yet attributed. Recovery is computed by conservation
+(`1 − blow-down He / fed He`); it agrees with product He / fed He to ~0.1 pp.
+
+**Known failure on macOS and Windows.** The cycle can settle in more than one
+state, and which one depends on round-off: Linux (GCC) settles in the clean-top
+state above; macOS (Apple clang) stalls the solver in a PED step and Windows
+(MSVC) floods the top with N₂ (He purity < 1 %). Linux floods too when only the
+logging resolution changes (`max_log_points_per_step_ = 0`), and the web
+solver (WASM) oscillates from cycle to cycle with period 2. The likely cause is
+the single-bed equalisation itself: PED's valve discharges against the pressure
+PER logged in the previous cycle, so the two steps form a feedback loop across
+cycles. The deck needs reworking before the case is robust.
+
+Until November 2026 the connection replayed the magnitude of PED's flow, so
+the backflow through the PED valve for most of the step (the flow reverses
+about a second in) reached PER as more inflow: PER took in
+29 % more gas than PED released, and the conservation recovery read 17 %. With
+mole-conserving equalisation the numbers above replaced the earlier 99.9 %
+purity and 17 % recovery, and the tolerances were re-measured.
 
 ## Validation
 
@@ -71,4 +89,4 @@ value in a comment next to it. Results of the last run:
 (generated from `../validation_summary.json`).
 
 - The N2 breakthrough loadings match the reported value (ambient) and the DSL value (11.2 bar) to 2-4 %, and the peak bed temperature to 0.3 K.
-- He purity matches the paper model to 0.01 pp (1.9 pp above the experiment), but He recovery is 17 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle.
+- He purity is 0.54 pp below the paper model (1.4 pp above the experiment), and He recovery is 63 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle.

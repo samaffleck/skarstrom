@@ -84,7 +84,9 @@ namespace adsim {
       EXPECT_NEAR(pres_moles[c], pres_moles[c - 1], 3e-3 * std::abs(pres_moles[c - 1]))
           << "PRES uptake jumped at cycle " << c;
     }
-    EXPECT_NEAR(pres_moles.back(), 0.1498, 0.0005);
+    // 0.1681 since connected streams keep the sign of the donor's flow (with
+    // the magnitude replayed, PER took in gas PED never released: 0.1498).
+    EXPECT_NEAR(pres_moles.back(), 0.1681, 0.0005);
   }
 
 } // namespace adsim

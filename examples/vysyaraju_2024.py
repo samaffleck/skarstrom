@@ -148,7 +148,7 @@ def build(case: str = "PSA_Exp1") -> sk.Simulation:
     # ---- solver (SUNDIALS IDA), cyclic steady state, energy balance ----------------------
     sim.settings.init_step = 1e-10 * u.s
     sim.settings.min_step = 1e-15 * u.s
-    sim.settings.max_step = 1 * u.s
+    sim.settings.max_step = 0.5 * u.s
     sim.settings.reltol = 1e-6
     sim.settings.nonlin_conv_coef = 0.1
     sim.settings.max_order = 5

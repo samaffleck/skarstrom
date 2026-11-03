@@ -101,7 +101,7 @@
       "reference_kind": "experimental values stated in the text and Table 3",
       "findings": [
         "The N2 breakthrough loadings match the reported value (ambient) and the DSL value (11.2 bar) to 2-4 %, and the peak bed temperature to 0.3 K.",
-        "He purity matches the paper model to 0.01 pp (1.9 pp above the experiment), but He recovery is 17 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle."
+        "He purity is 0.54 pp below the paper model (1.4 pp above the experiment), and He recovery is 63 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle."
       ]
     },
     {

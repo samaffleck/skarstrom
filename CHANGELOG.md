@@ -8,6 +8,30 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed — connected streams conserve moles when the donor's flow reverses
+- A connected no-valve stream (e.g. a velocity-0 equalisation consumer)
+  replayed the magnitude of the connected stream's logged flow. When the
+  donor's flow reversed (a valve outlet drawing gas back into its bed), the
+  backflow reached the receiving step as more inflow and the connection
+  created gas. The replay now keeps the sign: what left the donor's bed enters
+  the receiver and what flowed back into it is drawn out (`StreamData::GetOutflow`;
+  the log records the bed end it was taken at). Test:
+  `ConnectedStreamTest.ReplayKeepsTheSignOfTheDonorFlow`.
+- Vysyaraju 2024 `PSA_Exp1` was the one case affected: PER took in 29 % more
+  gas than PED released, so the conservation-based He recovery read 17 % (product
+  He / fed He was 69 %). With the fix the two recovery measures agree (63.1 %),
+  He purity is 99.36 %, and the tolerances are re-measured (see the paper's
+  README); the deck's step cap is 0.5 s. The case still fails on macOS and
+  Windows (it did before the fix too): its single-bed equalisation lags PER's
+  pressure by one cycle, and which state the cycle settles in depends on
+  round-off. Linux passes.
+- CI: one run per pull request (pushes to feature branches no longer start a
+  second run), superseded runs are cancelled, the paper replications run on
+  pull requests (full suite on Linux and macOS, fast subset on Windows), Windows
+  builds with Ninja + ccache (`windows-ninja-release` preset), the Emscripten
+  builds use ccache, and ctest's per-test timings are cached so the longest
+  tests start first.
+
 ### Fixed — face values of logged cell variables on non-uniform meshes
 - **`EquationLog::GetFaceVariable` / `GetComponentFaceVariable` interpolate
   with the right weights.** The cell-centre-to-face interpolation weighted
