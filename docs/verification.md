@@ -264,14 +264,20 @@ of `alpha x^2 - [(alpha-1) b0 - alpha + D_f] x - (alpha-1) b0 = 0`
 jump conditions give the two front times.
 
 - **`TwoFrontsAndRollUpMatchEquilibriumTheory`**: on 200 cells the plateau of
-  the weak component is `1.5325e-3` against `1.5352e-3` (a 1.54x roll-up; error
-  0.17 %), the fast front's first moment is 312.1 s against 312.4 s (0.09 %),
-  and the slow front is 532.6 s in the strong component and 533.2 s in the weak
-  one's drop from the plateau, against 532.7 s (0.02 % and 0.08 %). Tolerance
-  0.5 %, from the `O(y)` sorption effect at `y_A + y_B = 2e-3`; first moments
-  are mass balances, so the numerical and LDF smearing of the shocks does not
-  move them. Guards: the roll-up exceeds 1.4x and shows in the simulated
-  outlet, and A is absent from the plateau. About 3.4 s.
+  the weak component is `1.5363e-3` against `1.5352e-3` (a 1.54x roll-up; error
+  0.073 %), the fast front's first moment is 312.39 s against 312.40 s
+  (3e-5), and the slow front is 532.60 s in both the strong component and the
+  weak one's drop from the plateau, against 532.72 s (2.3e-4). Tolerance
+  `y_A + y_B = 2e-3` relative, an `O(y)` bound on the sorption effect, which
+  was measured by varying the feed level (plateau error about
+  `0.35 (y_A + y_B)`). The quantities are converged in everything numerical:
+  10x in `reltol`, `max_step` 0.1 to 2 s, 100 to 400 cells and LDF 5 to
+  20 1/s move them by < 1.5e-5. First moments are mass balances, so the
+  numerical and LDF smearing of the shocks does not move them; the partial
+  integrals interpolate at the window ends, because the solver logs at
+  irregular instants. Guards: the roll-up exceeds 1.4x and shows in the
+  simulated outlet, and A is absent from the plateau. About 3.4 s.
+
 ### `test_desorption_simple_wave.cpp`
 
 The unfavourable direction of the Langmuir front that `test_equilibrium_shock`
