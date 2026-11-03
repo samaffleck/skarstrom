@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|CompetitiveLangmuirFronts)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -74,6 +74,8 @@ This complements the existing coverage rather than duplicating it:
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
+| `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
+| `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
 
 ### `test_energy_balance.cpp`
 
@@ -250,3 +252,47 @@ jump conditions give the two front times.
   are mass balances, so the numerical and LDF smearing of the shocks does not
   move them. Guards: the roll-up exceeds 1.4x and shows in the simulated
   outlet, and A is absent from the plateau. About 3.4 s.
+### `test_desorption_simple_wave.cpp`
+
+The unfavourable direction of the Langmuir front that `test_equilibrium_shock`
+pins: a bed saturated at a trace level (`K p0 = 3`) purged with clean carrier.
+The front spreads into a simple wave in which each concentration travels at
+`u / (1 + (rho_b/eps) f'(c))`, so the outlet sees `c` at
+`t(c) = (L/u) (1 + M / (1 + K p)^2)` (method of characteristics; de Vault 1943,
+Ruthven 1984 ch. 8), and the whole wave probes the isotherm slope rather than
+its secant.
+
+- **`LangmuirDesorptionFollowsCharacteristics`**: on 100 and 200 cells the
+  outlet times of the levels `c/c0 = 0.6, 0.5, 0.4` converge at first order
+  (measured 0.97, 1.00, 0.98) to `t(c)`, and the Richardson-extrapolated times
+  agree with `t(c)` to 3e-4, 1e-5 and 1.2e-4 (tolerance 1e-3: LDF lag
+  `1/(k t)`, the `O(y0)` sorption effect and the mole-fraction `abstol`).
+  The sorption effect was measured: `1.3e-3` of `t(c)` at `y0 = 1e-3`,
+  `1.3e-4` at `y0 = 1e-4`, which is why the test uses `y0 = 1e-4`. Guard: the
+  wave spreads over 450 s, more than 5x its head time, and `f'(c)` varies
+  16-fold across it. About 0.5 s.
+### `test_ldf_thomas.cpp`
+
+A front shaped by the LDF rate rather than by dispersion: a Henry isotherm with
+`k = 0.1 1/s` (12 transfer units), dispersion off, isothermal, compared point
+by point with the Anzelius/Thomas closed form
+`c/c0 = J(x, tau) = 1 - int_0^x exp(-tau - s) I0(2 sqrt(tau s)) ds`
+(Ruthven 1984, ch. 8), which the test evaluates by quadrature with its own
+Bessel series. The upwind scheme makes the column `n` tanks in series, whose
+transfer function `(1 + (dx/u) g(s))^(-L/dx)` is known exactly, so the grid
+error is not a nuisance to be tolerated but a second prediction.
+
+- **`ReferenceSolutionSatisfiesItsIdentities`**: the two integral forms of `J`
+  agree, `J(a,b) + J(b,a) = 1 + exp(-a-b) I0(2 sqrt(ab))`, the analytic second
+  derivatives match finite differences, and the cumulants are `x` and `2x`. No
+  solver run.
+- **`LinearIsothermOutletCurveMatchesThomasSolution`**: on 50, 100 and 200
+  cells, (1) the outlet variance minus the exact upwind term `L dx R^2 / u^2`
+  equals the Thomas variance `2 (R-1) L / (u k)` (measured 2415.5 vs
+  2416.2 s^2, 0.03 %, on every grid); (2) `max |F - J|` falls at first order
+  (0.0246, 0.0128, 0.0065); (3) after subtracting the closed-form leading error
+  `(L dx / 2) d2F/dz2`, the residual falls at second order (2.2e-3, 6.1e-4,
+  1.7e-4; orders 1.89, 1.84) and is 2.6 % of the error on the finest grid.
+  Guard: a Gaussian curve with the same mean and variance misses the
+  simulated one by 0.042, 250x the finest residual, so the asymmetric Thomas
+  shape is what is being matched. About 1.3 s.
