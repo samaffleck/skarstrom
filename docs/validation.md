@@ -27,7 +27,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.11 pp (abs. error)<br/>8.69 % (rel. error) | 8.08 pp (abs. error)<br/>15.6 % (rel. error) |
 | [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 1.64 pp (abs. error) | 8.6 pp (abs. error) |
 | [Streb & Mazzotti (2021)](#streb-2021) | 9 | experiment | 47 | 37.6 % (NRMSE)<br/>6.46 % (rel. error)<br/>16.1 K (RMSE) | 83.9 % (NRMSE)<br/>18.5 % (rel. error)<br/>27 K (RMSE) |
-| [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.93 % (rel. error)<br/>0.242 K (abs. error)<br/>1.91 pp (abs. error) | 3.93 % (rel. error)<br/>0.242 K (abs. error)<br/>13 pp (abs. error) |
+| [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.93 % (rel. error)<br/>0.242 K (abs. error)<br/>1.36 pp (abs. error) | 3.93 % (rel. error)<br/>0.242 K (abs. error)<br/>32.5 pp (abs. error) |
 | [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 24.3 % (NRMSE)<br/>3.29 % (rel. error)<br/>1.18 K (RMSE) | 33.2 % (NRMSE)<br/>4.2 % (rel. error)<br/>2.76 K (RMSE) |
 | [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 1.97 pp (abs. error)<br/>0.938 % (rel. error) | 2.29 pp (abs. error)<br/>0.938 % (rel. error) |
 
@@ -249,7 +249,7 @@ T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, CO2/N2 separation by vacuum swing a
 | ExperimentVIII | CO2 productivity vs paper model | paper model | 0.1545 mol CO2/(m3 s) | 0.16 mol CO2/(m3 s) | 3.43 % rel. error | 4 % | Table 2, Exp. VIII, Model Pr |
 | ExperimentX | CO2 purity vs experiment | experiment | 80.72 % | 80.6 % | 0.117 pp abs. error | 1.1 pp | Table 2, Exp. X, Experimental Pu |
 | ExperimentX | CO2 recovery vs experiment | experiment | 99.15 % | 92.4 % | 6.75 pp abs. error | 9.7 pp | Table 2, Exp. X, Experimental Re |
-| ExperimentX | CO2 productivity vs experiment | experiment | 0.1503 mol CO2/(m3 s) | 0.15 mol CO2/(m3 s) | 0.177 % rel. error | 2.9 % | Table 2, Exp. X, Experimental Pr |
+| ExperimentX | CO2 productivity vs experiment | experiment | 0.1503 mol CO2/(m3 s) | 0.15 mol CO2/(m3 s) | 0.179 % rel. error | 2.9 % | Table 2, Exp. X, Experimental Pr |
 | ExperimentX | CO2 purity vs paper model | paper model | 80.72 % | 80.6 % | 0.117 pp abs. error | 1.1 pp | Table 2, Exp. X, Model Pu |
 | ExperimentX | CO2 recovery vs paper model | paper model | 99.15 % | 93.6 % | 5.55 pp abs. error | 8.3 pp | Table 2, Exp. X, Model Re |
 | ExperimentX | CO2 productivity vs paper model | paper model | 0.1503 mol CO2/(m3 s) | 0.13 mol CO2/(m3 s) | 15.6 % rel. error | 21 % | Table 2, Exp. X, Model Pr |
@@ -429,17 +429,17 @@ R. Vysyaraju, J.A. Sawada, L. Estupiñan Perez, A. Rajendran, Simulation and exp
 **Findings.**
 
 - The N2 breakthrough loadings match the reported value (ambient) and the DSL value (11.2 bar) to 2-4 %, and the peak bed temperature to 0.3 K.
-- He purity matches the paper model to 0.01 pp (1.9 pp above the experiment), but He recovery is 17 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle.
+- He purity is 0.54 pp below the paper model (1.4 pp above the experiment), and He recovery is 63 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle.
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
 | DCB_Ambient_N2 | N2 equilibrium loading | experiment | 0.538 mol/kg | 0.56 mol/kg | 3.93 % rel. error | 4.9 % | Sect. 4.2 text (Fig. 4a) |
 | DCB_Ambient_N2 | peak bed temperature | experiment | 304.2 K | 304 K | 0.242 K abs. error | 0.56 K | Sect. 4.2 text (Fig. 4) |
 | DCB_HighPressure_N2 | N2 equilibrium loading | isotherm (derived) | 2.125 mol/kg | 2.167 mol/kg | 1.93 % rel. error | 2.9 % | Table 2 DSL parameters evaluated at 11.2 bar, 298 K (Sect. 4.2, Fig. 5b) |
-| PSA_Exp1 | He purity vs experiment | experiment | 99.91 % | 98 % | 1.91 pp abs. error | 2.3 pp | Table 3, Exp. 1, Exp Pu_He |
-| PSA_Exp1 | He purity vs paper model | paper model | 99.91 % | 99.9 % | 0.0149 pp abs. error | 0.32 pp | Table 3, Exp. 1, Model Pu_He |
-| PSA_Exp1 | He recovery vs experiment | experiment | 18.29 % | 30.6 % | 12.3 pp abs. error | 16 pp | Table 3, Exp. 1, Exp Re_He |
-| PSA_Exp1 | He recovery vs paper model | paper model | 18.29 % | 31.3 % | 13 pp abs. error | 17 pp | Table 3, Exp. 1, Model Re_He |
+| PSA_Exp1 | He purity vs experiment | experiment | 99.36 % | 98 % | 1.36 pp abs. error | 1.8 pp | Table 3, Exp. 1, Exp Pu_He |
+| PSA_Exp1 | He purity vs paper model | paper model | 99.36 % | 99.9 % | 0.541 pp abs. error | 0.85 pp | Table 3, Exp. 1, Model Pu_He |
+| PSA_Exp1 | He recovery vs experiment | experiment | 63.06 % | 30.6 % | 32.5 pp abs. error | 36 pp | Table 3, Exp. 1, Exp Re_He |
+| PSA_Exp1 | He recovery vs paper model | paper model | 63.06 % | 31.3 % | 31.8 pp abs. error | 35 pp | Table 3, Exp. 1, Model Re_He |
 
 ??? note "Notes on these comparisons"
 

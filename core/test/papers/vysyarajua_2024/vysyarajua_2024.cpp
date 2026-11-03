@@ -48,10 +48,10 @@ namespace adsim {
 
   // PSA Exp. 1 validation tolerances [percentage points], from the measured error.
   namespace {
-    constexpr double kTolPuExp = 1.8;  // measured 1.3593 pp
-    constexpr double kTolPuModel = 0.85;  // measured 0.540702 pp
-    constexpr double kTolReExp = 36;  // measured 32.455 pp
-    constexpr double kTolReModel = 35;  // measured 31.755 pp
+    constexpr double kTolPuExp = 1.8;  // measured 1.35923 pp
+    constexpr double kTolPuModel = 0.85;  // measured 0.540769 pp
+    constexpr double kTolReExp = 36;  // measured 32.456 pp
+    constexpr double kTolReModel = 35;  // measured 31.756 pp
   }
 
   namespace {
