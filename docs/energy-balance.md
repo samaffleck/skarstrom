@@ -38,13 +38,25 @@ $$
 | $q_i$           | Component i mass source                             | mol kg⁻¹ s⁻¹   |
 | $\Delta H_i$    | Component i heat of adsorption                      | J mol⁻¹        |
 
-The final term is the heat released (or absorbed) by adsorption, using the per-component isosteric heat of adsorption $\Delta H_i$ stored per adsorbent and component (parameter `adsorbent[<id>].heat_of_adsorption[<component>]`). The wall-coupling term $\tfrac{4 h_i}{d_i}(T - T_w)$ links this equation to the [wall energy balance](wall-energy-balance.md).
+The final term is the heat released (or absorbed) by adsorption, using the per-component heat of adsorption $\Delta H_i$ stored per adsorbent and component (parameter `adsorbent[<id>].heat_of_adsorption[<component>]`), read according to the [heat of adsorption convention](#heat-of-adsorption-convention) (by default, the isosteric heat). The wall-coupling term $\tfrac{4 h_i}{d_i}(T - T_w)$ links this equation to the [wall energy balance](wall-energy-balance.md).
 
 The effective axial thermal conductivity $\lambda$ and the internal coefficient $h_i$ are either constants or computed from the [transport correlations](transport-correlations.md).
 
 ## Local Thermal Non-Equilibrium (LTNE)
 
 When gas–solid heat transfer is not fast (for example large particles or fast cycles), select **Local thermal non-equilibrium (LTNE)**. The solver then carries **separate fluid and solid temperature equations** coupled by a gas–particle heat transfer term. This requires a **Particle heat transfer model** and coefficient, described in the [transport correlations](transport-correlations.md#particle-heat-transfer-ltne-only). With LTNE, the solid temperature is available as its own plotted variable.
+
+## Heat of adsorption convention
+
+The value stored as `adsorbent[<id>].heat_of_adsorption[<component>]` is read according to the fluid's **heat of adsorption convention** (`fluid.heat_of_adsorption_convention`). The convention sets the heat released per mole adsorbed, $\Delta H_i^{\mathrm{eff}}$, that multiplies $\rho_b\thinspace \partial q_i / \partial t$ in the source term:
+
+| Convention | Stored value | $\Delta H_i^{\mathrm{eff}}$ | Used by |
+|---|---|---|---|
+| `isosteric` (default) | isosteric heat $q_{st}$ | $\Delta H_i$ | Casas & Mazzotti, Ruthven |
+| `internal_energy` | internal-energy form | $\Delta H_i - C_{pa,i}\thinspace T$ | Haghpanah 2013, Ward & Pini |
+| `isosteric_rt` | $-\Delta U_i$, the internal energy of adsorption | $\Delta H_i + R\thinspace T$ | Yancy-Caballero 2020 (PEESEgroup PSA) |
+
+$T$ is the temperature of the adsorbed phase: the bed temperature in LTE, the solid temperature in LTNE. With `isosteric_rt`, the isosteric heat follows the ideal-gas relation $q_{st} = -\Delta U + RT$ at the local temperature, where a constant `isosteric` value fixes it at one temperature. For CO₂ on 13X at 313–363 K the two differ by $R\thinspace\Delta T \approx 0.4$ kJ/mol, about 1 %.
 
 ## Adsorbed-phase heat capacity
 
