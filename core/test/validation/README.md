@@ -46,12 +46,27 @@ This complements the existing coverage rather than duplicating it:
 |---|---|
 | `validation_helpers.h` | Independent reference implementations: energy inventories, cylinder areas, moments |
 | `breakthrough_case.h` | One shared, deliberately plain isothermal breakthrough case |
+| `psa_cycle_case.h` | One shared minimal O2/N2 pressurise/feed/blowdown cycle on a 13X bed |
 | `test_energy_balance.cpp` | Closed and open-system energy balances, wall/ambient coupling, cyclic steady state |
 | `test_analytic_transport.cpp` | Residence time, pressure drop, breakthrough time, valve blowdown |
+| `test_analytic_dispersion.cpp` | Physical axial dispersion: inert outlet curve against Ogata-Banks |
+| `test_retarded_dispersion.cpp` | Linear-isotherm advection-dispersion: front retarded by R, width by R^2 |
+| `test_dispersion_mass_balance.cpp` | Component balance with dispersion and Danckwerts inlets, per step and at CSS |
+| `test_advection_schemes.cpp` | Upwind order on a smooth solution, WENO / van Leer less diffusive, conservation, sum y = 1 |
+| `test_equilibrium_shock.cpp` | Langmuir shock front speed against the equilibrium-theory secant balance |
+| `test_ldf_kinetics.cpp` | LDF relaxation at rate k, first- and second-order rate laws |
+| `test_extended_langmuir.cpp` | Extended (competitive) Langmuir loadings, single-component limit, selectivity |
 | `test_thermodynamic_consistency.cpp` | Isosteric heat vs van 't Hoff, Henry limits, monotonicity |
+| `test_adiabatic_adsorption.cpp` | Adiabatic breakthrough temperature plateau against the energy balance |
+| `test_ltne_relaxation.cpp` | Two-temperature (LTNE) gas-solid relaxation rate, bed-wall energy conservation |
+| `test_physics_parity.cpp` | Ergun / Blake-Kozeny pressure drop, isothermal mode, inlet temperature ramps, serialisation |
 | `test_compressor_work.cpp` | Polytropic work, isothermal and reversible-adiabatic limits |
 | `test_numerical_verification.cpp` | Order of accuracy, tolerance independence, scale invariance, flow symmetry |
+| `test_cyclic_steady_state.cpp` | End-of-cycle profile converges to a cyclic steady state |
+| `test_css_acceleration.cpp` | CSS acceleration reduces the cycles to CSS; reseeded ramps start at the step start |
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
+| `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
+| `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
 
 ## `test_energy_balance.cpp`
 
