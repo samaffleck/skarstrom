@@ -8,6 +8,13 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — verification: Langmuir desorption simple wave
+- `core/test/validation/test_desorption_simple_wave.cpp` checks that a
+  Langmuir desorption front spreads as the equilibrium-theory simple wave:
+  the outlet times of three levels inside the wave converge at first order to
+  the method-of-characteristics times, and their Richardson extrapolation
+  agrees to 0.1 %.
+
 ### Added — verification: LDF-limited front against the Thomas solution
 - `core/test/validation/test_ldf_thomas.cpp` compares the whole outlet curve of
   a Henry-isotherm, LDF-limited, dispersion-free front with the
