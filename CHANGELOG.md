@@ -16,6 +16,49 @@ root `CMakeLists.txt`.
   from (with a connection whose lag changes under the rotation).
   `BreakthroughCase` gains `n_layers`.
 
+### Added — verification: evacuation, pressure equalisation and buffer tank
+- `core/test/validation/test_unit_operations.cpp` checks constant-speed
+  evacuation (`P = P0 exp(-S t / V a R T)`), two-bed pressure equalisation
+  through connected valve steps at the cyclic steady state (mole balance and
+  the `exp(-2 cv t / 1e5 V a)` decay of the pressure difference; with a
+  Langmuir isotherm, conservation of the two beds' inventory), and a
+  buffer-tank fill (it delivers the set percentage of the vented moles), each
+  without and with Henry adsorption.
+
+### Added — verification: thermal fronts
+- `core/test/validation/test_thermal_fronts.cpp` checks the speed of an
+  inert-bed thermal front against the energy-balance jump condition
+  (including the gas heat-capacity term), and the steady exponential axial
+  temperature profile of a flowing bed losing heat through the wall, with
+  first-order convergence to it.
+
+### Added — verification: blowdown composition path
+- `core/test/validation/test_blowdown_composition_path.cpp` checks that a
+  binary on linear isotherms follows the equilibrium-theory (Knaebel-Hill)
+  composition path `y(P)` during a valve blowdown, with the departure from
+  the path equal to the LDF lag (it halves when `k` doubles).
+
+### Added — verification: binary competitive Langmuir fronts
+- `core/test/validation/test_competitive_langmuir_fronts.cpp` compares a
+  binary extended-Langmuir breakthrough (constant separation factor) with
+  equilibrium theory: the roll-up plateau of the weaker component from the
+  coherence condition, and the times of both fronts from the jump conditions.
+
+### Added — verification: Langmuir desorption simple wave
+- `core/test/validation/test_desorption_simple_wave.cpp` checks that a
+  Langmuir desorption front spreads as the equilibrium-theory simple wave:
+  the outlet times of three levels inside the wave converge at first order to
+  the method-of-characteristics times, and their Richardson extrapolation
+  agrees to 0.1 %.
+
+### Added — verification: LDF-limited front against the Thomas solution
+- `core/test/validation/test_ldf_thomas.cpp` compares the whole outlet curve of
+  a Henry-isotherm, LDF-limited, dispersion-free front with the
+  Anzelius/Thomas closed form, and checks that the grid error is exactly the
+  upwind scheme's: the variance minus `L dx R^2/u^2` is the Thomas variance,
+  the curve error falls at first order and, after the closed-form `O(dx)`
+  correction, at second order.
+
 ### Changed — CI skips the builds for docs-only pull requests
 - A new `changes` job lists a pull request's files. The C++ (Linux, macOS,
   Windows), Python wheel, Emscripten and subproject jobs run only if one of

@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|MetamorphicRelations|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|ThermalFronts|UnitOperations|MetamorphicRelations)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -74,6 +74,12 @@ This complements the existing coverage rather than duplicating it:
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
 | `test_metamorphic_relations.cpp` | Equivalent decks give the same solution: component order, identical layers, split steps, units, cycle phase at CSS |
+| `test_unit_operations.cpp` | Constant-speed evacuation, two-bed pressure equalisation at CSS, buffer-tank fill, without and with Henry adsorption |
+| `test_thermal_fronts.cpp` | Inert-bed thermal front speed; steady exponential temperature profile with wall losses |
+| `test_blowdown_composition_path.cpp` | Blowdown of a binary on linear isotherms: equilibrium-theory composition path y(P), departure scaling with the LDF lag |
+| `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
+| `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
+| `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
 
 ### `test_energy_balance.cpp`
 
@@ -276,3 +282,139 @@ previous run, so two beds working in series at the same time cannot be
 written as a deck that should equal one long bed. The layer split is the
 exact statement the engine can express (a series connection with no dead
 volume).
+### `test_unit_operations.cpp`
+
+The unit operations between and around beds, each reduced to a lumped ODE: the
+bed is isothermal, the pressure drop negligible, and with the same Henry slope
+on both gases the inventory is `V a P`, `a = eps/(R T) + rho_b K`, whatever the
+composition.
+
+- **`ConstantSpeedEvacuationDecaysExponentially`**: a volumetric-flow outlet
+  (constant pump speed `S`) gives `P = P0 exp(-t/tau_S)`,
+  `tau_S = V a R T / S`. Fitted over three time constants: 52.366 s against
+  52.360 s inert and 247.03 s against 246.96 s with adsorption, which
+  stretches the decay by the Henry retardation factor (4.7). About 0.03 s.
+- **`TwoBedEqualisationConservesMolesAndDecaysAtTwiceTheRate`**: equalisation
+  through a linear valve, as two connected steps of the single-bed model
+  (pressurise, ED, blow down, EU) run to the cyclic steady state (30 cycles).
+  The mole balance keeps `P_ED + P_EU = P_H + P_L` (to 1.2e-5 inert, 2.7e-5
+  with adsorption) and the difference decays as `exp(-t/tau_E)`,
+  `tau_E = 1e5 V a / (2 cv)`: fitted 31.699 s against 31.699 s inert, 149.53 s
+  against 149.51 s with adsorption. The factor 2 is the signature of two beds
+  exchanging gas rather than one venting to a fixed pressure. About 2.8 s.
+- **`TwoBedEqualisationWithLangmuirConservesTheInventory`**: the same with
+  a Langmuir isotherm (`K P = 0.5 .. 1.5`). The pressures no longer add up (the
+  sum falls 9.0 % short, the guard); what is conserved is the inventory
+  `n(P_ED) + n(P_EU) = n(P_H) + n(P_L)`, `n = eps P/(R T) + rho_b q*(P)`,
+  measured to 1.1e-4 (tolerance 2e-3, the LDF lag). About 2.3 s.
+- **`BufferTankFillDeliversTheVentedMoles`**: a fill step drawing 60 % of a
+  vent step's moles from a buffer tank raises the pressure by 60 % of the
+  vent's pressure drop (103 760 Pa against 103 759 Pa inert; 103 766 against
+  103 757 with adsorption), linearly in time. About 0.04 s.
+### `test_thermal_fronts.cpp`
+
+Convective heat transport in a flowing bed, which the sealed-bed energy tests
+cannot see.
+
+- **`InertBedFrontTravelsAtEnergyBalanceSpeed`**: a 10 K step in feed
+  temperature into an inert, adiabatic bed. At constant pressure the gas
+  internal energy per volume `eps Cv P/R` is constant, so the energy and mole
+  jump conditions give `w = G1 Cp / (rho_b Cps + eps C1 Cp)`. The outlet
+  temperature's first moment is 347.54 s against `L/w = 347.63` s (2.5e-4);
+  without the gas heat-capacity term it would be 323.1 s, so the test sees
+  that term (7 % of the total) with a 1e-3 tolerance. The jump conditions
+  make the characteristic speeds on both sides equal to `w` (a contact
+  discontinuity), so the smeared front still travels at `w`. About 0.1 s.
+- **`SteadyFlowWithWallLossGivesExponentialProfile`**: hot gas through a bed
+  losing heat through the bed-wall and wall-ambient films in series reaches
+  `T(z) = T_amb + (T_in - T_amb) exp(-lambda z)`,
+  `lambda = U pi d_i / (n_dot Cp)`,
+  `1/(U pi d_i) = 1/(h_i pi d_i) + 1/(h_o pi d_o)` (`lambda L = 1.34`). On
+  25, 50 and 100 cells the profile and outlet errors fall at first order
+  (outlet 9.3e-3, 4.7e-3, 2.35e-3), and the finest outlet error equals the
+  leading upwind term `theta (lambda L)(lambda dx)/2 = 2.352e-3` (measured
+  2.345e-3). About 0.5 s.
+### `test_blowdown_composition_path.cpp`
+
+A pressure-change step. A uniform bed of a binary on linear isotherms
+(`K_A = 8 K_B`, isothermal) blows down through a valve with the other end
+closed. In local equilibrium the composition stays uniform and the outflow
+carries it, so `d(a_A P y)/y = d(a_B P (1-y))/(1-y)` with
+`a_i = eps/(R T) + rho_b K_i`, which integrates to the Knaebel-Hill path
+`P/P0 = (y0/y)^(1/(1-beta)) ((1-y)/(1-y0))^(beta/(1-beta))`,
+`beta = a_B/a_A`. The path depends on the isotherm slopes only, not on the
+valve or the time.
+
+- **`FollowsEquilibriumTheoryPath`**: blowing down 5 -> 1 bar enriches the
+  strong component from 0.30 to 0.7615. The largest departure of `ln P` from
+  the path is 7.1e-4 at `k = 5 1/s` and 3.6e-4 at `k = 10 1/s`: it is the LDF
+  lag, halving with `1/k` (ratio 2.00), and its Richardson extrapolation to
+  `k -> inf` vanishes. The final composition matches the path at the final
+  pressure, and the composition stays uniform to 1.3e-5. Guard: `beta < 0.3`,
+  so a model without the adsorbed phase (`beta = 1`, `y` constant) fails by
+  0.46 in `y`. About 0.4 s.
+### `test_competitive_langmuir_fronts.cpp`
+
+Competitive adsorption fronts. Two trace adsorbates on an extended Langmuir
+isotherm with a common capacity (constant separation factor `alpha = 3`) are
+fed into a clean bed. Equilibrium theory (Rhee, Aris & Amundson 1970; Ruthven
+1984 ch. 9) gives two shocks with the weak component alone, ROLLED UP above
+its feed level, between them. The coherence condition on the slow front (both
+components' jumps give the same speed) fixes the plateau as the positive root
+of `alpha x^2 - [(alpha-1) b0 - alpha + D_f] x - (alpha-1) b0 = 0`
+(`x = K_B p_B*`, `b0 = K_B p_B0`, `D_f = 1 + K_A p_A0 + K_B p_B0`), and the
+jump conditions give the two front times.
+
+- **`TwoFrontsAndRollUpMatchEquilibriumTheory`**: on 200 cells the plateau of
+  the weak component is `1.5325e-3` against `1.5352e-3` (a 1.54x roll-up; error
+  0.17 %), the fast front's first moment is 312.1 s against 312.4 s (0.09 %),
+  and the slow front is 532.6 s in the strong component and 533.2 s in the weak
+  one's drop from the plateau, against 532.7 s (0.02 % and 0.08 %). Tolerance
+  0.5 %, from the `O(y)` sorption effect at `y_A + y_B = 2e-3`; first moments
+  are mass balances, so the numerical and LDF smearing of the shocks does not
+  move them. Guards: the roll-up exceeds 1.4x and shows in the simulated
+  outlet, and A is absent from the plateau. About 3.4 s.
+### `test_desorption_simple_wave.cpp`
+
+The unfavourable direction of the Langmuir front that `test_equilibrium_shock`
+pins: a bed saturated at a trace level (`K p0 = 3`) purged with clean carrier.
+The front spreads into a simple wave in which each concentration travels at
+`u / (1 + (rho_b/eps) f'(c))`, so the outlet sees `c` at
+`t(c) = (L/u) (1 + M / (1 + K p)^2)` (method of characteristics; de Vault 1943,
+Ruthven 1984 ch. 8), and the whole wave probes the isotherm slope rather than
+its secant.
+
+- **`LangmuirDesorptionFollowsCharacteristics`**: on 100 and 200 cells the
+  outlet times of the levels `c/c0 = 0.6, 0.5, 0.4` converge at first order
+  (measured 0.97, 1.00, 0.98) to `t(c)`, and the Richardson-extrapolated times
+  agree with `t(c)` to 3e-4, 1e-5 and 1.2e-4 (tolerance 1e-3: LDF lag
+  `1/(k t)`, the `O(y0)` sorption effect and the mole-fraction `abstol`).
+  The sorption effect was measured: `1.3e-3` of `t(c)` at `y0 = 1e-3`,
+  `1.3e-4` at `y0 = 1e-4`, which is why the test uses `y0 = 1e-4`. Guard: the
+  wave spreads over 450 s, more than 5x its head time, and `f'(c)` varies
+  16-fold across it. About 0.5 s.
+### `test_ldf_thomas.cpp`
+
+A front shaped by the LDF rate rather than by dispersion: a Henry isotherm with
+`k = 0.1 1/s` (12 transfer units), dispersion off, isothermal, compared point
+by point with the Anzelius/Thomas closed form
+`c/c0 = J(x, tau) = 1 - int_0^x exp(-tau - s) I0(2 sqrt(tau s)) ds`
+(Ruthven 1984, ch. 8), which the test evaluates by quadrature with its own
+Bessel series. The upwind scheme makes the column `n` tanks in series, whose
+transfer function `(1 + (dx/u) g(s))^(-L/dx)` is known exactly, so the grid
+error is not a nuisance to be tolerated but a second prediction.
+
+- **`ReferenceSolutionSatisfiesItsIdentities`**: the two integral forms of `J`
+  agree, `J(a,b) + J(b,a) = 1 + exp(-a-b) I0(2 sqrt(ab))`, the analytic second
+  derivatives match finite differences, and the cumulants are `x` and `2x`. No
+  solver run.
+- **`LinearIsothermOutletCurveMatchesThomasSolution`**: on 50, 100 and 200
+  cells, (1) the outlet variance minus the exact upwind term `L dx R^2 / u^2`
+  equals the Thomas variance `2 (R-1) L / (u k)` (measured 2415.5 vs
+  2416.2 s^2, 0.03 %, on every grid); (2) `max |F - J|` falls at first order
+  (0.0246, 0.0128, 0.0065); (3) after subtracting the closed-form leading error
+  `(L dx / 2) d2F/dz2`, the residual falls at second order (2.2e-3, 6.1e-4,
+  1.7e-4; orders 1.89, 1.84) and is 2.6 % of the error on the finest grid.
+  Guard: a Gaussian curve with the same mean and variance misses the
+  simulated one by 0.042, 250x the finest residual, so the asymmetric Thomas
+  shape is what is being matched. About 1.3 s.
