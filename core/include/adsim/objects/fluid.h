@@ -256,9 +256,10 @@ namespace adsim {
     CONSTANT
   };
 
+  // Display names (front ends); the registry names are "coolprop,constant".
   static const char* GasHeatCapacityModeList[] = {
     "CoolProp",
-    "Constant"
+    "User defined"
   };
 
   // Source of the gas mixture viscosity.
@@ -271,9 +272,12 @@ namespace adsim {
     CONSTANT
   };
 
+  // Display names (front ends); the registry names are "polynomial,constant".
+  // The polynomials are fitted to CoolProp's dilute-gas values (Chapman-Enskog
+  // for the few components CoolProp has no viscosity model for).
   static const char* ViscosityModeList[] = {
-    "Polynomial",
-    "Constant"
+    "CoolProp",
+    "User defined"
   };
 
   class InitialConditions;
