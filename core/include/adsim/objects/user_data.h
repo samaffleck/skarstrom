@@ -16,6 +16,7 @@
 #include "adsim/solver/kpi_config.h"
 #include "adsim/solver/cost_estimator.h"
 #include "adsim/solver/solver_profile.h"
+#include "adsim/solver/sensitivity_study.h"
 #include "adsim/math/user_variables.h"
 
 // Cereal includes
@@ -132,6 +133,9 @@ namespace adsim {
     ExperimentalData      exp_data_;
     KPIConfig             kpi_config;
     CostEstimator         cost_estimator;
+    // The deck's sensitivity study set-up (empty: none). Its results are not
+    // saved. See adsim/solver/sensitivity_study.h.
+    sensitivity::Study    sensitivity_study;
     SimulationInfo        info;
     UserVariableRegistry  variable_registry;
     
@@ -176,6 +180,9 @@ namespace adsim {
       }
       if (version >= 3) {
         ar(cereal::make_nvp("Cost_Estimator", cost_estimator));
+      }
+      if (version >= 4) {
+        ar(cereal::make_nvp("Sensitivity_Study", sensitivity_study));
       }
     }
   };
@@ -295,4 +302,4 @@ namespace adsim {
 
 } // end adsim namespace
 
-CEREAL_CLASS_VERSION(adsim::UserData, 3);
+CEREAL_CLASS_VERSION(adsim::UserData, 4);

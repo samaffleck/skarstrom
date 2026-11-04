@@ -8,6 +8,19 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — sensitivity studies saved with the deck
+- A deck now saves its sensitivity study's set-up (`UserData::sensitivity_study`,
+  `Sensitivity_Study` in the file; `UserData` cereal version 4): inputs and their
+  distributions, outputs, run policy, seed, and the screening and propagation
+  sizes. Results are not saved. Decks from before load with no study.
+- `adsim/solver/sensitivity_study.h` holds `Distribution`, `Input`, `RunPolicy`
+  (moved from `sensitivity.h`, which includes it; the API is unchanged) and the
+  new `Study`. `sensitivity.h` adds `StudyOutputs` and `CheckStudy(deck, study)`.
+- Python: `Study.from_deck(sim, **overrides)`, `Study.save_to(sim)` and
+  `Study.setup()`; the study's sizes are constructor arguments, the defaults of
+  `screen()`, `propagate()` and `Screening.important()`.
+- CLI: `skarstrom sensitivity deck.json` without `--input` runs the deck's
+  saved study; options given override it.
 ### Added — cross-code regression against the PEESE model and toPSAil
 - `core/test/crosscode/`: twelve single-column breakthrough and purge cases
   (CO2/N2 on 13X with concentration- and pressure-form Langmuir and Henry

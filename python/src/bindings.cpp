@@ -11,6 +11,7 @@
 #include <map>
 #include <chrono>
 #include <cmath>
+#include <type_traits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -182,6 +183,68 @@ py::dict PlanToDict(const sa::Plan& plan) {
   return d;
 }
 
+py::object NumberOrNone(double v) { return std::isnan(v) ? py::object(py::none()) : py::object(py::float_(v)); }
+
+py::dict InputToDict(const sa::Input& in) {
+  py::dict d;
+  d["path"] = in.path;
+  d["distribution"] = sa::DistributionName(in.distribution);
+  d["lower"] = NumberOrNone(in.lower);
+  d["upper"] = NumberOrNone(in.upper);
+  d["mode"] = NumberOrNone(in.mode);
+  d["mean"] = NumberOrNone(in.mean);
+  d["sd"] = NumberOrNone(in.sd);
+  return d;
+}
+
+// The study saved with a deck (UserData::sensitivity_study) as a dict:
+// {inputs, outputs, policy: {require_css, cycles (None: the deck's), settings},
+//  seed, trajectories, levels, threshold, runs, batch, max_runs, rel_tol, bootstrap}.
+py::dict StudyToDict(const sa::Study& st) {
+  py::dict d;
+  py::list inputs;
+  for (const auto& in : st.inputs) inputs.append(InputToDict(in));
+  d["inputs"] = inputs;
+  d["outputs"] = st.outputs;
+  py::dict policy, settings;
+  policy["require_css"] = st.policy.require_css;
+  policy["cycles"] = st.policy.cycles > 0 ? py::object(py::int_(st.policy.cycles)) : py::object(py::none());
+  for (const auto& [path, text] : st.policy.settings) settings[py::str(path)] = text;
+  policy["settings"] = settings;
+  d["policy"] = policy;
+  d["seed"] = st.seed;
+  d["trajectories"] = st.trajectories;
+  d["levels"] = st.levels;
+  d["threshold"] = st.threshold;
+  d["runs"] = st.runs;
+  d["batch"] = st.batch;
+  d["max_runs"] = st.max_runs;
+  d["rel_tol"] = st.rel_tol;
+  d["bootstrap"] = st.bootstrap;
+  return d;
+}
+
+// The inverse of StudyToDict; a missing key keeps the default.
+sa::Study StudyFromDict(const py::dict& d) {
+  sa::Study st;
+  if (d.contains("inputs")) st.inputs = InputsFromList(d["inputs"].cast<py::list>());
+  if (d.contains("outputs") && !d["outputs"].is_none()) st.outputs = d["outputs"].cast<std::vector<std::string>>();
+  if (d.contains("policy") && !d["policy"].is_none()) st.policy = PolicyFromDict(d["policy"].cast<py::dict>());
+  auto get = [&d](const char* key, auto& out) {
+    if (d.contains(key) && !d[key].is_none()) out = d[key].cast<std::decay_t<decltype(out)>>();
+  };
+  get("seed", st.seed);
+  get("trajectories", st.trajectories);
+  get("levels", st.levels);
+  get("threshold", st.threshold);
+  get("runs", st.runs);
+  get("batch", st.batch);
+  get("max_runs", st.max_runs);
+  get("rel_tol", st.rel_tol);
+  get("bootstrap", st.bootstrap);
+  return st;
+}
+
 py::dict IntervalToDict(const sa::Interval& i) {
   py::dict d;
   d["low"] = i.low;
@@ -341,6 +404,10 @@ PYBIND11_MODULE(_core, m) {
       .def("load_json", &adsim::Simulation::LoadJson, py::arg("text"))
       .def("save", &adsim::Simulation::Save, py::arg("path"))
       .def("to_json", &adsim::Simulation::ToJson)
+      .def("sensitivity_study", [](const adsim::Simulation& s) { return StudyToDict(s.Data().sensitivity_study); })
+      .def("set_sensitivity_study", [](adsim::Simulation& s, const py::dict& study) {
+        s.Data().sensitivity_study = StudyFromDict(study);
+      }, py::arg("study"))
       .def("check", [](adsim::Simulation& s) {
         std::string err;
         const bool ok = s.Check(err);

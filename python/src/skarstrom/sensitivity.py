@@ -20,6 +20,12 @@ steps::
     spread.table()                        # mean, sd, p05 / p50 / p95 (the error bar), converged
     spread.shares()                       # each input's share of the spread
 
+A study's set-up (inputs, outputs, run policy, seed and sizes, not its
+results) can be saved with the deck and read back::
+
+    study.save_to(sim); sim.save("deck.json")
+    study = sa.Study.from_deck(skarstrom.Simulation("deck.json"), workers=4)
+
 The engine plans the runs and analyses them (``adsim/solver/sensitivity.h``);
 this module runs them, in parallel with ``workers > 1`` (separate processes).
 Every run must reach cyclic steady state (``require_css``); runs that fail or
@@ -149,7 +155,13 @@ class Study:
     wobble would read as sensitivity. ``require_css`` (default) only counts
     runs that reach cyclic steady state; ``cycles`` overrides the deck's
     cycle limit. ``workers`` runs that many processes. ``seed`` makes the
-    study repeatable.
+    study repeatable. ``trajectories``, ``levels`` and ``threshold`` are the
+    screening's defaults, ``runs``, ``batch``, ``max_runs`` and ``rel_tol``
+    the propagation's, and ``bootstrap`` both analyses' (see :meth:`screen`
+    and :meth:`propagate`).
+
+    :meth:`from_deck` builds the study saved with a deck and :meth:`save_to`
+    saves this one's set-up into a deck (not its results).
     """
 
     def __init__(
@@ -162,6 +174,14 @@ class Study:
         cycles: Optional[int] = None,
         seed: int = 1,
         workers: int = 1,
+        trajectories: int = 10,
+        levels: int = 4,
+        threshold: float = 0.1,
+        runs: int = 100,
+        batch: int = 50,
+        max_runs: int = 400,
+        rel_tol: float = 0.1,
+        bootstrap: int = 1000,
     ) -> None:
         if not inputs:
             raise ValueError("a study needs at least one input")
@@ -171,11 +191,65 @@ class Study:
         self.cycles = None if cycles is None else int(cycles)
         self.seed = int(seed)
         self.workers = max(1, int(workers))
+        self.trajectories = int(trajectories)
+        self.levels = int(levels)
+        self.threshold = float(threshold)
+        self.runs = int(runs)
+        self.batch = int(batch)
+        self.max_runs = int(max_runs)
+        self.rel_tol = float(rel_tol)
+        self.bootstrap = int(bootstrap)
         self.deck = sim.to_json()
         self.title = sim.get_text("info.title")
-        self.outputs: List[str] = list(outputs) if outputs else list(_core.sensitivity_default_outputs(self.deck))
+        self._named_outputs: List[str] = list(outputs) if outputs else []
+        self.outputs: List[str] = self._named_outputs or list(_core.sensitivity_default_outputs(self.deck))
         _core.sensitivity_check(self.deck, self._input_dicts(), self.outputs, self.policy)
         self._nominal: Optional[Dict[str, Any]] = None
+
+    # ---- saved with the deck ----------------------------------------------------------
+    @classmethod
+    def from_deck(cls, sim: "Simulation", workers: int = 1, **overrides: Any) -> "Study":
+        """The study saved with ``sim``'s deck. ``overrides`` replace saved
+        values (any constructor argument, e.g. ``seed=2`` or
+        ``require_css=False``). Raises ValueError when the deck has no study."""
+        saved = sim._sim.sensitivity_study()
+        if not saved["inputs"]:
+            raise ValueError("the deck has no sensitivity study (save one with Study.save_to)")
+        policy = saved["policy"]
+        kwargs: Dict[str, Any] = {
+            "inputs": [Input(**i) for i in saved["inputs"]],
+            "outputs": saved["outputs"] or None,
+            "settings": policy["settings"],
+            "require_css": policy["require_css"],
+            "cycles": policy["cycles"],
+            **{k: saved[k] for k in ("seed", "trajectories", "levels", "threshold", "runs", "batch", "max_runs",
+                                      "rel_tol", "bootstrap")},
+        }
+        kwargs.update(overrides)
+        return cls(sim, workers=workers, **kwargs)
+
+    def setup(self) -> Dict[str, Any]:
+        """The study's set-up as saved with a deck (see :meth:`save_to`)."""
+        return {
+            "inputs": [i.as_dict() for i in self.inputs],
+            "outputs": list(self._named_outputs),
+            "policy": self.policy,
+            "seed": self.seed,
+            "trajectories": self.trajectories,
+            "levels": self.levels,
+            "threshold": self.threshold,
+            "runs": self.runs,
+            "batch": self.batch,
+            "max_runs": self.max_runs,
+            "rel_tol": self.rel_tol,
+            "bootstrap": self.bootstrap,
+        }
+
+    def save_to(self, sim: "Simulation") -> None:
+        """Save this study's set-up into ``sim``'s deck (then ``sim.save(path)``
+        writes it to a file). Outputs left to the default stay the default, so
+        they follow the deck's tracked components. Results are not saved."""
+        sim._sim.set_sensitivity_study(self.setup())
 
     # ---- set-up --------------------------------------------------------------------
     @staticmethod
@@ -247,6 +321,10 @@ class Study:
             "outputs": list(self.outputs),
             "policy": self.policy,
             "seed": self.seed,
+            "screening": {"trajectories": self.trajectories, "levels": self.levels, "threshold": self.threshold},
+            "propagation": {"runs": self.runs, "batch": self.batch, "max_runs": self.max_runs,
+                            "rel_tol": self.rel_tol},
+            "bootstrap": self.bootstrap,
         }
 
     # ---- running ---------------------------------------------------------------------
@@ -283,12 +361,17 @@ class Study:
             self._nominal = r
         return self._nominal
 
-    def screen(self, trajectories: int = 10, levels: int = 4, inputs: Optional[Sequence[Union[str, Input]]] = None,
-               progress: Optional[Progress] = None, bootstrap: int = 1000) -> "Screening":
+    def screen(self, trajectories: Optional[int] = None, levels: Optional[int] = None,
+               inputs: Optional[Sequence[Union[str, Input]]] = None, progress: Optional[Progress] = None,
+               bootstrap: Optional[int] = None) -> "Screening":
         """Morris screening: ``trajectories * (inputs + 1)`` runs.
 
-        ``progress(done, total)`` is called after every run.
+        Sizes left out are the study's (``Study(trajectories=10, levels=4)``
+        by default). ``progress(done, total)`` is called after every run.
         """
+        trajectories = self.trajectories if trajectories is None else trajectories
+        levels = self.levels if levels is None else levels
+        bootstrap = self.bootstrap if bootstrap is None else bootstrap
         chosen = self._select(inputs)
         plan = _core.sensitivity_morris_plan(self._input_dicts(chosen), trajectories, levels, self.seed)
         samples = self._run(chosen, plan["values"], progress)
@@ -296,9 +379,9 @@ class Study:
         result = _core.sensitivity_analyse_morris(self._input_dicts(chosen), plan, self.outputs, y, bootstrap)
         return Screening(self, chosen, plan, samples, result)
 
-    def propagate(self, runs: int = 100, batch: int = 50, max_runs: int = 400, rel_tol: float = 0.1,
-                  inputs: Optional[Sequence[Union[str, Input]]] = None, progress: Optional[Progress] = None,
-                  bootstrap: int = 1000) -> "Propagation":
+    def propagate(self, runs: Optional[int] = None, batch: Optional[int] = None, max_runs: Optional[int] = None,
+                  rel_tol: Optional[float] = None, inputs: Optional[Sequence[Union[str, Input]]] = None,
+                  progress: Optional[Progress] = None, bootstrap: Optional[int] = None) -> "Propagation":
         """Monte Carlo propagation with Latin hypercube sampling.
 
         Starts with ``runs`` runs and adds batches of ``batch`` until every
@@ -306,8 +389,14 @@ class Study:
         band, or ``max_runs`` is reached (then ``converged`` is False).
         Inputs left out (``inputs``, e.g. :meth:`Screening.important`) stay at
         the deck's value. ``progress(done, total)`` counts runs against
-        ``max_runs``.
+        ``max_runs``. Sizes left out are the study's (``runs=100, batch=50,
+        max_runs=400, rel_tol=0.1`` by default).
         """
+        runs = self.runs if runs is None else runs
+        batch = self.batch if batch is None else batch
+        max_runs = self.max_runs if max_runs is None else max_runs
+        rel_tol = self.rel_tol if rel_tol is None else rel_tol
+        bootstrap = self.bootstrap if bootstrap is None else bootstrap
         if runs < 2 or batch < 1 or max_runs < runs:
             raise ValueError("need runs >= 2, batch >= 1 and max_runs >= runs")
         chosen = self._select(inputs)
@@ -416,9 +505,11 @@ class Screening(_StudyResult):
                 return sorted(effects, key=lambda x: -x[1] if math.isfinite(x[1]) else math.inf)
         raise KeyError(f"{name!r} is not an output of this study")
 
-    def important(self, threshold: float = 0.1) -> List[str]:
-        """Inputs whose mu* reaches ``threshold`` times the largest mu* of at
-        least one output: the ones to keep for :meth:`Study.propagate`."""
+    def important(self, threshold: Optional[float] = None) -> List[str]:
+        """Inputs whose mu* reaches ``threshold`` (default: the study's, 0.1
+        unless set) times the largest mu* of at least one output: the ones to
+        keep for :meth:`Study.propagate`."""
+        threshold = self.study.threshold if threshold is None else threshold
         keep = set()
         for o in self.result["outputs"]:
             finite = [e["mu_star"] for e in o["effects"] if math.isfinite(e["mu_star"])]
