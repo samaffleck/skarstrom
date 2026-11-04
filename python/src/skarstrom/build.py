@@ -467,6 +467,8 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
         w(f"{name}.fluid.{f} = {_literal(sim, fluid.path(f))}")
     for c, path in fluid.adsorbed_heat_capacity._paths.items():
         w(f"{name}.fluid.adsorbed_heat_capacity[{c!r}] = {_literal(sim, path)}")
+    for c, path in fluid.gas_heat_capacity._paths.items():
+        w(f"{name}.fluid.gas_heat_capacity[{c!r}] = {_literal(sim, path)}")
 
     w("")
     w("# ---- adsorbents -----------------------------------------------------------------")

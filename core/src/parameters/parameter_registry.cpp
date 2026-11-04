@@ -840,14 +840,28 @@ namespace adsim {
       // 0 = constant (fluid.adsorbed_heat_capacity), 1 = equal to the gas-phase value.
       EmplaceEnum("fluid.adsorbed_heat_capacity_mode", "", "fluid", "fluid", "adsorbed-phase heat capacity mode",
                   fluid.adsorbed_heat_capacity_mode_, "constant,gas_phase");
-      // 0 = isosteric heat of adsorption, 1 = internal-energy convention.
+      // 0 = isosteric heat of adsorption, 1 = internal-energy convention,
+      // 2 = isosteric heat from -dU + R*T at the local temperature.
       EmplaceEnum("fluid.heat_of_adsorption_convention", "", "fluid", "fluid", "heat of adsorption convention",
-                  fluid.heat_of_adsorption_convention_, "isosteric,internal_energy");
+                  fluid.heat_of_adsorption_convention_, "isosteric,internal_energy,isosteric_rt");
+      // 0 = CoolProp at the initial conditions, 1 = constant (fluid.gas_heat_capacity).
+      EmplaceEnum("fluid.gas_heat_capacity_mode", "", "fluid", "fluid", "gas heat capacity mode",
+                  fluid.gas_heat_capacity_mode_, "coolprop,constant");
+      // 0 = pure-component polynomials, 1 = constant mixture value (fluid.viscosity).
+      EmplaceEnum("fluid.viscosity_mode", "", "fluid", "fluid", "gas viscosity mode",
+                  fluid.viscosity_mode_, "polynomial,constant");
+      Emplace("fluid.viscosity", "", "fluid", "fluid", "constant gas viscosity", "Pa.s", fluid.viscosity_, 1e-6, 1e-4);
       for (const auto& component : fluid.components_) {
         auto it = fluid.adsorbed_heat_capacity_.find(component);
         if (it == fluid.adsorbed_heat_capacity_.end()) continue;
         Emplace("fluid.adsorbed_heat_capacity[" + component + "]", "", "fluid", "fluid",
                 component + " adsorbed-phase heat capacity", "J/(mol-K)", it->second, 0.0, 500.0);
+      }
+      for (const auto& component : fluid.components_) {
+        auto it = fluid.gas_heat_capacity_.find(component);
+        if (it == fluid.gas_heat_capacity_.end()) continue;
+        Emplace("fluid.gas_heat_capacity[" + component + "]", "", "fluid", "fluid",
+                component + " constant gas heat capacity", "J/(mol-K)", it->second, 10.0, 500.0);
       }
     }
 

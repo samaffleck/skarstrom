@@ -77,16 +77,18 @@ namespace adsim {
     // Heat released per mole adsorbed, as it enters the energy balances:
     // dH for the ISOSTERIC convention (dH is the isosteric heat q_st);
     // dH - Cpa*T for the INTERNAL_ENERGY convention (Haghpanah/Ward), which
-    // adds the adsorbed-phase sensible-enthalpy transfer term. T is the
+    // adds the adsorbed-phase sensible-enthalpy transfer term; dH + R*T for
+    // the ISOSTERIC_RT convention (dH is -dU, q_st = -dU + R*T). T is the
     // temperature of the adsorbed phase (fluid T in LTE, solid Ts in LTNE).
     // See HeatOfAdsorptionConvention in fluid.h. Shared by the energy
     // residuals and the logged component energy source so the two agree.
-    inline double AdsorptionHeat(double dH, double Cpa, double T, bool ie_convention) {
-      return ie_convention ? dH - Cpa * T : dH;
-    }
-
-    bool UsesInternalEnergyConvention(const Fluid& fluid) {
-      return fluid.heat_of_adsorption_convention_ == HeatOfAdsorptionConvention::INTERNAL_ENERGY;
+    inline double AdsorptionHeat(double dH, double Cpa, double T, HeatOfAdsorptionConvention convention) {
+      switch (convention) {
+        case HeatOfAdsorptionConvention::INTERNAL_ENERGY: return dH - Cpa * T;
+        case HeatOfAdsorptionConvention::ISOSTERIC_RT: return dH + constants::kIdealGasConstant * T;
+        case HeatOfAdsorptionConvention::ISOSTERIC: break;
+      }
+      return dH;
     }
   }
 
@@ -370,7 +372,7 @@ namespace adsim {
     int N = T.size();
 
     // heat = dH (ISOSTERIC) or dH - Cpa*T (INTERNAL_ENERGY); see AdsorptionHeat.
-    const bool ie_convention = UsesInternalEnergyConvention(fluid);
+    const HeatOfAdsorptionConvention hoa_convention = fluid.heat_of_adsorption_convention_;
 
     for (int i = 1; i < N - 1; ++i) {
       // Adsorbed-phase heat capacity contribution, per adsorbent:
@@ -400,7 +402,7 @@ namespace adsim {
       double Se = 0.0;
       for (const auto& ca : cell_ads[i]) {
         for (const auto& t : state.GetEnergyTerms(ca.id)) {
-          const double heat = AdsorptionHeat((*t.heat_of_adsorption)[i], t.heat_capacity, T[i], ie_convention);
+          const double heat = AdsorptionHeat((*t.heat_of_adsorption)[i], t.heat_capacity, T[i], hoa_convention);
           Se += heat * ca.bulk_density * (*t.loading_rate)[i];
         }
       }
@@ -568,7 +570,7 @@ namespace adsim {
     // Adsorption energy source: heat = dH (ISOSTERIC) or dH - Cpa*Ts
     // (INTERNAL_ENERGY, Haghpanah/Ward). See HeatOfAdsorptionConvention in fluid.h.
     // In LTNE the adsorbed phase is at the solid temperature Ts.
-    const bool ie_convention = UsesInternalEnergyConvention(fluid);
+    const HeatOfAdsorptionConvention hoa_convention = fluid.heat_of_adsorption_convention_;
 
     const auto& is_void = state.domain_vectors.is_void_cell;
     for (int i = 1; i < N - 1; ++i) {
@@ -581,7 +583,7 @@ namespace adsim {
       for (const auto& ca : cell_ads[i]) {
         for (const auto& t : state.GetEnergyTerms(ca.id)) {
           ads_heat_cap += ca.bulk_density * t.heat_capacity * (*t.loading)[i];
-          const double heat = AdsorptionHeat((*t.heat_of_adsorption)[i], t.heat_capacity, Ts[i], ie_convention);
+          const double heat = AdsorptionHeat((*t.heat_of_adsorption)[i], t.heat_capacity, Ts[i], hoa_convention);
           Se += heat * ca.bulk_density * (*t.loading_rate)[i];
         }
       }
@@ -1322,6 +1324,13 @@ namespace adsim {
     auto& temperature = state.fluid_temperature.var;
     auto& mole_fraction_map = state.mole_fraction;
 
+    // CONSTANT viscosity mode: the user's mixture value everywhere.
+    const double mu_const = udata->fluid.ConstantViscosity();
+    if (mu_const > 0.0) {
+      std::fill(viscosity.begin(), viscosity.end(), mu_const);
+      return;
+    }
+
     // Mole-fraction weighted mixing rule mu = sum_i y_i * mu_i(T). Resolve each
     // component's mole-fraction vector and its hard-coded mu_i(T) coefficients
     // ONCE (out of the cell loop) so the per-cell inner loop is pure arithmetic —
@@ -1678,8 +1687,9 @@ namespace adsim {
     // uses: at the fluid temperature in LTE (UpdateTemperature) and at the
     // solid temperature in LTNE (UpdateSolidTemperature).
     const auto& fluid = udata->fluid;
-    const bool ie_convention = UsesInternalEnergyConvention(fluid);
-    const double Cpa = ie_convention ? fluid.AdsorbedPhaseHeatCapacity(component) : 0.0;
+    const HeatOfAdsorptionConvention hoa_convention = fluid.heat_of_adsorption_convention_;
+    const double Cpa = hoa_convention == HeatOfAdsorptionConvention::INTERNAL_ENERGY
+                           ? fluid.AdsorbedPhaseHeatCapacity(component) : 0.0;
     const auto& T_ads =
       (udata->bed.equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL)
         ? state.solid_temperature.var
@@ -1704,7 +1714,7 @@ namespace adsim {
       double s = 0.0;
       for (const auto& ca : cell_ads[n]) {
         const Term& t = term_of(ca.id);
-        const double heat = AdsorptionHeat((*t.dH)[n], Cpa, T_ads[n], ie_convention);
+        const double heat = AdsorptionHeat((*t.dH)[n], Cpa, T_ads[n], hoa_convention);
         s += heat * ca.bulk_density * (*t.ddt_q)[n];
       }
       Sei[n] = s;

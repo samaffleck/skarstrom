@@ -67,6 +67,20 @@ skarstrom sensitivity Perez2019_A \
 
 `--method both` (the default) screens all inputs, then propagates those whose μ\* reaches `--threshold` (0.1) of the largest; `screen` or `propagate` runs one stage. `--json` prints everything as JSON.
 
+## Saving a study with the deck
+
+A study's set-up is saved in the deck (`Sensitivity_Study`): its inputs and their distributions, the outputs, the run policy (`require_css`, `cycles`, `settings`), the seed and the sizes of both stages (`trajectories`, `levels`, `threshold`; `runs`, `batch`, `max_runs`, `rel_tol`; `bootstrap`). Its runs and results are not: save those with `--save` or `.save()`.
+
+```python
+study.save_to(sim)          # into the deck in memory
+sim.save("perez_study.json")
+
+study = sa.Study.from_deck(skarstrom.Simulation("perez_study.json"), workers=4)
+study = sa.Study.from_deck(sim, seed=2)   # any saved value can be overridden
+```
+
+`skarstrom sensitivity perez_study.json` with no `--input` runs the saved study, and any option given on the command line overrides the saved value. A relative range (`relative(path, 0.1)`, `PATH=10%`) is saved as its bounds, so it does not move if the deck's value is changed later. Outputs left to the default are saved as the default and follow the deck's tracked components. An input whose parameter was later removed from the deck, or an output whose component is no longer tracked, stays in the saved study and is reported when the study is checked; it is never dropped silently. Save inputs by their registry path (`step[1].time`), which survives renaming a step, rather than by an alias (`step[Feed].time`). Decks saved before this existed load with no study.
+
 ## Reading the results
 
 **Screening.** For each input and output:
@@ -107,4 +121,4 @@ for (const auto& row : plan.values)
 sa::MorrisResult m = sa::AnalyseMorris(plan, {"CarbonDioxide.purity"}, y);
 ```
 
-`AnalyseMonteCarlo(inputs, values, names, y)` takes the runs of every batch stacked. Plans use `std::mt19937_64` with every draw done by the engine, so a seed gives the same runs natively, in the Python wheels and in WebAssembly.
+`AnalyseMonteCarlo(inputs, values, names, y)` takes the runs of every batch stacked. The study saved with a deck is `UserData::sensitivity_study` (`sa::Study`, in `adsim/solver/sensitivity_study.h`); `sa::CheckStudy(deck_json, study)` checks it, and `sa::StudyOutputs(study, data)` gives its outputs (the deck's defaults when it names none). Plans use `std::mt19937_64` with every draw done by the engine, so a seed gives the same runs natively, in the Python wheels and in WebAssembly.

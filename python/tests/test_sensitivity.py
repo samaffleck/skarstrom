@@ -165,3 +165,38 @@ def test_cli(capsys, tmp_path, sim, paths):
     with pytest.raises(SystemExit, match="expected 10%"):
         main(["sensitivity", DECK, "--input", f"{time}=lognormal:1:2", "--cycles", "1"])
     assert math.isfinite(out["propagation"]["result"]["outputs"][0]["p50"])
+
+
+def test_study_saved_with_the_deck(capsys, sim, paths, tmp_path):
+    time, void = paths
+    deck = sim.copy()
+    with pytest.raises(ValueError, match="no sensitivity study"):
+        sa.Study.from_deck(deck)
+    study = sa.Study(deck, [sa.relative(time, 0.1), sa.normal(void, 0.38, 0.01, lower=0.3)],
+                     outputs=["Oxygen.purity"], cycles=1, require_css=False, seed=5, trajectories=1, levels=6,
+                     runs=3, batch=2, max_runs=5, rel_tol=0.2, bootstrap=100)
+    study.save_to(deck)
+    path = tmp_path / "with_study.json"
+    deck.save(path)
+
+    back = sa.Study.from_deck(skarstrom.Simulation(str(path)))
+    assert back.inputs == study.inputs  # the relative range is saved as its bounds
+    assert back.inputs[1].upper is None  # an unset bound stays unset
+    assert back.outputs == ["Oxygen.purity"]
+    assert back.policy == study.policy
+    assert (back.seed, back.trajectories, back.levels) == (5, 1, 6)
+    assert (back.runs, back.batch, back.max_runs, back.rel_tol, back.bootstrap) == (3, 2, 5, 0.2, 100)
+    assert sa.Study.from_deck(skarstrom.Simulation(str(path)), seed=9).seed == 9
+
+    # Outputs left to the default stay the default (they follow the deck).
+    sa.Study(deck, [sa.relative(time, 0.1)], require_css=False).save_to(deck)
+    assert deck._sim.sensitivity_study()["outputs"] == []
+
+    # The command runs the saved study when given no --input; options override it.
+    code = main(["sensitivity", str(path), "--method", "screen", "--seed", "9", "--json", "-q"])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert out["study"]["seed"] == 9 and out["study"]["screening"]["levels"] == 6
+    assert out["screening"]["plan"]["trajectories"] == 1 and len(out["screening"]["samples"]) == 3
+    with pytest.raises(SystemExit, match="no sensitivity study"):
+        main(["sensitivity", DECK, "--cycles", "1", "-q"])
