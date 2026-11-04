@@ -347,7 +347,7 @@ After a run:
 
 ```python
 sim.cycles                 # logged cycles, e.g. [0, 1, ..., 13]
-sim.kpis()                 # KPIRecord per tracked component per cycle
+sim.kpis()                 # KPIRecord per tracked component per cycle (every cycle run)
 sim.kpi_table()            # the same as a pandas DataFrame
 sim.css_history()          # the deck's CSS check at every cycle: cycle, converged, error, tolerance,
                            # state_change, state_tolerance, passing_cycles, required_cycles
@@ -368,7 +368,7 @@ for s in sim.streams():                                              # every end
 - **Variable names**: `skarstrom.bulk_variables()` (pressure, temperature, velocity, ...) and `skarstrom.component_variables()` (mole_fraction, adsorbed_concentration, ...) list what `series` and `profile` accept. `stream_series` accepts `temperature`, `molar_flow_rate`, `compressor_power` and `pressure` (the bed-end face pressure; a pressure boundary's set value), or `mole_fraction` and `molar_flow` with a component.
 - `sim.save_logs("out")` writes the full solver log as CSV files.
 
-The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory.
+The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles, stream series and CSS history cover those. KPIs are recorded at the end of every cycle, so `sim.kpis()` covers the whole run.
 
 ## Isotherms
 

@@ -545,47 +545,35 @@ namespace adsim {
 
   std::vector<double> Simulation::FacePositions() const { return Log().GetDomain().positions; }
 
-  std::vector<KPIRecord> Simulation::KPIs(int cycle) const {
-    std::vector<KPIRecord> out;
-    if (!HasResults()) return out;
-    const int c = ResolveCycle(cycle);
-    const auto& eq_log = Log();
-    const auto& b_log = Boundaries();
-    // Re-bind the endpoint refs by ID first, so a step or stream renamed
-    // since they were last resolved still counts (on a copy: this is const).
-    KPIConfig config = data_->kpi_config;
-    config.ResolveIds(data_->cycle.step_list_);
-    for (const auto& cfg : config.per_component) {
-      if (!cfg.tracked) continue;
-      KPIParams p(eq_log, b_log);
-      p.cycle_index_ = c;
-      p.product_comp_ = cfg.product_component;
-      p.feed_endpoints = cfg.feed_endpoints;
-      p.product_endpoints = cfg.product_endpoints;
-      p.recycle_endpoints = cfg.recycle_endpoints;
-      KPIRecord r;
-      r.cycle = c;
-      r.component = cfg.product_component;
-      r.valid = p.Check();
-      if (r.valid) {
-        constexpr double nan = std::numeric_limits<double>::quiet_NaN();
-        bool ok = true;
-        auto value = [&](double v) { return (ok && std::isfinite(v)) ? v : nan; };
-        double v = CalculatePurity(p, &ok);                     r.purity = value(v);
-        v = CalculateRecovery(p, &ok);                          r.recovery = value(v);
-        v = CalculateProductivityMass(p, &ok);                  r.productivity_mass = value(v);
-        v = CalculateProductivityVolume(p, &ok);                r.productivity_volume = value(v);
-        v = CalculateSpecificEnergyConsumption(p, &ok);         r.energy_consumption = value(v);
-        v = CalculateProductionRate(p, &ok);                    r.production_rate = value(v);
-      }
-      out.push_back(std::move(r));
-    }
+  const KPIHistory& Simulation::KPIHistoryRecords() const {
+    static const KPIHistory kEmpty{};
+    if (solver_) return solver_->GetKPIHistory();
+    if (chunked_) return chunked_->GetKPIHistory();
+    return kEmpty;
+  }
+
+  std::vector<int> Simulation::KPICycles() const {
+    std::vector<int> out = KPIHistoryRecords().Cycles();
+    for (int c : Cycles())
+      if (!KPIHistoryRecords().Has(c)) out.push_back(c);
+    std::sort(out.begin(), out.end());
     return out;
+  }
+
+  std::vector<KPIRecord> Simulation::KPIs(int cycle) const {
+    const auto& log = Log().GetSimulationLog();
+    // A cycle the log has evicted: the record made when it completed.
+    if (cycle >= 0 && log.find(cycle) == log.end() && KPIHistoryRecords().Has(cycle))
+      return KPIHistoryRecords().Cycle(cycle);
+    if (!HasResults()) return {};
+    const int c = ResolveCycle(cycle);
+    // Computed from the log with the deck's current KPI configuration.
+    return ComputeCycleKPIs(data_->kpi_config, data_->cycle.step_list_, Log(), Boundaries(), c);
   }
 
   std::vector<KPIRecord> Simulation::KPIs() const {
     std::vector<KPIRecord> out;
-    for (int c : Cycles()) {
+    for (int c : KPICycles()) {
       auto rows = KPIs(c);
       out.insert(out.end(), rows.begin(), rows.end());
     }

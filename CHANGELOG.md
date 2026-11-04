@@ -8,6 +8,19 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — KPIs of every cycle (KPIHistory)
+- The solvers record the KPIs of every tracked component when each cycle
+  completes (`adsim::KPIHistory`, `adsim/solver/kpi_history.h`;
+  `CoupledSolver::GetKPIHistory`, `CoupledSolverChuncked::GetKPIHistory`), so a
+  run's KPIs cover all its cycles, not only the last
+  `settings.max_cycles_to_keep` the logs hold. `Simulation::KPIs()` (Python
+  `sim.kpis()`, the CLI's `kpis` and `kpis.csv`) now lists every cycle:
+  cycles still in the log are computed from it as before, evicted ones come
+  from the history. New: `Simulation::KPICycles()`,
+  `Simulation::KPIHistoryRecords()`, and `adsim::ComputeCycleKPIs`, the
+  per-cycle computation both use. `KPIRecord` moved from `simulation.h` to
+  `kpi_history.h` (which `simulation.h` includes).
+
 ### Added — convergence verification of cycle results (grid, integrator tolerance, CSS)
 - `CycleKpiGridConvergence` (`core/test/validation/test_grid_convergence.cpp`):
   purity, recovery and specific energy of the shared PSA cycle at cyclic

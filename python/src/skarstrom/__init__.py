@@ -874,7 +874,9 @@ class Simulation:
         return self._sim.face_positions
 
     def kpis(self, cycle: Optional[int] = None) -> List[KPIRecord]:
-        """KPIs of every tracked component: all logged cycles, or one (-1 = last)."""
+        """KPIs of every tracked component: every cycle of the run, or one (-1 = the
+        last logged cycle). Cycles the log no longer holds come from the record
+        the solver made when each cycle completed."""
         return self._sim.kpis(cycle)
 
     def kpi_table(self, cycle: Optional[int] = None):

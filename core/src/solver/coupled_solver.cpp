@@ -97,6 +97,7 @@ namespace adsim {
     user_data_.Initialise();
     equation_log_.Initialise(user_data_);
     boundary_log_.Initialise(user_data_);
+    kpi_history_.Clear();
     
     // Set current step for initial conditions
     state.SetCurrentStep(&first_step);
@@ -440,6 +441,9 @@ namespace adsim {
         break; // Stop if a step failed
       }
 
+      // The cycle is complete: keep its KPIs before the log evicts it.
+      kpi_history_.Record(user_data_.kpi_config, cycle.step_list_, equation_log_, boundary_log_, cycle_index);
+
       std::optional<ProfileTimer> css_timer;  // CSS check + acceleration
       css_timer.emplace(user_data_.profile_.enabled, user_data_.profile_.css_ns);
 
@@ -559,6 +563,7 @@ namespace adsim {
       user_data_.Initialise();
       equation_log_.Initialise(user_data_);
       boundary_log_.Initialise(user_data_);
+      kpi_history_.Clear();
 
       // Clear stream_data_ for every step so connected boundary streams don't
       // read stale data from a previous simulation's last cycle, and invalidate
@@ -625,6 +630,10 @@ namespace adsim {
 
       // Check if we've completed all steps in current cycle
       if (status_.GetStepIndex() >= total_steps) {
+
+        // The cycle is complete: keep its KPIs before the log evicts it.
+        kpi_history_.Record(user_data_.kpi_config, step_list, equation_log_, boundary_log_,
+                            status_.GetCycleIndex());
 
         // Check for cyclic steady state before moving to next cycle
         const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex());
