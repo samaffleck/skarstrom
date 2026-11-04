@@ -26,7 +26,7 @@ root `CMakeLists.txt`.
 - `CSSConvergence` (`test_css_convergence.cpp`): the approach to CSS is
   geometric (rate 0.106 isothermal, 0.966 with the energy balance), the KPIs
   follow it, the error the stopping rule leaves is `g Delta rho / (1 - rho)`
-  (measured 6.0e-5 in recovery at the default state tolerance, 6.4e-5
+  (measured 6.11e-5 in recovery at the default state tolerance, 6.21e-5
   predicted), and Aitken acceleration stops 25 cycles earlier on the same KPIs.
 - `scripts/verification/grid_convergence.py` writes the grid study of the
   example decks (observed order, GCI, extrapolated KPIs); the table and the grid

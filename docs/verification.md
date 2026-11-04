@@ -573,9 +573,15 @@ of the example decks, and what each needs, is on the
   rate within 10 % over five decades, the KPI error is a fixed multiple of the
   state change, and each decade of state tolerance costs one cycle and buys a
   decade of KPI accuracy. With the energy balance on (rho = 0.966, a slow
-  thermal mode) the CSS recovery extrapolated from cycles 39, 59 and 79 predicts
-  the KPI of cycles 99 to 139 within the noise, and the default rule (state
-  tolerance 2e-5) stops at cycle 108 with a recovery error of 6.0e-5 against
-  6.4e-5 predicted. Aitken acceleration stops at cycle 83 on KPIs 2.8e-5
-  (recovery) and 3.6e-5 (purity) from that CSS value, inside the error the rule
-  allows a plain run.
+  thermal mode) the CSS recovery fitted to cycles 40-79 predicts the KPI of
+  cycles 99 to 139 within the noise, and the default rule (state tolerance
+  2e-5) stops at cycle 108 with a recovery error of 6.11e-5 against 6.21e-5
+  predicted (purity 7.20e-5 against 7.29e-5), inside a tolerance of 3 standard
+  deviations computed from the noise measured in the run (11 % and 4 %).
+  Aitken acceleration stops at cycle 83 on KPIs 2.6e-5 (recovery) and 4.0e-5
+  (purity) from that CSS value, inside the error the rule allows a plain run.
+  The KPIs carry cycle-to-cycle noise that depends on the integrator's step
+  sequence, and so on the platform; the tests measure it in the run and fit
+  every CSS value over many cycles (an Aitken extrapolation from three
+  cycles amplifies the noise five-fold: on macOS that moved f* by 15 % of the
+  error under test).
