@@ -166,6 +166,11 @@ namespace adsim {
                [](const UserData& u) { return (long long)static_cast<int>(u.settings.advection_scheme_); },
                [](UserData& u, long long x) { u.settings.advection_scheme_ = static_cast<AdvectionScheme>((int)x); },
                "upwind,weno,van_leer"),
+      // Bed side of every valve stream's linear valve law (ida_settings.h).
+      IntField("settings", "valve_bed_pressure", "valve bed-side pressure",
+               [](const UserData& u) { return (long long)static_cast<int>(u.settings.valve_bed_pressure_); },
+               [](UserData& u, long long x) { u.settings.valve_bed_pressure_ = static_cast<ValveBedPressure>((int)x); },
+               "face,end_cell"),
       IntField("settings", "max_cycles_to_keep", "cycles kept in the log",
                [](const UserData& u) { return (long long)u.settings.max_cycles_to_keep_; },
                [](UserData& u, long long x) { u.settings.max_cycles_to_keep_ = (int)x; }),
@@ -1163,6 +1168,17 @@ namespace adsim {
               E("c_amp", "-", p->c_amp, -1.0, 1.0);
               E("c_beta", "1/K", p->c_beta, 0.0, 1.0);
               E("c_Tref", "K", p->c_Tref, 273.0, 473.0);
+            }
+            break;
+          case IsothermType::EXTENDED_LANGMUIR_FREUNDLICH:
+            if (auto* p = params(dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso))) {
+              E("k1", "mol/kg", p->k1, 0.01, 50.0);
+              E("k2", "mol/(kg-K)", p->k2, -0.1, 0.1);
+              E("k3", "-", p->k3, 1e-8, 1e3);
+              E("k4", "K", p->k4, 0.0, 1e4);
+              E("k5", "-", p->k5, 0.05, 5.0);
+              E("k6", "K", p->k6, -1e3, 1e3);
+              E("P_ref", "Pa", p->P_ref, 1.0, 1e7);
             }
             break;
           case IsothermType::INERT:

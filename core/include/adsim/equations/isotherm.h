@@ -61,6 +61,7 @@ namespace adsim {
     TOTH,
     TOTH_2,
     ARRHENIUS_SIPS,
+    EXTENDED_LANGMUIR_FREUNDLICH,
   };
 
   static const char* isothermModelNames[] = {
@@ -83,14 +84,15 @@ namespace adsim {
     "Redlich-Peterson",
     "Toth",
     "Toth 2",
-    "Arrhenius Sips (Schell 2012)"
+    "Arrhenius Sips (Schell 2012)",
+    "Extended Langmuir-Freundlich"
   };
 
   // The names are indexed by IsothermType, so inserting a value mid-enum
   // without adding the matching name would silently mislabel every isotherm
   // after it in the GUI and the web contract.
   static_assert(std::size(isothermModelNames) ==
-                    static_cast<size_t>(IsothermType::ARRHENIUS_SIPS) + 1,
+                    static_cast<size_t>(IsothermType::EXTENDED_LANGMUIR_FREUNDLICH) + 1,
                 "isothermModelNames must have one entry per IsothermType");
 
   class InertIsothermParameters {
@@ -237,6 +239,39 @@ namespace adsim {
          cereal::make_nvp("IP_k_A", k_A), cereal::make_nvp("IP_k_B", k_B),
          cereal::make_nvp("IP_c_ref", c_ref), cereal::make_nvp("IP_c_amp", c_amp),
          cereal::make_nvp("IP_c_beta", c_beta), cereal::make_nvp("IP_c_Tref", c_Tref));
+    }
+  };
+
+  // Extended Langmuir-Freundlich with temperature-dependent parameters (the
+  // form of Yang, "Gas Separation by Adsorption Processes", 1987, used by
+  // toPSAil's calcIsothermExtLangFreu.m):
+  //   q_i  = q_s,i z_i / (1 + sum_j z_j),   z_i = b_i (P y_i / P_ref)^{n_i}
+  //   q_s,i = k1 + k2 T,   b_i = k3 exp(k4 / T),   1 / n_i = k5 + k6 / T
+  // The affinity multiplies the power (b P^n), unlike Sips 2's (b P)^n. P_ref
+  // carries the pressure unit k3 was fitted in (1e5 Pa: k3 in bar^-n).
+  class ExtendedLangmuirFreundlichIsothermParameters {
+  public:
+    ExpressionParam k1{4.0};        // [mol/kg]
+    ExpressionParam k2{0.0};        // [mol/(kg K)]
+    ExpressionParam k3{1.0};        // [-] (per P_ref^n)
+    ExpressionParam k4{0.0};        // [K]
+    ExpressionParam k5{1.0};        // [-]
+    ExpressionParam k6{0.0};        // [K]
+    ExpressionParam P_ref{1.0e5};   // [Pa]
+
+    void EvaluateExpressions(const EvalContext& ctx) {
+      k1.Evaluate(ctx); k2.Evaluate(ctx); k3.Evaluate(ctx); k4.Evaluate(ctx);
+      k5.Evaluate(ctx); k6.Evaluate(ctx); P_ref.Evaluate(ctx);
+    }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      ar(cereal::make_nvp("IP_k1", k1), cereal::make_nvp("IP_k2", k2),
+         cereal::make_nvp("IP_k3", k3), cereal::make_nvp("IP_k4", k4),
+         cereal::make_nvp("IP_k5", k5), cereal::make_nvp("IP_k6", k6),
+         cereal::make_nvp("IP_P_ref", P_ref));
     }
   };
 
@@ -434,6 +469,8 @@ namespace adsim {
     // multicomponent form is handled in ArrheniusSipsIsotherm::Update/UpdateAll;
     // this evaluates the pure-component isotherm q = n_inf·(k·p)^c/(1+(k·p)^c).
     void ArrheniusSips(double& qi, double T, double P, double yi, const ArrheniusSipsIsothermParameters& ips);
+    // Single-component extended Langmuir-Freundlich loading q = q_s z / (1 + z).
+    void ExtendedLangmuirFreundlich(double& qi, double T, double P, double yi, const ExtendedLangmuirFreundlichIsothermParameters& ips);
   }
 
   struct IsothermUpdateParams {
@@ -605,6 +642,15 @@ namespace adsim {
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
   };
 
+  // Competitive (shared denominator) extended Langmuir-Freundlich; see
+  // ExtendedLangmuirFreundlichIsothermParameters.
+  class ExtendedLangmuirFreundlichIsotherm : public ParamIsotherm<ExtendedLangmuirFreundlichIsothermParameters, IsothermType::EXTENDED_LANGMUIR_FREUNDLICH> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+    void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
+  };
+
   class DualSiteSipsIsotherm : public ParamIsotherm<DualSiteSipsIsothermParameters, IsothermType::DUAL_SITE_SIPS> {
   public:
     using ParamIsotherm::ParamIsotherm;
@@ -698,6 +744,7 @@ namespace adsim {
     case IsothermType::TOTH: return std::make_unique<TothIsotherm>(component);
     case IsothermType::TOTH_2: return std::make_unique<Toth2Isotherm>(component);
     case IsothermType::ARRHENIUS_SIPS: return std::make_unique<ArrheniusSipsIsotherm>(component);
+    case IsothermType::EXTENDED_LANGMUIR_FREUNDLICH: return std::make_unique<ExtendedLangmuirFreundlichIsotherm>(component);
     default: return nullptr;
     }
   }

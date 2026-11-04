@@ -81,6 +81,8 @@ This complements the existing coverage rather than duplicating it:
 | `test_grid_convergence.cpp` | Cycle-KPI grid convergence at CSS: monotone convergence, observed order, GCI, all three schemes |
 | `test_integrator_tolerance.cpp` | Error against reltol (BDF slope, abstol floor) on a breakthrough and a cycle; `max_step` independence |
 | `test_css_convergence.cpp` | Geometric approach to CSS, KPI error left by the stopping rule, Aitken lands on the same KPIs |
+| `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form |
+| `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
 
 ## `test_energy_balance.cpp`
 
@@ -487,6 +489,45 @@ its secant.
   `1.3e-4` at `y0 = 1e-4`, which is why the test uses `y0 = 1e-4`. Guard: the
   wave spreads over 450 s, more than 5x its head time, and `f'(c)` varies
   16-fold across it. About 0.5 s.
+## `test_extended_langmuir_freundlich.cpp`
+
+The extended Langmuir-Freundlich isotherm with T-dependent parameters (Yang
+1987; toPSAil), `q_i = (k1 + k2 T) z_i / (1 + sum z_j)`,
+`z_i = k3 exp(k4/T) (P y_i / P_ref)^{n_i}`, `1/n_i = k5 + k6/T`, with the
+H2/CO parameters of toPSAil's case_study_4.0, against the closed form written
+in the test.
+
+- **`CompetitiveLoadingsMatchClosedFormAt303K` / `At343K`**: loadings seeded in
+  a closed uniform bed (the solver's path) match to 1e-6 at 11.15 bar, 303 K
+  (H2 0.0468, CO 0.795 mol/kg) and 5 bar, 343 K. Guards: CO cuts the H2
+  loading to 0.66 of its single-component value; at 343 K, freezing q_s and
+  1/n at their 303 K values (k2 = k6 = 0, the only case extended Sips 2 can
+  represent) moves the CO loading by more than 1 %.
+- **`PureEvaluationAndIastMappingMatchClosedForm`**: `EvalIsotherm` within
+  1e-10 (the near-zero step at y = 1) and the IAST Sips term within 4e-16,
+  at 273–373 K and 1 kPa–20 bar.
+- **`TraceComponentKeepsItsLoading`**: the step changes a trace loading by
+  `1e-10 / y^2` (1.0e-4 at y = 1e-3, 1e-6 at y = 1e-2). All four take about
+  0.1 s.
+## `test_valve_bed_pressure.cpp`
+
+Steady flow through an inert isothermal bed: a set molar flow `F` enters at the
+bottom and leaves through a linear valve, so at steady state the bed side of
+the valve law is exactly `P_down + 1e5 F / Cv` whatever the bed's resistance.
+Fine particles on a 10-cell grid make the end cell sit about 1.8 kPa above the
+face, so reading the wrong pressure fails by three orders of magnitude more
+than the 1 Pa tolerance.
+
+- **`SteadyThroughFlowReadsTheChosenPressure`**: with `face` the face pressure
+  is 200000 Pa (end cell 201834); with `end_cell` the end cell is 200000 Pa
+  (face 198149); outflow equals `F` to 1e-6. About 0.1 s.
+- **`ConnectedValvesReadBothEndCells`**: a donor step (fed at `F`, valve out)
+  connected to a receiver step (valve in, bottom vented through a pressure
+  boundary), at the cyclic steady state (18 cycles, end pressure moves < 0.01
+  Pa per cycle): the face pressures (face setting) or the end-cell pressures
+  (end-cell setting) are `1e5 F / Cv` apart to 1 Pa. Guard: the end-cell and
+  face differences across the valve differ by 3.8 kPa. About 3.5 s.
+
 ## `test_ldf_thomas.cpp`
 
 A front shaped by the LDF rate rather than by dispersion: a Henry isotherm with

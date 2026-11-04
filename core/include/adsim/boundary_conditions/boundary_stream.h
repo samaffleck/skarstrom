@@ -111,6 +111,12 @@ namespace adsim {
 		double GetEnthalpyFlow(double time) const;
 		double GetTemperature(double time) const;
 		double GetPressure(double time) const;
+		// Pressure of the bed's end cell (the last packed cell at the stream's
+		// bed end) at `time`; what a connected valve reads with
+		// IDASettings::valve_bed_pressure_ = EndCell. Falls back to GetPressure
+		// when the end cell was not logged.
+		double GetEndCellPressure(double time) const;
+		void LogEndCellPressure(double pressure) { end_cell_pressure_.emplace_back(pressure); }
 		double GetComponentFlow(double time, const std::string& component) const;
 		double GetMoleFraction(double time, const std::string& component) const;
     double GetAveragePurity(const std::string& component) const;
@@ -119,6 +125,7 @@ namespace adsim {
 		std::vector<double> enthalpy_flow_{};
 		std::vector<double> temperature_boundary_{};
 		std::vector<double> pressure_boundary_{};
+		std::vector<double> end_cell_pressure_{};  // one entry per logged time (see LogEndCellPressure)
 		std::vector<double> electrical_power_{};
 		std::vector<double> time_series_{};
 		std::unordered_map<std::string, std::vector<double>> component_molar_flow_{};

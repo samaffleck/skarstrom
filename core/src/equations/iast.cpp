@@ -27,7 +27,8 @@ namespace adsim {
     //   dual-site Langmuir family              q = sum of two Langmuir terms          c0 = m1, c1 = B1, c2 = m2, c3 = B2
     //   FREUNDLICH                             q = (a P)^n                            c0 = a, c1 = n = 1/v
     //   SIPS, SIPS_2, EXTENDED_SIPS_2,         q = qs z / (1 + z), z = (b P)^n        c0 = qs, c1 = b, c2 = n
-    //     ARRHENIUS_SIPS
+    //     ARRHENIUS_SIPS,
+    //     EXTENDED_LANGMUIR_FREUNDLICH
     //   DUAL_SITE_SIPS                         q = sum of two Sips terms              c0 = qs1, c1 = b1, c2 = n1, c3 = qs2, c4 = b2, c5 = n2
     //   ANTI_LANGMUIR                          q = a P / (1 - b P)                    c0 = a, c1 = b
     //   REDLICH_PETERSON                       q = a P / (1 + (b P)^v)                c0 = a, c1 = b, c2 = v
@@ -54,7 +55,8 @@ namespace adsim {
         case T::SIPS:
         case T::SIPS_2:
         case T::EXTENDED_SIPS_2:
-        case T::ARRHENIUS_SIPS: return Family::Sips;
+        case T::ARRHENIUS_SIPS:
+        case T::EXTENDED_LANGMUIR_FREUNDLICH: return Family::Sips;
         case T::DUAL_SITE_SIPS: return Family::DualSiteSips;
         case T::ANTI_LANGMUIR: return Family::AntiLangmuir;
         case T::REDLICH_PETERSON: return Family::RedlichPeterson;
@@ -245,6 +247,15 @@ namespace adsim {
         c[1] = p[2] * std::exp(p[3] / RT);
         c[2] = p[4] + p[5] * (2.0 / M_PI) * std::atan(p[6] * (T - p[7]));
         break;
+      case K::EXTENDED_LANGMUIR_FREUNDLICH: {  // k1, k2, k3, k4, k5, k6, P_ref
+        // b (P / P_ref)^n = (b^{1/n} P / P_ref)^n: a Sips term with
+        // affinity b^{1/n} / P_ref [1/Pa] and exponent n.
+        const double n = 1.0 / (p[4] + p[5] / T);
+        c[0] = p[0] + p[1] * T;
+        c[1] = std::pow(p[2] * std::exp(p[3] / T), 1.0 / n) / p[6];
+        c[2] = n;
+        break;
+      }
       case K::DUAL_SITE_SIPS:  // q_sat1, b1, v1, q_sat2, b2, v2
         c[0] = p[0]; c[1] = p[1]; c[2] = 1.0 / p[2];
         c[3] = p[3]; c[4] = p[4]; c[5] = 1.0 / p[5];
