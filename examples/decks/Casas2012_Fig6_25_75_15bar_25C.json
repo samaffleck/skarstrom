@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 3,
+        "cereal_class_version": 4,
         "Adsorbent_Directory": {
             "cereal_class_version": 1,
             "Adsorbents": [
@@ -558,7 +558,7 @@
             }
         },
         "Fluid": {
-            "cereal_class_version": 3,
+            "cereal_class_version": 4,
             "Components": [
                 "CarbonDioxide",
                 "Hydrogen",
@@ -591,7 +591,40 @@
                 }
             ],
             "Adsorbed_Heat_Capacity_Mode": 0,
-            "Heat_Of_Adsorption_Convention": 0
+            "Heat_Of_Adsorption_Convention": 0,
+            "Gas_Heat_Capacity_Mode": 0,
+            "Gas_Heat_Capacity": [
+                {
+                    "key": "Helium",
+                    "value": {
+                        "Value": 29.1,
+                        "Expression": "29.1",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Hydrogen",
+                    "value": {
+                        "Value": 29.1,
+                        "Expression": "29.1",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 29.1,
+                        "Expression": "29.1",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Viscosity_Mode": 0,
+            "Viscosity": {
+                "Value": 0.000018,
+                "Expression": "1.8e-05",
+                "DisplayUnitIndex": 0
+            }
         },
         "Initial_Conditions": {
             "cereal_class_version": 3,
@@ -789,20 +822,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 9.871126427779382,
-                                    "Average_Temperature": 302.56112113304189,
+                                    "Total_Moles": 9.871120532782755,
+                                    "Average_Temperature": 302.56174588141797,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.02680718624661607
+                                            "value": 0.026807226957987257
                                         },
                                         {
                                             "key": "Hydrogen",
-                                            "value": 0.8012207137962637
+                                            "value": 0.8012212077512242
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.17197209995712038
+                                            "value": 0.1719715652907886
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -885,16 +918,16 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 10.891872930775195,
-                                                        "Average_Temperature": 298.1500000000001,
+                                                        "Total_Moles": 10.891872930749966,
+                                                        "Average_Temperature": 298.15000000000017,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.2499999999999999
+                                                                "value": 0.24999999999999973
                                                             },
                                                             {
                                                                 "key": "Hydrogen",
-                                                                "value": 0.75
+                                                                "value": 0.7500000000000002
                                                             },
                                                             {
                                                                 "key": "Helium",
@@ -1002,7 +1035,7 @@
             }
         },
         "Solver_Settings": {
-            "cereal_class_version": 6,
+            "cereal_class_version": 7,
             "Maximum_Number_Of_Steps": 100000,
             "Initial_Step_Size": {
                 "Value": 1e-10,
@@ -1070,7 +1103,8 @@
                 "Vacuum": true,
                 "Design_Temperature": true,
                 "Fluidisation": true
-            }
+            },
+            "Valve_Bed_Pressure": 0
         },
         "Experimental_Data": {
             "cereal_class_version": 1,
@@ -1140,6 +1174,26 @@
             "maintenance_fraction": 0.03,
             "overhead_fraction": 0.02,
             "labour_cost_per_year": 50000.0
+        },
+        "Sensitivity_Study": {
+            "cereal_class_version": 0,
+            "Inputs": [],
+            "Outputs": [],
+            "Policy": {
+                "cereal_class_version": 0,
+                "Require_CSS": true,
+                "Cycles": 0,
+                "Settings": []
+            },
+            "Seed": 1,
+            "Trajectories": 10,
+            "Levels": 4,
+            "Threshold": 0.1,
+            "Runs": 100,
+            "Batch": 50,
+            "Max_Runs": 400,
+            "Rel_Tol": 0.1,
+            "Bootstrap": 1000
         }
     }
 }

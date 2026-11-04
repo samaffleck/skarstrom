@@ -166,7 +166,55 @@ $$
 | $C_1, C_2$ | Exponent and its temperature coefficient | - |
 | $T_{ref}$ | Reference temperature | K |
 
-An **Extended Sips 2** competitive multi-component form is also available; it shares the denominator $1 + \sum_j (b_j P_j)^{s_j}$ across components (with a small numerical regularisation applied near zero mole fraction for solver stability).
+An **Extended Sips 2** competitive multi-component form is also available (kind `extended_sips_2`); it shares the denominator $1 + \sum_j (b_j P_j)^{s_j}$ across components. Below a mole fraction of $10^{-5}$ each term is continued as described in [Competitive Sips kinds near zero mole fraction](#competitive-sips-kinds-near-zero-mole-fraction).
+
+---
+
+## Arrhenius Sips (Schell 2012)
+
+The temperature-dependent Sips form of Schell et al. (*Adsorption* 18 (2012) 49, Eqs. 5–7), fitted there to CO₂, H₂ and N₂ on activated carbon: an Arrhenius saturation capacity and affinity, and an S-shaped (inverse-tangent) exponent. It is competitive, with the same shared denominator as Extended Sips 2 (Ruthven's empirical mixture Sips). Kind `arrhenius_sips`.
+
+$$
+n_{\infty,i} = a \exp\negthinspace \left(\frac{b}{R T}\right), \qquad
+k_i = A \exp\negthinspace \left(\frac{B}{R T}\right), \qquad
+c_i = c_{ref} + c_{amp}\thinspace \frac{2}{\pi} \arctan\negthinspace\left[\beta \left(T - T_c\right)\right]
+$$
+
+$$
+q_i^* = n_{\infty,i}\thinspace \frac{\left(k_i P_i\right)^{c_i}}{1 + \sum_j \left(k_j P_j\right)^{c_j}}
+$$
+
+| Symbol | Parameter | Description | Unit |
+|--------|-----------|-------------|------|
+| $a$ | `n_inf_a` | Saturation capacity pre-factor | mol kg⁻¹ |
+| $b$ | `n_inf_b` | Saturation capacity energy ($0$ for a constant capacity) | J mol⁻¹ |
+| $A$ | `k_A` | Affinity pre-factor | Pa⁻¹ |
+| $B$ | `k_B` | Affinity energy | J mol⁻¹ |
+| $c_{ref}$ | `c_ref` | Exponent at $T = T_c$ | - |
+| $c_{amp}$ | `c_amp` | Exponent amplitude ($0$ for a constant exponent) | - |
+| $\beta$ | `c_beta` | Exponent steepness | K⁻¹ |
+| $T_c$ | `c_Tref` | Exponent centre temperature | K |
+
+Below a mole fraction of $10^{-5}$ each term is continued as described in the next section.
+
+---
+
+## Competitive Sips kinds near zero mole fraction
+
+In Extended Sips 2 and Arrhenius Sips each component's term $z_i = (b_i P y_i)^{s_i}$ has an infinite slope at $y_i = 0$ when $s_i < 1$. The integrator's Newton iteration cannot linearise that, and a component absent from part of the bed (ahead of its front, or after a purge) sits right on it. Below the mole fraction $y_0 = 10^{-5}$ the power is therefore replaced by the quadratic in $y_i$ that is zero at $y_i = 0$ and has the power's value and slope at $y_0$:
+
+$$
+z_i = \left(b_i P y_0\right)^{s_i}\thinspace t\left[(2 - s_i) - (1 - s_i)\thinspace t\right], \qquad t = \frac{y_i}{y_0}, \qquad 0 \le y_i < y_0
+$$
+
+- **Exact above $y_0$.** For $y_i \ge 10^{-5}$ (10 ppm) the published isotherm is used unchanged, so a trace component's loading is exact down to 10 ppm, at every pressure and temperature. Below $y_0$ the term has a finite Henry slope, $(2 - s_i)(b_i P y_0)^{s_i} / y_0$ at $y_i = 0$, where the power's is infinite; at $y_i = y_0/10$ it is 40 % of the power for the most singular exponent in the adsorbent library ($s = 0.425$, CO₂ on 13X).
+- **Smooth and favourable.** The continuation matches the power's value and slope at $y_0$ and, for $s_i < 1$, is concave and increasing on $[0, y_0]$, so the isotherm has no inflection down to $y_i = 0$, where the loading is exactly 0. A slightly negative mole fraction, which the integrator can produce ahead of a front, gives $z_i = (2 - s_i)(b_i P y_0)^{s_i} \tanh t$, which continues the slope at 0 and stays bounded.
+- $y_0$ is 1000 times the integrator's absolute tolerance on mole fractions ($10^{-8}$), so a Newton correction near $y_i = 0$ sees an almost linear term.
+- For $s_i \ge 2$, where the quadratic would not be monotone (no published fit is near it), the power is used down to $y_i = 0$ and $z_i = 0$ below it.
+
+The single-component evaluation of these two kinds (`skarstrom.evaluate_isotherm`, whose `mole_fraction` defaults to 1, and the [isotherm fitter](isotherm-fitting.md)) uses the same function, so what is plotted or fitted is what the solver uses. Under the [IAST mixing rule](#mixture-loadings-the-mixing-rule-and-iast) the pure isotherms are evaluated in partial pressure and absent components take the infinite-dilution limit, so the continuation does not enter.
+
+> Before this was introduced (see the changelog), the two kinds multiplied every term by $y_i^2 / (y_i^2 + 10^{-6})$, in the solver only. That halved a component's loading at $y_i = 10^{-3}$, cut it by 1 % at $10^{-2}$ and by 99 % at $10^{-4}$.
 
 ---
 

@@ -63,6 +63,34 @@ namespace adsim {
       double q_max = ips.A1 * eA;
       return q_max * z / (1 + z);
     }
+
+    // Competitive Sips term z = (bP y)^s of extended_sips_2 and arrhenius_sips
+    // near zero mole fraction (docs/isotherms.md, "Competitive Sips kinds near
+    // zero mole fraction"). For s < 1 the power has an infinite slope at y = 0,
+    // which the Newton iteration cannot linearise. Below kSipsTraceY0 it is
+    // replaced by the quadratic in y that is zero at y = 0 and matches the
+    // power's value and slope at y0 (C1):
+    //     z = (bP y0)^s t ((2 - s) - (1 - s) t),   t = y / y0.
+    // Exact for y >= y0; concave and increasing on [0, y0] for s < 1 (no
+    // inflection, so the isotherm stays favourable), with the finite Henry slope
+    // (2 - s)(bP y0)^s / y0 at y = 0. Below 0 (integrator excursions ahead of a
+    // front) the slope is continued by (2 - s)(bP y0)^s tanh(t), which stays
+    // bounded. y0 is 1000x the mole-fraction absolute tolerance (1e-8), so a
+    // Newton correction near y = 0 sees an almost linear term. For s >= 2 the
+    // quadratic would not be monotone, so the power is used, clipped at 0
+    // (C1 there since its slope at 0 is 0).
+    //
+    // This replaces the former smooth step y^2 / (y^2 + 1e-6), which halved the
+    // loading at y = 1e-3 and cut it by 1 % at y = 1e-2 (WP19-1).
+    constexpr double kSipsTraceY0 = 1e-5;
+    inline double SipsTraceTerm(double bP, double y, double s) {
+      if (y >= kSipsTraceY0) return safe_pow(bP * y, s);
+      if (s >= 2.0) return y > 0.0 ? safe_pow(bP * y, s) : 0.0;
+      const double z0 = safe_pow(bP * kSipsTraceY0, s);
+      const double t = y / kSipsTraceY0;
+      if (y >= 0.0) return z0 * t * ((2.0 - s) - (1.0 - s) * t);
+      return z0 * (2.0 - s) * std::tanh(t);
+    }
     // eX = exp(x (1 - T / T_0)), eH = exp(dH0 / (R T_0) (T_0 / T - 1)).
     inline double Toth2Q(double eX, double eH, double T, double P, double yi, const Toth2IsothermParameters& ips) {
       double yi_pos = softplus(yi, kSoftplusTau);
@@ -107,6 +135,16 @@ namespace adsim {
     qi = Sips2Q(eB, eA, T, P, yi, ips);
 	}
 
+	void IsothermFunction::ExtendedSips2(double& qi, double T, double P, double yi, const Sips2IsothermParameters& ips) {
+		// Same arithmetic as ExtendedSips2Isotherm::UpdateAll with one component.
+		const double& R = constants::kIdealGasConstant;
+		const double b_i = ips.B1 * std::exp(ips.B2 / (R * T));
+		const double s_i = ips.C1 + ips.C2 * ((T / ips.T_ref) - 1);
+		const double z = SipsTraceTerm(b_i * P, yi, s_i);
+		const double q_max = ips.A1 * std::exp(ips.A2 * ((T / ips.T_ref) - 1));
+		qi = q_max * z / (1 + z);
+	}
+
 	void IsothermFunction::ArrheniusSips(double& qi, double T, double P, double yi, const ArrheniusSipsIsothermParameters& ips) {
 		const double R = constants::kIdealGasConstant;
 		// Extract to plain doubles first so all arithmetic is numeric (not built
@@ -117,8 +155,8 @@ namespace adsim {
 		const double n_inf = a * std::exp(b / (R * T));
 		const double k_i = A * std::exp(B / (R * T));
 		const double c_i = c_ref + c_amp * (2.0 / M_PI) * std::atan(c_beta * (T - c_Tref));
-		double yi_pos = softplus(yi, kSoftplusTau);
-		double z = safe_pow(k_i * P * yi_pos, c_i);
+		// The competitive term as ArrheniusSipsIsotherm::UpdateAll evaluates it.
+		const double z = SipsTraceTerm(k_i * P, yi, c_i);
 		qi = n_inf * z / (1 + z);
 	}
 
@@ -608,21 +646,12 @@ namespace adsim {
 
     for (const auto& comp : components) params_[comp];
 
-    // Regularized competitive Sips loading.
-    // z_raw = (b_i*P*mf_pos)^s uses the solver-stable softplus (tau=1e-6).
-    // Multiplied by a smooth step mf_pos²/(mf_pos²+δ²) that → 0 as mf → 0 and → 1
-    // for mf >> δ. This makes z(mf=0) effectively zero while suppressing the Jacobian
-    // spike at mf=0. δ=1e-3 (not 1e-4) keeps the peak Jacobian gradient at mf=δ to
-    // ~500 per unit vs ~5000 with δ=1e-4, preventing solver stalls in multi-cycle PSA
-    // when CO2 mole fractions pass through the near-zero transition region.
-    constexpr double kDelta = 1e-3;
-    // eB = exp(B2 / (R T)) for this cell.
+    // Competitive Sips term z = (b_i P y_i)^{s_i}, continued below y = 1e-5
+    // (SipsTraceTerm). eB = exp(B2 / (R T)) for this cell.
     auto get_z = [&](double temp, double press, double mf, double eB, const Sips2IsothermParameters& params) -> double {
       const double b_i = params.B1 * eB;
       const double s_i = params.C1 + params.C2 * ((temp / params.T_ref) - 1);
-      const double mf_pos = softplus(mf, kSoftplusTau);
-      const double z_raw = safe_pow(b_i * press * mf_pos, s_i);
-      return z_raw * (mf_pos * mf_pos) / (mf_pos * mf_pos + kDelta * kDelta);
+      return SipsTraceTerm(b_i * press, mf, s_i);
     };
 
     // Hoist map lookups out of the cell loop. The denominator terms iterate
@@ -665,11 +694,10 @@ namespace adsim {
 
   // --- Arrhenius Sips (Schell/Casas 2012) -----------------------------------
   // Shared helpers: evaluate the temperature-dependent Sips parameters and the
-  // regularised competitive term z_i = (k_i·P·y_i)^{c_i}. The regularisation is
-  // identical to ExtendedSips2Isotherm (softplus + smooth step, kDelta = 1e-3)
-  // so the Jacobian stays well conditioned as a mole fraction passes through 0.
+  // competitive term z_i = (k_i·P·y_i)^{c_i}, continued below y = 1e-5 exactly
+  // as in ExtendedSips2Isotherm (SipsTraceTerm), so the Jacobian stays finite as
+  // a mole fraction passes through 0.
   namespace {
-    constexpr double kArrSipsDelta = 1e-3;
 
     inline double ArrSips_ninf(double T, const ArrheniusSipsIsothermParameters& p) {
       const double R = constants::kIdealGasConstant;
@@ -690,9 +718,7 @@ namespace adsim {
                             const ArrheniusSipsIsothermParameters& p) {
       const double k_i = ArrSips_k(T, p);
       const double c_i = ArrSips_c(T, p);
-      const double mf_pos = softplus(mf, kSoftplusTau);
-      const double z_raw = safe_pow(k_i * P * mf_pos, c_i);
-      return z_raw * (mf_pos * mf_pos) / (mf_pos * mf_pos + kArrSipsDelta * kArrSipsDelta);
+      return SipsTraceTerm(k_i * P, mf, c_i);
     }
   } // namespace
 

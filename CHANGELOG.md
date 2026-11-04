@@ -43,6 +43,33 @@ root `CMakeLists.txt`.
   Python `isotherm_kinds()`, IAST (an exact Sips term) and the docs know it;
   the fitter does not offer it yet. Near y = 0 each term is regularised with a
   step at 1e-5 (loading changed by 1e-10 / y^2: 1e-4 at y = 1e-3).
+### Fixed — competitive Sips kinds no longer suppress trace-component loadings
+- `extended_sips_2` and `arrhenius_sips` multiplied every competitive term
+  z_i = (b_i P y_i)^{s_i} by y_i^2 / (y_i^2 + 1e-6) in the solver only, to
+  keep the slope of y^s (s < 1) finite at y = 0. That halved a component's
+  equilibrium loading at y = 1e-3, cut it by 1 % at 1e-2 and by 99 % at 1e-4
+  (a trace-impurity front on these kinds travelled about twice as fast as the
+  published isotherm gives), while `evaluate_isotherm` and the fitter used
+  the unregularised form. Below y0 = 1e-5 the power is now continued by the
+  quadratic in y that is zero at y = 0 and matches the power's value and
+  slope at y0; above y0 the published isotherm is used exactly. The
+  continuation is concave (no inflection), has a finite Henry slope, and the
+  single-component evaluation (`IsothermFunction::ExtendedSips2`, new, and
+  `IsothermFunction::ArrheniusSips`, so `EvalIsotherm`, Python
+  `evaluate_isotherm` and the fitter) uses the same function. Documented in
+  `docs/isotherms.md` ("Competitive Sips kinds near zero mole fraction"),
+  which also gains the missing Arrhenius Sips section.
+- Paper cases move little (the fronts' plateaux are unchanged): Casas 2012
+  CO2 breakthrough times (y > 0.002) are 0.6-0.8 s later (errors against
+  Table 5: 0.92 → 0.73 %, 0.64 → 0.45 %, 9.81 → 9.99 %); every Streb 2021
+  metric stays within its bound, the largest change being the ternary CH4
+  fronts (B1 2.13 → 2.38 %, B2 13.7 → 14.0 %). The breakthrough decks take
+  10-40 % more integrator steps because the front's toe is now a shock down
+  to y = 0 (wall time still under 1 s for A3 and Casas); the 20-cycle biogas
+  PSA, also from a CO2-free bed, takes 2-3 % more steps and needs no step
+  retries. Tests: `CompetitiveSipsTraceLoading.*`,
+  `CompetitiveSipsBelowThreshold.*` and
+  `CompetitiveSipsTraceBreakthrough.FirstMomentMatchesPublishedIsotherm`.
 
 ### Fixed — the ColouredCheck Jacobian diagnostic no longer changes the run
 - In `JacobianMode::ColouredCheck` the band evaluation built for the

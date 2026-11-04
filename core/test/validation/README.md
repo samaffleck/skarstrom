@@ -83,6 +83,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_css_convergence.cpp` | Geometric approach to CSS, KPI error left by the stopping rule, Aitken lands on the same KPIs |
 | `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form |
 | `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
+| `test_competitive_sips_trace_loading.cpp` | Competitive Sips kinds (extended_sips_2, arrhenius_sips): trace-component loadings against the published isotherms down to y = 1e-5, the documented continuation below, a trace front's first moment |
 
 ## `test_energy_balance.cpp`
 
@@ -620,6 +621,27 @@ of the example decks, and what each needs, is in `docs/numerics.md`
   every CSS value over many cycles (an Aitken extrapolation from three
   cycles amplifies the noise five-fold: on macOS that moved f* by 15 % of the
   error under test).
+## `test_competitive_sips_trace_loading.cpp`
+
+The competitive Sips kinds continue each term z_i = (b_i P y_i)^{s_i} below
+y_0 = 1e-5 by a quadratic in y (docs/isotherms.md), and use the published
+form unchanged above it (WP19-1: they used to multiply every term by
+y^2 / (y^2 + 1e-6), halving the loading at y = 1e-3).
+
+- **Seeded loadings** of a trace CO2 (Casas 2012 arrhenius_sips at 15 bar with
+  y_H2 = 0.5; Streb 2021 extended_sips_2, s = 0.425, at 10 bar with
+  y_CH4 = 0.5) in a closed uniform bed, at y = 0.1 to 2e-5, against the closed
+  form written from the papers' equations: tolerance 1e-6 relative (same
+  algebra, round-off only); measured below 1e-15. Below y_0 (5e-6, 1e-7)
+  the documented continuation to 1e-6, and exactly 0 at y = 0. Guard: the
+  former step moved each loading above y_0 by at least 1e-4 (99x the
+  tolerance); on main it gave -0.96 % at 1e-2, -49.9 % at 1e-3, -99 % at 1e-4.
+- **Trace breakthrough** (y_f = 1e-3 CO2 in helium, arrhenius_sips, 1 bar,
+  isothermal): the first moment of the outlet curve equals the
+  equilibrium-theory time (L/u)(1 + (rho_b/eps) q*(y_f)/c_f) (a mass balance,
+  exact however smeared the front), tolerance 2 y_f for the sorption effect;
+  measured -1.1e-4. Guard: the former step gives a 49 % earlier front
+  (measured on main: 543 s against 1062 s). About 1 s.
 
 ## Fixed along the way
 

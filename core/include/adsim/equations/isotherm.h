@@ -461,6 +461,9 @@ namespace adsim {
     void Freundlich(double& qi, double T, double P, double yi, const FreundlichIsothermParameters& ips);
     void Sips(double& qi, double T, double P, double yi, const SipsIsothermParameters& ips);
     void Sips2(double& qi, double T, double P, double yi, const Sips2IsothermParameters& ips);
+    // Single-component loading of the competitive Sips 2 kind (extended_sips_2):
+    // Sips2 with the same continuation below y = 1e-5 as ExtendedSips2Isotherm.
+    void ExtendedSips2(double& qi, double T, double P, double yi, const Sips2IsothermParameters& ips);
     void DualSiteSips(double& qi, double T, double P, double yi, const DualSiteSipsIsothermParameters& ips);
     void RedlichPeterson(double& qi, double T, double P, double yi, const RedlichPetersonIsothermParameters& ips);
     void Toth(double& qi, double T, double P, double yi, const TothIsothermParameters& ips);
@@ -624,6 +627,10 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
   };
 
+  // Competitive Sips 2: q_i = q_max,i z_i / (1 + sum_j z_j), z_i = (b_i P y_i)^{s_i}.
+  // Below y_i = 1e-5 each z_i is continued by a quadratic in y_i (exact above,
+  // zero at y_i = 0, finite slope); see docs/isotherms.md, "Competitive Sips
+  // kinds near zero mole fraction". ArrheniusSipsIsotherm does the same.
   class ExtendedSips2Isotherm : public ParamIsotherm<Sips2IsothermParameters, IsothermType::EXTENDED_SIPS_2> {
   public:
     using ParamIsotherm::ParamIsotherm;
@@ -634,7 +641,8 @@ namespace adsim {
   // Competitive Sips with Arrhenius n_inf(T), k(T) and an arctan-shaped exponent
   // c(T), matching Schell/Casas et al. (2012). See ArrheniusSipsIsothermParameters
   // for the exact functional forms. Like ExtendedSips2Isotherm this is inherently
-  // competitive: the loading of each component shares a common denominator.
+  // competitive: the loading of each component shares a common denominator, and
+  // each term is continued below y_i = 1e-5 in the same way.
   class ArrheniusSipsIsotherm : public ParamIsotherm<ArrheniusSipsIsothermParameters, IsothermType::ARRHENIUS_SIPS> {
   public:
     using ParamIsotherm::ParamIsotherm;

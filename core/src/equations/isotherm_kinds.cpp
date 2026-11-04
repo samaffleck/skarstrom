@@ -320,7 +320,7 @@ double EvalIsotherm(IIsotherm* iso, const std::string& c, double T, double P, do
     case K::FREUNDLICH: if (auto* x = dynamic_cast<FreundlichIsotherm*>(iso)) IF::Freundlich(q, T, P, yi, x->params_[c]); break;
     case K::SIPS: if (auto* x = dynamic_cast<SipsIsotherm*>(iso)) IF::Sips(q, T, P, yi, x->params_[c]); break;
     case K::SIPS_2: if (auto* x = dynamic_cast<Sips2Isotherm*>(iso)) IF::Sips2(q, T, P, yi, x->params_[c]); break;
-    case K::EXTENDED_SIPS_2: if (auto* x = dynamic_cast<ExtendedSips2Isotherm*>(iso)) IF::Sips2(q, T, P, yi, x->params_[c]); break;
+    case K::EXTENDED_SIPS_2: if (auto* x = dynamic_cast<ExtendedSips2Isotherm*>(iso)) IF::ExtendedSips2(q, T, P, yi, x->params_[c]); break;
     case K::DUAL_SITE_SIPS: if (auto* x = dynamic_cast<DualSiteSipsIsotherm*>(iso)) IF::DualSiteSips(q, T, P, yi, x->params_[c]); break;
     case K::REDLICH_PETERSON: if (auto* x = dynamic_cast<RedlichPetersonIsotherm*>(iso)) IF::RedlichPeterson(q, T, P, yi, x->params_[c]); break;
     case K::TOTH: if (auto* x = dynamic_cast<TothIsotherm*>(iso)) IF::Toth(q, T, P, yi, x->params_[c]); break;
