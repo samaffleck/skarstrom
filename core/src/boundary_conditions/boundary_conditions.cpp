@@ -352,6 +352,7 @@ namespace adsim {
     // by it, and the default (TOP) has the wrong sign at the bottom.
     stream_data_.location_ = location_;
     stream_data_.Log(molar_flow, enthalpy_flow, temperature, pressure, power, time, component_molar_flow, mole_fraction);
+    stream_data_.LogEndCellPressure(P[i + d]);
   }
 
   void PressureBoundaryCondition::ClearLog() {

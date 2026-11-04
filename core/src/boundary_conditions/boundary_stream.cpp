@@ -90,6 +90,7 @@ namespace adsim {
       component_molar_flow,
       logged_mole_fraction
     );
+    stream_data_.LogEndCellPressure(P[i + d]);
   }
 
   bool IBoundaryStream::PerformChecks(std::string& error_msg, const Fluid& fluid) {
@@ -189,7 +190,10 @@ namespace adsim {
 
     // double C_boundary = 0.5 * (C[i] + C[i + d]);
     double T_boundary = 0.5 * (T[i] + T[i + d]);
-    double P_boundary = 0.5 * (P[i] + P[i + d]);
+    // Bed side of the valve law: the bed-end face, or the end cell when the
+    // run asks for it (IDASettings::valve_bed_pressure_).
+    const bool at_end_cell = state.ValveAtEndCell();
+    double P_boundary = at_end_cell ? P[i + d] : 0.5 * (P[i] + P[i + d]);
     // double P_boundary = C_boundary * R * T_boundary;
     double Cp_boundary = 0.5 * (Cp[i] + Cp[i + d]);
     double Mr_boundary = 0.5 * (Mr[i] + Mr[i + d]);
@@ -221,14 +225,17 @@ namespace adsim {
         return get_molar_flow(); // If no data, use the user specified assumption for first cycle
       }
 
+      // The partner's side of the valve, read where this side is read.
+      const double P_partner = at_end_cell ? connection_.stream_->GetEndCellPressure(time)
+                                           : connection_.stream_->GetPressure(time);
       if (direction_ == BoundaryDirection::INLET) {
-        double mol_flow = valve_.GetMolarFlowRate(connection_.stream_->GetPressure(time), P_boundary, Mr_boundary, AssumedInletTemperature(time), Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_partner, P_boundary, Mr_boundary, AssumedInletTemperature(time), Cp_boundary);
         if (loc == BoundaryLocation::TOP)
           return -mol_flow;
         else
           return mol_flow;
       } else { // Outlet
-        double mol_flow = valve_.GetMolarFlowRate(P_boundary, connection_.stream_->GetPressure(time), Mr_boundary, T_boundary, Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_boundary, P_partner, Mr_boundary, T_boundary, Cp_boundary);
         if (loc == BoundaryLocation::TOP)
           return mol_flow;
         else
@@ -461,6 +468,7 @@ namespace adsim {
     enthalpy_flow_.clear();
     temperature_boundary_.clear();
     pressure_boundary_.clear();
+    end_cell_pressure_.clear();
     electrical_power_.clear();
     time_series_.clear();
     component_molar_flow_.clear();
@@ -521,6 +529,11 @@ namespace adsim {
 
   double StreamData::GetPressure(double time) const {
     return InterpolateTimeSeries(time_series_, pressure_boundary_, time);
+  }
+
+  double StreamData::GetEndCellPressure(double time) const {
+    if (end_cell_pressure_.size() != time_series_.size()) return GetPressure(time);
+    return InterpolateTimeSeries(time_series_, end_cell_pressure_, time);
   }
 
   double StreamData::GetComponentFlow(double time, const std::string& component) const {

@@ -71,6 +71,15 @@ root `CMakeLists.txt`.
   `FluidPropertyModes*` and the `IsostericRT` cases of
   `ComponentEnergySourceLog`.
 
+### Added — valves can read the bed at the end cell
+- Solver setting `settings.valve_bed_pressure` (`IDASettings::valve_bed_pressure_`,
+  `"Valve_Bed_Pressure"`; `IDASettings` cereal version 7): `face` (the default,
+  unchanged behaviour) evaluates the bed side of every valve stream's linear
+  law at the bed-end face, `end_cell` at the last cell, as toPSAil does. A
+  connected valve then reads its partner's end-cell pressure, which every
+  stream and pressure boundary now logs (`StreamData::GetEndCellPressure`).
+  Decks from before load with `face`.
+
 ### Added — sensitivity studies saved with the deck
 - A deck now saves its sensitivity study's set-up (`UserData::sensitivity_study`,
   `Sensitivity_Study` in the file; `UserData` cereal version 4): inputs and their

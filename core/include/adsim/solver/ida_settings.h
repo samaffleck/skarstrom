@@ -31,6 +31,16 @@ namespace adsim {
   // state, so total species mass is unaffected.
   enum class AdvectionScheme { Upwind, WENO, VanLeer };
 
+  // Where a valve stream reads the bed-side pressure of its linear valve law.
+  // Face (the default) is the bed end: the mean of the ghost and the end cell,
+  // the pressure the boundary fluxes see. EndCell is the centre of the last
+  // packed cell, as in models that represent the column as a series of
+  // well-mixed cells and attach the valve to the last one (toPSAil,
+  // calcVolFlowRaTa2ValFiv.m); the two differ by the half-cell pressure drop
+  // and agree as the grid is refined. A connected valve then also reads its
+  // partner's end-cell pressure (StreamData::GetEndCellPressure).
+  enum class ValveBedPressure { Face = 0, EndCell = 1 };
+
   class IDASettings {
   public:
     long int max_num_steps = 100000;
@@ -53,6 +63,9 @@ namespace adsim {
 
     // Convective face-reconstruction scheme for the species balance.
     AdvectionScheme advection_scheme_ = AdvectionScheme::Upwind;
+
+    // Bed-side pressure of every valve stream's flow law (see ValveBedPressure).
+    ValveBedPressure valve_bed_pressure_ = ValveBedPressure::Face;
 
     int max_cycles_to_keep_ = 10;
 
@@ -162,6 +175,10 @@ namespace adsim {
       if (version >= 6) {
         ar(cereal::make_nvp("Warnings", warnings_));
       }
+      if (version >= 7) {
+        ar(cereal::make_nvp("Valve_Bed_Pressure", valve_bed_pressure_));
+      }
+      // version < 7: valve_bed_pressure_ stays Face (the behaviour before v7).
       // v5: the default max step changed from 2 s to no cap. Decks saved before
       // v5 that still carry the old default ("2") move to the new one; any value
       // or expression the user chose is kept.
@@ -221,4 +238,4 @@ namespace adsim {
 
 } // end adsim namespace
 
-CEREAL_CLASS_VERSION(adsim::IDASettings, 6);
+CEREAL_CLASS_VERSION(adsim::IDASettings, 7);

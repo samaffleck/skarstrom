@@ -238,6 +238,7 @@ namespace adsim {
     bed.Initialise(adsorbent_directory, fluid);
     state.SetReducedUnknowns(settings.alias_lte_solid_temperature_, settings.derived_concentration_);
     state.SetPressureDifferential(settings.pressure_differential_);
+    state.SetValveAtEndCell(settings.valve_bed_pressure_ == ValveBedPressure::EndCell);
     state.Initialise(fluid, bed, adsorbent_directory);
 
     // Parameters the residual evaluates per cell are compiled once per run.

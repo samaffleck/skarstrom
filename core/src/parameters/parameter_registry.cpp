@@ -166,6 +166,11 @@ namespace adsim {
                [](const UserData& u) { return (long long)static_cast<int>(u.settings.advection_scheme_); },
                [](UserData& u, long long x) { u.settings.advection_scheme_ = static_cast<AdvectionScheme>((int)x); },
                "upwind,weno,van_leer"),
+      // Bed side of every valve stream's linear valve law (ida_settings.h).
+      IntField("settings", "valve_bed_pressure", "valve bed-side pressure",
+               [](const UserData& u) { return (long long)static_cast<int>(u.settings.valve_bed_pressure_); },
+               [](UserData& u, long long x) { u.settings.valve_bed_pressure_ = static_cast<ValveBedPressure>((int)x); },
+               "face,end_cell"),
       IntField("settings", "max_cycles_to_keep", "cycles kept in the log",
                [](const UserData& u) { return (long long)u.settings.max_cycles_to_keep_; },
                [](UserData& u, long long x) { u.settings.max_cycles_to_keep_ = (int)x; }),

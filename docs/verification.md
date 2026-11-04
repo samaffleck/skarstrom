@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|ThermalFronts|UnitOperations|MetamorphicRelations|ParameterLimits|DegenerateMixtures|ThermodynamicBound|ExtremeConditions)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|ThermalFronts|UnitOperations|MetamorphicRelations|ParameterLimits|DegenerateMixtures|ThermodynamicBound|ExtremeConditions|ValveBedPressure|ExtendedLangmuirFreundlich(Test)?)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -84,6 +84,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 | `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
 | `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form |
+| `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
 
 ### `test_energy_balance.cpp`
 
@@ -510,6 +511,24 @@ in the test.
 - **`TraceComponentKeepsItsLoading`**: the step changes a trace loading by
   `1e-10 / y^2` (1.0e-4 at y = 1e-3, 1e-6 at y = 1e-2). All four take about
   0.1 s.
+### `test_valve_bed_pressure.cpp`
+
+Steady flow through an inert isothermal bed: a set molar flow `F` enters at the
+bottom and leaves through a linear valve, so at steady state the bed side of
+the valve law is exactly `P_down + 1e5 F / Cv` whatever the bed's resistance.
+Fine particles on a 10-cell grid make the end cell sit about 1.8 kPa above the
+face, so reading the wrong pressure fails by three orders of magnitude more
+than the 1 Pa tolerance.
+
+- **`SteadyThroughFlowReadsTheChosenPressure`**: with `face` the face pressure
+  is 200000 Pa (end cell 201834); with `end_cell` the end cell is 200000 Pa
+  (face 198149); outflow equals `F` to 1e-6. About 0.1 s.
+- **`ConnectedValvesReadBothEndCells`**: a donor step (fed at `F`, valve out)
+  connected to a receiver step (valve in, bottom vented through a pressure
+  boundary), at the cyclic steady state (18 cycles, end pressure moves < 0.01
+  Pa per cycle): the face pressures (face setting) or the end-cell pressures
+  (end-cell setting) are `1e5 F / Cv` apart to 1 Pa. Guard: the end-cell and
+  face differences across the valve differ by 3.8 kPa. About 3.5 s.
 
 ### `test_ldf_thomas.cpp`
 

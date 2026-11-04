@@ -145,6 +145,10 @@ namespace adsim {
     }
     // Must be called before Initialise. See IDASettings::pressure_differential_.
     void SetPressureDifferential(bool on) { pressure_differential_ = on; }
+    // Valve streams read the bed-side pressure of their flow law at the end
+    // cell instead of the bed-end face (IDASettings::valve_bed_pressure_).
+    void SetValveAtEndCell(bool on) { valve_at_end_cell_ = on; }
+    bool ValveAtEndCell() const { return valve_at_end_cell_; }
     // True when Ts is not a DAE unknown but a copy of Tf (LTE, non-isothermal,
     // flag on) / when C is not a DAE unknown but P / (R T) (flag on).
     bool SolidTemperatureAliased() const { return solid_temperature_aliased_; }
@@ -271,6 +275,7 @@ namespace adsim {
     bool derived_concentration_ = true;
     bool solid_temperature_aliased_ = false;
     bool pressure_differential_ = true;
+    bool valve_at_end_cell_ = false;
     // Fills the unregistered fields from the unpacked state: Ts (and dTs/dt)
     // from Tf when aliased, C (and dC/dt) from P and T when derived.
     void SyncDerivedFields();
