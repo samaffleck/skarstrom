@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|ThermalFronts|UnitOperations|MetamorphicRelations|ParameterLimits|DegenerateMixtures|ThermodynamicBound|ExtremeConditions|CycleKpiGridConvergence|IntegratorTolerance|CSSConvergence|ValveBedPressure|ExtendedLangmuirFreundlich(Test)?)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|ThermalFronts|UnitOperations|MetamorphicRelations|ParameterLimits|DegenerateMixtures|ThermodynamicBound|ExtremeConditions|CycleKpiGridConvergence|IntegratorTolerance|CSSConvergence|ManufacturedSolutions|ValveBedPressure|ExtendedLangmuirFreundlich(Test)?)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -87,6 +87,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_grid_convergence.cpp` | Cycle-KPI grid convergence at CSS: monotone convergence, observed order, GCI, all three schemes |
 | `test_integrator_tolerance.cpp` | Error against reltol (BDF slope, abstol floor) on a breakthrough and a cycle; `max_step` independence |
 | `test_css_convergence.cpp` | Geometric approach to CSS, KPI error left by the stopping rule, Aitken lands on the same KPIs |
+| `test_manufactured_solutions.cpp` | Method of manufactured solutions: observed order of the whole discretisation (all terms, Langmuir, time-dependent) for upwind, WENO, van Leer, isothermal and with the energy balance |
 | `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form |
 | `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
 
@@ -559,6 +560,100 @@ error is not a nuisance to be tolerated but a second prediction.
   Guard: a Gaussian curve with the same mean and variance misses the
   simulated one by 0.042, 250x the finest residual, so the asymmetric Thomas
   shape is what is being matched. About 1.3 s.
+
+### `test_manufactured_solutions.cpp`
+
+The method of manufactured solutions (MMS): the order of accuracy of the
+whole discretisation with every term of the model active at once. The tests
+above switch terms off to reach a closed form; here the solution is chosen
+instead, substituted into the continuous equations of the documented model
+(overall and component balances with dispersion, LDF kinetics on a single-
+site Langmuir isotherm, Kozeny-Carman momentum, and in the thermal case the
+LTE energy balance with conduction, compression work and heat of
+adsorption), and what does not vanish is handed to the solver as a source
+through the verification hook `UserData::manufactured_sources_`
+(`adsim/equations/manufactured_sources.h`: non-serialised, not reachable from
+a deck, Python or the web; empty, it leaves every residual bit-identical).
+The chosen fields are then the exact solution, and the difference is the
+discretisation error alone.
+
+The solution, with zeta = z/L and g(t) = 1 - exp(-t/tau), is smooth and
+time-dependent (component B inert):
+
+    P   = P_L + g [dP (1 - zeta) + a sin(pi zeta)]
+    y_A = y0 + b g (1 - cos(pi zeta)) / 2
+    u   = u_in [1 + c g sin(pi zeta / 2)]
+    q_A = q*(P_L y0) + d g cos(pi zeta / 2)
+    T   = T0 + e g (1 - cos(pi zeta)) / 2      (thermal case)
+
+It meets the constant boundary data a deck can express: the uniform initial
+state at t = 0 (loading at equilibrium with the initial gas), a velocity
+inlet with dy/dz = dT/dz = 0 there (so the Danckwerts inlet holds with the
+constant feed y0, T0) and a pressure outlet with zero gradients (no
+dispersive or conductive flux crosses a bed-end face). The sources are
+derived by hand in the test from the product rule on C = P/(RT) and
+re-derived by central finite differences of the fields; the two agree to
+1e-7 of the largest term of each balance. Errors are measured at t = 2 tau, in the transient, on
+20/40/80/160 cells.
+
+- **`SourcesMatchFiniteDifferencesAndEveryTermIsActive`** — the derivation
+  check, and the guards: in each gas balance every term (accumulation,
+  convection, dispersion, adsorption) is at least 15 % of the largest, both
+  momentum terms exceed 1e4 Pa/m, the Langmuir K p reaches 2-3 (well past
+  the Henry limit), and each energy term other than the (solid-dominated)
+  accumulation would move the temperature by at least 5e-3 K over the run if
+  dropped.
+- **`ZeroSourcesAreBitIdentical`** — a run with every source returning zero
+  equals a run without the hook bit for bit. (Separately, `bench_solver`
+  logs of `Casas2012_Fig4_50_50_15bar_25C` and `Ward2022_Q100ccm` are
+  byte-identical between the hook build and main's residual code, with no
+  measurable change in time per residual.)
+- **`UpwindOrder`**, **`WenoOrder`**, **`VanLeerOrder`** — isothermal. The
+  dispersion, Darcy and face-pressure terms are central, O(dz^2); the
+  convective face is upwind (O(dz)), WENO or van Leer. Measured orders of the
+  L2 error (y, P, q at cell centres, u at faces), the max norm of y and the
+  outlet cell:
+
+  | Scheme | y | P | q | u | max | outlet cell | 160-cell L2 of y |
+  |---|---|---|---|---|---|---|---|
+  | upwind | 0.97-0.99 | 0.98-1.00 | 0.97-0.99 | 0.98-0.99 | 0.95-0.99 | 0.95-0.99 | 8.5e-5 |
+  | WENO | 2.04-2.13 | 1.81-2.41 | 2.05-2.28 | 2.45-2.51 | 1.68-1.94 | 1.48-1.72 | 7.0e-7 |
+  | van Leer | 1.99-2.03 | 1.77-1.92 | 1.96-2.05 | 2.04-2.21 | 1.72-1.90 | 1.72-1.90 | 9.5e-7 |
+
+  On 320 and 640 cells every field tends to 1.00 (upwind) and 2 (WENO
+  1.88-2.23, van Leer 1.97-2.03). The WENO interior error (0.25 L to 0.75 L)
+  converges at 2.55-2.78 on these grids, the third-order reconstruction
+  showing before the O(dz^2) central terms take over (2.24 on 640 cells),
+  and is 1.7 to 4 times below van Leer's. The bed-end faces take the upwind
+  value in every scheme, which is first order in general (the reason the
+  outlet-curve orders of `test_advection_schemes.cpp` are capped at 1); the
+  Danckwerts conditions force dy/dz = 0 at both ends of this solution, so
+  there the upwind face is second order and the outlet-cell order rises to 2
+  as well (1.88 WENO, 1.97 van Leer on 640 cells). The assertions take the
+  two finest pairs with bounds from these numbers (upwind 0.93-1.07; WENO
+  1.7-2.7, interior above 2.3; van Leer 1.75-2.3). A deliberate 5 % error in
+  the dispersion source stalls WENO and van Leer at 9.3e-5 on 160 cells
+  (130 times the correct error) and fails the order checks.
+- **`ThermalOrder`** — non-isothermal (LTE, adiabatic bed, constant gas and
+  adsorbed-phase heat capacities, constant conductivity, heat of adsorption
+  20 kJ/mol). The energy balance's convective face temperature is the upwind
+  value under every advection scheme (the scheme reconstructs mole fractions
+  only), so T converges at first order for all three (0.97-1.05), and from
+  80 to 160 cells the first-order temperature error starts to pull the
+  WENO / van Leer mole fractions down too (y order 1.31 / 1.49 on 80 -> 160,
+  about 1 on 640 cells). The high-order schemes' errors stay far below
+  upwind's (T 1.6e-4 against 1.7e-3 K, y 1.2-1.4e-6 against 9.0e-5 at 160
+  cells). This is the documented non-conservative upwind form of the energy
+  convection (see `OpenSystemEnergyBalanceConvergesUnderGridRefinement`),
+  not a defect; a higher-order temperature face would be a separate change.
+
+What the hook covers: the overall and component balances, the loading rate
+of each component on every adsorbent, the momentum residual as a pressure-
+gradient source on every Darcy face and on the interior faces of an Ergun
+layer, and the LTE energy balance. Not covered: the bed-end faces of an Ergun
+layer (the boundary conditions impose the Ergun law there, so a manufactured
+solution must satisfy it exactly at the ends), faces next to void cells, LTNE
+and the wall. All six tests together take about 4 s (Release).
 
 ### Convergence of cycle results
 
