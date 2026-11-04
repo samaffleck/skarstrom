@@ -93,6 +93,11 @@ namespace adsim {
     // Testing only: narrows the probed band by this many diagonals on each side
     // so that an audit finds couplings outside it and WidenBand runs.
     int band_probe_shrink_for_testing_ = 0;
+    // Testing only: the coloured Jacobian learns its pattern from its first
+    // band evaluation alone (no generic-state probes, no learning windows in
+    // the first cycle), so the pattern starts incomplete and the band audits
+    // must find the rest (BandedJacobian::NumMisses).
+    bool jacobian_learn_once_for_testing_ = false;
 
     // Solver settings (transient, not serialised; see item 10 of
     // solver_performance.md in samaffleck/skarstrom-gui).

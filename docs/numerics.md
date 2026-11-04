@@ -102,12 +102,12 @@ The Jacobian itself is approximated by difference quotients: perturb a group of 
 | **IdaInternal** | IDA's own banded difference-quotient Jacobian: columns a full bandwidth apart are perturbed together, so each Jacobian costs one residual evaluation per column of the band (upper + lower half-bandwidth + 1). |
 | **BandDQ** | Skarstrom's own replica of IDA's banded algorithm, with exactly the same increments and column groups, so every entry is bit-identical to IdaInternal. Used as the reference for the coloured mode. |
 | **Coloured** (default) | Difference quotients over a **learned sparsity pattern**. Columns whose rows do not overlap are perturbed together, which needs far fewer residual evaluations per Jacobian than the band stride. |
-| **ColouredCheck** | Coloured, plus a full band evaluation at every Jacobian for comparison; a diagnostic that reports any mismatch. |
+| **ColouredCheck** | Coloured, plus a full band evaluation at every Jacobian for comparison; a diagnostic that reports any mismatch. The comparison only observes (it learns nothing and changes no counter), so the run is exactly the Coloured run and a missed coupling shows up as mismatches until an audit adds it. |
 
 How the Coloured mode stays safe:
 
 - The pattern is learned from band evaluations: at three randomised "generic" states near the current one at the start of each step of the first cycle (so couplings that vanish only at special states such as $u = 0$ or $y = 0$ still show up), and at the first ten real evaluations of every step in the first cycle, since each step has its own boundary conditions.
-- Interior columns share a translation-invariant pattern keyed by variable and cell offset; the three cells at each end keep their own exact patterns, because boundary conditions overwrite those residuals.
+- Interior columns share a translation-invariant pattern keyed by variable and cell offset; the three cells at each end keep their own exact patterns, because boundary conditions overwrite those residuals, and also take the interior pattern. A boundary column's own pattern is learned from one column only, and with WENO or van Leer some of its couplings did not show up in the first cycle's learning (for example the first cell's mole fractions on the inlet ghost cell's other mole fractions, through the face rescaling); the interior pattern has seen the same coupling all along the bed. With it, the coloured Jacobian equals the band DQ Jacobian entry for entry for all three advection schemes on the decks `test_coloured_jacobian.cpp` runs.
 - Every 50th Jacobian is a full band evaluation that audits the pattern; any coupling found outside it is added and the columns are recoloured, so a missed dependency corrects itself.
 - The Jacobian requested after a Newton convergence failure is always a full band evaluation, so in rare regimes (a boundary whose flow reverses, for example) the solver is never less robust than IDA's own Jacobian.
 
