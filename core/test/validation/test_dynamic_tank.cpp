@@ -191,7 +191,7 @@ namespace adsim {
       return t;
     }
 
-    void Run(UserData& data, CoupledSolver& solver) {
+    void RunDeck(UserData& data, CoupledSolver& solver) {
       std::string error;
       ASSERT_TRUE(data.PerformChecks(error)) << error;
       ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
@@ -258,7 +258,7 @@ namespace adsim {
     data.settings.max_step = 0.2;
 
     CoupledSolver solver{data};
-    Run(data, solver);
+    RunDeck(data, solver);
     const auto& log = solver.GetLog();
     const TankLogData* t = log.GetTankLog(0, 0, tank_id);
     ASSERT_NE(t, nullptr);
@@ -309,7 +309,7 @@ namespace adsim {
     data.cycle.number_of_cycles_ = 1;
 
     CoupledSolver solver{data};
-    Run(data, solver);
+    RunDeck(data, solver);
     const auto& log = solver.GetLog();
     const TankLogData* t = log.GetTankLog(0, 0, tank_id);
     ASSERT_NE(t, nullptr);
@@ -378,7 +378,7 @@ namespace adsim {
     data.settings.max_step = tau / 400.0;
 
     CoupledSolver solver{data};
-    Run(data, solver);
+    RunDeck(data, solver);
     const auto& log = solver.GetLog();
     const TankLogData* t = log.GetTankLog(0, 0, tank_id);
     ASSERT_NE(t, nullptr);
@@ -465,7 +465,7 @@ namespace adsim {
     data.settings.max_step = 0.5;
 
     CoupledSolver solver{data};
-    Run(data, solver);
+    RunDeck(data, solver);
     const auto& log = solver.GetLog();
 
     double worst = 0.0, worst_component = 0.0, throughput = 0.0, min_back_flow = 0.0, y_swing = 0.0;
@@ -544,7 +544,7 @@ namespace adsim {
       data.cycle.number_of_cycles_ = 1;
       data.settings.max_step = 0.5;
       CoupledSolver solver{data};
-      Run(data, solver);
+      RunDeck(data, solver);
       const auto& log = solver.GetLog();
       const TankLogData* t = log.GetTankLog(0, 0, tank_id);
       const double cv = data.fluid.MolarHeatCapacity("Nitrogen") - kR;
@@ -614,7 +614,7 @@ namespace adsim {
       data.cycle.number_of_cycles_ = 1;
       data.settings.max_step = 5.0;
       CoupledSolver solver{data};
-      Run(data, solver);
+      RunDeck(data, solver);
       const auto& log = solver.GetLog();
       const TankLogData* t = log.GetTankLog(0, 0, tank_id);
       ASSERT_NE(t, nullptr);
@@ -688,7 +688,7 @@ namespace adsim {
     Close(s, BoundaryLocation::TOP);
     data.cycle.number_of_cycles_ = 1;
     CoupledSolver solver{data};
-    Run(data, solver);
+    RunDeck(data, solver);
     const auto& log = solver.GetLog();
     const TankLogData* t = log.GetTankLog(0, 0, tank_id);
     ASSERT_NE(t, nullptr);
@@ -763,7 +763,7 @@ namespace adsim {
     data.settings.max_step = 0.5;
 
     CoupledSolver solver{data};
-    Run(data, solver);
+    RunDeck(data, solver);
     const auto& log = solver.GetLog();
     EXPECT_FALSE(solver.ReachedCSS()) << "CSS declared while the tank still drifts";
 
