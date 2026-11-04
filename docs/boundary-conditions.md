@@ -129,6 +129,8 @@ $$
 
 so $C_v$ is in mol s⁻¹ bar⁻¹: a valve with $C_v = 10$ passes 10 mol/s for a 1 bar difference. Gas flows from the higher to the lower pressure, and the flow reverses if the pressures cross.
 
+The bed side of the law is the pressure at the bed end (the boundary face, the mean of the ghost cell and the end cell). The solver setting `settings.valve_bed_pressure` (`"Valve_Bed_Pressure"` in `Solver_Settings`; `IDASettings::valve_bed_pressure_`) can instead read the pressure of the end cell, the last cell at that end of the bed, as models that treat the column as a series of well-mixed cells do (toPSAil attaches its valves to the last cell). A connected valve then reads its partner's end cell as well. The two readings differ by the pressure drop over half a cell and agree as the grid is refined; use `end_cell` only to compare with such a model.
+
 Valves are the mechanism behind [pressure equalisation](pressure-equalization.md): put a valve on each bed and connect them, and gas flows from the high-pressure bed to the low-pressure one at a rate set by Cv.
 
 ## Pumps: compressors and vacuum pumps
