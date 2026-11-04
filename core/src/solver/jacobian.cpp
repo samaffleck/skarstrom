@@ -37,10 +37,36 @@ namespace adsim {
       return "q" + std::to_string(q / n_components) + "_" + std::to_string(q % n_components);
     }
 
-    // IDA's DQ increment for column j (idaLsBandDQJac, no constraints).
+    // DQ increment for column j: IDA's (idaLsBandDQJac, no constraints),
+    //   sqrt(eps) max(|y|, |h y'|), floored at the error-weight scale
+    //   1 / ewt = reltol |y| + abstol,
+    // except for a pressure column (pressure = true), whose floor is the
+    // pressure's absolute tolerance `pressure_floor` instead of 1 / ewt.
+    //
+    // With reltol = 1e-6 the 1 / ewt floor is what sets every increment: a
+    // 1e-6 relative perturbation. For the pressure that is 0.1 Pa at 1 bar,
+    // and the flow does not depend on the pressure itself but on pressure
+    // DIFFERENCES between neighbouring cells, which on a fine grid or at a
+    // low flow are far smaller than that (about 2e-3 Pa per cell in
+    // Ward2022_Q50ccm on 320 cells). The momentum residuals are linear in the
+    // pressures except at the boundary face of a pressure condition, whose
+    // explicit Ergun root u - ErgunVelocity(2 (P_bc - P_1), A, B) bends on
+    // the scale A^2 / (4 B), proportional to the cell width (0.02 Pa on 320
+    // cells there). A 0.1 Pa difference quotient across that bend gives a
+    // secant slope of half the true one (0.48 on 320 cells, 0.75 on 60), the
+    // modified Newton iteration overshoots the end-cell pressure by about 2x
+    // and diverges once the step size is not tiny, and the run stalls
+    // ("too much work"). sqrt(eps) |P| (1.5e-3 Pa at 1 bar) resolves the
+    // bend (secant slope 0.97 on 320 cells, 0.94 on 640). The residuals read
+    // P through closed forms or through inner solves converged to round-off
+    // (IAST, 1e-14), so a 1.5e-8 relative perturbation is still far above
+    // their noise.
     inline sunrealtype Increment(sunrealtype yj, sunrealtype ypj, sunrealtype ewtj,
-                                 sunrealtype hh, sunrealtype srur) {
-      sunrealtype inc = SUNMAX(srur * SUNMAX(SUNRabs(yj), SUNRabs(hh * ypj)), SUN_RCONST(1.0) / ewtj);
+                                 sunrealtype hh, sunrealtype srur,
+                                 bool pressure = false, sunrealtype pressure_floor = 0.0) {
+      const sunrealtype floor = pressure ? pressure_floor : SUN_RCONST(1.0) / ewtj;
+      sunrealtype inc = SUNMAX(srur * SUNMAX(SUNRabs(yj), SUNRabs(hh * ypj)), floor);
+      if (!(inc > SUN_RCONST(0.0))) inc = SUN_RCONST(1.0) / ewtj;  // P = P' = 0 with no floor
       if (hh * ypj < SUN_RCONST(0.0)) { inc = -inc; }
       return (yj + inc) - yj;
     }
@@ -97,8 +123,12 @@ namespace adsim {
     for (int e = 0; e < n_vars_; ++e)
       var_names_.push_back(VariableName(eqs, e));
     velocity_var_ = -1;
-    for (int e = 0; e < n_vars_; ++e)
+    pressure_var_ = -1;
+    for (int e = 0; e < n_vars_; ++e) {
       if (equations[e] == &eqs.velocity) velocity_var_ = e;
+      if (equations[e] == &eqs.pressure) pressure_var_ = e;
+    }
+    pressure_abstol_ = eqs.pressure.abstol;
 
     if (ewt_) N_VDestroy(ewt_);
     ewt_ = N_VNew_Serial(n_, ctx);
@@ -367,7 +397,7 @@ namespace adsim {
         std::copy(yps, yps + n_, yptemp);
         for (const auto& group : band_groups_) {
           for (sunindextype j : group) {
-            const sunrealtype inc = Increment(ys[j], yps[j], ewt_data[j], hh, srur);
+            const sunrealtype inc = Increment(ys[j], yps[j], ewt_data[j], hh, srur, var_[j] == pressure_var_, pressure_abstol_);
             ytemp[j] += inc;
             yptemp[j] += c_j * inc;
           }
@@ -425,7 +455,7 @@ namespace adsim {
 
     for (const auto& group : groups) {
       for (sunindextype j : group) {
-        const sunrealtype inc = Increment(y_data[j], yp_data[j], ewt_data[j], hh, srur);
+        const sunrealtype inc = Increment(y_data[j], yp_data[j], ewt_data[j], hh, srur, var_[j] == pressure_var_, pressure_abstol_);
         ytemp_data[j] += inc;
         yptemp_data[j] += c_j * inc;
       }
@@ -437,7 +467,7 @@ namespace adsim {
       for (sunindextype j : group) {
         ytemp_data[j] = y_data[j];
         yptemp_data[j] = yp_data[j];
-        const sunrealtype inc = Increment(y_data[j], yp_data[j], ewt_data[j], hh, srur);
+        const sunrealtype inc = Increment(y_data[j], yp_data[j], ewt_data[j], hh, srur, var_[j] == pressure_var_, pressure_abstol_);
         const sunrealtype inc_inv = SUN_RCONST(1.0) / inc;
         sunrealtype* col_j = SUNBandMatrix_Column(Jac, j);
 
