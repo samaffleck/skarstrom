@@ -227,20 +227,67 @@ namespace adsim {
   //                     rho_b * (dH - Cpa*T) * dq/dt.
   // The two are related by q_st = dH_internal_energy - Cpa*T, so the convention must
   // match the value stored in the adsorbent heat_of_adsorption_.
+  //   ISOSTERIC_RT    - the supplied value is -dU, the internal energy of
+  //                     adsorption, and the isosteric heat follows the ideal-gas
+  //                     relation q_st = -dU + R*T at the local temperature of the
+  //                     adsorbed phase; source is rho_b * (-dU + R*T) * dq/dt
+  //                     (PEESEgroup / Yancy-Caballero 2020, whose energy balance
+  //                     writes the source as -(dU - R*T)).
   enum class HeatOfAdsorptionConvention {
     ISOSTERIC,
-    INTERNAL_ENERGY
+    INTERNAL_ENERGY,
+    ISOSTERIC_RT
   };
 
   static const char* HeatOfAdsorptionConventionList[] = {
     "Isosteric",
-    "Internal energy"
+    "Internal energy",
+    "Isosteric from -dU + RT"
+  };
+
+  // Source of the pure-component gas heat capacities C_p,i.
+  //   COOLPROP - CoolProp at the initial-condition pressure and temperature
+  //              (default), held for the whole run.
+  //   CONSTANT - the user's molar value per component, gas_heat_capacity_
+  //              [J/(mol-K)] (e.g. the constant 30.7 J/(mol-K) of
+  //              Yancy-Caballero 2020 and Haghpanah 2013).
+  enum class GasHeatCapacityMode {
+    COOLPROP,
+    CONSTANT
+  };
+
+  // Display names (front ends); the registry names are "coolprop,constant".
+  static const char* GasHeatCapacityModeList[] = {
+    "CoolProp",
+    "User defined"
+  };
+
+  // Source of the gas mixture viscosity.
+  //   POLYNOMIAL - mole-fraction average of the pure-component mu_i(T)
+  //                polynomials (default; viscosity_coefficients.h).
+  //   CONSTANT   - the user's mixture value viscosity_ [Pa-s], the same in
+  //                every cell at every temperature and composition.
+  enum class ViscosityMode {
+    POLYNOMIAL,
+    CONSTANT
+  };
+
+  // Display names (front ends); the registry names are "polynomial,constant".
+  // The polynomials are fitted to CoolProp's dilute-gas values (Chapman-Enskog
+  // for the few components CoolProp has no viscosity model for).
+  static const char* ViscosityModeList[] = {
+    "CoolProp",
+    "User defined"
   };
 
   class InitialConditions;
 
   class Fluid {
   public:
+    // Seed of a component's constant gas heat capacity [J/(mol-K)]: 7/2 R, the
+    // ideal diatomic gas. Only used once the CONSTANT mode is chosen.
+    static constexpr double kDefaultGasHeatCapacity = 29.1;
+
     void AddComponent(const std::string& component_name);
     void RemoveComponent(const std::string& component_name);
     void Initialise(InitialConditions& ic);
@@ -252,6 +299,14 @@ namespace adsim {
     // the source of truth. Defined inline (EvalContext is complete here).
     void EvaluateExpressions(const EvalContext& ctx) {
       for (auto& [c, p] : adsorbed_heat_capacity_) p.Evaluate(ctx);
+      for (auto& [c, p] : gas_heat_capacity_) p.Evaluate(ctx);
+      viscosity_.Evaluate(ctx);
+    }
+
+    // Gas mixture viscosity [Pa-s] of the CONSTANT viscosity mode, or a
+    // negative value when the viscosity comes from the polynomials.
+    double ConstantViscosity() const {
+      return viscosity_mode_ == ViscosityMode::CONSTANT ? viscosity_.Get() : -1.0;
     }
 
     // Pure-component gas-phase viscosity mu_i(T) [Pa-s] from a hard-coded degree-4
@@ -335,9 +390,13 @@ namespace adsim {
     std::vector<std::string> components_{};
     std::unordered_map<std::string, double> molar_mass_{};
     std::unordered_map<std::string, ExpressionParam> adsorbed_heat_capacity_{}; // [J/(mol-K)] - used when mode is CONSTANT
-    std::unordered_map<std::string, double> heat_capacity_{}; // [J/(kg-K)] - pure-component, cached from initial conditions; mix with MixtureHeatCapacity
+    std::unordered_map<std::string, double> heat_capacity_{}; // [J/(kg-K)] - pure-component, cached by Initialise (CoolProp or gas_heat_capacity_); mix with MixtureHeatCapacity
     AdsorbedHeatCapacityMode adsorbed_heat_capacity_mode_ = AdsorbedHeatCapacityMode::CONSTANT;
     HeatOfAdsorptionConvention heat_of_adsorption_convention_ = HeatOfAdsorptionConvention::ISOSTERIC;
+    GasHeatCapacityMode gas_heat_capacity_mode_ = GasHeatCapacityMode::COOLPROP;
+    std::unordered_map<std::string, ExpressionParam> gas_heat_capacity_{}; // [J/(mol-K)] - used when gas_heat_capacity_mode_ is CONSTANT
+    ViscosityMode viscosity_mode_ = ViscosityMode::POLYNOMIAL;
+    ExpressionParam viscosity_{1.8e-5}; // [Pa-s] - mixture value, used when viscosity_mode_ is CONSTANT
 
 
   private:
@@ -360,6 +419,18 @@ namespace adsim {
         ar(cereal::make_nvp("Heat_Of_Adsorption_Convention", heat_of_adsorption_convention_));
       }
       // Legacy v1/v2 files carry no convention field; the ISOSTERIC default is retained.
+      if (version >= 4) {
+        ar(cereal::make_nvp("Gas_Heat_Capacity_Mode", gas_heat_capacity_mode_),
+           cereal::make_nvp("Gas_Heat_Capacity", gas_heat_capacity_),
+           cereal::make_nvp("Viscosity_Mode", viscosity_mode_),
+           cereal::make_nvp("Viscosity", viscosity_));
+      }
+      // Legacy v1-v3 files: CoolProp heat capacities and polynomial viscosities.
+      // On load, seed an editable constant heat capacity for every component
+      // without one (as AddComponentToDeck does), so the map lists them all.
+      if constexpr (Archive::is_loading::value) {
+        for (const auto& c : components_) gas_heat_capacity_.try_emplace(c, kDefaultGasHeatCapacity);
+      }
     }
   };
   

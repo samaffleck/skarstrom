@@ -1458,13 +1458,26 @@ class Fluid(_Node):
     adsorbed_heat_capacity_mode = Choice()
     """"constant" (adsorbed_heat_capacity per component) or "gas_phase" (equal to the gas phase)."""
     heat_of_adsorption_convention = Choice()
-    """Heats of adsorption are "isosteric" heats or follow the "internal_energy" convention."""
+    """Heats of adsorption are "isosteric" heats, follow the "internal_energy" convention, or are -dU with the
+    isosteric heat -dU + R*T at the local temperature ("isosteric_rt")."""
+    gas_heat_capacity_mode = Choice()
+    """"coolprop" (pure-component values at the initial conditions) or "constant" (gas_heat_capacity per component)."""
+    viscosity_mode = Choice()
+    """"polynomial" (mole-fraction average of the pure-component fits) or "constant" (viscosity)."""
+    viscosity = Real()
+    """Gas mixture viscosity of the "constant" viscosity mode [Pa.s]."""
 
     @property
     def adsorbed_heat_capacity(self) -> ValueMap:
         """Adsorbed-phase molar heat capacity by component [J/(mol-K)]."""
         return ValueMap(self._sim, self._tree_or_raise().maps.get("adsorbed_heat_capacity", {}),
                         f"{self._label}.adsorbed_heat_capacity")
+
+    @property
+    def gas_heat_capacity(self) -> ValueMap:
+        """Gas-phase molar heat capacity by component of the "constant" gas heat capacity mode [J/(mol-K)]."""
+        return ValueMap(self._sim, self._tree_or_raise().maps.get("gas_heat_capacity", {}),
+                        f"{self._label}.gas_heat_capacity")
 
 
 class Layer(_Node):

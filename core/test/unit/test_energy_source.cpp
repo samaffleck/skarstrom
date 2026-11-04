@@ -318,12 +318,16 @@ namespace adsim {
   INSTANTIATE_TEST_SUITE_P(
     ConventionAndThermalMode, ComponentEnergySourceLog,
     ::testing::Combine(
-      ::testing::Values(HeatOfAdsorptionConvention::ISOSTERIC, HeatOfAdsorptionConvention::INTERNAL_ENERGY),
+      ::testing::Values(HeatOfAdsorptionConvention::ISOSTERIC, HeatOfAdsorptionConvention::INTERNAL_ENERGY,
+                        HeatOfAdsorptionConvention::ISOSTERIC_RT),
       ::testing::Values(ThermalEquilibriumMode::LOCAL, ThermalEquilibriumMode::NON_LOCAL)),
     [](const auto& info) {
-      const bool isosteric = std::get<0>(info.param) == HeatOfAdsorptionConvention::ISOSTERIC;
+      const auto c = std::get<0>(info.param);
       const bool lte = std::get<1>(info.param) == ThermalEquilibriumMode::LOCAL;
-      return std::string(isosteric ? "Isosteric" : "InternalEnergy") + (lte ? "_LTE" : "_LTNE");
+      const char* name = c == HeatOfAdsorptionConvention::ISOSTERIC         ? "Isosteric"
+                       : c == HeatOfAdsorptionConvention::INTERNAL_ENERGY ? "InternalEnergy"
+                                                                          : "IsostericRT";
+      return std::string(name) + (lte ? "_LTE" : "_LTNE");
     });
 
   // At every logged time, the logged totals must equal the sum of the same
