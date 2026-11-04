@@ -34,6 +34,17 @@
 // order of magnitude across the jump, so IDA's modified Newton diverged.
 // The flow boundary now solves the face problem (stream flow law + Ergun
 // law) and imposes its root (FlowBoundaryCondition::ImposeFlowFace).
+//
+// The valve surge and the blowdown that follows push gas out of the top of a
+// bed whose top end holds pure nitrogen, which is also where the cell
+// mole-fraction sum of the high-order advection schemes drifted (WP20-1):
+// their bed-end faces clamped each component to [0, 1], so a top cell at
+// y_N2 = 1 + 1e-9 sent out a face that summed to one instead of the cell's
+// sum, and the cell's departure from one was no longer carried out of the
+// bed but grew with the outflow (max |sum - 1| 5.0e-4 with WENO, 4.5e-4
+// with van Leer, 1.1e-5 with upwind on Kozeny-Carman; 2.1e-4, 2.3e-4 and
+// 7.9e-6 on Ergun). The valve-surge cases therefore run with every scheme
+// and bound the sum in every interior cell at the upwind level.
 
 #include <string>
 
@@ -182,8 +193,38 @@ namespace adsim {
     // The unpatched face survived cycle 2 on the consistent-IC restart and
     // failed in cycle 3; the zero-retry check catches it in cycle 2.
     static constexpr int kCycles = 5;
+    // Bound on |sum_i y_i - 1| in every interior cell over the whole run.
+    // Nothing in the equations restores the sum: summing the species
+    // balances and subtracting the cell sum times the total balance leaves
+    //   eps_t dz d(sum_n)/dt = -(sum_e - sum_n) F_e + (sum_w - sum_n) F_w + ...
+    // (sum_e, sum_w: the sums of the face mole fractions), so with faces that
+    // sum to their upwind cell's sum a departure, created at the level of the
+    // integrator's local error (reltol = 1e-6 on y ~ 1, per step), is carried
+    // from cell to cell and out of the bed. That leaves 1.1e-5 (upwind) and
+    // 1.9e-5 (WENO, Ergun) here. 5e-5 (50 reltol) gives those a factor of 2.6
+    // and is 4 to 10 times below what the high-order schemes reached when the
+    // outlet cell's sum was not carried.
+    static constexpr double kCellSumTolerance = 5e-5;
 
-    void Run(MomentumModel momentum) {
+    static const char* SchemeName(AdvectionScheme scheme) {
+      switch (scheme) {
+        case AdvectionScheme::WENO: return "WENO";
+        case AdvectionScheme::VanLeer: return "van Leer";
+        default: return "upwind";
+      }
+    }
+
+    static double MaxCellSumDeparture(const EquationLog& log) {
+      double worst = 0.0;
+      for (int c : log.sys_data.cycle_index_set_)
+        for (int s : log.sys_data.step_index_set_)
+          for (const auto& row : log.GetVariable(c, s, VariableType::TOTAL_MOLE_FRACTION).values)
+            for (size_t n = 1; n + 1 < row.size(); ++n)  // interior cells only
+              worst = std::max(worst, std::abs(row[n] - 1.0));
+      return worst;
+    }
+
+    void Run(MomentumModel momentum, AdvectionScheme scheme = AdvectionScheme::Upwind) {
       const std::string CO2 = "CarbonDioxide";
       const std::string N2 = "Nitrogen";
       AddComponents({ CO2, N2 });
@@ -263,6 +304,7 @@ namespace adsim {
 
       ConfigureCycle(kCycles);
       data.settings.css.method_ = CSSMethod::NONE;
+      data.settings.advection_scheme_ = scheme;
 
       std::string error;
       ASSERT_TRUE(data.PerformChecks(error)) << error;
@@ -287,6 +329,13 @@ namespace adsim {
       EXPECT_EQ(*cycles.rbegin() + 1, kCycles);
       EXPECT_TRUE(IsMassConserved(solver.GetLog()));
       EXPECT_TRUE(IsMolesConserved(solver.GetLog()));
+      const double sum_departure = MaxCellSumDeparture(solver.GetLog());
+      std::cout << "[ErgunValveSurge] " << SchemeName(scheme)
+                << ": max |sum y - 1| = " << sum_departure << std::endl;
+      EXPECT_LT(sum_departure, kCellSumTolerance)
+        << "cell mole fractions drift from summing to one ("
+        << MomentumModelList[static_cast<int>(momentum)] << ", "
+        << SchemeName(scheme) << ")";
     }
   };
 
@@ -296,6 +345,22 @@ namespace adsim {
 
   TEST_F(ErgunValveSurgeTest, VentValveOpensAboveAmbientKozenyCarman) {
     Run(MomentumModel::KarmenCozeny);
+  }
+
+  TEST_F(ErgunValveSurgeTest, VentValveOpensAboveAmbientErgunWENO) {
+    Run(MomentumModel::Ergun, AdvectionScheme::WENO);
+  }
+
+  TEST_F(ErgunValveSurgeTest, VentValveOpensAboveAmbientKozenyCarmanWENO) {
+    Run(MomentumModel::KarmenCozeny, AdvectionScheme::WENO);
+  }
+
+  TEST_F(ErgunValveSurgeTest, VentValveOpensAboveAmbientErgunVanLeer) {
+    Run(MomentumModel::Ergun, AdvectionScheme::VanLeer);
+  }
+
+  TEST_F(ErgunValveSurgeTest, VentValveOpensAboveAmbientKozenyCarmanVanLeer) {
+    Run(MomentumModel::KarmenCozeny, AdvectionScheme::VanLeer);
   }
 
 } // namespace adsim

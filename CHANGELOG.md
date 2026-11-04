@@ -43,6 +43,26 @@ root `CMakeLists.txt`.
   Python `isotherm_kinds()`, IAST (an exact Sips term) and the docs know it;
   the fitter does not offer it yet. Near y = 0 each term is regularised with a
   step at 1e-5 (loading changed by 1e-10 / y^2: 1e-4 at y = 1e-3).
+### Fixed — WENO / van Leer outlet-cell mole-fraction sum drifts during fast outflow
+- With `AdvectionScheme::WENO` or `VanLeer` the cell at a bed end that gas
+  leaves through could see its mole fractions drift from summing to one
+  while the outflow lasted (a valve surge, a blowdown): 5.0e-4 with WENO and
+  4.5e-4 with van Leer in `ErgunValveSurgeTest` (Kozeny-Carman), against
+  1.1e-5 with upwind. The schemes clamped every face mole fraction to [0, 1], the bed-end faces
+  included; those take the upwind cell's value and are not rescaled to its
+  sum, so an end cell holding pure nitrogen at y = 1 + 1e-9 sent out a face
+  that summed to one instead of the cell's sum, and the cell's departure from
+  one was no longer carried out of the bed. Only the reconstructed values are
+  clamped now; the upwind faces are left as they are, as under Upwind. The
+  same drift reached 1.6e-6 (WENO) in the steep-front breakthrough of
+  `AdvectionSchemeConservation` at reltol 1e-8; every scheme now keeps
+  about 1e-12 there and 2e-5 or less in the valve surge. Upwind is
+  unchanged (its faces were never clamped). Tests:
+  `AdvectionSchemeConservation.EveryFaceSumsToItsUpwindCellSum` (the
+  discrete identity, face by face), the valve-surge test run with every
+  scheme (`ErgunValveSurgeTest.*WENO`, `*VanLeer`), and the steep-front
+  sum check, now at reltol 1e-8 with a 1e-9 bound. Found by the
+  WENO-everywhere experiment of the verification programme (WP20-E1).
 
 ### Fixed — the ColouredCheck Jacobian diagnostic no longer changes the run
 - In `JacobianMode::ColouredCheck` the band evaluation built for the

@@ -405,18 +405,96 @@ namespace adsim {
   // Leer reached a sum of 90 in a CO2/N2 breakthrough on 13X; without the
   // face rescaling this case reaches 1.05 with WENO and van Leer). A
   // self-sharpening front: O2 on a strongly favourable Langmuir isotherm.
+  // With consistent faces the sum stays at about 1e-12 for every scheme at
+  // reltol 1e-8 (upwind 1.7e-12, WENO 5e-13, van Leer 1.2e-12). While the
+  // high-order schemes clamped their bed-end faces to [0, 1] (WP20-1, see
+  // EveryFaceSumsToItsUpwindCellSum below), the outlet cell's departure was
+  // not carried out of the bed and reached 1.6e-6 (WENO) and 3.7e-7 (van
+  // Leer) here; 1e-9 separates the two by more than two decades each way.
   TEST(AdvectionSchemeConservation, CellMoleFractionsKeepSummingToOneAtASteepFront) {
     for (auto scheme : kAllSchemes) {
-      // reltol 1e-9: the cell sum drifts at the level of the integrator tolerance
-      // (about 1e-5 at 1e-8 for the high-order schemes), which this test does not
-      // measure; a broken reconstruction drifts by percent.
-      const auto r = RunConsistency(scheme, false, 50, 0.15, 0.05, 2500.0, /*favourable=*/true,
-                                    /*reltol=*/1e-9);
+      const auto r = RunConsistency(scheme, false, 50, 0.15, 0.05, 2500.0, /*favourable=*/true);
       const std::string label = Label(scheme, false);
-      EXPECT_LT(r.cell_sum_error, 1e-5) << label << ": the cell mole fractions sum to 1 +- " << r.cell_sum_error;
+      EXPECT_LT(r.cell_sum_error, 1e-9) << label << ": the cell mole fractions sum to 1 +- " << r.cell_sum_error;
       EXPECT_LT(r.face_sum_error, 1e-6) << label << ": face mole fractions do not sum to one";
       EXPECT_LT(r.worst_balance_error, 1e-5)
         << label << ": " << r.worst_component << " not conserved (" << r.worst_balance_error << " of the moles fed)";
+    }
+  }
+
+  // The discrete identity behind the two tests above, checked face by face on
+  // a frozen state. Write the species balance of cell n as
+  //   eps_t dz (dy_i/dt + y_i (dP/dt / P - dT/dt / T)) = -(F_e y_i,e - F_w y_i,w) + D_i - S_i
+  // and the total balance as
+  //   eps_t dz (dP/dt / P - dT/dt / T)                 = -(F_e - F_w) - S,
+  // with F the face molar flux over the cell concentration, y_i,e / y_i,w the
+  // face mole fractions, D_i the dispersive term and S_i the source. Summing
+  // the species balances and subtracting sum_n = sum_i y_i,n times the total:
+  //   eps_t dz d(sum_n)/dt = -(sum_e - sum_n) F_e + (sum_w - sum_n) F_w
+  //                          + sum_i D_i - (sum_i S_i - sum_n S),
+  // where sum_e, sum_w are the sums of the face mole fractions. Nothing pulls
+  // sum_n back to one; with upwind faces (sum_e = sum_n, sum_w = sum_n-1 for
+  // u > 0) a departure is carried from cell to cell and out of the bed. So the
+  // sum behaves as under upwinding only if EVERY face, the two bed-end faces
+  // included, sums to its upwind cell's sum. A bed-end face whose components
+  // are clamped to [0, 1] breaks this whenever the end cell holds a component
+  // marginally outside the range (a pure-N2 outlet at 1 + 1e-9): the outlet
+  // face then sums to one instead of sum_n, the -(sum_e - sum_n) F_e term
+  // cancels the carry term, and the outlet cell's sum is no longer carried
+  // out but integrates every solver-tolerance error for as long as the
+  // outflow lasts (WP20-1: 2.7e-3 with WENO in a valve surge and blowdown).
+  // The state below puts both end cells and ghosts outside [0, 1] and gives
+  // every cell a sum other than one.
+  TEST(AdvectionSchemeConservation, EveryFaceSumsToItsUpwindCellSum) {
+    for (auto scheme : kAllSchemes) {
+      for (double sign : { 1.0, -1.0 }) {
+        BreakthroughCase c;
+        c.n_cells = 12;
+        UserData data;
+        Build(data, c);
+        data.settings.advection_scheme_ = scheme;
+        data.Initialise();
+
+        auto& state = data.state;
+        auto& y_o2 = state.mole_fraction.at("Oxygen").var;
+        auto& y_n2 = state.mole_fraction.at("Nitrogen").var;
+        const int n_cells = static_cast<int>(y_o2.size());  // with the two ghosts
+        ASSERT_EQ(n_cells, c.n_cells + 2);
+        for (int k = 0; k < n_cells; ++k) {
+          // A front in the middle of the bed, so the high-order faces differ
+          // from upwind, and a sum off one by a few 1e-6 in every cell.
+          const double x = (k - 0.5 * n_cells) / 2.0;
+          y_o2[k] = 0.2 / (1.0 + std::exp(4.0 * x));
+          y_n2[k] = 1.0 - y_o2[k] + 1e-6 * (1 + k % 3);
+        }
+        for (int k : { 0, 1, n_cells - 2, n_cells - 1 }) {
+          y_o2[k] = -2e-7;     // marginally below 0
+          y_n2[k] = 1 + 3e-6;  // marginally above 1
+        }
+        for (auto& v : state.velocity.var) v = sign * 0.1;  // |u| >> u_s: hard upwind
+
+        for (const auto& comp : data.fluid.components_) UpdateMoleFractionFace(&data, comp);
+
+        const auto& f_o2 = state.mole_fraction_face.at("Oxygen").var;
+        const auto& f_n2 = state.mole_fraction_face.at("Nitrogen").var;
+        const int n_faces = static_cast<int>(f_o2.size());
+        ASSERT_EQ(n_faces, n_cells - 1);
+        const std::string label = "scheme " + std::to_string(static_cast<int>(scheme))
+                                + (sign > 0 ? ", flow up the bed" : ", flow down the bed");
+        double worst = 0.0, worst_departure_from_upwind = 0.0;
+        int worst_face = -1;
+        for (int n = 0; n < n_faces; ++n) {
+          const int up = sign > 0 ? n : n + 1;
+          const double err = std::abs((f_o2[n] + f_n2[n]) - (y_o2[up] + y_n2[up]));
+          if (err > worst) { worst = err; worst_face = n; }
+          worst_departure_from_upwind = std::max(worst_departure_from_upwind, std::abs(f_o2[n] - y_o2[up]));
+        }
+        EXPECT_LT(worst, 1e-14) << label << ": face " << worst_face << " of " << n_faces
+                                << " does not sum to its upwind cell's sum";
+        // Guard: the high-order faces really are high order here.
+        if (scheme != AdvectionScheme::Upwind)
+          EXPECT_GT(worst_departure_from_upwind, 1e-3) << label << ": the reconstruction is not active";
+      }
     }
   }
 
