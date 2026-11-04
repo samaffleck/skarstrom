@@ -73,18 +73,32 @@
 // slow thermal mode (the wall), contracting by only 0.966 per cycle, so its KPIs
 // move by ~1e-5 per cycle even after 40 cycles. Isothermal, the end-of-cycle
 // map contracts by about 0.04 per cycle and the state change is below 1e-7
-// within five cycles, so six cycles leave a CSS error far below the grid
+// within five cycles, so nine cycles leave a CSS error far below the grid
 // differences (GUARD 2 checks it) and the whole study runs in seconds.
+//
+// KPI noise. At CSS the KPIs still vary from cycle to cycle, by an amount set
+// by the integrator's step sequence (they integrate the logged boundary
+// flows, and the flow transient after a pressure switch is sampled only at
+// IDA's own steps; see test_integrator_tolerance.cpp), so it differs between
+// platforms and between Jacobian builds: up to 5.6e-6 in the van Leer
+// recovery on macOS once the coloured Jacobian of the higher-order schemes
+// matched the band one exactly. Each KPI is therefore the mean of the four
+// CSS cycles 5-8, and its noise the standard error of that mean.
 //
 // The productivity of this cycle is its recovery times a constant (the feed is
 // a fixed molar flow), so it is checked through the recovery; the specific
 // energy (feed compressor work per kg of O2 produced) depends on the inlet
 // pressure history as well and is checked on its own.
 //
-// GUARDS: (1) the grid effect is present and large, far above the run-to-run
-// noise of the KPIs at CSS; (2) the bed is at CSS (end-of-cycle state change
-// below 1e-6, and the last two cycles' KPIs agree to far better than the
-// finest grid difference).
+// GUARDS: (1) the grid effect is present and large, far above the noise of
+// the KPIs at CSS: the coarsest difference above 100 and the finest above 5
+// standard deviations of a difference (sqrt(2) x the standard error). Then
+// the signs are certain and the observed order is good to about 0.3
+// (1/ln 2 x 1/5), a third of the smallest margin asserted on it (WENO and
+// van Leer exceed upwind's order by 0.85 or more; measured noise on Linux:
+// standard error up to 1.7e-6 in recovery, finest differences 4.8e-5 to
+// 6.4e-4); (2) the bed is at CSS (end-of-cycle state change below 1e-6 from
+// the first averaged cycle on).
 
 #include "psa_cycle_case.h"
 
@@ -99,7 +113,8 @@ namespace adsim {
   namespace {
 
     constexpr std::array<int, 4> kGrids = {10, 20, 40, 80};
-    constexpr int kCycles = 6;
+    constexpr int kCycles = 9;
+    constexpr int kFirstAveraged = 5;  // cycles 5..8 are averaged
     constexpr double kSafetyFactor = 1.25;  // Roache's factor for a three-grid study
 
     enum Kpi { kPurity = 0, kRecovery = 1, kEnergy = 2, kNumKpis = 3 };
@@ -109,9 +124,9 @@ namespace adsim {
     }
 
     struct GridRun {
-      std::array<double, kNumKpis> value{};  // at the last cycle
-      std::array<double, kNumKpis> noise{};  // |last - previous cycle|
-      double state_change = 0.0;             // end-of-cycle state change of the last cycle
+      std::array<double, kNumKpis> value{};  // mean over the averaged CSS cycles
+      std::array<double, kNumKpis> noise{};  // standard error of that mean
+      double state_change = 0.0;             // largest end-of-cycle state change of those cycles
     };
 
     // The shared PSA cycle, isothermal, with the O2 product KPIs.
@@ -142,14 +157,20 @@ namespace adsim {
       CoupledSolver solver{data};
       EXPECT_GE(solver.IntegrateCycle(data.cycle, false), 0)
         << "Solver did not complete (scheme " << static_cast<int>(scheme) << ", " << n_cells << " cells)";
-      const int last = kCycles - 1;
-      const auto f = KpisAt(data, solver, last);
-      const auto g = KpisAt(data, solver, last - 1);
-      for (int k = 0; k < kNumKpis; ++k) {
-        out.value[k] = f[k];
-        out.noise[k] = std::abs(f[k] - g[k]);
+      constexpr int n = kCycles - kFirstAveraged;
+      std::array<std::array<double, kNumKpis>, n> f{};
+      for (int c = kFirstAveraged; c < kCycles; ++c) {
+        f[c - kFirstAveraged] = KpisAt(data, solver, c);
+        out.state_change = std::max(out.state_change,
+                                    CyclicSteadyState::EndOfCycleStateChange(solver.GetLog(), c));
       }
-      out.state_change = CyclicSteadyState::EndOfCycleStateChange(solver.GetLog(), last);
+      for (int k = 0; k < kNumKpis; ++k) {
+        double mean = 0.0, var = 0.0;
+        for (const auto& row : f) mean += row[k] / n;
+        for (const auto& row : f) var += (row[k] - mean) * (row[k] - mean) / (n - 1);
+        out.value[k] = mean;
+        out.noise[k] = std::sqrt(var / n);
+      }
       return out;
     }
 
@@ -194,14 +215,19 @@ namespace adsim {
       }
       for (int k = 0; k < kNumKpis; ++k) {
         const Richardson r = Analyse(runs, k);
+        // Standard deviation of a grid difference: sqrt(2) x the largest
+        // standard error of the KPI means.
         double noise = 0.0;
         for (const auto& run : runs) noise = std::max(noise, run.noise[k]);
-        // GUARD 1: the grid effect is far above the noise floor, so the
-        // differences below measure the discretisation and nothing else.
-        EXPECT_GT(std::abs(r.d.front()), 100.0 * noise)
-          << name << " " << KpiName(k) << ": grid effect " << r.d.front() << " vs noise " << noise;
-        EXPECT_GT(std::abs(r.d.back()), 10.0 * noise)
-          << name << " " << KpiName(k) << ": finest difference " << r.d.back() << " vs noise " << noise;
+        const double sigma_d = std::sqrt(2.0) * noise;
+        // GUARD 1: the grid effect is far above the noise, so the differences
+        // below measure the discretisation and nothing else.
+        EXPECT_GT(std::abs(r.d.front()), 100.0 * sigma_d)
+          << name << " " << KpiName(k) << ": grid effect " << r.d.front() << " vs noise " << sigma_d;
+        EXPECT_GT(std::abs(r.d.back()), 5.0 * sigma_d)
+          << name << " " << KpiName(k) << ": finest difference " << r.d.back() << " vs noise " << sigma_d;
+        std::printf("  %-8s %-15s finest difference %.2e, sd of a difference %.1e\n", name, KpiName(k),
+                    std::abs(r.d.back()), sigma_d);
         for (size_t i = 1; i < r.d.size(); ++i) {
           EXPECT_GT(r.d[i] * r.d[0], 0.0)
             << name << " " << KpiName(k) << ": oscillatory convergence (differences "
