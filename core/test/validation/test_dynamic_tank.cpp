@@ -240,6 +240,50 @@ namespace adsim {
       return n;
     }
 
+    // Fed bed -> tank (volume V) -> vent valve; a blowdown step empties the bed.
+    void BuildCssDeck(UserData& data, double V, int cycles, size_t& tank_id) {
+      BedOptions o;
+      o.components = {"Nitrogen", "Oxygen"};
+      o.y0 = {{"Nitrogen", 0.79}, {"Oxygen", 0.21}};
+      o.henry = true;
+      BuildBed(data, o);
+      Tank& tank = NewTank(data, V, 1e5, kT, {{"Nitrogen", 1.0}});
+      tank_id = tank.id_;
+      auto vent = std::make_unique<TankValve>();
+      vent->name_ = "Product";
+      vent->cv_ = 0.5;
+      vent->downstream_pressure_ = 1e5;
+      tank.streams_.push_back(std::move(vent));
+
+      data.cycle.AddStep("Feed");
+      {
+        Step& s = data.cycle.GetStep("Feed");
+        s.step_time_ = 20.0;
+        auto feed = PortFlow(0.02, 0, "Feed");
+        feed->mole_fraction["Nitrogen"] = 0.79;
+        feed->mole_fraction["Oxygen"] = 0.21;
+        AddStream(s, BoundaryLocation::BOTTOM, BoundaryDirection::INLET, std::move(feed));
+        AddStream(s, BoundaryLocation::TOP, BoundaryDirection::OUTLET, PortValve(0.2, tank_id, "To tank"));
+      }
+      data.cycle.AddStep("Blowdown");
+      {
+        Step& s = data.cycle.GetStep("Blowdown");
+        s.step_time_ = 20.0;
+        auto bc = std::make_unique<PressureBoundaryCondition>();
+        bc->direction_ = BoundaryDirection::OUTLET;
+        bc->location_ = BoundaryLocation::BOTTOM;
+        bc->pressure_ = Constant(1e5);
+        s.bottom_boundary_condition_ = std::move(bc);
+        Close(s, BoundaryLocation::TOP);
+      }
+      data.cycle.number_of_cycles_ = cycles;
+      auto& css = data.settings.css;
+      css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
+      css.min_cycles_ = 3;
+      css.consecutive_cycles_ = 2;
+      data.settings.max_step = 0.5;
+    }
+
   }  // namespace
 
   // ---------------------------------------------------------------------------
@@ -824,46 +868,11 @@ namespace adsim {
   // which includes them, must not stop the run.
   TEST(DynamicTank, CSSWaitsForTheTank) {
     UserData data;
+    size_t tank_id = 0;
+    BuildCssDeck(data, 1.0, 12, tank_id);
     BedOptions o;
     o.components = {"Nitrogen", "Oxygen"};
-    o.y0 = {{"Nitrogen", 0.79}, {"Oxygen", 0.21}};
-    o.henry = true;
-    BuildBed(data, o);
-    Tank& tank = NewTank(data, 1.0, 1e5, kT, {{"Nitrogen", 1.0}});
-    const size_t tank_id = tank.id_;
-    auto vent = std::make_unique<TankValve>();
-    vent->name_ = "Product";
-    vent->cv_ = 0.5;
-    vent->downstream_pressure_ = 1e5;
-    tank.streams_.push_back(std::move(vent));
-
-    data.cycle.AddStep("Feed");
-    {
-      Step& s = data.cycle.GetStep("Feed");
-      s.step_time_ = 20.0;
-      auto feed = PortFlow(0.02, 0, "Feed");
-      feed->mole_fraction["Nitrogen"] = 0.79;
-      feed->mole_fraction["Oxygen"] = 0.21;
-      AddStream(s, BoundaryLocation::BOTTOM, BoundaryDirection::INLET, std::move(feed));
-      AddStream(s, BoundaryLocation::TOP, BoundaryDirection::OUTLET, PortValve(0.2, tank_id, "To tank"));
-    }
-    data.cycle.AddStep("Blowdown");
-    {
-      Step& s = data.cycle.GetStep("Blowdown");
-      s.step_time_ = 20.0;
-      auto bc = std::make_unique<PressureBoundaryCondition>();
-      bc->direction_ = BoundaryDirection::OUTLET;
-      bc->location_ = BoundaryLocation::BOTTOM;
-      bc->pressure_ = Constant(1e5);
-      s.bottom_boundary_condition_ = std::move(bc);
-      Close(s, BoundaryLocation::TOP);
-    }
-    data.cycle.number_of_cycles_ = 12;
-    auto& css = data.settings.css;
-    css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
-    css.min_cycles_ = 3;
-    css.consecutive_cycles_ = 2;
-    data.settings.max_step = 0.5;
+    const auto& css = data.settings.css;
 
     CoupledSolver solver{data};
     RunDeck(data, solver);
@@ -897,6 +906,47 @@ namespace adsim {
     }
     // GUARD: the bed-only rule would have stopped the run.
     EXPECT_EQ(bed_passing, 2);
+  }
+
+  // Aitken acceleration moves the tank's moles with the bed's slow fields.
+  // With a smaller tank (composition time constant ~3 cycles, so the cycle map
+  // contracts by ~0.7 and Aitken's coefficient stays inside its cap) the run reaches
+  // CSS with and without acceleration; both must arrive at the same tank state
+  // (to the CSS tolerances: 1e-3 on the pressure and the composition), and the
+  // accelerated run must take fewer cycles.
+  TEST(DynamicTank, AitkenAccelerationIncludesTheTank) {
+    struct Out { int css_cycle; double P, y; int applied; };
+    auto run = [](bool accelerate) {
+      UserData data;
+      size_t tank_id = 0;
+      BuildCssDeck(data, 0.02, 80, tank_id);
+      data.settings.css.consecutive_cycles_ = 3;
+      if (accelerate) data.settings.acc_css.method_ = AccelerationMethod::AITKEN;
+      CoupledSolver solver{data};
+      int applied = 0;
+      solver.SetLogLevel(LogLevel::MEDIUM);
+      solver.SetMessageCallback([&](LogLevel, const std::string& m) {
+        if (m.find("acceleration applied") != std::string::npos) ++applied;
+      });
+      RunDeck(data, solver);
+      const auto& log = solver.GetLog();
+      const int c = solver.GetCSSCycleIndex();
+      const TankLogData* t = log.GetTankLog(*log.sys_data.cycle_index_set_.rbegin(), 1, tank_id);
+      return Out{c, t ? t->pressure.back() : 0.0, t ? t->mole_fraction.at("Oxygen").back() : 0.0, applied};
+    };
+    const Out plain = run(false);
+    const Out fast = run(true);
+    std::cout << "[Tank Aitken] CSS at cycle " << plain.css_cycle + 1 << " plain, " << fast.css_cycle + 1
+              << " accelerated (" << fast.applied << " re-seeds); P_tank " << plain.P << " / " << fast.P << " Pa, y_O2 " << plain.y << " / " << fast.y
+              << "\n";
+    ASSERT_GE(plain.css_cycle, 0);
+    ASSERT_GE(fast.css_cycle, 0);
+    EXPECT_LT(fast.css_cycle, plain.css_cycle);
+    EXPECT_GE(fast.applied, 1);
+    EXPECT_NEAR(fast.P / plain.P, 1.0, 1e-3);
+    EXPECT_NEAR(fast.y, plain.y, 1e-3);
+    // GUARD: the tank's composition moved far from its initial pure N2.
+    EXPECT_GT(plain.y, 0.1);
   }
 
 }  // namespace adsim
