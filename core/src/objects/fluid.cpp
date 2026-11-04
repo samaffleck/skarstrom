@@ -48,7 +48,10 @@ namespace adsim {
 		heat_capacity_.clear();
 		for (const std::string& component : components_) {
 			molar_mass_[component] = GetMolarMass(component);
-			heat_capacity_[component] = GetHeatCapacity(component, ic.pressure, ic.temperature);
+			auto cp_it = gas_heat_capacity_.try_emplace(component, kDefaultGasHeatCapacity).first;
+			heat_capacity_[component] = gas_heat_capacity_mode_ == GasHeatCapacityMode::CONSTANT
+				? cp_it->second.Get() / molar_mass_[component]   // [J/(mol-K)] -> [J/(kg-K)]
+				: GetHeatCapacity(component, ic.pressure, ic.temperature);
 			// Viscosity mu_i(T) uses hard-coded polynomial coefficients
 			// (viscosity_coefficients.h) — no CoolProp fitting needed here.
 
@@ -61,6 +64,19 @@ namespace adsim {
 	bool Fluid::PerformChecks(std::string& error_message) const {
 		if (components_.empty()) {
 			error_message += "Component list is empty. You need to add at least one component to the system. ";
+			return false;
+		}
+		if (gas_heat_capacity_mode_ == GasHeatCapacityMode::CONSTANT) {
+			for (const auto& c : components_) {
+				auto it = gas_heat_capacity_.find(c);
+				if (it != gas_heat_capacity_.end() && !(it->second.Get() > 0.0)) {
+					error_message += "The constant gas heat capacity of " + c + " must be positive. ";
+					return false;
+				}
+			}
+		}
+		if (viscosity_mode_ == ViscosityMode::CONSTANT && !(viscosity_.Get() > 0.0)) {
+			error_message += "The constant gas viscosity must be positive. ";
 			return false;
 		}
 
@@ -88,4 +104,4 @@ namespace adsim {
 } // end adsim namespace
 
 
-CEREAL_CLASS_VERSION(adsim::Fluid, 3);
+CEREAL_CLASS_VERSION(adsim::Fluid, 4);

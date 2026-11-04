@@ -57,6 +57,7 @@ bool AddComponentToDeck(UserData& data, const std::string& name, std::string& er
   // it here makes the entry editable before the first run (a front end lists
   // the map's entries, so a component without one had no field).
   data.fluid.adsorbed_heat_capacity_.emplace(name, 0.0);
+  data.fluid.gas_heat_capacity_.emplace(name, Fluid::kDefaultGasHeatCapacity);
   // Initialise is idempotent: existing components keep their models while the
   // new one gets a full, editable default set.
   for (auto& [id, ads_const] : data.adsorbent_directory.GetAll()) {
@@ -71,6 +72,7 @@ void RemoveComponentFromDeck(UserData& data, const std::string& name) {
   data.bed.RemoveComponent(name, data.adsorbent_directory);  // strips it from every adsorbent
   ReconcileMoleFractions(data, name, false);
   data.fluid.adsorbed_heat_capacity_.erase(name);
+  data.fluid.gas_heat_capacity_.erase(name);
 }
 
 void SeedLayerComposition(UserData& data, MixedAdsorbentLayer& layer) {

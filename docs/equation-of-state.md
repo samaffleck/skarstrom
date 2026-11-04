@@ -30,6 +30,15 @@ Components are chosen by their [CoolProp](https://coolprop.org/) fluid names in 
 
 If CoolProp cannot evaluate a property, the error is printed to the console and the value is set to 0.
 
+### Constant gas heat capacity and viscosity
+
+Models in the literature often use fixed gas properties; for example, Yancy-Caballero et al. (2020) and Haghpanah et al. (2013) use $C_{p,g} = 30.7$ J mol⁻¹ K⁻¹ and $\mu = 1.72\times10^{-5}$ Pa s. Two fluid switches reproduce them:
+
+- **Gas heat capacity mode** (`fluid.gas_heat_capacity_mode`): `coolprop` (the default, as above) or `constant`. With `constant`, the molar heat capacity of each component is the value given in `fluid.gas_heat_capacity[<component>]` [J mol⁻¹ K⁻¹], and $C_{p,i}$ is that value divided by $M_i$. The mixing rule below is unchanged, so equal values give that molar heat capacity at every composition. A new component starts at 29.1 J mol⁻¹ K⁻¹ (7R/2).
+- **Viscosity mode** (`fluid.viscosity_mode`): `polynomial` (the default, the mole-fraction average below) or `constant`. With `constant`, every cell has the mixture viscosity `fluid.viscosity` [Pa s], whatever its temperature and composition.
+
+The *Gas phase* adsorbed-phase heat capacity takes the same $C_{p,i}\thinspace M_i$, so with a constant gas heat capacity it is the constant too.
+
 ### Mixture properties
 
 All mixture properties use **linear mole-fraction mixing**, evaluated in every cell at every residual evaluation:

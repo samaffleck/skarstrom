@@ -32,6 +32,34 @@ root `CMakeLists.txt`.
   move at integrator-tolerance level (they are now bit-identical to BandDQ
   runs); upwind runs are unchanged, bit for bit.
 
+### Added — constant gas heat capacity and viscosity; heat of adsorption as −ΔU + RT
+- **`fluid.gas_heat_capacity_mode`**: `coolprop` (default, unchanged) or
+  `constant`, with a molar value per component in
+  `fluid.gas_heat_capacity[<component>]` [J/(mol·K)] (a new component starts
+  at 29.1, 7R/2). The constants replace the CoolProp values that
+  `Fluid::Initialise` caches; the molar mixing rule is unchanged, so equal
+  values give that heat capacity at every composition. The *Gas phase*
+  adsorbed-phase heat capacity follows them.
+- **`fluid.viscosity_mode`**: `polynomial` (default, unchanged) or `constant`,
+  with one mixture viscosity `fluid.viscosity` [Pa·s] in every cell.
+- **`fluid.heat_of_adsorption_convention = "isosteric_rt"`**: the stored heat
+  of adsorption is −ΔU, the internal energy of adsorption, and the heat
+  released per mole adsorbed is −ΔU + R·T at the local adsorbed-phase
+  temperature (LTE bed or LTNE solid temperature). This is the source term
+  of Yancy-Caballero et al. (2020) / PEESEgroup PSA, −(ΔU − RT); a constant
+  isosteric value fixes it at one temperature.
+- With the three switches a deck reproduces models that use fixed gas
+  properties (C_p,g = 30.7 J/(mol·K), μ = 1.72e-5 Pa·s in Yancy-Caballero
+  2020 and Haghpanah 2013). Defaults are unchanged, so every example deck
+  and validation result is unchanged. `Fluid` is class version 4; older
+  decks load with the defaults. Non-positive constants fail the deck
+  checks. Registry, Python (`sim.fluid.gas_heat_capacity_mode`,
+  `gas_heat_capacity[...]`, `viscosity_mode`, `viscosity`) and the script
+  export carry the new fields. Docs: `equation-of-state.md` (constant gas
+  properties), `energy-balance.md` (heat-of-adsorption conventions). Tests:
+  `FluidPropertyModes*` and the `IsostericRT` cases of
+  `ComponentEnergySourceLog`.
+
 ### Added — sensitivity studies saved with the deck
 - A deck now saves its sensitivity study's set-up (`UserData::sensitivity_study`,
   `Sensitivity_Study` in the file; `UserData` cereal version 4): inputs and their
@@ -45,6 +73,7 @@ root `CMakeLists.txt`.
   `screen()`, `propagate()` and `Screening.important()`.
 - CLI: `skarstrom sensitivity deck.json` without `--input` runs the deck's
   saved study; options given override it.
+
 ### Added — cross-code regression against the PEESE model and toPSAil
 - `core/test/crosscode/`: twelve single-column breakthrough and purge cases
   (CO2/N2 on 13X with concentration- and pressure-form Langmuir and Henry
@@ -97,6 +126,7 @@ root `CMakeLists.txt`.
   inputs written in other units, and the step a cyclic steady state is started
   from (with a connection whose lag changes under the rotation).
   `BreakthroughCase` gains `n_layers`.
+
 ### Added — verification: evacuation, pressure equalisation and buffer tank
 - `core/test/validation/test_unit_operations.cpp` checks constant-speed
   evacuation (`P = P0 exp(-S t / V a R T)`), two-bed pressure equalisation
