@@ -668,6 +668,7 @@ namespace adsim {
         E(head + "_exponential_start", name + " (exponential start)", unit, ex->start_value_, lo, hi);
         E(head + "_exponential_end", name + " (exponential end)", unit, ex->end_value_, lo, hi);
         E(head + "_exponential_time", name + " (exponential time)", "s", ex->step_time_, 0.0, 1e4);
+        E(head + "_exponential_factor", name + " (exponential factor)", "-", ex->factor_, 1.01, 1e6);
       } else if (auto* lg = dynamic_cast<LogLinearBoundaryValue*>(value)) {
         E(head + "_log_linear_start", name + " (log-linear start)", unit, lg->start_value_, lo, hi);
         E(head + "_log_linear_end", name + " (log-linear end)", unit, lg->end_value_, lo, hi);
@@ -734,19 +735,36 @@ namespace adsim {
       }
     }
 
+    // A pressure (pressure boundary or valve) profile starts from the bed
+    // pressure, so its start is not listed; a ramp lasts the step unless
+    // <kind>_use_step_time is off, when <kind>_time is listed too (it must not
+    // exceed the step time; Cycle::PerformChecks).
     void AddPressureProfile(IBoundaryValue* value, const EndpointScope& ep) {
+      auto Ramp = [&](const std::string& kind, const std::string& label, bool& use_step_time,
+                      ExpressionParam& time) {
+        EmplaceBool(ep.path + ".pressure_" + kind + "_use_step_time", ep.alias + ".pressure_" + kind + "_use_step_time",
+                    "cycle", ep.subcategory, "pressure (" + label + " ramp over the step time)", use_step_time);
+        if (!use_step_time)
+          Emplace(ep.path + ".pressure_" + kind + "_time", ep.alias + ".pressure_" + kind + "_time", "cycle",
+                  ep.subcategory, "pressure (" + label + " ramp time)", "s", time, 0.0, 1e4);
+      };
       if (auto* bv = dynamic_cast<ConstantBoundaryValue*>(value)) {
         Emplace(ep.path + ".pressure", ep.alias + ".pressure", "cycle", ep.subcategory,
                 "pressure (constant)", "Pa", bv->constant_value_, 1e4, 1e6);
       } else if (auto* bv = dynamic_cast<LinearBoundaryValue*>(value)) {
         Emplace(ep.path + ".pressure_linear_end", ep.alias + ".pressure_linear_end", "cycle",
                 ep.subcategory, "pressure (linear end)", "Pa", bv->end_value_, 1e4, 1e6);
+        Ramp("linear", "linear", bv->use_step_time_, bv->ramp_time_);
       } else if (auto* bv = dynamic_cast<ExponentialBoundaryValue*>(value)) {
         Emplace(ep.path + ".pressure_exponential_end", ep.alias + ".pressure_exponential_end", "cycle",
                 ep.subcategory, "pressure (exponential end)", "Pa", bv->end_value_, 1e4, 1e6);
+        Ramp("exponential", "exponential", bv->use_step_time_, bv->step_time_);
+        Emplace(ep.path + ".pressure_exponential_factor", ep.alias + ".pressure_exponential_factor", "cycle",
+                ep.subcategory, "pressure (exponential factor)", "-", bv->factor_, 1.01, 1e6);
       } else if (auto* bv = dynamic_cast<LogLinearBoundaryValue*>(value)) {
         Emplace(ep.path + ".pressure_log_linear_end", ep.alias + ".pressure_log_linear_end", "cycle",
                 ep.subcategory, "pressure (log-linear end)", "Pa", bv->end_value_, 1e4, 1e6);
+        Ramp("log_linear", "log-linear", bv->use_step_time_, bv->ramp_time_);
       } else if (auto* bv = dynamic_cast<DoubleExponentialBoundaryValue*>(value)) {
         Emplace(ep.path + ".pressure_double_exponential_end", ep.alias + ".pressure_double_exponential_end", "cycle",
                 ep.subcategory, "pressure (double-exponential end)", "Pa", bv->end_value_, 1e4, 1e6);
