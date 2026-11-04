@@ -69,6 +69,7 @@ namespace adsim {
     num_failure_audits_ = 0;
     last_conv_fails_ = 0;
     num_misses_ = 0;
+    learn_once_ = false;
     pattern_counts_.clear();
 
     // Banded layout: same loop order as Equations::PackBanded.
@@ -140,8 +141,8 @@ namespace adsim {
     row_ptr_.clear();
     rows_.clear();
     colour_groups_.clear();
-    learn_budget_ = kLearnPerStep;  // covers IDACalcIC and the first step
-    probe_pending_ = mode_ != JacobianMode::BandDQ;
+    learn_budget_ = learn_once_ ? 1 : kLearnPerStep;  // covers IDACalcIC and the first step
+    probe_pending_ = mode_ != JacobianMode::BandDQ && !learn_once_;
     evals_since_audit_ = 0;
   }
 
@@ -157,8 +158,15 @@ namespace adsim {
     InitialiseBand();
   }
 
+  void BandedJacobian::SetLearnOnceForTesting(bool on) {
+    learn_once_ = on;
+    if (!on) return;
+    learn_budget_ = 1;
+    probe_pending_ = false;
+  }
+
   void BandedJacobian::OnStepStart(int cycle_index) {
-    if (mode_ != JacobianMode::BandDQ && cycle_index == 0) {
+    if (mode_ != JacobianMode::BandDQ && cycle_index == 0 && !learn_once_) {
       learn_budget_ = kLearnPerStep;
       probe_pending_ = true;
     }
@@ -169,12 +177,11 @@ namespace adsim {
   }
 
   bool BandedJacobian::Learn(sunindextype j, sunindextype i) {
-    char* slot = nullptr;
+    const int d = cell_[i] - cell_[j];
+    char* slot = &interior_[(static_cast<size_t>(var_[j]) * n_vars_ + var_[i]) * n_offsets_ + d + max_offset_];
     if (IsBoundaryColumn(j)) {
+      if (*slot) return false;  // the interior pattern already covers it (see Recolour)
       slot = &boundary_[j][i - j + mu_];
-    } else {
-      const int d = cell_[i] - cell_[j];
-      slot = &interior_[(static_cast<size_t>(var_[j]) * n_vars_ + var_[i]) * n_offsets_ + d + max_offset_];
     }
     if (*slot) return false;
     *slot = 1;
@@ -182,15 +189,24 @@ namespace adsim {
   }
 
   void BandedJacobian::Recolour() {
-    // Rows of each column under the current pattern, clipped to the band.
+    // Rows of each column under the current pattern, clipped to the band. A
+    // boundary column reads its own learned rows plus the interior pattern of
+    // its variable: its own rows come from one column's evaluations, which can
+    // miss a coupling the translation-invariant pattern has seen along the
+    // whole bed (the higher-order faces next to a ghost cell do).
     row_ptr_.assign(n_ + 1, 0);
     rows_.clear();
     for (sunindextype j = 0; j < n_; ++j) {
       const sunindextype lo = SUNMAX(0, j - mu_);
       const sunindextype hi = SUNMIN(j + ml_, n_ - 1);
       if (IsBoundaryColumn(j)) {
-        for (sunindextype i = lo; i <= hi; ++i)
-          if (boundary_[j][i - j + mu_]) rows_.push_back(i);
+        const size_t base = static_cast<size_t>(var_[j]) * n_vars_ * n_offsets_;
+        for (sunindextype i = lo; i <= hi; ++i) {
+          const int d = cell_[i] - cell_[j];
+          if (boundary_[j][i - j + mu_] ||
+              interior_[base + static_cast<size_t>(var_[i]) * n_offsets_ + d + max_offset_])
+            rows_.push_back(i);
+        }
       } else {
         const size_t base = static_cast<size_t>(var_[j]) * n_vars_ * n_offsets_;
         for (int e = 0; e < n_vars_; ++e) {
@@ -232,7 +248,7 @@ namespace adsim {
                                N_Vector rr, SUNMatrix Jac, UserData* udata,
                                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) {
     if (mode_ == JacobianMode::BandDQ) {
-      return EvaluateGroups(band_groups_, true, tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
+      return EvaluateGroups(band_groups_, Pass::Band, tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
     }
 
     if (probe_pending_) {
@@ -251,12 +267,22 @@ namespace adsim {
     const bool audit = !learning && (after_failure || ++evals_since_audit_ >= kAuditInterval);
     if (audit && after_failure) ++num_failure_audits_;
     if (!learning && !audit) {
-      int retval = EvaluateGroups(colour_groups_, false, tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
+      const int retval = EvaluateGroups(colour_groups_, Pass::Coloured, tt, c_j, yy, yp, rr, Jac, udata,
+                                        tmp1, tmp2, tmp3);
+      // ColouredCheck: compare with a band evaluation that only observes. It
+      // must not learn (that would add the missed coupling to the pattern
+      // without recolouring, so the coloured evaluation would keep missing it
+      // and no audit would ever count it), count residual calls (they seed the
+      // generic-state probes) or out-of-band couplings (they widen the band),
+      // or fail the step, so the run is exactly the Coloured run.
       if (retval == 0 && mode_ == JacobianMode::ColouredCheck) {
         SUNMatZero(check_matrix_);
-        const long saved_new = new_entries_;
-        retval = EvaluateGroups(band_groups_, true, tt, c_j, yy, yp, rr, check_matrix_, udata, tmp1, tmp2, tmp3);
-        new_entries_ = saved_new;
+        const std::string residual_error = udata->residual_error_;
+        if (EvaluateGroups(band_groups_, Pass::Check, tt, c_j, yy, yp, rr, check_matrix_, udata,
+                           tmp1, tmp2, tmp3) != 0) {
+          udata->residual_error_ = residual_error;
+          return retval;
+        }
         for (sunindextype j = 0; j < n_; ++j) {
           const sunindextype i1 = SUNMAX(0, j - mu_);
           const sunindextype i2 = SUNMIN(j + ml_, n_ - 1);
@@ -291,7 +317,8 @@ namespace adsim {
     }
     const long misses_before = num_misses_;
     new_entries_ = 0;
-    const int retval = EvaluateGroups(band_groups_, true, tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
+    const int retval = EvaluateGroups(band_groups_, Pass::Band, tt, c_j, yy, yp, rr, Jac, udata,
+                                      tmp1, tmp2, tmp3);
     if (audit) num_misses_ = misses_before + new_entries_;
     if (new_entries_ > 0 || colour_groups_.empty()) Recolour();
     return retval;
@@ -367,7 +394,7 @@ namespace adsim {
     Recolour();
   }
 
-  int BandedJacobian::EvaluateGroups(const std::vector<std::vector<sunindextype>>& groups, bool band,
+  int BandedJacobian::EvaluateGroups(const std::vector<std::vector<sunindextype>>& groups, Pass pass,
                                      sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp, N_Vector rr,
                                      SUNMatrix Jac, UserData* udata,
                                      N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) {
@@ -391,7 +418,9 @@ namespace adsim {
     N_VScale(SUN_RCONST(1.0), yp, yptemp);
 
     const sunrealtype srur = SUNRsqrt(SUN_UNIT_ROUNDOFF);
-    const bool learn = band && mode_ != JacobianMode::BandDQ;
+    const bool band = pass != Pass::Coloured;
+    const bool observe = pass != Pass::Check;  // a check leaves every counter and the pattern alone
+    const bool learn = pass == Pass::Band && mode_ != JacobianMode::BandDQ;
     int retval = 0;
 
     for (const auto& group : groups) {
@@ -402,7 +431,7 @@ namespace adsim {
       }
 
       retval = UpdateResiduals(tt, ytemp, yptemp, rtemp, udata);
-      ++num_res_evals_;
+      if (observe) ++num_res_evals_;
       if (retval != 0) break;
 
       for (sunindextype j : group) {
@@ -419,13 +448,13 @@ namespace adsim {
             const sunrealtype value = inc_inv * (rtemp_data[i] - r_data[i]);
             if (i < j - mu_ || i > j + ml_) {
               // Outside the matrix: cannot be stored, only counted.
-              if (value != SUN_RCONST(0.0)) ++num_out_of_band_;
+              if (observe && value != SUN_RCONST(0.0)) ++num_out_of_band_;
               continue;
             }
             SM_COLUMN_ELEMENT_B(col_j, i, j) = value;
             if (value == SUN_RCONST(0.0)) continue;
             if (learn && Learn(j, i)) ++new_entries_;
-            if (record_pattern_)
+            if (observe && record_pattern_)
               ++pattern_counts_[{ var_names_[var_[i]], var_names_[var_[j]], cell_[i] - cell_[j] }];
           }
         } else {

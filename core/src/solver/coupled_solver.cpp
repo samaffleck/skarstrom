@@ -1069,6 +1069,7 @@ namespace adsim {
     if (custom_jacobian_) {
       jacobian_.Initialise(ida_mem_, state, sunctx_, mu, ml, settings.jacobian_mode_,
                            settings.record_jacobian_pattern_, reach, reach);
+      jacobian_.SetLearnOnceForTesting(settings.jacobian_learn_once_for_testing_);
       user_data.jacobian_ = &jacobian_;
       retval = IDASetJacFn(ida_mem_, BandedJacobianFn);
       if (retval != IDA_SUCCESS) {
