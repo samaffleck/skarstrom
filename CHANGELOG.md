@@ -8,6 +8,28 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — method-of-manufactured-solutions hook and order test
+- Verification hook `UserData::manufactured_sources_`
+  (`adsim/equations/manufactured_sources.h`): source terms, functions of z
+  and t, for the overall balance, each component balance, each loading's
+  rate law, the momentum faces (a pressure-gradient source on Darcy faces
+  and interior Ergun faces) and the LTE energy balance, added to the
+  residuals in the scaling of the neighbouring physical terms. Testing only:
+  not serialised and not reachable from decks, the parameter registry,
+  Python or the web. With no source set the results are bit-identical
+  (`bench_solver` logs of two example decks are byte-identical to the
+  previous residual code) and the residual cost is unchanged.
+  `UpdateResiduals` records the integrator time in `UserData::residual_time_`
+  for it.
+- `core/test/validation/test_manufactured_solutions.cpp`: a smooth,
+  time-dependent manufactured solution with dispersion, LDF kinetics on a
+  Langmuir isotherm, Kozeny-Carman flow and (thermal case) the energy
+  balance, sources derived by hand and checked by finite differences.
+  Observed orders on 20-160 cells: upwind 1.0 in every field; WENO and
+  van Leer 2 (WENO interior 2.5-2.8 before the second-order central terms
+  take over); with the energy balance the temperature is first order for
+  every scheme (the convective face temperature is always upwind). About 4 s.
+
 ### Added — convergence verification of cycle results (grid, integrator tolerance, CSS)
 - `CycleKpiGridConvergence` (`core/test/validation/test_grid_convergence.cpp`):
   purity, recovery and specific energy of the shared PSA cycle at cyclic
@@ -43,6 +65,7 @@ root `CMakeLists.txt`.
   Python `isotherm_kinds()`, IAST (an exact Sips term) and the docs know it;
   the fitter does not offer it yet. Near y = 0 each term is regularised with a
   step at 1e-5 (loading changed by 1e-10 / y^2: 1e-4 at y = 1e-3).
+
 ### Fixed — competitive Sips kinds no longer suppress trace-component loadings
 - `extended_sips_2` and `arrhenius_sips` multiplied every competitive term
   z_i = (b_i P y_i)^{s_i} by y_i^2 / (y_i^2 + 1e-6) in the solver only, to
@@ -70,6 +93,35 @@ root `CMakeLists.txt`.
   retries. Tests: `CompetitiveSipsTraceLoading.*`,
   `CompetitiveSipsBelowThreshold.*` and
   `CompetitiveSipsTraceBreakthrough.FirstMomentMatchesPublishedIsotherm`.
+
+### Fixed — WENO / van Leer outlet-cell mole-fraction sum drifts during fast outflow
+- With `AdvectionScheme::WENO` or `VanLeer` the cell at a bed end that gas
+  leaves through could see its mole fractions drift from summing to one
+  while the outflow lasted (a valve surge, a blowdown): 5.0e-4 with WENO and
+  4.5e-4 with van Leer in `ErgunValveSurgeTest` (Kozeny-Carman), against
+  1.1e-5 with upwind. The schemes clamped every face mole fraction to [0, 1], the bed-end faces
+  included; those take the upwind cell's value and are not rescaled to its
+  sum, so an end cell holding pure nitrogen at y = 1 + 1e-9 sent out a face
+  that summed to one instead of the cell's sum, and the cell's departure from
+  one was no longer carried out of the bed. Only the reconstructed values are
+  clamped now; the upwind faces are left as they are, as under Upwind. The
+  same clamp made the logged balances disagree with the solver (the stream
+  logs integrate the end cell's value, the solver used the clamped face):
+  the DAC charge with WENO had its total mole balance off by 3.45e-2 mol
+  (now 2.7e-5, the upwind value) and the outlet cell's sum by 4.0e-5 (now
+  9e-15); the temperature purge with van Leer logged 2.4e-5 mol of a
+  nitrogen that is in neither the feed nor the bed (now 1.3e-8). The drift
+  also reached 1.6e-6 (WENO) in the steep-front breakthrough of
+  `AdvectionSchemeConservation` at reltol 1e-8; every scheme now keeps about
+  1e-12 there. Upwind is unchanged (its faces were never clamped). Tests:
+  `AdvectionSchemeConservation.EveryFaceSumsToItsUpwindCellSum` (the
+  discrete identity, face by face); the valve-surge test run with every
+  scheme (`ErgunValveSurgeTest.*WENO`, `*VanLeer`), which bounds the outlet
+  cell's sum at the end of each feed step by reltol; `UserDataTest.DAC` and
+  `TemperaturePurge` run with every scheme (`*WENO`, `*VanLeer`), with their
+  logged balances bounded at the upwind level; and the steep-front sum
+  check, now at reltol 1e-8 with a 1e-9 bound. Found by the WENO-everywhere
+  experiment of the verification programme (WP20-E1).
 
 ### Fixed — the ColouredCheck Jacobian diagnostic no longer changes the run
 - In `JacobianMode::ColouredCheck` the band evaluation built for the
