@@ -33,6 +33,30 @@ root `CMakeLists.txt`.
   each studied deck needs are on the Numerics page ("Convergence of the
   results").
 
+### Fixed — the ColouredCheck Jacobian diagnostic no longer changes the run
+- In `JacobianMode::ColouredCheck` the band evaluation built for the
+  comparison learned every coupling it found into the pattern without
+  recolouring, and its count was discarded: a coupling the coloured pattern
+  missed stayed missing from the coloured Jacobian for the rest of the run,
+  no audit ever counted it (`NumMisses()` stayed 0), and the check run took a
+  different path from the Coloured run it was meant to observe. The
+  comparison now only observes (no learning, and no residual-call,
+  out-of-band or pattern counts, and a failed comparison evaluation does not
+  fail the step), so a ColouredCheck run is the Coloured run exactly and
+  reports a missed coupling until an audit adds it. Test:
+  `ColouredJacobian.ColouredCheckObservesTheColouredRun` (it starts from a
+  pattern learned from one evaluation, the new testing switch
+  `IDASettings::jacobian_learn_once_for_testing_`).
+- With the WENO and van Leer schemes the pattern learned in the first cycle
+  missed couplings of the columns in the three cells at each end (e.g. the
+  first cell's mole fractions on the inlet ghost cell's other mole
+  fractions); the audits added them later. Those columns now also take the
+  interior pattern, so the coloured Jacobian equals the band DQ Jacobian entry
+  for entry for all three schemes (`ColouredJacobian.MatchesBandDQ_*_WENO` /
+  `_VanLeer`). Results of WENO / van Leer runs in the default Coloured mode
+  move at integrator-tolerance level (they are now bit-identical to BandDQ
+  runs); upwind runs are unchanged, bit for bit.
+
 ### Added — constant gas heat capacity and viscosity; heat of adsorption as −ΔU + RT
 - **`fluid.gas_heat_capacity_mode`**: `coolprop` (default, unchanged) or
   `constant`, with a molar value per component in

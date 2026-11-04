@@ -37,7 +37,10 @@ namespace adsim {
   // residual calls per Jacobian than IDA's fixed band stride. Interior columns
   // share a translation-invariant pattern keyed by (variable, cell offset);
   // columns near either end of the bed (ghost/void/boundary cells) keep their
-  // own exact row sets because boundary conditions overwrite those residuals.
+  // own exact row sets because boundary conditions overwrite those residuals,
+  // and also take the interior pattern (a coupling one boundary column did not
+  // show while learning, e.g. of the WENO / van Leer faces next to a ghost
+  // cell, has been seen all along the interior).
   // Every kAuditInterval-th Jacobian is a full band DQ evaluation that checks
   // the pattern; a coupling it finds outside the pattern is added and the
   // columns are recoloured, so a missed dependency is self-correcting. The
@@ -83,9 +86,15 @@ namespace adsim {
     // the first steps of cycle 0 (each step has its own boundary conditions).
     void OnStepStart(int cycle_index);
 
+    // Testing only (IDASettings::jacobian_learn_once_for_testing_): learn the
+    // pattern from the first band evaluation alone, so the audits must
+    // complete it. Call after Initialise.
+    void SetLearnOnceForTesting(bool on);
+
     int Evaluate(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp, N_Vector rr,
                  SUNMatrix Jac, UserData* udata, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
+    // Residual calls spent on Jacobians (not counting ColouredCheck's comparison).
     long NumResidualEvals() const { return num_res_evals_; }
     long NumAudits() const { return num_audits_; }
     long NumFailureAudits() const { return num_failure_audits_; }
@@ -106,6 +115,9 @@ namespace adsim {
     const std::map<PatternKey, long>& PatternCounts() const { return pattern_counts_; }
 
     // ColouredCheck mode: entries where the coloured and band matrices differed.
+    // The comparison only observes: the pattern, its audits and every counter
+    // above evolve exactly as in Coloured mode, so a coupling the pattern
+    // misses is reported here until an audit adds it (NumMisses).
     long NumCheckMismatches() const { return num_check_mismatches_; }
     double MaxCheckRelativeError() const { return max_check_rel_; }
     const std::vector<std::string>& CheckReport() const { return check_report_; }
@@ -119,7 +131,13 @@ namespace adsim {
     // Band DQ at kProbeStates randomised states around (yy, yp); learns only.
     void ProbeGenericStates(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp,
                             UserData* udata, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
-    int EvaluateGroups(const std::vector<std::vector<sunindextype>>& groups, bool band,
+    // What a group evaluation is for. Band: the full band (BandDQ mode, or a
+    // learning / audit evaluation, which learns the nonzeros it finds outside
+    // the pattern). Coloured: only the pattern rows of each column are read.
+    // Check: the full band for the ColouredCheck comparison, purely observing
+    // (no learning, no counters), so the diagnostic does not change the run.
+    enum class Pass { Band, Coloured, Check };
+    int EvaluateGroups(const std::vector<std::vector<sunindextype>>& groups, Pass pass,
                        sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp, N_Vector rr,
                        SUNMatrix Jac, UserData* udata, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
@@ -157,6 +175,7 @@ namespace adsim {
     std::vector<std::vector<sunindextype>> colour_groups_;
 
     int learn_budget_ = 0;
+    bool learn_once_ = false;
     bool probe_pending_ = false;
     std::vector<N_Vector> probe_vecs_;  // y, yp, r at a probe state
     bool learning_done_ = false;
