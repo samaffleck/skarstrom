@@ -696,6 +696,78 @@ namespace adsim {
     }
   } // namespace
 
+  // --- Extended Langmuir-Freundlich (Yang 1987; toPSAil) ----------------------
+  // z_i = b_i (P y_i / P_ref)^{n_i}. For n < 1 the power has an infinite slope at
+  // y = 0, so y is made positive with the same softplus as the Sips kinds and
+  // z is multiplied by the smooth step y^2 / (y^2 + delta^2). delta = 1e-5 is
+  // far below the mole fractions of interest (the step changes z by delta^2 /
+  // y^2 = 1e-4 at y = 1e-3, 1e-6 at y = 1e-2) while keeping the slope at
+  // y ~ delta of order delta^{n-1} (about 300 for n = 0.5).
+  namespace {
+    constexpr double kElfDelta = 1e-5;
+
+    inline double Elf_qs(double T, const ExtendedLangmuirFreundlichIsothermParameters& p) {
+      const double k1 = p.k1, k2 = p.k2;
+      return k1 + k2 * T;
+    }
+    inline double Elf_z(double T, double P, double mf, const ExtendedLangmuirFreundlichIsothermParameters& p) {
+      const double k3 = p.k3, k4 = p.k4, k5 = p.k5, k6 = p.k6, P_ref = p.P_ref;
+      const double b = k3 * std::exp(k4 / T);
+      const double n = 1.0 / (k5 + k6 / T);
+      const double mf_pos = softplus(mf, kSoftplusTau);
+      const double z_raw = b * safe_pow(P * mf_pos / P_ref, n);
+      return z_raw * (mf_pos * mf_pos) / (mf_pos * mf_pos + kElfDelta * kElfDelta);
+    }
+  } // namespace
+
+  void IsothermFunction::ExtendedLangmuirFreundlich(double& qi, double T, double P, double yi,
+                                                    const ExtendedLangmuirFreundlichIsothermParameters& ips) {
+    const double z = Elf_z(T, P, yi, ips);
+    qi = Elf_qs(T, ips) * z / (1.0 + z);
+  }
+
+  void ExtendedLangmuirFreundlichIsotherm::Update(IsothermUpdateParams& state) {
+    UpdateAll(state, std::vector<std::string>{ state.component });
+  }
+
+  void ExtendedLangmuirFreundlichIsotherm::UpdateAll(IsothermUpdateParams& state,
+                                                     const std::vector<std::string>& components) {
+    auto& T = state.T;
+    auto& P = state.P;
+    const int start_index = state.start_index;
+    const int end_index = state.end_index;
+
+    for (const auto& comp : components) params_[comp];
+
+    // The denominator iterates params_ in map order (bit-identical whichever
+    // components are requested), as the other competitive kinds do.
+    struct Term { const ExtendedLangmuirFreundlichIsothermParameters* p; const std::vector<double>* yi; double z = 0.0; };
+    std::vector<Term> terms;
+    terms.reserve(params_.size());
+    for (const auto& [comp, comp_params] : params_)
+      terms.push_back({ &comp_params, &state.yi_map.at(comp).var });
+
+    struct Output { const ExtendedLangmuirFreundlichIsothermParameters* p; std::vector<double>* qi_sat; size_t term_index; };
+    std::vector<Output> outputs;
+    outputs.reserve(components.size());
+    for (const auto& comp : components) {
+      const auto* p = &params_.at(comp);
+      size_t idx = 0;
+      while (idx < terms.size() && terms[idx].p != p) ++idx;
+      outputs.push_back({ p, &state.qi_sat_map.at(comp).var, idx });
+    }
+
+    for (int n = start_index; n <= end_index; ++n) {
+      double denominator = 0.0;
+      for (auto& t : terms) {
+        t.z = Elf_z(T[n], P[n], (*t.yi)[n], *t.p);
+        denominator += t.z;
+      }
+      for (const auto& out : outputs)
+        (*out.qi_sat)[n] = Elf_qs(T[n], *out.p) * terms[out.term_index].z / (1.0 + denominator);
+    }
+  }
+
   void ArrheniusSipsIsotherm::Update(IsothermUpdateParams& state) {
     UpdateAll(state, std::vector<std::string>{ state.component });
   }
@@ -760,6 +832,7 @@ CEREAL_REGISTER_TYPE(adsim::RedlichPetersonIsotherm)
 CEREAL_REGISTER_TYPE(adsim::TothIsotherm)
 CEREAL_REGISTER_TYPE(adsim::Toth2Isotherm)
 CEREAL_REGISTER_TYPE(adsim::ArrheniusSipsIsotherm)
+CEREAL_REGISTER_TYPE(adsim::ExtendedLangmuirFreundlichIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::DualSiteLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedDualSiteLangmuirIsotherm)
@@ -780,6 +853,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::RedlichPetersonIso
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::TothIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::Toth2Isotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ArrheniusSipsIsotherm)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedLangmuirFreundlichIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::DualSiteLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedDualSiteLangmuirIsotherm)
@@ -800,6 +874,7 @@ CEREAL_CLASS_VERSION(adsim::RedlichPetersonIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::TothIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::Toth2Isotherm, 2);
 CEREAL_CLASS_VERSION(adsim::ArrheniusSipsIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirFreundlichIsotherm, 1);
 CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm, 2);

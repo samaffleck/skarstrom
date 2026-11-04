@@ -244,6 +244,34 @@ $$
 
 ---
 
+## Extended Langmuir–Freundlich (temperature-dependent)
+
+The competitive Langmuir–Freundlich form of Yang (*Gas Separation by Adsorption Processes*, 1987), with the capacity linear in $T$, an Arrhenius affinity and an exponent whose inverse is linear in $1/T$. It is the "extended Langmuir–Freundlich" isotherm of toPSAil, whose $k_1$–$k_6$ map one to one (with $P_{ref} = 10^5$ Pa for its bar-based $k_3$). Kind `extended_langmuir_freundlich`.
+
+$$
+q_{s,i} = k_1 + k_2\thinspace T, \qquad
+b_i = k_3 \exp\negthinspace \left(\frac{k_4}{T}\right), \qquad
+\frac{1}{n_i} = k_5 + \frac{k_6}{T}
+$$
+
+$$
+q_i^* = q_{s,i}\thinspace \frac{b_i \left(P_i / P_{ref}\right)^{n_i}}{1 + \sum_j b_j \left(P_j / P_{ref}\right)^{n_j}}
+$$
+
+| Symbol | Description | Unit |
+|--------|-------------|------|
+| $k_1$ | Saturation capacity at 0 K (intercept) | mol kg⁻¹ |
+| $k_2$ | Capacity temperature slope | mol kg⁻¹ K⁻¹ |
+| $k_3$ | Affinity pre-factor (per $P_{ref}^{\,n}$) | - |
+| $k_4$ | Affinity temperature | K |
+| $k_5$ | Inverse exponent intercept | - |
+| $k_6$ | Inverse exponent temperature | K |
+| $P_{ref}$ | Pressure unit of the fit (default $10^5$ Pa) | Pa |
+
+The affinity multiplies the power, $b P^n$, where Sips 2 raises the affinity with the pressure, $(b P)^n$; the two coincide only when $k_2 = k_6 = 0$ (then Extended Sips 2 with $A_1 = k_1$, $A_2 = 0$, $C_1 = 1/k_5$, $C_2 = 0$, $B_1 = k_3^{k_5} / P_{ref}$, $B_2 = R k_4 k_5$). Near zero mole fraction each term is multiplied by $y_i^2 / (y_i^2 + 10^{-10})$, which keeps the slope of $P_i^{n}$ finite for $n < 1$ and changes the loading by $10^{-10}/y_i^2$ (relative): $10^{-4}$ at $y_i = 10^{-3}$, $10^{-6}$ at $y_i = 10^{-2}$. Under the IAST mixing rule each component's term is a pure Sips isotherm with affinity $b_i^{1/n_i} / P_{ref}$ and exponent $n_i$.
+
+---
+
 ## Mixture loadings: the mixing rule and IAST
 
 Every adsorbent has a **mixing rule**, which says how its components' isotherms combine into mixture loadings. It is one switch per adsorbent: the registry parameter `adsorbent[<id>].mixing_rule`, `ads.mixing_rule` or `ads.set_mixing_rule(kind)` in Python.

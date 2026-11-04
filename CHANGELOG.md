@@ -8,6 +8,17 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — extended Langmuir-Freundlich isotherm (toPSAil form)
+- New competitive isotherm kind `extended_langmuir_freundlich`
+  (`IsothermType::EXTENDED_LANGMUIR_FREUNDLICH`,
+  `ExtendedLangmuirFreundlichIsotherm`): q_i = (k1 + k2 T) z_i / (1 + sum z_j),
+  z_i = k3 exp(k4 / T) (P y_i / P_ref)^{n_i}, 1/n_i = k5 + k6 / T (Yang 1987,
+  toPSAil's `calcIsothermExtLangFreu.m`; P_ref = 1e5 Pa keeps toPSAil's
+  bar-based k3). No existing kind maps it unless k2 = k6 = 0. Registry,
+  Python `isotherm_kinds()`, IAST (an exact Sips term) and the docs know it;
+  the fitter does not offer it yet. Near y = 0 each term is regularised with a
+  step at 1e-5 (loading changed by 1e-10 / y^2: 1e-4 at y = 1e-3).
+
 ### Fixed — the ColouredCheck Jacobian diagnostic no longer changes the run
 - In `JacobianMode::ColouredCheck` the band evaluation built for the
   comparison learned every coupling it found into the pattern without
@@ -59,6 +70,7 @@ root `CMakeLists.txt`.
   properties), `energy-balance.md` (heat-of-adsorption conventions). Tests:
   `FluidPropertyModes*` and the `IsostericRT` cases of
   `ComponentEnergySourceLog`.
+
 ### Added — valves can read the bed at the end cell
 - Solver setting `settings.valve_bed_pressure` (`IDASettings::valve_bed_pressure_`,
   `"Valve_Bed_Pressure"`; `IDASettings` cereal version 7): `face` (the default,

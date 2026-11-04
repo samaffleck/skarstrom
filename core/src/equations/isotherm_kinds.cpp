@@ -31,6 +31,7 @@ const char* IsothermKindString(IsothermType t) {
     case T::TOTH: return "toth";
     case T::TOTH_2: return "toth_2";
     case T::ARRHENIUS_SIPS: return "arrhenius_sips";
+    case T::EXTENDED_LANGMUIR_FREUNDLICH: return "extended_langmuir_freundlich";
   }
   return "unknown";
 }
@@ -173,6 +174,14 @@ IsothermFields(IIsotherm* iso, const std::string& component) {
         add("c_beta", it->second.c_beta); add("c_Tref", it->second.c_Tref); } }
       break;
     }
+    case T::EXTENDED_LANGMUIR_FREUNDLICH: {
+      auto* c = dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso);
+      if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
+        add("k1", it->second.k1); add("k2", it->second.k2); add("k3", it->second.k3);
+        add("k4", it->second.k4); add("k5", it->second.k5); add("k6", it->second.k6);
+        add("P_ref", it->second.P_ref); } }
+      break;
+    }
     // No `default`: -Wswitch flags a new IsothermType missing its param layout.
   }
   return out;
@@ -201,6 +210,7 @@ bool IsSupportedIsothermKind(IsothermType t) {
     case T::DUAL_SITE_SIPS:
     case T::TOTH_2:
     case T::ARRHENIUS_SIPS:
+    case T::EXTENDED_LANGMUIR_FREUNDLICH:
       return true;
   }
   return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
@@ -215,6 +225,7 @@ bool IsCompetitiveIsothermKind(IsothermType t) {
     case T::EXTENDED_DUAL_SITE_LANGMUIR_C:
     case T::EXTENDED_SIPS_2:
     case T::ARRHENIUS_SIPS:
+    case T::EXTENDED_LANGMUIR_FREUNDLICH:
       return true;
     case T::INERT:
     case T::HENRY:
@@ -285,6 +296,7 @@ void EnsureIsothermComponent(IIsotherm* iso, const std::string& c) {
     case T::DUAL_SITE_SIPS: if (auto* p = dynamic_cast<DualSiteSipsIsotherm*>(iso)) (void)p->params_[c]; break;
     case T::TOTH_2: if (auto* p = dynamic_cast<Toth2Isotherm*>(iso)) (void)p->params_[c]; break;
     case T::ARRHENIUS_SIPS: if (auto* p = dynamic_cast<ArrheniusSipsIsotherm*>(iso)) (void)p->params_[c]; break;
+    case T::EXTENDED_LANGMUIR_FREUNDLICH: if (auto* p = dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso)) (void)p->params_[c]; break;
   }
 }
 
@@ -314,6 +326,7 @@ double EvalIsotherm(IIsotherm* iso, const std::string& c, double T, double P, do
     case K::TOTH: if (auto* x = dynamic_cast<TothIsotherm*>(iso)) IF::Toth(q, T, P, yi, x->params_[c]); break;
     case K::TOTH_2: if (auto* x = dynamic_cast<Toth2Isotherm*>(iso)) IF::Toth2(q, T, P, yi, x->params_[c]); break;
     case K::ARRHENIUS_SIPS: if (auto* x = dynamic_cast<ArrheniusSipsIsotherm*>(iso)) IF::ArrheniusSips(q, T, P, yi, x->params_[c]); break;
+    case K::EXTENDED_LANGMUIR_FREUNDLICH: if (auto* x = dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso)) IF::ExtendedLangmuirFreundlich(q, T, P, yi, x->params_[c]); break;
   }
   return q;
 }
