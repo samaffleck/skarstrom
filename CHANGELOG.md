@@ -8,6 +8,31 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — convergence verification of cycle results (grid, integrator tolerance, CSS)
+- `CycleKpiGridConvergence` (`core/test/validation/test_grid_convergence.cpp`):
+  purity, recovery and specific energy of the shared PSA cycle at cyclic
+  steady state on 10, 20, 40 and 80 cells, for each advection scheme.
+  Convergence is monotone; the observed order (Richardson, three finest grids)
+  is 1.55 for upwind (inside the `[1, 2]` its error expansion allows) and 2.4
+  to 2.5 for WENO and van Leer; Roache's GCI of the 80-cell upwind KPIs is
+  0.06 to 0.12 % and contains the higher-order solutions.
+- `IntegratorTolerance` (`test_integrator_tolerance.cpp`): the error falls with
+  reltol at slope 0.68 (breakthrough) and 0.77 (cycle state), inside the
+  `[0.5, 1]` of BDF error-per-step control, and floors at the absolute
+  tolerance; `max_step` changes results by less than the tolerance error. The
+  KPIs converge with reltol at slope 0.42, because the boundary flows are
+  integrated over the logged points and the flow transient after a pressure
+  switch (~2e-5 s) is resolved only by the integrator's own steps.
+- `CSSConvergence` (`test_css_convergence.cpp`): the approach to CSS is
+  geometric (rate 0.106 isothermal, 0.966 with the energy balance), the KPIs
+  follow it, the error the stopping rule leaves is `g Delta rho / (1 - rho)`
+  (measured 6.11e-5 in recovery at the default state tolerance, 6.21e-5
+  predicted), and Aitken acceleration stops 25 cycles earlier on the same KPIs.
+- `scripts/verification/grid_convergence.py` writes the grid study of the
+  example decks (observed order, GCI, extrapolated KPIs); the table and the grid
+  each studied deck needs are on the Numerics page ("Convergence of the
+  results").
+
 ### Added — extended Langmuir-Freundlich isotherm (toPSAil form)
 - New competitive isotherm kind `extended_langmuir_freundlich`
   (`IsothermType::EXTENDED_LANGMUIR_FREUNDLICH`,

@@ -77,6 +77,10 @@ This complements the existing coverage rather than duplicating it:
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 | `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
+| `psa_cycle_case.h` | The shared PSA cycle (pressurise, feed, blowdown) and its O2 product KPIs |
+| `test_grid_convergence.cpp` | Cycle-KPI grid convergence at CSS: monotone convergence, observed order, GCI, all three schemes |
+| `test_integrator_tolerance.cpp` | Error against reltol (BDF slope, abstol floor) on a breakthrough and a cycle; `max_step` independence |
+| `test_css_convergence.cpp` | Geometric approach to CSS, KPI error left by the stopping rule, Aitken lands on the same KPIs |
 | `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form |
 | `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
 
@@ -549,6 +553,73 @@ error is not a nuisance to be tolerated but a second prediction.
   Guard: a Gaussian curve with the same mean and variance misses the
   simulated one by 0.042, 250x the finest residual, so the asymmetric Thomas
   shape is what is being matched. About 1.3 s.
+
+## Convergence of cycle results
+
+`test_grid_convergence.cpp`, `test_integrator_tolerance.cpp` and
+`test_css_convergence.cpp`. The tests above verify the discretisation on
+single breakthrough curves. What a user reports is a cycle KPI at cyclic steady state, which carries three
+numerical errors at once: the grid, the integrator tolerance and the distance
+from CSS. These files measure each one on the shared PSA cycle
+(`psa_cycle_case.h`, with the O2 product KPIs of `AddO2ProductKpis`: purity,
+recovery and the specific energy of a feed compressor). The full grid study
+of the example decks, and what each needs, is in `docs/numerics.md`
+("Convergence of the results").
+
+- **`CycleKpiGridConvergence.*`** — the isothermal cycle at CSS on 10, 20, 40
+  and 80 cells with each advection scheme. The successive differences must
+  keep one sign and shrink (monotone convergence), and the observed order from
+  the three finest grids (Richardson) must lie in `[1, 2]` for upwind: with
+  error `a h + b h^2`, same-signed terms put the observed order between the
+  formal order and one more (measured 1.54 to 1.56; offline on 80 to 640 cells
+  it falls to 1.37 and 1.26). WENO and van Leer must converge faster than
+  upwind (larger order, smaller difference at every grid; measured 2.40 to
+  2.50). Their asymptotic order is capped at 1 by the first-order bed-end faces
+  (`test_advection_schemes.cpp`), but the KPIs are read at the feed end, where
+  the face carries the feed exactly, and at the product end, where the
+  gradient is small, so that term has a small coefficient. Finally Roache's
+  grid convergence index (safety factor 1.25) of the 80-cell upwind KPI must
+  be a true error band: it must contain the WENO and van Leer 80-cell values,
+  which are ten times closer to the limit (upwind purity 0.39572 +- 0.00046,
+  WENO 0.39611, van Leer 0.39611).
+- **`IntegratorTolerance.*`** — IDA's error-per-step control of a BDF method of
+  order k gives a global error `~ tol^(k/(k+1))`, so the observed slope of
+  log(error) against log(reltol) must lie in `[0.5, 1]`: measured 0.68 on a
+  breakthrough (1e-3 to 1e-7, against a 1e-12 reference) and 0.77 on the
+  cycle's end-of-cycle loadings. Below `reltol |y| = abstol` the error stops
+  falling: in a dilute breakthrough the loading error stays at 0.75 to 1.4 x
+  abstol (1e-8 mol/kg) from reltol 1e-8 to 1e-10. The cycle KPIs converge more
+  slowly (recovery slope 0.42): they integrate the logged boundary flows by
+  the trapezoid rule, and a step that opens a pressure boundary drives a flow
+  transient on the pressure diffusion time of one cell (~2e-5 s), resolved
+  only by IDA's own steps. At the default reltol 1e-6 the recovery error is
+  6e-5 after two cycles, below the 2.4e-4 change from 20 to 40 cells.
+  `max_step` caps at or above IDA's own steps leave a run bit-for-bit the same;
+  a 0.1 s cap (2 to 2.3 x the steps) moves profiles and KPIs by less than the
+  tolerance error of a 100 x looser reltol. Decks that set `max_step` do it
+  for robustness, not accuracy (Vysyaraju 2024: IDA stalled at its minimum
+  step with a 1 s cap; 0.5 s and reltol 1e-7 at 1 s agree to 0.01 points).
+- **`CSSConvergence.*`** — linearised at its fixed point the end-of-cycle map
+  contracts by its slowest eigenvalue rho, so the state change decays
+  geometrically, every KPI converges at the same rate, and the error left
+  when the stopping rule fires at a state change `Delta <= eps` is
+  `g Delta rho / (1 - rho)` (g the KPI change per unit state change). On the
+  isothermal cycle (rho = 0.106) the successive ratios agree with the fitted
+  rate within 10 % over five decades, the KPI error is a fixed multiple of the
+  state change, and each decade of state tolerance costs one cycle and buys a
+  decade of KPI accuracy. With the energy balance on (rho = 0.966, a slow
+  thermal mode) the CSS recovery fitted to cycles 40-79 predicts the KPI of
+  cycles 99 to 139 within the noise, and the default rule (state tolerance
+  2e-5) stops at cycle 108 with a recovery error of 6.11e-5 against 6.21e-5
+  predicted (purity 7.20e-5 against 7.29e-5), inside a tolerance of 3 standard
+  deviations computed from the noise measured in the run (11 % and 4 %).
+  Aitken acceleration stops at cycle 83 on KPIs 2.6e-5 (recovery) and 4.0e-5
+  (purity) from that CSS value, inside the error the rule allows a plain run.
+  The KPIs carry cycle-to-cycle noise that depends on the integrator's step
+  sequence, and so on the platform; the tests measure it in the run and fit
+  every CSS value over many cycles (an Aitken extrapolation from three
+  cycles amplifies the noise five-fold: on macOS that moved f* by 15 % of the
+  error under test).
 
 ## Fixed along the way
 

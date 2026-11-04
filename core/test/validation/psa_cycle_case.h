@@ -14,7 +14,9 @@
 //
 // The caller sets the number of cycles and the solver tolerances. A single
 // adsorbent is deliberate: CSS acceleration only re-seeds the adsorbed loading
-// of a single-adsorbent bed.
+// of a single-adsorbent bed. AddO2ProductKpis turns on the KPIs of the O2
+// product (with a feed compressor, so the specific energy is defined) for the
+// grid- and CSS-convergence tests.
 
 #include "validation_helpers.h"
 
@@ -132,6 +134,54 @@ namespace adsim::validation {
     blowdown.step_time_ = 120.0;
     blowdown.bottom_boundary_condition_ = make_pressure_outlet(1.0e5, BoundaryLocation::BOTTOM);
     blowdown.top_boundary_condition_ = make_closed(BoundaryLocation::TOP);
+  }
+
+  // The O2 product KPIs of the cycle above: feed = the bottom inlet of
+  // Pressurise and Feed, product = the top outlet of Feed. A compressor on the
+  // feed stream (suction 1 bar) makes the specific energy defined.
+  inline void AddO2ProductKpis(UserData& data) {
+    for (const char* step : {"Pressurise", "Feed"}) {
+      auto* bc = dynamic_cast<FlowBoundaryCondition*>(
+          data.cycle.GetStep(step).bottom_boundary_condition_.get());
+      for (auto& stream : bc->streams_) {
+        auto* s = dynamic_cast<BoundaryStream*>(stream.get());
+        s->pump_ = CreatePump(PumpType::COMPRESSOR);
+        s->pump_->use_pump_ = true;
+      }
+    }
+    data.kpi_config.SyncToComponents(data.fluid.components_);
+    ComponentKPIConfig* kpi = data.kpi_config.FindByComponent("Oxygen");
+    kpi->tracked = true;
+    for (int s : {0, 1})
+      for (const auto& ep : data.cycle.step_list_[s].GetEndpoints())
+        if (ep.location == BoundaryLocation::BOTTOM) kpi->feed_endpoints.push_back({s, ep.name, ep.location});
+    for (const auto& ep : data.cycle.step_list_[1].GetEndpoints())
+      if (ep.location == BoundaryLocation::TOP) kpi->product_endpoints.push_back({1, ep.name, ep.location});
+  }
+
+  struct O2Kpis {
+    double purity = 0.0;           // [mol/mol]
+    double recovery = 0.0;         // [mol/mol]
+    double specific_energy = 0.0;  // [J/kg O2]
+    bool defined = false;
+  };
+
+  // The O2 product KPIs of one logged cycle (AddO2ProductKpis).
+  inline O2Kpis O2KpisAt(const UserData& data, const EquationLog& log, const BoundaryLog& b_log,
+                         int cycle) {
+    const ComponentKPIConfig* cfg = data.kpi_config.FindByComponent("Oxygen");
+    KPIParams p(log, b_log);
+    p.cycle_index_ = cycle;
+    p.product_comp_ = "Oxygen";
+    p.feed_endpoints = cfg->feed_endpoints;
+    p.product_endpoints = cfg->product_endpoints;
+    bool ok_p = false, ok_r = false, ok_e = false;
+    O2Kpis k;
+    k.purity = CalculatePurity(p, &ok_p);
+    k.recovery = CalculateRecovery(p, &ok_r);
+    k.specific_energy = CalculateSpecificEnergyConsumption(p, &ok_e);
+    k.defined = ok_p && ok_r && ok_e;
+    return k;
   }
 
 } // namespace adsim::validation
