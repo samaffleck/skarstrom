@@ -1072,7 +1072,11 @@ namespace adsim {
     const sunindextype reach = BandReach(user_data);
     sunindextype mu = reach; // Upper bandwidth
     sunindextype ml = reach; // Lower bandwidth
-    if (settings.band_from_probe_) {
+    // A tank used at both bed ends couples them in some steps only, so a probe
+    // at the initial state can miss part of that reach; size the band to the
+    // full reach from the start (a later widening would re-learn the coloured
+    // pattern in one step only).
+    if (settings.band_from_probe_ && !state.AnyTankAtBothEnds()) {
       sunindextype mu_p = 0, ml_p = 0;
       if (BandedJacobian::ProbeBandwidth(state, &user_data, sunctx_, y_, yp_, abstol_vec_, reach, mu_p, ml_p)
           && mu_p > 0 && ml_p > 0) {
