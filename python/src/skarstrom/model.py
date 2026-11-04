@@ -769,6 +769,8 @@ class Settings(_Node):
     """Maximum iterations per step."""
     advection_scheme = Choice()
     """Advection discretisation: "upwind", "weno" or "van_leer"."""
+    valve_bed_pressure = Choice()
+    """Bed-side pressure of the valve law: "face" (the bed end) or "end_cell" (the last cell, as toPSAil)."""
     max_cycles_to_keep = Integer()
     """Cycles kept in the log."""
     max_log_points_per_step = Integer()

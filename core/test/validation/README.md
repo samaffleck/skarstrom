@@ -77,6 +77,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 | `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
+| `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
 
 ## `test_energy_balance.cpp`
 
@@ -483,6 +484,25 @@ its secant.
   `1.3e-4` at `y0 = 1e-4`, which is why the test uses `y0 = 1e-4`. Guard: the
   wave spreads over 450 s, more than 5x its head time, and `f'(c)` varies
   16-fold across it. About 0.5 s.
+## `test_valve_bed_pressure.cpp`
+
+Steady flow through an inert isothermal bed: a set molar flow `F` enters at the
+bottom and leaves through a linear valve, so at steady state the bed side of
+the valve law is exactly `P_down + 1e5 F / Cv` whatever the bed's resistance.
+Fine particles on a 10-cell grid make the end cell sit about 1.8 kPa above the
+face, so reading the wrong pressure fails by three orders of magnitude more
+than the 1 Pa tolerance.
+
+- **`SteadyThroughFlowReadsTheChosenPressure`**: with `face` the face pressure
+  is 200000 Pa (end cell 201834); with `end_cell` the end cell is 200000 Pa
+  (face 198149); outflow equals `F` to 1e-6. About 0.1 s.
+- **`ConnectedValvesReadBothEndCells`**: a donor step (fed at `F`, valve out)
+  connected to a receiver step (valve in, bottom vented through a pressure
+  boundary), at the cyclic steady state (18 cycles, end pressure moves < 0.01
+  Pa per cycle): the face pressures (face setting) or the end-cell pressures
+  (end-cell setting) are `1e5 F / Cv` apart to 1 Pa. Guard: the end-cell and
+  face differences across the valve differ by 3.8 kPa. About 3.5 s.
+
 ## `test_ldf_thomas.cpp`
 
 A front shaped by the LDF rate rather than by dispersion: a Henry isotherm with
