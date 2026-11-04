@@ -65,6 +65,7 @@ root `CMakeLists.txt`.
   Python `isotherm_kinds()`, IAST (an exact Sips term) and the docs know it;
   the fitter does not offer it yet. Near y = 0 each term is regularised with a
   step at 1e-5 (loading changed by 1e-10 / y^2: 1e-4 at y = 1e-3).
+
 ### Fixed — breakthrough decks no longer stall on fine grids
 - `Ward2022_Q50ccm` ran on 10-160 cells but failed on 320 with every
   advection scheme ("too much work": 50 000 steps, 24 000 Newton convergence
@@ -86,6 +87,7 @@ root `CMakeLists.txt`.
   1e-5 absolute, and every paper test still passes.
   `JacobianMode::IdaInternal` (IDA's own Jacobian) is unchanged. Test:
   `FineGridBreakthrough.Ward2022Q50ccmConvergesTo320Cells`.
+
 ### Fixed — WENO / van Leer outlet-cell mole-fraction sum drifts during fast outflow
 - With `AdvectionScheme::WENO` or `VanLeer` the cell at a bed end that gas
   leaves through could see its mole fractions drift from summing to one
