@@ -10,6 +10,7 @@
 #include "adsim/objects/reactor.h"
 #include "adsim/objects/domain.h"
 #include "adsim/equations/equation.h"
+#include "adsim/equations/manufactured_sources.h"
 #include "adsim/solver/ida_settings.h"
 #include "adsim/solver/cycle.h"
 #include "adsim/solver/experimental_data.h"
@@ -158,6 +159,14 @@ namespace adsim {
     std::string residual_error_;
     std::string TakeResidualError() { return std::exchange(residual_error_, std::string{}); }
 
+    // Verification hook (method of manufactured solutions; not serialised,
+    // not reachable from a deck, Python or the web): source terms added to the
+    // residuals, empty by default. See adsim/equations/manufactured_sources.h.
+    ManufacturedSources manufactured_sources_;
+    // Integrator time of the residual being evaluated (set by
+    // UpdateResiduals; read only by the manufactured sources).
+    double residual_time_ = 0.0;
+
   private: 
     friend class ::cereal::access;
     template<class Archive>
@@ -209,6 +218,7 @@ namespace adsim {
 
       // Update order matters!
       state.UnpackBanded(y_data, yp_data);
+      udata->residual_time_ = t;
 
       state.UpdateIndependentEquations(udata);
       state.UpdateDifferentialEquations(udata);

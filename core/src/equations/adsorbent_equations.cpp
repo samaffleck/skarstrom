@@ -82,6 +82,22 @@ namespace adsim {
     // temperature of the adsorbed phase (fluid T in LTE, solid Ts in LTNE).
     // See HeatOfAdsorptionConvention in fluid.h. Shared by the energy
     // residuals and the logged component energy source so the two agree.
+    // Axial position of the centre of cell n [m], from the bottom bed-end face
+    // (the coordinate of DomainVectors::positions): where the manufactured
+    // sources of the cell balances are evaluated.
+    inline double CellCentre(const DomainVectors& dv, int n) {
+      return dv.positions[n - 1] + 0.5 * dv.cell_width[n];
+    }
+
+    // The manufactured source of `component` in `map` (verification hook,
+    // see manufactured_sources.h), or null when there is none.
+    inline const ManufacturedSources::Field* SourceOf(
+        const std::unordered_map<std::string, ManufacturedSources::Field>& map, const std::string& component) {
+      if (map.empty()) return nullptr;
+      auto it = map.find(component);
+      return (it != map.end() && it->second) ? &it->second : nullptr;
+    }
+
     inline double AdsorptionHeat(double dH, double Cpa, double T, HeatOfAdsorptionConvention convention) {
       switch (convention) {
         case HeatOfAdsorptionConvention::INTERNAL_ENERGY: return dH - Cpa * T;
@@ -199,6 +215,15 @@ namespace adsim {
     const auto& mu = state.viscosity.var;
     const auto& is_void = domain_vectors.is_void_cell;
 
+    // Manufactured momentum source [Pa/m] (verification hook; empty in a
+    // run): -dP/dz = (mu/K) u + beta rho |u| u - S, i.e. S times the distance
+    // between the two cell centres is added to the face's pressure drop.
+    const auto& mms_momentum = udata->manufactured_sources_.momentum;
+    const double t_mms = udata->residual_time_;
+    auto mms_face_drop = [&](int i) {
+      return mms_momentum(domain_vectors.positions[i], t_mms) * 0.5 * (dx[i] + dx[i + 1]);
+    };
+
     int N = u.size();
     for (int i = 0; i < N; ++i) {
       // Ergun faces (an inertial resistance on either side) carry the implicit
@@ -208,7 +233,9 @@ namespace adsim {
       double A = 0.0;
       double B = 0.0;
       if (ErgunFaceCoefficients(state, &bed, i, A, B)) {
-        res_u[i] = ErgunMomentumResidual(u[i], P[i] - P[i + 1], A, B);
+        double g = P[i] - P[i + 1];
+        if (mms_momentum) g += mms_face_drop(i);
+        res_u[i] = ErgunMomentumResidual(u[i], g, A, B);
         continue;
       }
 
@@ -220,7 +247,9 @@ namespace adsim {
 
       if (!void_left && !void_right) {
         // Standard porous-media face: harmonic-K averaging.
-        const double vel = -2 * K[i] * K[i + 1] * (P[i + 1] - P[i])
+        double dP_face = P[i + 1] - P[i];
+        if (mms_momentum) dP_face -= mms_face_drop(i);
+        const double vel = -2 * K[i] * K[i + 1] * dP_face
               / (K[i] * mu[i + 1] * dx[i + 1] + K[i + 1] * mu[i] * dx[i]);
         res_u[i] = u[i] - vel;
       } else {
@@ -279,6 +308,9 @@ namespace adsim {
     const auto& rho_b = domain_vectors.bulk_density;
     const auto& et = domain_vectors.et;
 
+    // Manufactured overall-balance source [mol/(m3 s)] (verification hook).
+    const auto& mms_total = udata->manufactured_sources_.total;
+
     int N = P.size(); // Includes ghost cells
     for (int n = 1; n < N - 1; ++n) { // Interior
       // Floor every pressure/temperature that appears as a denominator so a
@@ -318,6 +350,10 @@ namespace adsim {
         dP - dT 
         + (F_e - F_w) 
         + S;
+
+      // The residual is the balance times R T dx / P, as S above.
+      if (mms_total)
+        res_P[n] -= R * T[n] * dx[n] * mms_total(CellCentre(domain_vectors, n), udata->residual_time_) / Pc;
     }
   }
 
@@ -373,6 +409,9 @@ namespace adsim {
 
     // heat = dH (ISOSTERIC) or dH - Cpa*T (INTERNAL_ENERGY); see AdsorptionHeat.
     const HeatOfAdsorptionConvention hoa_convention = fluid.heat_of_adsorption_convention_;
+
+    // Manufactured energy source [W/m3] (verification hook).
+    const auto& mms_energy = udata->manufactured_sources_.energy;
 
     for (int i = 1; i < N - 1; ++i) {
       // Adsorbed-phase heat capacity contribution, per adsorbent:
@@ -433,6 +472,10 @@ namespace adsim {
         - work
         - Se
         - Qe[i] * dV[i];
+
+      // A volumetric source, as the heater's power.
+      if (mms_energy)
+        res_T[i] -= dV[i] * mms_energy(CellCentre(state.domain_vectors, i), udata->residual_time_);
     }
   }
 
@@ -745,6 +788,9 @@ namespace adsim {
       if (it != models.end()) rate_model = it->second.get();
     }
 
+    // Manufactured rate source [mol/(kg s)] (verification hook).
+    const auto* mms_loading = SourceOf(udata->manufactured_sources_.loading, component);
+
     int N = qi.size(); // Includes ghost cells
     for (int i = 1; i < N - 1; ++i) { // Interior cells
       if (i < (int)is_void.size() && is_void[i]) continue;  // void cells: qi is not part of the state vector
@@ -752,6 +798,8 @@ namespace adsim {
       const double rate = rate_model ? rate_model->Rate(qi_sat[i], qi[i], Ki[i])
                                      : Ki[i] * (qi_sat[i] - qi[i]);
       res_qi[i] = ddt_qi[i] * dx[i] - dx[i] * rate;
+      if (mms_loading)
+        res_qi[i] -= dx[i] * (*mms_loading)(CellCentre(domain, i), udata->residual_time_);
     }
 
     // Ghost cells mirror the first/last *bed* cell.
@@ -845,6 +893,9 @@ namespace adsim {
       throw std::out_of_range("UpdateMoleFraction: unknown adsorbent");
     };
 
+    // Manufactured component-balance source [mol/(m3 s)] (verification hook).
+    const auto* mms_species = SourceOf(udata->manufactured_sources_.species, component);
+
     int N = yi.size();
     for (int n = 1; n < N - 1; ++n) { // Interior cells
       // Floor pressure/temperature denominators against a transient non-positive
@@ -903,6 +954,11 @@ namespace adsim {
         + (D_e - D_w)         // Diffusion
         - (F_e - F_w)         // Convection
         - adsorption_source;  // Source
+
+      // The residual is minus the balance times R T dx / P, as the
+      // adsorption source above.
+      if (mms_species)
+        res_yi[n] += R * Tc * dx[n] * (*mms_species)(CellCentre(domain_vectors, n), udata->residual_time_) / Pc;
     }
   }
 
