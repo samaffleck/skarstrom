@@ -30,6 +30,7 @@ namespace adsim {
   class Bed;
   class Cycle;
   class Fluid;
+  class TankDirectory;
 
   enum class SystemObject {
     Bed,
@@ -201,9 +202,17 @@ namespace adsim {
     double total_cycle_time;
   };
 
+  // BoundaryLog name of a tank's external stream: "<tank> / <stream>".
+  inline std::string TankStreamLogName(const std::string& tank_name, const std::string& stream_name) {
+    return tank_name + " / " + stream_name;
+  }
+
   struct BoundaryLog {
   public:
     void LogEndOfStep(const Step& step, int cycle_idx, int step_idx);
+    // Logs every tank stream's StreamData of the step that just ended, under
+    // TankStreamLogName (call after LogEndOfStep).
+    void LogTankStreams(const TankDirectory& tanks, int cycle_idx, int step_idx);
     void Initialise(UserData& user_data);
     BoundaryVariableData GetVariableData(int cycle_idx, int step_idx, const std::string& stream_name, BoundaryVariableType variable) const;
     BoundaryVariableData GetComponentVariableData(int cycle_idx, int step_idx, const std::string& stream_name, BoundaryComponentVariableType variable, const std::string& component) const;
@@ -283,10 +292,28 @@ namespace adsim {
   using VariableLog = std::unordered_map<VariableType, VariableData>;
   using ComponentVariableLog = std::unordered_map<std::string, std::unordered_map<ComponentVariableType, VariableData>>;
 
+  // One dynamic tank's state and flows over a logged step, one entry per
+  // logged time (the step's shared times). Flows are per component into /
+  // out of the tank [mol/s] over every port and external stream.
+  struct TankLogData {
+    std::string name;
+    double volume = 0.0;                   // [m3]
+    std::vector<double> pressure;          // [Pa]
+    std::vector<double> temperature;       // [K]
+    std::vector<double> wall_temperature;  // [K] (wall mode; else the gas temperature)
+    std::vector<double> total_moles;       // [mol]
+    std::vector<double> heat;              // [W] to the gas
+    std::unordered_map<std::string, std::vector<double>> mole_fraction;
+    std::unordered_map<std::string, std::vector<double>> moles;
+    std::unordered_map<std::string, std::vector<double>> flow_in;
+    std::unordered_map<std::string, std::vector<double>> flow_out;
+  };
+
   struct Log {
     StepData step_data;  // Shared metadata including times
     VariableLog variables;
     ComponentVariableLog component_variables;
+    std::map<size_t, TankLogData> tanks;  // tank ID -> its series
   };
 
   // [cycle_index][step_index]
@@ -307,6 +334,10 @@ namespace adsim {
     VariableLogEntry GetFaceVariable(int cycle_index, int step_index, VariableType type) const;
     VariableLogEntry GetComponentFaceVariable(int cycle_index, int step_index,
       ComponentVariableType type, const std::string& component) const;
+    // One tank's series over one logged step, or nullptr (times: GetLog(...).step_data.times).
+    const TankLogData* GetTankLog(int cycle_index, int step_index, size_t tank_id) const;
+    // The tanks of the run (ID and name), in the deck's order.
+    std::vector<std::pair<size_t, std::string>> tanks_;
 
     int max_cycles_to_keep_ = 10;
     // Max rows written per (cycle, step) in SaveToFile (CSV plotting output

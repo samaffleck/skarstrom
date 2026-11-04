@@ -114,6 +114,10 @@ namespace adsim {
 		// gets the same IDs: steps 1..N, endpoints 1..M. Called on load and by
 		// every structural edit here; idempotent.
 		void EnsureIds();
+		// Endpoint IDs held outside the cycle (the tanks' external streams; set
+		// by UserData::SyncTankEndpointIds, never serialised). EnsureIds never
+		// gives a cycle endpoint one of them.
+		std::vector<size_t> reserved_endpoint_ids_{};
 
 		// One endpoint of the cycle, located by ID.
 		struct EndpointHandle {

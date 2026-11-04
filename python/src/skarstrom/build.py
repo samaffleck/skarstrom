@@ -558,6 +558,29 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
     for c, path in ic.y._paths.items():
         w(f"{name}.initial_conditions.y[{c!r}] = {_literal(sim, path)}")
 
+    tank_var: Dict[int, str] = {}
+    if d.get("tanks"):
+        w("")
+        w("# ---- dynamic tanks -------------------------------------------------------------------")
+    for t in d.get("tanks", []):
+        tank = sim.tanks.by_id(t["id"])
+        v = _var(t["name"], taken)
+        tank_var[t["id"]] = v
+        y = "{" + ", ".join(f"{c!r}: {_literal(sim, p)}" for c, p in tank.y._paths.items()) + "}"
+        w(f"{v} = {name}.add_tank({t['name']!r}, volume={_literal(sim, tank.path('volume'))}, "
+          f"pressure={_literal(sim, tank.path('initial_pressure'))}, "
+          f"temperature={_literal(sim, tank.path('initial_temperature'))}, y={y}, thermal={t['thermal']!r})")
+        for f in tank.fields:
+            if f not in ("volume", "initial_pressure", "initial_temperature", "thermal_mode"):
+                w(f"{v}.{f} = {_literal(sim, tank.path(f))}")
+        for st in t["streams"]:
+            stream = tank.streams.by_id(st["id"])
+            mode = f", mode={st['mode']!r}" if "mode" in st else ""
+            ys = stream.y._paths
+            y = (", y={" + ", ".join(f"{c!r}: {_literal(sim, p)}" for c, p in ys.items()) + "}") if ys else ""
+            values = "".join(f", {f}={_literal(sim, stream.path(f))}" for f in stream.fields if f != "mode")
+            w(f"{v}.add_stream({st['kind']!r}, {st['name']!r}{mode}{y}{values})")
+
     w("")
     w("# ---- cycle -------------------------------------------------------------------------")
     cyc = sim.cycle
@@ -624,6 +647,12 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                     eid = e["endpoint"]
                     w(f"{ep_expr.get(eid, eid)}.set_buffer_tank({ep_expr.get(e['buffer_tank'], e['buffer_tank'])}, "
                       f"percentage={_literal(sim, f'endpoint[{eid}].buffer_tank.percentage')})")
+    for s in d["steps"]:
+        for loc in ("bottom", "top"):
+            for e in [s[loc]] + s[loc].get("streams", []):
+                if e.get("tank"):
+                    eid = e["endpoint"]
+                    w(f"{ep_expr.get(eid, eid)}.set_tank({tank_var.get(e['tank'], e['tank'])})")
     for k in d["kpis"]:
         feed = "[" + ", ".join(ep_expr.get(e, str(e)) for e in k["feed"]) + "]"
         product = "[" + ", ".join(ep_expr.get(e, str(e)) for e in k["product"]) + "]"

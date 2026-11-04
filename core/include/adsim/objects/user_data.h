@@ -18,6 +18,7 @@
 #include "adsim/solver/solver_profile.h"
 #include "adsim/solver/sensitivity_study.h"
 #include "adsim/math/user_variables.h"
+#include "adsim/objects/tank.h"
 
 // Cereal includes
 #include <cereal/types/string.hpp>
@@ -123,6 +124,23 @@ namespace adsim {
     // adsorbent_directory.Remove directly. No-op for an unknown id.
     void RemoveAdsorbent(AdsorbentID id);
 
+    // Removes tank `id` and clears every bed endpoint's port that names it.
+    // No-op for an unknown id.
+    void RemoveTank(size_t id);
+    // Gives every tank stream an endpoint ID in the bed endpoints' ID space
+    // (0 or a repeat of any other endpoint's ID gets the next free one) and
+    // tells the cycle which IDs the tank streams hold, so the cycle never
+    // hands them out. Called on load, by PerformChecks and by the builder;
+    // idempotent.
+    void SyncTankEndpointIds();
+    // Appends the tank streams' flows at the current state (the tanks' live
+    // state, Equations::Tanks) to their StreamData, at `t_relative` since the
+    // step start; and clears those logs (at every step start).
+    void LogTankStreams(double t_relative);
+    void ClearTankStreamLogs();
+    // The tank stream with this endpoint ID (and its tank), or nullptr.
+    ITankStream* FindTankStream(size_t endpoint_id, Tank** tank = nullptr);
+
     AdsorbentDirectory    adsorbent_directory;
     Bed                   bed;
     Fluid                 fluid;
@@ -138,6 +156,9 @@ namespace adsim {
     sensitivity::Study    sensitivity_study;
     SimulationInfo        info;
     UserVariableRegistry  variable_registry;
+    // Dynamic tanks (see adsim/objects/tank.h). Empty in every deck saved
+    // before version 5.
+    TankDirectory         tanks;
     
     // Time offset for boundary conditions (time relative to step start)
     double step_start_time_ = 0.0;
@@ -184,6 +205,11 @@ namespace adsim {
       if (version >= 4) {
         ar(cereal::make_nvp("Sensitivity_Study", sensitivity_study));
       }
+      if (version >= 5) {
+        ar(cereal::make_nvp("Tanks", tanks));
+      }
+      // version < 5: no tanks.
+      if constexpr (Archive::is_loading::value) SyncTankEndpointIds();
     }
   };
 
@@ -215,6 +241,7 @@ namespace adsim {
 
       double t_relative = t - udata->step_start_time_;
       state.UpdateBoundaryConditions(udata, t_relative);
+      state.UpdateTanks(udata, t_relative);
 
       state.PackResidualsBanded(res_data);
     } catch (const std::exception& e) {
@@ -302,4 +329,4 @@ namespace adsim {
 
 } // end adsim namespace
 
-CEREAL_CLASS_VERSION(adsim::UserData, 4);
+CEREAL_CLASS_VERSION(adsim::UserData, 5);

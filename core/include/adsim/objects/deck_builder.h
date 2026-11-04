@@ -42,6 +42,9 @@
 //   pump efficiency      "constant", "vacuum_pump", "polynomial"
 //   location             "bottom" (feed end, z = 0), "top"
 //   direction            "inlet", "outlet"
+//   tank thermal         "isothermal", "adiabatic", "heat_loss", "wall"
+//   tank stream          "make_up", "valve", "regulator", "hold"
+//   make-up mode         "set_flow", "valve"
 //
 // Every function throws std::invalid_argument for an unknown kind (the message
 // lists the valid ones) or a missing object (adsorbent, layer, step or
@@ -174,6 +177,30 @@ void SetEnergySource(UserData& data, size_t step, size_t layer, bool enabled);
 // from the product): recovery and productivity count product minus recycle.
 void SetKPI(UserData& data, const std::string& component, const std::vector<size_t>& feed_endpoints,
             const std::vector<size_t>& product_endpoints, const std::vector<size_t>& recycle_endpoints = {});
+
+// ---- dynamic tanks ---------------------------------------------------------------------
+// See adsim/objects/tank.h. Values (volume, initial state, stream settings)
+// are set through the registry: tank[ID].<field> and, for a tank's streams,
+// endpoint[ID].<field> like any other endpoint.
+const std::vector<std::string>& TankThermalKinds();
+const std::vector<std::string>& TankStreamKinds();
+const std::vector<std::string>& TankMakeUpModeKinds();
+// A new tank (isothermal, no streams, initial composition all zero: set it).
+// Returns its tank ID.
+size_t AddTank(UserData& data, const std::string& name);
+// Removes the tank and clears every endpoint's port that names it.
+void RemoveTank(UserData& data, size_t tank);
+void SetTankThermal(UserData& data, size_t tank, const std::string& kind);
+// An external stream of `kind` on the tank; returns its endpoint ID.
+size_t AddTankStream(UserData& data, size_t tank, const std::string& kind, const std::string& name);
+// A make-up's mode: "set_flow" or "valve" (from a header pressure).
+void SetTankMakeUpMode(UserData& data, size_t endpoint, const std::string& mode);
+// Removes a tank stream.
+void RemoveTankStream(UserData& data, size_t endpoint);
+// Port a bed endpoint (a stream or a pressure boundary) to a tank: an inlet
+// draws from it, an outlet sends into it. `tank` 0 removes the port. An
+// endpoint with a connection or a buffer tank cannot also have a tank port.
+void SetTankPort(UserData& data, size_t endpoint, size_t tank);
 
 // ---- user variables -----------------------------------------------------------------
 // A named value other values' expressions can use ("2 * t_feed"). `formula`

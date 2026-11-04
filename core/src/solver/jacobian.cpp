@@ -19,6 +19,8 @@ namespace adsim {
     // matched by identity and the per-component block starts after it).
     std::string VariableName(const Equations& eqs, size_t e) {
       const auto& equations = eqs.GetEquations();
+      // Tank variables follow the bed equations in the layout.
+      if (e >= equations.size()) return "tank" + std::to_string(e - equations.size());
       const std::pair<const Equation*, const char*> fixed[] = {
         { &eqs.concentration, "C" }, { &eqs.pressure, "P" },
         { &eqs.fluid_temperature, "Tf" }, { &eqs.solid_temperature, "Ts" },
@@ -72,24 +74,22 @@ namespace adsim {
     learn_once_ = false;
     pattern_counts_.clear();
 
-    // Banded layout: same loop order as Equations::PackBanded.
+    // Banded layout: the state vector's slots (Equations::BandedSlots), whose
+    // tank entries carry the end cell they sit next to, so they are boundary
+    // columns with exact patterns.
     const auto& equations = eqs.GetEquations();
-    const auto* void_mask = &eqs.domain_vectors.is_void_cell;
-    size_t max_size = 0;
-    for (const auto* eq : equations) max_size = std::max(max_size, eq->Size());
+    const auto& slots = eqs.BandedSlots();
 
-    n_vars_ = static_cast<int>(equations.size());
-    n_cells_ = static_cast<int>(max_size);
+    n_vars_ = eqs.NumLayoutVariables();
+    n_cells_ = static_cast<int>(eqs.LayoutCellCount());
     var_.clear();
     cell_.clear();
     index_of_.assign(static_cast<size_t>(n_cells_) * n_vars_, -1);
-    for (int cell = 0; cell < n_cells_; ++cell) {
-      for (int e = 0; e < n_vars_; ++e) {
-        if (!equations[e]->IsActiveAt(cell, void_mask)) continue;
-        index_of_[static_cast<size_t>(cell) * n_vars_ + e] = static_cast<sunindextype>(var_.size());
-        var_.push_back(e);
-        cell_.push_back(cell);
-      }
+    for (const auto& slot : slots) {
+      const int cell = static_cast<int>(slot.cell);
+      index_of_[static_cast<size_t>(cell) * n_vars_ + slot.layout_var] = static_cast<sunindextype>(var_.size());
+      var_.push_back(slot.layout_var);
+      cell_.push_back(cell);
     }
     n_ = static_cast<sunindextype>(var_.size());
 
@@ -97,7 +97,7 @@ namespace adsim {
     for (int e = 0; e < n_vars_; ++e)
       var_names_.push_back(VariableName(eqs, e));
     velocity_var_ = -1;
-    for (int e = 0; e < n_vars_; ++e)
+    for (int e = 0; e < static_cast<int>(equations.size()); ++e)
       if (equations[e] == &eqs.velocity) velocity_var_ = e;
 
     if (ewt_) N_VDestroy(ewt_);
@@ -474,17 +474,11 @@ namespace adsim {
     const sunindextype n = N_VGetLength(y);
     if (n <= 0 || reach <= 0) return false;
 
-    // Variable index of each state entry (same loop order as PackBanded), to
-    // jitter the face velocity with its own absolute scale.
-    const auto& equations = eqs.GetEquations();
-    const auto* void_mask = &eqs.domain_vectors.is_void_cell;
-    size_t max_size = 0;
-    for (const auto* eq : equations) max_size = std::max(max_size, eq->Size());
+    // Variable of each state entry (the layout of PackBanded), to jitter the
+    // face velocity with its own absolute scale.
     std::vector<bool> is_velocity;
     is_velocity.reserve(n);
-    for (size_t cell = 0; cell < max_size; ++cell)
-      for (const auto* eq : equations)
-        if (eq->IsActiveAt(cell, void_mask)) is_velocity.push_back(eq == &eqs.velocity);
+    for (const auto& slot : eqs.BandedSlots()) is_velocity.push_back(slot.eq == &eqs.velocity);
     if (static_cast<sunindextype>(is_velocity.size()) != n) return false;
 
     N_Vector vs = N_VNew_Serial(n, ctx), vps = N_VNew_Serial(n, ctx), r0 = N_VNew_Serial(n, ctx);

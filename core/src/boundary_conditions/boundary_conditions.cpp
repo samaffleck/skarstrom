@@ -241,13 +241,21 @@ namespace adsim {
       return false;
     }
 
+    if (tank_port_.IsSet() && (connection_.IsConnected() || buffer_tank_.IsActive())) {
+      error_msg += "The pressure boundary has a tank port and also a "
+                 + std::string(connection_.IsConnected() ? "connection" : "buffer tank source")
+                 + ". Use only one. ";
+      return false;
+    }
+
     // Key the inlet composition exactly by the fluid's components (back-fill
     // missing ones with 0, drop removed ones). Without this a map that sums to
     // 1 but lacks a fluid component passes the check below and Apply() would
     // meet a missing key inside the IDA residual.
     ReconcileMoleFractionMap(mole_fraction_, fluid.components_);
 
-    if (direction_ == BoundaryDirection::OUTLET)
+    // An outlet's composition is the bed's; a tank port's inlet is the tank's.
+    if (direction_ == BoundaryDirection::OUTLET || tank_port_.IsSet())
       return true;
 
     double total_mole_fraction = 0;
@@ -751,6 +759,6 @@ CEREAL_REGISTER_TYPE(adsim::ClosedBoundaryCondition)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryCondition, adsim::PressureBoundaryCondition)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryCondition, adsim::FlowBoundaryCondition)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryCondition, adsim::ClosedBoundaryCondition)
-CEREAL_CLASS_VERSION(adsim::PressureBoundaryCondition, 5);
+CEREAL_CLASS_VERSION(adsim::PressureBoundaryCondition, 6);
 CEREAL_CLASS_VERSION(adsim::FlowBoundaryCondition, 1);
 CEREAL_CLASS_VERSION(adsim::ClosedBoundaryCondition, 1);

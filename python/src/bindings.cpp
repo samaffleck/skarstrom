@@ -561,6 +561,8 @@ PYBIND11_MODULE(_core, m) {
            py::arg("cycle") = -1, py::arg("step") = 0)
       .def("stream_series", &adsim::Simulation::StreamSeries, py::arg("step"), py::arg("stream"),
            py::arg("variable"), py::arg("component") = "", py::arg("cycle") = -1)
+      .def("tank_series", &adsim::Simulation::TankSeries, py::arg("tank_id"), py::arg("variable"),
+           py::arg("component") = "", py::arg("cycle") = -1)
       .def("endpoint_series", &adsim::Simulation::EndpointSeries, py::arg("endpoint_id"), py::arg("variable"),
            py::arg("component") = "", py::arg("cycle") = -1)
       .def("save_logs", &adsim::Simulation::SaveLogs, py::arg("directory"))
@@ -653,6 +655,13 @@ PYBIND11_MODULE(_core, m) {
           b::SetKPI(d, str(0), args[1].cast<std::vector<size_t>>(), args[2].cast<std::vector<size_t>>(),
                     args.size() > 3 ? args[3].cast<std::vector<size_t>>() : std::vector<size_t>{});
         else if (op == "add_variable") b::AddVariable(d, str(0), str(1), str(2), str(3));
+        else if (op == "add_tank") out = py::int_(b::AddTank(d, str(0)));
+        else if (op == "remove_tank") b::RemoveTank(d, id(0));
+        else if (op == "set_tank_thermal") b::SetTankThermal(d, id(0), str(1));
+        else if (op == "add_tank_stream") out = py::int_(b::AddTankStream(d, id(0), str(1), str(2)));
+        else if (op == "set_tank_make_up_mode") b::SetTankMakeUpMode(d, id(0), str(1));
+        else if (op == "remove_tank_stream") b::RemoveTankStream(d, id(0));
+        else if (op == "set_tank_port") b::SetTankPort(d, id(0), id(1));
         else throw py::value_error("unknown build operation '" + op + "'");
         s.RefreshParameters();
         return out;
@@ -772,6 +781,7 @@ PYBIND11_MODULE(_core, m) {
             e["temperature_profile"] = tprofile(p->temperature_profile_.get());
             e["pump"] = pump_of(p->pump_.get());
             e["buffer_tank"] = tank_of(p->buffer_tank_);
+            e["tank"] = p->tank_port_.tank_id_;
           } else if (auto* f = dynamic_cast<FlowBoundaryCondition*>(bc)) {
             e["kind"] = "flow";
             e["direction"] = dir;
@@ -783,6 +793,7 @@ PYBIND11_MODULE(_core, m) {
               sd["endpoint"] = st->endpoint_id_;
               sd["temperature_profile"] = tprofile(st->temperature_profile_.get());
               sd["buffer_tank"] = tank_of(st->buffer_tank_);
+              sd["tank"] = st->tank_port_.tank_id_;
               if (auto* bs = dynamic_cast<BoundaryStream*>(st.get())) {
                 sd["type"] = "stream";
                 sd["flow"] = kind(b::FlowKinds(), static_cast<int>(bs->boundary_flow_->GetType()));
@@ -851,6 +862,31 @@ PYBIND11_MODULE(_core, m) {
         }
         out["kpis"] = kpis;
 
+        // Dynamic tanks: thermal mode and external streams (kind, make-up mode).
+        d.SyncTankEndpointIds();
+        py::list tanks;
+        for (const auto& t : d.tanks.tanks_) {
+          py::dict td;
+          td["id"] = t.id_;
+          td["name"] = t.name_;
+          td["thermal"] = kind(b::TankThermalKinds(), static_cast<int>(t.thermal_));
+          td["beds"] = t.beds_;
+          py::list streams;
+          for (const auto& st : t.streams_) {
+            if (!st) continue;
+            py::dict sd;
+            sd["id"] = st->endpoint_id_;
+            sd["name"] = st->name_;
+            sd["kind"] = kind(b::TankStreamKinds(), static_cast<int>(st->GetKind()));
+            if (auto* m = dynamic_cast<const TankMakeUp*>(st.get()))
+              sd["mode"] = kind(b::TankMakeUpModeKinds(), static_cast<int>(m->mode_));
+            streams.append(sd);
+          }
+          td["streams"] = streams;
+          tanks.append(td);
+        }
+        out["tanks"] = tanks;
+
         py::list variables;
         for (const auto& v : d.variable_registry.GetAll()) {
           py::dict vd;
@@ -888,6 +924,9 @@ PYBIND11_MODULE(_core, m) {
     k["pump_energy"] = b::PumpEnergyKinds();
     k["pump_efficiency"] = b::PumpEfficiencyKinds();
     k["pump_power"] = b::PumpPowerKinds();
+    k["tank_thermal"] = b::TankThermalKinds();
+    k["tank_stream"] = b::TankStreamKinds();
+    k["tank_make_up_mode"] = b::TankMakeUpModeKinds();
     return k;
   });
 

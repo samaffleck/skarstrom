@@ -318,6 +318,16 @@ namespace adsim {
     TimeSeries EndpointSeries(size_t endpoint_id, const std::string& variable,
                               const std::string& component = {}, int cycle = -1) const;
 
+    // One dynamic tank's series over a cycle (time from the cycle start):
+    // "pressure" [Pa], "temperature" [K], "wall_temperature" [K],
+    // "total_moles" [mol], "heat" [W]; per component (pass one):
+    // "mole_fraction", "moles" [mol], "flow_in" / "flow_out" [mol/s] (over
+    // every port and external stream). Throws for an unknown tank or variable.
+    TimeSeries TankSeries(size_t tank_id, const std::string& variable,
+                          const std::string& component = {}, int cycle = -1) const;
+    static std::vector<std::string> TankVariableNames();
+    static std::vector<std::string> TankComponentVariableNames();
+
     // Writes the equation log as CSV files into `directory`.
     void SaveLogs(const std::string& directory) const;
 

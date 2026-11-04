@@ -158,7 +158,21 @@ namespace adsim {
     // round-off cannot dominate), the gas mole fractions (absolute) and the
     // fluid, solid and wall temperatures (scaled by their RMS). Returns a
     // negative value when either cycle is not in the log.
+    // Includes the tanks' states (TankStateChange): a large tank approaches
+    // CSS slowly, and the bed alone could pass while the tank still drifts.
     static double EndOfCycleStateChange(const EquationLog& logger, int cycle_index);
+    // The tanks' part of EndOfCycleStateChange: the largest, over the tanks,
+    // of the relative change of the total moles, the absolute change of the
+    // mole fractions and the relative change of the temperature (and wall
+    // temperature) at the end of the cycle since the previous cycle. 0 when
+    // there are no tanks, negative when either cycle is not in the log.
+    static double TankStateChange(const EquationLog& logger, int cycle_index);
+    // The bed's part of EndOfCycleStateChange (no tanks).
+    static double BedStateChange(const EquationLog& logger, int cycle_index);
+    // Largest relative balance error of a tank over the cycle,
+    // |in - out| / in over every port and external stream (per component
+    // when `component` is non-empty); 0 when no tank had any inflow.
+    static double TankBalanceError(const EquationLog& logger, int cycle_index, const std::string& component = {});
 
   private:
     CSSResult CheckProfileResult(const EquationLog& logger, int cycle_index);

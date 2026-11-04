@@ -723,7 +723,97 @@ namespace adsim {
                                         const std::string& component, int cycle) const {
     for (const auto& s : Streams())
       if (s.endpoint_id == endpoint_id) return StreamSeries(s.step, s.name, variable, component, cycle);
+    // A tank's external stream flows in every step: its series over the
+    // whole cycle, time from the cycle start.
+    Tank* tank = nullptr;
+    if (ITankStream* stream = data_->FindTankStream(endpoint_id, &tank)) {
+      const std::string name = TankStreamLogName(tank->name_, stream->name_);
+      const int c = ResolveCycle(cycle);
+      TimeSeries out;
+      double cycle_start = 0.0;
+      bool started = false;
+      for (int step : Log().sys_data.step_index_set_) {
+        const auto& times = Log().GetLog(c, step).step_data.times;
+        if (times.empty()) continue;
+        if (!started) { cycle_start = times.front(); started = true; }
+        TimeSeries part = StreamSeries(step, name, variable, component, c);
+        const double offset = times.front() - cycle_start;
+        for (size_t k = 0; k < part.time.size(); ++k) {
+          out.time.push_back(part.time[k] + offset);
+          out.values.push_back(part.values[k]);
+        }
+        out.variable = part.variable;
+        out.component = part.component;
+        out.unit = part.unit;
+      }
+      return out;
+    }
     throw std::out_of_range("no endpoint with ID " + std::to_string(endpoint_id) + " in this deck");
+  }
+
+  std::vector<std::string> Simulation::TankVariableNames() {
+    return {"pressure", "temperature", "wall_temperature", "total_moles", "heat"};
+  }
+
+  std::vector<std::string> Simulation::TankComponentVariableNames() {
+    return {"mole_fraction", "moles", "flow_in", "flow_out"};
+  }
+
+  TimeSeries Simulation::TankSeries(size_t tank_id, const std::string& variable,
+                                    const std::string& component, int cycle) const {
+    const int c = ResolveCycle(cycle);
+    const auto& log = Log();
+    bool known = false;
+    for (const auto& [id, name] : log.tanks_) known = known || id == tank_id;
+    if (!known) throw std::out_of_range("no tank with ID " + std::to_string(tank_id) + " in the results");
+    TimeSeries ts;
+    ts.variable = variable;
+    ts.component = component;
+    auto pick = [&](const TankLogData& t) -> const std::vector<double>* {
+      if (component.empty()) {
+        if (variable == "pressure") return &t.pressure;
+        if (variable == "temperature") return &t.temperature;
+        if (variable == "wall_temperature") return &t.wall_temperature;
+        if (variable == "total_moles") return &t.total_moles;
+        if (variable == "heat") return &t.heat;
+        throw std::invalid_argument("unknown tank variable '" + variable + "'. Bulk: " + Join(TankVariableNames()) +
+                                    ". Per component (pass a component): " + Join(TankComponentVariableNames()));
+      }
+      const std::unordered_map<std::string, std::vector<double>>* m = nullptr;
+      if (variable == "mole_fraction") m = &t.mole_fraction;
+      else if (variable == "moles") m = &t.moles;
+      else if (variable == "flow_in") m = &t.flow_in;
+      else if (variable == "flow_out") m = &t.flow_out;
+      else
+        throw std::invalid_argument("unknown per-component tank variable '" + variable + "'. Expected: " +
+                                    Join(TankComponentVariableNames()));
+      const auto it = m->find(component);
+      if (it == m->end()) throw std::invalid_argument("unknown component '" + component + "'");
+      return &it->second;
+    };
+    const std::string units[] = {"Pa", "K", "K", "mol", "W"};
+    if (component.empty()) {
+      const auto names = TankVariableNames();
+      for (size_t i = 0; i < names.size(); ++i) if (names[i] == variable) ts.unit = units[i];
+    } else {
+      ts.unit = variable == "mole_fraction" ? "-" : (variable == "moles" ? "mol" : "mol/s");
+    }
+    double cycle_start = 0.0;
+    bool started = false;
+    for (int step : log.sys_data.step_index_set_) {
+      const auto& times = log.GetLog(c, step).step_data.times;
+      const TankLogData* t = log.GetTankLog(c, step, tank_id);
+      if (!t || times.empty()) continue;
+      if (!started) { cycle_start = times.front(); started = true; }
+      const std::vector<double>* v = pick(*t);
+      for (size_t k = 0; k < times.size() && k < v->size(); ++k) {
+        ts.time.push_back(times[k] - cycle_start);
+        ts.values.push_back((*v)[k]);
+      }
+    }
+    if (ts.time.empty()) throw std::out_of_range("no log data for tank " + std::to_string(tank_id) +
+                                                 " at cycle " + std::to_string(c));
+    return ts;
   }
 
   void Simulation::SaveLogs(const std::string& directory) const { Log().SaveToFile(directory); }

@@ -759,6 +759,83 @@ namespace adsim {
       }
     }
 
+    // ---- dynamic tanks -----------------------------------------------------
+    // tank[<id>].<field> for the tank, endpoint[<id>].<field> for its external
+    // streams (the bed endpoints' family, so a stream keeps one path whichever
+    // owner it has); aliases tank[<name>] and tank[<name>].stream[<name>].
+    void AddTanks(TankDirectory& tanks) {
+      for (auto& tank : tanks.tanks_) {
+        const std::string tp = Bracket("tank", std::to_string(tank.id_));
+        const std::string ta = Bracket("tank", tank.name_);
+        const std::string& sub = tank.name_;
+        auto E = [&](const std::string& leaf, const std::string& name, const std::string& unit,
+                     ExpressionParam& v, double lo, double hi) {
+          Emplace(tp + "." + leaf, ta + "." + leaf, "tank", sub, name, unit, v, lo, hi);
+        };
+        E("volume", "tank volume", "m3", tank.volume_, 1e-6, 100.0);
+        E("initial_pressure", "tank initial pressure", "Pa", tank.initial_pressure_, 1e3, 1e7);
+        E("initial_temperature", "tank initial temperature", "K", tank.initial_temperature_, 200.0, 800.0);
+        for (auto& [component, yi] : tank.initial_mole_fraction_)
+          E("y[" + component + "]", component + " tank initial mole fraction", "-", yi, 0.0, 1.0);
+        EmplaceInt(tp + ".beds", "tank", sub, "beds sharing the tank", tank.beds_, ta + ".beds");
+        EmplaceEnum(tp + ".thermal_mode", ta + ".thermal_mode", "tank", sub, "tank thermal mode", tank.thermal_,
+                    "isothermal,adiabatic,heat_loss,wall");
+        if (tank.thermal_ == TankThermalMode::HEAT_LOSS || tank.thermal_ == TankThermalMode::WALL)
+          E("ambient_temperature", "tank ambient temperature", "K", tank.ambient_temperature_, 200.0, 800.0);
+        if (tank.thermal_ == TankThermalMode::HEAT_LOSS)
+          E("ua", "tank heat-loss coefficient (UA)", "W/K", tank.ua_, 0.0, 1e5);
+        if (tank.thermal_ == TankThermalMode::WALL) {
+          E("wall_area", "tank wall area", "m2", tank.wall_area_, 0.0, 1e3);
+          E("h_in", "tank gas-to-wall heat-transfer coefficient", "W/(m2-K)", tank.h_in_, 0.0, 1e4);
+          E("h_out", "tank wall-to-ambient heat-transfer coefficient", "W/(m2-K)", tank.h_out_, 0.0, 1e4);
+          E("wall_heat_capacity", "tank wall heat capacity (m c)", "J/K", tank.wall_heat_capacity_, 1.0, 1e8);
+          E("initial_wall_temperature", "tank initial wall temperature", "K", tank.initial_wall_temperature_,
+            200.0, 800.0);
+        }
+        for (auto& stream : tank.streams_) {
+          if (!stream) continue;
+          EndpointScope ep{Bracket("endpoint", std::to_string(stream->endpoint_id_)),
+                           ta + ".stream[" + stream->name_ + "]", tank.name_ + ", " + stream->name_};
+          auto S = [&](const std::string& leaf, const std::string& name, const std::string& unit,
+                       ExpressionParam& v, double lo, double hi) {
+            Emplace(ep.path + "." + leaf, ep.alias + "." + leaf, "tank", ep.subcategory, name, unit, v, lo, hi);
+          };
+          if (auto* m = dynamic_cast<TankMakeUp*>(stream.get())) {
+            EmplaceEnum(ep.path + ".mode", ep.alias + ".mode", "tank", ep.subcategory, "make-up mode", m->mode_,
+                        "set_flow,valve");
+            if (m->mode_ == TankMakeUpMode::SET_FLOW) {
+              S("molar_flow", "make-up molar flow", "mol/s", m->molar_flow_, 0.0, 100.0);
+            } else {
+              S("cv", "make-up valve coefficient", "mol/(s-bar)", m->cv_, 0.0, 1e3);
+              S("header_pressure", "make-up header pressure", "Pa", m->header_pressure_, 1e3, 1e7);
+            }
+          } else if (auto* v = dynamic_cast<TankValve*>(stream.get())) {
+            S("cv", "tank valve coefficient", "mol/(s-bar)", v->cv_, 0.0, 1e3);
+            S("downstream_pressure", "tank valve downstream pressure", "Pa", v->downstream_pressure_, 1e3, 1e7);
+            EmplaceBool(ep.path + ".check_valve", ep.alias + ".check_valve", "tank", ep.subcategory,
+                        "tank valve check valve (no backflow)", v->check_valve_);
+          } else if (auto* r = dynamic_cast<TankRegulator*>(stream.get())) {
+            S("cv", "regulator coefficient at full opening", "mol/(s-bar)", r->cv_, 0.0, 1e3);
+            S("set_pressure", "regulator set pressure", "Pa", r->set_pressure_, 1e3, 1e7);
+            S("full_open_pressure", "regulator full-open pressure", "Pa", r->full_open_pressure_, 1e3, 1e7);
+            S("downstream_pressure", "regulator downstream pressure", "Pa", r->downstream_pressure_, 1e3, 1e7);
+          } else if (auto* h = dynamic_cast<TankHold*>(stream.get())) {
+            S("set_pressure", "held pressure", "Pa", h->set_pressure_, 1e3, 1e7);
+            S("band", "hold band (P_full - P_set) / P_set", "-", h->band_, 1e-6, 1e-2);
+            S("cv", "hold valve coefficient at full opening", "mol/(s-bar)", h->cv_, 0.0, 1e3);
+            S("downstream_pressure", "hold downstream pressure", "Pa", h->downstream_pressure_, 1e3, 1e7);
+          }
+          // The gas a stream lets in: the make-up gas, or the gas beyond a
+          // valve without a check valve when it flows back.
+          if (stream->CanFlowIn() || dynamic_cast<TankValve*>(stream.get())) {
+            S("temperature", "tank stream inflow temperature", "K", stream->temperature_, 200.0, 800.0);
+            for (auto& [component, yi] : stream->mole_fraction_)
+              S("y[" + component + "]", component + " tank stream inflow mole fraction", "-", yi, 0.0, 1.0);
+          }
+        }
+      }
+    }
+
     // ---- bed, layers, adsorbents ----------------------------------------
     std::set<AdsorbentID> emitted_adsorbents;
 
@@ -1222,6 +1299,8 @@ namespace adsim {
     b.AddInitialConditions(data_.ic);
     b.AddFluid(data_.fluid);
     b.AddUserVariables(data_.variable_registry);
+    data_.SyncTankEndpointIds();
+    b.AddTanks(data_.tanks);
 
     // Paths are unique by construction once every owner has an ID; this guard
     // keeps Find well defined regardless (a repeat gets a " #n" suffix).

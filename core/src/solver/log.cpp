@@ -42,6 +42,8 @@ namespace adsim {
       sys_data.step_list_.emplace_back(step.step_name_);
     }
     sys_data.total_cycle_time = cycle.GetCycleTime();
+    tanks_.clear();
+    for (const auto& tank : user_data.tanks.tanks_) tanks_.emplace_back(tank.id_, tank.name_);
   }
 
   void EquationLog::LogState(const Equations& state, double t, int step_index, int cycle_index) {
@@ -184,6 +186,31 @@ namespace adsim {
     log_aggregate(ComponentVariableType::ADSORBED_CONCENTRATION, state.ads_concentration);
     log_aggregate(ComponentVariableType::EQUILIBRIUM_ADSORBED_CONCENTRATION, state.eq_ads_concentration);
     log_aggregate(ComponentVariableType::MASS_TRANSFER_COEFFICIENT, state.mass_transfer_coefficient);
+
+    // Tanks: their state and the flows of the last Equations::UpdateTanks.
+    for (const auto& tk : state.Tanks()) {
+      TankLogData& t = sim_log.tanks[tk->tank_id];
+      if (t.name.empty()) t.name = tk->name;
+      t.volume = tk->volume;
+      t.pressure.push_back(tk->live.pressure);
+      t.temperature.push_back(tk->live.temperature);
+      t.wall_temperature.push_back(tk->Tw_unknown ? tk->Tw : tk->live.temperature);
+      t.total_moles.push_back(tk->live.total_moles);
+      t.heat.push_back(tk->heat);
+      for (size_t c = 0; c < tk->components.size(); ++c) {
+        const std::string& comp = tk->components[c];
+        t.mole_fraction[comp].push_back(tk->live.MoleFraction(comp));
+        t.moles[comp].push_back(tk->n[c]);
+        t.flow_in[comp].push_back(tk->flow_in[c]);
+        t.flow_out[comp].push_back(tk->flow_out[c]);
+      }
+    }
+  }
+
+  const TankLogData* EquationLog::GetTankLog(int cycle_index, int step_index, size_t tank_id) const {
+    const Log& log = GetLog(cycle_index, step_index);
+    const auto it = log.tanks.find(tank_id);
+    return it == log.tanks.end() ? nullptr : &it->second;
   }
 
   // Format doubles with std::to_chars (printf "%.6g" semantics — identical
@@ -292,6 +319,42 @@ namespace adsim {
                 for (size_t i = 0; i < num_cells; ++i) files[filename] << ",cell_" << i;
                 files[filename] << "\n";
               }
+            }
+          }
+        }
+      }
+    }
+
+    // Tanks: one file, one row per logged time and tank.
+    if (!tanks_.empty()) {
+      std::ofstream tank_file(out_dir / "tanks.csv");
+      if (tank_file.is_open()) {
+        tank_file << "Cycle Index,Step Index,time,tank,pressure,temperature,wall_temperature,total_moles";
+        for (const auto& c : sys_data.components_) tank_file << ",y_" << c;
+        for (const auto& c : sys_data.components_) tank_file << ",n_" << c;
+        tank_file << "\n";
+        for (const auto& [cycle_index, cycle_data] : var_log_) {
+          for (const auto& [step_index, step_data] : cycle_data) {
+            const auto& times = step_data.step_data.times;
+            for (const auto& [tank_id, t] : step_data.tanks) {
+              std::vector<std::vector<double>> rows(std::min(times.size(), t.pressure.size()));
+              for (size_t k = 0; k < rows.size(); ++k) {
+                auto& row = rows[k];
+                row.push_back(static_cast<double>(tank_id));
+                row.push_back(t.pressure[k]);
+                row.push_back(t.temperature[k]);
+                row.push_back(t.wall_temperature[k]);
+                row.push_back(t.total_moles[k]);
+                for (const auto& c : sys_data.components_) {
+                  const auto it = t.mole_fraction.find(c);
+                  row.push_back(it == t.mole_fraction.end() ? 0.0 : it->second[k]);
+                }
+                for (const auto& c : sys_data.components_) {
+                  const auto it = t.moles.find(c);
+                  row.push_back(it == t.moles.end() ? 0.0 : it->second[k]);
+                }
+              }
+              WriteCsvRows(tank_file, cycle_index, step_index, times, rows, max_log_points_per_step_);
             }
           }
         }
@@ -524,6 +587,12 @@ namespace adsim {
     }
   }
 
+  void BoundaryLog::LogTankStreams(const TankDirectory& tanks, int cycle_idx, int step_idx) {
+    for (const auto& tank : tanks.tanks_)
+      for (const auto& stream : tank.streams_)
+        if (stream) LogStep(stream->stream_data_, TankStreamLogName(tank.name_, stream->name_), cycle_idx, step_idx);
+  }
+
   void BoundaryLog::Initialise(UserData& user_data) {
     auto& settings = user_data.settings;
     auto& fluid = user_data.fluid;
@@ -541,6 +610,10 @@ namespace adsim {
       for (const auto& stream : streams) {
         names.push_back(stream.boundary_name);
       }
+      // The tanks' external streams flow in every step.
+      for (const auto& tank : user_data.tanks.tanks_)
+        for (const auto& s : tank.streams_)
+          if (s) names.push_back(TankStreamLogName(tank.name_, s->name_));
     }
 
     sys_data.components_ = fluid.components_;

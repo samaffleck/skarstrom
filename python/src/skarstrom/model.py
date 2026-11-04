@@ -75,6 +75,8 @@ __all__ = [
     "Step",
     "StepEnd",
     "BufferTank",
+    "Tank",
+    "TankStream",
     "Valve",
     "ValueMap",
     "VoidRegion",
@@ -195,7 +197,7 @@ class _Index:
             segments = _split_path(p.path)
             self.root.insert(segments, p.path)
             kind, key = segments[0]
-            if key is not None and kind in ("step", "layer", "adsorbent"):
+            if key is not None and kind in ("step", "layer", "adsorbent", "tank"):
                 rest = p.path[len(kind) + len(key) + 2 :]  # after "kind[key]"
                 if p.alias.startswith(kind + "[") and p.alias.endswith(rest) and p.alias != p.path:
                     self.names.setdefault((kind, key), p.alias[len(kind) + 1 : len(p.alias) - len(rest) - 1])
@@ -1156,6 +1158,20 @@ class Endpoint(_Node):
             self._sim.set(f"endpoint[{self._id}].buffer_tank.percentage", percentage)
         return self._sim._endpoint(self._id)
 
+    def set_tank(self, tank: Any) -> "Endpoint":
+        """Port this endpoint to a dynamic tank (a Tank, its name or its ID; ``None`` removes it).
+
+        An inlet then draws the tank's gas (its composition and temperature,
+        and for a valve or a compressor its pressure); an outlet sends the
+        bed's gas into the tank (a valve or a vacuum pump discharges against
+        the tank pressure). An endpoint with a connection or a buffer tank
+        cannot also have a tank port.
+        """
+        if isinstance(tank, str):
+            tank = self._sim.tanks[tank]
+        self._sim._build("set_tank_port", self._id, 0 if tank is None else int(getattr(tank, "id", tank)))
+        return self._sim._endpoint(self._id)
+
     def set_pump(self, pump: Any) -> "Endpoint":
         """Fit a pump (a :class:`skarstrom.Pump`) to this stream or boundary; ``None`` removes it."""
         from . import build
@@ -1753,6 +1769,175 @@ def _steps(sim: "Simulation") -> Collection[Step]:
             name = index.step_names[i] if i < len(index.step_names) else key
         items.append(Step(sim, tree, f"steps[{name!r}]", int(key), name, i))
     return Collection(items, "steps")
+
+
+class TankStream(_Node):
+    """An external stream of a dynamic tank (make-up, vent valve, regulator or
+    pressure hold). Its fields are the kind's (``tank.streams["Product"].fields``);
+    its ID is an endpoint ID (``endpoint[<id>]`` paths)."""
+
+    __slots__ = ("_id", "_name", "_tank_id")
+
+    mode = Choice()
+    """Make-up mode: "set_flow" (a set molar flow) or "valve" (a linear valve from a header pressure)."""
+    molar_flow = Real()
+    """Make-up molar flow [mol/s]."""
+    cv = Real()
+    """Linear valve coefficient, flow = cv (P_up - P_down) / 1e5 [mol/(s-bar)]."""
+    header_pressure = Real()
+    """Make-up header pressure upstream of its valve [Pa]."""
+    downstream_pressure = Real()
+    """Pressure downstream of the valve, regulator or hold [Pa]."""
+    check_valve = Boolean()
+    """Valve: True blocks flow back into the tank."""
+    set_pressure = Real()
+    """Regulator: pressure at which it starts to open; hold: the held pressure [Pa]."""
+    full_open_pressure = Real()
+    """Regulator: pressure at which it is fully open [Pa]."""
+    band = Real()
+    """Hold: (P_full - P_set) / P_set, the regulator band the hold is made of [-]."""
+    temperature = Real()
+    """Temperature of the gas this stream lets into the tank [K]."""
+
+    def __init__(self, sim: "Simulation", tree: Optional[_Tree], label: str, id: int, name: str,
+                 tank_id: int) -> None:
+        super().__init__(sim, tree, label)
+        object.__setattr__(self, "_id", id)
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_tank_id", tank_id)
+
+    @property
+    def id(self) -> int:
+        """The stream's endpoint ID (``endpoint[<id>]`` in string paths)."""
+        return self._id
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def y(self) -> ValueMap:
+        """Composition of the gas this stream lets into the tank, by component [-]."""
+        return ValueMap(self._sim, self._tree_or_raise().maps.get("y", {}), f"{self._label}.y")
+
+    def _refetch(self) -> Optional[_Node]:
+        return _tanks(self._sim).by_id(self._tank_id).streams.by_id(self._id)
+
+
+class Tank(_Node):
+    """A dynamic tank: a well-mixed vessel whose moles and temperature are solved with the bed.
+
+    Bed endpoints draw from it (inlets) or send to it (outlets) through
+    :meth:`Endpoint.set_tank`; its own streams (:meth:`add_stream`) connect
+    it to the outside."""
+
+    __slots__ = ("_id", "_name")
+
+    volume = Real()
+    """Tank volume [m3]."""
+    initial_pressure = Real()
+    """Pressure at the start of the run [Pa]."""
+    initial_temperature = Real()
+    """Temperature at the start of the run (the held one when isothermal) [K]."""
+    beds = Integer()
+    """Number of identical beds sharing the tank (only 1 is supported yet)."""
+    thermal_mode = Choice()
+    """"isothermal", "adiabatic", "heat_loss" (UA to ambient) or "wall" (a wall node)."""
+    ambient_temperature = Real()
+    """Ambient temperature (heat_loss, wall) [K]."""
+    ua = Real()
+    """Heat-loss coefficient UA to ambient (heat_loss) [W/K]."""
+    wall_area = Real()
+    """Wall area (wall) [m2]."""
+    h_in = Real()
+    """Gas-to-wall heat-transfer coefficient (wall) [W/(m2-K)]."""
+    h_out = Real()
+    """Wall-to-ambient heat-transfer coefficient (wall) [W/(m2-K)]."""
+    wall_heat_capacity = Real()
+    """Wall heat capacity m c (wall) [J/K]."""
+    initial_wall_temperature = Real()
+    """Wall temperature at the start of the run (wall) [K]."""
+
+    def __init__(self, sim: "Simulation", tree: Optional[_Tree], label: str, id: int, name: str) -> None:
+        super().__init__(sim, tree, label)
+        object.__setattr__(self, "_id", id)
+        object.__setattr__(self, "_name", name)
+
+    @property
+    def id(self) -> int:
+        """The tank ID stored in the deck (``tank[<id>]`` in string paths)."""
+        return self._id
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def y(self) -> ValueMap:
+        """Initial composition by component [-]."""
+        return ValueMap(self._sim, self._tree_or_raise().maps.get("y", {}), f"{self._label}.y")
+
+    @property
+    def streams(self) -> Collection[TankStream]:
+        """The tank's external streams."""
+        index = self._sim._index()
+        endpoints = index.root.keyed.get("endpoint", {})
+        items = []
+        for st in self._describe().get("streams", []):
+            tree = endpoints.get(str(st["id"]), _Tree())
+            items.append(TankStream(self._sim, tree, f"{self._label}.streams[{st['name']!r}]", st["id"],
+                                    st["name"], self._id))
+        return Collection(items, f"{self._label}.streams")
+
+    def _describe(self) -> Dict[str, Any]:
+        for t in self._sim.describe().get("tanks", []):
+            if t["id"] == self._id:
+                return t
+        raise KeyError(f"no tank with ID {self._id}")
+
+    def _refetch(self) -> Optional[_Node]:
+        return _tanks(self._sim).by_id(self._id)
+
+    # ---- building ----------------------------------------------------------------
+    def set_thermal(self, kind: str, **values: Any) -> "Tank":
+        """The thermal mode: "isothermal", "adiabatic", "heat_loss" or "wall"; ``values`` set its fields."""
+        self._sim._build("set_tank_thermal", self._id, kind)
+        tank = _tanks(self._sim).by_id(self._id)
+        _apply(tank, values)
+        return tank
+
+    def add_stream(self, kind: str, name: str, mode: Optional[str] = None, y: Optional[Dict[str, Any]] = None,
+                   **values: Any) -> TankStream:
+        """An external stream: ``kind`` "make_up", "valve", "regulator" or "hold".
+
+        ``mode`` ("set_flow" or "valve") applies to a make-up; ``y`` is the
+        composition of the gas it lets in; ``values`` set its fields
+        (``molar_flow``, ``cv``, ``set_pressure``...).
+        """
+        endpoint_id = self._sim._build("add_tank_stream", self._id, kind, name)
+        if mode is not None:
+            self._sim._build("set_tank_make_up_mode", endpoint_id, mode)
+        stream = _tanks(self._sim).by_id(self._id).streams.by_id(endpoint_id)
+        if y:
+            for component, value in y.items():
+                stream.y[self._sim._component(component)] = value
+        _apply(stream, values)
+        return stream
+
+    def remove_stream(self, stream: Any) -> None:
+        """Remove one of the tank's streams (a TankStream, its name or its endpoint ID)."""
+        if isinstance(stream, str):
+            stream = self.streams[stream]
+        self._sim._build("remove_tank_stream", int(getattr(stream, "id", stream)))
+
+
+def _tanks(sim: "Simulation") -> Collection[Tank]:
+    index = sim._index()
+    items = []
+    for t in sim.describe().get("tanks", []):
+        tree = index.root.keyed.get("tank", {}).get(str(t["id"]), _Tree())
+        items.append(Tank(sim, tree, f"tanks[{t['name']!r}]", int(t["id"]), t["name"]))
+    return Collection(items, "tanks")
 
 
 def _layers(sim: "Simulation") -> Collection[Layer]:

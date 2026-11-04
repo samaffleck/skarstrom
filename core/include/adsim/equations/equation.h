@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <string>
 #include <optional>
+#include <memory>
 
 // SUNDIALS includes
 #include <ida/ida.h>
@@ -22,6 +23,8 @@
 #include "adsim/equations/adsorbent_equations.h"
 #include "adsim/objects/domain.h"
 #include "adsim/objects/reactor_equations.h"
+#include "adsim/objects/tank_state.h"
+#include "adsim/boundary_conditions/flow_boundary_value.h"
 
 
 namespace adsim {
@@ -46,6 +49,9 @@ namespace adsim {
   // Forward decleration
   class UserData;
   class Step;
+  class Tank;
+  class TankDirectory;
+  class Cycle;
 
   using vec = std::vector<double>;
   using update_fun = std::function<void(UserData* udata)>;
@@ -135,6 +141,36 @@ namespace adsim {
     const vec* heat_of_adsorption;
   };
 
+  // The DAE unknowns of one dynamic tank (see adsim/objects/tank.h): the
+  // species moles n_i and, unless the tank is isothermal, its gas temperature
+  // T (and the wall temperature T_w in the wall mode). Their entries sit in
+  // the banded layout next to the bed end the tank's ports use (before cell 0
+  // for a tank used only at the bottom, after the last cell otherwise), so
+  // they couple to the ghost and end cells of that end within the band.
+  struct TankUnknowns {
+    const Tank* tank = nullptr;  // into UserData::tanks, stable during a run
+    size_t tank_id = 0;
+    std::string name;
+    BoundaryLocation placement = BoundaryLocation::TOP;
+    bool used_at_bottom = false;
+    bool used_at_top = false;
+    double volume = 0.0;              // [m3]
+    std::vector<std::string> components;  // the fluid's component order
+    std::vector<double> cp;           // molar c_p of each component [J/(mol K)]
+    vec n, dn, res_n;                 // [mol], [mol/s]
+    double T = 0.0, dT = 0.0, res_T = 0.0;
+    double Tw = 0.0, dTw = 0.0, res_Tw = 0.0;
+    bool T_unknown = false;
+    bool Tw_unknown = false;
+    double fixed_temperature = 0.0;   // isothermal tank
+    double n_abstol = 1e-8;           // [mol]
+    TankLiveState live;               // refreshed on every unpack
+    // Flows of the last UpdateTanks call (logging and the CSS balances):
+    // per component into / out of the tank [mol/s], and the heat [W].
+    vec flow_in, flow_out;
+    double heat = 0.0;
+  };
+
   class Equations {
   public:    
     // Must be called before Initialise (UserData::Initialise does, from the
@@ -161,6 +197,24 @@ namespace adsim {
     // nothing in the residual reads them. Call after UpdateIndependentEquations.
     void UpdateDiagnosticEquations(UserData* udata);
     void UpdateBoundaryConditions(UserData* udata, double time);
+    // Tank unknowns. InitialiseTanks (after Initialise, before Resize) adds
+    // one block per tank of the deck, places it at the bed end its ports use
+    // and binds every bed endpoint's TankPort to its tank's live state (ports
+    // naming no tank of the deck are unbound). SetTankInitialConditions sets
+    // each tank to its initial pressure, temperature and composition (at the
+    // isothermal temperature in an isothermal run).
+    void InitialiseTanks(TankDirectory& tanks, Cycle& cycle, const Fluid& fluid);
+    void SetTankInitialConditions();
+    // The tanks' residuals (and the flows logged with them) at time t since
+    // the current step's start; called after UpdateBoundaryConditions.
+    void UpdateTanks(UserData* udata, double time);
+    const std::vector<std::unique_ptr<TankUnknowns>>& Tanks() const { return tanks_; }
+    std::vector<std::unique_ptr<TankUnknowns>>& Tanks() { return tanks_; }
+    const TankUnknowns* FindTank(size_t tank_id) const;
+    // Number of tank entries in the state vector, and true when a tank is
+    // used at both bed ends (its couplings then span the whole bed).
+    size_t TankEntryCount() const;
+    bool AnyTankAtBothEnds() const;
     void SetCurrentStep(Step* step) { current_step_ = step; }
     void Resize(size_t n_cells);
     int GetSystemSize();
@@ -188,6 +242,25 @@ namespace adsim {
     void SetToleranceVectorBanded(sunrealtype* abstol_data) const;
     // "<equation name> @ cell <i>" for entry g of the banded state vector.
     std::string DescribeBandedIndex(size_t g) const;
+
+    // Banded state layout (cell-major, active entries only, tank blocks next
+    // to their bed end), resolved once so the per-residual pack/unpack is a
+    // straight copy. Built on first use; cleared whenever Initialise / Resize
+    // / InitialiseTanks can change the layout. `var` is the layout variable:
+    // the index in GetEquations() for a bed entry (eq != nullptr), and
+    // GetEquations().size() + k for the k-th tank variable (eq == nullptr);
+    // `cell` is the bed cell, for a tank entry the end cell it sits next to.
+    struct BandedSlot {
+      double* var; double* ddt_var; const double* res_var; const Equation* eq; size_t cell;
+      int layout_var; double id; double abstol;
+    };
+    const std::vector<BandedSlot>& BandedSlots() const;
+    // Number of layout variables (bed equations plus tank variables) and a
+    // short name for one ("Tank 'Product' CO2 moles").
+    int NumLayoutVariables() const;
+    std::string LayoutVariableName(int layout_var) const;
+    // Number of bed cells in the layout (the largest equation size).
+    size_t LayoutCellCount() const;
     const std::vector<Equation*>& GetEquations() const { return equations_; }
     const std::vector<IndependentEquation*>& GetIndependentEquations() const { return independent_equations_; }
     // Adsorbents that appear in at least one layer composition, in ascending ID
@@ -280,12 +353,12 @@ namespace adsim {
     // from Tf when aliased, C (and dC/dt) from P and T when derived.
     void SyncDerivedFields();
 
-    // Banded state layout (cell-major, active entries only), resolved once so
-    // the per-residual pack/unpack is a straight copy. Built on first use;
-    // cleared whenever Initialise/Resize can change the layout.
-    struct BandedSlot { double* var; double* ddt_var; const double* res_var; const Equation* eq; size_t cell; };
     mutable std::vector<BandedSlot> banded_slots_;
-    const std::vector<BandedSlot>& BandedSlots() const;
+    // Tank blocks (stable addresses: TankPort::live_ points into them).
+    std::vector<std::unique_ptr<TankUnknowns>> tanks_;
+    // Names of the tank layout variables, in layout-variable order.
+    std::vector<std::string> tank_var_names_;
+    void SyncTankLiveStates();
 
   };
 

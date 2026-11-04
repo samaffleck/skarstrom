@@ -102,9 +102,11 @@ namespace adsim {
 		}
 		double InletTemperature(double time) const {
 			if (isothermal_temperature_) return *isothermal_temperature_;
+			if (tank_port_.IsBound()) return tank_port_.live_->temperature;
 			return SelectInletTemperature(buffer_tank_, connection_, AssumedInletTemperature(time), time);
 		}
 		double InletMoleFraction(double time, const std::string& component) const {
+			if (tank_port_.IsBound()) return tank_port_.live_->MoleFraction(component);
 			return SelectInletMoleFraction(buffer_tank_, connection_, mole_fraction_, component, time);
 		}
 
@@ -132,6 +134,11 @@ namespace adsim {
     std::unique_ptr<IPump> pump_{};
     CycleEndpointSummary cycle_summary_{};
     BufferTankSource buffer_tank_{};
+    // Port to a dynamic tank (see IBoundaryStream::tank_port_). The bed end is
+    // still held at the set pressure (an ideal regulator between bed and
+    // tank); an INLET takes the tank's composition and temperature, an OUTLET
+    // sends the bed's outflow into the tank.
+    TankPort tank_port_{};
     double step_time_cached_ = 0.0;
 
 	private:
@@ -163,6 +170,10 @@ namespace adsim {
 				ar(cereal::make_nvp("Endpoint_ID", endpoint_id_));
 			}
 			// version < 4: endpoint_id_ stays 0 and Cycle::EnsureIds assigns it on load.
+			if (version >= 6) {
+				ar(cereal::make_nvp("Tank_Port", tank_port_));
+			}
+			// version < 6: no tank port.
 		}
 	};
 

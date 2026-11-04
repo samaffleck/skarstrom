@@ -8,6 +8,8 @@
 #include "adsim/equations/equation.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/boundary_conditions/step.h"
+#include "adsim/objects/tank.h"
+#include "adsim/solver/cycle.h"
 
 #include <algorithm>
 
@@ -159,6 +161,8 @@ namespace adsim {
     equations_.clear();
     independent_equations_.clear();
     banded_slots_.clear();
+    tanks_.clear();
+    tank_var_names_.clear();
 
     // Build the set of adsorbents present in the bed and their per-cell presence
     // masks. A per-adsorbent loading equation is active only in the cells of the
@@ -510,7 +514,7 @@ namespace adsim {
         if (eq->IsActiveAt(i, void_mask)) size++;
       }
     }
-    return size;
+    return size + static_cast<int>(TankEntryCount());
   }
 
   void Equations::SetInitialConditions(InitialConditions& ic, ThermalEquilibriumMode mode) {
@@ -622,45 +626,206 @@ namespace adsim {
 
   void Equations::SetIDBanded(sunrealtype* id) {
     assert(id);
-    const auto* void_mask = &domain_vectors.is_void_cell;
+    const auto& slots = BandedSlots();
+    for (size_t g = 0; g < slots.size(); ++g) id[g] = slots[g].id;
+  }
 
+  size_t Equations::LayoutCellCount() const {
     size_t max_size = 0;
     for (const auto& eq : equations_) {
       max_size = std::max(max_size, eq->Size());
     }
-
-    size_t global_index = 0;
-    for (size_t cell_idx = 0; cell_idx < max_size; ++cell_idx) {
-      for (const auto& eq : equations_) {
-        if (!eq->IsActiveAt(cell_idx, void_mask)) continue;
-        id[global_index] = eq->GetIDValue(cell_idx);
-        global_index++;
-      }
-    }
+    return max_size;
   }
 
   const std::vector<Equations::BandedSlot>& Equations::BandedSlots() const {
     if (!banded_slots_.empty()) return banded_slots_;
 
     const auto* void_mask = &domain_vectors.is_void_cell;
-    size_t max_size = 0;
-    for (const auto& eq : equations_) {
-      max_size = std::max(max_size, eq->Size());
+    const size_t max_size = LayoutCellCount();
+    const size_t last_cell = max_size > 0 ? max_size - 1 : 0;
+
+    // Tank entries: the species moles, then T and T_w when they are unknowns.
+    int tank_var = static_cast<int>(equations_.size());
+    auto add_tank = [&](TankUnknowns& tk, int first_var, size_t cell) {
+      int v = first_var;
+      for (size_t c = 0; c < tk.n.size(); ++c)
+        banded_slots_.push_back({ &tk.n[c], &tk.dn[c], &tk.res_n[c], nullptr, cell, v++, 1.0, tk.n_abstol });
+      if (tk.T_unknown)
+        banded_slots_.push_back({ &tk.T, &tk.dT, &tk.res_T, nullptr, cell, v++, 1.0, fluid_temperature.abstol });
+      if (tk.Tw_unknown)
+        banded_slots_.push_back({ &tk.Tw, &tk.dTw, &tk.res_Tw, nullptr, cell, v++, 1.0, wall_temperature.abstol });
+    };
+    std::vector<int> first_var(tanks_.size());
+    for (size_t k = 0; k < tanks_.size(); ++k) {
+      first_var[k] = tank_var;
+      tank_var += static_cast<int>(tanks_[k]->n.size()) + (tanks_[k]->T_unknown ? 1 : 0)
+                + (tanks_[k]->Tw_unknown ? 1 : 0);
     }
 
+    for (size_t k = 0; k < tanks_.size(); ++k)
+      if (tanks_[k]->placement == BoundaryLocation::BOTTOM) add_tank(*tanks_[k], first_var[k], 0);
+
     for (size_t cell_idx = 0; cell_idx < max_size; ++cell_idx) {
-      for (const auto& eq : equations_) {
+      for (size_t e = 0; e < equations_.size(); ++e) {
+        Equation* eq = equations_[e];
         if (!eq->IsActiveAt(cell_idx, void_mask)) continue;
-        banded_slots_.push_back({ &eq->var[cell_idx], &eq->ddt_var[cell_idx], &eq->res_var[cell_idx], eq, cell_idx });
+        banded_slots_.push_back({ &eq->var[cell_idx], &eq->ddt_var[cell_idx], &eq->res_var[cell_idx], eq,
+                                  cell_idx, static_cast<int>(e), eq->GetIDValue(cell_idx), eq->abstol });
       }
     }
+
+    for (size_t k = 0; k < tanks_.size(); ++k)
+      if (tanks_[k]->placement == BoundaryLocation::TOP) add_tank(*tanks_[k], first_var[k], last_cell);
     return banded_slots_;
+  }
+
+  int Equations::NumLayoutVariables() const {
+    return static_cast<int>(equations_.size() + tank_var_names_.size());
+  }
+
+  std::string Equations::LayoutVariableName(int layout_var) const {
+    if (layout_var < 0) return "?";
+    const size_t v = static_cast<size_t>(layout_var);
+    if (v < equations_.size()) return equations_[v]->name;
+    const size_t k = v - equations_.size();
+    return k < tank_var_names_.size() ? tank_var_names_[k] : "?";
   }
 
   std::string Equations::DescribeBandedIndex(size_t g) const {
     const auto& slots = BandedSlots();
     if (g >= slots.size()) return "?";
+    if (!slots[g].eq) return LayoutVariableName(slots[g].layout_var);
     return slots[g].eq->name + " @ cell " + std::to_string(slots[g].cell);
+  }
+
+  size_t Equations::TankEntryCount() const {
+    size_t n = 0;
+    for (const auto& tk : tanks_)
+      n += tk->n.size() + (tk->T_unknown ? 1 : 0) + (tk->Tw_unknown ? 1 : 0);
+    return n;
+  }
+
+  bool Equations::AnyTankAtBothEnds() const {
+    for (const auto& tk : tanks_)
+      if (tk->used_at_bottom && tk->used_at_top) return true;
+    return false;
+  }
+
+  const TankUnknowns* Equations::FindTank(size_t tank_id) const {
+    for (const auto& tk : tanks_)
+      if (tk->tank_id == tank_id) return tk.get();
+    return nullptr;
+  }
+
+  namespace {
+    // Every tank port of the cycle, with the bed end it sits on.
+    template <class Fn>
+    void ForEachTankPort(Cycle& cycle, Fn fn) {
+      for (Step& step : cycle.step_list_) {
+        for (IBoundaryCondition* bc : {step.bottom_boundary_condition_.get(), step.top_boundary_condition_.get()}) {
+          if (!bc) continue;
+          if (auto* fbc = dynamic_cast<FlowBoundaryCondition*>(bc)) {
+            for (auto& stream : fbc->streams_)
+              if (stream) fn(stream->tank_port_, bc->location_);
+          } else if (auto* pbc = dynamic_cast<PressureBoundaryCondition*>(bc)) {
+            fn(pbc->tank_port_, bc->location_);
+          }
+        }
+      }
+    }
+  }
+
+  void Equations::InitialiseTanks(TankDirectory& tanks, Cycle& cycle, const Fluid& fluid) {
+    banded_slots_.clear();
+    tanks_.clear();
+    tank_var_names_.clear();
+
+    for (const Tank& tank : tanks.tanks_) {
+      auto tk = std::make_unique<TankUnknowns>();
+      tk->tank = &tank;
+      tk->tank_id = tank.id_;
+      tk->name = tank.name_;
+      tk->volume = tank.volume_;
+      tk->components = fluid.components_;
+      const size_t nc = tk->components.size();
+      tk->cp.resize(nc);
+      for (size_t c = 0; c < nc; ++c) tk->cp[c] = fluid.MolarHeatCapacity(tk->components[c]);
+      tk->n.assign(nc, 0.0);
+      tk->dn.assign(nc, 0.0);
+      tk->res_n.assign(nc, 0.0);
+      tk->flow_in.assign(nc, 0.0);
+      tk->flow_out.assign(nc, 0.0);
+      // Every tank follows the bed's isothermal convention: in an isothermal
+      // run it is held at the run's temperature.
+      tk->T_unknown = !isothermal_ && tank.thermal_ != TankThermalMode::ISOTHERMAL;
+      tk->Tw_unknown = tk->T_unknown && tank.thermal_ == TankThermalMode::WALL;
+      tk->fixed_temperature = isothermal_ ? isothermal_temperature_ : tank.initial_temperature_.Get();
+      // Absolute tolerance of the moles: 1e-8 of the inventory at the larger of
+      // the initial and atmospheric pressure (the bed's mole fractions use
+      // 1e-8 absolute), so a nearly empty tank still has a meaningful scale.
+      const double P_scale = std::max(tank.initial_pressure_.Get(), 1e5);
+      tk->n_abstol = 1e-8 * P_scale * tk->volume / (R * tank.initial_temperature_.Get());
+      tanks_.push_back(std::move(tk));
+    }
+
+    // Bind the ports and find the bed ends each tank is used at.
+    ForEachTankPort(cycle, [&](TankPort& port, BoundaryLocation loc) {
+      port.live_ = nullptr;
+      if (!port.IsSet()) return;
+      for (auto& tk : tanks_) {
+        if (tk->tank_id != port.tank_id_) continue;
+        port.live_ = &tk->live;
+        (loc == BoundaryLocation::BOTTOM ? tk->used_at_bottom : tk->used_at_top) = true;
+      }
+    });
+    for (auto& tk : tanks_)
+      tk->placement = (tk->used_at_bottom && !tk->used_at_top) ? BoundaryLocation::BOTTOM : BoundaryLocation::TOP;
+
+    for (const auto& tk : tanks_) {
+      for (const auto& c : tk->components) tank_var_names_.push_back("Tank '" + tk->name + "' " + c + " moles");
+      if (tk->T_unknown) tank_var_names_.push_back("Tank '" + tk->name + "' temperature");
+      if (tk->Tw_unknown) tank_var_names_.push_back("Tank '" + tk->name + "' wall temperature");
+    }
+  }
+
+  void Equations::SetTankInitialConditions() {
+    for (auto& tk : tanks_) {
+      const Tank& tank = *tk->tank;
+      // Call after HoldIsothermalTemperature, which sets the run's temperature.
+      tk->fixed_temperature = isothermal_ ? isothermal_temperature_ : tank.initial_temperature_.Get();
+      const double T0 = tk->T_unknown ? tank.initial_temperature_.Get() : tk->fixed_temperature;
+      // The initial pressure and composition define the inventory; an
+      // isothermal tank holds them at its fixed temperature.
+      const double N0 = tank.initial_pressure_ * tk->volume / (R * T0);
+      for (size_t c = 0; c < tk->components.size(); ++c) {
+        const auto it = tank.initial_mole_fraction_.find(tk->components[c]);
+        const double y0 = it == tank.initial_mole_fraction_.end() ? 0.0 : it->second.Get();
+        tk->n[c] = N0 * y0;
+        tk->dn[c] = 0.0;
+        tk->res_n[c] = 0.0;
+      }
+      tk->T = T0;
+      tk->dT = 0.0;
+      tk->Tw = tank.initial_wall_temperature_.Get();
+      tk->dTw = 0.0;
+    }
+    SyncTankLiveStates();
+  }
+
+  void Equations::SyncTankLiveStates() {
+    for (auto& tk : tanks_) {
+      double N = 0.0;
+      for (double ni : tk->n) N += ni;
+      const double T = tk->T_unknown ? tk->T : tk->fixed_temperature;
+      auto& live = tk->live;
+      live.total_moles = N;
+      live.temperature = T;
+      live.pressure = N * R * T / tk->volume;
+      // Mole fractions n_i / N; a vanishing inventory keeps the last ones.
+      if (std::abs(N) > 1e-300)
+        for (size_t c = 0; c < tk->components.size(); ++c) live.mole_fraction[tk->components[c]] = tk->n[c] / N;
+    }
   }
 
   void Equations::PackBanded(sunrealtype* y_data, sunrealtype* yp_data) const {
@@ -690,6 +855,7 @@ namespace adsim {
       *slots[g].ddt_var = yp_data[g];
     }
     SyncDerivedFields();
+    SyncTankLiveStates();
   }
   
   void Equations::UpdateIndependentEquations(UserData* udata) {
@@ -726,20 +892,8 @@ namespace adsim {
   }
 
   void Equations::SetToleranceVectorBanded(sunrealtype* abstol_data) const {
-    const auto* void_mask = &domain_vectors.is_void_cell;
-
-    size_t max_size = 0;
-    for (const auto& eq : equations_) {
-      max_size = std::max(max_size, eq->Size());
-    }
-
-    size_t global_index = 0;
-    for (size_t cell_idx = 0; cell_idx < max_size; ++cell_idx) {
-      for (const auto& eq : equations_) {
-        if (!eq->IsActiveAt(cell_idx, void_mask)) continue;
-        abstol_data[global_index++] = eq->abstol;
-      }
-    }
+    const auto& slots = BandedSlots();
+    for (size_t g = 0; g < slots.size(); ++g) abstol_data[g] = slots[g].abstol;
   }
 
 } // End adsim namespace

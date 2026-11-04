@@ -345,10 +345,12 @@ namespace adsim {
     }
 
     // Gives every 0 / repeated ID in `slots` (in order) the next free ID.
-    void AssignIds(const std::vector<size_t*>& slots) {
+    // `reserved` IDs count as taken.
+    void AssignIds(const std::vector<size_t*>& slots, const std::vector<size_t>& reserved = {}) {
       size_t next = 0;
       for (size_t* id : slots) next = std::max(next, *id);
-      std::unordered_set<size_t> seen;
+      for (size_t id : reserved) next = std::max(next, id);
+      std::unordered_set<size_t> seen(reserved.begin(), reserved.end());
       for (size_t* id : slots) {
         if (*id == 0 || !seen.insert(*id).second) {
           *id = ++next;
@@ -364,7 +366,7 @@ namespace adsim {
     AssignIds(step_ids);
     std::vector<size_t*> endpoint_ids;
     ForEachEndpointId(step_list_, [&](size_t& id) { endpoint_ids.push_back(&id); });
-    AssignIds(endpoint_ids);
+    AssignIds(endpoint_ids, reserved_endpoint_ids_);
   }
 
   std::vector<Cycle::EndpointHandle> Cycle::Endpoints() {

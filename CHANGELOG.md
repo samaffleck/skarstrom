@@ -32,6 +32,30 @@ root `CMakeLists.txt`.
   example decks (observed order, GCI, extrapolated KPIs); the table and the grid
   each studied deck needs are on the Numerics page ("Convergence of the
   results").
+### Added — dynamic tank unit (single bed)
+- New `adsim::Tank` (`adsim/objects/tank.h`, `UserData::tanks`): a
+  well-mixed constant-volume vessel whose species moles and temperature
+  (and wall temperature) are DAE unknowns of every step, P = N R T / V.
+  Thermal modes `isothermal`, `adiabatic`, `heat_loss`, `wall`; external
+  streams `make_up` (set flow or valve from a header), `valve` (optional
+  check valve), `regulator` (back-pressure) and `hold` (a regulator with a
+  1e-4 band). Every bed endpoint kind gains a `tank_port_`: an inlet draws
+  the tank's gas (and pressure, for a valve or compressor), an outlet sends
+  the bed's gas into it; the tank takes the bed's own boundary flow, so bed
+  and tank conserve moles. The tank block sits in the banded layout next to
+  the bed end it is used at (a tank used at both ends makes the band span the
+  system). Tank states join the CSS state test, the mass-balance and
+  molar-profile methods and Aitken acceleration; the equation log and
+  `tanks.csv` hold their series, and tank streams log as
+  `"<tank> / <stream>"`. Builder (`AddTank`, `SetTankThermal`,
+  `AddTankStream`, `SetTankMakeUpMode`, `SetTankPort`, `RemoveTank`,
+  `RemoveTankStream`), registry (`tank[ID].*`, tank streams in
+  `endpoint[ID].*`), Python (`sim.add_tank`, `tank.add_stream`,
+  `endpoint.set_tank`, `sim.tanks`, `sim.tank_series`) and docs
+  (`docs/tanks.md`). Only one bed per tank (`beds` = 1) for now.
+- Versions: `UserData` 5 (`Tanks`), `IBoundaryStream` and
+  `PressureBoundaryCondition` 6 (`Tank_Port`). Decks with tanks do not load
+  in older engines; older decks load with no tanks.
 
 ### Added — extended Langmuir-Freundlich isotherm (toPSAil form)
 - New competitive isotherm kind `extended_langmuir_freundlich`

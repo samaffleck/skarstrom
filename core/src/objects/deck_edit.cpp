@@ -44,6 +44,12 @@ void ReconcileMoleFractions(UserData& data, const std::string& component, bool a
       }
     }
   }
+  // Tanks: their initial composition and their streams' inflow composition.
+  for (auto& tank : data.tanks.tanks_) {
+    touch(tank.initial_mole_fraction_);
+    for (auto& s : tank.streams_)
+      if (s) touch(s->mole_fraction_);
+  }
 }
 
 bool AddComponentToDeck(UserData& data, const std::string& name, std::string& err) {

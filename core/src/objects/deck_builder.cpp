@@ -573,6 +573,95 @@ void SetKPI(UserData& data, const std::string& component, const std::vector<size
   kpi->recycle_endpoints = refs(recycle_endpoints);
 }
 
+// ---- dynamic tanks ---------------------------------------------------------------------
+
+const std::vector<std::string>& TankThermalKinds() {
+  static const std::vector<std::string> kinds{"isothermal", "adiabatic", "heat_loss", "wall"};
+  return kinds;
+}
+
+const std::vector<std::string>& TankStreamKinds() {
+  static const std::vector<std::string> kinds{"make_up", "valve", "regulator", "hold"};
+  return kinds;
+}
+
+const std::vector<std::string>& TankMakeUpModeKinds() {
+  static const std::vector<std::string> kinds{"set_flow", "valve"};
+  return kinds;
+}
+
+namespace {
+Tank& GetTank(UserData& data, size_t tank) {
+  Tank* t = data.tanks.Find(tank);
+  if (!t) throw std::invalid_argument("no tank with ID " + std::to_string(tank));
+  return *t;
+}
+
+ITankStream& GetTankStream(UserData& data, size_t endpoint) {
+  ITankStream* s = data.FindTankStream(endpoint);
+  if (!s) throw std::invalid_argument("no tank stream with endpoint ID " + std::to_string(endpoint));
+  return *s;
+}
+}  // namespace
+
+size_t AddTank(UserData& data, const std::string& name) {
+  const size_t id = data.tanks.Add(name);
+  Tank& tank = GetTank(data, id);
+  ReconcileMoleFractionMap(tank.initial_mole_fraction_, data.fluid.components_);
+  return id;
+}
+
+void RemoveTank(UserData& data, size_t tank) {
+  GetTank(data, tank);
+  data.RemoveTank(tank);
+}
+
+void SetTankThermal(UserData& data, size_t tank, const std::string& kind) {
+  GetTank(data, tank).thermal_ = KindEnum<TankThermalMode>(TankThermalKinds(), kind, "tank thermal");
+}
+
+size_t AddTankStream(UserData& data, size_t tank, const std::string& kind, const std::string& name) {
+  Tank& t = GetTank(data, tank);
+  auto stream = CreateTankStream(KindEnum<TankStreamKind>(TankStreamKinds(), kind, "tank stream"));
+  stream->name_ = name;
+  ReconcileMoleFractionMap(stream->mole_fraction_, data.fluid.components_);
+  ITankStream* raw = stream.get();
+  t.streams_.push_back(std::move(stream));
+  data.SyncTankEndpointIds();
+  return raw->endpoint_id_;
+}
+
+void SetTankMakeUpMode(UserData& data, size_t endpoint, const std::string& mode) {
+  auto* make_up = dynamic_cast<TankMakeUp*>(&GetTankStream(data, endpoint));
+  if (!make_up) throw std::invalid_argument("endpoint " + std::to_string(endpoint) + " is not a make-up stream");
+  make_up->mode_ = KindEnum<TankMakeUpMode>(TankMakeUpModeKinds(), mode, "make-up mode");
+}
+
+void RemoveTankStream(UserData& data, size_t endpoint) {
+  Tank* tank = nullptr;
+  ITankStream* s = data.FindTankStream(endpoint, &tank);
+  if (!s) throw std::invalid_argument("no tank stream with endpoint ID " + std::to_string(endpoint));
+  auto& v = tank->streams_;
+  v.erase(std::remove_if(v.begin(), v.end(), [s](const auto& p) { return p.get() == s; }), v.end());
+  data.SyncTankEndpointIds();
+}
+
+void SetTankPort(UserData& data, size_t endpoint, size_t tank) {
+  auto h = FindEndpoint(data, endpoint);
+  TankPort& port = h.stream ? h.stream->tank_port_ : h.pressure->tank_port_;
+  if (tank == 0) {
+    port = TankPort{};
+    return;
+  }
+  GetTank(data, tank);
+  const Connection& connection = h.stream ? h.stream->connection_ : h.pressure->connection_;
+  const BufferTankSource& buffer = h.stream ? h.stream->buffer_tank_ : h.pressure->buffer_tank_;
+  if (connection.IsConnected() || buffer.IsActive())
+    throw std::invalid_argument("endpoint " + std::to_string(endpoint) + " ('" + h.log_name +
+                                "') has a connection or a buffer tank; it cannot also have a tank port");
+  port.tank_id_ = tank;
+}
+
 // ---- user variables -----------------------------------------------------------------
 
 void AddVariable(UserData& data, const std::string& name, const std::string& category,

@@ -9,6 +9,7 @@
 #include "adsim/math/expression_param.h"
 
 #include <cmath>
+#include <unordered_set>
 
 
 namespace adsim {
@@ -192,6 +193,10 @@ namespace adsim {
       visit(component + " adsorbed-phase heat capacity", [&] { cp.Evaluate(ctx); });
     }
     visit("Fluid", [&] { fluid.EvaluateExpressions(ctx); });
+    for (auto& tank_entry : tanks.tanks_) {
+      Tank& tank = tank_entry;
+      visit("Tank '" + tank.name_ + "'", [&] { tank.EvaluateExpressions(ctx); });
+    }
 
     for (const auto& e : audit.entries)
       out.push_back(e.scope + ": \"" + e.expr + "\" = " + FormatNonFinite(e.value));
@@ -230,7 +235,101 @@ namespace adsim {
       return false;
     }
 
+    SyncTankEndpointIds();
+    for (auto& tank : tanks.tanks_) {
+      if (!tank.PerformChecks(err_msg, fluid)) return false;
+    }
+    // Every tank port names a tank of the deck.
+    for (auto& h : cycle.Endpoints()) {
+      const TankPort& port = h.stream ? h.stream->tank_port_ : h.pressure->tank_port_;
+      if (port.IsSet() && !tanks.Find(port.tank_id_)) {
+        err_msg += "Endpoint '" + h.log_name + "' of step '" + h.step->step_name_
+                 + "' names a tank (ID " + std::to_string(port.tank_id_) + ") that does not exist. ";
+        return false;
+      }
+    }
+
     return true;
+  }
+
+  void UserData::SyncTankEndpointIds() {
+    cycle.reserved_endpoint_ids_.clear();
+    cycle.EnsureIds();
+    std::unordered_set<size_t> seen;
+    size_t next = 0;
+    for (const auto& h : cycle.Endpoints()) {
+      seen.insert(h.id);
+      next = std::max(next, h.id);
+    }
+    for (const auto& tank : tanks.tanks_)
+      for (const auto& stream : tank.streams_)
+        if (stream) next = std::max(next, stream->endpoint_id_);
+    for (auto& tank : tanks.tanks_) {
+      for (auto& stream : tank.streams_) {
+        if (!stream) continue;
+        if (stream->endpoint_id_ == 0 || !seen.insert(stream->endpoint_id_).second) {
+          stream->endpoint_id_ = ++next;
+          seen.insert(stream->endpoint_id_);
+        }
+        cycle.reserved_endpoint_ids_.push_back(stream->endpoint_id_);
+      }
+    }
+  }
+
+  ITankStream* UserData::FindTankStream(size_t endpoint_id, Tank** tank_out) {
+    if (endpoint_id == 0) return nullptr;
+    for (auto& tank : tanks.tanks_) {
+      if (ITankStream* s = tank.FindStream(endpoint_id)) {
+        if (tank_out) *tank_out = &tank;
+        return s;
+      }
+    }
+    return nullptr;
+  }
+
+  void UserData::LogTankStreams(double t_relative) {
+    for (const auto& tk : state.Tanks()) {
+      Tank* tank = tanks.Find(tk->tank_id);
+      if (!tank) continue;
+      const TankLiveState& live = tk->live;
+      for (auto& stream : tank->streams_) {
+        if (!stream) continue;
+        const double F_in = stream->FlowIn(live);
+        // The gas crossing: the stream's own when it flows in, else the tank's.
+        const bool own_gas = F_in > 0.0 && stream->CanFlowIn();
+        const double T_gas = (own_gas && tk->T_unknown) ? stream->temperature_.Get() : live.temperature;
+        std::unordered_map<std::string, double> y, flow;
+        for (const auto& c : tk->components) {
+          double yc = live.MoleFraction(c);
+          if (own_gas) {
+            const auto it = stream->mole_fraction_.find(c);
+            yc = it == stream->mole_fraction_.end() ? 0.0 : it->second.Get();
+          }
+          y[c] = yc;
+          flow[c] = -F_in * yc;  // positive out of the tank
+        }
+        auto& sd = stream->stream_data_;
+        sd.location_ = BoundaryLocation::TOP;  // so GetOutflow is the flow out of the tank
+        sd.Log(-F_in, -F_in * T_gas, T_gas, live.pressure, 0.0, t_relative, flow, y);
+        sd.LogEndCellPressure(live.pressure);
+      }
+    }
+  }
+
+  void UserData::ClearTankStreamLogs() {
+    for (auto& tank : tanks.tanks_)
+      for (auto& stream : tank.streams_)
+        if (stream) stream->stream_data_.Clear();
+  }
+
+  void UserData::RemoveTank(size_t id) {
+    if (!tanks.Find(id)) return;
+    tanks.Remove(id);
+    for (auto& h : cycle.Endpoints()) {
+      TankPort& port = h.stream ? h.stream->tank_port_ : h.pressure->tank_port_;
+      if (port.tank_id_ == id) port = TankPort{};
+    }
+    SyncTankEndpointIds();
   }
   
   void UserData::Initialise() {
@@ -245,6 +344,9 @@ namespace adsim {
     for (const auto& [id, ads] : adsorbent_directory.GetAll())
       adsorbent_directory.Get(id).adsorption_source_.CompileForRun(&variable_registry);
 
+    // Tank blocks (and the binding of the bed endpoints' tank ports).
+    state.InitialiseTanks(tanks, cycle, fluid);
+
     int N_CELLS = bed.GetNumberOfCells();
     state.Resize(N_CELLS);
 
@@ -252,6 +354,7 @@ namespace adsim {
     state.SetInitialConditions(ic, bed.equations_.thermal_equilibrium_mode_);
     // Isothermal run: pin fluid, solid and wall temperature at T_iso.
     state.HoldIsothermalTemperature(bed.equations_.GetIsothermalTemperature(ic.temperature));
+    state.SetTankInitialConditions();
 
     // Update the isotherms to get qi_sat 
     state.UpdateIndependentEquations(this);
@@ -397,6 +500,9 @@ namespace adsim {
 
     // 6. Fluid-owned expressions (per-component adsorbed heat capacities).
     fluid.EvaluateExpressions(ctx);
+
+    // 7. Tanks and their streams.
+    for (auto& tank : tanks.tanks_) tank.EvaluateExpressions(ctx);
 
     return true;
   }

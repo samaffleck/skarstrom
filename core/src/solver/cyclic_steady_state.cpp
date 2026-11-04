@@ -15,6 +15,7 @@
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpis.h"
 #include "adsim/objects/reactor.h"
+#include "adsim/equations/equation.h"
 
 
 namespace adsim {
@@ -86,6 +87,61 @@ namespace adsim {
   }
 
   double CyclicSteadyState::EndOfCycleStateChange(const EquationLog& logger, int cycle_index) {
+    const double bed = BedStateChange(logger, cycle_index);
+    if (bed < 0.0) return bed;
+    const double tanks = TankStateChange(logger, cycle_index);
+    if (tanks < 0.0) return tanks;
+    return std::max(bed, tanks);
+  }
+
+  double CyclicSteadyState::TankStateChange(const EquationLog& logger, int cycle_index) {
+    if (logger.tanks_.empty()) return 0.0;
+    if (cycle_index < 1) return -1.0;
+    const int last_step = static_cast<int>(logger.sys_data.step_list_.size()) - 1;
+    if (last_step < 0) return -1.0;
+    double change = 0.0;
+    for (const auto& [id, name] : logger.tanks_) {
+      const TankLogData* curr = logger.GetTankLog(cycle_index, last_step, id);
+      const TankLogData* prev = logger.GetTankLog(cycle_index - 1, last_step, id);
+      if (!curr || !prev || curr->total_moles.empty() || prev->total_moles.empty()) return -1.0;
+      auto relative = [](double a, double b) {
+        const double scale = std::max(std::abs(a), std::abs(b));
+        return scale > 1e-300 ? std::abs(a - b) / scale : 0.0;
+      };
+      change = std::max(change, relative(curr->total_moles.back(), prev->total_moles.back()));
+      change = std::max(change, relative(curr->temperature.back(), prev->temperature.back()));
+      change = std::max(change, relative(curr->wall_temperature.back(), prev->wall_temperature.back()));
+      for (const auto& [component, y] : curr->mole_fraction) {
+        const auto it = prev->mole_fraction.find(component);
+        if (y.empty() || it == prev->mole_fraction.end() || it->second.empty()) continue;
+        change = std::max(change, std::abs(y.back() - it->second.back()));
+      }
+    }
+    return change;
+  }
+
+  double CyclicSteadyState::TankBalanceError(const EquationLog& logger, int cycle_index, const std::string& component) {
+    double worst = 0.0;
+    for (const auto& [id, name] : logger.tanks_) {
+      double in = 0.0, out = 0.0;
+      for (int step_index : logger.sys_data.step_index_set_) {
+        const TankLogData* t = logger.GetTankLog(cycle_index, step_index, id);
+        if (!t) continue;
+        const auto& times = logger.GetLog(cycle_index, step_index).step_data.times;
+        for (const auto& [comp, series] : t->flow_in) {
+          if (!component.empty() && comp != component) continue;
+          in += IntegrateVariableInTime(series, times);
+          const auto it = t->flow_out.find(comp);
+          if (it != t->flow_out.end()) out += IntegrateVariableInTime(it->second, times);
+        }
+      }
+      if (in < 1e-30) continue;
+      worst = std::max(worst, std::abs(in - out) / in);
+    }
+    return worst;
+  }
+
+  double CyclicSteadyState::BedStateChange(const EquationLog& logger, int cycle_index) {
     if (cycle_index < 1) return -1.0;
     const int last_step = static_cast<int>(logger.sys_data.step_list_.size()) - 1;
     if (last_step < 0) return -1.0;
@@ -192,8 +248,25 @@ namespace adsim {
     if (curr_molar_conc_profile.size() != prev_molar_conc_profile.size())
       return result;
 
-    Eigen::VectorXd curr_profile = Eigen::Map<const Eigen::VectorXd>(curr_molar_conc_profile.data(), curr_molar_conc_profile.size());
-    Eigen::VectorXd prev_profile = Eigen::Map<const Eigen::VectorXd>(prev_molar_conc_profile.data(), prev_molar_conc_profile.size());
+    // The tanks' species concentrations n_i / V [mol/m3] join the compared
+    // profile (same units as the bed's total concentration).
+    std::vector<double> curr_values = curr_molar_conc_profile;
+    std::vector<double> prev_values = prev_molar_conc_profile;
+    for (const auto& [id, name] : logger.tanks_) {
+      const TankLogData* curr = logger.GetTankLog(cycle_index, 0, id);
+      const TankLogData* prev = logger.GetTankLog(cycle_index - 1, 0, id);
+      if (!curr || !prev || !(curr->volume > 0.0)) return result;
+      for (const auto& component : logger.sys_data.components_) {
+        const auto a = curr->moles.find(component);
+        const auto b = prev->moles.find(component);
+        if (a == curr->moles.end() || b == prev->moles.end() || a->second.empty() || b->second.empty()) return result;
+        curr_values.push_back(a->second.back() / curr->volume);
+        prev_values.push_back(b->second.back() / prev->volume);
+      }
+    }
+
+    Eigen::VectorXd curr_profile = Eigen::Map<const Eigen::VectorXd>(curr_values.data(), curr_values.size());
+    Eigen::VectorXd prev_profile = Eigen::Map<const Eigen::VectorXd>(prev_values.data(), prev_values.size());
 
     result.error = (curr_profile - prev_profile).norm();
     result.tolerance = molar_absolute_tolerance + molar_relative_tolerance * curr_profile.norm();
@@ -226,6 +299,8 @@ namespace adsim {
     if (total_moles_in < 1e-30) return result;
 
     result.error = std::abs(total_moles_in - total_moles_out) / total_moles_in;
+    // Every tank must balance too.
+    result.error = std::max(result.error, TankBalanceError(logger, cycle_index));
     result.converged = (result.error <= result.tolerance);
     ApplyStateTest(logger, cycle_index, result);
     return result;
@@ -264,6 +339,9 @@ namespace adsim {
       double comp_error = std::abs(total_moles_in - total_moles_out) / total_moles_in;
       max_error = std::max(max_error, comp_error);
     }
+    // Every tank must balance too, component by component.
+    for (const auto& component : components)
+      max_error = std::max(max_error, TankBalanceError(logger, cycle_index, component));
 
     result.error = max_error;
     result.converged = (result.error <= result.tolerance);
@@ -313,8 +391,33 @@ namespace adsim {
     // Snapshot the current (natural) end-of-cycle state -- one profile per
     // extrapolable equation, in GetEquations() order (an empty placeholder keeps
     // the indexing aligned for the skipped fields).
+    //
+    // The tanks' species moles, temperature and wall temperature follow as
+    // extra fields (one each per tank): slow differential states whose
+    // pressure is explicit (P = N R T / V), so they have none of the bed's
+    // algebraic-pressure consistency problem and move with the same mu.
+    struct TankField { TankUnknowns* tank; int which; };  // 0: moles, 1: T, 2: T_w
+    std::vector<TankField> tank_fields;
+    for (auto& tk : state.Tanks()) {
+      tank_fields.push_back({ tk.get(), 0 });
+      if (tk->T_unknown) tank_fields.push_back({ tk.get(), 1 });
+      if (tk->Tw_unknown) tank_fields.push_back({ tk.get(), 2 });
+    }
+    auto tank_values = [](const TankField& f) -> std::vector<double> {
+      if (f.which == 0) return f.tank->n;
+      return { f.which == 1 ? f.tank->T : f.tank->Tw };
+    };
+    auto set_tank_values = [](const TankField& f, const std::vector<double>& v) {
+      // Element-wise: the banded slots point into the moles vector.
+      if (f.which == 0) std::copy(v.begin(), v.begin() + std::min(v.size(), f.tank->n.size()), f.tank->n.begin());
+      else if (f.which == 1) f.tank->T = v[0];
+      else f.tank->Tw = v[0];
+    };
+    const size_t n_fields = equations.size() + tank_fields.size();
+    auto field_extrapolable = [&](size_t i) { return i >= equations.size() || extrapolable(equations[i]); };
+
     std::vector<std::vector<double>> snapshot;
-    snapshot.reserve(equations.size());
+    snapshot.reserve(n_fields);
     for (const Equation* eq : equations) {
       if (extrapolable(eq)) {
         snapshot.push_back(eq->var);
@@ -322,6 +425,7 @@ namespace adsim {
         snapshot.emplace_back();  // placeholder to keep indices aligned
       }
     }
+    for (const auto& f : tank_fields) snapshot.push_back(tank_values(f));
     history_.push_back(std::move(snapshot));
 
     // Need three successive natural end-of-cycle states before extrapolating.
@@ -352,8 +456,12 @@ namespace adsim {
     // x*_f = x2_f - mu r2_f, this is exact for a single coupled geometric mode.
     double num = 0.0, den = 0.0;
     double scaled_r1_sq = 0.0, scaled_r2_sq = 0.0;
-    for (size_t i = 0; i < equations.size(); ++i) {
-      if (!extrapolable(equations[i])) continue;
+    if (s0.size() != n_fields || s1.size() != n_fields || s2.size() != n_fields) {
+      history_.clear();  // the layout changed between snapshots
+      return false;
+    }
+    for (size_t i = 0; i < n_fields; ++i) {
+      if (!field_extrapolable(i)) continue;
       const auto& x0 = s0[i]; const auto& x1 = s1[i]; const auto& x2 = s2[i];
       if (x0.size() != x1.size() || x1.size() != x2.size() || x2.empty()) continue;
 
@@ -398,9 +506,16 @@ namespace adsim {
     // manifold: a jump can still nudge a loading negative or a mole fraction out
     // of [0, 1], and IDA cannot integrate such a seed. All extrapolated fields
     // here (temperatures, mole fractions, loadings) are non-negative.
-    for (size_t i = 0; i < equations.size(); ++i) {
-      if (!extrapolable(equations[i])) continue;
+    for (size_t i = 0; i < n_fields; ++i) {
+      if (!field_extrapolable(i)) continue;
       const auto& x1 = s1[i]; const auto& x2 = s2[i];
+      if (i >= equations.size()) {
+        // A tank field: clamp the moles (and temperatures) at zero.
+        std::vector<double> v(x2.size());
+        for (size_t c = 0; c < v.size(); ++c) v[c] = std::max(x2[c] - mu * (x2[c] - x1[c]), 0.0);
+        set_tank_values(tank_fields[i - equations.size()], v);
+        continue;
+      }
       std::vector<double>& var = equations[i]->var;
       for (size_t c = 0; c < var.size(); ++c) {
         const double r2 = x2[c] - x1[c];

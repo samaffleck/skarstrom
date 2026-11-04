@@ -101,6 +101,13 @@ namespace adsim {
     if (!buffer_tank_.PerformChecks(error_msg))
       return false;
 
+    if (tank_port_.IsSet() && (connection_.IsConnected() || buffer_tank_.IsActive())) {
+      error_msg += "Stream '" + name_ + "' has a tank port and also a "
+                 + std::string(connection_.IsConnected() ? "connection" : "buffer tank source")
+                 + ". Use only one. ";
+      return false;
+    }
+
     bool specific_check_passed = PerformSpecificChecks(error_msg, fluid);
     if (!specific_check_passed)
       return false;
@@ -111,7 +118,8 @@ namespace adsim {
     // count unchanged but the keys wrong.
     ReconcileMoleFractionMap(mole_fraction, fluid.components_);
 
-    if (direction_ == BoundaryDirection::OUTLET)
+    // An outlet's composition is the bed's; a tank port's inlet is the tank's.
+    if (direction_ == BoundaryDirection::OUTLET || tank_port_.IsSet())
       return true;
 
     // Is an INLET
@@ -198,17 +206,22 @@ namespace adsim {
     double Cp_boundary = 0.5 * (Cp[i] + Cp[i + d]);
     double Mr_boundary = 0.5 * (Mr[i] + Mr[i + d]);
 
+    // The other side of the valve: a tank port's live pressure, else the
+    // user's boundary value.
+    const TankLiveState* tank = PortTank();
+    auto other_side = [&]() { return tank ? tank->pressure : boundary_value_->GetValue(time); };
+
     auto get_molar_flow = [&](){
       if (direction_ == BoundaryDirection::INLET) {
         // Upstream gas is the buffer tank's once it is ready (the tank's
         // pressure is still the user-specified upstream boundary value).
-        double mol_flow = valve_.GetMolarFlowRate(boundary_value_->GetValue(time), P_boundary, Mr_boundary, InletTemperature(time), Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(other_side(), P_boundary, Mr_boundary, InletTemperature(time), Cp_boundary);
         if (loc == BoundaryLocation::TOP)
           return -mol_flow;
         else
           return mol_flow;
       } else { // Outlet
-        double mol_flow = valve_.GetMolarFlowRate(P_boundary, boundary_value_->GetValue(time), Mr_boundary, T_boundary, Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_boundary, other_side(), Mr_boundary, T_boundary, Cp_boundary);
         if (loc == BoundaryLocation::TOP)
           return mol_flow;
         else
@@ -298,14 +311,19 @@ namespace adsim {
     // No compression heating without a pump, or in an isothermal run.
     if (!pump_->use_pump_ || isothermal_temperature_) return inlet_temperature;
     // The compressor discharges at the bed-end pressure; its outlet temperature
-    // is what enters the bed.
+    // is what enters the bed. Drawing from a tank, it compresses from the
+    // tank pressure.
+    if (const TankLiveState* tank = PortTank())
+      if (auto* comp = dynamic_cast<Compressor*>(pump_.get()))
+        return comp->CalculateOutletTemperature(BedEndValue(state.pressure.var, loc), inlet_temperature, tank->pressure);
     return pump_->CalculateOutletTemperature(BedEndValue(state.pressure.var, loc), inlet_temperature);
   }
 
   double BoundaryStream::GetPower(double pressure, double molar_flow, double time) {
     // Suction side is the user-specified inlet gas (as before; isothermal runs
     // use the isothermal temperature, see AssumedInletTemperature).
-    return pump_->CalculatePower(pressure, molar_flow, AssumedInletTemperature(time));
+    return pump_->CalculatePower(pressure, molar_flow,
+                                 PortTank() ? InletTemperature(time) : AssumedInletTemperature(time));
   }
 
   bool BoundaryStream::PerformSpecificChecks(std::string& error_msg, const Fluid& fluid) {
@@ -343,6 +361,21 @@ namespace adsim {
     } else {
       P_boundary = 0.5 * (P[0] + P[1]);
       T_boundary = 0.5 * (T[0] + T[1]);
+    }
+
+    // A tank port: the compressor draws from the tank / the vacuum pump
+    // discharges into it, at the tank's live pressure (as for a connection).
+    if (const TankLiveState* tank = PortTank()) {
+      const double power = power_->CalculatePower(PumpPowerModelParams{P_boundary});
+      if (direction_ == BoundaryDirection::INLET) {
+        if (auto* comp = dynamic_cast<Compressor*>(pump_.get())) {
+          const double mol_flow = comp->CalculateMolarFlow(P_boundary, power, InletTemperature(time), tank->pressure);
+          return loc == BoundaryLocation::TOP ? -mol_flow : mol_flow;
+        }
+      } else if (auto* vp = dynamic_cast<VacuumPump*>(pump_.get())) {
+        const double mol_flow = vp->CalculateMolarFlow(P_boundary, power, T_boundary, tank->pressure);
+        return loc == BoundaryLocation::TOP ? mol_flow : -mol_flow;
+      }
     }
 
     auto get_molar_flow = [&](){
@@ -449,6 +482,9 @@ namespace adsim {
     // No compression heating without a pump, or in an isothermal run.
     if (!pump_->use_pump_ || isothermal_temperature_) return inlet_temperature;
     const double outlet_pressure = BedEndValue(state.pressure.var, loc);
+    if (const TankLiveState* tank = PortTank())
+      if (auto* comp = dynamic_cast<Compressor*>(pump_.get()))
+        return comp->CalculateOutletTemperature(outlet_pressure, inlet_temperature, tank->pressure);
     // When connected (with logged data) the suction pressure is the connected
     // stream's pressure, consistent with GetMolarFlow.
     if (connection_.IsConnected() && connection_.stream_->molar_flow_.size() > 0) {
@@ -568,7 +604,7 @@ CEREAL_REGISTER_TYPE(adsim::PumpBoundaryStream)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryStream, adsim::BoundaryStream)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryStream, adsim::ValveBoundaryStream)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryStream, adsim::PumpBoundaryStream)
-CEREAL_CLASS_VERSION(adsim::IBoundaryStream, 5);
+CEREAL_CLASS_VERSION(adsim::IBoundaryStream, 6);
 CEREAL_CLASS_VERSION(adsim::BoundaryStream, 1);
 CEREAL_CLASS_VERSION(adsim::ValveBoundaryStream, 1);
 CEREAL_CLASS_VERSION(adsim::PumpBoundaryStream, 1);

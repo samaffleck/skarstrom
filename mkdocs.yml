@@ -88,6 +88,7 @@ nav:
       - Pressure Equalisation: pressure-equalization.md
       - Light-Product Pressurisation: light-product-pressurization.md
       - Light Reflux / Recycle: light-reflux-recycle.md
+      - Dynamic Tanks: tanks.md
       - Solver Settings: solver-settings.md
       - Numerics: numerics.md
       - Cyclic Steady State: cyclic-steady-state.md

@@ -24,6 +24,7 @@
 #include "adsim/objects/fluid.h"
 #include "adsim/objects/valve.h"
 #include "adsim/objects/compressor.h"
+#include "adsim/objects/tank_state.h"
 
 
 namespace adsim {
@@ -176,13 +177,20 @@ namespace adsim {
     // kind's flow functions and by Log so they always agree. Isothermal runs
     // bypass the selection: every stream-side gas is at the isothermal
     // temperature.
+    // A tank port (bound during a run) comes first: the inlet draws the
+    // tank's gas.
     double InletTemperature(double time) const {
       if (isothermal_temperature_) return *isothermal_temperature_;
+      if (tank_port_.IsBound()) return tank_port_.live_->temperature;
       return SelectInletTemperature(buffer_tank_, connection_, AssumedInletTemperature(time), time);
     }
     double InletMoleFraction(double time, const std::string& component) const {
+      if (tank_port_.IsBound()) return tank_port_.live_->MoleFraction(component);
       return SelectInletMoleFraction(buffer_tank_, connection_, mole_fraction, component, time);
     }
+    // Live state of the tank this endpoint's port names, or nullptr when the
+    // endpoint has no (bound) tank port.
+    const TankLiveState* PortTank() const { return tank_port_.live_; }
 
 		StreamData stream_data_{};
 		ExpressionMap mole_fraction{}; // Inlet mole fraction (also acts as first-cycle assumption when buffer_tank_ is active)
@@ -212,6 +220,12 @@ namespace adsim {
     // valve or pump keeps its pressure/power-driven flow, evaluated at the
     // tank's temperature. Mutually exclusive with connection_.
     BufferTankSource buffer_tank_{};
+    // Port to a dynamic tank (tank_id_ 0: none). An INLET draws the tank's gas
+    // (composition, temperature and, for a valve or a compressor, pressure);
+    // an OUTLET sends the bed's gas into the tank (a valve or a vacuum pump
+    // discharges against the tank pressure). Mutually exclusive with
+    // connection_ and buffer_tank_.
+    TankPort tank_port_{};
 
     // Last step duration seen by Initialise. Buffer-tank inlets use this to
     // turn `total_moles` from the source into a constant molar flow rate.
@@ -255,6 +269,10 @@ namespace adsim {
 				ar(cereal::make_nvp("Endpoint_ID", endpoint_id_));
 			}
 			// version < 4: endpoint_id_ stays 0 and Cycle::EnsureIds assigns it on load.
+			if (version >= 6) {
+				ar(cereal::make_nvp("Tank_Port", tank_port_));
+			}
+			// version < 6: no tank port.
 		}
 	};
 

@@ -26,11 +26,20 @@ namespace adsim {
     // (RescaleInteriorMoleFractionFaces), so a mole-fraction
     // residual also reads the other mole fractions two cells away: that adds
     // at most (number of components - 1) to 2 neq.
-    sunindextype BandReach(const UserData& user_data) {
+    // A tank's entries sit next to the bed end its ports use (after the last
+    // cell, or before cell 0), so they couple to the ghost and end cells of
+    // that end: that adds the tank entries to the reach. A tank used at both
+    // ends couples the two ends of the bed: the band is then the whole system.
+    sunindextype BandReach(UserData& user_data) {
       const auto neq = static_cast<sunindextype>(user_data.state.GetEquations().size());
       const auto n_comp = static_cast<sunindextype>(user_data.fluid.components_.size());
       const bool high_order = user_data.settings.advection_scheme_ != AdvectionScheme::Upwind;
-      return 2 * neq + ((high_order && n_comp > 1) ? n_comp - 1 : 0);
+      const sunindextype reach = 2 * neq + ((high_order && n_comp > 1) ? n_comp - 1 : 0);
+      const auto n_tank = static_cast<sunindextype>(user_data.state.TankEntryCount());
+      if (n_tank == 0) return reach;
+      const auto n = static_cast<sunindextype>(user_data.state.GetSystemSize());
+      if (user_data.state.AnyTankAtBothEnds()) return std::max<sunindextype>(1, n - 1);
+      return std::min<sunindextype>(reach + n_tank, std::max<sunindextype>(1, n - 1));
     }
 
     // One line describing a CSS check for the solver log, e.g.
@@ -68,6 +77,25 @@ namespace adsim {
     double LogInterval(const Step& step, const IDASettings& settings) {
       return settings.max_log_points_per_step_ > 0
                  ? step.step_time_ / settings.max_log_points_per_step_ : 0.0;
+    }
+
+    // Advisory: a tank used at both bed ends couples the two ends, so the
+    // Jacobian band spans the whole system (correct, but slower).
+    std::vector<std::string> TankLayoutWarnings(const Equations& state) {
+      std::vector<std::string> out;
+      for (const auto& tk : state.Tanks())
+        if (tk->used_at_bottom && tk->used_at_top)
+          out.push_back("Warning: tank '" + tk->name + "' is used at both bed ends; the solver's "
+                        "banded matrix then spans the whole system, which is correct but slower.");
+      return out;
+    }
+
+    // Before a state is logged: the tanks' flows at that state (the log
+    // records them) and their external streams' logs.
+    void PrepareTankLog(UserData& user_data, double t_relative) {
+      if (user_data.state.Tanks().empty()) return;
+      user_data.state.UpdateTanks(&user_data, t_relative);
+      user_data.LogTankStreams(t_relative);
     }
 
     // " Residual evaluation threw: <what>." when UpdateResiduals caught an
@@ -139,6 +167,7 @@ namespace adsim {
       ProfileTimer log_timer(profile.enabled, profile.log_ns);
       user_data_.state.UpdateIndependentEquations(&user_data_);
       user_data_.state.UpdateDiagnosticEquations(&user_data_);
+      PrepareTankLog(user_data_, t_curr - user_data_.step_start_time_);
       equation_log_.LogState(user_data_.state, t_curr, step_index, cycle_index);
       double t_relative = t_curr - user_data_.step_start_time_;
       step.LogOutletConditions(user_data_.state, t_relative);
@@ -256,6 +285,7 @@ namespace adsim {
       {
         ProfileTimer log_timer(profile.enabled, profile.log_ns);
         LogFillInPoints(solver_data_, user_data_, t_prev, t_curr, log_interval, [&](double t) {
+          PrepareTankLog(user_data_, t - user_data_.step_start_time_);
           equation_log_.LogState(user_data_.state, t, step_index, cycle_index);
           step.LogOutletConditions(user_data_.state, t - user_data_.step_start_time_);
         });
@@ -298,6 +328,7 @@ namespace adsim {
     {
       ProfileTimer log_timer(profile.enabled, profile.log_ns);
       boundary_log_.LogEndOfStep(step, cycle_index, step_index);
+      boundary_log_.LogTankStreams(user_data_.tanks, cycle_index, step_index);
     }
 
     // Snapshot the just-finished step's outlet aggregates so any downstream
@@ -311,6 +342,7 @@ namespace adsim {
   void CoupledSolver::Log(Step& step, double t_curr, int step_index, int cycle_index) {
     ProfileTimer log_timer(user_data_.profile_.enabled, user_data_.profile_.log_ns);
     solver_data_.Unpack(user_data_);
+    PrepareTankLog(user_data_, t_curr - user_data_.step_start_time_);
     equation_log_.LogState(user_data_.state, t_curr, step_index, cycle_index);
     double t_relative = t_curr - user_data_.step_start_time_;
     step.LogOutletConditions(user_data_.state, t_relative);
@@ -347,6 +379,7 @@ namespace adsim {
     // read stale data from a previous simulation's last cycle.
     for (auto& step : cycle.step_list_)
       step.ClearOutletConditions();
+      user_data_.ClearTankStreamLogs();
 
     // Bind every consumer's BufferTankSource.summary_ pointer to the matching
     // source endpoint summary. Must happen after PerformChecks (which already
@@ -376,6 +409,8 @@ namespace adsim {
         LogMessage(LogLevel::LOW, w);
     for (const auto& w : MixingRuleWarnings(user_data_.adsorbent_directory, user_data_.fluid))
       LogMessage(LogLevel::LOW, w);
+    for (const auto& w : TankLayoutWarnings(user_data_.state))
+      LogMessage(LogLevel::LOW, w);
 
     stop_requested_ = false;
 
@@ -393,6 +428,7 @@ namespace adsim {
         if (stop_requested_) return 99; // Interrupted by user
         // Clear logs for each step (streams will initialize on first use if needed)
         step.ClearOutletConditions();
+        user_data_.ClearTankStreamLogs();
 
         LogMessage(LogLevel::MEDIUM, "  Step " + std::to_string(step_index + 1)
                    + "/" + std::to_string(total_steps) + ": \"" + step.step_name_ + "\"");
@@ -566,6 +602,7 @@ namespace adsim {
       // deck) so cycle 1 always uses the first-cycle assumption.
       for (auto& step : cycle.step_list_) {
         step.ClearOutletConditions();
+        user_data_.ClearTankStreamLogs();
         step.ClearCycleSummary();
       }
 
@@ -601,6 +638,8 @@ namespace adsim {
         for (const auto& w : WallDesignWarnings(user_data_.bed))
           LogMessage(LogLevel::LOW, w);
       for (const auto& w : MixingRuleWarnings(user_data_.adsorbent_directory, user_data_.fluid))
+        LogMessage(LogLevel::LOW, w);
+      for (const auto& w : TankLayoutWarnings(user_data_.state))
         LogMessage(LogLevel::LOW, w);
     }
   }
@@ -728,6 +767,7 @@ namespace adsim {
 
       status_.StepComplete();
       boundary_log_.LogEndOfStep(step, cycle_index, step_index);
+      boundary_log_.LogTankStreams(user_data_.tanks, cycle_index, step_index);
 
       // Snapshot the just-finished step's outlet aggregates for any
       // downstream BufferTankSource consumer (mirrors
@@ -794,6 +834,7 @@ namespace adsim {
       retry_count = 0;
 
       LogFillInPoints(solver_data_, user_data_, t_prev, t_curr, log_interval, [&](double t) {
+        PrepareTankLog(user_data_, t - user_data_.step_start_time_);
         equation_log_.LogState(user_data_.state, t, status_.GetStepIndex(), cycle_index);
         step.LogOutletConditions(user_data_.state, t - user_data_.step_start_time_);
       });
@@ -862,6 +903,7 @@ namespace adsim {
 
     // Clear logs for this step ??
     step.ClearOutletConditions();
+    user_data_.ClearTankStreamLogs();
 
     // Log initial state
     Log(step, t_start, step_index, cycle_index);
@@ -895,6 +937,7 @@ namespace adsim {
 
   void CoupledSolverChuncked::Log(Step& step, double t_curr, int step_index, int cycle_index) {
     solver_data_.Unpack(user_data_);
+    PrepareTankLog(user_data_, t_curr - user_data_.step_start_time_);
     equation_log_.LogState(user_data_.state, t_curr, step_index, cycle_index);
     double t_relative = t_curr - user_data_.step_start_time_;
     step.LogOutletConditions(user_data_.state, t_relative);

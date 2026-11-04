@@ -92,6 +92,8 @@ from .model import (
     Settings,
     Step,
     StepEnd,
+    Tank,
+    TankStream,
     Valve,
     ValueMap,
     VoidRegion,
@@ -103,6 +105,8 @@ from . import model as _model
 __version__: str = _core.__version__
 
 __all__ = [
+    "Tank",
+    "TankStream",
     "Adsorbent",
     "AxialProfile",
     "Bed",
@@ -505,6 +509,11 @@ class Simulation:
         return _model._adsorbents(self)
 
     @property
+    def tanks(self) -> Collection[Tank]:
+        """The deck's dynamic tanks (see :meth:`add_tank`)."""
+        return _model._tanks(self)
+
+    @property
     def variables(self) -> ValueMap:
         """User variables by name (the names expressions refer to)."""
         return _model._variables(self)
@@ -786,6 +795,43 @@ class Simulation:
         if fraction is not None:
             step.fraction = fraction
         return step
+
+    def add_tank(self, name: str, volume: Any = None, pressure: Any = None, temperature: Any = None,
+                 y: Optional[Mapping[str, Any]] = None, thermal: str = "isothermal", **values: Any) -> Tank:
+        """A dynamic tank: a well-mixed vessel whose moles and temperature are solved with the bed.
+
+        ``volume`` [m3], initial ``pressure`` [Pa], ``temperature`` [K] and
+        composition ``y``; ``thermal`` is "isothermal", "adiabatic",
+        "heat_loss" or "wall"; ``values`` set its other fields (ua, h_in...).
+        Port bed endpoints to it with ``endpoint.set_tank(tank)`` and give it
+        external streams with ``tank.add_stream(...)``.
+        """
+        tank_id = self._build("add_tank", name)
+        if thermal != "isothermal":
+            self._build("set_tank_thermal", tank_id, thermal)
+        tank = self.tanks.by_id(tank_id)
+        for field, value in (("volume", volume), ("initial_pressure", pressure), ("initial_temperature", temperature)):
+            if value is not None:
+                setattr(tank, field, value)
+        for component, value in (y or {}).items():
+            tank.y[self._component(component)] = value
+        _model._apply(tank, values)
+        return tank
+
+    def remove_tank(self, tank: Any) -> None:
+        """Remove a tank (a Tank, its name or ID) and every endpoint's port to it."""
+        if isinstance(tank, str):
+            tank = self.tanks[tank]
+        self._build("remove_tank", int(getattr(tank, "id", tank)))
+
+    def tank_series(self, tank: Any, variable: str, component: Optional[str] = None, cycle: int = -1) -> TimeSeries:
+        """A tank's series over one cycle (time from the cycle start): "pressure", "temperature",
+        "wall_temperature", "total_moles", "heat"; per component (pass one) "mole_fraction", "moles",
+        "flow_in", "flow_out"."""
+        if isinstance(tank, str):
+            tank = self.tanks[tank]
+        comp = self._component(component) if component else ""
+        return self._sim.tank_series(int(getattr(tank, "id", tank)), variable, comp, cycle)
 
     def connect(self, a: Any, b: Any) -> None:
         """Connect two endpoints so one supplies the other (light-product pressurisation, a purge
