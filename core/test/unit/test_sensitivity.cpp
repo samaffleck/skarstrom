@@ -395,11 +395,14 @@ TEST(Sensitivity, ADeckFromBeforeStudiesLoadsWithNone) {
   Simulation sim = Simulation::FromJson(ReadDeck("Arora2021_LiLSX_PSA.json"));
   sim.Data().sensitivity_study.inputs = {Uniform("step[1].time", 1, 2)};
   std::string json = sim.ToJson();
-  const std::string v4 = "\"cereal_class_version\": 4";
-  const auto root = json.find(v4);
+  // The first version in the archive is the root's (whatever UserData's
+  // current version is).
+  const std::string key = "\"cereal_class_version\": ";
+  const auto root = json.find(key);
   ASSERT_NE(root, std::string::npos);
   ASSERT_LT(root, json.find("\"Adsorbent_Directory\""));  // the root's own version
-  json.replace(root, v4.size(), "\"cereal_class_version\": 3");
+  const auto end = json.find_first_not_of("0123456789", root + key.size());
+  json.replace(root, end - root, key + "3");
   const Simulation old = Simulation::FromJson(json);
   EXPECT_TRUE(old.Data().sensitivity_study.Empty());
   EXPECT_EQ(old.Data().sensitivity_study.trajectories, 10);
