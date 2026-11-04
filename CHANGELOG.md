@@ -54,15 +54,23 @@ root `CMakeLists.txt`.
   that summed to one instead of the cell's sum, and the cell's departure from
   one was no longer carried out of the bed. Only the reconstructed values are
   clamped now; the upwind faces are left as they are, as under Upwind. The
-  same drift reached 1.6e-6 (WENO) in the steep-front breakthrough of
-  `AdvectionSchemeConservation` at reltol 1e-8; every scheme now keeps
-  about 1e-12 there and 2e-5 or less in the valve surge. Upwind is
-  unchanged (its faces were never clamped). Tests:
+  same clamp made the logged balances disagree with the solver (the stream
+  logs integrate the end cell's value, the solver used the clamped face):
+  the DAC charge with WENO had its total mole balance off by 3.45e-2 mol
+  (now 2.7e-5, the upwind value) and the outlet cell's sum by 4.0e-5 (now
+  9e-15); the temperature purge with van Leer logged 2.4e-5 mol of a
+  nitrogen that is in neither the feed nor the bed (now 1.3e-8). The drift
+  also reached 1.6e-6 (WENO) in the steep-front breakthrough of
+  `AdvectionSchemeConservation` at reltol 1e-8; every scheme now keeps about
+  1e-12 there. Upwind is unchanged (its faces were never clamped). Tests:
   `AdvectionSchemeConservation.EveryFaceSumsToItsUpwindCellSum` (the
-  discrete identity, face by face), the valve-surge test run with every
-  scheme (`ErgunValveSurgeTest.*WENO`, `*VanLeer`), and the steep-front
-  sum check, now at reltol 1e-8 with a 1e-9 bound. Found by the
-  WENO-everywhere experiment of the verification programme (WP20-E1).
+  discrete identity, face by face); the valve-surge test run with every
+  scheme (`ErgunValveSurgeTest.*WENO`, `*VanLeer`), which bounds the outlet
+  cell's sum at the end of each feed step by reltol; `UserDataTest.DAC` and
+  `TemperaturePurge` run with every scheme (`*WENO`, `*VanLeer`), with their
+  logged balances bounded at the upwind level; and the steep-front sum
+  check, now at reltol 1e-8 with a 1e-9 bound. Found by the WENO-everywhere
+  experiment of the verification programme (WP20-E1).
 
 ### Fixed — the ColouredCheck Jacobian diagnostic no longer changes the run
 - In `JacobianMode::ColouredCheck` the band evaluation built for the

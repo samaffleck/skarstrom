@@ -35,16 +35,16 @@
 // The flow boundary now solves the face problem (stream flow law + Ergun
 // law) and imposes its root (FlowBoundaryCondition::ImposeFlowFace).
 //
-// The valve surge and the blowdown that follows push gas out of the top of a
-// bed whose top end holds pure nitrogen, which is also where the cell
-// mole-fraction sum of the high-order advection schemes drifted (WP20-1):
-// their bed-end faces clamped each component to [0, 1], so a top cell at
-// y_N2 = 1 + 1e-9 sent out a face that summed to one instead of the cell's
-// sum, and the cell's departure from one was no longer carried out of the
-// bed but grew with the outflow (max |sum - 1| 5.0e-4 with WENO, 4.5e-4
-// with van Leer, 1.1e-5 with upwind on Kozeny-Carman; 2.1e-4, 2.3e-4 and
-// 7.9e-6 on Ergun). The valve-surge cases therefore run with every scheme
-// and bound the sum in every interior cell at the upwind level.
+// The feed step pushes gas out of the top of a bed whose top end holds pure
+// nitrogen, which is where the cell mole-fraction sum of the high-order
+// advection schemes drifted (WP20-1): their bed-end faces clamped each
+// component to [0, 1], so a top cell at y_N2 = 1 + 1e-9 sent out a face that
+// summed to one instead of the cell's sum, and the cell's departure from one
+// was no longer carried out of the bed but grew with the outflow (max
+// |sum - 1| over the run 5.0e-4 with WENO, 4.5e-4 with van Leer, 1.1e-5 with
+// upwind on Kozeny-Carman). The valve-surge cases therefore run with every
+// scheme and check that the outlet cell's sum is carried out (see
+// kOutletSumTolerance).
 
 #include <string>
 
@@ -193,18 +193,26 @@ namespace adsim {
     // The unpatched face survived cycle 2 on the consistent-IC restart and
     // failed in cycle 3; the zero-retry check catches it in cycle 2.
     static constexpr int kCycles = 5;
-    // Bound on |sum_i y_i - 1| in every interior cell over the whole run.
-    // Nothing in the equations restores the sum: summing the species
-    // balances and subtracting the cell sum times the total balance leaves
-    //   eps_t dz d(sum_n)/dt = -(sum_e - sum_n) F_e + (sum_w - sum_n) F_w + ...
-    // (sum_e, sum_w: the sums of the face mole fractions), so with faces that
-    // sum to their upwind cell's sum a departure, created at the level of the
-    // integrator's local error (reltol = 1e-6 on y ~ 1, per step), is carried
-    // from cell to cell and out of the bed. That leaves 1.1e-5 (upwind) and
-    // 1.9e-5 (WENO, Ergun) here. 5e-5 (50 reltol) gives those a factor of 2.6
-    // and is 4 to 10 times below what the high-order schemes reached when the
-    // outlet cell's sum was not carried.
-    static constexpr double kCellSumTolerance = 5e-5;
+    // Nothing in the equations restores the cell sum S of the mole
+    // fractions: summing the species balances and subtracting S times the
+    // total balance leaves
+    //   eps_t dz dS_n/dt = -(S_e - S_n) F_e + (S_w - S_n) F_w + ...
+    // (S_e, S_w: the sums of the face mole fractions, F the face fluxes). With
+    // faces that sum to their upwind cell's sum, a departure is carried from
+    // cell to cell and out of the bed within a residence time (here about
+    // 1 s, against a 25 s feed). So at the end of each feed step the outlet
+    // cell holds only what the integrator's local error put there in the last
+    // residence time, at most reltol = 1e-6 on y ~ 1: that is the bound. The
+    // maximum of |S - 1| over the whole run is no measure of this: it is set
+    // by the blowdown and evacuation transients with no outflow to carry it,
+    // and it depends on the integration path (1.8e-6 to 4.5e-5 on Linux over
+    // perturbed reltol and initial step, 6.3e-5 on macOS, for every scheme
+    // including upwind). The end-of-feed outlet value over 15 perturbed paths
+    // (reltol 5e-7 to 2e-6, initial step 1e-10 to 1e-9): upwind <= 6.3e-8,
+    // WENO and van Leer <= 1.7e-7 (mostly 1e-15 to 1e-12); with the clamped
+    // faces 2.1e-6 to 1.0e-3 (4.2e-6 to 1.5e-4 on the default path), while
+    // the next cell down stayed at 1e-15 to 1e-7.
+    static constexpr double kOutletSumTolerance = 1e-6;
 
     static const char* SchemeName(AdvectionScheme scheme) {
       switch (scheme) {
@@ -212,6 +220,19 @@ namespace adsim {
         case AdvectionScheme::VanLeer: return "van Leer";
         default: return "upwind";
       }
+    }
+
+    // |S - 1| in the last bed cell (the top, the feed's outlet) at the end of
+    // each cycle's feed step, the worst over the cycles.
+    static double EndOfFeedOutletSumDeparture(const EquationLog& log) {
+      double worst = 0.0;
+      for (int c : log.sys_data.cycle_index_set_) {
+        const auto rows = log.GetVariable(c, 0, VariableType::TOTAL_MOLE_FRACTION).values;
+        if (rows.empty() || rows.back().size() < 3) continue;
+        const auto& row = rows.back();
+        worst = std::max(worst, std::abs(row[row.size() - 2] - 1.0));
+      }
+      return worst;
     }
 
     static double MaxCellSumDeparture(const EquationLog& log) {
@@ -329,11 +350,12 @@ namespace adsim {
       EXPECT_EQ(*cycles.rbegin() + 1, kCycles);
       EXPECT_TRUE(IsMassConserved(solver.GetLog()));
       EXPECT_TRUE(IsMolesConserved(solver.GetLog()));
-      const double sum_departure = MaxCellSumDeparture(solver.GetLog());
+      const double outlet_departure = EndOfFeedOutletSumDeparture(solver.GetLog());
       std::cout << "[ErgunValveSurge] " << SchemeName(scheme)
-                << ": max |sum y - 1| = " << sum_departure << std::endl;
-      EXPECT_LT(sum_departure, kCellSumTolerance)
-        << "cell mole fractions drift from summing to one ("
+                << ": |sum y - 1| at the outlet at the end of the feed = " << outlet_departure
+                << " (max over the run, cells " << MaxCellSumDeparture(solver.GetLog()) << ")" << std::endl;
+      EXPECT_LT(outlet_departure, kOutletSumTolerance)
+        << "the outlet cell's mole-fraction sum is not carried out of the bed ("
         << MomentumModelList[static_cast<int>(momentum)] << ", "
         << SchemeName(scheme) << ")";
     }
