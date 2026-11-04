@@ -1165,6 +1165,17 @@ namespace adsim {
               E("c_Tref", "K", p->c_Tref, 273.0, 473.0);
             }
             break;
+          case IsothermType::EXTENDED_LANGMUIR_FREUNDLICH:
+            if (auto* p = params(dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso))) {
+              E("k1", "mol/kg", p->k1, 0.01, 50.0);
+              E("k2", "mol/(kg-K)", p->k2, -0.1, 0.1);
+              E("k3", "-", p->k3, 1e-8, 1e3);
+              E("k4", "K", p->k4, 0.0, 1e4);
+              E("k5", "-", p->k5, 0.05, 5.0);
+              E("k6", "K", p->k6, -1e3, 1e3);
+              E("P_ref", "Pa", p->P_ref, 1.0, 1e7);
+            }
+            break;
           case IsothermType::INERT:
           default:
             break;

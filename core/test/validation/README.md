@@ -77,6 +77,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 | `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
+| `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form |
 
 ## `test_energy_balance.cpp`
 
@@ -483,6 +484,27 @@ its secant.
   `1.3e-4` at `y0 = 1e-4`, which is why the test uses `y0 = 1e-4`. Guard: the
   wave spreads over 450 s, more than 5x its head time, and `f'(c)` varies
   16-fold across it. About 0.5 s.
+## `test_extended_langmuir_freundlich.cpp`
+
+The extended Langmuir-Freundlich isotherm with T-dependent parameters (Yang
+1987; toPSAil), `q_i = (k1 + k2 T) z_i / (1 + sum z_j)`,
+`z_i = k3 exp(k4/T) (P y_i / P_ref)^{n_i}`, `1/n_i = k5 + k6/T`, with the
+H2/CO parameters of toPSAil's case_study_4.0, against the closed form written
+in the test.
+
+- **`CompetitiveLoadingsMatchClosedFormAt303K` / `At343K`**: loadings seeded in
+  a closed uniform bed (the solver's path) match to 1e-6 at 11.15 bar, 303 K
+  (H2 0.0468, CO 0.795 mol/kg) and 5 bar, 343 K. Guards: CO cuts the H2
+  loading to 0.66 of its single-component value; at 343 K, freezing q_s and
+  1/n at their 303 K values (k2 = k6 = 0, the only case extended Sips 2 can
+  represent) moves the CO loading by more than 1 %.
+- **`PureEvaluationAndIastMappingMatchClosedForm`**: `EvalIsotherm` within
+  1e-10 (the near-zero step at y = 1) and the IAST Sips term within 4e-16,
+  at 273–373 K and 1 kPa–20 bar.
+- **`TraceComponentKeepsItsLoading`**: the step changes a trace loading by
+  `1e-10 / y^2` (1.0e-4 at y = 1e-3, 1e-6 at y = 1e-2). All four take about
+  0.1 s.
+
 ## `test_ldf_thomas.cpp`
 
 A front shaped by the LDF rate rather than by dispersion: a Henry isotherm with

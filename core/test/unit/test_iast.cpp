@@ -390,9 +390,10 @@ TEST(Iast, CompetitiveKindsAndTheirPureCounterparts) {
     auto pa = Make(t, values), pb = Make(other, values);
     EXPECT_DOUBLE_EQ(EvalIsotherm(pa.get(), kComp, kT, 1e5, 1.0), EvalIsotherm(pb.get(), kComp, kT, 1e5, 1.0));
   }
-  EXPECT_EQ(competitive, 6);
+  EXPECT_EQ(competitive, 7);
   IsothermType none{};
   EXPECT_FALSE(PairedIsothermKind(IsothermType::ARRHENIUS_SIPS, none));
+  EXPECT_FALSE(PairedIsothermKind(IsothermType::EXTENDED_LANGMUIR_FREUNDLICH, none));
   EXPECT_FALSE(PairedIsothermKind(IsothermType::TOTH, none));
   EXPECT_FALSE(PairedIsothermKind(IsothermType::INERT, none));
 }
