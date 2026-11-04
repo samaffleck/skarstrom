@@ -263,6 +263,12 @@ namespace adsim {
   public:
     Tank() = default;
     explicit Tank(std::string name) : name_(std::move(name)) {}
+    // Move-only (it owns its streams). Declared explicitly: MSVC instantiates
+    // an implicit copy constructor for std::vector<Tank> otherwise.
+    Tank(const Tank&) = delete;
+    Tank& operator=(const Tank&) = delete;
+    Tank(Tank&&) = default;
+    Tank& operator=(Tank&&) = default;
 
     // Checks the tank against the fluid; reconciles the composition maps with
     // the fluid's components.
