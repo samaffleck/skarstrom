@@ -7,7 +7,9 @@
 #pragma once
 
 // Sensitivity analysis and uncertainty propagation for a deck's KPIs. The
-// implementation is in core/src/solver/sensitivity.cpp.
+// implementation is in core/src/solver/sensitivity.cpp. The inputs, the run
+// policy and the study's set-up saved with the deck (Study) are in
+// adsim/solver/sensitivity_study.h.
 //
 // Two studies, both over a list of uncertain inputs (registry paths, each with
 // a probability distribution):
@@ -54,48 +56,10 @@
 #include <vector>
 
 #include "adsim/simulation.h"
+#include "adsim/solver/sensitivity_study.h"  // Distribution, Input, RunPolicy, Study
 
 namespace adsim {
 namespace sensitivity {
-
-inline constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
-
-// ---- inputs ------------------------------------------------------------------
-
-enum class Distribution {
-  Uniform,     // lower .. upper
-  Triangular,  // lower .. upper, peak at mode
-  Normal       // mean, sd; truncated to [lower, upper] where those are set
-};
-
-const char* DistributionName(Distribution d);  // "uniform", "triangular", "normal"
-// Throws std::invalid_argument for an unknown name.
-Distribution DistributionFromName(std::string_view name);
-
-// One uncertain input. `path` is a registry path or alias (see
-// parameters/parameter_registry.h); the parameter must be tunable. Values are
-// in the parameter's SI unit.
-struct Input {
-  std::string path;
-  Distribution distribution = Distribution::Uniform;
-  double lower = kNaN;  // Uniform, Triangular: required. Normal: optional truncation
-  double upper = kNaN;
-  double mode = kNaN;   // Triangular
-  double mean = kNaN;   // Normal
-  double sd = kNaN;     // Normal
-
-  // The value at probability u in (0, 1) (the inverse CDF).
-  double Quantile(double u) const;
-  // Throws std::invalid_argument naming the path when the description is
-  // incomplete or inconsistent (lower >= upper, mode outside, sd <= 0, ...).
-  void Validate() const;
-};
-
-Input Uniform(std::string path, double lower, double upper);
-// Uniform over nominal * (1 -/+ fraction), e.g. fraction 0.1 for +-10 %.
-Input Relative(std::string path, double nominal, double fraction);
-Input Triangular(std::string path, double lower, double mode, double upper);
-Input Normal(std::string path, double mean, double sd, double lower = kNaN, double upper = kNaN);
 
 // ---- plans -------------------------------------------------------------------
 
@@ -157,18 +121,7 @@ Output ParseOutput(std::string_view name);
 // the deck tracks.
 std::vector<Output> DefaultOutputs(const UserData& data);
 
-// How each sample is run.
-struct RunPolicy {
-  // A run must reach cyclic steady state to count; one that stops at the
-  // cycle limit is treated as failed. Turn off only for screening at a fixed
-  // number of cycles, where every run is equally (un)converged.
-  bool require_css = true;
-  // Overrides the deck's number of cycles (0: keep the deck's).
-  int cycles = 0;
-  // Applied to every run before the sample values, as registry text sets
-  // (path, text): typically a tighter CSS tolerance for the study.
-  std::vector<std::pair<std::string, std::string>> settings;
-};
+// How each sample is run: RunPolicy, in adsim/solver/sensitivity_study.h.
 
 struct SampleOutcome {
   RunStatus status = RunStatus::NotRun;
@@ -188,6 +141,15 @@ struct SampleOutcome {
 // deck has no CSS check.
 void CheckStudy(const std::string& deck_json, const std::vector<Input>& inputs,
                 const std::vector<Output>& outputs, const RunPolicy& policy = {});
+
+// The outputs of a saved study: its own, parsed, or the deck's
+// DefaultOutputs when it names none. Throws std::invalid_argument for a name
+// that is not Component.kpi.
+std::vector<Output> StudyOutputs(const Study& study, const UserData& data);
+
+// CheckStudy for a saved study (its inputs, StudyOutputs and policy). Also
+// throws when the study has no inputs.
+void CheckStudy(const std::string& deck_json, const Study& study);
 
 // Runs one sample on a fresh copy of the deck: loads `deck_json`, applies
 // policy.settings, sets inputs[i] to values[i] and runs. `values` may be

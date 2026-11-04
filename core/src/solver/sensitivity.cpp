@@ -514,6 +514,24 @@ void CheckStudy(const std::string& deck_json, const std::vector<Input>& inputs, 
   }
 }
 
+std::vector<Output> StudyOutputs(const Study& study, const UserData& data) {
+  if (study.outputs.empty()) return DefaultOutputs(data);
+  std::vector<Output> out;
+  for (const auto& name : study.outputs) out.push_back(ParseOutput(name));
+  return out;
+}
+
+void CheckStudy(const std::string& deck_json, const Study& study) {
+  if (study.Empty()) throw std::invalid_argument("the sensitivity study has no inputs");
+  Simulation sim;
+  try {
+    sim.LoadJson(deck_json);
+  } catch (const std::exception& e) {
+    throw std::invalid_argument(std::string("the deck does not load: ") + e.what());
+  }
+  CheckStudy(deck_json, study.inputs, StudyOutputs(study, sim.Data()), study.policy);
+}
+
 SampleOutcome EvaluateSample(const std::string& deck_json, const std::vector<Input>& inputs,
                              const std::vector<double>& values, const std::vector<Output>& outputs,
                              const RunPolicy& policy, const CancelPoll& cancel) {

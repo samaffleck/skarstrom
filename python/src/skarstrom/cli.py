@@ -2,7 +2,7 @@
 
     skarstrom run deck.json [--cycles N] [--set PATH=VALUE ...] [--csv DIR] [--json]
     skarstrom params deck.json [--all] [--search TEXT] [--json]
-    skarstrom sensitivity deck.json --input PATH=SPEC ... [--output COMPONENT.KPI ...] [--method both]
+    skarstrom sensitivity deck.json [--input PATH=SPEC ...] [--output COMPONENT.KPI ...] [--method both]
     skarstrom examples [list] [--json]
     skarstrom examples run NAME [run options]
     skarstrom examples path NAME
@@ -278,16 +278,29 @@ def _parse_input(sim: Simulation, text: str) -> "sa.Input":
 def cmd_sensitivity(args: argparse.Namespace) -> int:
     sim = Simulation.from_file(_resolve_deck(args.deck))
     _apply_sets(sim, args.set or [])
-    inputs = [_parse_input(sim, t) for t in args.input]
     settings = {}
     for t in args.setting or []:
         path, value = _split_assignment(sim, t)
         settings[path] = value
+    # Options given on the command line; the rest come from the deck's saved
+    # study (no --input) or the built-in defaults.
+    given = {k: getattr(args, k) for k in ("seed", "trajectories", "levels", "threshold", "runs", "batch",
+                                            "max_runs", "rel_tol") if getattr(args, k) is not None}
+    if args.output:
+        given["outputs"] = args.output
+    if args.cycles is not None:
+        given["cycles"] = args.cycles
+    if args.no_require_css:
+        given["require_css"] = False
     try:
-        study = sa.Study(sim, inputs, outputs=args.output or None, settings=settings,
-                         require_css=not args.no_require_css, cycles=args.cycles, seed=args.seed,
-                         workers=args.workers)
-    except KeyError as e:
+        if args.input:
+            inputs = [_parse_input(sim, t) for t in args.input]
+            study = sa.Study(sim, inputs, settings=settings, workers=args.workers, **given)
+        else:
+            if settings:
+                given["settings"] = settings
+            study = sa.Study.from_deck(sim, workers=args.workers, **given)
+    except (KeyError, ValueError) as e:
         raise SystemExit(f"skarstrom: {e.args[0]}") from None
 
     def progress(label: str):
@@ -300,14 +313,13 @@ def cmd_sensitivity(args: argparse.Namespace) -> int:
     screening = propagation = None
     try:
         if args.method in ("screen", "both"):
-            screening = study.screen(args.trajectories, args.levels, progress=progress("screening"))
+            screening = study.screen(progress=progress("screening"))
             if not args.quiet:
                 print("", file=sys.stderr)
             payload["screening"] = screening.to_dict()
         if args.method in ("propagate", "both"):
-            chosen = screening.important(args.threshold) if screening else None
-            propagation = study.propagate(args.runs, args.batch, args.max_runs, args.rel_tol, inputs=chosen,
-                                          progress=progress("propagation"))
+            chosen = screening.important() if screening else None
+            propagation = study.propagate(inputs=chosen, progress=progress("propagation"))
             if not args.quiet:
                 print("", file=sys.stderr)
             payload["propagation"] = propagation.to_dict()
@@ -338,10 +350,10 @@ def cmd_sensitivity(args: argparse.Namespace) -> int:
             _print_table(rows, ["input", "mu*", "95% interval", "mu", "sigma"])
             print()
         if args.method == "both":
-            print(f"Kept for propagation (mu* >= {args.threshold:g} x the largest): "
-                  f"{', '.join(screening.important(args.threshold)) or 'none'}")
+            print(f"Kept for propagation (mu* >= {study.threshold:g} x the largest): "
+                  f"{', '.join(screening.important()) or 'none'}")
     if propagation:
-        state = "converged" if propagation.converged else f"NOT converged at --max-runs {args.max_runs}"
+        state = "converged" if propagation.converged else f"NOT converged at --max-runs {study.max_runs}"
         print(f"\nPropagation (Latin hypercube Monte Carlo): {propagation.runs} runs ({state}), "
               f"{propagation.failed} did not count\n")
         rows = []
@@ -432,23 +444,24 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("sensitivity", help="which inputs move the KPIs (Morris screening) and their error bars "
                                            "(Monte Carlo propagation)")
     s.add_argument("deck")
-    s.add_argument("--input", action="append", required=True, metavar="PATH=SPEC",
+    s.add_argument("--input", action="append", metavar="PATH=SPEC",
                    help="an uncertain input (repeatable): 10%% (+-10 %% of the deck's value), LO:HI (uniform), "
-                        "normal:MEAN:SD[:LO:HI] or triangular:LO:MODE:HI; numbers in SI units")
+                        "normal:MEAN:SD[:LO:HI] or triangular:LO:MODE:HI; numbers in SI units. Without "
+                        "--input, the study saved with the deck is run (the options below override it)")
     s.add_argument("--output", action="append", metavar="COMPONENT.KPI",
                    help="a KPI to watch (repeatable), e.g. CarbonDioxide.purity; default: purity, recovery, "
                         "productivity_mass and energy_consumption of every tracked component")
     s.add_argument("--method", choices=["screen", "propagate", "both"], default="both",
                    help="screen, propagate, or both: screen, then propagate the inputs that matter (default)")
-    s.add_argument("--trajectories", type=int, default=10, help="Morris trajectories (default 10)")
-    s.add_argument("--levels", type=int, default=4, help="Morris grid levels (even, default 4)")
-    s.add_argument("--threshold", type=float, default=0.1,
+    s.add_argument("--trajectories", type=int, help="Morris trajectories (default 10)")
+    s.add_argument("--levels", type=int, help="Morris grid levels (even, default 4)")
+    s.add_argument("--threshold", type=float,
                    help="with --method both, propagate inputs whose mu* reaches this fraction of the largest "
                         "(default 0.1)")
-    s.add_argument("--runs", type=int, default=100, help="first Monte Carlo batch (default 100)")
-    s.add_argument("--batch", type=int, default=50, help="runs added per batch until converged (default 50)")
-    s.add_argument("--max-runs", type=int, default=400, help="Monte Carlo run limit (default 400)")
-    s.add_argument("--rel-tol", type=float, default=0.1,
+    s.add_argument("--runs", type=int, help="first Monte Carlo batch (default 100)")
+    s.add_argument("--batch", type=int, help="runs added per batch until converged (default 50)")
+    s.add_argument("--max-runs", type=int, help="Monte Carlo run limit (default 400)")
+    s.add_argument("--rel-tol", type=float,
                    help="convergence: percentile uncertainty as a fraction of the 5-95 %% band (default 0.1)")
     s.add_argument("--setting", action="append", metavar="PATH=VALUE",
                    help="applied to every run and recorded with the study (repeatable), e.g. a tighter "
@@ -457,7 +470,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--cycles", type=int, help="override the deck's cycle limit")
     s.add_argument("--no-require-css", action="store_true",
                    help="count runs that stop at the cycle limit without reaching CSS")
-    s.add_argument("--seed", type=int, default=1, help="random seed (default 1)")
+    s.add_argument("--seed", type=int, help="random seed (default 1)")
     s.add_argument("--workers", type=int, default=1, help="parallel processes (default 1)")
     s.add_argument("--save", metavar="FILE", help="write the study, every run and the results as JSON")
     s.add_argument("--json", action="store_true", help="print the study and results as JSON")

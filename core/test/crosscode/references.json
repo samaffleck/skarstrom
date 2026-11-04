@@ -1,0 +1,1468 @@
+{
+ "_doc": "Write the frozen cross-code references for the engine's CI regression (core/test/crosscode/).\n\nFor each frozen case: the Skarstrom deck the harness runs (saved before the run, no results), the\nreference tool's outlet curve (decimated: every sample (2 s) inside the front window, every 50 s outside,\n6 significant digits) and one entry in references.json with the case spec, the reference tool,\nits version, licence and grid, its front metrics, the finest-grid reference metrics, and the\nmetrics the harness measured for Skarstrom on the deck (engine main).\n\nUsage: python freeze_refs.py OUT_DIR      (OUT_DIR = <engine>/core/test/crosscode)",
+ "references": [
+  {
+   "id": "BT01",
+   "case": "BT01",
+   "label": "13X DSL(c), 15 % CO2 adsorption, isothermal (baseline)",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT01_peese_N100.csv",
+    "metrics": {
+     "t05": 3274.9473167016317,
+     "t50": 3306.3391014117537,
+     "t95": 3341.4282971476873,
+     "T_ext": 313.1500001,
+     "f_end": 0.9999999686666666,
+     "P_in_end": 100715.1077
+    },
+    "metrics_decimated": {
+     "t05": 3274.9473167016317,
+     "t50": 3306.3391014117537,
+     "t95": 3341.4282971476873,
+     "T_ext": 313.1500001,
+     "f_end": 0.9999999686666666
+    }
+   },
+   "skarstrom_deck": "decks/BT01.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 3274.5003777717707,
+    "t50": 3305.8588129849836,
+    "t95": 3340.920907739697,
+    "T_ext": 313.15,
+    "f_end": 0.999999999999958
+   },
+   "skarstrom_minus_reference": {
+    "t05": -0.4469389298610622,
+    "t50": -0.4802884267701302,
+    "t95": -0.5073894079901038,
+    "T_ext": -1.0000002248489182e-07
+   },
+   "rms_f_harness": 0.005724336469748899,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT01",
+    "material": "13X",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      3.09,
+      5.84
+     ],
+     "qsd": [
+      2.54,
+      0.0
+     ],
+     "b": [
+      8.65e-07,
+      2.5e-06
+     ],
+     "d": [
+      2.63e-08,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      -35690.66,
+      0.0
+     ]
+    },
+    "thermal": "iso",
+    "mode": "ads",
+    "y_feed": 0.15,
+    "y_init": 0.0,
+    "t_end": 6000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   }
+  },
+  {
+   "id": "BT02",
+   "case": "BT02",
+   "label": "13X DSL(c), 15 % CO2 adsorption, adiabatic (baseline)",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT02_peese_N100.csv",
+    "metrics": {
+     "t05": 1684.996131271724,
+     "t50": 1702.2825007514807,
+     "t95": NaN,
+     "T_ext": 362.9791392,
+     "f_end": 0.8853369886666667,
+     "P_in_end": 100767.1724
+    },
+    "metrics_decimated": {
+     "t05": 1684.996131271724,
+     "t50": 1702.2825007514807,
+     "t95": NaN,
+     "T_ext": 362.9791392,
+     "f_end": 0.8853369886666667
+    }
+   },
+   "skarstrom_deck": "decks/BT02.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 1695.490583167162,
+    "t50": 1713.0874564282287,
+    "t95": NaN,
+    "T_ext": 362.83359543728216,
+    "f_end": 0.8870642475989218
+   },
+   "skarstrom_minus_reference": {
+    "t05": 10.494451895438033,
+    "t50": 10.804955676748023,
+    "t95": NaN,
+    "T_ext": -0.14554376271786396
+   },
+   "rms_f_harness": 0.022694061297367004,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT02",
+    "material": "13X",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      3.09,
+      5.84
+     ],
+     "qsd": [
+      2.54,
+      0.0
+     ],
+     "b": [
+      8.65e-07,
+      2.5e-06
+     ],
+     "d": [
+      2.63e-08,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      -35690.66,
+      0.0
+     ]
+    },
+    "thermal": "adi",
+    "mode": "ads",
+    "y_feed": 0.15,
+    "y_init": 0.0,
+    "t_end": 6000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   }
+  },
+  {
+   "id": "BT03",
+   "case": "BT03",
+   "label": "13X DSL(c), purge of a 15 % CO2 bed with N2, isothermal",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT03_peese_N100.csv",
+    "metrics": {
+     "t05": 483.5629196204194,
+     "t50": 1396.9733120490807,
+     "t95": NaN,
+     "T_ext": 313.1499999,
+     "f_end": 0.8536131797333334,
+     "P_in_end": 100710.6092
+    },
+    "metrics_decimated": {
+     "t05": 483.5629196204194,
+     "t50": 1396.9733120490807,
+     "t95": NaN,
+     "T_ext": 313.1499999,
+     "f_end": 0.8536131797333334
+    }
+   },
+   "skarstrom_deck": "decks/BT03.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 483.4240634306006,
+    "t50": 1397.1257303058142,
+    "t95": NaN,
+    "T_ext": 313.15,
+    "f_end": 0.8536240045601805
+   },
+   "skarstrom_minus_reference": {
+    "t05": -0.13885618981879588,
+    "t50": 0.15241825673342646,
+    "t95": NaN,
+    "T_ext": 9.999996564147295e-08
+   },
+   "rms_f_harness": 3.246511214456018e-05,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT03",
+    "material": "13X",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      3.09,
+      5.84
+     ],
+     "qsd": [
+      2.54,
+      0.0
+     ],
+     "b": [
+      8.65e-07,
+      2.5e-06
+     ],
+     "d": [
+      2.63e-08,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      -35690.66,
+      0.0
+     ]
+    },
+    "thermal": "iso",
+    "mode": "des",
+    "y_feed": 0.0,
+    "y_init": 0.15,
+    "t_end": 6000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   },
+   "reference_finest": {
+    "file": "peese_BT03_N400",
+    "metrics": {
+     "t05": 485.13289718599674,
+     "t50": 1398.6458094092175,
+     "t95": NaN,
+     "T_ext": 313.1499999,
+     "f_end": 0.8535911059333333,
+     "P_in_end": 100710.6009
+    }
+   }
+  },
+  {
+   "id": "BT04",
+   "case": "BT04",
+   "label": "13X DSL(c), purge of a 15 % CO2 bed with N2, adiabatic",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT04_peese_N100.csv",
+    "metrics": {
+     "t05": 251.37940779156256,
+     "t50": 635.3434391270608,
+     "t95": NaN,
+     "T_ext": 287.8568067,
+     "f_end": 0.9005417742666666,
+     "P_in_end": 100669.4326
+    },
+    "metrics_decimated": {
+     "t05": 251.37940779156256,
+     "t50": 635.3434391270608,
+     "t95": NaN,
+     "T_ext": 287.8568067,
+     "f_end": 0.9005417742666666
+    }
+   },
+   "skarstrom_deck": "decks/BT04.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 251.05060154959202,
+    "t50": 635.0349833376207,
+    "t95": NaN,
+    "T_ext": 287.4313378124958,
+    "f_end": 0.9043919599180485
+   },
+   "skarstrom_minus_reference": {
+    "t05": -0.32880624197053976,
+    "t50": -0.3084557894401314,
+    "t95": NaN,
+    "T_ext": -0.42546888750416656
+   },
+   "rms_f_harness": 0.002645276225686047,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT04",
+    "material": "13X",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      3.09,
+      5.84
+     ],
+     "qsd": [
+      2.54,
+      0.0
+     ],
+     "b": [
+      8.65e-07,
+      2.5e-06
+     ],
+     "d": [
+      2.63e-08,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      -35690.66,
+      0.0
+     ]
+    },
+    "thermal": "adi",
+    "mode": "des",
+    "y_feed": 0.0,
+    "y_init": 0.15,
+    "t_end": 6000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   },
+   "reference_finest": {
+    "file": "peese_BT04_N400",
+    "metrics": {
+     "t05": 252.15519681879744,
+     "t50": 635.9552822217756,
+     "t95": NaN,
+     "T_ext": 287.8535873,
+     "f_end": 0.900552795,
+     "P_in_end": 100669.3965
+    }
+   }
+  },
+  {
+   "id": "BT05",
+   "case": "BT05",
+   "label": "13X Langmuir(p), 50 % CO2 adsorption (bulk), isothermal",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT05_peese_N100.csv",
+    "metrics": {
+     "t05": 1784.1260956566628,
+     "t50": 1795.205457488462,
+     "t95": 1809.3843052086395,
+     "T_ext": 313.1500002,
+     "f_end": 1.0000000102,
+     "P_in_end": 100743.7402
+    },
+    "metrics_decimated": {
+     "t05": 1784.1260956566628,
+     "t50": 1795.205457488462,
+     "t95": 1809.3843052086395,
+     "T_ext": 313.1500002,
+     "f_end": 1.0000000102
+    }
+   },
+   "skarstrom_deck": "decks/BT05.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 1784.083241434939,
+    "t50": 1795.1133014920108,
+    "t95": 1809.2460960054218,
+    "T_ext": 313.15,
+    "f_end": 0.9999999999999971
+   },
+   "skarstrom_minus_reference": {
+    "t05": -0.0428542217237009,
+    "t50": -0.09215599645108341,
+    "t95": -0.13820920321768426,
+    "T_ext": -2.0000004496978363e-07
+   },
+   "rms_f_harness": 0.002775588313606035,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT05",
+    "material": "13X",
+    "isotherm": {
+     "basis": "p",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      5.63,
+      5.84
+     ],
+     "qsd": [
+      0.0,
+      0.0
+     ],
+     "b": [
+      3.322413411857006e-10,
+      9.602350901320828e-10
+     ],
+     "d": [
+      0.0,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      0.0,
+      0.0
+     ]
+    },
+    "thermal": "iso",
+    "mode": "ads",
+    "y_feed": 0.5,
+    "y_init": 0.0,
+    "t_end": 4000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   }
+  },
+  {
+   "id": "BT06",
+   "case": "BT06",
+   "label": "13X Langmuir(p), 50 % CO2 adsorption (bulk), adiabatic",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT06_peese_N100.csv",
+    "metrics": {
+     "t05": 955.2570546530544,
+     "t50": 962.2801064129051,
+     "t95": 977.757678292923,
+     "T_ext": 403.0473913,
+     "f_end": 0.9649537344,
+     "P_in_end": 100863.2193
+    },
+    "metrics_decimated": {
+     "t05": 955.2570546530544,
+     "t50": 962.2801064129051,
+     "t95": 977.757678292923,
+     "T_ext": 403.0473913,
+     "f_end": 0.9649537344
+    }
+   },
+   "skarstrom_deck": "decks/BT06.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 969.7084868519698,
+    "t50": 976.7353666099355,
+    "t95": 993.6828430789944,
+    "T_ext": 402.18187438965975,
+    "f_end": 0.9618076634419872
+   },
+   "skarstrom_minus_reference": {
+    "t05": 14.451432198915427,
+    "t50": 14.455260197030384,
+    "t95": 15.925164786071491,
+    "T_ext": -0.8655169103402613
+   },
+   "rms_f_harness": 0.052353604286939366,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT06",
+    "material": "13X",
+    "isotherm": {
+     "basis": "p",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      5.63,
+      5.84
+     ],
+     "qsd": [
+      0.0,
+      0.0
+     ],
+     "b": [
+      3.322413411857006e-10,
+      9.602350901320828e-10
+     ],
+     "d": [
+      0.0,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      0.0,
+      0.0
+     ]
+    },
+    "thermal": "adi",
+    "mode": "ads",
+    "y_feed": 0.5,
+    "y_init": 0.0,
+    "t_end": 4000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   },
+   "reference_finest": {
+    "file": "peese_BT06_N200",
+    "metrics": {
+     "t05": 956.6331661481352,
+     "t50": 961.2782620682837,
+     "t95": 974.2127096482706,
+     "T_ext": 403.2808475,
+     "f_end": 0.9649774962,
+     "P_in_end": 100863.2505
+    }
+   }
+  },
+  {
+   "id": "BT07",
+   "case": "BT07",
+   "label": "13X Henry, 1 % CO2 (trace) adsorption at 393 K, N2 inert, isothermal",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT07_peese_N100.csv",
+    "metrics": {
+     "t05": 1076.1658084876924,
+     "t50": 1292.5878123088212,
+     "t95": 1530.8572755413322,
+     "T_ext": 393.15,
+     "f_end": 0.9999979802,
+     "P_in_end": 100674.3221
+    },
+    "metrics_decimated": {
+     "t05": 1076.1658084876924,
+     "t50": 1292.5878123088212,
+     "t95": 1530.8572755413322,
+     "T_ext": 393.15,
+     "f_end": 0.9999979802
+    }
+   },
+   "skarstrom_deck": "decks/BT07.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 1079.1882095396493,
+    "t50": 1293.0010071301729,
+    "t95": 1527.5099799303098,
+    "T_ext": 393.15,
+    "f_end": 0.999999904434512
+   },
+   "skarstrom_minus_reference": {
+    "t05": 3.0224010519568765,
+    "t50": 0.41319482135168073,
+    "t95": -3.347295611022446,
+    "T_ext": 0.0
+   },
+   "rms_f_harness": 0.002063780290653442,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 393.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT07",
+    "material": "13X",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "kind": "henry",
+     "H0": [
+      2.7227951202857102e-06,
+      0.0
+     ],
+     "dU": [
+      -36641.21,
+      0.0
+     ],
+     "H_at_T": 0.2010990779171132
+    },
+    "thermal": "iso",
+    "mode": "ads",
+    "y_feed": 0.01,
+    "y_init": 0.0,
+    "t_end": 3000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 3.3958983238671907,
+    "R": 8.314
+   },
+   "reference_finest": {
+    "file": "peese_BT07_N200",
+    "metrics": {
+     "t05": 1080.0495703380548,
+     "t50": 1292.7101683628487,
+     "t95": 1527.0048677340587,
+     "T_ext": 393.15,
+     "f_end": 0.9999977037000001,
+     "P_in_end": 100674.3221
+    }
+   }
+  },
+  {
+   "id": "BT08",
+   "case": "BT08",
+   "label": "13X DSL(c), 15 % CO2, 0.3 mm particles (Ergun drop ~25 %), isothermal",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 85,
+    "file": "data/BT08_peese_N85.csv",
+    "metrics": {
+     "t05": 3344.655186722836,
+     "t50": 3379.9763856348986,
+     "t95": 3418.5569758651363,
+     "T_ext": 313.1500001,
+     "f_end": 1.0000000039999999,
+     "P_in_end": 123270.0863
+    },
+    "metrics_decimated": {
+     "t05": 3344.655186722836,
+     "t50": 3379.9763856348986,
+     "t95": 3418.5569758651363,
+     "T_ext": 313.1500001,
+     "f_end": 1.0000000039999999
+    }
+   },
+   "skarstrom_deck": "decks/BT08.json",
+   "skarstrom_options": {
+    "cells": 85,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 3347.5488590969076,
+    "t50": 3382.819915933903,
+    "t95": 3421.2240735118967,
+    "T_ext": 313.15,
+    "f_end": 0.9999999999850514
+   },
+   "skarstrom_minus_reference": {
+    "t05": 2.8936723740716843,
+    "t50": 2.8435302990042146,
+    "t95": 2.6670976467603396,
+    "T_ext": -1.0000002248489182e-07
+   },
+   "rms_f_harness": 0.029837751606393518,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT08",
+    "material": "13X",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      3.09,
+      5.84
+     ],
+     "qsd": [
+      2.54,
+      0.0
+     ],
+     "b": [
+      8.65e-07,
+      2.5e-06
+     ],
+     "d": [
+      2.63e-08,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      -35690.66,
+      0.0
+     ]
+    },
+    "thermal": "iso",
+    "mode": "ads",
+    "y_feed": 0.15,
+    "y_init": 0.0,
+    "t_end": 6000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.00015,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 5.40965e-05,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   }
+  },
+  {
+   "id": "BT09",
+   "case": "BT09",
+   "label": "LiX DSL(c), 40 % CO2 in CH4 (biogas, bulk), fast LDF, isothermal",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT09_peese_N100.csv",
+    "metrics": {
+     "t05": 973.7203814048086,
+     "t50": 978.6188533333622,
+     "t95": 983.1991657806094,
+     "T_ext": 313.1500001,
+     "f_end": 1.0000000009999999,
+     "P_in_end": 100698.8041
+    },
+    "metrics_decimated": {
+     "t05": 973.7203814048086,
+     "t50": 978.6188533333622,
+     "t95": 983.1991657806094,
+     "T_ext": 313.1500001,
+     "f_end": 1.0000000009999999
+    }
+   },
+   "skarstrom_deck": "decks/BT09.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 973.482143290916,
+    "t50": 978.2515069440095,
+    "t95": 982.6043138866053,
+    "T_ext": 313.15,
+    "f_end": 1.0000000000000002
+   },
+   "skarstrom_minus_reference": {
+    "t05": -0.23823811389252114,
+    "t50": -0.3673463893526332,
+    "t95": -0.5948518940041367,
+    "T_ext": -1.0000002248489182e-07
+   },
+   "rms_f_harness": 0.030053844800002998,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT09",
+    "material": "LiX",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Methane"
+     ],
+     "qsb": [
+      3.08,
+      3.19
+     ],
+     "qsd": [
+      2.48,
+      0.0
+     ],
+     "b": [
+      2.88e-12,
+      2.52e-05
+     ],
+     "d": [
+      7.72e-11,
+      0.0
+     ],
+     "dUb": [
+      -57875.0,
+      -14204.0
+     ],
+     "dUd": [
+      -61713.0,
+      0.0
+     ]
+    },
+    "thermal": "iso",
+    "mode": "ads",
+    "y_feed": 0.4,
+    "y_init": 0.0,
+    "t_end": 3000.0,
+    "rho_p": 930.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.01604
+    ],
+    "k_ldf": [
+     46.67,
+     46.67
+    ],
+    "dU": [
+     -30000.0,
+     -15000.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   },
+   "reference_finest": {
+    "file": "peese_BT09_N200",
+    "metrics": {
+     "t05": 976.1141798094629,
+     "t50": 978.8492216202359,
+     "t95": 981.5797137720173,
+     "T_ext": 313.1500001,
+     "f_end": 0.99999999975,
+     "P_in_end": 100698.8041
+    }
+   }
+  },
+  {
+   "id": "BT10",
+   "case": "BT10",
+   "label": "LiX DSL(c), 40 % CO2 in CH4 (biogas, bulk), fast LDF, adiabatic",
+   "reference": {
+    "tool": "PEESEgroup/PSA column model (Yancy-Caballero et al. 2020), run through PSASimulator.py's FuncAdsorption (its line-for-line Python port), unchanged; solve_ivp BDF rtol = atol = 1e-6",
+    "repository": "https://github.com/PEESEgroup/PSA (3de0832); https://github.com/amvro23/PSASimulator.py (d77d0fa)",
+    "licence": "MIT (both repositories)",
+    "cells": 100,
+    "file": "data/BT10_peese_N100.csv",
+    "metrics": {
+     "t05": 555.5171627982074,
+     "t50": 558.8873224356115,
+     "t95": 563.1684468589219,
+     "T_ext": 351.5681921,
+     "f_end": 0.976740302,
+     "P_in_end": 100747.2262
+    },
+    "metrics_decimated": {
+     "t05": 555.5171627982074,
+     "t50": 558.8873224356115,
+     "t95": 563.1684468589219,
+     "T_ext": 351.5681921,
+     "f_end": 0.976740302
+    }
+   },
+   "skarstrom_deck": "decks/BT10.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "weno"
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 557.5559365184461,
+    "t50": 560.717184481984,
+    "t95": 564.9177473767617,
+    "T_ext": 351.5699338660473,
+    "f_end": 0.9716577565699921
+   },
+   "skarstrom_minus_reference": {
+    "t05": 2.0387737202386234,
+    "t50": 1.8298620463724546,
+    "t95": 1.7493005178397425,
+    "T_ext": 0.0017417660473029173
+   },
+   "rms_f_harness": 0.014749337445506808,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT10",
+    "material": "LiX",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Methane"
+     ],
+     "qsb": [
+      3.08,
+      3.19
+     ],
+     "qsd": [
+      2.48,
+      0.0
+     ],
+     "b": [
+      2.88e-12,
+      2.52e-05
+     ],
+     "d": [
+      7.72e-11,
+      0.0
+     ],
+     "dUb": [
+      -57875.0,
+      -14204.0
+     ],
+     "dUd": [
+      -61713.0,
+      0.0
+     ]
+    },
+    "thermal": "adi",
+    "mode": "ads",
+    "y_feed": 0.4,
+    "y_init": 0.0,
+    "t_end": 3000.0,
+    "rho_p": 930.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.01604
+    ],
+    "k_ldf": [
+     46.67,
+     46.67
+    ],
+    "dU": [
+     -30000.0,
+     -15000.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   },
+   "reference_finest": {
+    "file": "peese_BT10_N200",
+    "metrics": {
+     "t05": 556.6296926115638,
+     "t50": 559.0036539518292,
+     "t95": 561.6938436208675,
+     "T_ext": 351.842511,
+     "f_end": 0.97674367025,
+     "P_in_end": 100747.256
+    }
+   }
+  },
+  {
+   "id": "TP01",
+   "case": "BT01",
+   "label": "13X DSL(c), 15 % CO2 adsorption, isothermal (baseline) (toPSAil model choices)",
+   "reference": {
+    "tool": "toPSAil (Georgia Tech), run under GNU Octave 8.4 with the syntax patches of skarstrom-gui benchmarks/open-source-psa/topsail/; ode15s RelTol 1e-4, AbsTol 1e-6",
+    "repository": "https://github.com/taehunk333/toPSAil (6f6e409)",
+    "licence": "GPL-3.0 (only numerical outputs of the tool are committed here, no code)",
+    "cells": 100,
+    "file": "data/TP01_topsail_N100.csv",
+    "metrics": {
+     "t05": 3269.941884742465,
+     "t50": 3304.4389606171767,
+     "t95": 3339.2073850953807,
+     "T_ext": 313.15,
+     "f_end": 1.0
+    },
+    "metrics_decimated": {
+     "t05": 3269.941884742465,
+     "t50": 3304.4389606171767,
+     "t95": 3339.2073850953807,
+     "T_ext": 313.15,
+     "f_end": 1.0
+    }
+   },
+   "skarstrom_deck": "decks/TP01.json",
+   "skarstrom_options": {
+    "cells": 100,
+    "scheme": "upwind",
+    "topsail": true
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 3269.430658588324,
+    "t50": 3303.93139714842,
+    "t95": 3338.655915833385,
+    "T_ext": 313.15,
+    "f_end": 1.0000000079736369
+   },
+   "skarstrom_minus_reference": {
+    "t05": -0.5112261541407861,
+    "t50": -0.5075634687568709,
+    "t95": -0.5514692619958623,
+    "T_ext": 0.0
+   },
+   "rms_f_harness": 0.005849429453052694,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT01",
+    "material": "13X",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      3.09,
+      5.84
+     ],
+     "qsd": [
+      2.54,
+      0.0
+     ],
+     "b": [
+      8.65e-07,
+      2.5e-06
+     ],
+     "d": [
+      2.63e-08,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      -35690.66,
+      0.0
+     ]
+    },
+    "thermal": "iso",
+    "mode": "ads",
+    "y_feed": 0.15,
+    "y_init": 0.0,
+    "t_end": 6000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   }
+  },
+  {
+   "id": "TP02",
+   "case": "BT02",
+   "label": "13X DSL(c), 15 % CO2 adsorption, adiabatic (baseline) (toPSAil model choices)",
+   "reference": {
+    "tool": "toPSAil (Georgia Tech), run under GNU Octave 8.4 with the syntax patches of skarstrom-gui benchmarks/open-source-psa/topsail/; ode15s RelTol 1e-4, AbsTol 1e-6",
+    "repository": "https://github.com/taehunk333/toPSAil (6f6e409)",
+    "licence": "GPL-3.0 (only numerical outputs of the tool are committed here, no code)",
+    "cells": 40,
+    "file": "data/TP02_topsail_N40.csv",
+    "metrics": {
+     "t05": 1955.4252151048765,
+     "t50": 2031.4494830466938,
+     "t95": NaN,
+     "T_ext": 357.32157948,
+     "f_end": 0.9103036926666668
+    },
+    "metrics_decimated": {
+     "t05": 1955.4252151048765,
+     "t50": 2031.4494830466938,
+     "t95": NaN,
+     "T_ext": 357.32157948,
+     "f_end": 0.9103036926666668
+    }
+   },
+   "skarstrom_deck": "decks/TP02.json",
+   "skarstrom_options": {
+    "cells": 40,
+    "scheme": "upwind",
+    "topsail": true,
+    "wall": [
+     20.0,
+     5.0
+    ],
+    "thick": 0.005,
+    "topsail_area_cells": 40
+   },
+   "skarstrom_version": "0.3.0",
+   "skarstrom_metrics_harness": {
+    "t05": 1962.6195482633198,
+    "t50": 2037.8536148694302,
+    "t95": NaN,
+    "T_ext": 357.06677937250964,
+    "f_end": 0.9109544998502466
+   },
+   "skarstrom_minus_reference": {
+    "t05": 7.194333158443214,
+    "t50": 6.404131822736417,
+    "t95": NaN,
+    "T_ext": -0.2548001074903823
+   },
+   "rms_f_harness": 0.0061760229897901316,
+   "spec": {
+    "L": 1.0,
+    "P0": 100000.0,
+    "T0": 313.15,
+    "v0": 0.3,
+    "cpg": 30.7,
+    "cpa": 30.7,
+    "qs_ref": 5.84,
+    "mu": 1.72e-05,
+    "D_m": 1.2995e-05,
+    "K_z": 0.09,
+    "diameter": 0.1,
+    "name": "BT02",
+    "material": "13X",
+    "isotherm": {
+     "basis": "c",
+     "components": [
+      "CarbonDioxide",
+      "Nitrogen"
+     ],
+     "qsb": [
+      3.09,
+      5.84
+     ],
+     "qsd": [
+      2.54,
+      0.0
+     ],
+     "b": [
+      8.65e-07,
+      2.5e-06
+     ],
+     "d": [
+      2.63e-08,
+      0.0
+     ],
+     "dUb": [
+      -36641.21,
+      -15800.0
+     ],
+     "dUd": [
+      -35690.66,
+      0.0
+     ]
+    },
+    "thermal": "adi",
+    "mode": "ads",
+    "y_feed": 0.15,
+    "y_init": 0.0,
+    "t_end": 6000.0,
+    "rho_p": 1130.0,
+    "cps": 1070.0,
+    "eps": 0.37,
+    "r_p": 0.001,
+    "M": [
+     0.04402,
+     0.02802
+    ],
+    "k_ldf": [
+     0.1631,
+     0.2044
+    ],
+    "dU": [
+     -36000.0,
+     -15800.0
+    ],
+    "D_L": 0.0003090965,
+    "flux_superficial": 4.263443800186447,
+    "R": 8.314
+   },
+   "note": "toPSAil exchanges heat with the wall through the CROSS-SECTIONAL area pi r^2 of each CSTR (getEnergyBalanceParams.m lines 121, 154-163), so its wall heat transfer grows with nVols; the Skarstrom deck scales h_in, h_out by r N / (2 L) to reproduce it at N = 40."
+  }
+ ]
+}

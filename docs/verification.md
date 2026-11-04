@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency)\.|RobustnessFuzz"`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|ThermalFronts|UnitOperations|MetamorphicRelations|ParameterLimits|DegenerateMixtures|ThermodynamicBound|ExtremeConditions)\.|RobustnessFuzz"`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -73,6 +73,16 @@ This complements the existing coverage rather than duplicating it:
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
+| `test_extreme_conditions.cpp` | Extreme pressure ratios, near-zero flow, very short / long steps, high temperature: converge or fail cleanly |
+| `test_thermodynamic_bound.cpp` | Separation energy at CSS against the reversible pump work, the bed exergy change and the minimum work |
+| `test_parameter_limits.cpp` | Rates of approach to parameter limits (k_LDF, dH, wall, Langmuir b, pressure ratio, trace feed); degenerate mixtures |
+| `test_metamorphic_relations.cpp` | Equivalent decks give the same solution: component order, identical layers, split steps, units, cycle phase at CSS |
+| `test_unit_operations.cpp` | Constant-speed evacuation, two-bed pressure equalisation at CSS, buffer-tank fill, without and with Henry adsorption |
+| `test_thermal_fronts.cpp` | Inert-bed thermal front speed; steady exponential temperature profile with wall losses |
+| `test_blowdown_composition_path.cpp` | Blowdown of a binary on linear isotherms: equilibrium-theory composition path y(P), departure scaling with the LDF lag |
+| `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
+| `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
+| `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
 
 ### `test_energy_balance.cpp`
 
@@ -227,3 +237,280 @@ cell the front has not reached — that an integral comparison averages away.
   pressurise/feed/blowdown cycle with two competing adsorbates, which reverses
   the flow. Reversal is where boundedness is most likely to break. The test
   asserts the flow genuinely reverses.
+
+### `test_extreme_conditions.cpp`
+
+Targeted corners an operator reaches by turning one knob to an extreme on an
+ordinary deck (the fuzz samples at random): pressure ratio 500 (50 bar to
+0.1 bar) and 1.0001, blowdown to 1 mbar, feeds of 1e-9 and 1e-10 mol/s, steps
+of 1 ms and of 1e5 s (which packs ~10^4 bar into the closed bed), a 1e6 s
+breakthrough with no step cap, a bed at 600, 900 and 1200 K (above the 650 K
+end of the viscosity and conductivity fits) and the PSA cycle at 700 K. No
+accuracy is claimed. Each run must converge or fail cleanly (a negative IDA
+code or an exception, within tightened work caps), every logged state must be
+finite, and a converged run must be physical: P > 0, T > 0, 0 <= y <= 1 and
+q >= 0 to their absolute tolerance, sum y = 1 to 1e-3 (the fuzz bound;
+measured worst 4e-6, at 1 mbar). Each corner has a guard that it really is
+extreme (the pressure or temperature reached). All corners converge today.
+### `test_thermodynamic_bound.cpp`
+
+At cyclic steady state the separation energy must be at least the minimum
+(reversible) work of producing the product streams from the feed. For a
+plant at CSS exchanging heat with surroundings at T0 and handling ideal gases
+at T0 (the decks are isothermal), the second law gives
+W >= sum_out n b - sum_in n b, with b = R T0 [sum y ln y + ln(P/P0)]; with all
+streams at P0 this is the textbook minimum work of separation. The test
+checks it as a chain of separately meaningful inequalities on the last cycle:
+
+    W_electric  >=  W_rev  >=  dB_bed  >=  W_min
+
+W_electric is the engine's reported energy, the integral of every endpoint's
+logged pump power (the E_total of the energy KPI; polytropic, eta = 0.7,
+n = 1.4); W_rev the reversible isothermal work of the same pumps on the same
+logged flows (pump model consistency); dB_bed the exergy change of the
+instantaneous streams at the bed ends (the bed's own second law: dispersion,
+pressure drop and finite-rate adsorption can only destroy exergy); W_min the
+mixed products at their delivery pressures (the ideal-mixing bound). The
+slack for the not-quite-CSS cycle is R T0 (max |ln y| + max |ln P/P0|) times
+the measured component imbalance (< 0.15 J).
+
+- **`VacuumSwingEnergyExceedsMinimumSeparationWork`** — feed and product at
+  1 bar, blowdown to 0.2 bar through a vacuum pump: 2486 J >= 1513 J >=
+  1245 J >= 172 J (pure separation work); second-law efficiency 6.9 %.
+- **`PressureSwingEnergyExceedsMinimumWork`** — 1 -> 3 bar with compressors,
+  light product delivered at 3 bar (its pressure exergy counts): 15004 J >=
+  9050 J >= 8691 J >= 5851 J (of which 266 J separation).
+### `test_parameter_limits.cpp`
+
+Limits as a parameter goes to zero or infinity, asserted through the RATE of
+approach over a geometric sequence (observed order, tolerance from the next
+term of the expansion), plus two degenerate mixtures.
+
+- **`LdfFrontApproachesEquilibriumTheoryAsOneOverK`** — linear isotherm, no
+  dispersion. The cumulants of the semi-discrete column are exact: the mean is
+  t_st whatever k is, and the variance is 2 (L/u_s) H / k plus a k-free
+  upwind part, so var(k) - var(2k) = (L/u_s) H / k. Measured: mean constant
+  to 1e-3, order in 1/k 1.002, and the size within 1.1-1.3 % at y = 0.005,
+  0.5-0.6 % at y = 0.0025; the error is O(y) (the uptake changes the gas
+  velocity) and its extrapolation to y = 0 leaves 0.04 %.
+- **`VanishingLdfCoefficientGivesAnInertTracer`** — k -> 0: the outlet curve
+  approaches the inert tracer's at order 0.98-0.99 in k, and the deficit behind the
+  front, 1 - exp(-k H L/u_s), gives deficit/k = 120.775 s extrapolated to k = 0
+  against H L/u_s = 120.766 s.
+- **`AdiabaticRunApproachesIsothermalAsHeatOfAdsorptionVanishes`** — the
+  temperature rise and the outlet-curve shift are O(dH) (order 1.000 for
+  dH = 10, 5, 2.5 kJ/mol); at dH = 0 the run matches the isothermal mode to
+  1.3e-5 y_feed, 1.3 % of the smallest dH effect.
+- **`WallAndBedBecomeIsothermalAsHeatCapacityAndExchangeGrow`** — the wall's
+  excursion falls as 1/C (order 0.998, 1.000 per decade of wall heat
+  capacity); with that wall, the bed's falls as 1/h_i once the bed-wall time
+  constant is below the uptake time (order 0.99, 1.00 from h_i = 1e5 W/m2K).
+- **`LangmuirRunReducesToHenryRunAsAffinityVanishes`** — b -> 0 with m b fixed:
+  the simulated outlet curve approaches the Henry run's at order 1.00 in b' p.
+- **`PressureSwingSeparationVanishesAsThePressureRatioGoesToOne`** — at CSS
+  the heavy product's composition deviation is O(s) (order 0.92, 0.90) and the
+  light product's enrichment O(s^2) (order 1.91, 1.87) for P_high/P_low =
+  1 + s, s = 0.1 .. 0.025; with no swing the enrichment is 2.3e-7 (the feed
+  step's own pressure drop).
+- **`TraceFeedReducesToTheSingleComponentLimit`** — a trace of O2 in N2 on a
+  competitive Langmuir: the carrier's loading tends to the pure-N2 run's at
+  order 1.00 in y, the normalised trace curve to a limit at order ~0.95, and
+  that limit's first moment (50.524 s, extrapolated) to linear chromatography
+  with the trace's Henry constant at the carrier loading (50.507 s).
+- **`DegenerateMixtures.IdenticalComponentsKeepTheirFeedRatio`** — O2 split
+  into O2 and Ar with identical isotherm, kinetics and heat of adsorption,
+  2:1, through three PSA cycles: y_O2 = 2 y_Ar to 1.3e-10 and q_O2 = 2 q_Ar to
+  1.2e-12 mol/kg in every cell at every instant (tolerance one error-test
+  weight), while the pair is separated from N2 (y_O2 0.04 .. 0.34).
+- **`DegenerateMixtures.ZeroAffinityComponentBehavesAsAnInert`** — a Henry
+  constant of zero (and a 40 kJ/mol heat of adsorption that must do nothing)
+  reproduces the inert tracer to 3e-11, with the loading at 3e-19 mol/kg.
+### `test_metamorphic_relations.cpp`
+
+Pairs of runs that pose the same physical problem in two ways and must give
+the same answer, compared field by field (pressure, temperature, every mole
+fraction and loading, every cell, the end of every step). No reference
+solution is needed. The tolerance comes from the integrator: two equivalent
+runs are two adaptive-step integrations of one semi-discrete system, each
+within its global error E of it, so they may differ by 2E (E measured in the
+test by tightening reltol 100x) plus one error-test weight w = reltol |x| +
+atol (atol fixed in the code, `docs/numerics.md`).
+
+- **`ComponentOrderDoesNotChangeTheSolution`** — reversing the fluid's
+  component list on the shared PSA cycle (two adsorbates, heat of adsorption,
+  wall exchange, flow reversal). Measured: y differs by 1.4e-7 to 2.7e-7,
+  against a tolerance of 1.1e-6 to 1.6e-6 (E = 3.5e-7).
+- **`IdenticalLayersEqualOneLayer`** — the packing split into two and four
+  identical layers (dispersion, heat of adsorption, bed-wall exchange and
+  harmonic-mean face permeability all on, front across the interfaces).
+  Bitwise identical on Linux.
+- **`SplitStepEqualsSingleStep`** — a step cut into two halves with the same
+  boundary conditions. Approximate by construction: every step restarts the
+  integrator (first order, initial step, re-solved algebraic state), which may
+  move a single unknown by up to sqrt(N) w (the WRMS error test over N
+  unknowns), so the tolerance is 2E + sqrt(N) w. Measured on y_O2: 3.7e-8
+  (0.6 w); on a longer run it followed w down to the absolute-tolerance floor
+  as reltol was tightened, the signature of an integrator effect.
+- **`InputsInOtherUnitsGiveTheSameSolution`** — the same deck with its inputs
+  in cm, mm, bar, mbar, degC, min, g/cm3, kJ/(kg K) and mol/h. The converted
+  values equal the SI ones to 1e-14 and the solutions agree (y: 6.9e-8,
+  E = 6.5e-8).
+- **`RotatedCycleReachesTheSameCyclicSteadyState`** — the engine solves one
+  bed, so the beds of a symmetric multi-bed cycle are that bed at other phases
+  and are identical by construction; the testable consequence is that the
+  CSS cannot depend on which step is listed first. An isothermal
+  pressurise / feed / blowdown / purge cycle, the purge fed with the feed's
+  product through a connection, is started two steps later: listed before the
+  feed, the purge then reads the PREVIOUS cycle's feed instead of the same
+  cycle's. After 30 cycles the two CSS agree to 9.4e-8 in y (tolerance: twice
+  each run's own cycle-to-cycle change, 1.7e-7), while their first cycles
+  differ by 0.21.
+
+Not testable as a relation: "one bed = two beds in series of half length".
+Other beds exist only through connections that replay a partner step's
+previous run, so two beds working in series at the same time cannot be
+written as a deck that should equal one long bed. The layer split is the
+exact statement the engine can express (a series connection with no dead
+volume).
+### `test_unit_operations.cpp`
+
+The unit operations between and around beds, each reduced to a lumped ODE: the
+bed is isothermal, the pressure drop negligible, and with the same Henry slope
+on both gases the inventory is `V a P`, `a = eps/(R T) + rho_b K`, whatever the
+composition.
+
+- **`ConstantSpeedEvacuationDecaysExponentially`**: a volumetric-flow outlet
+  (constant pump speed `S`) gives `P = P0 exp(-t/tau_S)`,
+  `tau_S = V a R T / S`. Fitted over three time constants: 52.366 s against
+  52.360 s inert and 247.03 s against 246.96 s with adsorption, which
+  stretches the decay by the Henry retardation factor (4.7). About 0.03 s.
+- **`TwoBedEqualisationConservesMolesAndDecaysAtTwiceTheRate`**: equalisation
+  through a linear valve, as two connected steps of the single-bed model
+  (pressurise, ED, blow down, EU) run to the cyclic steady state (30 cycles).
+  The mole balance keeps `P_ED + P_EU = P_H + P_L` (to 1.2e-5 inert, 2.7e-5
+  with adsorption) and the difference decays as `exp(-t/tau_E)`,
+  `tau_E = 1e5 V a / (2 cv)`: fitted 31.699 s against 31.699 s inert, 149.53 s
+  against 149.51 s with adsorption. The factor 2 is the signature of two beds
+  exchanging gas rather than one venting to a fixed pressure. About 2.8 s.
+- **`TwoBedEqualisationWithLangmuirConservesTheInventory`**: the same with
+  a Langmuir isotherm (`K P = 0.5 .. 1.5`). The pressures no longer add up (the
+  sum falls 9.0 % short, the guard); what is conserved is the inventory
+  `n(P_ED) + n(P_EU) = n(P_H) + n(P_L)`, `n = eps P/(R T) + rho_b q*(P)`,
+  measured to 1.1e-4 (tolerance 2e-3, the LDF lag). About 2.3 s.
+- **`BufferTankFillDeliversTheVentedMoles`**: a fill step drawing 60 % of a
+  vent step's moles from a buffer tank raises the pressure by 60 % of the
+  vent's pressure drop (103 760 Pa against 103 759 Pa inert; 103 766 against
+  103 757 with adsorption), linearly in time. About 0.04 s.
+### `test_thermal_fronts.cpp`
+
+Convective heat transport in a flowing bed, which the sealed-bed energy tests
+cannot see.
+
+- **`InertBedFrontTravelsAtEnergyBalanceSpeed`**: a 10 K step in feed
+  temperature into an inert, adiabatic bed. At constant pressure the gas
+  internal energy per volume `eps Cv P/R` is constant, so the energy and mole
+  jump conditions give `w = G1 Cp / (rho_b Cps + eps C1 Cp)`. The outlet
+  temperature's first moment is 347.54 s against `L/w = 347.63` s (2.5e-4);
+  without the gas heat-capacity term it would be 323.1 s, so the test sees
+  that term (7 % of the total) with a 1e-3 tolerance. The jump conditions
+  make the characteristic speeds on both sides equal to `w` (a contact
+  discontinuity), so the smeared front still travels at `w`. About 0.1 s.
+- **`SteadyFlowWithWallLossGivesExponentialProfile`**: hot gas through a bed
+  losing heat through the bed-wall and wall-ambient films in series reaches
+  `T(z) = T_amb + (T_in - T_amb) exp(-lambda z)`,
+  `lambda = U pi d_i / (n_dot Cp)`,
+  `1/(U pi d_i) = 1/(h_i pi d_i) + 1/(h_o pi d_o)` (`lambda L = 1.34`). On
+  25, 50 and 100 cells the profile and outlet errors fall at first order
+  (outlet 9.3e-3, 4.7e-3, 2.35e-3), and the finest outlet error equals the
+  leading upwind term `theta (lambda L)(lambda dx)/2 = 2.352e-3` (measured
+  2.345e-3). About 0.5 s.
+### `test_blowdown_composition_path.cpp`
+
+A pressure-change step. A uniform bed of a binary on linear isotherms
+(`K_A = 8 K_B`, isothermal) blows down through a valve with the other end
+closed. In local equilibrium the composition stays uniform and the outflow
+carries it, so `d(a_A P y)/y = d(a_B P (1-y))/(1-y)` with
+`a_i = eps/(R T) + rho_b K_i`, which integrates to the Knaebel-Hill path
+`P/P0 = (y0/y)^(1/(1-beta)) ((1-y)/(1-y0))^(beta/(1-beta))`,
+`beta = a_B/a_A`. The path depends on the isotherm slopes only, not on the
+valve or the time.
+
+- **`FollowsEquilibriumTheoryPath`**: blowing down 5 -> 1 bar enriches the
+  strong component from 0.30 to 0.7615. The largest departure of `ln P` from
+  the path is 7.1e-4 at `k = 5 1/s` and 3.6e-4 at `k = 10 1/s`: it is the LDF
+  lag, halving with `1/k` (ratio 2.00), and its Richardson extrapolation to
+  `k -> inf` vanishes. The final composition matches the path at the final
+  pressure, and the composition stays uniform to 1.3e-5. Guard: `beta < 0.3`,
+  so a model without the adsorbed phase (`beta = 1`, `y` constant) fails by
+  0.46 in `y`. About 0.4 s.
+### `test_competitive_langmuir_fronts.cpp`
+
+Competitive adsorption fronts. Two trace adsorbates on an extended Langmuir
+isotherm with a common capacity (constant separation factor `alpha = 3`) are
+fed into a clean bed. Equilibrium theory (Rhee, Aris & Amundson 1970; Ruthven
+1984 ch. 9) gives two shocks with the weak component alone, ROLLED UP above
+its feed level, between them. The coherence condition on the slow front (both
+components' jumps give the same speed) fixes the plateau as the positive root
+of `alpha x^2 - [(alpha-1) b0 - alpha + D_f] x - (alpha-1) b0 = 0`
+(`x = K_B p_B*`, `b0 = K_B p_B0`, `D_f = 1 + K_A p_A0 + K_B p_B0`), and the
+jump conditions give the two front times.
+
+- **`TwoFrontsAndRollUpMatchEquilibriumTheory`**: on 200 cells the plateau of
+  the weak component is `1.5363e-3` against `1.5352e-3` (a 1.54x roll-up; error
+  0.073 %), the fast front's first moment is 312.39 s against 312.40 s
+  (3e-5), and the slow front is 532.60 s in both the strong component and the
+  weak one's drop from the plateau, against 532.72 s (2.3e-4). Tolerance
+  `y_A + y_B = 2e-3` relative, an `O(y)` bound on the sorption effect, which
+  was measured by varying the feed level (plateau error about
+  `0.35 (y_A + y_B)`). The quantities are converged in everything numerical:
+  10x in `reltol`, `max_step` 0.1 to 2 s, 100 to 400 cells and LDF 5 to
+  20 1/s move them by < 1.5e-5. First moments are mass balances, so the
+  numerical and LDF smearing of the shocks does not move them; the partial
+  integrals interpolate at the window ends, because the solver logs at
+  irregular instants. Guards: the roll-up exceeds 1.4x and shows in the
+  simulated outlet, and A is absent from the plateau. About 3.4 s.
+
+### `test_desorption_simple_wave.cpp`
+
+The unfavourable direction of the Langmuir front that `test_equilibrium_shock`
+pins: a bed saturated at a trace level (`K p0 = 3`) purged with clean carrier.
+The front spreads into a simple wave in which each concentration travels at
+`u / (1 + (rho_b/eps) f'(c))`, so the outlet sees `c` at
+`t(c) = (L/u) (1 + M / (1 + K p)^2)` (method of characteristics; de Vault 1943,
+Ruthven 1984 ch. 8), and the whole wave probes the isotherm slope rather than
+its secant.
+
+- **`LangmuirDesorptionFollowsCharacteristics`**: on 100 and 200 cells the
+  outlet times of the levels `c/c0 = 0.6, 0.5, 0.4` converge at first order
+  (measured 0.97, 1.00, 0.98) to `t(c)`, and the Richardson-extrapolated times
+  agree with `t(c)` to 3e-4, 1e-5 and 1.2e-4 (tolerance 1e-3: LDF lag
+  `1/(k t)`, the `O(y0)` sorption effect and the mole-fraction `abstol`).
+  The sorption effect was measured: `1.3e-3` of `t(c)` at `y0 = 1e-3`,
+  `1.3e-4` at `y0 = 1e-4`, which is why the test uses `y0 = 1e-4`. Guard: the
+  wave spreads over 450 s, more than 5x its head time, and `f'(c)` varies
+  16-fold across it. About 0.5 s.
+### `test_ldf_thomas.cpp`
+
+A front shaped by the LDF rate rather than by dispersion: a Henry isotherm with
+`k = 0.1 1/s` (12 transfer units), dispersion off, isothermal, compared point
+by point with the Anzelius/Thomas closed form
+`c/c0 = J(x, tau) = 1 - int_0^x exp(-tau - s) I0(2 sqrt(tau s)) ds`
+(Ruthven 1984, ch. 8), which the test evaluates by quadrature with its own
+Bessel series. The upwind scheme makes the column `n` tanks in series, whose
+transfer function `(1 + (dx/u) g(s))^(-L/dx)` is known exactly, so the grid
+error is not a nuisance to be tolerated but a second prediction.
+
+- **`ReferenceSolutionSatisfiesItsIdentities`**: the two integral forms of `J`
+  agree, `J(a,b) + J(b,a) = 1 + exp(-a-b) I0(2 sqrt(ab))`, the analytic second
+  derivatives match finite differences, and the cumulants are `x` and `2x`. No
+  solver run.
+- **`LinearIsothermOutletCurveMatchesThomasSolution`**: on 50, 100 and 200
+  cells, (1) the outlet variance minus the exact upwind term `L dx R^2 / u^2`
+  equals the Thomas variance `2 (R-1) L / (u k)` (measured 2415.5 vs
+  2416.2 s^2, 0.03 %, on every grid); (2) `max |F - J|` falls at first order
+  (0.0246, 0.0128, 0.0065); (3) after subtracting the closed-form leading error
+  `(L dx / 2) d2F/dz2`, the residual falls at second order (2.2e-3, 6.1e-4,
+  1.7e-4; orders 1.89, 1.84) and is 2.6 % of the error on the finest grid.
+  Guard: a Gaussian curve with the same mean and variance misses the
+  simulated one by 0.042, 250x the finest residual, so the asymmetric Thomas
+  shape is what is being matched. About 1.3 s.
