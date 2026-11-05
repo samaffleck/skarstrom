@@ -82,6 +82,29 @@ root `CMakeLists.txt`.
   Python `isotherm_kinds()`, IAST (an exact Sips term) and the docs know it;
   the fitter does not offer it yet. Near y = 0 each term is regularised with a
   step at 1e-5 (loading changed by 1e-10 / y^2: 1e-4 at y = 1e-3).
+
+### Fixed — breakthrough decks no longer stall on fine grids
+- `Ward2022_Q50ccm` ran on 10-160 cells but failed on 320 with every
+  advection scheme ("too much work": 50 000 steps, 24 000 Newton convergence
+  failures, 72 000 Jacobians) as the CO2 front left the column. The
+  difference-quotient Jacobian perturbed the pressure by IDA's increment
+  floor reltol |P| + abstol (0.1 Pa at 1 bar). A pressure outlet imposes the
+  outlet-face velocity as the explicit Ergun root of the end-cell pressure
+  drop, which is linear only over A² / (4B), a pressure scale proportional to
+  the cell width (0.12 Pa on 60 cells, 0.02 Pa on 320): the 0.1 Pa secant
+  was half the true slope there, and the modified Newton iteration diverged
+  unless the step was tiny. The pressure columns of the `BandDQ`, `Coloured`
+  and `ColouredCheck` Jacobians now use sqrt(eps) max(|P|, |h P'|) floored at
+  the pressure's absolute tolerance (1.5e-3 Pa at 1 bar); every other column
+  keeps IDA's increment. The deck now runs on 320 cells in 2 169 steps with
+  24 convergence failures (3 s), and on 640 cells in 2 047 steps. Results of
+  every deck move at integrator-tolerance level, since the Jacobian's
+  pressure columns change in the last digits: across the paper validation
+  metrics, front times by at most 2e-5 relative and curve RMSEs by at most
+  1e-5 absolute, and every paper test still passes.
+  `JacobianMode::IdaInternal` (IDA's own Jacobian) is unchanged. Test:
+  `FineGridBreakthrough.Ward2022Q50ccmConvergesTo320Cells`.
+
 ### Fixed — WENO / van Leer outlet-cell mole-fraction sum drifts during fast outflow
 - With `AdvectionScheme::WENO` or `VanLeer` the cell at a bed end that gas
   leaves through could see its mole fractions drift from summing to one

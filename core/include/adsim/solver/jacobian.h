@@ -25,8 +25,12 @@ namespace adsim {
   };
 
   // Difference-quotient Jacobian for the banded IDA system, installed with
-  // IDASetJacFn. Each column is perturbed with exactly the increment IDA's
-  // idaLsBandDQJac uses, so every entry written is bit-identical to IDA's.
+  // IDASetJacFn. Each column is perturbed with the increment IDA's
+  // idaLsBandDQJac uses, so every entry written is bit-identical to IDA's,
+  // except the pressure columns: their increment is sqrt(eps) |P| floored at
+  // the pressure's absolute tolerance, not IDA's reltol |P| + abstol, which
+  // is coarser than the pressure differences the flow depends on (see
+  // Increment in jacobian.cpp).
   //
   // In Coloured mode the coupling pattern is learned from band DQ evaluations:
   // at a few randomised "generic" states near the current one (so couplings
@@ -156,6 +160,8 @@ namespace adsim {
     int n_vars_ = 0;
     int n_cells_ = 0;
     int velocity_var_ = -1;  // equation index of the face velocity (-1 if absent)
+    int pressure_var_ = -1;  // equation index of the pressure (-1 if absent)
+    double pressure_abstol_ = 0.0;  // the pressure's absolute tolerance (its DQ increment floor)
     std::vector<int> var_;
     std::vector<int> cell_;
     std::vector<sunindextype> index_of_;
