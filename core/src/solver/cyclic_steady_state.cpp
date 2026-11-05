@@ -146,7 +146,13 @@ namespace adsim {
       if (total_loading.empty()) total_loading.assign(q->size(), 0.0);
       for (size_t i = 0; i < q->size() && i < total_loading.size(); ++i) total_loading[i] += (*q)[i];
     }
-    const double loading_scale = rms(total_loading);
+    // The scale is floored at the integrator's absolute tolerance on the
+    // loading unknowns (1e-8 mol/kg, set in Equations::Initialise): a loading
+    // below it is not resolved, and an inert packing (no isotherm) holds only
+    // round-off (1e-26 to 1e-22 mol/kg, of either sign), which divided by its own RMS
+    // read as an O(1) change and kept the state test from ever passing.
+    constexpr double kLoadingAbsTol = 1e-8;  // [mol/kg]
+    const double loading_scale = std::max(rms(total_loading), kLoadingAbsTol);
     for (const auto& name : components) {
       add(last_row(component(curr, ComponentVariableType::ADSORBED_CONCENTRATION, name)),
           last_row(component(prev, ComponentVariableType::ADSORBED_CONCENTRATION, name)), loading_scale);

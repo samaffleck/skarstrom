@@ -59,6 +59,22 @@ root `CMakeLists.txt`.
   van Leer 2 (WENO interior 2.5-2.8 before the second-order central terms
   take over); with the energy balance the temperature is first order for
   every scheme (the convective face temperature is always upwind). About 4 s.
+### Fixed — the CSS state test never passed for an inert bed
+- For a bed of inert packing (an adsorbent with no isotherm) the adsorbed
+  loadings are round-off, 1e-26 to 1e-22 mol/kg of either sign. The state
+  test of the mass-balance CSS methods
+  (`CyclicSteadyState::EndOfCycleStateChange`) scales the loading change by
+  the RMS total loading and skipped the field only when that scale was below
+  1e-300, so it divided noise by noise and reported a change of 0.77 to 51
+  on a bed whose state repeats: a mass-balance method with the state test on
+  (the default) never stopped.
+  The loading scale is now floored at the solver's absolute tolerance on the
+  loading unknowns (1e-8 mol/kg); a loading below it is not resolved. Every
+  adsorbing deck has an RMS loading far above the floor, so its state change
+  is unchanged to the last bit. Test:
+  `CyclicSteadyState.InertBedReachesCSSUnderTheStateTest` (the shared PSA
+  cycle with inert packing stops at the minimum-cycle floor, cycle 4). Found
+  by the dynamic-tank CSS test of the verification programme (WP19-E2a).
 
 ### Added — convergence verification of cycle results (grid, integrator tolerance, CSS)
 - `CycleKpiGridConvergence` (`core/test/validation/test_grid_convergence.cpp`):

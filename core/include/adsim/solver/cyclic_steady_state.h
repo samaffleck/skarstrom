@@ -155,7 +155,9 @@ namespace adsim {
     // last step) since the previous cycle: the largest, over the slow fields, of
     // RMS(x_c - x_{c-1}) / scale. The fields and scales are the adsorbed loading
     // of each component (scaled by the RMS total loading, so a trace component's
-    // round-off cannot dominate), the gas mole fractions (absolute) and the
+    // round-off cannot dominate, floored at the solver's absolute tolerance on
+    // loadings, 1e-8 mol/kg, so an inert bed's round-off loadings do not either),
+    // the gas mole fractions (absolute) and the
     // fluid, solid and wall temperatures (scaled by their RMS). Returns a
     // negative value when either cycle is not in the log.
     static double EndOfCycleStateChange(const EquationLog& logger, int cycle_index);

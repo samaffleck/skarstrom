@@ -50,7 +50,7 @@ $$
 \Delta_{\text{state}} = \max_f \frac{\operatorname{RMS}\left(x_f^{\,c} - x_f^{\,c-1}\right)}{s_f} \thickspace \le\thickspace \varepsilon_{\text{state}}
 $$
 
-over the adsorbed loading of each component (scaled by the RMS total loading $s_f$, so that a trace component's round-off cannot dominate), the gas mole fractions ($s_f = 1$) and the fluid, solid and wall temperatures (scaled by their RMS). The loadings hold almost all of a component's inventory, so this measures the drift that the balance can hide. You set the **State change tolerance** $\varepsilon_{\text{state}}$ (`css.state_tolerance`, default 2×10⁻⁵). Set it to 0 to switch the state test off. The state test does not depend on the balance closing exactly, so a constant offset in the balance does not delay it.
+over the adsorbed loading of each component (scaled by the RMS total loading $s_f$, so that a trace component's round-off cannot dominate; $s_f$ is at least the solver's absolute tolerance on loadings, 10⁻⁸ mol/kg, so the round-off loadings of an inert packing do not dominate either), the gas mole fractions ($s_f = 1$) and the fluid, solid and wall temperatures (scaled by their RMS). The loadings hold almost all of a component's inventory, so this measures the drift that the balance can hide. You set the **State change tolerance** $\varepsilon_{\text{state}}$ (`css.state_tolerance`, default 2×10⁻⁵). Set it to 0 to switch the state test off. The state test does not depend on the balance closing exactly, so a constant offset in the balance does not delay it.
 
 ### Consecutive cycles
 

@@ -33,6 +33,8 @@
 
 #include "psa_cycle_case.h"
 
+#include <cstdio>
+
 namespace adsim {
 
   using namespace adsim::validation;
@@ -141,6 +143,87 @@ namespace adsim {
     EXPECT_LT(gaps.back(), 0.02 * scale)
       << "End-of-cycle profile has not settled to a cyclic steady state (final "
       << "change " << gaps.back() << " mol/m3 vs profile norm " << scale << ")";
+  }
+
+  // ===========================================================================
+  // The state test on an inert bed
+  // ===========================================================================
+  //
+  // A bed of inert packing (an adsorbent with no isotherm) carries loading
+  // unknowns that stay at zero up to round-off (of either sign: 1e-26 mol/kg
+  // here, 1e-22 on the feed/hold deck of test_css_status), far below the
+  // integrator's absolute tolerance on loadings (1e-8 mol/kg). The state test
+  // scales the loading change by the RMS total loading, so without a floor on
+  // that scale it compared noise with noise: on this deck it reported changes
+  // of 0.77 to 51 at every cycle although the bed repeats to round-off, and
+  // the run never stopped. With the scale floored at the loading tolerance the
+  // round-off counts for ~1e-18, and the state change (now set by the mole
+  // fractions) is 6e-14, then ~4e-16.
+  //
+  // The deck: the shared PSA cycle, isothermal, with the 13X replaced by inert
+  // packing and the bed initially filled with nearly pure N2, so that the first
+  // cycle flushes it to the feed composition (the guard: the state moves). From
+  // then on every cycle repeats, so the default rule (Per-Component Mass
+  // Balance, state test on) must stop at the earliest cycle it may: min_cycles_
+  // cycles run, the last consecutive_cycles_ of them passing.
+
+  TEST(CyclicSteadyState, InertBedReachesCSSUnderTheStateTest) {
+    UserData data;
+    BuildPsaCycle(data, 20);
+    data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
+    std::vector<AdsorbentID> ids;
+    for (const auto& entry : data.adsorbent_directory.GetAll()) ids.push_back(entry.first);
+    for (AdsorbentID id : ids)  // no isotherm, no LDF: inert packing
+      data.adsorbent_directory.Get(id).adsorption_source_ = AdsorptionSource{};
+    data.ic.mole_fraction["Nitrogen"] = 0.99;
+    data.ic.mole_fraction["Oxygen"] = 0.01;
+
+    constexpr int kCycles = 10;
+    data.cycle.number_of_cycles_ = kCycles;
+    data.settings.reltol = 1e-8;
+    data.settings.max_cycles_to_keep_ = kCycles;  // the whole history
+    auto& css = data.settings.css;
+    css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;  // defaults otherwise: state test on
+    ASSERT_GT(static_cast<double>(css.state_tolerance_), 0.0);
+
+    std::string error;
+    ASSERT_TRUE(data.PerformChecks(error)) << error;
+    CoupledSolver solver{data};
+    ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+    const auto& log = solver.GetLog();
+    const int last_step = *log.sys_data.step_index_set_.rbegin();
+
+    // GUARD 1: the bed is inert -- its loadings are logged (so the loading part
+    // of the state test runs) and are zero to within round-off.
+    double max_loading = 0.0;
+    for (int c : log.sys_data.cycle_index_set_)
+      for (const char* component : {"Nitrogen", "Oxygen"}) {
+        const auto q = log.GetComponentVariable(c, last_step, ComponentVariableType::ADSORBED_CONCENTRATION,
+                                                component);
+        ASSERT_FALSE(q.values.empty()) << "no loading logged";
+        for (double v : q.values.back()) max_loading = std::max(max_loading, std::abs(v));
+      }
+    std::printf("  inert bed: largest |loading| %.1e mol/kg\n", max_loading);
+    EXPECT_LT(max_loading, 1e-15) << "the packing adsorbs: this is not the inert case";
+
+    // GUARD 2: the first cycle moves the bed from its initial composition.
+    const auto y0 = log.GetComponentVariable(0, last_step, ComponentVariableType::MOLE_FRACTION, "Oxygen");
+    ASSERT_FALSE(y0.values.empty());
+    double y_mean = 0.0;
+    for (double v : y0.values.back()) y_mean += v / static_cast<double>(y0.values.back().size());
+    EXPECT_GT(y_mean, 0.15) << "the first cycle did not flush the bed towards the feed (0.21 O2)";
+
+    for (int c : log.sys_data.cycle_index_set_)
+      if (c > 0)
+        std::printf("  inert bed: cycle %d state change %.3e\n", c,
+                    CyclicSteadyState::EndOfCycleStateChange(log, c));
+
+    // The bed repeats from cycle 1 on, so the stop is at the floor
+    // (min_cycles_ = 5: 0-based cycle 4), with a cycle of slack.
+    ASSERT_TRUE(solver.ReachedCSS()) << "the state test never passed on an inert bed";
+    EXPECT_LE(solver.GetCSSCycleIndex(), css.min_cycles_);
+    const int stop = solver.GetCSSCycleIndex();
+    EXPECT_LE(CyclicSteadyState::EndOfCycleStateChange(log, stop), 1e-10);
   }
 
 } // namespace adsim
