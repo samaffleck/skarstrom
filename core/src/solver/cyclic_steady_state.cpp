@@ -426,7 +426,15 @@ namespace adsim {
       note->fit = "mu = " + fmt(mu) + ", step ratio " + fmt(step_ratio, 4)
                 + ", single-mode rate " + fmt(rate, 4);
     }
-    if ((rate > 0.0) != (mu < 0.0)) {
+    //
+    // A positive mu belongs to an oscillating mode, rho < 0, for which
+    // mu = rho / (rho - 1) lies in (0, 1/2) while |rho| < 1. A positive mu of 1
+    // or more has no contracting single mode behind it, so it is skipped too,
+    // never limited: the limit below applies to negative mu only. (With the
+    // weighted inner product used throughout, mu >= 1/2 is the same as
+    // |r2| >= |r1|, so after the step-ratio test this guard only catches
+    // rounding; it states the rule rather than relying on that identity.)
+    if ((rate > 0.0) != (mu < 0.0) || mu >= 1.0) {
       return skip("steps do not follow one geometric mode: mu = " + fmt(mu)
                   + ", single-mode rate " + fmt(rate));
     }
@@ -446,10 +454,9 @@ namespace adsim {
     // stopping error; at 50 one deck (Perez 2019 F, 10 cells) stopped 1.6x
     // further from its CSS than the plain run.
     if (!std::isfinite(mu)) return skip("no curvature to fit");
-    if (std::abs(mu) > kMaxStepMultiple) {
-      const double limited = mu < 0.0 ? -kMaxStepMultiple : kMaxStepMultiple;
-      if (note) note->fit += " (jump limited to mu = " + fmt(limited) + ")";
-      mu = limited;
+    if (mu < -kMaxStepMultiple) {
+      if (note) note->fit += " (jump limited to mu = " + fmt(-kMaxStepMultiple) + ")";
+      mu = -kMaxStepMultiple;
     }
 
     // Apply x*_f = x2_f - mu r2_f per field, then PROJECT back onto the physical

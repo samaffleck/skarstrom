@@ -404,6 +404,25 @@ namespace adsim {
       EXPECT_LT(deviation(rho, 1.0), 1e-15);
     }
 
+    // 3b. An oscillating mode (rho = -0.5, mu = +1/3): the jump lands on x*
+    //     exactly. A growing oscillation (rho = -1.2, mu = +0.55), which no
+    //     contracting mode explains, is skipped and never limited or applied.
+    //     (A positive mu of 1/2 or more always comes with |r2| >= |r1|, so the
+    //     step-ratio test catches it.)
+    {
+      const Outcome out = run(-0.5, 2, no_kick);
+      EXPECT_TRUE(out.moved) << out.note.skipped;
+      EXPECT_EQ(out.note.fit.find("limited"), std::string::npos) << out.note.fit;
+      EXPECT_LT(deviation(-0.5, 0.0), 1e-12);
+    }
+    {
+      const double rho = -1.2;
+      const Outcome out = run(rho, 2, no_kick);
+      EXPECT_FALSE(out.moved);
+      EXPECT_FALSE(out.note.skipped.empty());
+      EXPECT_LT(deviation(rho, 1.0), 1e-15);
+    }
+
     // 4. Steps that shrink slowly (rho = 0.99) while turning: a component
     //    along the second mode appears in the last sample only, 12 % of the
     //    step. The step ratio is sqrt(0.99^2 + 0.12^2) = 0.997 < 1 and the steps
