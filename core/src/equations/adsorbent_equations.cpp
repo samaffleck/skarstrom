@@ -985,6 +985,29 @@ namespace adsim {
       return cell <= 0 || cell >= last_cell || dv.IsVoidCell(static_cast<size_t>(cell));
     }
 
+    // Bound a reconstructed interior face value y_f between the two cells
+    // y_a, y_b that share the face: to [0, 1], widened to take in the two
+    // cells' own values. A reconstruction can overshoot where a cell is a
+    // local extremum (WENO's upwind extrapolation 3/2 y_c - 1/2 y_cu gives
+    // -0.17 on the cells 0.45, 0, 1), and the bound stops that from carrying
+    // a negative or > 1 composition. It must not be tighter than the cells
+    // themselves, though: a component absent from the feed and the bed sits
+    // at round-off around zero (and a pure one around one), and a plain
+    // [0, 1] clamp zeroed the face of every cell whose value or stencil had
+    // drifted marginally negative. Those cells could then not pass their
+    // content on (the face, and its derivative, were zero), so negative
+    // round-off was trapped while positive round-off left the bed, the
+    // component drifted to -6e-10 (a few percent of its absolute tolerance),
+    // and the face switching between clamped and free as Newton iterated
+    // stalled the iteration: up to 25 times more steps than upwind, nearly
+    // all after convergence failures (WP20-4). A face value between the two
+    // cells it separates is never an overshoot, so allowing it keeps the
+    // upwind behaviour of round-off (carried along and out) and leaves every
+    // in-range profile exactly as [0, 1] did.
+    inline double BoundFace(double y_f, double y_a, double y_b) {
+      return std::clamp(y_f, std::min({0.0, y_a, y_b}), std::max({1.0, y_a, y_b}));
+    }
+
     // Third-order WENO face value (Jiang and Shu 1996, k = 2; the scheme of
     // Haghpanah et al. 2013 and Yancy-Caballero et al. 2020, PEESEgroup/PSA
     // CycleSteps/WENO.m) at the face between cell c and its downwind
@@ -1027,11 +1050,13 @@ namespace adsim {
     const int N = static_cast<int>(yi_face.size());
     for (int n = 0; n < N; ++n) {
       // Positive velocity: reconstruct from the left (cells n - 1, n, n + 1).
-      // A reconstruction can overshoot at a steep front and produce a face
-      // mole fraction just outside [0, 1]: the reconstructed value is clamped
-      // back into the physical range so an overshoot cannot inject a negative
-      // or > 1 composition. Each face is single-valued, so every species stays
-      // conserved. The upwind faces below are NOT clamped, as under Upwind:
+      // A reconstruction can overshoot where a cell is a local extremum and
+      // produce a face mole fraction outside [0, 1]: the reconstructed value
+      // is bounded to [0, 1], widened to the two cells' own values (see
+      // BoundFace), so an overshoot cannot inject a negative or > 1
+      // composition while round-off in the cells is still carried along as
+      // under Upwind. Each face is single-valued, so every species stays
+      // conserved. The upwind faces below are NOT bounded, as under Upwind:
       // the bed-end faces are not rescaled to the upwind cell's sum (see
       // RescaleInteriorMoleFractionFaces), and clamping an end cell's value
       // (a pure-N2 outlet at y = 1 + 1e-9) made the outlet face sum to one
@@ -1044,14 +1069,14 @@ namespace adsim {
         // reference's boundary faces. This keeps the boundary fluxes equal to
         // the stream integrals the cycle balance and KPIs are built from.
         if (IsLumpedCell(dv, n, N) || IsLumpedCell(dv, n + 1, N)) return yi[n];
-        return std::clamp(WenoFace(yi[n - 1], yi[n], yi[n + 1], dx[n - 1], dx[n], dx[n + 1],
-                                   IsLumpedCell(dv, n - 1, N)), 0.0, 1.0);
+        return BoundFace(WenoFace(yi[n - 1], yi[n], yi[n + 1], dx[n - 1], dx[n], dx[n + 1],
+                                  IsLumpedCell(dv, n - 1, N)), yi[n], yi[n + 1]);
       };
       // Negative velocity: mirror image (cells n + 2, n + 1, n).
       auto right_biased = [&]() {
         if (IsLumpedCell(dv, n + 1, N) || IsLumpedCell(dv, n, N)) return yi[n + 1];
-        return std::clamp(WenoFace(yi[n + 2], yi[n + 1], yi[n], dx[n + 2], dx[n + 1], dx[n],
-                                   IsLumpedCell(dv, n + 2, N)), 0.0, 1.0);
+        return BoundFace(WenoFace(yi[n + 2], yi[n + 1], yi[n], dx[n + 2], dx[n + 1], dx[n],
+                                  IsLumpedCell(dv, n + 2, N)), yi[n], yi[n + 1]);
       };
       yi_face[n] = UpwindFace(u[n], left_biased, right_biased);
     }
@@ -1125,17 +1150,20 @@ namespace adsim {
 
     // Same stencil and boundary treatment as UpdateMoleFractionFaceWENO: the
     // bed-end faces and the faces of void cells take the upwind value,
-    // unclamped. The limited face value lies between its two cells, so its
-    // clamp only acts when a cell itself is marginally outside [0, 1].
+    // unbounded. The limited face value lies between its two cells, so
+    // BoundFace leaves it unchanged; a plain [0, 1] clamp acted only on
+    // round-off in a cell marginally outside [0, 1], where it trapped that
+    // round-off (a 4 to 15 times slower run with an absent component,
+    // WP20-4).
     const int N = static_cast<int>(yi_face.size());
     for (int n = 0; n < N; ++n) {
       auto left_biased = [&]() {
         if (IsLumpedCell(dv, n, N) || IsLumpedCell(dv, n + 1, N)) return yi[n];
-        return std::clamp(VanLeerFace(yi[n - 1], yi[n], yi[n + 1], IsLumpedCell(dv, n - 1, N)), 0.0, 1.0);
+        return BoundFace(VanLeerFace(yi[n - 1], yi[n], yi[n + 1], IsLumpedCell(dv, n - 1, N)), yi[n], yi[n + 1]);
       };
       auto right_biased = [&]() {
         if (IsLumpedCell(dv, n + 1, N) || IsLumpedCell(dv, n, N)) return yi[n + 1];
-        return std::clamp(VanLeerFace(yi[n + 2], yi[n + 1], yi[n], IsLumpedCell(dv, n + 2, N)), 0.0, 1.0);
+        return BoundFace(VanLeerFace(yi[n + 2], yi[n + 1], yi[n], IsLumpedCell(dv, n + 2, N)), yi[n], yi[n + 1]);
       };
       yi_face[n] = UpwindFace(u[n], left_biased, right_biased);
     }

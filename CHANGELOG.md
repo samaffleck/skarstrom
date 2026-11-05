@@ -43,6 +43,26 @@ root `CMakeLists.txt`.
   `Simulation::KPIHistoryRecords()`, and `adsim::ComputeCycleKPIs`, the
   per-cycle computation both use. `KPIRecord` moved from `simulation.h` to
   `kpi_history.h` (which `simulation.h` includes).
+### Fixed — WENO / van Leer slow when a component is absent
+- The WENO and van Leer interior face mole fractions were clamped to
+  [0, 1]. A component absent from the feed and the bed holds only round-off
+  around zero, and the clamp zeroed the face (and its derivative) of every
+  cell marginally below zero: negative round-off could not leave the bed,
+  the component drifted to about -6e-10, and the Newton iteration kept
+  failing to converge. WENO took 25 to 80 times longer than Upwind on such
+  decks, van Leer 4 to 15 times (run with each scheme,
+  `UserDataTest.IsothermalMassSource`: Upwind 0.08 s, WENO 6.1 s, van Leer
+  0.52 s;
+  `ClosedBedEnergyTest.OpenSystemEnergyBalanceConvergesUnderGridRefinement`:
+  0.34 s, 27 s, 5.5 s). The face is now bounded to [0, 1] widened to the
+  values of the two cells that share it: identical for cells inside [0, 1],
+  and round-off is carried along and out of the bed as under Upwind. Both
+  tests now take Upwind's steps with either scheme (WENO 0.09 s and 0.64 s,
+  van Leer 0.09 s and 0.51 s). Upwind is untouched. With WENO or van Leer, results of decks
+  move at the solver-tolerance level (KPIs by up to 1e-6 relative on ten
+  example decks), and an absent component no longer leaks a spurious trace
+  out of the bed (9e-7 to 1e-24 mol-fraction seconds on `Nguyen2022_Fig4`).
+  Test: `AdvectionSchemeRobustness.AnAbsentComponentCostsNoExtraSteps`.
 
 ### Added — own ramp time for pressure ramps; exponential factor
 - Linear, exponential and log-linear pressure profiles (pressure boundaries
