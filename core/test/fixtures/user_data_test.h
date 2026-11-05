@@ -21,6 +21,7 @@
 #include "adsim/boundary_conditions/connection.h"
 #include "adsim/equations/isotherm.h"
 #include "adsim/math/constants.h"
+#include "atomic_write.h"
 
 // GTest includes
 #include <gtest/gtest.h>
@@ -518,8 +519,10 @@ namespace adsim {
       
       std::string json_filename = test_name + ".json";
       std::filesystem::path json_path = examples_path / json_filename;
-      
-      SaveToJson(data, json_path.string());    
+
+      // Atomic: other tests may be loading this deck at the same time under
+      // `ctest --parallel` and must never see a partly written file.
+      test::SaveToJsonAtomically(data, json_path);
     }
 
     void SaveTest(const std::string& test_name, CoupledSolver& solver) {
