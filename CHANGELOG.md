@@ -21,6 +21,28 @@ root `CMakeLists.txt`.
   per-cycle computation both use. `KPIRecord` moved from `simulation.h` to
   `kpi_history.h` (which `simulation.h` includes).
 
+### Added — method-of-manufactured-solutions hook and order test
+- Verification hook `UserData::manufactured_sources_`
+  (`adsim/equations/manufactured_sources.h`): source terms, functions of z
+  and t, for the overall balance, each component balance, each loading's
+  rate law, the momentum faces (a pressure-gradient source on Darcy faces
+  and interior Ergun faces) and the LTE energy balance, added to the
+  residuals in the scaling of the neighbouring physical terms. Testing only:
+  not serialised and not reachable from decks, the parameter registry,
+  Python or the web. With no source set the results are bit-identical
+  (`bench_solver` logs of two example decks are byte-identical to the
+  previous residual code) and the residual cost is unchanged.
+  `UpdateResiduals` records the integrator time in `UserData::residual_time_`
+  for it.
+- `core/test/validation/test_manufactured_solutions.cpp`: a smooth,
+  time-dependent manufactured solution with dispersion, LDF kinetics on a
+  Langmuir isotherm, Kozeny-Carman flow and (thermal case) the energy
+  balance, sources derived by hand and checked by finite differences.
+  Observed orders on 20-160 cells: upwind 1.0 in every field; WENO and
+  van Leer 2 (WENO interior 2.5-2.8 before the second-order central terms
+  take over); with the energy balance the temperature is first order for
+  every scheme (the convective face temperature is always upwind). About 4 s.
+
 ### Added — convergence verification of cycle results (grid, integrator tolerance, CSS)
 - `CycleKpiGridConvergence` (`core/test/validation/test_grid_convergence.cpp`):
   purity, recovery and specific energy of the shared PSA cycle at cyclic
