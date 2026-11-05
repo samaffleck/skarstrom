@@ -46,6 +46,15 @@ namespace adsim {
       return ss.str();
     }
 
+    // The CSS accelerator's report for one cycle: the fit of a full window at
+    // HIGH, and a rejected window as "CSS acceleration skipped (reason)" at
+    // MEDIUM, like a rejected re-seed.
+    template <class Log>
+    void LogAccelerationNote(const AccelerationNote& note, Log log) {
+      if (!note.fit.empty()) log(LogLevel::HIGH, "  CSS acceleration fit: " + note.fit);
+      if (!note.skipped.empty()) log(LogLevel::MEDIUM, "  CSS acceleration skipped (" + note.skipped + ")");
+    }
+
     // Without a tight max-step cap IDA can take steps much longer than the
     // logging resolution. KPIs and the conservation checks integrate the logged
     // boundary flows, so when an accepted step (t_prev, t_curr] is longer than
@@ -461,7 +470,9 @@ namespace adsim {
 
       auto& state = user_data_.state;
       auto& acc_css = user_data_.settings.acc_css;
-      bool accelerated = acc_css.Accelerate(state, cycle_index);
+      AccelerationNote acc_note;
+      bool accelerated = acc_css.Accelerate(state, cycle_index, &acc_note);
+      LogAccelerationNote(acc_note, [this](LogLevel level, const std::string& msg) { LogMessage(level, msg); });
       if (accelerated) {
         // Set up the first step's boundary conditions so the re-seed is validated
         // and committed under the context the next cycle will actually run in.
@@ -649,7 +660,9 @@ namespace adsim {
         }
 
         auto& acc_css = user_data_.settings.acc_css;
-        bool accelerated = acc_css.Accelerate(user_data_.state, status_.GetCycleIndex());
+        AccelerationNote acc_note;
+        bool accelerated = acc_css.Accelerate(user_data_.state, status_.GetCycleIndex(), &acc_note);
+        LogAccelerationNote(acc_note, [this](LogLevel level, const std::string& msg) { LogMessage(level, msg); });
         if (accelerated) {
           // Set up the first step's BC context, then validate the extrapolated
           // state in a throwaway integrator; only commit it to the live solver if

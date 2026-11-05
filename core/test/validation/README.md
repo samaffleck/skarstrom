@@ -63,7 +63,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_compressor_work.cpp` | Polytropic work, isothermal and reversible-adiabatic limits |
 | `test_numerical_verification.cpp` | Order of accuracy, tolerance independence, scale invariance, flow symmetry |
 | `test_cyclic_steady_state.cpp` | End-of-cycle profile converges to a cyclic steady state |
-| `test_css_acceleration.cpp` | CSS acceleration reduces the cycles to CSS; reseeded ramps start at the step start |
+| `test_css_acceleration.cpp` | CSS acceleration reduces the cycles to CSS with each advection scheme, and halves them on a deck whose approach to CSS is one slow mode (same KPIs); the jump on exact geometric sequences (exact, limited, skipped); reseeded ramps start at the step start |
 | `test_invariants.cpp` | Maximum principle, composition and loading bounds |
 | `test_robustness_guards.cpp` | Steep fronts and thin walls stay finite and bounded |
 | `test_robustness_fuzz.cpp` | Randomised physical decks converge or fail cleanly, never silently NaN |
