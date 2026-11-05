@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <map>
 #include <string>
 #include <tuple>
@@ -98,6 +99,33 @@ namespace adsim {
     int Evaluate(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp, N_Vector rr,
                  SUNMatrix Jac, UserData* udata, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
+    // Testing only: a read-only view of a Jacobian as IDA receives it, passed
+    // to the observer installed with SetEvaluationObserverForTesting after
+    // every successful evaluation. `increments` holds the DQ increment of
+    // every column (the same for a band and a coloured evaluation), so an
+    // independent difference quotient can reproduce each entry. The observer
+    // may evaluate residuals through `udata` (that moves udata->state, which
+    // IDA's next residual call overwrites, as ColouredCheck's extra
+    // evaluations do) but must not modify the vectors or the matrix.
+    struct EvaluationView {
+      enum class Kind { Band, Coloured };  // Band: BandDQ, learning or audit evaluation
+      Kind kind = Kind::Band;
+      sunrealtype tt = 0.0;
+      sunrealtype c_j = 0.0;
+      N_Vector yy = nullptr;
+      N_Vector yp = nullptr;
+      SUNMatrix jac = nullptr;
+      sunindextype mu = 0;  // matrix half-bandwidths
+      sunindextype ml = 0;
+      const std::vector<sunrealtype>* increments = nullptr;
+      UserData* udata = nullptr;
+    };
+    using EvaluationObserver = std::function<void(const EvaluationView&)>;
+    // Process-wide (the integrator owns its BandedJacobian, tests cannot reach
+    // it before the run); pass an empty function to remove. Not thread-safe:
+    // set it only around a single-threaded run.
+    static void SetEvaluationObserverForTesting(EvaluationObserver observer);
+
     // Residual calls spent on Jacobians (not counting ColouredCheck's comparison).
     long NumResidualEvals() const { return num_res_evals_; }
     long NumAudits() const { return num_audits_; }
@@ -127,6 +155,9 @@ namespace adsim {
     const std::vector<std::string>& CheckReport() const { return check_report_; }
 
   private:
+    // Evaluate without the testing observer.
+    int EvaluateMatrix(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp, N_Vector rr,
+                       SUNMatrix Jac, UserData* udata, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
     void InitialiseBand();  // pattern tables and column groups for (mu_, ml_, scan_mu_, scan_ml_)
     bool IsBoundaryColumn(sunindextype j) const;
     // Records the nonzeros of a band evaluation; returns true if any was new.
@@ -195,6 +226,8 @@ namespace adsim {
 
     bool record_pattern_ = false;
     std::map<PatternKey, long> pattern_counts_;
+
+    bool last_pass_coloured_ = false;  // the latest Evaluate was a coloured pass
 
     SUNMatrix check_matrix_ = nullptr;
     long num_check_mismatches_ = 0;
