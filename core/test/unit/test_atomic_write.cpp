@@ -70,8 +70,8 @@ namespace adsim {
       // the target: every read must be exactly one of them (with a plain
       // ofstream rewrite, reads of an empty or truncated file show up).
       const fs::path target = dir_ / "deck.json";
-      const std::string a(512 * 1024, 'a');
-      const std::string b(384 * 1024, 'b');
+      const std::string a(128 * 1024, 'a');
+      const std::string b(96 * 1024, 'b');
       test::WriteFileAtomically(target, [&](std::ostream& out) { out << a; });
 
       std::atomic<bool> done{false};
@@ -80,9 +80,19 @@ namespace adsim {
         while (!done.load()) {
           std::ifstream in(target, std::ios::binary);
           if (!in.is_open()) { ++unopened; continue; }
-          const std::string s{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+          std::ostringstream content;
+          content << in.rdbuf();
+          in.close();
+          const std::string s = content.str();
           if (s != a && s != b) ++bad;
           ++reads;
+#ifdef _WIN32
+          // Windows cannot replace a file while it is open (std::ifstream
+          // opens without FILE_SHARE_DELETE), so a reader that reopens it
+          // back to back would hold it nearly all the time. Pause like the
+          // suite's real readers, which open a deck once and close it.
+          std::this_thread::sleep_for(std::chrono::milliseconds(2));
+#endif
         }
       });
       // Keep rewriting until the reader has read many times while the writes

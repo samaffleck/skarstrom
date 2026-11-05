@@ -60,8 +60,9 @@ namespace adsim::test {
   // open. On Windows the replace (MoveFileExW) fails with a sharing violation
   // while another process has the target open without FILE_SHARE_DELETE, which
   // is how std::ifstream opens it; that window is short (a test reading a
-  // deck), so the rename is retried with a growing back-off for about 5 s
-  // before giving up with the last error.
+  // deck), so the rename is retried with a back-off growing from 5 ms to
+  // 50 ms (about 100 attempts) for about 5 s before giving up with the last
+  // error.
   inline void WriteFileAtomically(const std::filesystem::path& target,
                                   const std::function<void(std::ostream&)>& write) {
     namespace fs = std::filesystem;
@@ -97,7 +98,7 @@ namespace adsim::test {
           throw fs::filesystem_error("cannot replace file (still failing after retries)",
                                      tmp, target, ec);
         std::this_thread::sleep_for(delay);
-        delay = std::min(delay * 2, std::chrono::milliseconds(200));
+        delay = std::min(delay * 2, std::chrono::milliseconds(50));
       }
     } catch (...) {
       remove_tmp();
