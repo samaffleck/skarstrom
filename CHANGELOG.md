@@ -31,35 +31,14 @@ root `CMakeLists.txt`.
   `CSSAcceleration.SlowGeometricModeReachesCssSooner`). Purity and recovery
   agree with the plain run's within 3e-5. `CSSConvergence` is unchanged.
 
-## [0.4.0] — 2026-11-05
-
-### Added — automatic releases
-- Merging a version change into `main` now releases it: `release.yml` runs on
-  a push to `main` that changes the version in `CMakeLists.txt`, creates the
-  tag `v<version>` itself, uses the version's CHANGELOG section as the
-  GitHub Release notes and publishes to PyPI (TestPyPI for pre-releases). Before,
-  only a hand-pushed tag released, and 0.2.0 and 0.3.0 were never tagged or
-  published. A pushed tag still works. A final version is published only if
-  CHANGELOG.md has its section with nothing left under Unreleased, and
-  CITATION.cff carries it.
-- New workflow `prepare-release.yml` keeps one "Release X.Y.Z" pull request
-  open (branch `bot/release`) whenever Unreleased has entries, rebuilt from
-  `main` on every changelog change. The next version comes from the Unreleased
-  subsections: Added, Changed, Removed or Deprecated give a minor release,
-  Fixed or Security alone a patch release; major releases and pre-releases are
-  chosen by hand (Run workflow with `bump` / `suffix`).
-- `scripts/release.py` (`current`, `next`, `prepare`, `check`, `notes`) does the
-  version arithmetic and the three-file release change, with tests in
-  `scripts/test_release.py` (run by CI's docs job). The version on `main` is
-  now the last released version; it is no longer bumped for development.
-  RELEASING.md and CONTRIBUTING.md describe the new flow.
 ### Changed — fast CI: smaller smoke tests and a slow tier
 - Tests are in three tiers, set by ctest labels in `core/test/CMakeLists.txt`:
   the fast tier (no label), `paper` (the paper replications) and `slow`
   (verification that needs fine grids or many cycles: the cycle-KPI study of
-  the higher-order schemes, CSS-acceleration and slow-CSS studies, the
-  Perez2019_A stopping-rule check, the fine-grid and long-run regressions and
-  the cross-code comparisons). Pull-request CI runs the fast tier
+  the higher-order schemes, the CSS-acceleration studies
+  (`ReducesCyclesToCSS*`, `SlowGeometricModeReachesCssSooner`) and slow-CSS
+  studies, the Perez2019_A stopping-rule check, the fine-grid and long-run
+  regressions and the cross-code comparisons). Pull-request CI runs the fast tier
   (`ctest -LE "paper|slow"`) on Linux, macOS and Windows; pushes to main, the
   nightly run and manual runs run every tier. Linux and macOS no longer run
   the paper suites on pull requests.
@@ -82,6 +61,29 @@ root `CMakeLists.txt`.
   without its timestamp (`-Xclang -fno-pch-timestamp`), which a cached PCH
   needs.
 
+## [0.4.0] — 2026-11-05
+
+### Added — automatic releases
+- Merging a version change into `main` now releases it: `release.yml` runs on
+  a push to `main` that changes the version in `CMakeLists.txt`, creates the
+  tag `v<version>` itself, uses the version's CHANGELOG section as the
+  GitHub Release notes and publishes to PyPI (TestPyPI for pre-releases). Before,
+  only a hand-pushed tag released, and 0.2.0 and 0.3.0 were never tagged or
+  published. A pushed tag still works. A final version is published only if
+  CHANGELOG.md has its section with nothing left under Unreleased, and
+  CITATION.cff carries it.
+- New workflow `prepare-release.yml` keeps one "Release X.Y.Z" pull request
+  open (branch `bot/release`) whenever Unreleased has entries, rebuilt from
+  `main` on every changelog change. The next version comes from the Unreleased
+  subsections: Added, Changed, Removed or Deprecated give a minor release,
+  Fixed or Security alone a patch release; major releases and pre-releases are
+  chosen by hand (Run workflow with `bump` / `suffix`).
+- `scripts/release.py` (`current`, `next`, `prepare`, `check`, `notes`) does the
+  version arithmetic and the three-file release change, with tests in
+  `scripts/test_release.py` (run by CI's docs job). The version on `main` is
+  now the last released version; it is no longer bumped for development.
+  RELEASING.md and CONTRIBUTING.md describe the new flow.
+
 ### Added — KPIs of every cycle (KPIHistory)
 - The solvers record the KPIs of every tracked component when each cycle
   completes (`adsim::KPIHistory`, `adsim/solver/kpi_history.h`;
@@ -94,6 +96,7 @@ root `CMakeLists.txt`.
   `Simulation::KPIHistoryRecords()`, and `adsim::ComputeCycleKPIs`, the
   per-cycle computation both use. `KPIRecord` moved from `simulation.h` to
   `kpi_history.h` (which `simulation.h` includes).
+
 ### Fixed — WENO / van Leer slow when a component is absent
 - The WENO and van Leer interior face mole fractions were clamped to
   [0, 1]. A component absent from the feed and the bed holds only round-off
