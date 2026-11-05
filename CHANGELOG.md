@@ -60,6 +60,7 @@ root `CMakeLists.txt`.
   149 -> 403 s including the paper-protocol re-runs); the fast subset 213 s
   summed / 72 s wall at -j3 before, 340 s / 113 s after (mostly the tests that
   run the re-gridded example decks).
+
 ### Fixed — Aitken CSS acceleration stopped with WENO / van Leer
 - `AccelerateCyclicSteadyState::Accelerate` skipped every three-cycle window
   whose fitted jump exceeded five natural steps (|mu| > 5, a decay rate above
