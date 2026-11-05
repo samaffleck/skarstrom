@@ -10,5 +10,5 @@
 - [ ] Serialised classes changed? `cereal_class_version` bumped and old decks still load
 - [ ] Adsorbent/validation data: every value cited; generated pages regenerated (`scripts/docs/`), not hand-edited
 - [ ] Regenerated example decks (`examples/decks/`) committed if the tests changed them
-- [ ] Docs (`docs/`) and `CHANGELOG.md` updated
+- [ ] Docs (`docs/`) updated; changelog entry added as `changelog.d/<topic>.md` (not an edit to `CHANGELOG.md`)
 - [ ] `core/Results/` not committed
