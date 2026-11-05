@@ -30,6 +30,34 @@ root `CMakeLists.txt`.
   `scripts/test_release.py` (run by CI's docs job). The version on `main` is
   now the last released version; it is no longer bumped for development.
   RELEASING.md and CONTRIBUTING.md describe the new flow.
+### Changed — fast CI: smaller smoke tests and a slow tier
+- Tests are in three tiers, set by ctest labels in `core/test/CMakeLists.txt`:
+  the fast tier (no label), `paper` (the paper replications) and `slow`
+  (verification that needs fine grids or many cycles: the cycle-KPI study of
+  the higher-order schemes, CSS-acceleration and slow-CSS studies, the
+  Perez2019_A stopping-rule check, the fine-grid and long-run regressions and
+  the cross-code comparisons). Pull-request CI runs the fast tier
+  (`ctest -LE "paper|slow"`) on Linux, macOS and Windows; pushes to main, the
+  nightly run and manual runs run every tier. Linux and macOS no longer run
+  the paper suites on pull requests.
+- Smoke and behaviour tests run on smaller grids and fewer cycles: the biogas
+  8-step cycle (5 cycles on 25 cells), the four-step LPP family (10 or 20
+  cycles; the mass-balance CSS tests isothermal), the map-order round trip
+  (15 cells), the coloured-Jacobian checks (30 cells), the robustness fuzz test
+  (32 decks; 96 on main and nightly). Verification tests lost only waste: the
+  Langmuir shock moment test runs on 30 cells (its first moment is a mass
+  balance; the tolerance went from 3 % to 0.5 %), the dispersion CSS balance
+  12 cycles instead of 60, the equalisation tests 12 cycles instead of 30, the
+  advection "less diffusive" tests two grids instead of three, the cycle
+  rotation test 20 cells. The mass-balance CSS tests now count the cycles run
+  from the last cycle index (the size of the log's cycle set is capped by
+  `max_cycles_to_keep`, so their bound was vacuous) and assert that CSS was
+  reached.
+- Build: CI sets `CCACHE_SLOPPINESS=pch_defines,time_macros`, so ccache caches
+  the engine sources built with the precompiled header (before, every engine
+  source was recompiled on every run), and Clang builds the precompiled header
+  without its timestamp (`-Xclang -fno-pch-timestamp`), which a cached PCH
+  needs.
 
 ### Added — KPIs of every cycle (KPIHistory)
 - The solvers record the KPIs of every tracked component when each cycle

@@ -228,7 +228,11 @@ namespace adsim {
   // preserve the stoichiometric first moment (front position) and converge toward
   // the zero-variance exact solution under refinement.
   void CheckLessDiffusiveThanUpwind(AdvectionScheme scheme, const char* name) {
-    const std::vector<int> grids = {40, 80, 160};
+    // Two grids: the variance ratio to upwind is far below the 0.75 bound on
+    // every grid (measured, WENO / van Leer: 0.21 / 0.13 on 40 cells, 0.15 /
+    // 0.09 on 80, 0.11 / 0.07 on 160), so a 160-cell level adds run time, not
+    // strength.
+    const std::vector<int> grids = {40, 80};
     std::vector<SchemeRun> up, sc;
     for (int n : grids) {
       up.push_back(RunScheme(AdvectionScheme::Upwind, n, /*D_phys=*/0.0));

@@ -561,13 +561,16 @@ namespace adsim {
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
   }
 
+  // Ten cycles with the molar-profile CSS check on (it does not stop the run:
+  // this cycle's slow thermal mode takes it 83 cycles to that CSS, which
+  // FourStepLPP_NoMaxStepReachesCSS covers in the slow tier).
   TEST_F(FourStepLPPTest, FourStepLPP_10Cycle) {
     BuildFourStepLPP();
 
     // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
     ConfigureKPI(0, {0}, {BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
 
-    data.cycle.number_of_cycles_ = 200;
+    data.cycle.number_of_cycles_ = 10;
     data.settings.css.method_ = CSSMethod::MOLAR_PROFILE;
     data.settings.css.molar_absolute_tolerance = 4e-4;
     data.settings.css.molar_relative_tolerance = 1e-4;
@@ -592,6 +595,8 @@ namespace adsim {
   // pressure and the inlet flow decaying to zero. A hard upwind switch at u = 0
   // made Newton chatter there and IDA stalled at h ~ 1e-6 (cycle 112 with the
   // default 2 s max step; earlier with larger steps). Run well past that point.
+  // Slow tier (ctest label `slow`, core/test/CMakeLists.txt): the stall needs
+  // over a hundred cycles of this deck to show.
   TEST_F(FourStepLPPTest, FourStepLPP_LongRunDoesNotStall) {
     BuildFourStepLPP();
     data.cycle.number_of_cycles_ = 120;
@@ -618,6 +623,7 @@ namespace adsim {
   }
 
   // Regression: the same deck must integrate to CSS without a max-step cap.
+  // Slow tier: its slow thermal mode takes 83 cycles to the molar-profile CSS.
   TEST_F(FourStepLPPTest, FourStepLPP_NoMaxStepReachesCSS) {
     BuildFourStepLPP();
     data.cycle.number_of_cycles_ = 200;
@@ -632,55 +638,44 @@ namespace adsim {
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Moles not conserved.";
   }
 
+  // The Aitken-accelerated run reaches CSS and conserves mass. A smoke test,
+  // isothermal so that both runs reach the molar-profile CSS in about ten
+  // cycles (with the energy balance this cycle's slow thermal mode takes 84,
+  // which made this test 14 s). Whether acceleration reduces the cycles to CSS
+  // is CSSAcceleration.ReducesCyclesToCSS* (slow tier).
   TEST_F(FourStepLPPTest, FourStepLPP_CSS_Acceleration) {
+    constexpr int kCycles = 200;
+    auto configure = [this](bool accelerate) {
+      data = UserData{};
+      BuildFourStepLPP();
+      data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
+      // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
+      ConfigureKPI(0, {0}, {BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
+      data.cycle.number_of_cycles_ = kCycles;
+      data.settings.css.method_ = CSSMethod::MOLAR_PROFILE;
+      data.settings.css.molar_absolute_tolerance = 1e-4;
+      data.settings.css.molar_relative_tolerance = 1e-4;
+      if (accelerate) data.settings.acc_css.method_ = AccelerationMethod::AITKEN;
+    };
+
     // Run WITHOUT acceleration
-    BuildFourStepLPP();
-
-    // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
-    ConfigureKPI(0, {0}, {BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
-
-    data.cycle.number_of_cycles_ = 200;
-    data.settings.css.method_ = CSSMethod::MOLAR_PROFILE;
-    // 1e-4 is a realistic molar-profile CSS tolerance. At 1e-6 the criterion
-    // never converges, so the run grinds all 200 cycles into a quasi-steady
-    // pressurisation state where the momentum/pressure DAE is stiff (velocity->0)
-    // — with physically-correct gas viscosity that trips the integrator. At 1e-4
-    // CSS is reached in ~11 cycles, well before that region. (The acceleration
-    // cycle-count comparison this test was built for is disabled below anyway.)
-    data.settings.css.molar_absolute_tolerance = 1e-4;
-    data.settings.css.molar_relative_tolerance = 1e-4;
-
+    configure(false);
     CoupledSolver solver_no_acc{data};
     std::string error{};
     ASSERT_TRUE(data.PerformChecks(error)) << "System checks failed: " << error;
     int retval = solver_no_acc.IntegrateCycle(data.cycle, false);
     ASSERT_GE(retval, 0) << "Solver without acceleration did not complete";
-    int cycles_no_acc = static_cast<int>(solver_no_acc.GetLog().sys_data.cycle_index_set_.size());
+    EXPECT_TRUE(solver_no_acc.ReachedCSS()) << "no CSS without acceleration in " << kCycles << " cycles";
+    const int cycles_no_acc = *solver_no_acc.GetLog().sys_data.cycle_index_set_.rbegin() + 1;
 
-    // Reset and run WITH acceleration
-    data = UserData{};
-    BuildFourStepLPP();
-    ConfigureKPI(0, {0}, {BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
-    data.cycle.number_of_cycles_ = 200;
-    data.settings.css.method_ = CSSMethod::MOLAR_PROFILE;
-    // 1e-4 is a realistic molar-profile CSS tolerance. At 1e-6 the criterion
-    // never converges, so the run grinds all 200 cycles into a quasi-steady
-    // pressurisation state where the momentum/pressure DAE is stiff (velocity->0)
-    // — with physically-correct gas viscosity that trips the integrator. At 1e-4
-    // CSS is reached in ~11 cycles, well before that region. (The acceleration
-    // cycle-count comparison this test was built for is disabled below anyway.)
-    data.settings.css.molar_absolute_tolerance = 1e-4;
-    data.settings.css.molar_relative_tolerance = 1e-4;
-    data.settings.acc_css.method_ = AccelerationMethod::AITKEN;
-
+    // Run WITH acceleration
+    configure(true);
     CoupledSolver solver_acc{data};
     ASSERT_TRUE(data.PerformChecks(error)) << "System checks failed: " << error;
     retval = solver_acc.IntegrateCycle(data.cycle, false);
     ASSERT_GE(retval, 0) << "Solver with acceleration did not complete";
-    int cycles_acc = static_cast<int>(solver_acc.GetLog().sys_data.cycle_index_set_.size());
-
-    // EXPECT_LT(cycles_acc, cycles_no_acc)
-    //   << "Accelerated CSS (" << cycles_acc << " cycles) should converge faster than non-accelerated (" << cycles_no_acc << " cycles)";
+    EXPECT_TRUE(solver_acc.ReachedCSS()) << "no CSS with acceleration in " << kCycles << " cycles";
+    const int cycles_acc = *solver_acc.GetLog().sys_data.cycle_index_set_.rbegin() + 1;
 
     std::cout << "Number of cycles with acceleration: " << cycles_acc << "\n";
     std::cout << "Number of cycles without acceleration: " << cycles_no_acc << "\n";
@@ -690,6 +685,9 @@ namespace adsim {
 
   TEST_F(FourStepLPPTest, FourStepLPP_MassBalanceCSS) {
     BuildFourStepLPP();
+    // Isothermal: the bed then reaches CSS in about ten cycles (with the
+    // energy balance its slow thermal mode takes 166, which made this test 14 s).
+    data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
 
     // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
     ConfigureKPI(0, {0}, {BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
@@ -705,7 +703,10 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, false);
     ASSERT_GE(retval, 0) << "Solver did not complete";
 
-    int cycles = static_cast<int>(solver.GetLog().sys_data.cycle_index_set_.size());
+    // Cycles run: the last cycle index + 1 (the log keeps only the last few
+    // cycles, so the size of its cycle set is not the count).
+    const int cycles = *solver.GetLog().sys_data.cycle_index_set_.rbegin() + 1;
+    EXPECT_TRUE(solver.ReachedCSS()) << "Mass balance CSS criterion never held";
     EXPECT_LT(cycles, 200) << "Mass balance CSS should terminate before max cycles";
     EXPECT_GE(cycles, 5) << "Should run at least min_cycles before checking CSS";
 
@@ -714,6 +715,9 @@ namespace adsim {
 
   TEST_F(FourStepLPPTest, FourStepLPP_MassBalanceTotalCSS) {
     BuildFourStepLPP();
+    // Isothermal: the bed then reaches CSS in about ten cycles (with the
+    // energy balance its slow thermal mode takes 166, which made this test 14 s).
+    data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
 
     // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
     ConfigureKPI(0, {0}, {BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
@@ -729,7 +733,10 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, false);
     ASSERT_GE(retval, 0) << "Solver did not complete";
 
-    int cycles = static_cast<int>(solver.GetLog().sys_data.cycle_index_set_.size());
+    // Cycles run: the last cycle index + 1 (the log keeps only the last few
+    // cycles, so the size of its cycle set is not the count).
+    const int cycles = *solver.GetLog().sys_data.cycle_index_set_.rbegin() + 1;
+    EXPECT_TRUE(solver.ReachedCSS()) << "Mass balance total CSS criterion never held";
     EXPECT_LT(cycles, 200) << "Mass balance total CSS should terminate before max cycles";
     EXPECT_GE(cycles, 5) << "Should run at least min_cycles before checking CSS";
 
@@ -939,7 +946,7 @@ namespace adsim {
 
     auto& layer = GetLayer(layer_id);
     layer.domain_.length = 1.2;
-    layer.domain_.n_cells = 60;
+    layer.domain_.n_cells = 25;
     layer.particle_diameter_ = 0.0018;
     layer.eb_ = 0.4;
     std::get<CylinderBed>(data.bed.shape_).diameter = 0.5;
@@ -1205,7 +1212,11 @@ namespace adsim {
     }
 
     for (auto& L : data.bed.layers_.layers_) L.momentum_model_ = momentum;
-    ConfigureCycle(20);
+    // Five cycles on 25 cells (this test ran 20 cycles on 60 cells: 26-43 s for
+    // the pair). The step-retry regression below showed at the start of ED1,
+    // LR and EU1 in every cycle, and a few cycles exercise every step switch
+    // and connection; measured with upwind and WENO: no retry, either model.
+    ConfigureCycle(5);
     // KPI: product=Methane(0), feed=Feed1+Feed2@Bottom, product=Feed1+Feed2@Top, recycled=LR+LPP@Top
     ConfigureKPI(
       0,

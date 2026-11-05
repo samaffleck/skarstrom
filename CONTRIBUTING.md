@@ -23,9 +23,10 @@ runs it at build time) and, recommended, Ninja. Forgot `--recursive`? Run
 ```bash
 # C++ (working directory core/; ~670 tests, ~10 minutes on 4 cores)
 ctest --preset linux-release -j3
-# fast subset: everything but the paper replications (CI runs the full suite on
-# Linux and macOS for every pull request, and this subset on Windows)
-ctest --preset linux-release -j3 -E "^(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)Test\.|^CSSAcceleration\."
+# fast tier: everything but the paper replications (label `paper`) and the slow
+# verification tests (label `slow`); CI runs it on Linux, macOS and Windows for
+# every pull request, and every tier on main, nightly and manual runs
+ctest --preset linux-release -j3 -LE "paper|slow"
 rm -rf core/Results                 # the suite writes ~4 GB of output there
 
 # Python package, CLI and example smoke tests

@@ -180,7 +180,8 @@ git submodule update --init --recursive
 cmake --preset linux-release            # macos-release, windows; tests are on in the presets
 cmake --build --preset linux-release
 ctest --preset linux-release -j3        # full suite ~10 min; core/ is the working directory
-ctest --preset linux-release -E "^(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)Test\.|^CSSAcceleration\."   # fast subset
+ctest --preset linux-release -j3 -LE "paper|slow"   # fast tier (what pull-request CI runs), ~1 min
+ctest --preset linux-release -L slow    # slow verification tier (main and nightly CI)
 rm -rf core/Results                    # the suite writes ~4 GB there
 pip install . && pytest python/tests    # Python package + example smoke tests
 pip install -r requirements-docs.txt && mkdocs build --strict
@@ -192,6 +193,7 @@ pip install -r requirements-docs.txt && mkdocs build --strict
 - **Keep generated docs generated.** `docs/validation.md` comes from `core/test/papers/validation_summary.json` (`python scripts/docs/gen_validation_page.py`, `--merge <build>/validation` after running the paper tests); `docs/adsorbent-library.md` from `data/adsorbents/library.json` (`python scripts/docs/gen_adsorbent_library.py`, which also validates the catalogue). Never edit the generated pages; CI runs both with `--check`.
 - **Cite every adsorbent parameter.** A library entry needs a DOI and table/figure reference for each value, or an explicit `Not stated in source (checked: ...)`.
 - **One recommended entry per material.** Every library entry belongs to a material (`materials` in `library.json`); each material has exactly one `recommended` entry, chosen on data quality (each isotherm's `data_quality`: measured with tabulated data > measured, fit only > refit of others' data > copied from an earlier paper). Add a second entry for a material only when it is a different product, form or data range that a user can name (its `variant`); otherwise replace the weaker entry and list its key in the material's `aliases`. Labels are the material name plus the variant in brackets, never author names. Paper reference values (`reference_values.csv`) must be numbers printed in the paper; never eyeball values off a plot, never commit PDFs or full-text extractions.
+- **Keep the fast tier fast.** Pull-request CI runs `ctest -LE "paper|slow"` on three platforms, so a test there should answer "does it run, does the feature work": about 20-30 cells, at most about 30 cycles, CSS off unless CSS is what is tested, short steps. Only a test that compares with a closed-form solution, verifies a convergence order or tests CSS behaviour needs the grid or the cycles its assertion depends on; if it still takes more than a few seconds, add it to `ADSIM_SLOW_TESTS` in `core/test/CMakeLists.txt` (ctest label `slow`, run on main and nightly) with the reason in the test's comment. A new paper suite goes in `ADSIM_PAPER_TESTS` there (label `paper`).
 - **Tolerances in paper tests are regression bounds** set from the measured error; never loosen one to hide a disagreement — document it in the paper's README.
 - **Regenerated example decks are expected.** The test suite re-saves `examples/decks/*.json` and some `data/adsorbents/*.json`; embedded result numbers move in the last digits. Commit those changes with the code change that caused them.
 - **Data file names must be shell-safe** (`[A-Za-z0-9._,=+@-]`; checked by the `DataFileNamesAreShellSafe` test).

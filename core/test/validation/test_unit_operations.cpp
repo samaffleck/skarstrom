@@ -238,6 +238,11 @@ namespace adsim {
 
     constexpr double kPH = 3.0e5, kPL = 1.0e5;
     constexpr double kCvEq = 2.0e-3;   // [mol/s per bar]
+    // Cycles of the lagged coupling. Its end-of-ED pressure changes by 3e-7 kPH
+    // from cycle 9 to 10 (inert), 4e-8 (Henry, Langmuir), and by the same 2e-7
+    // after 20 cycles: the replay has converged to the integrator's noise by
+    // cycle 10, inside the guard's 1e-6 (this test ran 30 cycles).
+    constexpr int kEqualisationCycles = 12;
 
     struct EqualisationRun {
       std::vector<double> t, P_ed, P_eu;
@@ -383,7 +388,7 @@ namespace adsim {
 
   TEST(UnitOperations, TwoBedEqualisationConservesMolesAndDecaysAtTwiceTheRate) {
     for (bool adsorbing : {false, true}) {
-      const auto r = RunEqualisation(adsorbing, 30);
+      const auto r = RunEqualisation(adsorbing, kEqualisationCycles);
       ASSERT_GT(r.t.size(), 10u);
       const double P_eq = 0.5 * (kPH + kPL);
 
@@ -426,7 +431,7 @@ namespace adsim {
   // pressure). The test asserts the first and, as a guard, that the second is
   // violated by far more than the first's tolerance.
   TEST(UnitOperations, TwoBedEqualisationWithLangmuirConservesTheInventory) {
-    const auto r = RunEqualisation(true, 30, /*langmuir=*/true);
+    const auto r = RunEqualisation(true, kEqualisationCycles, /*langmuir=*/true);
     ASSERT_GT(r.t.size(), 10u);
     EXPECT_NEAR(r.P_ed.front(), kPH, 1e-3 * kPH);
     EXPECT_NEAR(r.P_eu.front(), kPL, 1e-3 * kPL);

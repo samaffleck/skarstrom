@@ -368,7 +368,10 @@ std::string WithMapsReversed(const std::string& json) {
 TEST(DeckRoundTrip, RunDoesNotDependOnMapOrderInTheDeck) {
   // Two- and three-component decks with competitive isotherms. One cycle is
   // enough: before the fix Perez2019_A differed at ~2e-6 after one cycle in a
-  // clang/libc++ build with FMA contraction.
+  // clang/libc++ build with FMA contraction. The order dependence was in the
+  // per-component sums of every cell, so the grid size does not matter: both
+  // runs use 15 cells per layer (the decks' 30-60 took 7 s; the comparison
+  // below is bitwise either way).
   for (const char* name : {"Perez2019_A.json", "Casas2012_Fig4_50_50_15bar_25C.json", "Streb2021_A1.json"}) {
     SCOPED_TRACE(name);
     const std::string deck = (kExamples / name).string();
@@ -384,6 +387,7 @@ TEST(DeckRoundTrip, RunDoesNotDependOnMapOrderInTheDeck) {
     Simulation reversed = Simulation::FromJson(reversed_json);
     for (Simulation* s : {&file, &reversed}) {
       s->SetParameter("cycle.number_of_cycles", 1);
+      for (auto& layer : s->Data().bed.layers_.layers_) layer.domain_.n_cells = 15;
       ASSERT_TRUE(s->Run().Ok());
     }
     const auto k1 = file.KPIs();
