@@ -63,6 +63,9 @@ set(ADSIM_SLOW_TESTS
     # difference (like the paper suites, an agreement check, not a smoke test).
     "CrossCodePeese.*"
     "CrossCodeToPSAil.*"
+    # Knaebel-Hill Skarstrom cycle refined to 400 cells (the gap halves per
+    # level and extrapolates to the theory): ~16 s.
+    "SkarstromCycleEquilibriumTheory.GapVanishesUnderRefinement"
 )
 set(_adsim_test_props ENVIRONMENT "ADSIM_VALIDATION_DIR=${ADSIM_BINARY_DIR}/validation")
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.22)  # TEST_FILTER
