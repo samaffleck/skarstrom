@@ -20,8 +20,11 @@ set(ADSIM_VERSION_SUFFIX "")        # "rc1", "a1", "b2" for a pre-release
 The two lines must stay adjacent (pyproject.toml reads them with a regex).
 **The version on `main` is the last released version** (or the pre-release
 being tested): do not bump it for development, and do not bump it by hand in a
-feature pull request. Changes accumulate under *Unreleased* in `CHANGELOG.md`
-until the next release.
+feature pull request. Changes accumulate as changelog fragments in
+`changelog.d/` (one file per pull request, see `changelog.d/README.md`) and
+under *Unreleased* in `CHANGELOG.md` until the next release; the release
+commit moves the fragments into `CHANGELOG.md`. `scripts/release.py` reads the
+fragments as part of *Unreleased* everywhere below.
 
 The next version is chosen from the *Unreleased* subsections
 (`scripts/release.py`):
@@ -38,12 +41,13 @@ major release is never chosen automatically: pick it by hand.
 
 ## Making a release
 
-1. **The release pull request is already open.** Whenever `CHANGELOG.md` has
-   entries under *Unreleased*, `.github/workflows/prepare-release.yml` keeps one
+1. **The release pull request is already open.** Whenever there are
+   changelog fragments or entries under *Unreleased*, `.github/workflows/prepare-release.yml` keeps one
    pull request, "Release X.Y.Z", open on the bot branch `bot/release`. It sets
    the version in `CMakeLists.txt` and `CITATION.cff` and moves the
-   *Unreleased* entries under `## [X.Y.Z] — <date>`. It is rebuilt from `main`
-   whenever `CHANGELOG.md` changes there (so it carries every merged change and
+   fragments and *Unreleased* entries under `## [X.Y.Z] — <date>` (deleting
+   the fragment files). It is rebuilt from `main` whenever the changelog
+   changes there (so it carries every merged change and
    today's date), and weekly. Never push to `bot/release`.
 2. **Merge it.** That is the release: the push to `main` changes the version,
    `release.yml` builds and tests every wheel, creates the tag and the GitHub

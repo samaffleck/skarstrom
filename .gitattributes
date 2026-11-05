@@ -1,5 +1,6 @@
-# CHANGELOG.md: every PR adds its entry at the top of "Unreleased", so two PRs
-# in flight always touch the same lines. The union driver keeps both sides'
+# CHANGELOG.md: pull requests add changelog.d/ fragments instead of editing it
+# (changelog.d/README.md). Before fragments, every PR added its entry at the top
+# of "Unreleased", so two PRs in flight always touched the same lines. The union driver keeps both sides'
 # added lines instead of reporting a conflict. It also keeps BOTH versions of
 # a line two branches each edited, so check the merged changelog when a merge
 # touches an existing entry. Applies to local merges and rebases; GitHub's

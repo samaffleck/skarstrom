@@ -12,6 +12,15 @@ main). See RELEASING.md. Standard library only.
   python scripts/release.py prepare [--bump B] [--suffix rc1] [--date D]
   python scripts/release.py check VERSION       # ready to publish VERSION?
   python scripts/release.py notes VERSION       # CHANGELOG section of VERSION
+  python scripts/release.py fragments           # check the changelog.d/ fragments
+  python scripts/release.py collect             # fold them into CHANGELOG.md
+
+Changelog fragments: a pull request does not edit CHANGELOG.md; it adds one
+new file, changelog.d/<topic>.md, holding its "### Kind — topic" entry (see
+changelog.d/README.md), so parallel pull requests never conflict on the top
+of Unreleased. Every command here reads the fragments as part of Unreleased
+(newest first, the order git added them), and `prepare` (a final release) and
+`collect` move them into CHANGELOG.md and delete the files.
 
 --bump is auto (default), patch, minor or major. auto reads the subsections
 under "## [Unreleased]" in CHANGELOG.md: Added, Changed, Removed or Deprecated
@@ -27,6 +36,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -40,6 +50,8 @@ VERSION_RE = re.compile(
 SUFFIX_RE = re.compile(r"^(?:(?:a|b|rc)[0-9]+)?$")
 FULL_RE = re.compile(r"^(?P<value>[0-9]+\.[0-9]+\.[0-9]+)(?P<suffix>(?:a|b|rc)[0-9]+)?$")
 UNRELEASED = "## [Unreleased]"
+FRAGMENTS = ROOT / "changelog.d"
+FRAGMENT_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*\.md$")
 MINOR_KINDS = {"added", "changed", "removed", "deprecated"}
 PATCH_KINDS = {"fixed", "security"}
 
@@ -94,6 +106,54 @@ def section(changelog_text: str, version: str) -> str | None:
         return None
     nxt = re.compile(r"^## \[", re.MULTILINE).search(changelog_text, m.end())
     return changelog_text[m.end():nxt.start() if nxt else len(changelog_text)].strip("\n")
+
+
+# --- changelog fragments -----------------------------------------------------
+
+def fragment_files(root: Path = ROOT) -> list[Path]:
+    """changelog.d/*.md (not README.md), newest first by the commit that added each."""
+    d = root / "changelog.d"
+    if not d.is_dir():
+        return []
+    files = [f for f in d.glob("*.md") if f.name != "README.md"]
+
+    def added(f: Path) -> float:
+        try:
+            out = subprocess.run(
+                ["git", "log", "--diff-filter=A", "--format=%ct", "--", str(f.relative_to(root))],
+                cwd=root, capture_output=True, text=True, check=True).stdout.split()
+            return float(min(out, key=float)) if out else float("inf")  # untracked: newest
+        except (OSError, subprocess.CalledProcessError):
+            return float("inf")
+
+    return sorted(files, key=lambda f: (-added(f), f.name))
+
+
+def fragment_problems(name: str, text: str) -> list[str]:
+    problems = []
+    where = f"changelog.d/{name}"
+    if not FRAGMENT_NAME_RE.match(name):
+        problems.append(f"{where}: name it <topic>.md (lower case, digits, . _ -)")
+    if not text.strip():
+        problems.append(f"{where}: empty")
+    elif not text.startswith("### "):
+        problems.append(f'{where}: must start with a "### Kind — topic" heading')
+    if re.search(r"^#{1,2} ", text, re.MULTILINE):
+        problems.append(f'{where}: only "###" (and deeper) headings')
+    for m in re.finditer(r"^### +([A-Za-z]+)", text, re.MULTILINE):
+        if m.group(1).lower() not in MINOR_KINDS | PATCH_KINDS:
+            problems.append(f"{where}: unknown kind {m.group(1)!r} "
+                            "(use Added, Changed, Deprecated, Removed, Fixed or Security)")
+    return problems
+
+
+def with_fragments(changelog_text: str, fragments: list[str]) -> str:
+    """CHANGELOG.md text with the fragments put at the top of Unreleased."""
+    if not fragments:
+        return changelog_text
+    head, body, rest = split_changelog(changelog_text)
+    block = "".join(f.strip("\n") + "\n\n" for f in fragments)
+    return f"{head}\n{block}{body.lstrip(chr(10))}{rest}"
 
 
 # --- computing ---------------------------------------------------------------
@@ -216,11 +276,28 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--date", default=_dt.date.today().isoformat())
     for name in ("check", "notes"):
         sub.add_parser(name).add_argument("version")
+    sub.add_parser("fragments", help="check the changelog.d/ fragments")
+    sub.add_parser("collect", help="move the changelog.d/ fragments into CHANGELOG.md")
     args = ap.parse_args(argv)
 
     try:
         cmake = _read("CMakeLists.txt")
-        changelog = _read("CHANGELOG.md")
+        files = fragment_files()
+        texts = [f.read_text(encoding="utf-8") for f in files]
+        problems = [p for f, t in zip(files, texts) for p in fragment_problems(f.name, t)]
+        if problems:
+            raise ReleaseError("\n".join(problems))
+        if args.cmd == "fragments":
+            print(f"changelog.d: {len(files)} fragment(s), all well formed")
+            return 0
+        changelog = with_fragments(_read("CHANGELOG.md"), texts)
+        if args.cmd == "collect":
+            if files:
+                _write("CHANGELOG.md", changelog)
+                for f in files:
+                    f.unlink()
+            print(f"collected {len(files)} fragment(s) into CHANGELOG.md")
+            return 0
         value, suffix = read_version(cmake)
         if args.cmd == "current":
             print(f"{value}{suffix}")
@@ -238,6 +315,8 @@ def main(argv: list[str] | None = None) -> int:
                 if not args.suffix:
                     _write("CHANGELOG.md", cut_changelog(changelog, full, args.date))
                     _write("CITATION.cff", set_citation(_read("CITATION.cff"), full, args.date))
+                    for f in files:  # now listed under the version's heading
+                        f.unlink()
             print(full)
             return 0
         if args.cmd == "check":

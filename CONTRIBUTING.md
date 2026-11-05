@@ -60,10 +60,13 @@ it with Emscripten; `bash scripts/test_install_consumer.sh` checks
 - The test suite re-saves the example decks (`examples/decks/`) and some
   adsorbent files; small changes to their embedded numbers are expected —
   commit them with your change.
-- Update the docs (`docs/`) and `CHANGELOG.md` (under *Unreleased*, in an
-  `### Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` or `Security`
-  subsection: the kinds choose the next version). Do not change the version
-  in `CMakeLists.txt`; the release pull request does (see RELEASING.md).
+- Update the docs (`docs/`) and add a changelog entry as a **new file**
+  `changelog.d/<topic>.md` (see `changelog.d/README.md`), not an edit to
+  `CHANGELOG.md`, so pull requests in flight at the same time do not
+  conflict. It holds one or more `### Added`, `Changed`, `Deprecated`,
+  `Removed`, `Fixed` or `Security` subsections (the kinds choose the next
+  version). Do not change the version in `CMakeLists.txt`; the release pull
+  request does (see RELEASING.md).
 - Keep the engine front-end free: no GUI, web or JSON-schema code in `core/`;
   it must keep building as a subproject and with Emscripten.
 

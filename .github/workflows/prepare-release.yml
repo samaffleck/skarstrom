@@ -1,5 +1,7 @@
 # Prepare release: keep ONE release pull request open, on the bot-owned branch
-# bot/release, whenever CHANGELOG.md has entries under Unreleased. The pull
+# bot/release, whenever CHANGELOG.md has entries under Unreleased or changelog.d/
+# holds changelog fragments (they count as Unreleased entries; the release
+# commit moves them into CHANGELOG.md and deletes them). The pull
 # request sets the next version in CMakeLists.txt (and CITATION.cff), and moves
 # the Unreleased entries under a dated heading for that version. Merging it is
 # the release: release.yml sees the version change on main, builds the wheels,
@@ -12,10 +14,10 @@
 # the pull request is refreshed, until it is merged or closed.
 #
 # The branch is rebuilt from main (force-pushed) on every push to main that
-# touches CHANGELOG.md, CMakeLists.txt or CITATION.cff (nearly every merge adds
-# a changelog entry, so the release date stays current and the pull request
+# touches changelog.d/, CHANGELOG.md, CMakeLists.txt or CITATION.cff (nearly
+# every merge adds a changelog fragment, so the release date stays current and the pull request
 # never conflicts), and weekly; a rebuild that would change nothing is not
-# pushed. Never push to bot/release by hand; change CHANGELOG.md on main.
+# pushed. Never push to bot/release by hand; change the changelog on main.
 # To release on a fixed cadence, merge the pull request on that cadence.
 #
 # Token: pull requests opened with the workflow token start no workflows, so
@@ -29,7 +31,7 @@ name: Prepare release
 on:
   push:
     branches: [main]
-    paths: [CHANGELOG.md, CMakeLists.txt, CITATION.cff]
+    paths: [CHANGELOG.md, "changelog.d/**", CMakeLists.txt, CITATION.cff]
   schedule:
     - cron: "41 4 * * 1"
   workflow_dispatch:
@@ -96,7 +98,7 @@ jobs:
           rc=$?
           set -e
           if [ "$rc" = 3 ]; then
-            echo "Nothing under Unreleased in CHANGELOG.md: no release to prepare." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "Nothing under Unreleased in CHANGELOG.md or changelog.d/: no release to prepare." | tee -a "$GITHUB_STEP_SUMMARY"
             if [ -n "$pr" ]; then
               gh pr close "$pr" --delete-branch --comment "CHANGELOG.md has nothing under Unreleased any more; closing this release pull request."
             fi
@@ -113,6 +115,7 @@ jobs:
           git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
           git switch --quiet -c "$BRANCH"
           git add CMakeLists.txt CHANGELOG.md CITATION.cff
+          git add -A -- changelog.d  # the fragments the release moved into CHANGELOG.md
           git commit --quiet -F - <<EOF
           Release ${version}
 

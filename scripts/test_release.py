@@ -75,11 +75,30 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(r.check_ready("0.4.0rc1", cmake, changelog("### Added\n- x\n\n"),
                                        CITATION), [])
 
+    def test_fragments(self):
+        log = changelog("### Fixed\n- old fix\n\n")
+        merged = r.with_fragments(log, ["### Added — b\n- newest\n", "### Fixed — a\n- older\n"])
+        self.assertIn("## [Unreleased]\n\n### Added — b\n- newest\n\n### Fixed — a\n- older\n\n"
+                      "### Fixed\n- old fix\n\n## [0.3.0]", merged)
+        self.assertEqual(r.unreleased_kinds(merged), ["added", "fixed", "fixed"])
+        self.assertEqual(r.with_fragments(log, []), log)
+        # Fragments alone make a release.
+        only = r.with_fragments(changelog(""), ["### Fixed\n- x\n"])
+        self.assertFalse(r.unreleased_is_empty(only))
+        self.assertEqual(r.next_version("0.3.0", "", "auto", "", r.unreleased_kinds(only)), "0.3.1")
+        self.assertEqual(r.fragment_problems("ok-name.md", "### Added — x\n- y\n"), [])
+        self.assertTrue(r.fragment_problems("Bad Name.md", "### Added\n- y\n"))
+        self.assertTrue(r.fragment_problems("x.md", "- no heading\n"))
+        self.assertTrue(r.fragment_problems("x.md", "### Improved\n- y\n"))
+        self.assertTrue(r.fragment_problems("x.md", "### Added\n## [0.5.0]\n"))
+
     def test_repository_files_parse(self):
         root = r.ROOT
         value, suffix = r.read_version((root / "CMakeLists.txt").read_text(encoding="utf-8"))
         text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
         r.bump_kind(r.unreleased_kinds(text))  # no unknown subsection kinds
+        for f in r.fragment_files():  # changelog.d/ fragments are well formed
+            self.assertEqual(r.fragment_problems(f.name, f.read_text(encoding="utf-8")), [])
         if not suffix:
             self.assertIsNotNone(r.section(text, value),
                                  f"CHANGELOG.md has no section for the current version {value}")
