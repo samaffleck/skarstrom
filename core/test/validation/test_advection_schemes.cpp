@@ -498,4 +498,86 @@ namespace adsim {
     }
   }
 
+  // ===========================================================================
+  // 5. A component absent from the feed and the bed costs no extra work
+  // ===========================================================================
+  //
+  // O2 is absent from the feed and the initial bed (y = 0 exactly), and hot
+  // N2 is fed into the bed, so the run has flow, a pressure start-up and a
+  // thermal front, and the O2 cells hold nothing but round-off. Upwind carries
+  // that round-off along and out of the bed. The high-order schemes used to
+  // clamp every reconstructed face to [0, 1], which zeroed the face of a cell
+  // marginally below zero: negative round-off was trapped (its face and the
+  // face's derivative were zero) while positive round-off left, and the face
+  // switching between clamped and free as Newton iterated stalled the
+  // iteration. On 40 / 80 cells WENO took 737 / 4187 steps with 264 / 2026
+  // convergence failures, and van Leer 400 / 503 steps with 93 / 128, against
+  // upwind's 241 / 246 steps with none (WP20-4; 25 to 70 times the run time
+  // in two tests with an absent component). With the face bounded to [0, 1]
+  // widened to its two cells' values (BoundFace in adsorbent_equations.cpp)
+  // both take exactly upwind's steps and no convergence failure. The bounds
+  // below allow 20 % more steps than upwind and convergence failures on 2 %
+  // of its steps: between a factor 1.7 and 17 below the old counts.
+  namespace {
+    struct AbsentComponentRun {
+      IntegrationStats stats;
+      double outlet_flow = 0.0;   // [mol/s] at the end of the run
+      double max_abs_o2 = 0.0;    // max |y_O2| over the cells and the log
+    };
+
+    AbsentComponentRun RunAbsentComponent(AdvectionScheme scheme, int n_cells) {
+      BreakthroughCase c;
+      c.n_cells = n_cells;
+      c.y_feed = 0.0;               // O2 absent from the feed (and the bed: Build)
+      c.feed_temperature = 360.0;   // a thermal front through pure N2
+      c.bed_temperature = 300.0;
+      c.molar_flow = 0.01;
+      c.run_time = 2000.0;
+      c.max_step = 20.0;
+      c.reltol = 1e-8;
+
+      UserData data;
+      Build(data, c);
+      data.settings.advection_scheme_ = scheme;
+      CoupledSolver solver{data};
+      std::string error;
+      EXPECT_TRUE(data.PerformChecks(error)) << error;
+      EXPECT_GE(solver.IntegrateCycle(data.cycle, false), 0)
+        << "Solver did not complete (scheme=" << static_cast<int>(scheme) << ")";
+
+      AbsentComponentRun r;
+      r.stats = solver.GetStatistics();
+      const auto& log = solver.GetLog();
+      const auto n_dot = log.GetFaceVariable(0, 0, VariableType::MOLAR_FLOW_RATE);
+      r.outlet_flow = n_dot.values.back().back();
+      const auto y = log.GetComponentVariable(0, 0, ComponentVariableType::MOLE_FRACTION, "Oxygen");
+      for (const auto& snapshot : y.values)
+        for (size_t i = 1; i + 1 < snapshot.size(); ++i)
+          r.max_abs_o2 = std::max(r.max_abs_o2, std::abs(snapshot[i]));
+      return r;
+    }
+  } // namespace
+
+  TEST(AdvectionSchemeRobustness, AnAbsentComponentCostsNoExtraSteps) {
+    for (int n_cells : {40, 80}) {
+      const auto up = RunAbsentComponent(AdvectionScheme::Upwind, n_cells);
+      // Guards: gas flows through the bed, and O2 really is absent (round-off
+      // far below its absolute tolerance of 1e-8).
+      ASSERT_GT(up.outlet_flow, 0.5 * 0.01) << "no flow through the bed";
+      ASSERT_LT(up.max_abs_o2, 1e-8) << "O2 is not absent from the bed";
+      ASSERT_GT(up.stats.num_steps, 100);
+
+      for (auto scheme : { AdvectionScheme::WENO, AdvectionScheme::VanLeer }) {
+        const auto r = RunAbsentComponent(scheme, n_cells);
+        const std::string label = "scheme " + std::to_string(static_cast<int>(scheme))
+                                + ", " + std::to_string(n_cells) + " cells";
+        EXPECT_LE(r.stats.num_steps, 1.2 * up.stats.num_steps)
+          << label << ": " << r.stats.num_steps << " steps against upwind's " << up.stats.num_steps;
+        EXPECT_LE(r.stats.num_conv_fails, up.stats.num_conv_fails + 0.02 * up.stats.num_steps)
+          << label << ": " << r.stats.num_conv_fails << " Newton convergence failures against upwind's "
+          << up.stats.num_conv_fails << " in " << up.stats.num_steps << " steps";
+      }
+    }
+  }
+
 } // namespace adsim
