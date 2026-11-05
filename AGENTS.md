@@ -27,7 +27,7 @@ skarstrom run path/to/deck.json --cycles 20 --set "step[Feed].time=120" --json -
 skarstrom run deck.json --csv out/                          # kpis.csv, css.csv, run.json, logs/
 ```
 
-The `--json` summary has `status` (`completed`, `reached_css`, `failed`, `cancelled`), `message`, `css_reached`, `css_cycle` (0-based, -1 if not reached), `cycles_run`, `wall_time_s`, `stats` (integrator counters), `kpis` (one object per tracked component per logged cycle; undefined values are `null`) `css` (the CSS check per cycle) and `warnings` (operating limits of the last cycle: wall design pressure and temperature, vacuum, approach to fluidisation; see `sim.operating_limits()`). Progress goes to stderr; use `-q` to silence it.
+The `--json` summary has `status` (`completed`, `reached_css`, `failed`, `cancelled`), `message`, `css_reached`, `css_cycle` (0-based, -1 if not reached), `cycles_run`, `wall_time_s`, `stats` (integrator counters), `kpis` (one object per tracked component per cycle of the run; undefined values are `null`) `css` (the CSS check per cycle) and `warnings` (operating limits of the last cycle: wall design pressure and temperature, vacuum, approach to fluidisation; see `sim.operating_limits()`). Progress goes to stderr; use `-q` to silence it.
 
 Python:
 
@@ -121,7 +121,7 @@ sim.streams(); sim.stream_series(step, name, "molar_flow", "CarbonDioxide")
 skarstrom.bulk_variables(); skarstrom.component_variables(); skarstrom.stream_variables()
 ```
 
-KPIs exist only for components tracked in the deck's KPI configuration; some decks have none (Casas, Ferré, Nguyen 2022, Streb, Vysyaraju, Ward 2022, FiveStepProductPurge) — integrate `stream_series` instead (see `examples/_common.py:endpoint_moles`). Only the last `settings.max_cycles_to_keep` (default 10) cycles are logged.
+KPIs exist only for components tracked in the deck's KPI configuration; some decks have none (Casas, Ferré, Nguyen 2022, Streb, Vysyaraju, Ward 2022, FiveStepProductPurge) — integrate `stream_series` instead (see `examples/_common.py:endpoint_moles`). Only the last `settings.max_cycles_to_keep` (default 10) cycles are logged (profiles, series, CSS history); KPIs are kept for every cycle.
 
 ### Sensitivity and error bars
 

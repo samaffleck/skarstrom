@@ -302,4 +302,59 @@ TEST(SimulationFacade, ChunkedRunCompletes) {
   EXPECT_FALSE(sim.Messages().empty());
 }
 
+// The logs keep only the last max_cycles_to_keep cycles, but KPIs() covers
+// every cycle of the run: the evicted ones come from the KPI history the solver
+// records at the end of each cycle, with the numbers a full log would give.
+TEST(SimulationFacade, KPIsCoverCyclesTheLogEvicted) {
+  auto run = [](int keep, bool chunked) {
+    Simulation sim = ShortPerez();
+    sim.SetParameter("cycle.number_of_cycles", 4);
+    sim.SetParameter("css.method", 0);  // no CSS floor on the kept cycles
+    sim.SetParameter("settings.max_cycles_to_keep", keep);
+    if (chunked) {
+      EXPECT_TRUE(sim.Start());
+      RunStatus st = RunStatus::Running;
+      for (int i = 0; i < 100000 && st == RunStatus::Running; ++i) st = sim.Advance(50);
+      EXPECT_EQ(st, RunStatus::Completed) << sim.LastResult().message;
+    } else {
+      const RunResult r = sim.Run();
+      EXPECT_TRUE(r.Ok()) << r.message;
+    }
+    return sim;
+  };
+
+  const Simulation full = run(10, false);
+  ASSERT_EQ(full.Cycles(), (std::vector<int>{0, 1, 2, 3}));
+  const auto want = full.KPIs();
+  ASSERT_EQ(want.size(), 4u);  // CO2 tracked, four cycles
+
+  for (const bool chunked : {false, true}) {
+    SCOPED_TRACE(chunked ? "chunked" : "blocking");
+    const Simulation sim = run(1, chunked);
+    // The log holds the last cycle and the one before it ...
+    EXPECT_EQ(sim.Cycles(), (std::vector<int>{2, 3}));
+    // ... the KPIs every cycle.
+    EXPECT_EQ(sim.KPICycles(), (std::vector<int>{0, 1, 2, 3}));
+    EXPECT_EQ(sim.KPIHistoryRecords().Cycles(), (std::vector<int>{0, 1, 2, 3}));
+    const auto got = sim.KPIs();
+    ASSERT_EQ(got.size(), want.size());
+    for (size_t i = 0; i < got.size(); ++i) {
+      SCOPED_TRACE("cycle " + std::to_string(want[i].cycle));
+      EXPECT_EQ(got[i].cycle, want[i].cycle);
+      EXPECT_EQ(got[i].component, want[i].component);
+      EXPECT_EQ(got[i].valid, want[i].valid);
+      EXPECT_DOUBLE_EQ(got[i].purity, want[i].purity);
+      EXPECT_DOUBLE_EQ(got[i].recovery, want[i].recovery);
+      EXPECT_DOUBLE_EQ(got[i].productivity_mass, want[i].productivity_mass);
+      EXPECT_DOUBLE_EQ(got[i].production_rate, want[i].production_rate);
+    }
+    // One evicted cycle on its own, the last logged one, and one never run.
+    ASSERT_EQ(sim.KPIs(0).size(), 1u);
+    EXPECT_EQ(sim.KPIs(0).front().cycle, 0);
+    EXPECT_DOUBLE_EQ(sim.KPIs(0).front().purity, want.front().purity);
+    EXPECT_EQ(sim.KPIs(-1).front().cycle, 3);
+    EXPECT_THROW(sim.KPIs(7), std::out_of_range);
+  }
+}
+
 }  // namespace adsim
