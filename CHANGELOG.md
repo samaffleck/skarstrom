@@ -57,9 +57,10 @@ root `CMakeLists.txt`.
 - Run time, measured on the same quiet 4-core machine before and after: paper
   suites (outside CI) 1016 s summed / 512 s wall at -j2 before, 2850 s /
   1431 s after (Ferre2026 66 -> 826 s, Nguyen2023 743 -> 1295 s, Perez2019
-  149 -> 403 s including the paper-protocol re-runs); the fast subset 213 s
-  summed / 72 s wall at -j3 before, 340 s / 113 s after (mostly the tests that
-  run the re-gridded example decks).
+  149 -> 403 s including the paper-protocol re-runs). With the CI tiers:
+  the fast tier (`ctest -LE "paper|slow"`, 878 tests) takes 98 s summed / 32 s
+  wall at -j3 and the slow tier (25 tests) 163 s / 64 s; the facade and
+  sensitivity tests that run Perez2019_A / Arora2021_LiLSX_PSA pin a small grid.
 
 ### Fixed — Aitken CSS acceleration stopped with WENO / van Leer
 - `AccelerateCyclicSteadyState::Accelerate` skipped every three-cycle window
