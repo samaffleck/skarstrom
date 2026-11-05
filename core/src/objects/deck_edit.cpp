@@ -7,6 +7,7 @@
 #include "adsim/objects/deck_edit.h"
 
 #include <algorithm>
+#include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -67,12 +68,46 @@ bool AddComponentToDeck(UserData& data, const std::string& name, std::string& er
   return true;
 }
 
-void RemoveComponentFromDeck(UserData& data, const std::string& name) {
+std::string ComponentInUseByReactions(const UserData& data, const std::string& name) {
+  std::vector<AdsorbentID> ids;
+  for (const auto& [id, ads] : data.adsorbent_directory.GetAll()) ids.push_back(id);
+  std::sort(ids.begin(), ids.end());
+  std::string where;
+  size_t count = 0;
+  for (AdsorbentID id : ids) {
+    const Adsorbent& ads = data.adsorbent_directory.Get(id);
+    const auto names = ads.reaction_source_.ReactionsUsing(name);
+    if (names.empty()) continue;
+    if (!where.empty()) where += "; ";
+    for (size_t i = 0; i < names.size(); ++i) where += (i ? ", " : "") + names[i];
+    where += " (on " + ads.name_ + ")";
+    count += names.size();
+  }
+  if (count == 0) return "";
+  return name + " is used by " + (count == 1 ? "reaction " : "reactions ") + where + "; remove " +
+         (count == 1 ? "it" : "them") + " first";
+}
+
+bool RemoveComponentFromDeck(UserData& data, const std::string& name, std::string& err) {
+  const std::string in_use = ComponentInUseByReactions(data, name);
+  if (!in_use.empty()) {
+    err = in_use;
+    return false;
+  }
+  for (auto& [id, ads_const] : data.adsorbent_directory.GetAll())
+    const_cast<Adsorbent&>(ads_const).reaction_source_.RemoveComponent(name);
   data.fluid.RemoveComponent(name);
   data.bed.RemoveComponent(name, data.adsorbent_directory);  // strips it from every adsorbent
   ReconcileMoleFractions(data, name, false);
   data.fluid.adsorbed_heat_capacity_.erase(name);
   data.fluid.gas_heat_capacity_.erase(name);
+  return true;
+}
+
+void RemoveComponentFromDeck(UserData& data, const std::string& name) {
+  std::string err;
+  [[maybe_unused]] const bool removed = RemoveComponentFromDeck(data, name, err);
+  assert(removed && "RemoveComponentFromDeck: a reaction uses the component; use the checked form");
 }
 
 void SeedLayerComposition(UserData& data, MixedAdsorbentLayer& layer) {
@@ -116,6 +151,7 @@ bool AddAdsorbentFromJson(UserData& data, const std::string& label, const std::s
     return false;
   }
   ads.adsorption_source_.Initialise(data.fluid);
+  ads.reaction_source_.Initialise(data.fluid);
   SeedEmptyLayerCompositions(data);
   return true;
 }
