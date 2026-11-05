@@ -8,6 +8,8 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-05
+
 ### Added — automatic releases
 - Merging a version change into `main` now releases it: `release.yml` runs on
   a push to `main` that changes the version in `CMakeLists.txt`, creates the
