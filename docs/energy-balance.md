@@ -2,8 +2,8 @@
 
 The deck's **energy balance mode** (parameter `energy_balance.energy_balance_mode`) chooses whether temperatures are solved at all:
 
-- **Non-isothermal (solve energy balance)** — the default. One of the two thermal models below is solved, together with the [wall energy balance](wall-energy-balance.md).
-- **Isothermal (fixed temperature)** — see [Isothermal mode](#isothermal-mode).
+- **Non-isothermal** — the default: the energy balance is solved. One of the two thermal models below is solved, together with the [wall energy balance](wall-energy-balance.md).
+- **Isothermal** — the temperature is fixed; see [Isothermal mode](#isothermal-mode).
 
 When the energy balance is solved, the two thermal models are selected with the **thermal equilibrium model** setting.
 
@@ -44,7 +44,7 @@ The effective axial thermal conductivity $\lambda$ and the internal coefficient 
 
 ## Local Thermal Non-Equilibrium (LTNE)
 
-When gas–solid heat transfer is not fast (for example large particles or fast cycles), select **Local thermal non-equilibrium (LTNE)**. The solver then carries **separate fluid and solid temperature equations** coupled by a gas–particle heat transfer term. This requires a **Particle heat transfer model** and coefficient, described in the [transport correlations](transport-correlations.md#particle-heat-transfer-ltne-only). With LTNE, the solid temperature is available as its own plotted variable.
+When gas–solid heat transfer is not fast (for example large particles or fast cycles), select **Local thermal non-equilibrium** (LTNE). The solver then carries **separate fluid and solid temperature equations** coupled by a gas–particle heat transfer term. This requires a **Particle heat transfer model** and coefficient, described in the [transport correlations](transport-correlations.md#particle-heat-transfer-ltne-only). With LTNE, the solid temperature is available as its own plotted variable.
 
 ## Heat of adsorption convention
 
@@ -73,7 +73,7 @@ A TSA feed can also be heated or cooled through its inlet: the inlet temperature
 
 ## Isothermal mode
 
-Many validation cases and short-cut studies assume an isothermal column. Selecting **Isothermal (fixed temperature)** removes the fluid, solid and wall temperatures from the set of unknowns altogether and holds them at
+Many validation cases and short-cut studies assume an isothermal column. Selecting **Isothermal** removes the fluid, solid and wall temperatures from the set of unknowns altogether and holds them at
 
 $$
 T = T_s = T_w = T_{\text{iso}}, \qquad \frac{\partial T}{\partial t} = 0
