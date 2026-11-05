@@ -814,20 +814,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.1509609283102344,
-                                    "Average_Temperature": 303.01452854831288,
+                                    "Total_Moles": 0.1509600801717996,
+                                    "Average_Temperature": 303.02151340045318,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.3984164325104688
+                                            "value": 0.3984189750069683
                                         },
                                         {
                                             "key": "Nitrogen",
-                                            "value": 1.7986619864536083e-29
+                                            "value": 0.0
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.6015835674895314
+                                            "value": 0.6015810249930318
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -910,12 +910,12 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.19773737381920396,
+                                                        "Total_Moles": 0.19773737283129617,
                                                         "Average_Temperature": 294.9999999999999,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.6999999999999996
+                                                                "value": 0.6999999999999997
                                                             },
                                                             {
                                                                 "key": "Nitrogen",
@@ -923,7 +923,7 @@
                                                             },
                                                             {
                                                                 "key": "Helium",
-                                                                "value": 0.30000000000000029
+                                                                "value": 0.3000000000000002
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 0
@@ -1081,7 +1081,7 @@
             },
             "max_cycles_to_keep": 10,
             "Maximum_Iterations_Per_Step": 50000,
-            "Advection_Scheme": 0,
+            "Advection_Scheme": 1,
             "Accelerate_Cyclic_Steady_State": {
                 "cereal_class_version": 0,
                 "Method": 0

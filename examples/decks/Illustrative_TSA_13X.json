@@ -1307,7 +1307,7 @@
             },
             "max_cycles_to_keep": 10,
             "Maximum_Iterations_Per_Step": 50000,
-            "Advection_Scheme": 0,
+            "Advection_Scheme": 1,
             "Accelerate_Cyclic_Steady_State": {
                 "cereal_class_version": 0,
                 "Method": 0

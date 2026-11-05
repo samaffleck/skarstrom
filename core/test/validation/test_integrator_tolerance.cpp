@@ -34,6 +34,13 @@ namespace adsim {
 
   using namespace adsim::validation;
 
+  // kUpwindNote: these runs set Upwind, the scheme every number below was
+  // measured with. With the default WENO the 20 -> 40 cell change of the
+  // cycle recovery is 1.8e-5, below its error at the default reltol (5.2e-5),
+  // so the "tolerance is not the dominant error" claim holds for upwind only;
+  // and WENO takes more free steps (2153 on the breakthrough, 4414 on the
+  // cycle), so a 0.1 s cap no longer doubles them and the guards that prove
+  // the cap active would need a smaller cap.
   namespace {
 
     constexpr double kAbsTolMoleFraction = 1e-8;  // docs/numerics.md
@@ -72,6 +79,7 @@ namespace adsim {
         c.max_step = max_step;
         UserData data;
         Build(data, c);
+        data.settings.advection_scheme_ = AdvectionScheme::Upwind;  // measured with upwind (kUpwindNote)
         std::string error;
         EXPECT_TRUE(data.PerformChecks(error)) << error;
         CoupledSolver solver{data};
@@ -110,6 +118,7 @@ namespace adsim {
     CycleResult RunCycle(double reltol, double max_step = 0.0) {
       UserData data;
       BuildPsaCycle(data, 20);
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;  // measured with upwind (kUpwindNote)
       AddO2ProductKpis(data);
       data.cycle.number_of_cycles_ = 2;
       data.settings.reltol = reltol;
@@ -227,6 +236,7 @@ namespace adsim {
     // The grid error of the same KPI: 20 against 40 cells at reltol 1e-8.
     UserData fine;
     BuildPsaCycle(fine, 40);
+    fine.settings.advection_scheme_ = AdvectionScheme::Upwind;  // as RunCycle
     AddO2ProductKpis(fine);
     fine.cycle.number_of_cycles_ = 2;
     fine.settings.reltol = 1e-8;

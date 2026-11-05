@@ -32,13 +32,15 @@ from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 # Table 4 optimal operating points (core/test/papers/arora_hasan_2021/). The
 # purge flow is the paper's purge velocity factor gamma = v_purge / v_feed
 # turned into a molar flow at the purge pressure: n_purge = gamma n_feed P3/P1.
+# cells: the grid on which O2 purity and recovery are grid-converged with the
+# default WENO scheme (core/test/papers/arora_hasan_2021/README.md, "Grid").
 CYCLES = {
     #               product    high      depress. / purge   step times [s]               air feed     purge
     #               O2 spec    pressure  pressure           prod, depr, purge, press     [mol/s]      factor
     "LiLSX_PSA":  dict(o2_spec=0.85, p_high=3.5e5, p_low=1.0e5, times=(3.0, 1.0, 1.4, 1.0), feed=0.23, gamma=1.97,
-                       title="Arora 2021 - LiLSX PSA", cycle="PSA"),
+                       title="Arora 2021 - LiLSX PSA", cycle="PSA", cells=160),
     "LiLSX_PVSA": dict(o2_spec=0.9, p_high=3.5e5, p_low=0.5e5, times=(3.2, 1.0, 1.3, 1.0), feed=0.25, gamma=2.32,
-                       title="Arora 2021 - LiLSX PVSA", cycle="PVSA"),
+                       title="Arora 2021 - LiLSX PVSA", cycle="PVSA", cells=100),
 }
 
 AIR = {"Oxygen": 0.21, "Nitrogen": 0.79}   # feed and initial gas, mole fractions
@@ -105,7 +107,7 @@ def build(case: str) -> sk.Simulation:
     sim.wall.set_boundary("zero_flux")
 
     layer = sim.add_layer("LiLSX Zeolite", composition={"LiLSX Zeolite": 1.0}, momentum="kozeny_carman",
-                          length=0.127 * u.m, cells=30, bed_void_fraction=0.35, particle_diameter=35 * u.mm)
+                          length=0.127 * u.m, cells=cfg["cells"], bed_void_fraction=0.35, particle_diameter=35 * u.mm)
     layer.set_dispersion("constant", dispersion_coefficient=0 * u.m**2 / u.s)   # no axial dispersion
     layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0.29 * u.W / (u.m * u.K))
     layer.set_internal_heat_transfer("constant", internal_htc=70 * u.W / (u.m**2 * u.K))
@@ -136,7 +138,7 @@ def build(case: str) -> sk.Simulation:
     sim.settings.max_err_test_fails = 40
     sim.settings.max_num_steps = 100000
     sim.settings.max_iters_per_step = 50000
-    sim.settings.advection_scheme = "upwind"
+    sim.settings.advection_scheme = "weno"
     sim.settings.max_cycles_to_keep = 10
     sim.settings.max_log_points_per_step = 200
     sim.settings.acceleration_method = "none"

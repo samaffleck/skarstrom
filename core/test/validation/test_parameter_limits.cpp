@@ -146,6 +146,8 @@ namespace adsim {
         c.y_feed = y;
         UserData data;
         Build(data, c);
+        // The cumulants above are those of N upwind cells (the default is WENO).
+        data.settings.advection_scheme_ = AdvectionScheme::Upwind;
         SetLdfCoefficient(data, k);
         const Curve r = RunCase(data, c);
         ASSERT_NEAR(r.y.back(), y, 1e-4 * y) << "Breakthrough incomplete";
@@ -513,6 +515,10 @@ namespace adsim {
       c.run_time = 400.0;
       c.reltol = 1e-8;
       Build(data, c);
+      // Measured with upwind, whose O(y) front sharpening is the same on 80 and
+      // 160 cells; WENO's differs slightly (order 1.10 against the 1 +- 0.1
+      // asserted), so the run is upwind (the default is WENO).
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;
       auto& source = PackingOf(data).adsorption_source_;
       auto isotherm = std::make_unique<ExtendedLangmuirIsotherm>();
       isotherm->params_["Oxygen"].m1 = 3.0;
@@ -624,6 +630,13 @@ namespace adsim {
   TEST(DegenerateMixtures, IdenticalComponentsKeepTheirFeedRatio) {
     UserData data;
     BuildPsaCycle(data, 30);
+    // Upwind faces are linear in the cell values, so identical components
+    // keep their ratio to round-off. WENO's smoothness weights use an
+    // absolute epsilon (1e-12), so two identical components at different
+    // mole fractions get slightly different weights and their ratio drifts by
+    // 5.4e-6 in the gas (3.3e-7 in the loadings) here: a property of the
+    // scheme, documented in docs/numerics.md.
+    data.settings.advection_scheme_ = AdvectionScheme::Upwind;
     std::string error;
     ASSERT_TRUE(AddComponentToDeck(data, "Argon", error)) << error;
     auto& source = PackingOf(data).adsorption_source_;

@@ -25,6 +25,7 @@ The solver parameters are stored in the deck and are parameters of the registry 
 | **Maximum Convergence Failures** | `settings.max_conv_fails` | 200 | Non-linear-solver failures tolerated before giving up. |
 | **Maximum Error Test Failures** | `settings.max_err_test_fails` | 40 | Local error-test failures tolerated before giving up. |
 | **Maximum Number of Steps** | `settings.max_num_steps` | 100000 | Cap on total integrator steps. |
+| **Advection Scheme** | `settings.advection_scheme` | `weno` | Face reconstruction of the mole fractions: `weno` (third order), `van_leer` (limited second order) or `upwind` (first order, the default up to engine 0.4). WENO reaches a grid-converged result on 4-10 times fewer cells than upwind; see [Numerics](numerics.md#advection-schemes). |
 | **Maximum Number of Cycles to Log** | `settings.max_cycles_to_keep` | 10 | How many recent cycles of full profile data are retained for plotting. Every solver step of each kept cycle is stored, so this sets most of a run's memory (on a fine grid, hundreds of MB per cycle). KPIs are kept for every cycle whatever this is. With a [CSS method](cyclic-steady-state.md#consecutive-cycles) on, at least the cycles the CSS check reads are kept (4 with the default three consecutive cycles). |
 
 > **Absolute tolerances** are set internally on a per-variable basis (10⁻⁸ for concentrations, mole fractions and loadings, 10⁻⁶ for pressure and velocity, 10⁻⁴ K for temperatures), so only the single relative tolerance is a setting. See [Numerics](numerics.md#time-integration-sundials-ida).
@@ -48,6 +49,6 @@ All are on by default. The end-of-run checks are described on [Wall Design and O
 
 - **The run fails early with a message about consistent initial conditions.** The solver could not reconcile the [initial conditions](cycles.md#initial-conditions) with the first step's [boundary conditions](boundary-conditions.md). Make the initial pressure, temperature and composition physically consistent with what the first step imposes.
 - **The run stalls or reports many convergence/error-test failures.** Reduce `settings.max_step` and/or loosen `settings.reltol` slightly; check for very stiff inputs (e.g. an extremely large mass-transfer coefficient or a near-instant pressure ramp). Increasing the layer's number of cells gradually rather than in one large jump also helps.
-- **Results look under-resolved.** Increase the layer's number of cells and re-run; confirm the results stop changing.
+- **Results look under-resolved.** Increase the layer's number of cells and re-run; confirm the results stop changing. With the default WENO scheme about 80 cells resolve a 0.3 m VSA column; upwind needs several times more ([Numerics](numerics.md#advection-schemes)).
 
 Once a run completes, retain enough cycles (`settings.max_cycles_to_keep`) to inspect the approach to [cyclic steady state](cyclic-steady-state.md) and to compute [performance metrics](performance-metrics.md).

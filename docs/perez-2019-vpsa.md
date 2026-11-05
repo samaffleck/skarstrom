@@ -4,7 +4,7 @@ Reference: [Estupiñan Perez, L., Sarkar, P., Rajendran, A. Experimental validat
 
 **Goal.** Run a five-step vacuum swing adsorption (VPSA) cycle that captures CO₂ from a 15 % CO₂ / 85 % N₂ flue gas on zeolite 13X, see how **light-product pressurisation** (LPP) is wired with a step connection, run it to **cyclic steady state**, and compare purity and recovery with the experiment. The deck is experiment D1 of Table 3 in the paper.
 
-**What you will get.** CSS after 190 cycles, a CO₂ purity of 93.8 % and a recovery of 89.2 %, against 97.1 % and 86.1 % measured. See [Validation](validation.md#perez-2019) for all six Perez experiments.
+**What you will get.** CSS after 94 cycles, a CO₂ purity of 93.8 % and a recovery of 89.8 %, against 97.1 % and 86.1 % measured. See [Validation](validation.md#perez-2019) for all six Perez experiments.
 
 ---
 
@@ -26,9 +26,9 @@ print(sim.components, sim.steps.names)
 
 **Adsorbents.** *13X*: the paper's competitive (extended) dual-site Langmuir isotherm in concentration form, a macropore-controlled linear driving force with the capacity factor c / (ρ_p q\*) of the paper's model (tortuosity 3, particle voidage 0.35; see [Kinetic models](kinetic-models.md)) and heats of adsorption of 30.85 kJ/mol (CO₂) and 15.93 kJ/mol (N₂). The same parameters are in the library as [Zeolite 13X (Perez 2019)](adsorbent-library.md#zeolite-13x-perez2019).
 
-**Column.** The laboratory column: 0.30 m long, 0.032 m diameter, a 3.1 mm steel wall whose ends are held at the ambient temperature of 293 K (the paper's wall boundary condition). The layer *13X* has 30 cells, a bed voidage of 0.41, 1.5 mm particles and the *Darcy (Kozeny–Carman)* momentum model. Dispersion uses the Ruthven correlation; heat transfer uses constant coefficients of 8.6 W m⁻² K⁻¹ (bed to wall) and 10 W m⁻² K⁻¹ (wall to ambient) with an axial thermal conductivity of 0.0903 W m⁻¹ K⁻¹.
+**Column.** The laboratory column: 0.30 m long, 0.032 m diameter, a 3.1 mm steel wall whose ends are held at the ambient temperature of 293 K (the paper's wall boundary condition). The layer *13X* has 80 cells (WENO advection, the default; on this grid the recovery is within 0.1 point of its grid-converged value, see [Numerics](numerics.md#advection-schemes)), a bed voidage of 0.41, 1.5 mm particles and the *Darcy (Kozeny–Carman)* momentum model. Dispersion uses the Ruthven correlation; heat transfer uses constant coefficients of 8.6 W m⁻² K⁻¹ (bed to wall) and 10 W m⁻² K⁻¹ (wall to ambient) with an axial thermal conductivity of 0.0903 W m⁻¹ K⁻¹.
 
-**Initial Conditions.** Pure N₂ at 1 bar and 298 K.
+**Initial Conditions.** The feed gas (15 % CO₂ / 85 % N₂) at 1 bar and 298 K, with the loadings in equilibrium with it (the solver seeds them from the initial gas). Starting from this feed-loaded bed reaches the same cyclic steady state as a clean N₂ bed in far fewer cycles (94 instead of 233 for this deck).
 
 **Cycle.** Five steps, 360 s per cycle (`skarstrom params Perez2019_D1.json` lists the step times, flows and pressures with their parameter paths):
 
@@ -58,14 +58,14 @@ The two steps represent two beds working at the same time, which is why they hav
 ```python
 result = sim.run()
 print(result.status, result.css_cycle + 1, f"{result.wall_time_s:.0f} s")
-# reached_css 190 24 s
+# reached_css 94 30 s
 ```
 
-The run stops at cyclic steady state, at cycle 190. It took under 30 s natively on one core of a shared 4-core Linux machine. `skarstrom run Perez2019_D1.json` does the same from the command line.
+The run stops at cyclic steady state, at cycle 94. It took about 30 s natively on one core of a shared 4-core Linux machine (on 80 cells; the 30 upwind cells the deck used before were cheaper per cycle but left the recovery 1.3 points below its grid-converged value). `skarstrom run Perez2019_D1.json` does the same from the command line.
 
 ## 4. Interpret the results
 
-**KPIs.** `sim.kpis(cycle=-1)` gives the last logged cycle, 189 (the 190th cycle, numbered from 0):
+**KPIs.** `sim.kpis(cycle=-1)` gives the last logged cycle, 93 (the 94th cycle, numbered from 0):
 
 ```python
 k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")
@@ -74,12 +74,12 @@ print(k.purity, k.recovery, k.production_rate, k.productivity_mass)
 
 | KPI | Simulated | Experiment D1 | Repeat D2 | Paper's model |
 |---|---|---|---|---|
-| CO₂ purity | 93.78 % | 97.1 % | 94.5 % | 96.1 % |
-| CO₂ recovery | 89.17 % | 86.1 % | 83.4 % | 86.8 % |
+| CO₂ purity | 93.79 % | 97.1 % | 94.5 % | 96.1 % |
+| CO₂ recovery | 89.84 % | 86.1 % | 83.4 % | 86.8 % |
 
-Production rate is 5.72 × 10⁻⁵ mol/s and the mass productivity 1.55 × 10⁻⁵ kg CO₂ per kg adsorbent per second. The energy KPI is 0 because no pump has power calculation switched on (see below).
+Production rate is 5.76 × 10⁻⁵ mol/s and the mass productivity 1.57 × 10⁻⁵ kg CO₂ per kg adsorbent per second. The energy KPI is 0 because no pump has power calculation switched on (see below).
 
-The model is 3.3 points low on purity and 3.1 points high on recovery against D1, and within 0.7 and 6 points of the repeat D2. The deck uses the paper's model forms (the test README traces every value and attributes the remaining error): for the four-step cycles A and B the same decks are within 0.6 points of purity and 1.1 points of recovery of the experiments. The remaining LPP excess is the composition-coupled light-product connection, an open item.
+The model is 3.3 points low on purity and 3.7 points high on recovery against D1, and within 0.7 and 6.4 points of the repeat D2. The deck uses the paper's model forms (the test README traces every value and attributes the remaining error): for the four-step cycles A and B the same decks are within 0.7 points of purity and 1.0 point of recovery of the experiments. The remaining LPP excess is the composition-coupled light-product connection, an open item.
 
 **Approach to CSS.** Plot the KPI against the cycle number (KPIs are kept for every cycle, although only the last `settings.max_cycles_to_keep` = 10 cycles are logged):
 
@@ -104,7 +104,7 @@ In our run the bed sat at 1.000–1.001 bar during the feed steps, reached 8.1�
 
 ## 5. What to try next
 
-- **Accelerate CSS.** Switch on the Aitken (Graves-Morris) extrapolation: `sim["settings.acceleration_method"] = 1`. In our run CSS came 45 cycles earlier (cycle 144, against 189 for a plain run on the same build), with purity and recovery within 2×10⁻⁵ of the plain run's. See [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration).
+- **Accelerate CSS.** Switch on the Aitken (Graves-Morris) extrapolation: `sim["settings.acceleration_method"] = 1`. In our run CSS came at cycle 48 instead of 94, with purity and recovery within 5×10⁻⁵ of the plain run's. See [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration).
 - **Add the vacuum pump energy.** Pump power is calculated on boundaries that have a pump model. The Python registry exposes the pump settings of boundaries that already have one (`endpoint[N].pump.*`); switching power calculation on for the Evacuation and Blowdown boundaries is a deck edit (in C++, or in the deck JSON). With a discharge pressure of 1 bar, the default constant efficiency of 0.7 and a polytropic constant of 1.4, the specific energy came out at about **0.51 MJ per kg of CO₂**; purity and recovery do not change, because power calculation is post-processing only.
 - **Switch off LPP** by disconnecting the pair (`adsim::DisconnectPair` in `adsim/objects/deck_edit.h`), and compare with the four-step decks *Perez2019_A* to *C1*.
 - **Map the trade-off.** Sweep the Feed 2 time (`step[Feed 2].time`) or the evacuation end pressure (`step[Evacuation].bottom.pressure_exponential_end`) in a [parametric study](parameterisation.md), or [optimise](parameterisation.md#optimisation) recovery subject to purity ≥ 0.95, as the paper does with its multi-objective optimiser.

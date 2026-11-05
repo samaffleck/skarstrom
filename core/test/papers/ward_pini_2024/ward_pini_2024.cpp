@@ -31,11 +31,12 @@ namespace adsim {
   class WardPini2024Test : public UserDataTest {};
 
   // Validation tolerances vs Table 4 (abs. percentage points; productivity
-  // relative), set from the measured error.
+  // relative), set from the measured error with WENO on 100 cells (upwind on
+  // 30 cells: 2.286 pp, 1.973 pp, 0.00938; README.md "Grid").
   namespace {
-    constexpr double kTolPurity = 2.7;  // measured 2.30363 pp
-    constexpr double kTolRecovery = 2.1;  // measured 1.79488 pp
-    constexpr double kTolProductivity = 0.018;  // measured 0.0071846 (relative)
+    constexpr double kTolPurity = 2.7;  // measured 2.415596 pp
+    constexpr double kTolRecovery = 3.4;  // measured 2.829703 pp
+    constexpr double kTolProductivity = 0.027;  // measured 0.022288 (relative)
   }
 
   TEST_F(WardPini2024Test, FourStepPSA) {
@@ -63,7 +64,7 @@ namespace adsim {
     layer.domain_.length = length;
     layer.particle_diameter_ = 0.002;
     layer.eb_ = eb;
-    layer.domain_.n_cells = 30;
+    layer.domain_.n_cells = 100;  // grid-converged with the default WENO scheme (README.md "Grid")
     layer.composition_[mof_id] = 1.0;
 
     double Di = 2 * 0.145;

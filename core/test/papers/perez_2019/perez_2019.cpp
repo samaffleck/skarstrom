@@ -42,17 +42,15 @@ namespace adsim {
     const std::map<std::string, PerezTol> kPerezTol = {
       // Decks on the paper's model forms (WP10 audit, 2026-10-31): two-term
       // evacuation exponential, wall ends at T_a, Blake-Kozeny / Ergun,
-      // capacity-factor LDF. Before the audit the four-step recoveries were
-      // 8-10 pp above the experiments (measured errors in the git history).
-      // Measured at the CSS of the state-test rule (2026-11-02); the old
-      // balance-only rule stopped 26-166 cycles earlier (A's recovery was
-      // 0.12 pp lower, hence its re_exp bound moved from 0.4 to 0.5).
-      { "ConfigA",  { 0.3, 0.5, 0.3, 1.2 } },  // measured 0.212, 0.417, 0.188, 0.883 pp
-      { "ConfigB",  { 0.7, 1.7, 1.8, 4.3 } },  // measured 0.599, 1.397, 1.499, 3.697 pp
-      { "ConfigC1", { 0.62, 5.5, 4.8, 9.7 } },  // measured 0.542, 4.744, 4.158, 8.344 pp
-      { "ConfigD1", { 3.9, 3.5, 2.7, 2.7 } },  // measured 3.324, 3.068, 2.324, 2.368 pp
-      { "ConfigE",  { 2.1, 2.5, 4.3, 3.2 } },  // measured 1.757, 2.229, 3.657, 2.829 pp
-      { "ConfigF",  { 1.9, 1.9, 4.4, 3.0 } },  // measured 1.452, 1.623, 3.652, 2.623 pp
+      // capacity-factor LDF. Measured at the CSS of the state-test rule, from a
+      // feed-loaded bed, with WENO on 80 cells (grid-converged; README.md "Grid" has the upwind
+      // 30-cell errors these bounds were set from before).
+      { "ConfigA",  { 0.3, 1.2, 0.3, 0.43 } },  // measured 0.193, 0.952, 0.207, 0.348 pp
+      { "ConfigB",  { 0.7, 0.2, 1.8, 4.3 } },  // measured 0.692, 0.139, 1.592, 2.439 pp
+      { "ConfigC1", { 0.2, 2.9, 4.8, 9.7 } },  // measured 0.147, 2.370, 4.553, 5.970 pp
+      { "ConfigD1", { 3.9, 4.5, 2.7, 3.7 } },  // measured 3.308, 3.735, 2.308, 3.035 pp
+      { "ConfigE",  { 2.1, 3.2, 4.3, 4.0 } },  // measured 1.854, 2.668, 3.754, 3.268 pp
+      { "ConfigF",  { 2.6, 2.6, 4.4, 3.8 } },  // measured 2.053, 2.087, 4.253, 3.087 pp
     };
 
     void ValidatePerez(const std::string& id, double purity, double recovery) {
@@ -70,6 +68,44 @@ namespace adsim {
         report.Info("CO2 recovery vs repeat experiment " + rep, recovery,
                     Reference("perez_2019", id, "CO2_recovery_exp_" + rep), "abs_error", "repeat run");
       }
+    }
+
+    // The paper's stopping protocol (Sect. 3): each species' balance within 1 %
+    // over 5 consecutive cycles, with no test of the bed state, from the same
+    // feed-loaded start. Report only: it re-runs the LPP deck under that rule and
+    // prints the stop cycle and the KPIs next to the CSS result and Table 3 (no
+    // assertion; see README.md "Paper protocol"). Run after the deck is saved:
+    // it changes the deck's CSS settings.
+    void ReportPaperProtocol(UserData& data, const std::string& id, double pu_css, double re_css,
+                             int css_cycles) {
+      data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
+      data.settings.css.mass_balance_tolerance_ = 0.01;
+      data.settings.css.consecutive_cycles_ = 5;
+      data.settings.css.state_tolerance_ = 0.0;  // 0 switches the state test off
+      CoupledSolver solver{data};
+      if (solver.IntegrateCycle(data.cycle, false) < 0) {
+        std::cout << "\n[paper protocol] Perez 2019 " << id << ": run did not complete\n" << std::endl;
+        return;
+      }
+      const EquationLog& eq_log = solver.GetLog();
+      const auto& cyc = eq_log.sys_data.cycle_index_set_;
+      const int last_cycle = cyc.empty() ? 0 : *cyc.rbegin();
+      KPIParams kpi(eq_log, solver.GetBoundaryLog());
+      kpi.product_comp_ = "CarbonDioxide";
+      kpi.cycle_index_ = last_cycle;
+      kpi.feed_endpoints = KpiEndpointsForFaces(data.cycle,
+        { { 0, BoundaryLocation::BOTTOM }, { 1, BoundaryLocation::BOTTOM } });
+      kpi.product_endpoints = KpiEndpointsForFaces(data.cycle, { { 3, BoundaryLocation::BOTTOM } });
+      const double purity = CalculatePurity(kpi) * 100.0;
+      const double recovery = CalculateRecovery(kpi) * 100.0;
+      using validation::Reference;
+      std::cout << "\n[paper protocol] Perez 2019 " << id << " | stop after " << (last_cycle + 1)
+                << " cycles: CO2 purity " << purity << " %, recovery " << recovery << " % | CSS ("
+                << css_cycles << " cycles): " << pu_css << " %, " << re_css << " % | paper model "
+                << Reference("perez_2019", id, "CO2_purity_model").value << " %, "
+                << Reference("perez_2019", id, "CO2_recovery_model").value << " % | experiment "
+                << Reference("perez_2019", id, "CO2_purity_exp").value << " %, "
+                << Reference("perez_2019", id, "CO2_recovery_exp").value << " %\n" << std::endl;
     }
   } // namespace
 
@@ -318,10 +354,10 @@ namespace adsim {
     step_press.bottom_boundary_condition_ = std::move(press_closed);
 
     // Run to CSS, min 5 cycles. The CO2 inventory of these light-product
-    // pressurisation cycles settles slowly: the per-component balance reaches
-    // 0.5 % at about cycle 450 (E) and 1030 (F), long after the gas profiles
-    // stop changing, so the cap is well above that.
-    ConfigureCycle(1500);
+    // pressurisation cycles settles slowly: from the feed-loaded start the CSS
+    // rule stops after 207 (E) and 517 (F) cycles with WENO on 80 cells (from a
+    // clean bed: 690 and 2276, at the same CSS); the cap is about 30 % above.
+    ConfigureCycle(save_name == "Perez2019_F" ? 680 : 270);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
     data.settings.css.min_cycles_ = 5;
     // KPI: CO2 fed in Feed1(0), Feed2(1) @ bottom; product = Evacuation(3) @ bottom. The
@@ -360,6 +396,8 @@ namespace adsim {
 
     SaveTest(save_name, solver);
     SaveResultsAsExample(save_name, solver);
+    ReportPaperProtocol(data, "Config" + save_name.substr(save_name.rfind('_') + 1), purity, recovery,
+                        last_cycle + 1);
   }
 
   TEST_F(Perez2019Test, ConfigD1_ConnectedBC) {
@@ -760,7 +798,8 @@ namespace adsim {
     step_press.bottom_boundary_condition_ = std::move(press_closed);
 
     // CONFIGURE CYCLE — run to cyclic steady state (Perez 2019: <1% component mass-balance
-    // error for 5 consecutive cycles, ~80-150 cycles to CSS). Minimum 5 cycles, cap 250.
+    // error for 5 consecutive cycles). Minimum 5 cycles, cap 250: from the feed-loaded
+    // start with WENO on 80 cells the CSS rule stops after 94 cycles.
     ConfigureCycle(250);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
     data.settings.css.min_cycles_ = 5;
@@ -786,6 +825,8 @@ namespace adsim {
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
+    double css_purity = 0.0, css_recovery = 0.0;
+    int css_cycles = 0;
     // --- CO2 purity/recovery at CSS vs Perez (2019) Table 3, Exp D1 (Model 96.1% / 86.8%) ---
     // LPP cycle: Feed1(0), Feed2(1), Blowdown(2), Evacuation(3), Pressurisation(4).
     // CO2 product leaves at BOTTOM during Evacuation; CO2 fed at BOTTOM during both feed
@@ -812,10 +853,12 @@ namespace adsim {
                 << " | CO2 purity = " << purity << " % (paper 96.1) | CO2 recovery = "
                 << recovery << " % (paper 86.8)\n" << std::endl;
       ValidatePerez("ConfigD1", purity, recovery);
+      css_purity = purity; css_recovery = recovery; css_cycles = last_cycle + 1;
     }
 
     SaveTest("Perez2019_D1", solver);
     SaveResultsAsExample("Perez2019_D1", solver);
+    ReportPaperProtocol(data, "ConfigD1", css_purity, css_recovery, css_cycles);
   }
 
   TEST_F(Perez2019Test, ConfigC1) {

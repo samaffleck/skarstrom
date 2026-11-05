@@ -45,6 +45,31 @@ value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#arora-hasan-2021)
 (generated from `../validation_summary.json`).
 
-- O2 purity is within about 4 percentage points of Table 4, but recovery is far below the paper (4 % vs 30 % for PSA, 20 % vs 66 % for PVSA). This is an open disagreement, not a tuned result.
+- O2 purity is within 3.9 (PVSA) and 5.4 (PSA) percentage points of Table 4, but recovery is far below the paper (7 % vs 30 % for PSA, 19 % vs 66 % for PVSA). This is an open disagreement, not a tuned result.
 - The paper's recovery is a model value from an optimiser; the t1/t4 rows of the PSA column of Table 4 were lost in the text extraction (t1 = 3.0 s is an estimate). The isotherm form is the non-competitive dual-site Langmuir; the paper does not state whether its DSL is competitive, so it was left as is.
 - The PSA deck now vents the depressurisation step counter-currently (feed end), as the paper states for every Table 4 case; it previously vented co-currently.
+
+### Grid and advection scheme (2026-11-04)
+
+The decks ran first-order upwind advection on 30 cells. A grid study (10-160
+cells, Richardson extrapolation; [Numerics](../../../../docs/numerics.md#advection-schemes))
+showed that the PSA deck's small net O2 recovery is very grid-sensitive: on
+30 upwind cells it was 4.5 % against a grid limit of about 7.5 %, and 0.1 pp
+needs about 550 upwind or 400 WENO cells (purity: 115 WENO cells). The PVSA
+recovery needs 86 WENO cells. The decks now run WENO, the engine's default,
+on 160 (PSA) and 100 (PVSA) cells; the PSA recovery still carries about 0.3 pp
+of grid error there, accepted against the cost of 400 cells.
+
+Before: upwind, 30 cells; after: WENO, 160 / 100 cells; both at the fixed 50
+cycles (bold: changed bound). The PSA purity rose by 1.8 pp, further above the
+paper's optimised model value, past its bound (4.5 → 6.5 pp), as the sharper
+N2 front leaves less N2 in the product. The PSA recovery rose by 2.7 pp
+and the PVSA recovery fell by 1.8 pp; the gap to the paper stays the open
+disagreement noted above.
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| LiLSX_PSA | O2 purity at cycle 50 | 84.72 | 88.25 | 90.08 | 3.53 → 5.36 | **4.5 → 6.5** |
+| LiLSX_PSA | O2 recovery at cycle 50 | 30.14 | 4.54 | 7.25 | 25.60 → 22.89 | 30 |
+| LiLSX_PVSA | O2 purity at cycle 50 | 89.97 | 93.96 | 93.84 | 3.99 → 3.87 | 4.7 |
+| LiLSX_PVSA | O2 recovery at cycle 50 | 65.51 | 20.73 | 18.95 | 44.78 → 46.56 | 53 |

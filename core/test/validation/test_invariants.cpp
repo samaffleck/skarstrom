@@ -110,6 +110,11 @@ namespace adsim {
 
     UserData data;
     Build(data, c);
+    // The 1e-12 loading floor below is upwind's: a monotone scheme keeps the
+    // loading non-negative to round-off. WENO (the default) is not strictly
+    // monotone and undershoots by about the integrator tolerance here
+    // (-1.4e-11 mol/kg; docs/numerics.md, "Choosing the scheme").
+    data.settings.advection_scheme_ = AdvectionScheme::Upwind;
 
     CoupledSolver solver{data};
     std::string error;

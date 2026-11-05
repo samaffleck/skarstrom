@@ -141,3 +141,32 @@ value in a comment next to it. Results of the last run:
 - Table 5 is the paper's simulation (feed velocity fitted per experiment, piping to the mass spectrometer modelled); adsim uses the 10 cm3/s set-point and no piping. The experimental curves (Figs. 4, 6) have not been digitised.
 - **Competitive-Sips trace fix (WP19-1, 2026-11).** `arrhenius_sips` used to multiply each competitive term by y²/(y² + 10⁻⁶) in the solver, which halved a component's loading at y = 10⁻³; it now uses the published isotherm down to y = 10⁻⁵ (see `docs/isotherms.md`). The breakthrough times are taken at y > 0.002, on the toe of the front, so they move: CO₂ 0.8, 1.2 and 0.6 s later (errors 0.92 → 0.73 %, 0.64 → 0.45 %, 9.81 → 9.99 %), H₂ 0.3-0.5 s later (16.8 → 16.4 %, 19.8 → 19.4 %, 1.17 → 1.53 %). No tolerance changed.
 - The competitive Arrhenius-Sips isotherm reproduces the paper's per-temperature Sips fits (Schell et al., Table 3) to 7 % (CO2) and 0.6 % (H2).
+
+### Grid and advection scheme (2026-11-04)
+
+The decks ran first-order upwind advection on 60 cells. A grid study (10-160
+cells, Richardson extrapolation; [Numerics](../../../../docs/numerics.md#advection-schemes))
+found the CO2 front converged on 20-40 cells under every scheme, but the
+light H2 front needs many more: its half-feed time is within 0.5 % of the
+grid limit on 230-710 upwind cells or 104-187 WENO cells. The decks now run
+WENO, the engine's default, on 160 cells.
+
+Before: upwind, 60 cells; after: WENO, 160 cells; both with the
+competitive-Sips trace-loading fix (bold: changed bound). The H2 breakthrough
+(y > 0.002) comes 10-20 s later: for the 50/50 and 25/75 feeds that closes
+most of the gap to Table 5 (16 → 3.3 % and 19 → 6.3 %, bounds tightened), for
+75/25 it moves from 1.5 % to 17 % late (bound 0.047 → 0.21). The CO2
+breakthrough comes 9-21 s later, which moves the 25/75 case from 0.4 to 2.9 %
+(bound 0.016 → 0.036). The 75/25 case was within 1.5 % only because the upwind
+smearing made the H2 front early by about as much as the model is otherwise
+late.
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| Fig4_Reference_50_50_15bar_25C | H2 breakthrough time (y > 0.002) | 105.00 | 87.73 | 101.49 | 0.1644 → 0.03344 | **0.18 → 0.041** |
+| Fig4_Reference_50_50_15bar_25C | CO2 breakthrough time (y > 0.002) | 440.00 | 436.78 | 449.61 | 0.007326 → 0.02184 | 0.024 |
+| Fig4_Reference_50_50_15bar_25C | H2 breakthrough time vs experiment (approx.) | 110.00 | 87.73 | 101.49 | 0.2024 → 0.07738 | – |
+| Fig6_25_75_15bar_25C | H2 breakthrough time (y > 0.002) | 80.00 | 64.46 | 75.00 | 0.1943 → 0.0625 | **0.22 → 0.076** |
+| Fig6_25_75_15bar_25C | CO2 breakthrough time (y > 0.002) | 610.00 | 607.29 | 627.83 | 0.004447 → 0.02924 | **0.016 → 0.036** |
+| Fig6_75_25_15bar_25C | H2 breakthrough time (y > 0.002) | 130.00 | 131.99 | 151.93 | 0.01532 → 0.1687 | **0.047 → 0.21** |
+| Fig6_75_25_15bar_25C | CO2 breakthrough time (y > 0.002) | 320.00 | 351.95 | 360.62 | 0.09985 → 0.1269 | 0.15 |

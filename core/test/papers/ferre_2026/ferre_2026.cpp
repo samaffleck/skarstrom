@@ -86,7 +86,7 @@ namespace adsim {
       // Bed geometry / packing (Table 2). rho_b = rho_ads * (1 - eb).
       const double L = 1.0, r_in = 0.1445, r_out = 0.162, eb = 0.37;
       layer.domain_.length     = L;
-      layer.domain_.n_cells    = 30;
+      layer.domain_.n_cells    = 120;  // grid-converged with the default WENO scheme (README.md "Grid")
       layer.eb_                = eb;
       layer.particle_diameter_ = 2.0 * 7.5e-4;
       layer.composition_[ads_id] = 1.0;
@@ -239,8 +239,8 @@ namespace adsim {
       /*hoa: DSL isosteric heat at feed loading, per iso_heat calc*/ 27028.0, 12896.0,
       /*p_h,p_i*/ 4.6, 0.7, /*t*/ 40.6, 87.5, 183.2, /*v_f*/ 0.5,
       /*targets*/ 95.1, 98.8, 97.8, 66.0,
-      /*tol pu_co2, pu_ch4, re_co2, re_ch4 [pp], pr_ch4 [rel]*/ 1.1, 0.59, 1.3, 5.6, 0.046
-      // measured: 0.740596, 0.287088, 0.961627, 4.81811 pp; 0.0352443
+      /*tol pu_co2, pu_ch4, re_co2, re_ch4 [pp], pr_ch4 [rel]*/ 1.1, 0.097, 0.25, 5.6, 0.046
+      // measured (WENO, 120 cells): 0.445764, 0.046386, 0.198533, 3.794318 pp; 0.030865
     };
     const FerreCase kNaY_W {
       "NaY(W)",
@@ -250,8 +250,8 @@ namespace adsim {
       31726.0, 16754.0,
       4.2, 0.7, 36.3, 64.2, 189.2, 0.5,
       95.0, 97.6, 95.9, 65.4,
-      /*tol pu_co2, pu_ch4, re_co2, re_ch4 [pp], pr_ch4 [rel]*/ 1.8, 0.45, 0.89, 7.6, 0.085
-      // measured: 1.49549, 0.141752, 0.580179, 6.52251 pp; 0.0736976
+      /*tol pu_co2, pu_ch4, re_co2, re_ch4 [pp], pr_ch4 [rel]*/ 1.8, 0.65, 0.89, 7.6, 0.085
+      // measured (WENO, 120 cells): 1.304414, 0.539229, 0.561797, 5.627054 pp; 0.068116
     };
     const FerreCase k13X {
       "13X",
@@ -261,8 +261,8 @@ namespace adsim {
       20012.0, 10255.0,
       3.0, 0.4, 38.9, 91.9, 178.6, 0.3,
       95.0, 98.0, 95.9, 48.6,
-      /*tol pu_co2, pu_ch4, re_co2, re_ch4 [pp], pr_ch4 [rel]*/ 1.5, 0.73, 1.6, 5.7, 0.11
-      // measured: 1.11122, 0.425536, 1.23481, 4.87329 pp; 0.0869989
+      /*tol pu_co2, pu_ch4, re_co2, re_ch4 [pp], pr_ch4 [rel]*/ 1.5, 0.076, 0.35, 5.7, 0.11
+      // measured (WENO, 120 cells): 1.331863, 0.025215, 0.283835, 4.985782 pp; 0.085822
     };
     const FerreCase kMIL160 {
       "MIL-160(Al)",
@@ -273,7 +273,7 @@ namespace adsim {
       2.3, 0.3, 44.6, 109.3, 147.0, 0.4,
       95.0, 97.6, 94.1, 35.8,
       /*tol pu_co2, pu_ch4, re_co2, re_ch4 [pp], pr_ch4 [rel]*/ 2.2, 1.4, 3.5, 13, 0.68
-      // measured: 1.82503, 1.09926, 2.99094, 10.7492 pp; 0.585651
+      // measured (WENO, 120 cells): 2.119762, 0.772589, 2.2798, 11.426883 pp; 0.593224
     };
   } // namespace
 

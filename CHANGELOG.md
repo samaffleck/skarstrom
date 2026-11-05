@@ -8,6 +8,58 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Changed — WENO is the default advection scheme; example decks on grid-converged cell counts
+- `IDASettings::advection_scheme_` (`settings.advection_scheme`) now defaults to
+  `AdvectionScheme::WENO` instead of `Upwind`. A grid study of every example
+  deck (10-160 cells, Richardson extrapolation) found that recovery within
+  0.1 percentage point of its grid limit needs 200-600 or more upwind cells on
+  the cyclic decks but 25-110 WENO cells; a WENO run costs about 1.5x an
+  upwind run on the same grid, so at equal accuracy it is 3-10x cheaper (see
+  `docs/numerics.md`, "Advection schemes"). Upwind and van Leer remain
+  options. Decks keep the scheme they were saved with; a deck saved before the
+  setting existed (`Solver_Settings` version < 2) still loads as Upwind.
+- The example and paper decks now run WENO on grid-converged cell counts:
+  Perez2019 A-F, Nguyen2023 I-X (was 100), Vysyaraju2024 and
+  FiveStepProductPurge 80; Ward2024 and Arora2021 PVSA 100; Ferre2026 120;
+  Arora2021 PSA, Casas2012 and Streb2021 160 (Ward2022 60, Nguyen2022 and
+  Illustrative_TSA_13X 30 unchanged). The Python example scripts build the
+  same decks.
+- The Perez2019 and Nguyen2023 decks start from a feed-loaded bed (the feed gas,
+  15 % CO2, with the loadings in equilibrium with it) instead of a clean N2
+  bed. The cyclic steady state is the same (Perez2019_F: 75.65 / 97.69 % after
+  517 cycles from the feed-loaded bed, 75.58 / 97.69 % after 2276 from a clean
+  one), reached in far fewer cycles: Perez2019 A-F after 49, 57, 65, 94, 207 and
+  517 cycles, Nguyen2023 I-X after 37-50 (I-V), 80, 326, 447, 1166 and 1558.
+  Cycle caps are about 30 % above those (Perez2019 E 270, F 680; Nguyen2023
+  VI-X 110, 430, 590, 1520, 2030; the others keep 250). Nguyen2023 X stays slow
+  from any start (slowest mode 0.997 per cycle, from the deck's
+  composition-only coupling of the light-product pressurisation).
+- Every paper metric was re-measured and the moved bounds re-set from the
+  grid-converged errors (34 bounds: loosened where the error grew past the
+  bound, tightened where it fell well below it), with before/after tables in
+  each paper README ("Grid and advection scheme"). Most VSA recoveries rose by
+  0.15-2.6 pp; that moves some comparisons towards the reference (Perez B and
+  C1, Ferre, Casas Fig. 4 and 25/75 H2 times, the Ward2022 temperature rises,
+  Vysyaraju vs the paper model) and some away (Perez A, D1, E, F recovery,
+  Ward2024 recovery, Arora PSA purity, Casas 75/25 H2 time, Ward2022 Q200
+  outlet NRMSE).
+- The Perez2019 D1, E and F tests also re-run each deck under the paper's own
+  stopping rule (each species' balance within 1 % over 5 consecutive cycles, no
+  state test) and print the result next to the CSS one, report only: they stop
+  after 44, 84 and 152 cycles, with recoveries about 0.1 pp and F's purity
+  0.5 pp above the CSS values (`core/test/papers/perez_2019/README.md`).
+- Tests whose reference is the upwind discretisation (first-order order of
+  accuracy, numerical dispersion u dz/2 in an analytic reference, tanks in
+  series, the upwind Jacobian band), or whose tolerance is upwind's
+  round-off-level monotonicity, now set `AdvectionScheme::Upwind` explicitly,
+  each with the WENO number in a comment; `CSSRobustDeck` keeps the 30-cell,
+  clean-start upwind form of Perez2019_A its converged KPIs were measured on.
+- Run time, measured on the same quiet 4-core machine before and after: paper
+  suites (outside CI) 1016 s summed / 512 s wall at -j2 before, 2850 s /
+  1431 s after (Ferre2026 66 -> 826 s, Nguyen2023 743 -> 1295 s, Perez2019
+  149 -> 403 s including the paper-protocol re-runs); the fast subset 213 s
+  summed / 72 s wall at -j3 before, 340 s / 113 s after (mostly the tests that
+  run the re-gridded example decks).
 ### Fixed — Aitken CSS acceleration stopped with WENO / van Leer
 - `AccelerateCyclicSteadyState::Accelerate` skipped every three-cycle window
   whose fitted jump exceeded five natural steps (|mu| > 5, a decay rate above

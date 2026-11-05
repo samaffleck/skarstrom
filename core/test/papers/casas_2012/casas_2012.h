@@ -102,7 +102,7 @@ namespace adsim {
       carbon_layer.domain_.length = length;
       carbon_layer.particle_diameter_ = particle_diameter;
       carbon_layer.eb_ = eb;
-      carbon_layer.domain_.n_cells = 60;
+      carbon_layer.domain_.n_cells = 160;  // grid-converged with the default WENO scheme (README.md "Grid")
       std::get<CylinderBed>(data.bed.shape_).diameter = inner_diameter;
 
       auto& carbon_ads = GetAdsorbent(ads_id);

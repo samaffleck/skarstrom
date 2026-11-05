@@ -30,7 +30,8 @@ CO₂/N₂ separation reported by Perez et al. (2019).
 
 - Adsorbent: Zeolite 13X, competitive (extended) dual-site Langmuir
   (concentration form; non-competitive until the validation change)
-- Column: L = 0.3 m, Dᵢ = 0.032 m, ε_b = 0.41, 30 cells
+- Column: L = 0.3 m, Dᵢ = 0.032 m, ε_b = 0.41, 80 cells (WENO advection, the engine default; see "Grid and advection scheme")
+- Initial bed: the feed gas (15 % CO₂ / 85 % N₂) at 1 bar and 298 K, loadings in equilibrium with it
 - Adsorbent mass ≈ 0.162 kg; ρ_solid derived from bulk density
 - Heat of adsorption: CO₂ 30.85 kJ/mol, N₂ 15.93 kJ/mol
 - Effective axial thermal conductivity K_z = 0.0903 W/(m·K) (Table 1; was left
@@ -67,7 +68,7 @@ CO₂/N₂ separation reported by Perez et al. (2019).
 | Feed | 15 % CO₂ / 85 % N₂, 298 K, interstitial velocity of Table 3 × ε | Sect. 2, Table 3 | the deck converts v_feed (Table 3, interstitial) to superficial with ε = 0.41 |
 | Dead volume | none | Sect. 2: about 5 % of the column volume (12 cm³ of 240 cm³ measured for the DCB rig) | |
 | CSS | component balance to 0.5 % and end-of-cycle state change ≤ 2×10⁻⁵, on 3 consecutive cycles | Sect. 3: < 1 % for each species over 5 consecutive cycles, 80–150 cycles | |
-| Cells | 30 | not printed | |
+| Cells | 80, WENO advection (30 upwind cells before 2026-11-04) | not printed | grid-converged: recovery within 0.1 pp of its grid limit |
 
 Bold entries differ from the paper's model. Optimisation set-up (Sect. 5.2, for
 WP11): decision variables t_ads 20–200 s, P_int 3–50 kPa, P_low 3–10 kPa,
@@ -135,9 +136,95 @@ value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#perez-2019)
 (generated from `../validation_summary.json`).
 
-- Four-step cycles: CO2 purity within 0.1-1.2 pp of the experiments, but recovery 8-10 pp high. LPP cycles: purity 1.9-3.4 pp low and recovery 2.7-4.1 pp high, at cyclic steady state (per-component balance plus the end-of-cycle state test; A to F stop after 70, 81, 97, 190, 426 and 840 cycles).
+- Four-step cycles (A, B, C1): CO2 purity within 0.15-0.69 pp of the experiments and recovery within 0.14-2.4 pp. LPP cycles (D1, E, F): purity 1.9-3.3 pp low and recovery 2.1-3.7 pp high, at cyclic steady state (per-component balance plus the end-of-cycle state test; from the feed-loaded start A to F stop after 49, 57, 65, 94, 207 and 517 cycles).
+- 2026-11-04, grid and advection scheme: see the subsection below; the decks now run WENO on 80 cells, and every recovery rose by 0.6-2.6 pp.
 - 2026-11-02, CSS rule: the balance-only test used before stopped 26 to 166 cycles short of CSS (A to F after 44, 55, 71, 155, 352 and 674 cycles), while purity and recovery were still moving by up to 0.17 pp (F). Every number on the validation page moved by that much; the only bound crossed was A's recovery against the experiment (0.294 → 0.417 pp, bound 0.4 → 0.5). The bound follows the measured error at CSS; nothing in the model changed.
 - adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K).
+
+### Grid and advection scheme (2026-11-04)
+
+The decks ran first-order upwind advection on 30 cells, and a grid study
+(each deck on 10-160 cells, Richardson extrapolation from the three finest
+grids; [Numerics](../../../../docs/numerics.md#advection-schemes)) showed that
+their recoveries were not grid-converged: on 30 upwind cells the CO2 recovery
+was 0.65 (A), 1.4 (B), 2.8 (C1), 1.3 (D1) and 1.4 pp (E) below its grid limit,
+and 0.1 pp needs 200 to over 1000 upwind cells. With WENO, now the engine's
+default, 23-65 cells reach 0.1 pp (A 49, B 51, C1 65, D1 26, E 23; F within
+0.1 pp from 20 cells), so every deck now runs WENO on 80 cells. Purity was
+already within about 0.1 pp at 30 upwind cells except for C1 (0.4 pp).
+
+The decks also start from a feed-loaded bed (owner's decision, 2026-11-04):
+the feed gas (15 % CO2) with the loadings in equilibrium with it, instead of a
+clean N2 bed. The cyclic steady state is the same (F from a clean bed after
+2276 cycles: 75.58 % / 97.69 %; from the feed-loaded bed after 517: 75.65 % /
+97.69 %, the difference being the CSS tolerance), but it is reached in far
+fewer cycles.
+
+Every comparison moved (before: upwind, 30 cells, clean start; after: WENO,
+80 cells, feed-loaded start; at CSS in both). The recoveries rose by 0.6-2.6 pp, which brings the four-step
+cycles B and C1 closer to the experiments (B 1.5 → 0.14 pp, C1 5.0 → 2.4 pp)
+and moves A and the LPP cycles D1, E and F further above them (A 0.34 → 0.95,
+D1 2.5 → 3.7, E 1.3 → 2.7, F 0.54 → 2.1 pp). F's purity fell by 0.4 pp. The
+earlier, closer agreement of A, D1, E and F was partly the upwind scheme's
+numerical dispersion; the bounds follow the grid-converged errors (bold:
+changed; loosened where the error grew past the old bound, tightened where it
+fell well below it). Cycles to CSS from the feed-loaded start: A 49, B 57,
+C1 65, D1 94, E 207, F 517 (from a clean bed with WENO: 60, 81, 99, 233, 690,
+2276; upwind from a clean bed: 70, 81, 97, 190, 426, 840: the sharper fronts
+slow the approach, the feed-loaded start more than makes up for it). The caps
+are about 30 % above the feed-start stop for E (270) and F (680); A-D1 keep
+250.
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| ConfigA | CO2 purity vs experiment | 99.70 | 99.48 | 99.51 | 0.22 → 0.19 | 0.3 |
+| ConfigA | CO2 recovery vs experiment | 58.70 | 59.04 | 59.65 | 0.34 → 0.95 | **0.5 → 1.2** |
+| ConfigA | CO2 purity vs paper model | 99.30 | 99.48 | 99.51 | 0.18 → 0.21 | 0.3 |
+| ConfigA | CO2 recovery vs paper model | 60.00 | 59.04 | 59.65 | 0.96 → 0.35 | **1.2 → 0.43** |
+| ConfigB | CO2 purity vs experiment | 96.10 | 96.69 | 96.79 | 0.59 → 0.69 | 0.7 |
+| ConfigB | CO2 recovery vs experiment | 61.80 | 60.28 | 61.66 | 1.52 → 0.14 | **1.7 → 0.2** |
+| ConfigB | CO2 purity vs paper model | 95.20 | 96.69 | 96.79 | 1.49 → 1.59 | 1.8 |
+| ConfigB | CO2 recovery vs paper model | 64.10 | 60.28 | 61.66 | 3.82 → 2.44 | 4.3 |
+| ConfigC1 | CO2 purity vs experiment | 88.10 | 87.49 | 87.95 | 0.61 → 0.15 | **0.62 → 0.2** |
+| ConfigC1 | CO2 recovery vs experiment | 64.60 | 59.60 | 62.23 | 5.00 → 2.37 | **5.5 → 2.9** |
+| ConfigC1 | CO2 purity vs paper model | 83.40 | 87.49 | 87.95 | 4.09 → 4.55 | 4.8 |
+| ConfigC1 | CO2 recovery vs paper model | 68.20 | 59.60 | 62.23 | 8.60 → 5.97 | 9.7 |
+| ConfigC1 | CO2 purity vs repeat experiment C2 | 86.90 | 87.49 | 87.95 | 0.59 → 1.05 | – |
+| ConfigC1 | CO2 recovery vs repeat experiment C2 | 71.90 | 59.60 | 62.23 | 12.30 → 9.67 | – |
+| ConfigD1 | CO2 purity vs experiment | 97.10 | 93.72 | 93.79 | 3.38 → 3.31 | 3.9 |
+| ConfigD1 | CO2 recovery vs experiment | 86.10 | 88.55 | 89.84 | 2.45 → 3.74 | **3.5 → 4.5** |
+| ConfigD1 | CO2 purity vs paper model | 96.10 | 93.72 | 93.79 | 2.38 → 2.31 | 2.7 |
+| ConfigD1 | CO2 recovery vs paper model | 86.80 | 88.55 | 89.84 | 1.75 → 3.04 | **2.7 → 3.7** |
+| ConfigD1 | CO2 purity vs repeat experiment D2 | 94.50 | 93.72 | 93.79 | 0.78 → 0.71 | – |
+| ConfigD1 | CO2 recovery vs repeat experiment D2 | 83.40 | 88.55 | 89.84 | 5.15 → 6.44 | – |
+| ConfigE | CO2 purity vs experiment | 88.50 | 86.61 | 86.65 | 1.89 → 1.85 | 2.1 |
+| ConfigE | CO2 recovery vs experiment | 91.70 | 92.97 | 94.37 | 1.27 → 2.67 | **2.5 → 3.2** |
+| ConfigE | CO2 purity vs paper model | 90.40 | 86.61 | 86.65 | 3.79 → 3.75 | 4.3 |
+| ConfigE | CO2 recovery vs paper model | 91.10 | 92.97 | 94.37 | 1.87 → 3.27 | **3.2 → 4** |
+| ConfigF | CO2 purity vs experiment | 77.70 | 76.06 | 75.65 | 1.64 → 2.05 | **1.9 → 2.6** |
+| ConfigF | CO2 recovery vs experiment | 95.60 | 96.14 | 97.69 | 0.54 → 2.09 | **1.9 → 2.6** |
+| ConfigF | CO2 purity vs paper model | 79.90 | 76.06 | 75.65 | 3.84 → 4.25 | 4.4 |
+| ConfigF | CO2 recovery vs paper model | 94.60 | 96.14 | 97.69 | 1.54 → 3.09 | **3 → 3.8** |
+
+### Paper protocol (report only, 2026-11-05)
+
+The paper stops its runs once each species' balance closes to 1 % over 5
+consecutive cycles (Sect. 3), with no test of the bed state. The LPP tests
+(D1, E, F) therefore re-run each deck under that rule after the CSS run (Mass
+Balance (Per-Component), tolerance 0.01, 5 consecutive cycles, `state_tolerance`
+0, same feed-loaded start) and print the stop cycle and KPIs next to the CSS
+result; nothing is asserted and the validation page keeps the CSS values.
+
+| Case | Paper rule: stop / CO2 purity / recovery | CSS: stop / purity / recovery | Paper model | Experiment |
+|---|---|---|---|---|
+| D1 | 44 / 93.83 % / 89.94 % | 94 / 93.79 % / 89.84 % | 96.1 % / 86.8 % | 97.1 % / 86.1 % |
+| E | 84 / 86.79 % / 94.47 % | 207 / 86.65 % / 94.37 % | 90.4 % / 91.1 % | 88.5 % / 91.7 % |
+| F | 152 / 76.19 % / 97.75 % | 517 / 75.65 % / 97.69 % | 79.9 % / 94.6 % | 77.7 % / 95.6 % |
+
+The paper's rule stops two to three times earlier; F's purity is then 0.5 pp
+higher (still drifting down) and every recovery about 0.1 pp higher. So the
+protocol does not explain the gap to the paper's model (D1-F recoveries 2-3 pp
+above it, purities 2-4 pp below), and the CSS values stand.
 
 ### Kinetics check (Config A, 2026-10-31)
 

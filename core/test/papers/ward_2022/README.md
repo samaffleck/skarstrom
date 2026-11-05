@@ -132,3 +132,33 @@ unaccounted CO₂. The front-time and NRMSE tolerances were re-measured
 accordingly (see `ward_2022.cpp`). At 100 ccm ΔT_ads is now 12.89 K, just
 below the paper model's 95 % interval [12.9, 17.2] K (informational metric).
 
+### Grid and advection scheme (2026-11-04)
+
+The decks keep their 60 cells and now run WENO, the engine's default, instead
+of first-order upwind. A grid study (10-160 cells, Richardson extrapolation;
+[Numerics](../../../../docs/numerics.md#advection-schemes)) found the CO2
+half-feed time within 0.5 % of its grid limit on about 23 WENO (40 upwind)
+cells, so 60 are converged. The outlet curves are sharper than the digitised
+measurements: every outlet NRMSE rose by about 0.02 and Q200's passed its
+bound (0.14 → 0.17); the front times moved by 0.1-0.3 % (later), and the
+temperature rises at the thermocouple moved 0.4-0.9 K towards the
+experiment. Before: upwind; after: WENO; both on 60 cells (bold: changed
+bound).
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| Q100ccm | outlet y_CO2 | 1.00 | 0.2427 | 0.2645 | 0.2427 → 0.2645 | 0.29 |
+| Q100ccm | CO2 front time (y_CO2 = 0.5) | 1258.95 | 1300.35 | 1303.77 | 0.03289 → 0.0356 | 0.039 |
+| Q100ccm | thermocouple T at z = 0.0715 m | 0 | 1.18 | 1.15 | 1.178 → 1.147 | 2.4 |
+| Q100ccm | breakthrough time (y_CO2,out = 0.5) | 1249.50 | 1300.35 | 1303.77 | 50.85 → 54.27 | – |
+| Q100ccm | temperature rise at z = 0.0715 m | 15.05 | 12.90 | 13.65 | 2.15 → 1.40 | – |
+| Q200ccm | outlet y_CO2 | 1.00 | 0.1194 | 0.1404 | 0.1194 → 0.1404 | **0.14 → 0.17** |
+| Q200ccm | CO2 front time (y_CO2 = 0.5) | 591.08 | 599.74 | 601.28 | 0.01466 → 0.01726 | 0.018 |
+| Q200ccm | thermocouple T at z = 0.0715 m | 0 | 2.76 | 2.57 | 2.759 → 2.574 | 4.6 |
+| Q200ccm | breakthrough time (y_CO2,out = 0.5) | 575.00 | 599.74 | 601.28 | 24.74 → 26.28 | – |
+| Q200ccm | temperature rise at z = 0.0715 m | 23.60 | 22.54 | 23.43 | 1.06 → 0.17 | – |
+| Q50ccm | outlet y_CO2 | 1.00 | 0.332 | 0.3521 | 0.332 → 0.3521 | 0.39 |
+| Q50ccm | CO2 front time (y_CO2 = 0.5) | 2573.62 | 2681.75 | 2689.05 | 0.04201 → 0.04485 | 0.049 |
+| Q50ccm | thermocouple T at z = 0.0715 m | 0 | 1.18 | 1.24 | 1.177 → 1.243 | 1.4 |
+| Q50ccm | breakthrough time (y_CO2,out = 0.5) | 2540.50 | 2681.75 | 2689.05 | 141.25 → 148.55 | – |
+| Q50ccm | temperature rise at z = 0.0715 m | 8.45 | 5.42 | 5.85 | 3.03 → 2.60 | – |

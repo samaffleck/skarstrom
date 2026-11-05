@@ -707,16 +707,16 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.11129558486003724,
-                                    "Average_Temperature": 292.1955436847261,
+                                    "Total_Moles": 0.11129460738462586,
+                                    "Average_Temperature": 292.22666960015587,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.013568750428882778
+                                            "value": 0.013568731176897345
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.9864312495711173
+                                            "value": 0.9864312688231026
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -791,8 +791,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.20524508325936464,
-                                                        "Average_Temperature": 293.0000000000003,
+                                                        "Total_Moles": 0.2052450804702655,
+                                                        "Average_Temperature": 292.99999999999997,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
@@ -958,7 +958,7 @@
             },
             "max_cycles_to_keep": 10,
             "Maximum_Iterations_Per_Step": 50000,
-            "Advection_Scheme": 0,
+            "Advection_Scheme": 1,
             "Accelerate_Cyclic_Steady_State": {
                 "cereal_class_version": 0,
                 "Method": 0

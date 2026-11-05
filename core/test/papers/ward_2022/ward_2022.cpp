@@ -41,9 +41,11 @@ namespace adsim {
     // Q100ccm: measured NRMSE 0.2440, T RMSE 1.178 K, front-time error 0.0331
     //   (before the fix: 0.1287, 2.058 K, 0.0165)
     constexpr double kTolY_100 = 0.29, kTolT_100 = 2.4, kTolT50_100 = 0.039;
-    // Q200ccm: measured NRMSE 0.1203, T RMSE 2.758 K, front-time error 0.0148
-    //   (before the fix: 0.0289, 4.007 K, 0.0010)
-    constexpr double kTolY_200 = 0.14, kTolT_200 = 4.6, kTolT50_200 = 0.018;
+    // Q200ccm: measured NRMSE 0.1404, T RMSE 2.574 K, front-time error 0.0173
+    //   with the default WENO scheme on the same 60 cells (upwind: 0.1194,
+    //   2.759 K, 0.0147; README.md "Grid"); before the Danckwerts fix: 0.0289,
+    //   4.007 K, 0.0010
+    constexpr double kTolY_200 = 0.17, kTolT_200 = 4.6, kTolT50_200 = 0.018;
 
     // The paper's model forms (WP10 audit, see README.md "Provenance"): its
     // dispersion coefficient is Eq. 4, D_L = 0.7 D_m + v_F r_p with the

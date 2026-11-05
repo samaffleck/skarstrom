@@ -46,12 +46,14 @@ namespace adsim {
   // ---------------------------------------------------------------------------
   class Vysyaraju2024Test : public UserDataTest {};
 
-  // PSA Exp. 1 validation tolerances [percentage points], from the measured error.
+  // PSA Exp. 1 validation tolerances [percentage points], from the measured error
+  // with WENO on 80 cells (upwind on 30 cells: 1.359, 0.541, 32.46, 31.76 pp;
+  // README.md "Grid").
   namespace {
-    constexpr double kTolPuExp = 1.8;  // measured 1.35923 pp
-    constexpr double kTolPuModel = 0.85;  // measured 0.540769 pp
-    constexpr double kTolReExp = 36;  // measured 32.456 pp
-    constexpr double kTolReModel = 35;  // measured 31.756 pp
+    constexpr double kTolPuExp = 2.4;  // measured 1.933524 pp
+    constexpr double kTolPuModel = 0.084;  // measured 0.033524 pp
+    constexpr double kTolReExp = 36;  // measured 33.413 pp
+    constexpr double kTolReModel = 35;  // measured 32.713 pp
   }
 
   namespace {
@@ -262,7 +264,7 @@ namespace adsim {
       auto& ads   = t.GetAdsorbent(ads_id);
 
       layer.domain_.length     = kL;
-      layer.domain_.n_cells    = 30;
+      layer.domain_.n_cells    = 80;  // grid-converged with the default WENO scheme (README.md "Grid")
       layer.eb_                = kEb;
       layer.particle_diameter_ = 2.0 * kRp;
       std::get<CylinderBed>(data.bed.shape_).diameter = 2.0 * kRin;

@@ -119,7 +119,7 @@ def build(case: str) -> sk.Simulation:
 
     # ~1 mm pellets (paper Section 2).
     layer = sim.add_layer("CALF-20", composition={"CALF-20": 1.0}, momentum="kozeny_carman",
-                          length=BED_LENGTH * u.m, cells=100, bed_void_fraction=BED_VOID_FRACTION,
+                          length=BED_LENGTH * u.m, cells=80, bed_void_fraction=BED_VOID_FRACTION,
                           particle_diameter=1 * u.mm)
     layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
     layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0.4 * u.W / (u.m * u.K))
@@ -131,13 +131,13 @@ def build(case: str) -> sk.Simulation:
     sim.initial_conditions.temperature = 293 * u.K
     sim.initial_conditions.wall_temperature = 293 * u.K
     sim.initial_conditions.velocity = 0 * u.m / u.s
-    sim.initial_conditions.y["Nitrogen"] = 1.0
-    sim.initial_conditions.y["CarbonDioxide"] = 0.0
+    sim.initial_conditions.y["Nitrogen"] = 0.85              # feed-loaded start: the feed gas,
+    sim.initial_conditions.y["CarbonDioxide"] = 0.15         # loadings in equilibrium with it
 
     # ---- cycle -------------------------------------------------------------------------
-    # The light-product pressurisation cycles need up to about 500 cycles to close the
-    # CO2 balance (CSS below).
-    sim.cycle.number_of_cycles = 1000 if exp["lpp"] else 250
+    # From the feed-loaded start the light-product pressurisation cycles need up to about
+    # 1560 cycles (X) to close the CO2 balance (CSS below); the caps are about 30 % above.
+    sim.cycle.number_of_cycles = {"VI": 110, "VII": 430, "VIII": 590, "IX": 1520, "X": 2030}.get(case, 250)
     sim.cycle.step_time_mode = "time"
     if exp["lpp"]:
         add_lpp_cycle(sim, exp)
@@ -157,7 +157,7 @@ def build(case: str) -> sk.Simulation:
     sim.settings.max_err_test_fails = 40
     sim.settings.max_num_steps = 100000
     sim.settings.max_iters_per_step = 50000
-    sim.settings.advection_scheme = "upwind"
+    sim.settings.advection_scheme = "weno"
     sim.settings.max_cycles_to_keep = 10
     sim.settings.max_log_points_per_step = 200
     sim.settings.acceleration_method = "none"

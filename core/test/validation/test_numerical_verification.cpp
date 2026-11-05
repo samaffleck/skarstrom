@@ -63,6 +63,8 @@ namespace adsim {
 
       UserData data;
       Build(data, c);
+      // The order under test is upwind's (the default is WENO).
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;
 
       CoupledSolver solver{data};
       std::string error;
@@ -129,6 +131,9 @@ namespace adsim {
 
       UserData data;
       Build(data, c);
+      // Bound set with upwind. WENO's nonlinear weights follow the integrator
+      // error more closely: the same comparison gives 9.6e-6 (bound 5e-6).
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;
 
       CoupledSolver solver{data};
       std::string error;

@@ -24,9 +24,10 @@
 
 namespace adsim {
 
-  // Convective face-reconstruction scheme for the species balance. Upwind is
-  // first-order (the historical default); WENO and van Leer are higher-order
-  // reconstructions of the interior face value. Selecting a scheme changes only
+  // Convective face-reconstruction scheme for the species balance. WENO (the
+  // default) and van Leer are higher-order reconstructions of the interior
+  // face value; Upwind is first order (the default up to engine 0.4, and what a
+  // deck saved before the setting existed runs with). Selecting a scheme changes only
   // how the face mole fraction is interpolated, not the conserved cell-centred
   // state, so total species mass is unaffected.
   enum class AdvectionScheme { Upwind, WENO, VanLeer };
@@ -61,8 +62,10 @@ namespace adsim {
     int max_err_test_fails = 40;
     ExpressionParam nonlin_conv_coef{0.1}; // 0 => default; otherwise (0,1]
 
-    // Convective face-reconstruction scheme for the species balance.
-    AdvectionScheme advection_scheme_ = AdvectionScheme::Upwind;
+    // Convective face-reconstruction scheme for the species balance. WENO
+    // reaches a grid-converged result on 4-10x fewer cells than Upwind
+    // (docs/numerics.md, "Advection schemes").
+    AdvectionScheme advection_scheme_ = AdvectionScheme::WENO;
 
     // Bed-side pressure of every valve stream's flow law (see ValveBedPressure).
     ValveBedPressure valve_bed_pressure_ = ValveBedPressure::Face;
@@ -165,6 +168,10 @@ namespace adsim {
       }
       if (version >= 2) {
         ar(cereal::make_nvp("Advection_Scheme", advection_scheme_));
+      } else if constexpr (Archive::is_loading::value) {
+        // A deck saved before the setting existed (v < 2) was an upwind run:
+        // keep it one rather than move it to the newer WENO default.
+        advection_scheme_ = AdvectionScheme::Upwind;
       }
       if (version >= 3) {
         ar(cereal::make_nvp("Accelerate_Cyclic_Steady_State", acc_css));

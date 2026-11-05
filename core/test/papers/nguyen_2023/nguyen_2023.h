@@ -48,7 +48,7 @@ namespace adsim {
       _calf20.domain_.length = length;
       _calf20.particle_diameter_ = 1.0e-3; // ~1 mm pellet diameter (paper Section 2); r_p = 0.5 mm
       _calf20.eb_ = eb;
-      _calf20.domain_.n_cells = 100;
+      _calf20.domain_.n_cells = 80;  // grid-converged with the default WENO scheme (README.md "Grid")
       std::get<CylinderBed>(data.bed.shape_).diameter = Di;
 
       auto& _calf20_ads = GetAdsorbent(ads_id);
@@ -104,11 +104,16 @@ namespace adsim {
       eff_thermal_conductivity->dispersion_coefficient_ = 0.4; // [W/(m-K)]
       _calf20.equations_.heat_dispersion_model_ = std::move(eff_thermal_conductivity);
 
+      // Start from a feed-loaded bed: the feed gas (15 % CO2) with the loadings
+      // in equilibrium with it (the solver seeds them from the gas). The cyclic
+      // steady state is the same as from a clean N2 bed (checked on the slowest
+      // cases), but it is reached in far fewer cycles (README.md "Grid and
+      // advection scheme").
       AddInitialConditions(
         1.0e5, 293, 293,
         {
-          {"CarbonDioxide", 0.0 },
-          {"Nitrogen", 1.0 }
+          {"CarbonDioxide", 0.15 },
+          {"Nitrogen", 0.85 }
         }
       );
     }

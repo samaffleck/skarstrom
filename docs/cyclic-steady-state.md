@@ -62,7 +62,7 @@ Whatever the method, no convergence is declared before **Minimum cycles** cycles
 
 ### What the defaults deliver
 
-Stopping cycle (0-based) and the largest distance of the tracked purity and recovery from their converged values (the last cycle of a run of 150 to 1000 cycles with the CSS check off), for decks that use **Mass Balance (Per-Component)**; *old rule* is the single-cycle balance test used before the state test existed (`state_tolerance` 0, one cycle). The Yancy-Caballero cycle is the five-step 13X case of that paper rebuilt in Skarstrom, compared at cycle 150. `Nguyen2023_Exp_X` is still drifting after 400 cycles and stops under neither rule.
+Stopping cycle (0-based) and the largest distance of the tracked purity and recovery from their converged values (the last cycle of a run of 150 to 1000 cycles with the CSS check off), for decks that use **Mass Balance (Per-Component)**; *old rule* is the single-cycle balance test used before the state test existed (`state_tolerance` 0, one cycle). The Yancy-Caballero cycle is the five-step 13X case of that paper rebuilt in Skarstrom, compared at cycle 150. `Nguyen2023_Exp_X` is still drifting after 400 cycles and stops under neither rule. These runs used the example decks as they were up to engine 0.4 (upwind advection on 30 cells, Nguyen2023 on 100); the current decks run WENO on grid-converged grids, and the Perez2019 and Nguyen2023 decks start from a feed-loaded bed (the feed gas with the loadings in equilibrium with it), which reaches the same CSS in fewer cycles (Perez2019 A-F after 49, 57, 65, 94, 207 and 517 cycles); the stopping cycles of each paper deck are given in its validation README.
 
 | Deck | Old rule | Error | Default rule | Error |
 |---|---|---|---|---|
@@ -89,7 +89,7 @@ The state test and the consecutive-cycles rule were added after Skarstrom 0.3.0 
 
 ## Accelerating the approach to CSS
 
-The approach to CSS is often a slow geometric decay. Setting **CSS acceleration method** to *Aitken (Graves-Morris)* makes the solver extrapolate the end-of-cycle state of the slow fields (loadings, solid and wall temperatures, mole fractions) from three successive cycles towards the fixed point, check the jump in a throwaway integrator, and only then apply it. Pair it with a CSS method, otherwise the run still does every cycle. It never makes a run fail: a jump that does not integrate is skipped, and so is a window of three cycles that is not a geometric decay (the log says *CSS acceleration skipped* and why). In the [Perez 2019 tutorial](perez-2019-vpsa.md) it brought CSS from cycle 189 to 144. The algorithm is described on the [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration) page.
+The approach to CSS is often a slow geometric decay. Setting **CSS acceleration method** to *Aitken (Graves-Morris)* makes the solver extrapolate the end-of-cycle state of the slow fields (loadings, solid and wall temperatures, mole fractions) from three successive cycles towards the fixed point, check the jump in a throwaway integrator, and only then apply it. Pair it with a CSS method, otherwise the run still does every cycle. It never makes a run fail: a jump that does not integrate is skipped, and so is a window of three cycles that is not a geometric decay (the log says *CSS acceleration skipped* and why). In the [Perez 2019 tutorial](perez-2019-vpsa.md) it brought CSS from cycle 94 to 48. The algorithm is described on the [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration) page.
 
 ## Practical guidance
 

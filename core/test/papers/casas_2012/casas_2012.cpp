@@ -42,7 +42,7 @@ namespace adsim {
 
     RunBreakthroughCase(15e5, 298.15, 0.50, 1800.0, "Casas2012_Fig4_50_50_15bar_25C",
                         "Fig4_Reference_50_50_15bar_25C",
-                        0.18, 0.024);  // measured rel. error: H2 0.16443, CO2 0.007326 (before the WP19-1 competitive-Sips trace fix: H2 0.167584, CO2 0.0092)
+                        0.041, 0.024);  // measured rel. error (WENO, 160 cells): H2 0.033445, CO2 0.021844 (upwind, 60 cells: H2 0.16443, CO2 0.007326)
   }
 
   // Prediction (Casas 2012, Fig. 6 family): CO2-lean feed, 25/75 CO2/H2, 15 bar, 25 C.
@@ -56,7 +56,7 @@ namespace adsim {
 
     RunBreakthroughCase(15e5, 298.15, 0.25, 1800.0, "Casas2012_Fig6_25_75_15bar_25C",
                         "Fig6_25_75_15bar_25C",
-                        0.22, 0.016);  // measured rel. error: H2 0.194276, CO2 0.004447 (before WP19-1: H2 0.197555, CO2 0.006444)
+                        0.076, 0.036);  // measured rel. error (WENO, 160 cells): H2 0.062504, CO2 0.029236 (upwind, 60 cells: H2 0.194276, CO2 0.004447)
   }
 
   // Prediction (Casas 2012, Fig. 6 family): CO2-rich feed, 75/25 CO2/H2, 15 bar, 25 C.
@@ -70,7 +70,7 @@ namespace adsim {
 
     RunBreakthroughCase(15e5, 298.15, 0.75, 1800.0, "Casas2012_Fig6_75_25_15bar_25C",
                         "Fig6_75_25_15bar_25C",
-                        0.047, 0.15);  // measured rel. error: H2 0.015323, CO2 0.099855 (before WP19-1: H2 0.011687, CO2 0.098061)
+                        0.21, 0.15);  // measured rel. error (WENO, 160 cells): H2 0.168663, CO2 0.126936 (upwind, 60 cells: H2 0.015323, CO2 0.099855)
   }
 
 } // namespace adsim

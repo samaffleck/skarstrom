@@ -72,6 +72,76 @@ value in a comment next to it. Results of the last run:
 - **Molar-basis gas heat capacity (2026-11).** The gas-mixture heat capacity used to mix the per-kilogram pure-component values by mole fraction, which is far off when the components' molar masses differ: here the bed starts in helium (4 g/mol) and is fed CO₂/CH₄ (44/16 g/mol), so a He-rich cell had several times its true heat capacity per mole. With the mass-consistent mixture the temperature fronts fit the thermocouples better in every case (pooled RMSE A3 14.0 → 11.4 K, A5 18.3 → 16.1 K, A7 11.1 → 9.3 K, B2 32.9 → 27.0 K) and the composition fronts arrive 0.5–1.6 % earlier, which moves the front-time and curve errors that were close to their bounds: A2 y_CO₂ NRMSE 0.338 → 0.350; A3 CH₄ front 3.1 → 3.8 %; A4 CO₂ front 8.7 → 10.0 %, CH₄ front 17.8 → 18.5 %; A5 y_CO₂ NRMSE 0.155 → 0.168, CO₂ front 5.2 → 5.7 %; A6 y_CO₂ NRMSE 0.102 → 0.157, CO₂ front 1.5 → 2.6 %. Those eight tolerances were re-measured (see `streb_2021.cpp`); A1, A7, B1 and B2 stay within theirs.
 - **Competitive-Sips trace fix (WP19-1, 2026-11).** `extended_sips_2` used to multiply each competitive term by y²/(y² + 10⁻⁶), which halved a component's loading at y = 10⁻³ and cut it by 1 % at 10⁻²; it now uses the published isotherm down to y = 10⁻⁵ (see `docs/isotherms.md`). Only the toes of the fronts pass through those mole fractions, so the metrics barely move: the largest changes are the ternary CH₄ fronts (B1 front-time error 2.13 → 2.38 %, B2 13.7 → 14.0 %, B2 y_CH₄ NRMSE 0.319 → 0.320); every other metric moves by less than 0.002 in NRMSE, 0.1 % in front time and 0.03 K in thermocouple RMSE. No tolerance changed.
 
+### Grid and advection scheme (2026-11-04)
+
+The decks ran first-order upwind advection on 60 cells. A grid study of A1
+and A3 (10-160 cells, Richardson extrapolation;
+[Numerics](../../../../docs/numerics.md#advection-schemes)) found the CO2
+front converged on 20-40 cells, while the CH4 half-feed time needs 120-170
+upwind or 110-150 WENO cells to be within 0.5 % of its grid limit (the
+thermal front and the light component's dispersion keep first-order
+behaviour, so the schemes differ little here). All cases now run WENO, the
+engine's default, on 160 cells.
+
+Before: upwind, 60 cells; after: WENO, 160 cells (bold: changed bound). The
+CH4 fronts come 0.6-2.7 % later and the CO2 fronts move by less than 0.2 %; the
+outlet curves are sharper, so the y_CH4 NRMSE of A3 (0.56 → 0.60) and the
+y_CO2 NRMSE of A4 (0.287 → 0.291) passed their bounds (0.58 → 0.73, 0.29 →
+0.35), and B1's CH4 front time came to within 0.2 % (bound 0.024 → 0.004).
+Both runs include the competitive-Sips trace-loading fix.
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| ExperimentA1 | outlet y_CO2 | 0.5 | 0.2191 | 0.2237 | 0.4382 → 0.4474 | 0.53 |
+| ExperimentA1 | outlet y_CH4 | 0.5 | 0.2274 | 0.2621 | 0.4548 → 0.5243 | 0.83 |
+| ExperimentA1 | CO2 front time (y_CO2 = y_feed/2) | 3662.94 | 3932.80 | 3929.81 | 0.07367 → 0.07286 | 0.098 |
+| ExperimentA1 | CH4 front time (y_CH4 = y_feed/2) | 458.57 | 470.74 | 475.72 | 0.02653 → 0.03741 | 0.12 |
+| ExperimentA1 | thermocouple T (5 positions, pooled) | 0 | 19.47 | 20.30 | 19.47 → 20.3 | 25 |
+| ExperimentA2 | outlet y_CO2 | 0.5 | 0.1753 | 0.1784 | 0.3505 → 0.3569 | 0.37 |
+| ExperimentA2 | outlet y_CH4 | 0.5 | 0.4195 | 0.4202 | 0.839 → 0.8404 | 0.96 |
+| ExperimentA2 | CO2 front time (y_CO2 = y_feed/2) | 965.66 | 912.83 | 912.28 | 0.05471 → 0.05528 | 0.058 |
+| ExperimentA2 | CH4 front time (y_CH4 = y_feed/2) | 364.98 | 324.67 | 326.97 | 0.1104 → 0.1041 | 0.13 |
+| ExperimentA2 | thermocouple T (5 positions, pooled) | 0 | 18.59 | 19.88 | 18.59 → 19.88 | 22 |
+| ExperimentA3 | outlet y_CO2 | 0.5 | 0.08861 | 0.09217 | 0.1772 → 0.1843 | 0.27 |
+| ExperimentA3 | outlet y_CH4 | 0.5 | 0.2796 | 0.3016 | 0.5591 → 0.6031 | **0.58 → 0.73** |
+| ExperimentA3 | CO2 front time (y_CO2 = y_feed/2) | 414.86 | 434.75 | 434.30 | 0.04795 → 0.04686 | 0.08 |
+| ExperimentA3 | CH4 front time (y_CH4 = y_feed/2) | 156.53 | 150.53 | 151.67 | 0.03832 → 0.031 | 0.041 |
+| ExperimentA3 | thermocouple T (5 positions, pooled) | 0 | 11.42 | 12.07 | 11.42 → 12.07 | 19 |
+| ExperimentA3 | CH4 breakthrough time (y > 0.01) | 140.00 | 145.99 | 150.11 | 5.99 → 10.11 | – |
+| ExperimentA3 | CO2 breakthrough time (y > 0.01) | 400.00 | 416.19 | 420.64 | 16.19 → 20.64 | – |
+| ExperimentA4 | outlet y_CO2 | 0.5 | 0.1432 | 0.1453 | 0.2865 → 0.2906 | **0.29 → 0.35** |
+| ExperimentA4 | outlet y_CH4 | 0.5 | 0.396 | 0.3964 | 0.7921 → 0.7928 | 0.91 |
+| ExperimentA4 | CO2 front time (y_CO2 = y_feed/2) | 226.18 | 203.61 | 203.36 | 0.09977 → 0.1009 | 0.105 |
+| ExperimentA4 | CH4 front time (y_CH4 = y_feed/2) | 85.66 | 69.83 | 70.42 | 0.1849 → 0.1779 | 0.195 |
+| ExperimentA4 | thermocouple T (5 positions, pooled) | 0 | 16.39 | 16.68 | 16.39 → 16.68 | 20 |
+| ExperimentA5 | outlet y_CO2 | 0.5 | 0.08388 | 0.08582 | 0.1678 → 0.1716 | 0.18 |
+| ExperimentA5 | outlet y_CH4 | 0.5 | 0.3299 | 0.3302 | 0.6598 → 0.6604 | 0.76 |
+| ExperimentA5 | CO2 front time (y_CO2 = y_feed/2) | 189.45 | 178.59 | 178.29 | 0.05737 → 0.05893 | 0.061 |
+| ExperimentA5 | CH4 front time (y_CH4 = y_feed/2) | 94.98 | 80.90 | 81.39 | 0.1482 → 0.1431 | 0.17 |
+| ExperimentA5 | thermocouple T (5 positions, pooled) | 0 | 16.08 | 16.08 | 16.08 → 16.08 | 21 |
+| ExperimentA6 | outlet y_CO2 | 0.5 | 0.07849 | 0.07962 | 0.157 → 0.1592 | 0.17 |
+| ExperimentA6 | outlet y_CH4 | 0.5 | 0.375 | 0.3751 | 0.75 → 0.7503 | 0.85 |
+| ExperimentA6 | CO2 front time (y_CO2 = y_feed/2) | 447.88 | 436.28 | 435.78 | 0.02588 → 0.02701 | 0.028 |
+| ExperimentA6 | CH4 front time (y_CH4 = y_feed/2) | 160.57 | 140.85 | 142.13 | 0.1228 → 0.1149 | 0.14 |
+| ExperimentA6 | thermocouple T (5 positions, pooled) | 0 | 11.76 | 11.76 | 11.76 → 11.76 | 13 |
+| ExperimentA7 | outlet y_CO2 | 0.5 | 0.01408 | 0.01714 | 0.02815 → 0.03428 | 0.14 |
+| ExperimentA7 | outlet y_CH4 | 0.5 | 0.3451 | 0.3458 | 0.6902 → 0.6917 | 0.72 |
+| ExperimentA7 | CO2 front time (y_CO2 = y_feed/2) | 426.45 | 429.25 | 428.67 | 0.006571 → 0.005207 | 0.04 |
+| ExperimentA7 | CH4 front time (y_CH4 = y_feed/2) | 146.22 | 130.47 | 131.84 | 0.1077 → 0.09834 | 0.12 |
+| ExperimentA7 | thermocouple T (5 positions, pooled) | 0 | 9.25 | 9.14 | 9.25 → 9.143 | 14 |
+| ExperimentB1 | outlet y_CO2 | 0.2 | 0.07541 | 0.07535 | 0.377 → 0.3768 | 0.45 |
+| ExperimentB1 | outlet y_CH4 | 0.05 | 0.006493 | 0.00632 | 0.1299 → 0.1264 | 0.15 |
+| ExperimentB1 | CO2 front time (y_CO2 = y_feed/2) | 8474.18 | 9020.71 | 9018.64 | 0.06449 → 0.06425 | 0.081 |
+| ExperimentB1 | CH4 front time (y_CH4 = y_feed/2) | 337.67 | 329.62 | 337.01 | 0.02382 → 0.001939 | **0.024 → 0.004** |
+| ExperimentB1 | outlet y_H2 | 0.75 | 0.2651 | 0.2793 | 0.3535 → 0.3724 | 0.42 |
+| ExperimentB1 | thermocouple T (5 positions, pooled) | 0 | 16.11 | 17.69 | 16.11 → 17.69 | 20 |
+| ExperimentB2 | outlet y_CO2 | 0.2 | 0.08957 | 0.09007 | 0.4478 → 0.4503 | 0.57 |
+| ExperimentB2 | outlet y_CH4 | 0.05 | 0.01602 | 0.01645 | 0.3204 → 0.329 | 0.35 |
+| ExperimentB2 | CO2 front time (y_CO2 = y_feed/2) | 2694.28 | 2405.45 | 2405.20 | 0.1072 → 0.1073 | 0.11 |
+| ExperimentB2 | CH4 front time (y_CH4 = y_feed/2) | 713.25 | 613.58 | 630.36 | 0.1397 → 0.1162 | 0.15 |
+| ExperimentB2 | outlet y_H2 | 0.75 | 0.2983 | 0.2984 | 0.3978 → 0.3979 | 0.46 |
+| ExperimentB2 | thermocouple T (5 positions, pooled) | 0 | 27.01 | 28.27 | 27.01 → 28.27 | 38 |
+
 ### Attribution runs (A3, 2026-10-31)
 
 One change at a time on the bundled A3 deck, front times at half the feed
