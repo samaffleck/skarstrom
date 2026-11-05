@@ -10,7 +10,7 @@ abstract: >-
 authors:
   - family-names: Affleck
     given-names: Sam
-version: "0.4.0"
+version: "0.5.0"
 date-released: "2026-11-05"
 # Licence: keep in step with LICENSE, NOTICE, README.md and pyproject.toml.
 license: Apache-2.0

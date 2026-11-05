@@ -8,6 +8,8 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-05
+
 ### Changed — WENO is the default advection scheme; example decks on grid-converged cell counts
 - `IDASettings::advection_scheme_` (`settings.advection_scheme`) now defaults to
   `AdvectionScheme::WENO` instead of `Upwind`. A grid study of every example
