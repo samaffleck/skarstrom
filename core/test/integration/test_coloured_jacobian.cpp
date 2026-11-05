@@ -38,6 +38,12 @@ namespace adsim {
       LoadFromJson(data, "../examples/decks/" + deck);
       data.settings.jacobian_mode_ = JacobianMode::ColouredCheck;
       data.settings.advection_scheme_ = scheme;
+      // 30 cells (the Nguyen deck's own grid; Streb2021_A1 has 60, which took
+      // 2-3 s per scheme): the band and the colouring have the same structure
+      // on any grid. Not fewer: on 10 and 20 cells (not 15 or 25) the learned
+      // van Leer pattern misses couplings two cells away (NumMisses 1-8), an
+      // open issue of the pattern learning, not of this test.
+      for (auto& layer : data.bed.layers_.layers_) layer.domain_.n_cells = 30;
 
       CoupledSolver solver{data};
       const int retval = solver.IntegrateCycle(data.cycle, false);

@@ -62,6 +62,13 @@ target_sources(adsim PRIVATE ${ADS_SRC})
 
 # Enable precompiled headers
 target_precompile_headers(adsim PRIVATE src/pch.h)
+# Clang stores the header's modification time in the PCH and rejects the PCH
+# when the header is newer. A PCH without it is reproducible, so a compiler
+# cache (ccache, with sloppiness pch_defines,time_macros as in CI) can cache it
+# and the files that use it; with it, a cached PCH fails on a fresh checkout.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(adsim PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
+endif()
 
 # LLNL units (BSD-3-Clause, external/units): parses and converts the unit
 # strings in decks and the registry (src/math/unit_parser.cpp). Its two

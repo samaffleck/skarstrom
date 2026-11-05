@@ -81,7 +81,7 @@ namespace adsim {
     const double T = 298.0;
 
     BreakthroughCase c;
-    c.n_cells = 200;            // fine grid: sharpens the front, tightens the moment
+    c.n_cells = 30;             // the first moment does not depend on the grid (below)
     c.adsorbing = false;        // we install our own Langmuir isotherm below
     c.length = 1.0;
     c.diameter = 0.1;
@@ -199,11 +199,17 @@ namespace adsim {
     }
     const double t_st_measured = TimeIntegral(times, unbroken);
 
-    // Tolerance: the first moment is exact for the shock position; the residual
-    // is the finite-grid smear of the (self-sharpening) front plus the small
-    // amount of gas the front leaves behind it. On a 200-cell grid this is a low
-    // single-digit percent.
-    EXPECT_NEAR(t_st_measured, t_st_expected, 0.03 * t_st_expected)
+    // Tolerance: the first moment is exact for the shock position. It is the
+    // column's mass balance (adsorbate fed minus adsorbate out, over the feed
+    // rate), so a conservative scheme gets it on any grid once the outlet has
+    // fully broken through: the grid only smears the front around it.
+    // Measured: t_st_measured = 1084.130 s on 20, 30, 80 and 200 cells (all six
+    // digits) and with upwind, WENO and van Leer; t_st_expected moves by 0.1 s
+    // with the grid through the logged face velocity it uses. The residual,
+    // -3.1e-4 on 30 cells (-3.6e-4 on 200), comes from that velocity estimate
+    // and the truncated outlet tail, not from the grid. 0.5 % is fifteen times
+    // it, and six times tighter than the 3 % this test used on 200 cells.
+    EXPECT_NEAR(t_st_measured, t_st_expected, 0.005 * t_st_expected)
       << "Langmuir shock breakthrough time disagrees with the secant balance "
       << "(measured " << t_st_measured << " s, analytic " << t_st_expected
       << " s, retardation " << solid_retardation << ")";

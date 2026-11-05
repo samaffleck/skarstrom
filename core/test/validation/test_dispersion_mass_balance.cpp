@@ -183,15 +183,18 @@ namespace adsim {
 
   // The reporter's measure: (out) / (in) of each component over a cycle at
   // cyclic steady state, summed over every boundary stream. Isothermal, so the
-  // cycle reaches CSS in a few dozen cycles (the wall temperature is the slow
+  // cycle reaches CSS within ten cycles (the wall temperature is the slow
   // mode of the non-isothermal run); CSS is asserted directly as a vanishing
   // per-component inventory change over the last cycle, since the molar-profile
-  // criterion looks at the total concentration only.
+  // criterion looks at the total concentration only. Measured relative
+  // inventory change of the last cycle: 2e-7 after 6 cycles, 6e-10 after 10
+  // and the same 6e-10 after 60 (the round-off floor), so 12 cycles leave the
+  // 1e-5 bound four orders of magnitude of margin (this test ran 60 cycles).
   TEST(DispersionMassBalance, ComponentBalanceClosesAtCyclicSteadyState) {
     UserData data;
     BuildDispersiveCycle(data, 20);
     data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
-    data.cycle.number_of_cycles_ = 60;
+    data.cycle.number_of_cycles_ = 12;
 
     CoupledSolver solver{data};
     std::string error;
