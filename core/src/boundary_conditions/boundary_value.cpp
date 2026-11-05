@@ -28,13 +28,17 @@ namespace adsim{
   double ExponentialBoundaryValue::GetValue(double time) {
     const double sv = runtime_start_value_.value_or(start_value_.Get());
     const double ev = end_value_.Get();
-    // step_time_ is the time to reach 99% of the change (rate = ln(100) / step_time_).
-    // The curve saturates on its own, so no upper clamp is needed (clamping would
-    // freeze it at 99% and introduce a jump); a zero time constant is a step.
+    // After the ramp time step_time_ the change left is 1/F of the initial one
+    // (rate = ln(F) / step_time_; F = 100 covers 99 %). The curve saturates on
+    // its own, so no upper clamp is needed (clamping would freeze it short of
+    // the end and introduce a jump); a zero time constant is a step. F <= 1 is
+    // rejected by CheckProfileFactor; here it holds the start value.
     const double ts = runtime_step_time_.value_or(step_time_.Get());
     if (!(ts > 0.0)) return ev;
     const double t = std::max(time, 0.0);
-    return sv + (ev - sv) * (1.0 - std::exp(-(std::log(100.0) / ts) * t));
+    const double f = factor_.Get();
+    const double rate = (f > 1.0) ? std::log(f) / ts : 0.0;
+    return sv + (ev - sv) * (1.0 - std::exp(-rate * t));
   }
 
   double DoubleExponentialBoundaryValue::GetValue(double time) {
@@ -73,7 +77,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::ExponentialBo
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::LogLinearBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::DoubleExponentialBoundaryValue)
 CEREAL_CLASS_VERSION(adsim::ConstantBoundaryValue, 2);
-CEREAL_CLASS_VERSION(adsim::LinearBoundaryValue, 3);
-CEREAL_CLASS_VERSION(adsim::ExponentialBoundaryValue, 3);
-CEREAL_CLASS_VERSION(adsim::LogLinearBoundaryValue, 1);
+CEREAL_CLASS_VERSION(adsim::LinearBoundaryValue, 4);
+CEREAL_CLASS_VERSION(adsim::ExponentialBoundaryValue, 4);
+CEREAL_CLASS_VERSION(adsim::LogLinearBoundaryValue, 2);
 CEREAL_CLASS_VERSION(adsim::DoubleExponentialBoundaryValue, 1);

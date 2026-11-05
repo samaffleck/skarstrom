@@ -361,6 +361,31 @@ def test_log_linear_profiles_build_and_round_trip():
     assert sim.run(cycles=1).ok
 
 
+def test_pressure_ramp_time_and_exponential_factor_build_and_round_trip():
+    sim, parts = build_vsa()
+    press = sim.steps["Pressurisation"]
+    # A 5 s ramp inside the 20 s pressurisation, then hold; a sharper blowdown.
+    press.bottom.set_pressure("inlet", sk.linear("1 bar", time="5 s"), y={"CO2": 0.15, "N2": 0.85},
+                              temperature=298.0)
+    sim.steps["Blowdown"].top.set_pressure("outlet", sk.exponential("0.2 bar", factor=1000), y={"N2": 1.0})
+    assert press.bottom.pressure_linear_use_step_time is False
+    assert press.bottom.pressure_linear_time == pytest.approx(5.0)
+    assert sim.steps["Blowdown"].top.pressure_exponential_factor == pytest.approx(1000.0)
+    assert sim.steps["Blowdown"].top.pressure_exponential_use_step_time is True
+    script = sk.to_script(sim)
+    assert "time=" in script and "factor=" in script
+    ns = {}
+    exec(compile(script, "<ramp_time>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    assert sim.run(cycles=1).ok
+    with pytest.raises(ValueError, match="exponential"):
+        press.bottom.set_pressure("inlet", sk.Profile("linear", 1e5, factor=10.0))
+    press.bottom.set_pressure("inlet", sk.linear("1 bar", time="25 s"), y={"CO2": 0.15, "N2": 0.85},
+                              temperature=298.0)
+    ok, message = sim.check()
+    assert not ok and "longer than the step" in message
+
+
 def test_structure_edits_replace_what_was_there():
     sim, parts = build_vsa()
     feed = parts["feed"]

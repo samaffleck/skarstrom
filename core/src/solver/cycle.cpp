@@ -160,6 +160,35 @@ namespace adsim {
         return false;
       }
 
+      // Profiles: a pressure or valve ramp with its own ramp time must fit in
+      // the step, and every exponential profile needs a factor above 1.
+      const double step_time = step.step_time_.Get();
+      const std::string where = std::string(which) + " boundary of step '" + step.step_name_ + "'";
+      if (auto fbc = dynamic_cast<const FlowBoundaryCondition*>(bc_ptr)) {
+        for (const auto& stream_ptr : fbc->streams_) {
+          const std::string sw = "stream '" + stream_ptr->name_ + "' (" + where + ")";
+          if (!CheckProfileFactor(stream_ptr->temperature_profile_.get(), "inlet temperature profile of " + sw,
+                                  error_message))
+            return false;
+          if (auto valve = dynamic_cast<const ValveBoundaryStream*>(stream_ptr.get())) {
+            if (!CheckPressureProfile(valve->boundary_value_.get(), step_time, "valve pressure profile of " + sw,
+                                      error_message))
+              return false;
+          } else if (auto bs = dynamic_cast<const BoundaryStream*>(stream_ptr.get())) {
+            if (bs->boundary_flow_ &&
+                !CheckProfileFactor(bs->boundary_flow_->profile_.get(), "flow profile of " + sw, error_message))
+              return false;
+          }
+        }
+      } else if (auto pbc = dynamic_cast<const PressureBoundaryCondition*>(bc_ptr)) {
+        if (!CheckPressureProfile(pbc->pressure_.get(), step_time, "pressure profile of the " + where,
+                                  error_message))
+          return false;
+        if (!CheckProfileFactor(pbc->temperature_profile_.get(), "inlet temperature profile of the " + where,
+                                error_message))
+          return false;
+      }
+
       if (auto fbc = dynamic_cast<const FlowBoundaryCondition*>(bc_ptr)) {
         for (const auto& stream_ptr : fbc->streams_) {
           if (auto valve = dynamic_cast<const ValveBoundaryStream*>(stream_ptr.get())) {

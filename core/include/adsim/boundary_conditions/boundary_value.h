@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include <optional>
+#include <string>
 
 
 namespace adsim {
@@ -37,8 +38,9 @@ namespace adsim {
 		virtual BoundaryValueType GetType() = 0;
 		virtual double GetValue(double current_time) = 0;
 		// Called at every step start by pressure-driven parents (pressure BC,
-		// valve stream): the start value is the current bed-end pressure and
-		// the ramp spans the whole step. These are RUNTIME values held in
+		// valve stream): the start value is the current bed-end pressure and,
+		// unless the profile has its own ramp time (use_step_time_ off), the
+		// ramp spans the whole step. These are RUNTIME values held in
 		// transient members (never serialised) — they must not overwrite the
 		// user's ExpressionParams, which are what the deck saves.
 		virtual void InitialiseStartValue(double start_value) = 0;
@@ -87,7 +89,10 @@ namespace adsim {
 		BoundaryValueType GetType() override { return BoundaryValueType::LINEAR; }
 		double GetValue(double time) override;
 		void InitialiseStartValue(double start_value) override { runtime_start_value_ = start_value; }
-		void InitialiseStepTime(double step_time) override { runtime_ramp_time_ = step_time; }
+		void InitialiseStepTime(double step_time) override {
+			if (use_step_time_) runtime_ramp_time_ = step_time;
+			else runtime_ramp_time_.reset();
+		}
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			end_value_.Evaluate(ctx);
 			start_value_.Evaluate(ctx);
@@ -97,6 +102,11 @@ namespace adsim {
 		ExpressionParam end_value_{1e5};
 		ExpressionParam start_value_{1};
 		ExpressionParam ramp_time_{1};
+		// Pressure-driven parents only (pressure BC, valve stream): true = the
+		// ramp lasts the whole step (ramp_time_ is ignored), false = it lasts
+		// ramp_time_, which must not exceed the step time (CheckPressureProfile).
+		// Flow and temperature profiles always use ramp_time_.
+		bool use_step_time_ = true;
 
 	private:
 		// Transient runtime overrides set by InitialiseStartValue / InitialiseStepTime
@@ -107,32 +117,48 @@ namespace adsim {
 
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const /*version*/) {
+		void serialize(Archive& ar, std::uint32_t const version) {
 			ar(
 				cereal::virtual_base_class<IBoundaryValue>(this),
 				cereal::make_nvp("End_Value", end_value_),
 				cereal::make_nvp("Start_Value", start_value_),
 				cereal::make_nvp("Ramp_Time", ramp_time_)
 			);
+			// v4: the ramp time of a pressure profile can differ from the step
+			// time; older decks always ramped over the whole step.
+			if (version >= 4) ar(cereal::make_nvp("Use_Step_Time", use_step_time_));
+			else use_step_time_ = true;
 		}
 	};
 
+	// A first-order approach from the start value v0 to the end value v1 whose
+	// remaining change has shrunk by the factor F after the ramp time t_r:
+	//   v(t) = v1 + (v0 - v1) F^(-t / t_r) = v1 + (v0 - v1) e^(-ln(F) t / t_r).
+	// The default F = 100 has covered 99 % of the change at t_r (the fixed
+	// factor before class version 4). F must be greater than 1 (CheckProfileFactor).
 	class ExponentialBoundaryValue : public IBoundaryValue {
 	public:
 		BoundaryValueType GetType() override { return BoundaryValueType::EXPONENTIAL; }
 		double GetValue(double time) override;
 		void InitialiseStartValue(double start_value) override { runtime_start_value_ = start_value; }
-		void InitialiseStepTime(double step_time) override { runtime_step_time_ = step_time; }
+		void InitialiseStepTime(double step_time) override {
+			if (use_step_time_) runtime_step_time_ = step_time;
+			else runtime_step_time_.reset();
+		}
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			end_value_.Evaluate(ctx);
 			start_value_.Evaluate(ctx);
 			step_time_.Evaluate(ctx);
+			factor_.Evaluate(ctx);
 		}
 
 		ExpressionParam end_value_{1e5};
 		ExpressionParam start_value_{1};
-		double gain_ = 0.95;        // internal — not user-editable
-		ExpressionParam step_time_{1};
+		double gain_ = 0.95;        // unused; kept so the deck field round-trips
+		ExpressionParam step_time_{1};   // [s] the ramp time t_r
+		ExpressionParam factor_{100.0};  // [-] F: the change left at t_r is 1/F of the initial
+		// See LinearBoundaryValue::use_step_time_.
+		bool use_step_time_ = true;
 
 	private:
 		// Transient runtime overrides (see LinearBoundaryValue). Not serialised.
@@ -141,7 +167,7 @@ namespace adsim {
 
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const /*version*/) {
+		void serialize(Archive& ar, std::uint32_t const version) {
 			ar(
 				cereal::virtual_base_class<IBoundaryValue>(this),
 				cereal::make_nvp("End_Value", end_value_),
@@ -149,6 +175,15 @@ namespace adsim {
 				cereal::make_nvp("Proportional_Gain", gain_),
 				cereal::make_nvp("Step_Time", step_time_)
 			);
+			// v4: a user factor (was fixed at 100) and a pressure ramp time that
+			// can differ from the step time.
+			if (version >= 4) {
+				ar(cereal::make_nvp("Factor", factor_),
+				   cereal::make_nvp("Use_Step_Time", use_step_time_));
+			} else {
+				factor_ = 100.0;
+				use_step_time_ = true;
+			}
 		}
 	};
 
@@ -210,7 +245,10 @@ namespace adsim {
 		BoundaryValueType GetType() override { return BoundaryValueType::LOG_LINEAR; }
 		double GetValue(double time) override;
 		void InitialiseStartValue(double start_value) override { runtime_start_value_ = start_value; }
-		void InitialiseStepTime(double step_time) override { runtime_ramp_time_ = step_time; }
+		void InitialiseStepTime(double step_time) override {
+			if (use_step_time_) runtime_ramp_time_ = step_time;
+			else runtime_ramp_time_.reset();
+		}
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			end_value_.Evaluate(ctx);
 			start_value_.Evaluate(ctx);
@@ -220,6 +258,8 @@ namespace adsim {
 		ExpressionParam end_value_{1e5};
 		ExpressionParam start_value_{1};
 		ExpressionParam ramp_time_{1};
+		// See LinearBoundaryValue::use_step_time_.
+		bool use_step_time_ = true;
 
 	private:
 		// Transient runtime overrides (see LinearBoundaryValue). Not serialised.
@@ -228,15 +268,86 @@ namespace adsim {
 
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const /*version*/) {
+		void serialize(Archive& ar, std::uint32_t const version) {
 			ar(
 				cereal::virtual_base_class<IBoundaryValue>(this),
 				cereal::make_nvp("End_Value", end_value_),
 				cereal::make_nvp("Start_Value", start_value_),
 				cereal::make_nvp("Ramp_Time", ramp_time_)
 			);
+			// v2: see LinearBoundaryValue (v4).
+			if (version >= 2) ar(cereal::make_nvp("Use_Step_Time", use_step_time_));
+			else use_step_time_ = true;
 		}
 	};
+
+	// ---- checks -----------------------------------------------------------------
+	// The ramp time a linear, exponential or log-linear profile holds itself
+	// (ramp_time_ / step_time_), or nullopt for a constant or double exponential.
+	inline std::optional<double> ProfileRampTime(const IBoundaryValue* v) {
+		if (auto* l = dynamic_cast<const LinearBoundaryValue*>(v)) return l->ramp_time_.Get();
+		if (auto* e = dynamic_cast<const ExponentialBoundaryValue*>(v)) return e->step_time_.Get();
+		if (auto* g = dynamic_cast<const LogLinearBoundaryValue*>(v)) return g->ramp_time_.Get();
+		return std::nullopt;
+	}
+
+	// Whether a pressure-driven profile ramps over the whole step (true for the
+	// kinds without a ramp time, which never use one).
+	inline bool ProfileUsesStepTime(const IBoundaryValue* v) {
+		if (auto* l = dynamic_cast<const LinearBoundaryValue*>(v)) return l->use_step_time_;
+		if (auto* e = dynamic_cast<const ExponentialBoundaryValue*>(v)) return e->use_step_time_;
+		if (auto* g = dynamic_cast<const LogLinearBoundaryValue*>(v)) return g->use_step_time_;
+		return true;
+	}
+
+	// Set the switch on a linear, exponential or log-linear profile (no-op for
+	// the other kinds). Takes effect at the next step start.
+	inline void SetProfileUsesStepTime(IBoundaryValue* v, bool use_step_time) {
+		if (auto* l = dynamic_cast<LinearBoundaryValue*>(v)) l->use_step_time_ = use_step_time;
+		else if (auto* e = dynamic_cast<ExponentialBoundaryValue*>(v)) e->use_step_time_ = use_step_time;
+		else if (auto* g = dynamic_cast<LogLinearBoundaryValue*>(v)) g->use_step_time_ = use_step_time;
+	}
+
+	// Whether the kind has a ramp time (and so the switch): linear, exponential, log-linear.
+	inline bool ProfileHasRampTime(const IBoundaryValue* v) { return ProfileRampTime(v).has_value(); }
+
+	// An exponential profile's factor F must exceed 1 (F = 1 never moves off the
+	// start value, F < 1 grows without bound). Any parent: pressure, valve,
+	// flow or inlet temperature. `what` names the profile in the message.
+	inline bool CheckProfileFactor(const IBoundaryValue* v, const std::string& what,
+	                               std::string& error_message) {
+		auto* e = dynamic_cast<const ExponentialBoundaryValue*>(v);
+		if (!e) return true;
+		const double f = e->factor_.Get();
+		if (std::isfinite(f) && f > 1.0) return true;
+		error_message += "The exponential factor of the " + what + " is " + std::to_string(f)
+		                 + "; it must be greater than 1 (100 covers 99 % of the change by the ramp time). ";
+		return false;
+	}
+
+	// A pressure-driven profile (pressure boundary, valve stream) with its own
+	// ramp time: the ramp must fit in the step (and not be negative). A small
+	// tolerance absorbs the rounding of a FRACTION-mode step time.
+	inline bool CheckPressureProfile(const IBoundaryValue* v, double step_time, const std::string& what,
+	                                 std::string& error_message) {
+		if (!v) return true;
+		if (!CheckProfileFactor(v, what, error_message)) return false;
+		if (ProfileUsesStepTime(v)) return true;
+		const auto ramp = ProfileRampTime(v);
+		if (!ramp) return true;
+		if (!std::isfinite(*ramp) || *ramp < 0.0) {
+			error_message += "The ramp time of the " + what + " is " + std::to_string(*ramp)
+			                 + " s; it must be zero or positive. ";
+			return false;
+		}
+		if (*ramp > step_time * (1.0 + 1e-9) + 1e-9) {
+			error_message += "The ramp time of the " + what + " (" + std::to_string(*ramp)
+			                 + " s) is longer than the step (" + std::to_string(step_time)
+			                 + " s); shorten it or ramp over the step time. ";
+			return false;
+		}
+		return true;
+	}
 
 	/* Factory function */
 	inline std::unique_ptr<IBoundaryValue> CreateBoundaryValue(BoundaryValueType type) {
