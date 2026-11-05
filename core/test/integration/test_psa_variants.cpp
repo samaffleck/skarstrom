@@ -138,20 +138,43 @@ namespace adsim {
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
   }
-  TEST_F(UserDataTest, TemperaturePurge) {
+  // Moles of a component the bed accumulated in a step (gas + solid) minus
+  // the net moles that crossed its two ends (GetTotalComponentMolesIn, the
+  // stream integrals the KPIs and the cycle balance use): zero for a closed
+  // balance. And the moles of it that crossed the two ends, either way.
+  static double ComponentBalanceError(const UserDataTest& t, const EquationLog& log, const std::string& comp) {
+    return t.CalculateTotalAccumulated(log, 0, 0, comp)
+         - (GetTotalComponentMolesIn(log, 0, 0, BoundaryLocation::BOTTOM, comp)
+            + GetTotalComponentMolesIn(log, 0, 0, BoundaryLocation::TOP, comp));
+  }
+  static double ComponentThroughput(const EquationLog& log, const std::string& comp) {
+    return std::abs(GetTotalComponentMolesIn(log, 0, 0, BoundaryLocation::BOTTOM, comp))
+         + std::abs(GetTotalComponentMolesIn(log, 0, 0, BoundaryLocation::TOP, comp));
+  }
+
+  // The temperature purge (hot O2 into a bed of O2), run with the given
+  // advection scheme. Nitrogen is in neither the feed nor the bed, so it may
+  // only appear at the solver's absolute tolerance. While the high-order
+  // schemes clamped their bed-end faces to [0, 1] (WP20-1), an end cell
+  // holding y_N2 = -1e-7 sent out a face clamped to zero while the stream log
+  // integrated the cell's value: with van Leer the log had 2.4e-5 mol of N2
+  // crossing the top that the bed never lost, and the O2 balance was off by
+  // 1.9e-5 mol.
+  static void RunTemperaturePurge(UserDataTest& t, AdvectionScheme scheme, const std::string& save_name) {
+    auto& data = t.data;
     data.info.title = "Temperature Purge";
     data.info.description = "Temperature swing adsorption with purge step";
     data.info.author = "Sam Affleck";
     
-    AddComponents({ "Oxygen", "Nitrogen" });
+    t.AddComponents({ "Oxygen", "Nitrogen" });
 
-    auto [layer_id, ads_id] = AddLayer("13X");
-    auto& layer = GetLayer(layer_id);
+    auto [layer_id, ads_id] = t.AddLayer("13X");
+    auto& layer = t.GetLayer(layer_id);
     layer.particle_diameter_ = 0.02; // [2 mm]
     layer.domain_.length = 3.0;
 
-    AddConstantInternalHeatTransferCoefficientModel(0, layer_id);
-    AddConstantExternalHeatTransferCoefficientModel(0, layer_id);
+    t.AddConstantInternalHeatTransferCoefficientModel(0, layer_id);
+    t.AddConstantExternalHeatTransferCoefficientModel(0, layer_id);
 
     layer.equations_.dispersion_model_ = CreateAxialDispersionModel(AxialDispersionType::CONSTANT);
     auto* mass_disp_model = dynamic_cast<DispersionModelConstant*>(layer.equations_.dispersion_model_.get());
@@ -165,7 +188,7 @@ namespace adsim {
       heat_disp_model->dispersion_coefficient_ = 0.0;
     }
 
-    AddInitialConditions(101325, 298, 298,
+    t.AddInitialConditions(101325, 298, 298,
       { 
         {"Oxygen", 1.0 },
         {"Nitrogen", 0.0 }
@@ -173,12 +196,12 @@ namespace adsim {
     );
 
     double feed_time = 100;
-    AddStep("Feed", feed_time);
+    t.AddStep("Feed", feed_time);
 
     double flow_rate = 1.0;
     Step& step_feed = data.cycle.GetStep("Feed");
-    auto feed_inlet_stream = CreateNoValveInletStream(
-      CreateMolarFlowBC(flow_rate),
+    auto feed_inlet_stream = t.CreateNoValveInletStream(
+      t.CreateMolarFlowBC(flow_rate),
       {
         {"Oxygen", 1.0},
         {"Nitrogen", 0.0}
@@ -195,14 +218,15 @@ namespace adsim {
     auto feed_pressure_out = std::make_unique<PressureBoundaryCondition>();
     feed_pressure_out->direction_ = BoundaryDirection::OUTLET;
     feed_pressure_out->location_ = BoundaryLocation::TOP;
-    feed_pressure_out->pressure_ = CreateConstantBoundaryValue(101325);
+    feed_pressure_out->pressure_ = t.CreateConstantBoundaryValue(101325);
     feed_pressure_out->mole_fraction_["Oxygen"] = 1.0;
     feed_pressure_out->mole_fraction_["Nitrogen"] = 0.0;
     step_feed.top_boundary_condition_ = std::move(feed_pressure_out);
 
-    ConfigureCycle(1);
+    t.ConfigureCycle(1);
     data.settings.max_step = 1.0;
 
+    data.settings.advection_scheme_ = scheme;
     CoupledSolver solver{data};
 
     std::string error{};
@@ -212,11 +236,45 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("TemperaturePurge", solver);
+    if (!save_name.empty()) t.SaveTest(save_name, solver);
 
-    EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
-    EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
-    EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
+    EXPECT_TRUE(t.IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
+    EXPECT_TRUE(t.IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
+    EXPECT_TRUE(t.IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
+
+    // Logged balances at the upwind level. Upwinding closes O2 to 4.3e-6 mol
+    // of a 200 mol throughput and N2 to 4e-22 mol; the high-order schemes to
+    // 4.6e-6 mol and 1.4e-9 mol. Over 15 integration paths (reltol 5e-7 to
+    // 2e-6, initial step 1e-10 to 1e-9) the O2 error stays at or below
+    // 8.0e-6 mol for every scheme: its bound, 2.5e-7 of the throughput
+    // (5e-5 mol), is a factor of 6 above that. N2, absent: its mole fraction
+    // is held only to the absolute tolerance 1e-8, so the N2 it can carry
+    // through the ends is at most 1e-8 of the throughput (2e-6 mol): 9 times
+    // the 2.1e-7 mol of the worst path, 12 times below the 2.4e-5 mol of the
+    // clamped van Leer faces.
+    const auto& log = solver.GetLog();
+    const double o2_error = ComponentBalanceError(t, log, "Oxygen");
+    const double n2_error = ComponentBalanceError(t, log, "Nitrogen");
+    const double n2_through = ComponentThroughput(log, "Nitrogen");
+    const double through = ComponentThroughput(log, "Oxygen") + n2_through;
+    std::cout << "[TemperaturePurge] scheme " << static_cast<int>(scheme) << ": O2 balance error " << o2_error
+              << " mol, N2 balance error " << n2_error << " mol, N2 through the ends " << n2_through
+              << " mol, of " << through << " mol" << std::endl;
+    EXPECT_LT(std::abs(o2_error), 2.5e-7 * through) << "O2 balance does not close";
+    EXPECT_LT(std::abs(n2_error), 1e-8 * through) << "N2 balance does not close";
+    EXPECT_LT(n2_through, 1e-8 * through) << "N2, absent, crosses the bed ends";
+  }
+
+  TEST_F(UserDataTest, TemperaturePurge) {
+    RunTemperaturePurge(*this, AdvectionScheme::Upwind, "TemperaturePurge");
+  }
+
+  TEST_F(UserDataTest, TemperaturePurgeWENO) {
+    RunTemperaturePurge(*this, AdvectionScheme::WENO, "");
+  }
+
+  TEST_F(UserDataTest, TemperaturePurgeVanLeer) {
+    RunTemperaturePurge(*this, AdvectionScheme::VanLeer, "");
   }
   
   TEST_F(UserDataTest, BreakthroughTest1) {
