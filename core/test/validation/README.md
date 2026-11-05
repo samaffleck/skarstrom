@@ -83,9 +83,9 @@ This complements the existing coverage rather than duplicating it:
 | `test_integrator_tolerance.cpp` | Error against reltol (BDF slope, abstol floor) on a breakthrough and a cycle; `max_step` independence |
 | `test_css_convergence.cpp` | Geometric approach to CSS, KPI error left by the stopping rule, Aitken lands on the same KPIs |
 | `test_manufactured_solutions.cpp` | Method of manufactured solutions: observed order of the whole discretisation (all terms, Langmuir, time-dependent) for upwind, WENO, van Leer, isothermal and with the energy balance |
-| `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form |
+| `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form down to y = 1e-5 |
 | `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
-| `test_competitive_sips_trace_loading.cpp` | Competitive Sips kinds (extended_sips_2, arrhenius_sips): trace-component loadings against the published isotherms down to y = 1e-5, the documented continuation below, a trace front's first moment |
+| `test_competitive_sips_trace_loading.cpp` | Competitive Sips kinds (extended_sips_2, arrhenius_sips) and extended_langmuir_freundlich: trace-component loadings against the published isotherms down to y = 1e-5, the documented continuation below, single-component and competitive paths agreeing, a trace front's first moment |
 
 ## `test_energy_balance.cpp`
 
@@ -547,12 +547,15 @@ in the test.
   loading to 0.66 of its single-component value; at 343 K, freezing q_s and
   1/n at their 303 K values (k2 = k6 = 0, the only case extended Sips 2 can
   represent) moves the CO loading by more than 1 %.
-- **`PureEvaluationAndIastMappingMatchClosedForm`**: `EvalIsotherm` within
-  1e-10 (the near-zero step at y = 1) and the IAST Sips term within 4e-16,
-  at 273–373 K and 1 kPa–20 bar.
-- **`TraceComponentKeepsItsLoading`**: the step changes a trace loading by
-  `1e-10 / y^2` (1.0e-4 at y = 1e-3, 1e-6 at y = 1e-2). All four take about
-  0.1 s.
+- **`PureEvaluationAndIastMappingMatchClosedForm`**: `EvalIsotherm` and the
+  IAST Sips term within 1e-12 (measured 9e-16 and 4e-16), at 273–373 K and
+  1 kPa–20 bar.
+- **`TraceComponentKeepsItsLoading`**: the pure-component form of CO at
+  11 bar, 303 K matches the closed form to 1e-12 at y = 1e-2 down to the
+  continuation threshold y_0 = 1e-5, and is exactly 0 at y = 0. Guard: the
+  former step y^2 / (y^2 + 1e-10) moved it by 1e-4 at 1e-3, 1 % at 1e-4 and
+  20 % at 2e-5. The competitive path is in
+  `test_competitive_sips_trace_loading.cpp`. All four take about 0.1 s.
 ## `test_valve_bed_pressure.cpp`
 
 Steady flow through an inert isothermal bed: a set molar flow `F` enters at the
@@ -765,6 +768,9 @@ The competitive Sips kinds continue each term z_i = (b_i P y_i)^{s_i} below
 y_0 = 1e-5 by a quadratic in y (docs/isotherms.md), and use the published
 form unchanged above it (WP19-1: they used to multiply every term by
 y^2 / (y^2 + 1e-6), halving the loading at y = 1e-3).
+extended_langmuir_freundlich continues the power of z_i = b_i (P y_i /
+P_ref)^{n_i} the same way (it used a softplus and the step
+y^2 / (y^2 + 1e-10): -1e-4 at y = 1e-3, -1 % at 1e-4, -20 % at 2e-5).
 
 - **Seeded loadings** of a trace CO2 (Casas 2012 arrhenius_sips at 15 bar with
   y_H2 = 0.5; Streb 2021 extended_sips_2, s = 0.425, at 10 bar with
@@ -774,12 +780,24 @@ y^2 / (y^2 + 1e-6), halving the loading at y = 1e-3).
   the documented continuation to 1e-6, and exactly 0 at y = 0. Guard: the
   former step moved each loading above y_0 by at least 1e-4 (99x the
   tolerance); on main it gave -0.96 % at 1e-2, -49.9 % at 1e-3, -99 % at 1e-4.
+  extended_langmuir_freundlich: trace CO (toPSAil case_study_4.0, n = 0.72)
+  at 11 bar with y_H2 = 0.5, same tolerances, measured below 1e-15; its
+  former step is guarded at y <= 1e-3 (closed form before the fix: -9.9e-5
+  at 1e-3, -0.99 % at 1e-4, -20 % at 2e-5), while 1e-1 and 1e-2 check
+  exactness only.
+- **Single-component agreement** (all three kinds, y = 1e-2, 2e-5, 5e-6):
+  with the competitor absent, `EvalIsotherm` (the Python and fitter path)
+  matches the closed form to 1e-12 and the solver's competitive loading to
+  1e-6; measured equal to the printed digits.
 - **Trace breakthrough** (y_f = 1e-3 CO2 in helium, arrhenius_sips, 1 bar,
   isothermal): the first moment of the outlet curve equals the
   equilibrium-theory time (L/u)(1 + (rho_b/eps) q*(y_f)/c_f) (a mass balance,
   exact however smeared the front), tolerance 2 y_f for the sorption effect;
   measured -1.1e-4. Guard: the former step gives a 49 % earlier front
-  (measured on main: 543 s against 1062 s). About 1 s.
+  (measured on main: 543 s against 1062 s). The same run on
+  extended_langmuir_freundlich (CO, y_f = 1e-4, tolerance 2e-4): measured
+  -1.1e-4; the former step would give a front 0.95 % early (747 s against
+  754 s), 47x the tolerance. About 1 s each.
 
 ## Fixed along the way
 
