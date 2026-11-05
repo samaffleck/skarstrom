@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 3,
+        "cereal_class_version": 4,
         "Adsorbent_Directory": {
             "cereal_class_version": 1,
             "Adsorbents": [
@@ -500,7 +500,7 @@
             }
         },
         "Fluid": {
-            "cereal_class_version": 3,
+            "cereal_class_version": 4,
             "Components": [
                 "CarbonDioxide",
                 "Nitrogen"
@@ -524,7 +524,32 @@
                 }
             ],
             "Adsorbed_Heat_Capacity_Mode": 0,
-            "Heat_Of_Adsorption_Convention": 1
+            "Heat_Of_Adsorption_Convention": 1,
+            "Gas_Heat_Capacity_Mode": 0,
+            "Gas_Heat_Capacity": [
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 29.1,
+                        "Expression": "29.1",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 29.1,
+                        "Expression": "29.1",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Viscosity_Mode": 0,
+            "Viscosity": {
+                "Value": 0.000018,
+                "Expression": "1.8e-05",
+                "DisplayUnitIndex": 0
+            }
         },
         "Initial_Conditions": {
             "cereal_class_version": 3,
@@ -938,7 +963,7 @@
                                     "ptr_wrapper": {
                                         "valid": 1,
                                         "data": {
-                                            "cereal_class_version": 3,
+                                            "cereal_class_version": 4,
                                             "value0": {},
                                             "End_Value": {
                                                 "Value": 9050.0,
@@ -955,7 +980,13 @@
                                                 "Value": 60.7,
                                                 "Expression": "60.7",
                                                 "DisplayUnitIndex": 0
-                                            }
+                                            },
+                                            "Factor": {
+                                                "Value": 100.0,
+                                                "Expression": "1e+02",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "Use_Step_Time": true
                                         }
                                     }
                                 },
@@ -1136,7 +1167,13 @@
                                                 "Value": 200.0,
                                                 "Expression": "2e+02",
                                                 "DisplayUnitIndex": 0
-                                            }
+                                            },
+                                            "Factor": {
+                                                "Value": 100.0,
+                                                "Expression": "1e+02",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "Use_Step_Time": true
                                         }
                                     }
                                 },
@@ -1288,7 +1325,7 @@
                                     "ptr_wrapper": {
                                         "valid": 1,
                                         "data": {
-                                            "cereal_class_version": 3,
+                                            "cereal_class_version": 4,
                                             "value0": {},
                                             "End_Value": {
                                                 "Value": 100000.0,
@@ -1304,7 +1341,8 @@
                                                 "Value": 30.0,
                                                 "Expression": "3e+01",
                                                 "DisplayUnitIndex": 0
-                                            }
+                                            },
+                                            "Use_Step_Time": true
                                         }
                                     }
                                 },
@@ -1409,7 +1447,7 @@
             }
         },
         "Solver_Settings": {
-            "cereal_class_version": 6,
+            "cereal_class_version": 7,
             "Maximum_Number_Of_Steps": 100000,
             "Initial_Step_Size": {
                 "Value": 1e-10,
@@ -1477,7 +1515,8 @@
                 "Vacuum": true,
                 "Design_Temperature": true,
                 "Fluidisation": true
-            }
+            },
+            "Valve_Bed_Pressure": 0
         },
         "Experimental_Data": {
             "cereal_class_version": 1,
@@ -1587,6 +1626,26 @@
             "maintenance_fraction": 0.03,
             "overhead_fraction": 0.02,
             "labour_cost_per_year": 50000.0
+        },
+        "Sensitivity_Study": {
+            "cereal_class_version": 0,
+            "Inputs": [],
+            "Outputs": [],
+            "Policy": {
+                "cereal_class_version": 0,
+                "Require_CSS": true,
+                "Cycles": 0,
+                "Settings": []
+            },
+            "Seed": 1,
+            "Trajectories": 10,
+            "Levels": 4,
+            "Threshold": 0.1,
+            "Runs": 100,
+            "Batch": 50,
+            "Max_Runs": 400,
+            "Rel_Tol": 0.1,
+            "Bootstrap": 1000
         }
     }
 }

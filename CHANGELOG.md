@@ -8,6 +8,24 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — own ramp time for pressure ramps; exponential factor
+- Linear, exponential and log-linear pressure profiles (pressure boundaries
+  and valve streams) take an optional ramp time of their own:
+  `use_step_time_` (deck field `Use_Step_Time`, default on) keeps the ramp
+  over the whole step as before; off, the profile's `ramp_time_` /
+  `step_time_` is used and must not exceed the step time
+  (`CheckPressureProfile`, run by `Cycle::PerformChecks`). Registry:
+  `endpoint[i].pressure_<kind>_use_step_time`, and `pressure_<kind>_time` when
+  it is off. Python: `sk.linear(end, time=10)` for a pressure.
+- The exponential profile's factor is a parameter: `factor_` (deck field
+  `Factor`, registry `<head>_exponential_factor`, Python
+  `sk.exponential(..., factor=)`), v(t) = v1 + (v0 - v1) F^(-t / t_r).
+  The default 100 is the old fixed value (99 % at the ramp time); F must be
+  greater than 1 (`CheckProfileFactor`).
+- Class versions: `LinearBoundaryValue` 4, `ExponentialBoundaryValue` 4,
+  `LogLinearBoundaryValue` 2. Older decks load with the step time and F = 100,
+  so their results are unchanged.
+
 ### Added — method-of-manufactured-solutions hook and order test
 - Verification hook `UserData::manufactured_sources_`
   (`adsim/equations/manufactured_sources.h`): source terms, functions of z

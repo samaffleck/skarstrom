@@ -9,7 +9,9 @@
 //
 //  * after a run the user's expressions are untouched (formulas survive);
 //  * the profile values the solver sees are unchanged — the user's start/ramp are
-//    still ignored for pressure/valve parents, exactly as before.
+//    still ignored for pressure/valve parents, exactly as before, unless the
+//    profile is set to use its own ramp time (use_step_time_ off), which must
+//    then fit in the step.
 
 #include <string>
 #include <vector>
@@ -140,6 +142,46 @@ namespace adsim {
     ASSERT_FALSE(first.empty());
     for (size_t i = 0; i < first.size(); ++i)
       ASSERT_EQ(first[i], second[i]) << "y[" << i << "]";
+  }
+
+  // With use_step_time_ off the profile's own ramp time drives the run (the start
+  // is still the bed pressure), and a ramp longer than the step is rejected.
+  TEST_F(ProfileRuntimeValuesTest, OwnRampTimeDrivesPressureProfilesAndMustFitInTheStep) {
+    std::string error;
+    ASSERT_TRUE(data.cycle.PerformChecks(data.fluid, error)) << error;
+    CoupledSolver solver{data};
+    SetUserFormulas("1", "2");
+    const std::vector<double> over_step = Run(solver);
+
+    press_profile->use_step_time_ = false;
+    valve_profile->use_step_time_ = false;
+    ASSERT_TRUE(data.cycle.PerformChecks(data.fluid, error)) << error;
+    const std::vector<double> own_ramp = Run(solver);
+    ASSERT_EQ(over_step.size(), own_ramp.size());
+    bool differs = false;
+    for (size_t i = 0; i < own_ramp.size(); ++i) differs = differs || over_step[i] != own_ramp[i];
+    EXPECT_TRUE(differs) << "a 2 s ramp inside a 5 s step should change the run";
+    EXPECT_EQ(press_profile->ramp_time_.GetExpr(), "2");
+
+    // The step is 5 s: a 6 s ramp does not fit (pressure BC, then valve).
+    SetUserFormulas("1", "6");
+    valve_profile->use_step_time_ = true;
+    error.clear();
+    EXPECT_FALSE(data.cycle.PerformChecks(data.fluid, error));
+    EXPECT_NE(error.find("longer than the step"), std::string::npos) << error;
+    EXPECT_NE(error.find("Press"), std::string::npos) << error;
+
+    press_profile->use_step_time_ = true;
+    valve_profile->use_step_time_ = false;
+    error.clear();
+    EXPECT_FALSE(data.cycle.PerformChecks(data.fluid, error));
+    EXPECT_NE(error.find("valve pressure profile"), std::string::npos) << error;
+
+    valve_profile->use_step_time_ = true;
+    valve_profile->factor_ = 1.0;
+    error.clear();
+    EXPECT_FALSE(data.cycle.PerformChecks(data.fluid, error));
+    EXPECT_NE(error.find("exponential factor"), std::string::npos) << error;
   }
 
 } // namespace adsim

@@ -70,10 +70,10 @@ $$
 T_{\text{in}}(t) = T_0 + \left(T_1 - T_0\right)\frac{\min(t,\thinspace t_r)}{t_r}
 $$
 
-- **Exponential** — a first-order approach from $T_0$ to $T_1$ that has covered 99 % of the change after the ramp time $t_r$:
+- **Exponential** — a first-order approach from $T_0$ to $T_1$ whose remaining change has shrunk by the **Exponential Factor** $F$ after the ramp time $t_r$ (the default $F = 100$ has covered 99 % of the change by then):
 
 $$
-T_{\text{in}}(t) = T_1 + \left(T_0 - T_1\right)e^{-\ln(100)\thinspace t/t_r}
+T_{\text{in}}(t) = T_1 + \left(T_0 - T_1\right)F^{-t/t_r} = T_1 + \left(T_0 - T_1\right)e^{-\ln(F)\thinspace t/t_r}
 $$
 
 - **Log-linear** — a geometric ramp from $T_0$ to $T_1$ over the ramp time, then held at $T_1$ (see [time-varying profiles](#time-varying-profiles)).
@@ -90,7 +90,12 @@ Flow rates, pressures and [inlet temperatures](#inlet-temperature-profile) can a
 
 - **Constant** — a single value held for the whole step.
 - **Linear** — ramps linearly from a **Start Value** to a **Final Value** over a **Ramp Time**.
-- **Exponential** — approaches the **Final Value** from the **Start Value** with an exponential (first-order) response over the ramp time.
+- **Exponential** — approaches the **Final Value** $v_1$ from the **Start Value** $v_0$ with a first-order response: after the ramp time $t_r$ the change left is $1/F$ of the initial one, where $F$ is the **Exponential Factor** (default 100, i.e. 99 % of the change covered by $t_r$; it must be greater than 1). The curve keeps approaching $v_1$ after $t_r$:
+
+$$
+v(t) = v_1 + \left(v_0 - v_1\right)F^{-t/t_r}
+$$
+
 - **Log-linear** — a geometric ramp from the **Start Value** $v_0$ to the **Final Value** $v_1$ over the ramp time $t_r$, then held at $v_1$. The value is multiplied by the same factor every second, so $\ln v$ rises linearly:
 
 $$
@@ -99,7 +104,9 @@ v(t) = v_0\left(\frac{v_1}{v_0}\right)^{\min(t,\thinspace t_r)/t_r},
 \frac{d\ln v}{dt} = \frac{\ln(v_1/v_0)}{t_r}
 $$
 
-Ramps are the natural way to model gradual pressurisation or blowdown. The ramp time is clamped to the step duration.
+Ramps are the natural way to model gradual pressurisation or blowdown.
+
+**Pressure ramps** (a Pressure boundary or a valve) start from the bed pressure at the start of the step, so they have no Start Value. By default (**Use Step Time** on) the ramp lasts the whole step. Turn it off to give the ramp its own **Ramp Time**, for example to pressurise in the first 10 s of a 30 s step and hold the final pressure for the rest; the ramp time must be no longer than the step (the run is refused otherwise). Decks saved before this option existed ramp over the step time, as before.
 
 ### Choosing a pressurisation ramp
 
