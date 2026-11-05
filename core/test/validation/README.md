@@ -74,6 +74,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_unit_operations.cpp` | Constant-speed evacuation, two-bed pressure equalisation at CSS, buffer-tank fill, without and with Henry adsorption |
 | `test_thermal_fronts.cpp` | Inert-bed thermal front speed; steady exponential temperature profile with wall losses |
 | `test_blowdown_composition_path.cpp` | Blowdown of a binary on linear isotherms: equilibrium-theory composition path y(P), departure scaling with the LDF lag |
+| `test_skarstrom_cycle_equilibrium_theory.cpp` | Full four-step Skarstrom cycle on linear isotherms: light-product purity and recovery and the heavy-product composition against the Knaebel-Hill equilibrium theory, first-order approach under refinement |
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 | `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
@@ -445,6 +446,47 @@ valve or the time.
   pressure, and the composition stays uniform to 1.3e-5. Guard: `beta < 0.3`,
   so a model without the adsorbed phase (`beta = 1`, `y` constant) fails by
   0.46 in `y`. About 0.4 s.
+## `test_skarstrom_cycle_equilibrium_theory.cpp`
+
+A full PSA cycle against the equilibrium theory of Chan, Hill & Wong (1981)
+and Knaebel & Hill (1985) (also Ruthven, Farooq & Knaebel 1994, ch. 4). The
+blowdown test's binary (`beta = a_B/a_A = 0.251`, isothermal, linear
+isotherms, 5 mm particles so the pressure drop is about 20 Pa) runs the
+four-step Skarstrom cycle with pressurisation by light product: pressurise
+1 -> 5 bar from the top, feed `y_F = 0.3` at 5 bar until the shock (speed
+`beta_A v_F`) reaches the top, blow down to 1 bar from the bottom, purge
+from the top with light product at 1 bar. Started from pure B at 1 bar, the
+state a sufficient purge leaves, the cycle is at its cyclic steady state from
+the first cycle. With the purge-to-feed ratio of actual volumes
+`gamma >= 1` and `Pi = P_H/P_L` the light product is pure B and
+
+`recovery = (1 - beta)(1 - 1/(Pi (1 - y_F))) - (gamma - 1)/(Pi (1 - y_F))`,
+
+and the heavy product (blowdown + purge effluent) has
+`y_W = P_H y_F / (P_H (beta + (1 - beta) y_F) + P_L (gamma - beta))`. The gas
+for pressurisation and purge is supplied as pure B, which is what the
+theory's product is, and the net light product is counted as the theory
+counts it.
+
+- **`PurityAndRecoveryMatchKnaebelHill`**: at `gamma = 1` and `1.5` on 50
+  cells (`k = 20 1/s`), the purity is 0.9954 and 0.9956 (theory 1), the
+  recovery 0.53375 and 0.39095 (theory 0.53503 and 0.39217) and the heavy
+  product 0.4759 and 0.4103 (theory 0.4796 and 0.4135). The gap is the
+  smeared feed shock leaking A as it reaches the top; tolerances are
+  regression bounds over it (purity 6e-3, recovery 2e-3, heavy product
+  5e-3). The purge term, the drop in recovery between the two purge ratios,
+  is 0.142793 against 0.142857 (tolerance 5e-4). All the A fed leaves over the
+  cycle (to 2e-5), and the KPIs agree between the last two of three cycles.
+  Guards: `beta < 0.3`, so a model without the adsorbed phase (recovery 0)
+  fails; the purge term is many times the recovery tolerance. About 1.4 s.
+- **`GapVanishesUnderRefinement`** (slow tier): refining the grid and the
+  LDF rate together (100/40, 200/80, 400/160 cells / 1/s) halves the gap at
+  each level (purity 2.30e-3, 1.14e-3, 5.67e-4; recovery 6.35e-4, 3.15e-4,
+  1.56e-4), so the cycle converges to the theory at first order, the order of
+  the captured shock (the `1/k` part is a few per cent of the gap). The
+  Richardson extrapolation of the two finest levels gives purity 1.00001,
+  recovery 0.535030 (theory 0.535027) and heavy product 0.479638 (theory
+  0.479631), within a fifth of the finest gap. About 16 s.
 ## `test_competitive_langmuir_fronts.cpp`
 
 Competitive adsorption fronts. Two trace adsorbates on an extended Langmuir

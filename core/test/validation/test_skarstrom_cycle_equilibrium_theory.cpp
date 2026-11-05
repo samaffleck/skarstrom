@@ -359,13 +359,69 @@ namespace adsim {
       // Every mole of A fed leaves the bed over the cycle.
       EXPECT_NEAR(k.a_balance, 0.0, 2e-3);
 
-      EXPECT_NEAR(k.purity, 1.0, 5e-3) << "Light product not pure B at gamma = " << gamma;
-      EXPECT_NEAR(k.recovery, TheoryRecovery(gamma), 1e-2) << "Recovery at gamma = " << gamma;
-      EXPECT_NEAR(k.heavy_fraction, TheoryHeavyFraction(gamma), 1e-2) << "Heavy product at gamma = " << gamma;
+      // Tolerances: regression bounds over the measured gap on this grid
+      // (50 cells, k = 20 1/s): purity 4.6e-3, recovery 1.3e-3, heavy product
+      // 3.7e-3. The gap is the smeared feed shock leaking A as it reaches the
+      // top; SkarstromCycleEquilibriumTheory.GapVanishesUnderRefinement shows
+      // it falling at first order to the theory.
+      EXPECT_NEAR(k.purity, 1.0, 6e-3) << "Light product not pure B at gamma = " << gamma;
+      EXPECT_NEAR(k.recovery, TheoryRecovery(gamma), 2e-3) << "Recovery at gamma = " << gamma;
+      EXPECT_NEAR(k.heavy_fraction, TheoryHeavyFraction(gamma), 5e-3) << "Heavy product at gamma = " << gamma;
     }
-    // GUARD: the purge term is resolved, the drop in recovery from gamma = 1 to
-    // 1.5 is many times the tolerance.
-    EXPECT_NEAR(last[0].recovery - last[1].recovery, TheoryRecovery(1.0) - TheoryRecovery(1.5), 5e-3);
+    // The purge term: the drop in recovery from gamma = 1 to 1.5 (theory
+    // 0.142857, measured 0.142793) is resolved far better than the recovery
+    // itself, because the smearing is the same at both purge ratios.
+    EXPECT_NEAR(last[0].recovery - last[1].recovery, TheoryRecovery(1.0) - TheoryRecovery(1.5), 5e-4);
+  }
+
+  // The strong form: refine the grid and the LDF rate together (cells x2,
+  // k x2) at the minimum purge. The gap to the theory halves at each level
+  // (first order: the shock is captured at first order, and the LDF part of
+  // the gap, 1/k, is a few per cent of it), and the Richardson extrapolation
+  // of the two finest levels lands on the theory. Measured (100/40, 200/80,
+  // 400/160): purity gap 2.30e-3, 1.14e-3, 5.67e-4; recovery gap 6.35e-4,
+  // 3.15e-4, 1.56e-4; extrapolated recovery 0.535030 against 0.535027.
+  // About 16 s, so in the slow tier.
+  TEST(SkarstromCycleEquilibriumTheory, GapVanishesUnderRefinement) {
+    struct Level { int cells; double ldf; CycleKpis k; };
+    std::vector<Level> levels{{100, 40.0, {}}, {200, 80.0, {}}, {400, 160.0, {}}};
+    for (auto& lv : levels) {
+      Config cfg;
+      cfg.cells = lv.cells;
+      cfg.ldf = lv.ldf;
+      cfg.cycles = 2;
+      const auto kpis = RunCycle(cfg);
+      ASSERT_EQ(kpis.size(), 2u);
+      lv.k = kpis.back();
+      Report("refine", cfg, lv.k);
+    }
+    auto purity_gap = [](const CycleKpis& k) { return 1.0 - k.purity; };
+    auto recovery_gap = [](const CycleKpis& k) { return TheoryRecovery(1.0) - k.recovery; };
+    auto heavy_gap = [](const CycleKpis& k) { return TheoryHeavyFraction(1.0) - k.heavy_fraction; };
+    for (size_t i = 0; i + 1 < levels.size(); ++i) {
+      const CycleKpis& c = levels[i].k;
+      const CycleKpis& f = levels[i + 1].k;
+      // GUARD: the gap is there to measure (positive at every level).
+      ASSERT_GT(purity_gap(f), 0.0);
+      ASSERT_GT(recovery_gap(f), 0.0);
+      EXPECT_NEAR(purity_gap(c) / purity_gap(f), 2.0, 0.2) << "purity, level " << i;
+      EXPECT_NEAR(recovery_gap(c) / recovery_gap(f), 2.0, 0.2) << "recovery, level " << i;
+      EXPECT_NEAR(heavy_gap(c) / heavy_gap(f), 2.0, 0.2) << "heavy product, level " << i;
+    }
+    // First-order Richardson extrapolation of the two finest levels.
+    const CycleKpis& c = levels[1].k;
+    const CycleKpis& f = levels[2].k;
+    const double purity_x = 2.0 * f.purity - c.purity;
+    const double recovery_x = 2.0 * f.recovery - c.recovery;
+    const double heavy_x = 2.0 * f.heavy_fraction - c.heavy_fraction;
+    std::cout << "[SkarstromET] extrapolated purity " << purity_x << ", recovery " << recovery_x
+              << " (theory " << TheoryRecovery(1.0) << "), heavy y " << heavy_x << " (theory "
+              << TheoryHeavyFraction(1.0) << ")\n";
+    // Tolerances: a fifth of the finest level's gap (measured residuals 9e-6,
+    // 3e-6 and 8e-6, against finest gaps of 5.7e-4, 1.6e-4 and 4.5e-4).
+    EXPECT_NEAR(purity_x, 1.0, 0.2 * purity_gap(f));
+    EXPECT_NEAR(recovery_x, TheoryRecovery(1.0), 0.2 * recovery_gap(f));
+    EXPECT_NEAR(heavy_x, TheoryHeavyFraction(1.0), 0.2 * heavy_gap(f));
   }
 
 } // namespace adsim
