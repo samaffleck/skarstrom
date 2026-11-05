@@ -20,6 +20,20 @@ namespace adsim {
     constexpr double kConvergedPurity = 0.9948428;    // CO2, cycle 1000 (Danckwerts inlets, #37)
     constexpr double kConvergedRecovery = 0.5904760;  // CO2, cycle 1000 (Danckwerts inlets, #37)
 
+    // The converged values above, and the cycle counts the tests expect, are
+    // those of the deck's earlier form: upwind on 30 cells from a clean N2 bed.
+    // The test is about the stopping rule, not the grid or the start, so it
+    // keeps that form (the shipped deck now runs WENO on 80 cells from a
+    // feed-loaded bed and reaches CSS sooner).
+    Simulation LoadPerez2019A() {
+      Simulation sim = Simulation::FromFile("../examples/decks/Perez2019_A.json");
+      sim.Data().settings.advection_scheme_ = AdvectionScheme::Upwind;
+      for (auto& layer : sim.Data().bed.layers_.layers_) layer.domain_.n_cells = 30;
+      sim.Data().ic.mole_fraction["CarbonDioxide"] = ExpressionParam{0.0};
+      sim.Data().ic.mole_fraction["Nitrogen"] = ExpressionParam{1.0};
+      return sim;
+    }
+
     // Returns a pointer into `kpis`: keep the vector alive while it is used
     // (a temporary from sim.KPIs() is freed at the end of the statement).
     const KPIRecord* CarbonDioxide(const std::vector<KPIRecord>& kpis) {
@@ -30,7 +44,7 @@ namespace adsim {
   }  // namespace
 
   TEST(CSSRobustDeck, Perez2019AStopsNearTheConvergedKPIs) {
-    Simulation sim = Simulation::FromFile("../examples/decks/Perez2019_A.json");
+    Simulation sim = LoadPerez2019A();
     auto& css = sim.Data().settings.css;
     ASSERT_EQ(css.method_, CSSMethod::MASS_BALANCE_COMPONENT);
     EXPECT_DOUBLE_EQ(css.state_tolerance_.Get(), CyclicSteadyState::kDefaultStateTolerance);
@@ -82,7 +96,7 @@ namespace adsim {
   TEST(CSSRobustDeck, Perez2019AWithTheOldRuleStopsEarly) {
     // state_tolerance 0 and one cycle restore the balance-only test, which
     // passes long before the KPIs settle (kept to document why it changed).
-    Simulation sim = Simulation::FromFile("../examples/decks/Perez2019_A.json");
+    Simulation sim = LoadPerez2019A();
     auto& css = sim.Data().settings.css;
     css.state_tolerance_ = 0.0;
     css.consecutive_cycles_ = 1;

@@ -245,8 +245,8 @@ namespace adsim {
   TEST_F(Nguyen2022Test, Fig4_Binary_50pct) { RunNguyen2022Extra(*this, "Fig4_Binary_50pct", "Fig4", 50, 50, 7100.0, 0.14, 0.06); }
   // measured NRMSE 0.0993589, front-time error 0.00687957
   TEST_F(Nguyen2022Test, Fig4_Binary_100pct) { RunNguyen2022Extra(*this, "Fig4_Binary_100pct", "Fig4", 100, 50, 7100.0, 0.12, 0.017); }
-  // measured NRMSE 0.124475, front-time error 0.0155786
-  TEST_F(Nguyen2022Test, Fig5_Ternary_5pct) { RunNguyen2022Extra(*this, "Fig5_Ternary_5pct", "Fig5", 5, 100, 11800.0, 0.15, 0.026); }
+  // measured (WENO, 30 cells) NRMSE 0.137504, front-time error 0.000552 (upwind: 0.00309)
+  TEST_F(Nguyen2022Test, Fig5_Ternary_5pct) { RunNguyen2022Extra(*this, "Fig5_Ternary_5pct", "Fig5", 5, 100, 11800.0, 0.15, 0.0026); }
   // measured NRMSE 0.104462, front-time error 0.0282569
   TEST_F(Nguyen2022Test, Fig5_Ternary_30pct) { RunNguyen2022Extra(*this, "Fig5_Ternary_30pct", "Fig5", 30, 100, 11800.0, 0.13, 0.039); }
 

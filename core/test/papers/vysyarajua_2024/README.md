@@ -90,3 +90,28 @@ value in a comment next to it. Results of the last run:
 
 - The N2 breakthrough loadings match the reported value (ambient) and the DSL value (11.2 bar) to 2-4 %, and the peak bed temperature to 0.3 K.
 - He purity is 0.54 pp below the paper model (1.4 pp above the experiment), and He recovery is 63 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle.
+
+### Grid and advection scheme (2026-11-04)
+
+The PSA deck ran first-order upwind advection on 30 cells. A grid study (10-160
+cells, Richardson extrapolation; [Numerics](../../../../docs/numerics.md#advection-schemes))
+found the He purity converged by 40 WENO cells, while the He recovery after
+the deck's fixed 60 cycles converges slowly under every scheme (order 0.6-0.9,
+0.4 pp left at 160 cells: the run is not at CSS). The deck now runs WENO, the
+engine's default, on 80 cells; the breakthrough (DCB) cases keep 30 cells.
+
+Before: upwind, 30 cells; after: WENO, 80 cells (bold: changed bound). The He
+purity rose by 0.57 pp to 99.93 %: now 0.03 pp from the paper's model but
+1.9 pp above the experiment (bound 1.8 → 2.4 pp; the paper-model bound
+tightened 0.85 → 0.084 pp). Recovery rose by 1 pp and stays about twice the
+paper's (single-bed emulation, above).
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| DCB_Ambient_N2 | N2 equilibrium loading | 0.56 | 0.538 | 0.538 | 0.03934 → 0.03933 | 0.049 |
+| DCB_Ambient_N2 | peak bed temperature | 304.00 | 304.24 | 304.25 | 0.24 → 0.25 | 0.56 |
+| DCB_HighPressure_N2 | N2 equilibrium loading | 2.17 | 2.13 | 2.13 | 0.01926 → 0.01924 | 0.029 |
+| PSA_Exp1 | He purity vs experiment | 98.00 | 99.36 | 99.93 | 1.36 → 1.93 | **1.8 → 2.4** |
+| PSA_Exp1 | He purity vs paper model | 99.90 | 99.36 | 99.93 | 0.54 → 0.03 | **0.85 → 0.084** |
+| PSA_Exp1 | He recovery vs experiment | 30.60 | 63.06 | 64.01 | 32.46 → 33.41 | 36 |
+| PSA_Exp1 | He recovery vs paper model | 31.30 | 63.06 | 64.01 | 31.76 → 32.71 | 35 |

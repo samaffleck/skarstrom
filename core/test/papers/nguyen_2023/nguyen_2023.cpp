@@ -46,29 +46,28 @@ namespace adsim {
       double pu_exp, re_exp, pr_exp, pu_model, re_model, pr_model;
     };
     const std::map<std::string, Nguyen2023Tol> kNguyen2023Tol = {
-      // measured: 2.0005 pp, 2.43014 pp, 0.0655223 rel | 1.0005 pp, 0.76986 pp, 0.0358563 rel
+      // Measured with WENO on 80 cells from a feed-loaded bed (README.md "Grid and
+      // advection scheme"; upwind on 100 cells from a clean bed before).
+      // measured: 1.991 pp, 2.511 pp, 0.06451 rel | 0.9909 pp, 0.6887 pp, 0.03481 rel
       { "ExperimentI",    { 2.4, 2.8, 0.076, 1.4, 1.1, 0.046 } },
-      // measured: 1.85656 pp, 1.23426 pp, 0.0939452 rel | 0.956562 pp, 0.634264 pp, 0.127503 rel
+      // measured: 1.84 pp, 1.314 pp, 0.09313 rel | 0.9399 pp, 0.7136 pp, 0.1267 rel
       { "ExperimentII",   { 2.2, 1.6, 0.11, 1.3, 0.94, 0.15 } },
-      // measured: 1.70017 pp, 2.49223 pp, 0.0847345 rel | 1.80017 pp, 0.892233 pp, 0.138574 rel
+      // measured: 1.677 pp, 2.567 pp, 0.084 rel | 1.777 pp, 0.9666 pp, 0.1379 rel
       { "ExperimentIII",  { 2.1, 2.9, 0.098, 2.2, 1.2, 0.16 } },
-      // measured: 3.1767 pp, 2.6597 pp, 0.070217 rel | 2.1767 pp, 0.859704 pp, 0.1446 rel
+      // measured: 3.148 pp, 2.733 pp, 0.06948 rel | 2.148 pp, 0.9332 pp, 0.1439 rel
       { "ExperimentIV",   { 3.7, 3.1, 0.081, 2.6, 1.2, 0.17 } },
-      // measured: 4.8734 pp, 2.57905 pp, 0.0492303 rel | 2.0734 pp, 1.37905 pp, 0.135664 rel
+      // measured: 4.846 pp, 2.643 pp, 0.04864 rel | 2.046 pp, 1.443 pp, 0.1351 rel
       { "ExperimentV",    { 5.7, 3, 0.06, 2.4, 1.7, 0.16 } },
-      // measured: 0.934884 pp, 6.75405 pp, 0.0659414 rel | 0.434884 pp, 5.05405 pp, 0.000777056 rel
-      { "ExperimentVI",   { 1.3, 7.8, 0.076, 0.74, 5.9, 0.011 } },
-      // measured: 0.70128 pp, 7.74829 pp, 0.139047 rel | 1.90128 pp, 8.04829 pp, 0.139047 rel
+      // measured: 0.9913 pp, 6.734 pp, 0.06614 rel | 0.4913 pp, 5.034 pp, 0.0005595 rel
+      { "ExperimentVI",   { 1.3, 7.8, 0.076, 0.74, 5.9, 0.0026 } },
+      // measured: 0.8438 pp, 6.847 pp, 0.1284 rel | 2.044 pp, 7.147 pp, 0.1284 rel
       { "ExperimentVII",  { 1.1, 9, 0.16, 2.3, 9.3, 0.16 } },
-      // measured: 2.8352 pp, 7.91579 pp, 0.091404 rel | 3.7352 pp, 5.81579 pp, 0.0346167 rel
-      // (Danckwerts inlet and Darcy flow-face fixes, 2026-11; before: 0.0788527 and 0.021281 rel productivity)
+      // measured: 2.802 pp, 8.345 pp, 0.08733 rel | 3.702 pp, 6.245 pp, 0.03029 rel
       { "ExperimentVIII", { 3.1, 11, 0.11, 4.1, 8.3, 0.04 } },
-      // measured: 1.38693 pp, 7.76563 pp, 0.0935361 rel | 4.01693 pp, 6.66563 pp, 0.0154264 rel
-      // (Danckwerts inlet and Darcy flow-face fixes, 2026-11; before: 0.981537 pp purity vs experiment)
+      // measured: 1.268 pp, 8.394 pp, 0.1005 rel | 3.898 pp, 7.294 pp, 0.02187 rel
       { "ExperimentIX",   { 1.6, 12, 0.14, 4.2, 11, 0.047 } },
-      // measured: 0.929014 pp, 5.24427 pp, 0.0127986 rel | 0.929014 pp, 4.04427 pp, 0.139079 rel
-      // (Danckwerts inlet and Darcy flow-face fixes, 2026-11; before: 0.236556 pp purity)
-      { "ExperimentX",    { 1.1, 9.7, 0.029, 1.1, 8.3, 0.21 } },
+      // measured: 0.0375 pp, 7.035 pp, 0.004638 rel | 0.0375 pp, 5.835 pp, 0.1592 rel
+      { "ExperimentX",    { 0.13, 9.7, 0.029, 0.13, 8.3, 0.21 } },
     };
 
     void ValidateNguyen2023(const std::string& experiment_name, const UserData& data,
@@ -433,10 +432,14 @@ namespace adsim {
 
     // CONFIGURE CYCLE
     // Run to cyclic steady state (paper's mass-balance criterion), minimum 5 cycles.
-    // The CO2 inventory of the light-product pressurisation cycles settles slowly:
-    // the per-component balance reaches 0.5 % at about cycle 300-500 (VIII-X), so
-    // the cap is well above that.
-    test_fixture.ConfigureCycle(1000); // hard cap on cycle count
+    // From the feed-loaded start the CSS rule stops after 80 (VI), 326 (VII),
+    // 447 (VIII), 1166 (IX) and 1558 (X) cycles with WENO on 80 cells; the cap
+    // is about 30 % above that. IX and X settle slowly (X: slowest mode about
+    // 0.997 per cycle) because the LPP stream is coupled to the feed step by
+    // composition only (README.md).
+    const std::map<std::string, int> kCap = {
+      { "VI", 110 }, { "VII", 430 }, { "VIII", 590 }, { "IX", 1520 }, { "X", 2030 } };
+    test_fixture.ConfigureCycle(kCap.at(experiment_name.substr(experiment_name.rfind('_') + 1)));
     test_fixture.data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
     test_fixture.data.settings.css.min_cycles_ = 5;
 

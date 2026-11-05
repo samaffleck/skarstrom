@@ -62,6 +62,9 @@ namespace adsim {
 
     UserData data;
     Build(data, c);
+    // The 1e-12 bounds below are upwind's (monotone). With WENO the cells, and
+    // so the unclamped bed-end faces, overshoot [0, 1] by 3.9e-12 here.
+    data.settings.advection_scheme_ = AdvectionScheme::Upwind;
 
     CoupledSolver solver{data};
     std::string error;

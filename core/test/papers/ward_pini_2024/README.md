@@ -41,5 +41,25 @@ value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#ward-pini-2024)
 (generated from `../validation_summary.json`).
 
-- CO2 purity within 2.4 pp, recovery within 1.8 pp and productivity within 0.7 % of Table 4.
+- CO2 purity within 2.5 pp, recovery within 2.9 pp and productivity within 2.3 % of Table 4 (WENO, 100 cells; see below).
 - The deck now uses the extended (competitive) DSL the paper states (Sect. 2.1). Energy is not compared (no pump model in the deck).
+
+### Grid and advection scheme (2026-11-04)
+
+The deck ran first-order upwind advection on 30 cells. A grid study (10-160
+cells, Richardson extrapolation; [Numerics](../../../../docs/numerics.md#advection-schemes))
+put its CO2 recovery 0.9 pp below the grid limit there; 0.1 pp needs about
+360 upwind or 94 WENO cells. The deck now runs WENO, the engine's default, on
+100 cells (CSS after 155 cycles).
+
+Before: upwind, 30 cells; after: WENO, 100 cells, both at CSS (bold: changed
+bound). Recovery rose by 0.86 pp and productivity by 1.3 %, both further above
+the paper's model values, past their bounds (recovery 2.1 → 3.4 pp,
+productivity 0.018 → 0.027): part of the earlier agreement was the upwind
+scheme's numerical dispersion.
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| FourStepPSA | CO2 purity | 98.50 | 96.21 | 96.08 | 2.29 → 2.42 | 2.7 |
+| FourStepPSA | CO2 recovery | 89.00 | 90.97 | 91.83 | 1.97 → 2.83 | **2.1 → 3.4** |
+| FourStepPSA | CO2 productivity | 0.828 | 0.8358 | 0.8465 | 0.009377 → 0.02229 | **0.018 → 0.027** |

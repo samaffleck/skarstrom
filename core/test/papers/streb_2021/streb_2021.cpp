@@ -256,7 +256,7 @@ namespace adsim {
     }
 
     static constexpr double kLength = 1.2;
-    static constexpr int kCells = 60;
+    static constexpr int kCells = 160;  // grid-converged with the default WENO scheme (README.md "Grid")
   };
 
   namespace {
@@ -277,9 +277,9 @@ namespace adsim {
                             "to validate the solver performance. This test demonstrates the ability to model competitive adsorption in binary systems "
                             "at high pressure conditions.";
     data.info.author = "Sam Affleck";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.177171, y_CH4 0.559265, T RMSE 11.4257 K, front time CO2 0.0480052, CH4 0.0383386; before: CH4 front 0.0309611).
+    // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.184339, y_CH4 0.603105, T RMSE 12.0664 K, front time CO2 0.046863, CH4 0.030998; upwind on 60 cells: y_CH4 0.5591).
     StrebCase c{ "A3", 10e5, 298, 20e-6, false, 4100.0,
-                 0.27, 0.58, kNotUsed, 19, 0.08, 0.041 };
+                 0.27, 0.73, kNotUsed, 19, 0.08, 0.041 };
     SetUpStreb(c);
     RunAndValidate(c, true);
   }
@@ -317,9 +317,9 @@ namespace adsim {
 
   TEST_F(Streb2021Test, ExperimentA4) {
     data.info.title = "Streb 2021 - Experiment A4";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.286413, y_CH4 0.792048, T RMSE 16.3808 K, front time CO2 0.0997051, CH4 0.184871; before: CO2 front 0.0874, CH4 front 0.1784).
+    // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.290623, y_CH4 0.792805, T RMSE 16.6768 K, front time CO2 0.100904, CH4 0.177891; upwind on 60 cells: y_CO2 0.2865).
     StrebCase c{ "A4", 10e5, 298, 40e-6, false, 1000.0,
-                 0.29, 0.91, kNotUsed, 20, 0.105, 0.195 };
+                 0.35, 0.91, kNotUsed, 20, 0.105, 0.195 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
@@ -353,9 +353,9 @@ namespace adsim {
 
   TEST_F(Streb2021Test, ExperimentB1) {
     data.info.title = "Streb 2021 - Experiment B1";
-    // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.38662, y_CH4 0.129532, y_H2 0.35401, T RMSE 16.5201 K, front time CO2 0.0695421, CH4 0.0207352; before: CH4 front 0.00657385). After the WP19-1 competitive-Sips trace fix (2026-11): y_CO2 0.37705, y_CH4 0.12986, y_H2 0.35351, T RMSE 16.109 K, front time CO2 0.06449, CH4 0.02382 (before it, on the same main: CH4 front 0.02128).
+    // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.376751, y_CH4 0.126405, y_H2 0.372369, T RMSE 17.6917 K, front time CO2 0.06425, CH4 0.001939; upwind on 60 cells: CH4 front 0.02382).
     StrebCase c{ "B1", 1e5, 298, 20e-6, true, 10400.0,
-                 0.45, 0.15, 0.42, 20, 0.081, 0.024 };
+                 0.45, 0.15, 0.42, 20, 0.081, 0.004 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }

@@ -180,6 +180,11 @@ namespace adsim {
     constexpr int kTail = 5;  // the last cycles, all at the noise floor
     UserData data;
     BuildCssCase(data, /*isothermal=*/true, 20, /*mtc=*/0.02, kCycles, false);
+    // Measured with upwind. With the default WENO the state change settles on
+    // a higher noise floor (the nonlinear weights respond to tolerance-level
+    // differences), so the window above 30x the floor spans 2.9 decades
+    // (876x) instead of the guard's 3.
+    data.settings.advection_scheme_ = AdvectionScheme::Upwind;
     std::string error;
     ASSERT_TRUE(data.PerformChecks(error)) << error;
     CoupledSolver solver{data};

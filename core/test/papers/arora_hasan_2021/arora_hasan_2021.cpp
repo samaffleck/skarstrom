@@ -35,10 +35,12 @@ namespace adsim {
   // Validation tolerances [percentage points] vs Table 4 — set from the measured
   // error (see the comments at each value).
   namespace {
-    constexpr double kTolPsaPurity = 4.5;  // measured 3.84471 pp
-    constexpr double kTolPsaRecovery = 30;  // measured 25.902 pp
-    constexpr double kTolPvsaPurity = 4.7;  // measured 4.08663 pp
-    constexpr double kTolPvsaRecovery = 53;  // measured 45.6312 pp
+    // Measured with WENO on the grid-converged decks (PSA 160, PVSA 100 cells);
+    // upwind on 30 cells gave 3.53 / 25.6 / 3.99 / 44.8 pp (README.md "Grid").
+    constexpr double kTolPsaPurity = 6.5;  // measured 5.35558 pp
+    constexpr double kTolPsaRecovery = 30;  // measured 22.8895 pp
+    constexpr double kTolPvsaPurity = 4.7;  // measured 3.871 pp
+    constexpr double kTolPvsaRecovery = 53;  // measured 46.56 pp
   }
 
   // ---------------------------------------------------------------------------
@@ -158,7 +160,9 @@ namespace adsim {
     // Create bed layer packed with LiLSX matching Arora 2021 SI Table S2.
     // L=0.127 m, r_in=0.05 m; eb derived from rho_b and LiLSX particle density.
     // Non-isothermal, non-adiabatic (pseudohomogeneous): bed-wall HTC=70 W/m²K, Kz=0.29 J/m/s/K.
-    LayerID SetUpArora2021BedLayer(UserDataTest& t, AdsorbentID lilsx_id, double rho_b) {
+    // n_cells: grid-converged with the default WENO scheme (PSA 160, PVSA 100;
+    // see README.md "Grid").
+    LayerID SetUpArora2021BedLayer(UserDataTest& t, AdsorbentID lilsx_id, double rho_b, int n_cells) {
       const double L       = 0.127;   // m  (SI Table S2)
       const double D       = 0.1;     // m  (SI Table S2: r_in = 0.05 m)
       const double rho_p   = 1035.0;  // LiLSX particle density [kg/m³]
@@ -168,7 +172,7 @@ namespace adsim {
       auto& layer   = t.data.bed.layers_.Get(layer_id);
       layer.momentum_model_ = MomentumModel::KarmenCozeny;  // fixture predates Ergun: keep its Darcy / Kozeny-Carman pressure drop
       layer.domain_.length     = L;
-      layer.domain_.n_cells    = 30;
+      layer.domain_.n_cells    = n_cells;
       layer.eb_                = eb;
       layer.particle_diameter_ = 0.035;
       layer.composition_[lilsx_id] = 1.0;
@@ -234,7 +238,7 @@ namespace adsim {
 
     // Adsorbent directory: LiX, LiLSX, 5A (layer uses LiLSX)
     auto lilsx_id  = AddArora2021Adsorbents(*this);
-    auto layer_id  = SetUpArora2021BedLayer(*this, lilsx_id, 672.75);
+    auto layer_id  = SetUpArora2021BedLayer(*this, lilsx_id, 672.75, /*n_cells=*/160);
 
     // Table 4 optimal parameters (>= 5 L/min, >= 85% purity, PSA)
     const double P1      = 3.5e5;  // Pa  (production / high pressure)
@@ -388,7 +392,7 @@ namespace adsim {
 
     // Adsorbent directory: LiX, LiLSX, 5A (layer uses LiLSX)
     auto lilsx_id  = AddArora2021Adsorbents(*this);
-    auto layer_id  = SetUpArora2021BedLayer(*this, lilsx_id, 672.75);
+    auto layer_id  = SetUpArora2021BedLayer(*this, lilsx_id, 672.75, /*n_cells=*/100);
 
     // Table 4 optimal parameters (>= 5 L/min, >= 90% purity, PVSA)
     const double P1      = 3.5e5;   // Pa  (production / high pressure)

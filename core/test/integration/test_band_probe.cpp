@@ -31,6 +31,10 @@ namespace adsim {
     BandRun RunDeck(const std::string& deck, bool probe, int shrink) {
       UserData data;
       LoadFromJson(data, "../examples/decks/" + deck);
+      // The test is about the upwind band (one cell either side), which the
+      // probe narrows. The deck runs WENO, whose probed band equals its full
+      // band (half-bandwidth 22 = 22 on Nguyen2022_Fig5), so nothing narrows.
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;
       data.settings.band_from_probe_ = probe;
       data.settings.band_probe_shrink_for_testing_ = shrink;
       CoupledSolver solver{data};

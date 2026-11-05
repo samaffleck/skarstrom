@@ -220,6 +220,8 @@ namespace adsim {
 
       UserData data;
       Build(data, c);
+      // The reference carries the exact upwind error (the default is WENO).
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;
       data.settings.max_log_points_per_step_ = 450;  // one snapshot per second
 
       auto& layer = data.bed.layers_.layers_.front();

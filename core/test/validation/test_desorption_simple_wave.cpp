@@ -108,6 +108,9 @@ namespace adsim {
 
       UserData data;
       Build(data, c);
+      // The test checks upwind's first-order convergence to the characteristics
+      // (the default is WENO).
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;
       data.settings.max_log_points_per_step_ = 700;
       data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
       // The bed starts saturated: the solver seeds q at equilibrium with the

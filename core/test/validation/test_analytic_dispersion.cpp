@@ -126,6 +126,9 @@ namespace adsim {
 
       UserData data;
       Build(data, c);
+      // The reference adds upwind's numerical dispersion u dx / 2 (below), so
+      // the run is upwind (the default is WENO).
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;
 
       // Turn the CONSTANT dispersion model on. Build() installs a
       // DispersionModelConstant with coefficient 0; overwrite the coefficient.

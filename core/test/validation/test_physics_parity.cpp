@@ -114,6 +114,10 @@ namespace adsim {
     SteadyFlowResult RunSteadyFlow(double molar_flow, MomentumModel model, int n_cells = 100) {
       UserData data;
       BuildSteadyFlowDeck(data, molar_flow, model, n_cells);
+      // The ratio test below needs the two beds' viscosities equal to 1e-12;
+      // with WENO the start-up composition transients differ at that level
+      // (2e-12), so these momentum checks run upwind.
+      data.settings.advection_scheme_ = AdvectionScheme::Upwind;
       std::string err;
       EXPECT_TRUE(data.PerformChecks(err)) << err;
       CoupledSolver solver{data};

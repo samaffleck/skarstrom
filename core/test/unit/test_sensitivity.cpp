@@ -308,7 +308,9 @@ TEST(Sensitivity, EvaluatesSamplesOfARealDeck) {
   // Two cycles: far from CSS, so the CSS requirement rejects the run...
   RunPolicy policy;
   policy.cycles = 2;
-  policy.settings = {{"css.method", "3"}};
+  // 30 cells instead of the deck's grid-converged 160: the test is about the
+  // sample evaluation, not the grid (kept small for the fast CI tier).
+  policy.settings = {{"css.method", "3"}, {"layer[1].cells", "30"}};
   const SampleOutcome strict = EvaluateSample(deck, inputs, {}, outputs, policy);
   EXPECT_TRUE(strict.status == RunStatus::Completed || strict.status == RunStatus::ReachedCSS);
   if (strict.status == RunStatus::Completed) {

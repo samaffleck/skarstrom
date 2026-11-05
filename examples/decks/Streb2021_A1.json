@@ -354,7 +354,7 @@
                         "Name": "13X",
                         "Domain": {
                             "cereal_class_version": 0,
-                            "Number_Of_Cells": 60,
+                            "Number_Of_Cells": 160,
                             "Length": {
                                 "Value": 1.2,
                                 "Expression": "1.2",
@@ -797,20 +797,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 1.6659664604056844,
-                                    "Average_Temperature": 302.7164935780056,
+                                    "Total_Moles": 1.665376618442401,
+                                    "Average_Temperature": 302.50999912517548,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.010671017935028109
+                                            "value": 0.010674787877902005
                                         },
                                         {
                                             "key": "Methane",
-                                            "value": 0.9652660845892571
+                                            "value": 0.9656689829718144
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.02406289747571474
+                                            "value": 0.023656229150283624
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -893,8 +893,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 3.312377948227576,
-                                                        "Average_Temperature": 298.00000000000008,
+                                                        "Total_Moles": 3.3123833769048689,
+                                                        "Average_Temperature": 297.9999999999998,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
@@ -1064,7 +1064,7 @@
             },
             "max_cycles_to_keep": 10,
             "Maximum_Iterations_Per_Step": 50000,
-            "Advection_Scheme": 0,
+            "Advection_Scheme": 1,
             "Accelerate_Cyclic_Steady_State": {
                 "cereal_class_version": 0,
                 "Method": 0

@@ -52,7 +52,7 @@ namespace adsim {
       _13X.domain_.length = length;
       _13X.particle_diameter_ = 2 * 7.5e-4;
       _13X.eb_ = eb;
-      _13X.domain_.n_cells = 30;
+      _13X.domain_.n_cells = 80;  // grid-converged with the default WENO scheme (README.md "Grid")
       // SI Eq. S5 is the Blake-Kozeny law (constant 150); the deck keeps Darcy /
       // Kozeny-Carman (180): the paper calls the pressure drop negligible and
       // the difference is 0.3 pp of recovery (README). ConfigD1_ConnectedBC
@@ -116,11 +116,16 @@ namespace adsim {
       eff_thermal_conductivity->dispersion_coefficient_ = 0.0903; // [W/(m-K)]
       layer.equations_.heat_dispersion_model_ = std::move(eff_thermal_conductivity);
 
+      // Start from a feed-loaded bed: the feed gas (15 % CO2) with the loadings
+      // in equilibrium with it (the solver seeds them from the gas). The cyclic
+      // steady state is the same as from a clean N2 bed (checked on the slowest
+      // cases), but it is reached in far fewer cycles (README.md "Grid and
+      // advection scheme").
       AddInitialConditions(
         1.0e5, 298, 298,
         {
-          {"CarbonDioxide", 0.0 },
-          {"Nitrogen", 1.0 }
+          {"CarbonDioxide", 0.15 },
+          {"Nitrogen", 0.85 }
         }
       );
     }

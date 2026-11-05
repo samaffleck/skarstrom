@@ -24,6 +24,10 @@ def perez():
 def perez_run():
     sim = skarstrom.Simulation(PEREZ)
     sim["cycle.number_of_cycles"] = 3
+    # Upwind keeps the outlet mole fractions in [0, 1] to round-off, which
+    # test_run_results checks (to 1e-9); the deck's WENO undershoots by about
+    # the absolute tolerance (-2e-8 at the top end; docs/numerics.md).
+    sim.settings.advection_scheme = "upwind"
     result = sim.run()
     assert result.ok, result.message
     return sim

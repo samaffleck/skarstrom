@@ -35,9 +35,14 @@ std::string ReadFile(const std::filesystem::path& p) {
 }
 
 // Perez 2019 A (four-step CO2 VSA, CO2 tracked) cut to three cycles: < 1 s.
+// Three cycles of Perez2019_A on 20 cells: these tests exercise the facade,
+// not the deck's grid-converged 80 cells (kept small for the fast CI tier).
+constexpr int kShortCells = 20;
+
 Simulation ShortPerez() {
   Simulation sim = Simulation::FromFile(Deck("Perez2019_A.json"));
   sim.SetParameter("cycle.number_of_cycles", 3);
+  for (auto& layer : sim.Data().bed.layers_.layers_) layer.domain_.n_cells = kShortCells;
   return sim;
 }
 
@@ -167,6 +172,7 @@ TEST(SimulationFacade, BlockingRunMatchesTheEngine) {
   UserData ref;
   LoadFromJson(ref, Deck("Perez2019_A.json"));
   ref.cycle.number_of_cycles_ = 3;
+  for (auto& layer : ref.bed.layers_.layers_) layer.domain_.n_cells = kShortCells;
   std::string eval_err;
   ASSERT_TRUE(ref.EvaluateAllExpressions(eval_err)) << eval_err;
   CoupledSolver solver(ref);

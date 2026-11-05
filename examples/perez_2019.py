@@ -124,7 +124,7 @@ def build(case: str) -> sk.Simulation:
     sim.wall.set_boundary("fixed", fixed_temperature=293 * u.K)     # SI Table S2: wall ends at T_a
 
     layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman",
-                          length=0.3 * u.m, cells=30, bed_void_fraction=0.41, particle_diameter=1.5 * u.mm)
+                          length=0.3 * u.m, cells=80, bed_void_fraction=0.41, particle_diameter=1.5 * u.mm)
     layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
     layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0.0903 * u.W / (u.m * u.K))
     layer.set_internal_heat_transfer("constant", internal_htc=8.6 * u.W / (u.m**2 * u.K))
@@ -135,12 +135,13 @@ def build(case: str) -> sk.Simulation:
     sim.initial_conditions.temperature = 298 * u.K
     sim.initial_conditions.wall_temperature = 298 * u.K
     sim.initial_conditions.velocity = 0 * u.m / u.s
-    sim.initial_conditions.y["Nitrogen"] = 1.0
-    sim.initial_conditions.y["CarbonDioxide"] = 0.0
+    sim.initial_conditions.y["Nitrogen"] = 0.85              # feed-loaded start: the feed gas,
+    sim.initial_conditions.y["CarbonDioxide"] = 0.15         # loadings in equilibrium with it
 
     # ---- cycle -------------------------------------------------------------------------
-    # E and F need about 450 and 1000 cycles to close the CO2 balance (CSS below).
-    sim.cycle.number_of_cycles = 1500 if case in ("E", "F") else 250
+    # From the feed-loaded start, E and F reach CSS (below) after about 210 and 520 cycles:
+    # the CO2 balance of the LPP cycles closes slowly. The caps are about 30 % above that.
+    sim.cycle.number_of_cycles = {"E": 270, "F": 680}.get(case, 250)
     sim.cycle.step_time_mode = "time"
     if cfg["lpp"]:
         add_lpp_cycle(sim, cfg)
@@ -159,7 +160,7 @@ def build(case: str) -> sk.Simulation:
     sim.settings.max_err_test_fails = 40
     sim.settings.max_num_steps = 100000
     sim.settings.max_iters_per_step = 50000
-    sim.settings.advection_scheme = "upwind"
+    sim.settings.advection_scheme = "weno"
     sim.settings.max_cycles_to_keep = 10
     sim.settings.max_log_points_per_step = 200
     sim.settings.acceleration_method = "none"

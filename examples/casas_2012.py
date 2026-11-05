@@ -112,7 +112,7 @@ def build(case: str) -> sk.Simulation:
     sim.wall.set_boundary("zero_flux")
 
     layer = sim.add_layer("AP3-60", composition={"AP3-60": 1.0}, momentum="kozeny_carman",
-                          length=1.2 * u.m, cells=60, bed_void_fraction=0.403, particle_diameter=3 * u.mm)
+                          length=1.2 * u.m, cells=160, bed_void_fraction=0.403, particle_diameter=3 * u.mm)
     layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
     layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
     # Gas-to-wall coefficient: Leva (1947) with the coefficient and exponent fitted by
@@ -152,7 +152,7 @@ def build(case: str) -> sk.Simulation:
     sim.settings.max_err_test_fails = 40
     sim.settings.max_num_steps = 100000
     sim.settings.max_iters_per_step = 50000
-    sim.settings.advection_scheme = "upwind"
+    sim.settings.advection_scheme = "weno"
     sim.settings.max_cycles_to_keep = 10
     sim.settings.max_log_points_per_step = 200
     sim.settings.acceleration_method = "none"
