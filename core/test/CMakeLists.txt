@@ -40,6 +40,7 @@ set(ADSIM_PAPER_TESTS
 set(ADSIM_SLOW_TESTS
     # Cycles to CSS with and without Aitken acceleration on a slow cycle.
     "CSSAcceleration.ReducesCyclesToCSS*"
+    "CSSAcceleration.SlowGeometricModeReachesCssSooner"
     # CSS behaviour on a slow (rate 0.97) cycle: needs 100+ cycles.
     "CSSConvergence.SlowCycleFollowsTheGeometricModel"
     "CSSConvergence.AitkenAccelerationReachesTheSameKpis"
