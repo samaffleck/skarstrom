@@ -6,11 +6,15 @@
  */
 
 // Trace-component loadings of the competitive Sips kinds (arrhenius_sips,
-// extended_sips_2) against the published isotherms.
+// extended_sips_2) and of extended_langmuir_freundlich against the published
+// isotherms.
 //
-// Both kinds share the denominator of the empirical competitive Sips form
+// The Sips kinds share the denominator of the empirical competitive Sips form
 // (Ruthven 1984; Schell et al. 2012, Eqs. 5-7; Streb & Mazzotti 2021, Eqs. 1-4):
 //     q_i = q_max,i z_i / (1 + sum_j z_j),   z_i = (b_i P y_i)^{s_i}.
+// extended_langmuir_freundlich (Yang 1987; toPSAil) has the same structure with
+// z_i = b_i (P y_i / P_ref)^{n_i}, i.e. a prefactor b_i times a power with
+// "affinity" 1 / P_ref and exponent n_i, and the same continuation of the power.
 // For s < 1 the power has an infinite slope at y = 0, so the solver path
 // (UpdateAll) regularises each z_i below a mole fraction y0 = 1e-5: there it is
 // replaced by the quadratic in y that is zero at y = 0 and matches the value and
@@ -37,8 +41,16 @@
 // fix: arrhenius_sips (Casas 2012 CO2 at 15 bar, y_H2 = 0.5) -0.96 % at
 // y = 1e-2, -49.9 % at 1e-3, -99.0 % at 1e-4; extended_sips_2 (Streb 2021 CO2
 // at 10 bar, y_CH4 = 0.5) -0.65 %, -45.5 %, -98.9 %. After it: below 1e-15.
+//
+// extended_langmuir_freundlich used a softplus and the narrower step
+// y^2 / (y^2 + 1e-10): the GUARD holds there at y <= 1e-3 (>= 1e-4 change,
+// 99x the tolerance), not at 1e-1 and 1e-2, which check exactness only.
+// Measured before the fix (toPSAil CO at 11 bar, y_H2 = 0.5): see the
+// validation README.
 
 #include "validation_helpers.h"
+
+#include "adsim/equations/isotherm_kinds.h"
 
 #include <cctype>
 #include <iomanip>
@@ -52,7 +64,7 @@ namespace adsim {
 
     constexpr double kY0 = 1e-5;  // documented regularisation threshold
 
-    enum class Kind { ArrheniusSips, ExtendedSips2 };
+    enum class Kind { ArrheniusSips, ExtendedSips2, ExtendedLangmuirFreundlich };
 
     // Casas 2012 / Schell 2012 parameters (core/test/papers/casas_2012/casas_2012.h).
     struct ArrSips { double a, b, A, B, c_ref, c_amp, c_beta, c_Tref; };
@@ -64,9 +76,16 @@ namespace adsim {
     const Sips2 kStrebCO2{7.268, -0.6168, 1.129e-9, 28389.0, 0.425, 0.7238, 298.0};
     const Sips2 kStrebCH4{4.473, -0.6569, 3.605e-9, 15561.0, 1.073, 0.0, 298.0};
 
-    // Affinity b [1/Pa], exponent s and capacity q_max [mol/kg] at T, from the
-    // papers' temperature laws.
-    struct Law { double b, s, q_max; };
+    // toPSAil case_study_4.0 (H2, CO on activated carbon; k3 in bar^-n), as in
+    // test_extended_langmuir_freundlich.cpp.
+    struct Elf { double k1, k2, k3, k4, k5, k6; };
+    constexpr double kPref = 1.0e5;
+    const Elf kElfCO{5.05, -9.05e-3, 1.1221317542561065e-3, 1617.0, 0.5245, 256.5};
+    const Elf kElfH2{4.31, -1.06e-2, 2.4821120157907722e-3, 458.2, 0.986, 43.03};
+
+    // Term z = pre (b P y)^s: affinity b [1/Pa], exponent s, prefactor pre and
+    // capacity q_max [mol/kg] at T, from the papers' temperature laws.
+    struct Law { double b, s, q_max, pre = 1.0; };
     Law Eval(const ArrSips& p, double T) {
       return {p.A * std::exp(p.B / (kR * T)),
               p.c_ref + p.c_amp * (2.0 / M_PI) * std::atan(p.c_beta * (T - p.c_Tref)),
@@ -77,13 +96,17 @@ namespace adsim {
               p.C1 + p.C2 * (T / p.T_ref - 1.0),
               p.A1 * std::exp(p.A2 * (T / p.T_ref - 1.0))};
     }
+    Law Eval(const Elf& p, double T) {
+      // z = k3 exp(k4 / T) (P y / P_ref)^n,  1/n = k5 + k6 / T,  q_s = k1 + k2 T.
+      return {1.0 / kPref, 1.0 / (p.k5 + p.k6 / T), p.k1 + p.k2 * T, p.k3 * std::exp(p.k4 / T)};
+    }
 
     // Competitive term: the published power at y >= y0, the documented
     // continuation below.
     double Z(const Law& l, double P, double y) {
-      if (y >= kY0) return std::pow(l.b * P * y, l.s);
+      if (y >= kY0) return l.pre * std::pow(l.b * P * y, l.s);
       const double t = y / kY0;
-      return std::pow(l.b * P * kY0, l.s) * t * ((2.0 - l.s) - (1.0 - l.s) * t);
+      return l.pre * std::pow(l.b * P * kY0, l.s) * t * ((2.0 - l.s) - (1.0 - l.s) * t);
     }
 
     struct Case {
@@ -102,6 +125,8 @@ namespace adsim {
       constexpr double T = 298.15;
       if (k == Kind::ArrheniusSips)  // Casas 2012: CO2 in CO2/H2 at 15 bar
         return {"CarbonDioxide", "Hydrogen", 15.0e5, T, 0.5, Eval(kCasasCO2, T), Eval(kCasasH2, T)};
+      if (k == Kind::ExtendedLangmuirFreundlich)  // toPSAil: CO in CO/H2 at 11 bar (n_CO = 0.72)
+        return {"CarbonMonoxide", "Hydrogen", 11.0e5, T, 0.5, Eval(kElfCO, T), Eval(kElfH2, T)};
       // Streb 2021: CO2 in CO2/CH4 at 10 bar (s_CO2 = 0.425, the most singular exponent in the library)
       return {"CarbonDioxide", "Methane", 10.0e5, T, 0.5, Eval(kStrebCO2, T), Eval(kStrebCH4, T)};
     }
@@ -120,10 +145,43 @@ namespace adsim {
       to.A1 = p.A1; to.A2 = p.A2; to.B1 = p.B1; to.B2 = p.B2;
       to.C1 = p.C1; to.C2 = p.C2; to.T_ref = p.T_ref;
     }
+    void Set(ExtendedLangmuirFreundlichIsothermParameters& to, const Elf& p) {
+      to.k1 = p.k1; to.k2 = p.k2; to.k3 = p.k3; to.k4 = p.k4; to.k5 = p.k5; to.k6 = p.k6;
+      to.P_ref = kPref;
+    }
+
+    // The competitive isotherm of each kind over (trace, other).
+    std::unique_ptr<IIsotherm> MakeIsotherm(Kind kind, const TraceSetup& s) {
+      if (kind == Kind::ArrheniusSips) {
+        auto iso = std::make_unique<ArrheniusSipsIsotherm>();
+        Set(iso->params_[s.trace], kCasasCO2);
+        Set(iso->params_[s.other], kCasasH2);
+        return iso;
+      }
+      if (kind == Kind::ExtendedLangmuirFreundlich) {
+        auto iso = std::make_unique<ExtendedLangmuirFreundlichIsotherm>();
+        Set(iso->params_[s.trace], kElfCO);
+        Set(iso->params_[s.other], kElfH2);
+        return iso;
+      }
+      auto iso = std::make_unique<ExtendedSips2Isotherm>();
+      Set(iso->params_[s.trace], kStrebCO2);
+      Set(iso->params_[s.other], kStrebCH4);
+      return iso;
+    }
+
+    const char* KindName(Kind k) {
+      switch (k) {
+        case Kind::ArrheniusSips: return "ArrheniusSips";
+        case Kind::ExtendedSips2: return "ExtendedSips2";
+        case Kind::ExtendedLangmuirFreundlich: return "ExtendedLangmuirFreundlich";
+      }
+      return "";
+    }
 
     std::string Name(const ::testing::TestParamInfo<Case>& info) {
       std::ostringstream s;
-      s << (info.param.kind == Kind::ArrheniusSips ? "ArrheniusSips" : "ExtendedSips2") << "_y"
+      s << KindName(info.param.kind) << "_y"
         << std::scientific << std::setprecision(0) << info.param.y;
       std::string n = s.str();
       for (char& c : n) if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
@@ -152,17 +210,7 @@ namespace adsim {
       ads.thermal_conductivity_ = 0.0;
       AddConstantInternalHeatTransferCoefficientModel(0.0, layer_id);
       AddConstantExternalHeatTransferCoefficientModel(0.0, layer_id);
-      if (kind == Kind::ArrheniusSips) {
-        auto iso = std::make_unique<ArrheniusSipsIsotherm>();
-        Set(iso->params_[s.trace], kCasasCO2);
-        Set(iso->params_[s.other], kCasasH2);
-        ads.adsorption_source_.AddIsotherm({s.trace, s.other}, std::move(iso));
-      } else {
-        auto iso = std::make_unique<ExtendedSips2Isotherm>();
-        Set(iso->params_[s.trace], kStrebCO2);
-        Set(iso->params_[s.other], kStrebCH4);
-        ads.adsorption_source_.AddIsotherm({s.trace, s.other}, std::move(iso));
-      }
+      ads.adsorption_source_.AddIsotherm({s.trace, s.other}, MakeIsotherm(kind, s));
       for (const char* c : {s.trace, s.other}) {
         AddLinearDrivingForceModel(ads_id, c, 1.0);
         SetHOA(ads_id, c, 0.0);
@@ -190,11 +238,15 @@ namespace adsim {
     const Case c = GetParam();
     const TraceSetup s = SetupFor(c.kind);
     const double ref = Reference(s, c.y);
-    // GUARD: the former step y^2 / (y^2 + 1e-6) would move this loading by
-    // at least 99x the tolerance (1e-4 at y = 0.1).
+    // GUARD: the former step y^2 / (y^2 + delta^2) would move this loading by
+    // at least 99x the tolerance: delta^2 = 1e-6 for the Sips kinds (1e-4 at
+    // y = 0.1); 1e-10 for extended_langmuir_freundlich, where only y <= 1e-3
+    // is guarded (1e-1 and 1e-2 check exactness).
     constexpr double kTol = 1e-6;
     ASSERT_GE(c.y, kY0);
-    ASSERT_GT(1e-6 / (c.y * c.y + 1e-6), 50.0 * kTol);
+    const double former_delta2 = c.kind == Kind::ExtendedLangmuirFreundlich ? 1e-10 : 1e-6;
+    if (c.kind != Kind::ExtendedLangmuirFreundlich || c.y <= 1e-3)
+      ASSERT_GT(former_delta2 / (c.y * c.y + former_delta2), 50.0 * kTol);
 
     const double q = SeededTraceLoading(c.kind, s, c.y);
     std::cout << "[CompetitiveSipsTrace] y = " << c.y << ": solver " << q << ", published "
@@ -208,7 +260,12 @@ namespace adsim {
                         Case{Kind::ArrheniusSips, 2e-5},
                         Case{Kind::ExtendedSips2, 1e-1}, Case{Kind::ExtendedSips2, 1e-2},
                         Case{Kind::ExtendedSips2, 1e-3}, Case{Kind::ExtendedSips2, 1e-4},
-                        Case{Kind::ExtendedSips2, 2e-5}),
+                        Case{Kind::ExtendedSips2, 2e-5},
+                        Case{Kind::ExtendedLangmuirFreundlich, 1e-1},
+                        Case{Kind::ExtendedLangmuirFreundlich, 1e-2},
+                        Case{Kind::ExtendedLangmuirFreundlich, 1e-3},
+                        Case{Kind::ExtendedLangmuirFreundlich, 1e-4},
+                        Case{Kind::ExtendedLangmuirFreundlich, 2e-5}),
       Name);
 
   // Below y0 the loading follows the documented continuation, and is exactly 0
@@ -233,7 +290,41 @@ namespace adsim {
       ::testing::Values(Case{Kind::ArrheniusSips, 5e-6}, Case{Kind::ArrheniusSips, 1e-7},
                         Case{Kind::ArrheniusSips, 0.0},
                         Case{Kind::ExtendedSips2, 5e-6}, Case{Kind::ExtendedSips2, 1e-7},
-                        Case{Kind::ExtendedSips2, 0.0}),
+                        Case{Kind::ExtendedSips2, 0.0},
+                        Case{Kind::ExtendedLangmuirFreundlich, 5e-6},
+                        Case{Kind::ExtendedLangmuirFreundlich, 1e-7},
+                        Case{Kind::ExtendedLangmuirFreundlich, 0.0}),
+      Name);
+
+  // The single-component evaluation (EvalIsotherm: Python evaluate_isotherm,
+  // the isotherm fitter, the front ends) and the solver's competitive path give
+  // the same loading, above and below y0. With the competitor absent
+  // (y_other = 0, so its term is exactly 0) the competitive loading of the
+  // trace component is its single-component loading at the same y.
+  class CompetitiveSipsSingleComponentAgreement : public CompetitiveSipsTraceLoading {};
+
+  TEST_P(CompetitiveSipsSingleComponentAgreement, EvalIsothermMatchesSolverPath) {
+    const Case c = GetParam();
+    TraceSetup s = SetupFor(c.kind);
+    s.y_other = 0.0;
+    auto iso = MakeIsotherm(c.kind, s);
+    const double single = EvalIsotherm(iso.get(), s.trace, s.T, s.P, c.y);
+    const double ref = Reference(s, c.y);
+    const double q = SeededTraceLoading(c.kind, s, c.y);
+    std::cout << "[CompetitiveSipsTrace] single component y = " << c.y << ": solver " << q
+              << ", EvalIsotherm " << single << ", reference " << ref << " mol/kg\n";
+    EXPECT_NEAR(single, ref, 1e-12 * ref);
+    EXPECT_NEAR(q, single, 1e-6 * single);
+  }
+
+  INSTANTIATE_TEST_SUITE_P(TraceFractions, CompetitiveSipsSingleComponentAgreement,
+      ::testing::Values(Case{Kind::ArrheniusSips, 1e-2}, Case{Kind::ArrheniusSips, 2e-5},
+                        Case{Kind::ArrheniusSips, 5e-6},
+                        Case{Kind::ExtendedSips2, 1e-2}, Case{Kind::ExtendedSips2, 2e-5},
+                        Case{Kind::ExtendedSips2, 5e-6},
+                        Case{Kind::ExtendedLangmuirFreundlich, 1e-2},
+                        Case{Kind::ExtendedLangmuirFreundlich, 2e-5},
+                        Case{Kind::ExtendedLangmuirFreundlich, 5e-6}),
       Name);
 
   // ---------------------------------------------------------------------------
@@ -254,17 +345,25 @@ namespace adsim {
   // GUARD: the former step halved q*(y_f) at y_f = 1e-3, which moves t_1 by
   // about 49 %, far outside the tolerance (measured on main: 543 s against
   // 1062 s). After the fix: -1.1e-4 relative. About 1 s.
-  TEST(CompetitiveSipsTraceBreakthrough, FirstMomentMatchesPublishedIsotherm) {
+  //
+  // The same run on extended_langmuir_freundlich (CO, toPSAil parameters,
+  // n = 0.72 at 298 K) uses y_f = 1e-4 (tolerance 2e-4): its former step
+  // y^2 / (y^2 + 1e-10) changed q*(y_f) by 1 % there, 50x the tolerance, but
+  // only by 1e-4 at y_f = 1e-3. About 1 s.
+  static void RunTraceBreakthrough(Kind kind, double kYf) {
     constexpr double kT = 298.15, kP = 1.0e5, kEps = 0.4, kRhoS = 100.0;
-    constexpr double kL = 1.0, kD = 0.1, kFlow = 0.005, kYf = 1.0e-3, kLdf = 5.0;
-    constexpr double kTol = 2.0 * kYf;
+    constexpr double kL = 1.0, kD = 0.1, kFlow = 0.005, kLdf = 5.0;
+    const double kTol = 2.0 * kYf;
     const char* kCarrier = "Helium";
-    const char* kA = "CarbonDioxide";
+    const bool elf = kind == Kind::ExtendedLangmuirFreundlich;
+    ASSERT_NE(kind, Kind::ExtendedSips2) << "not set up for this kind";
+    const char* kA = elf ? "CarbonMonoxide" : "CarbonDioxide";
 
-    const Law law = Eval(kCasasCO2, kT);
+    const Law law = elf ? Eval(kElfCO, kT) : Eval(kCasasCO2, kT);
+    const double former_delta2 = elf ? 1e-10 : 1e-6;
     auto q_star = [&](double y, bool former_step) {
-      double z = std::pow(law.b * kP * y, law.s);
-      if (former_step) z *= y * y / (y * y + 1e-6);
+      double z = law.pre * std::pow(law.b * kP * y, law.s);
+      if (former_step) z *= y * y / (y * y + former_delta2);
       return law.q_max * z / (1.0 + z);
     };
     const double c_f = kP * kYf / (kR * kT);
@@ -272,7 +371,7 @@ namespace adsim {
     const double M = rho_b / kEps * q_star(kYf, false) / c_f;
     const double M_former = rho_b / kEps * q_star(kYf, true) / c_f;
     ASSERT_LT(law.s, 1.0) << "the isotherm must be favourable for a shock";
-    ASSERT_GT(std::abs(M_former / M - 1.0), 100.0 * kTol);
+    ASSERT_GT(std::abs(M_former / M - 1.0), 40.0 * kTol);
 
     UserData data;
     data.bed.wall_.thickness_ = 0.005;
@@ -297,9 +396,15 @@ namespace adsim {
     adsorbent.solid_density_ = kRhoS;
     adsorbent.heat_capacity_ = 900.0;
     adsorbent.thermal_conductivity_ = 0.0;
-    auto iso = std::make_unique<ArrheniusSipsIsotherm>();
-    Set(iso->params_[kA], kCasasCO2);
-    adsorbent.adsorption_source_.AddIsotherm({kA}, std::move(iso));
+    if (elf) {
+      auto iso = std::make_unique<ExtendedLangmuirFreundlichIsotherm>();
+      Set(iso->params_[kA], kElfCO);
+      adsorbent.adsorption_source_.AddIsotherm({kA}, std::move(iso));
+    } else {
+      auto iso = std::make_unique<ArrheniusSipsIsotherm>();
+      Set(iso->params_[kA], kCasasCO2);
+      adsorbent.adsorption_source_.AddIsotherm({kA}, std::move(iso));
+    }
     auto ldf = std::make_unique<LinearDrivingForce>();
     auto mtc = std::make_unique<MassTransferCoefficientConstant>();
     mtc->constant_mtc_ = kLdf;
@@ -374,12 +479,20 @@ namespace adsim {
     const double t1_theory = kL / u * (1.0 + M);
 
     ASSERT_LT(dP_rel, 2e-3) << "Pressure drop too large for a constant velocity";
-    ASSERT_NEAR(y.values.back().back(), kYf, 1e-3 * kYf) << "CO2 has not broken through";
+    ASSERT_NEAR(y.values.back().back(), kYf, 1e-3 * kYf) << kA << " has not broken through";
     std::cout.precision(8);
-    std::cout << "[CompetitiveSipsTraceBreakthrough] u = " << u << " m/s, t1 = " << t1
+    std::cout << "[CompetitiveSipsTraceBreakthrough] " << KindName(kind) << ": u = " << u << " m/s, t1 = " << t1
               << " s, theory " << t1_theory << " s (" << 100.0 * (t1 / t1_theory - 1.0)
               << " %), former step would give " << kL / u * (1.0 + M_former) << " s\n";
     EXPECT_NEAR(t1, t1_theory, kTol * t1_theory);
+  }
+
+  TEST(CompetitiveSipsTraceBreakthrough, FirstMomentMatchesPublishedIsotherm) {
+    RunTraceBreakthrough(Kind::ArrheniusSips, 1.0e-3);
+  }
+
+  TEST(CompetitiveSipsTraceBreakthrough, ExtendedLangmuirFreundlichFirstMomentMatchesPublishedIsotherm) {
+    RunTraceBreakthrough(Kind::ExtendedLangmuirFreundlich, 1.0e-4);
   }
 
 } // end adsim namespace
