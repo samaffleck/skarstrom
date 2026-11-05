@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -84,17 +85,33 @@ namespace adsim {
           ++reads;
         }
       });
-      for (int i = 0; i < 60; ++i) {
-        const std::string& next = (i % 2 == 0) ? b : a;
+      // Keep rewriting until the reader has read many times while the writes
+      // were going on (at least 60 writes and 30 reads; a thread can start
+      // late, so a fixed number of writes may all finish before it reads),
+      // with a time cap so a stuck reader fails the test instead of hanging.
+      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+      int writes = 0;
+      bool threw = false;
+      while ((writes < 60 || reads.load() < 30) && std::chrono::steady_clock::now() < deadline) {
+        const std::string& next = (writes % 2 == 0) ? b : a;
         // On Windows the rename can wait for the reader to close the file;
         // the helper retries, so this must not throw.
-        ASSERT_NO_THROW(test::WriteFileAtomically(target, [&](std::ostream& out) { out << next; }));
+        try {
+          test::WriteFileAtomically(target, [&](std::ostream& out) { out << next; });
+        } catch (const std::exception& e) {
+          ADD_FAILURE() << "write " << writes << " threw: " << e.what();
+          threw = true;
+          break;
+        }
+        ++writes;
       }
       done = true;
       reader.join();
 
       EXPECT_EQ(bad.load(), 0) << "of " << reads.load() << " reads";
-      EXPECT_GT(reads.load(), 0);
+      EXPECT_FALSE(threw);
+      EXPECT_GE(writes, 60);
+      EXPECT_GE(reads.load(), 30) << "reader starved (" << unopened.load() << " failed opens)";
 #ifndef _WIN32
       // POSIX rename() swaps the directory entry atomically: the target can
       // always be opened. (Windows may refuse an open during the replace.)
