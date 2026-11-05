@@ -112,7 +112,20 @@ namespace adsim {
     state.SetCurrentStep(&first_step);
     user_data_.step_start_time_ = 0.0;
     first_step.Initialise(state);
-    
+
+    // Warm start: replace the initial conditions with the given state, then
+    // set the first step's boundary conditions up again so anything they take
+    // from the bed state (a pressure ramp's start) sees the restored state.
+    if (initial_state_) {
+      const std::string mismatch = CycleStateLayoutMismatch(*initial_state_, user_data_);
+      if (!mismatch.empty()) {
+        error_message += "the initial state does not fit the deck: " + mismatch;
+        return false;
+      }
+      ApplyCycleStateDAE(*initial_state_, user_data_);
+      first_step.Initialise(state);
+    }
+
     int flag = solver_data_.Initialise(user_data_, error_message);
     if (flag != IDA_SUCCESS) {
       return false;
@@ -346,6 +359,19 @@ namespace adsim {
     for (auto& step : cycle.step_list_)
       step.ClearCycleSummary();
 
+    // Warm start (SetInitialState): the state's endpoint histories and
+    // summaries stand in for the ones a fresh run starts without. Restored
+    // here, before the consistent-IC solve reads the first step's inlets, and
+    // again after the clear below.
+    if (initial_state_) {
+      const std::string why = CycleStateIncompatibility(*initial_state_, user_data_);
+      if (!why.empty()) {
+        LogMessage(LogLevel::LOW, "Initialisation failed: the initial state does not fit the deck: " + why);
+        return -1;
+      }
+      ApplyCycleStateHistories(*initial_state_, user_data_);
+    }
+
     Step& first_step = cycle.step_list_[0];
     bool init_successful = Initialise(first_step, error_message);
     if (!init_successful) {
@@ -357,6 +383,7 @@ namespace adsim {
     // read stale data from a previous simulation's last cycle.
     for (auto& step : cycle.step_list_)
       step.ClearOutletConditions();
+    if (initial_state_) ApplyCycleStateHistories(*initial_state_, user_data_);
 
     // Bind every consumer's BufferTankSource.summary_ pointer to the matching
     // source endpoint summary. Must happen after PerformChecks (which already

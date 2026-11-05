@@ -91,6 +91,41 @@ The state test and the consecutive-cycles rule were added after Skarstrom 0.3.0 
 
 The approach to CSS is often a slow geometric decay. Setting **CSS acceleration method** to *Aitken (Graves-Morris)* makes the solver extrapolate the end-of-cycle state of the slow fields (loadings, solid and wall temperatures, mole fractions) from three successive cycles towards the fixed point, check the jump in a throwaway integrator, and only then apply it. Pair it with a CSS method, otherwise the run still does every cycle. It never makes a run fail: a jump that does not integrate is skipped, and so is a window of three cycles that is not a geometric decay (the log says *CSS acceleration skipped* and why). In the [Perez 2019 tutorial](perez-2019-vpsa.md) it brought CSS from cycle 94 to 48. The algorithm is described on the [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration) page.
 
+## Restarting from a cycle state and warm starts
+
+A completed run keeps its **final state**, the state at the end of its last cycle. It holds everything the next cycle depends on:
+
+- the DAE unknowns: concentrations, temperatures, mole fractions, loadings, pressure and velocity, in every cell;
+- every endpoint's logged history. A [connected](connecting-beds.md) inlet replays its partner's logged outlet, and when the partner runs later in the cycle that log comes from the previous cycle;
+- the buffer-tank summaries a tank inlet reads from its source step.
+
+So a run restarted from the state reproduces the cycle the original run would have done next. The match is to within the integrator tolerance (about 1e-5 relative on the example decks). Without the histories the restart misses by 20–25 % on a deck whose equalisation or buffer tank reads a later step.
+
+```python
+import skarstrom as sk
+
+sim = sk.examples.Perez2019_A.load()
+sim.run()                              # reaches CSS after 49 cycles
+x = sim.final_state()                  # a skarstrom.CycleState
+
+other = sk.examples.Perez2019_A.load()
+other.set_initial_state(x)             # warm start: later runs start from x
+other.run()                            # reaches CSS again after 4 cycles
+
+other.run_cycle(x)                     # exactly one cycle from x
+gx = other.final_state()               # the cycle map applied to x
+gx.differential                        # the differential unknowns as one vector
+gx.field("Mole Fraction", "CarbonDioxide")
+```
+
+- `run_cycle()` without a state continues from the last run's final state, so repeated calls step through the cycles one by one. It leaves the deck's number of cycles unchanged.
+- A warm-started run counts the cycles behind the state towards the **minimum cycles** floor. The consecutive-cycles rule still applies, and the first cycle has no earlier cycle in the log to compare with. With the defaults (3 consecutive cycles), a run from a state at CSS therefore stops after 4 cycles. On the example decks: Perez2019_A 49 → 4 cycles, Nguyen2023_Exp_VI 80 → 4, Illustrative_TSA_13X 16 → 4, with the same purity and recovery to 1e-5.
+- After a parameter change, a warm start from the previous CSS saves less, because successive cycles still have to carry the bed to the new CSS. In Perez2019_A, warm-starting from the base case after a 5 % longer first step needs 25 cycles instead of 47; after a 20 % change, 34 instead of 42.
+- A state that does not fit the deck is refused with the reason (`check_state`; `set_initial_state` raises `ValueError`). That happens when the components, layers or cell counts differ (remapping a state onto another grid is not supported yet), or the steps or endpoints differ. Changed step times are refused only when the deck's connections or buffer tanks read the state's histories (resampling the histories is not supported yet). A different state layout, such as another energy-balance mode, fails the run with the reason.
+- The state lives for the session only. It is never written to the deck file. It is cleared by the next run and by loading a deck; the warm-start state stays until `clear_initial_state()` or a deck load.
+
+In C++ the same is `Simulation::FinalState`, `SetInitialState`, `RunCycle` and `CheckState`, with the state in `adsim/solver/cycle_state.h`. The chunked run (`Start` / `Advance`) always starts from the initial conditions.
+
 ## Practical guidance
 
 - Set a generous **Number of Cycles** (an upper bound) and let a CSS method stop the run when converged.
