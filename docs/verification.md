@@ -1,6 +1,6 @@
 # Verification
 
-**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order|Robustness)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|SkarstromCycleEquilibriumTheory|ThermalFronts|UnitOperations|MetamorphicRelations|ParameterLimits|DegenerateMixtures|ThermodynamicBound|ExtremeConditions|CycleKpiGridConvergence|IntegratorTolerance|CSSConvergence|ManufacturedSolutions|ValveBedPressure|ExtendedLangmuirFreundlich(Test)?)\.|RobustnessFuzz|CompetitiveSips[A-Za-z]+\."`, one alternative per test suite).
+**Verification** asks whether the solver solves its equations correctly; [Validation](validation.md) asks whether those are the right equations for real columns. Skarstrom's verification tests compare the solver with closed-form solutions of the governing equations, conservation identities and observed orders of convergence, so a failure means a defect, not a modelling choice. They live in [`core/test/validation/`](https://github.com/samaffleck/skarstrom/tree/main/core/test/validation) and run with the rest of the test suite (`ctest -R "^(AdiabaticAdsorption|AdvectionScheme(Conservation|Order|Robustness)|Analytic[A-Za-z]+|BlakeKozenyPressureDrop|ClosedBedEnergyTest|CompressorWork|CSSAcceleration|CyclicSteadyState|DispersionMassBalance|EquilibriumShock|ErgunPressureDrop|ErgunVelocity|ExtendedLangmuirTest|InletTemperatureProfile|Invariants|IsothermalMode|Ldf[A-Za-z]+|LtneRelaxationTest|NumericalVerification|PhysicsParitySerialisation|RobustnessGuards|ThermodynamicConsistency|DesorptionSimpleWave|CompetitiveLangmuirFronts|BlowdownCompositionPath|SkarstromCycleEquilibriumTheory|ThermalFronts|UnitOperations|MetamorphicRelations|MixedLayers|ParameterLimits|DegenerateMixtures|ThermodynamicBound|ExtremeConditions|CycleKpiGridConvergence|IntegratorTolerance|CSSConvergence|ManufacturedSolutions|ValveBedPressure|ExtendedLangmuirFreundlich(Test)?)\.|RobustnessFuzz|CompetitiveSips[A-Za-z]+\."`, one alternative per test suite).
 
 The rest of this page is the suite's README.
 
@@ -84,6 +84,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 | `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
+| `test_mixed_layers.cpp` | Mixed (multi-solid) layers: identical-copy and inert-diluent blends equal pure layers, two-adsorbent stoichiometric time, mole and energy balance closure |
 | `psa_cycle_case.h` | The shared PSA cycle (pressurise, feed, blowdown) and its O2 product KPIs |
 | `test_grid_convergence.cpp` | Cycle-KPI grid convergence at CSS: monotone convergence, observed order, GCI, all three schemes |
 | `test_integrator_tolerance.cpp` | Error against reltol (BDF slope, abstol floor) on a breakthrough and a cycle; `max_step` independence |
@@ -606,6 +607,64 @@ error is not a nuisance to be tolerated but a second prediction.
   Guard: a Gaussian curve with the same mean and variance misses the
   simulated one by 0.042, 250x the finest residual, so the asymmetric Thomas
   shape is what is being matched. About 1.3 s.
+
+### `test_mixed_layers.cpp`
+
+Solved tests for a layer packed with several solids at set mass fractions
+`w_k`. The model gives solid `k` its own loading at its own bulk density
+`rho_b,k = (1 - eb) rho_mix w_k`, with `rho_mix = 1 / sum_k (w_k / rho_k)`;
+the particle voidage and the conductivity mix on the solid-volume fractions
+`phi_k = (w_k / rho_k) rho_mix`, the heat capacity on `w_k`; all solids in a
+cell share the gas and one solid temperature. The tests re-derive these rules
+and check the solved model against them, with heats of adsorption, wall
+exchange, dispersion and a conductivity-dependent heat dispersion
+(Yagi-Kunii) on. The two metamorphic tests use the tolerance of
+`test_metamorphic_relations.cpp` (2E + one error-test weight, E measured by
+tightening reltol 100x).
+
+- **`IdenticalCopyBlendEqualsPureLayer`**: A blended with an identical copy
+  A' at 50/50 and 25/75 gives the pure-A solution in every field and cell
+  (pressure, gas, solid and wall temperatures, mole fractions, loadings), in
+  LTE and LTNE. Measured: y_O2 within 1.1e-7 (tolerance 3.6e-7), T within
+  4.8e-7 K.
+- **`InertDiluentEqualsPureLayerAtBlendProperties`**: A (60 % by mass)
+  blended with an inert solid of another density, voidage, heat capacity and
+  conductivity gives the solution of pure A set by hand to the blend's
+  properties: density `w_A rho_mix` (A's bulk density unchanged), voidage and
+  conductivity volume-weighted, heat capacity `(w_A cp_A + w_I cp_I) / w_A`
+  (the inert's added per kg of A). The blend's logged loading (per kg of all
+  solid) is divided by `w_A`. Run at reltol 1e-7: at 1e-6 the y_O2
+  discrepancy (1.9e-7) is 0.75 of its bound, and it falls with reltol to the
+  absolute-tolerance floor, so it is the integrator's. Measured: y_O2 within
+  5.3e-8 (tolerance 1.3e-7). Each wrong rule fails it: an arithmetic-mean
+  density (y_O2 off by 0.038), a mass-weighted voidage (0.0014), no inert
+  heat capacity (0.77 K), a mass-weighted conductivity (q_O2 off by 2.6e-6,
+  2.5 to 4.5 times the tolerance; T by 1.8e-4 K).
+- **`LinearIsothermBreakthroughTimeIsMassWeightedCapacity`**: a dilute,
+  isothermal tracer on Henry isotherms in a 30/70 blend of two adsorbents
+  (1000 and 2500 kg/m3). The flux-weighted first moment of the outlet curve
+  is `t_st = V P [et/(R T) + (1 - eb) rho_mix sum_k w_k K_k] / n_dot`.
+  Measured: 130.06 s against 130.04 s (+1.6e-4; tolerance 0.2 %, set by the
+  asserted pressure drop below 0.05 % and the quadrature of the outlet flux).
+  An arithmetic-mean density would give +14 %, a mass-weighted voidage
+  -1.9 %, either pure solid more than 20 %.
+- **`MoleBalanceClosesOnMixedBed`**: a non-isothermal breakthrough on two
+  different adsorbents and an inert (45/35/20). Per component, the moles the
+  boundary streams log equal the change of the gas inventory plus the
+  adsorbed inventory `sum_i V_i (1 - eb) rho_mix q_i` (the logged
+  `q = sum_k w_k q_k`), in LTE and LTNE. Measured residual: 2.6e-7 (N2),
+  6e-8 (O2), tolerance 1e-5.
+- **`EnergyBalanceClosesForHeatDrivenDesorptionFromTwoSolids`**: a closed,
+  adiabatic, heated bed of two Henry adsorbents with different capacities,
+  heats, LDF rates, densities and heat capacities. The bed is uniform, so it
+  reduces to ODEs in `(T, C, q_1, q_2)`, which the test integrates with RK4.
+  Each solid's latent heat is at least 10 % of the heater input (14 % and
+  13 %). Measured: T, P and the loading agree to 6e-10 of their change over
+  the run, tolerance 1e-6.
+
+The whole suite takes about 1 s. No defect was found, at the layer interior
+or in the mixing rules; the cases above use one layer, so layer edges with
+different blends on each side are not covered here.
 
 ### `test_manufactured_solutions.cpp`
 
