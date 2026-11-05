@@ -122,7 +122,7 @@ jobs:
           Release-Bump: ${bump}
           Release-Suffix: ${suffix}
           EOF
-          if [ -n "$pr" ] && [ "$(git rev-parse HEAD^ HEAD^{tree})" = "$(git rev-parse FETCH_HEAD^ FETCH_HEAD^{tree} 2>/dev/null)" ]; then
+          if [ -n "$pr" ] && [ "$(git rev-parse "HEAD^" "HEAD^{tree}")" = "$(git rev-parse "FETCH_HEAD^" "FETCH_HEAD^{tree}" 2>/dev/null)" ]; then
             echo "bot/release already holds this release commit on the current main: not pushed."
           else
             git push --force origin "$BRANCH"
