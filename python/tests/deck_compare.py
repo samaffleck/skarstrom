@@ -22,7 +22,8 @@ DROP = {
     "Design_Pressure", "Design_Temperature", "Weld_Joint_Efficiency", "Vacuum_Service", "Design_Code",
     "Corrosion_Allowance", "Proportional_Gain",
 }
-# Values the engine overrides at run time for pressure profiles (bed pressure, step time).
+# Values the engine overrides at run time for pressure profiles (bed pressure, and the
+# step time unless the profile has its own ramp time: Use_Step_Time false).
 PRESSURE_PROFILE_KEYS = {"Boundary_Pressure", "Boundary_Value"}
 RUNTIME_PROFILE_FIELDS = {"Start_Value", "Ramp_Time", "Step_Time"}
 # Per-component maps where a missing component means 0 (the engine fills it in).
@@ -73,7 +74,8 @@ class _Normaliser:
             for k, v in o.items():
                 if k in DROP:
                     continue
-                if key in PRESSURE_PROFILE_KEYS and k in RUNTIME_PROFILE_FIELDS:
+                if key in PRESSURE_PROFILE_KEYS and k in RUNTIME_PROFILE_FIELDS and \
+                        (k == "Start_Value" or o.get("Use_Step_Time", True) is not False):
                     continue
                 out[k] = self.value(v, k)
             if out.get("Use_Pump") is False:  # an unused pump: its settings do nothing

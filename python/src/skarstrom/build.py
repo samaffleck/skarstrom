@@ -91,8 +91,11 @@ class Profile:
     """How a boundary value changes during a step: constant, or a linear,
     exponential or log-linear ramp from ``start`` to ``value`` over ``time``.
 
-    For a pressure the ramp starts from the bed pressure and lasts the step,
-    so only its end is given; temperature and flow ramps need all three.
+    For a pressure (a pressure boundary or a valve) the ramp starts from the
+    bed pressure, so ``start`` is not given, and lasts the whole step unless
+    ``time`` is given (it must not exceed the step time); temperature and flow
+    ramps need all three. ``factor`` is the exponential's F: the change left
+    at ``time`` is 1/F of the initial one (default 100, i.e. 99 % covered).
     """
 
     kind: str
@@ -102,6 +105,7 @@ class Profile:
     rate_1: Any = None   # double_exponential only [1/s]
     rate_2: Any = None   # double_exponential only [1/s]
     weight: Any = None   # double_exponential only [-]
+    factor: Any = None   # exponential only [-]
 
 
 def constant(value: Any) -> Profile:
@@ -110,13 +114,17 @@ def constant(value: Any) -> Profile:
 
 
 def linear(end: Any, start: Any = None, time: Any = None) -> Profile:
-    """A linear ramp to ``end`` (from ``start`` over ``time`` for temperatures and flows)."""
+    """A linear ramp to ``end`` (from ``start`` over ``time`` for temperatures and flows; a
+    pressure ramp lasts the step unless ``time`` is given)."""
     return Profile("linear", end, start, time)
 
 
-def exponential(end: Any, start: Any = None, time: Any = None) -> Profile:
-    """An exponential approach to ``end`` (from ``start`` over ``time`` for temperatures and flows)."""
-    return Profile("exponential", end, start, time)
+def exponential(end: Any, start: Any = None, time: Any = None, factor: Any = None) -> Profile:
+    """An exponential approach to ``end``, v(t) = v1 + (v0 - v1) F^(-t / time): after ``time`` the
+    change left is 1/``factor`` of the initial one (default F = 100, 99 % covered). From ``start``
+    over ``time`` for temperatures and flows; a pressure starts from the bed pressure and its
+    ``time`` defaults to the step time."""
+    return Profile("exponential", end, start, time, factor=factor)
 
 
 def log_linear(end: Any, start: Any = None, time: Any = None) -> Profile:
@@ -277,10 +285,20 @@ def _apply_profile(sim: "Simulation", eid: int, head: str, prof: Profile) -> Non
         _set_endpoint(sim, eid, f"{head}_double_exponential_rate_1", prof.rate_1)
         _set_endpoint(sim, eid, f"{head}_double_exponential_rate_2", prof.rate_2)
         _set_endpoint(sim, eid, f"{head}_double_exponential_weight", prof.weight)
+    if prof.kind == "exponential":
+        _set_endpoint(sim, eid, f"{head}_exponential_factor", prof.factor)
+    elif prof.factor is not None:
+        raise ValueError("factor= is for an exponential profile only")
     if head == "pressure":
-        if prof.start is not None or prof.time is not None:
-            raise ValueError("a pressure ramp starts from the bed pressure and lasts the whole step; "
-                             "give only its end value")
+        if prof.start is not None:
+            raise ValueError("a pressure ramp starts from the bed pressure; do not give its start value")
+        if prof.kind == "double_exponential":
+            if prof.time is not None:
+                raise ValueError("a double-exponential profile takes rates, not a time")
+            return
+        # A ramp lasts the whole step unless it has its own time (<= the step time).
+        _set_endpoint(sim, eid, f"{head}_{prof.kind}_use_step_time", prof.time is None)
+        _set_endpoint(sim, eid, f"{head}_{prof.kind}_time", prof.time)
         return
     _set_endpoint(sim, eid, f"{head}_{prof.kind}_start", prof.start)
     if prof.kind != "double_exponential":
@@ -651,9 +669,17 @@ def _profile_src(sim: "Simulation", eid: int, head: str, kind: str) -> str:
         if head == "pressure":
             return f"sk.{kind}({end}{extra})"
         return f"sk.{kind}({end}{extra}, start={_literal(sim, f'{p}_{kind}_start')})"
+    factor = ""
+    if kind == "exponential":
+        factor_path = f"{p}_exponential_factor"
+        if factor_path in sim._index().by_path and _literal(sim, factor_path) not in ("100.0", "100"):
+            factor = f", factor={_literal(sim, factor_path)}"
     if head == "pressure":
-        return f"sk.{kind}({end})"
-    return f"sk.{kind}({end}, start={_literal(sim, f'{p}_{kind}_start')}, time={_literal(sim, f'{p}_{kind}_time')})"
+        if f"{p}_{kind}_time" in sim._index().by_path:  # its own ramp time
+            return f"sk.{kind}({end}, time={_literal(sim, f'{p}_{kind}_time')}{factor})"
+        return f"sk.{kind}({end}{factor})"
+    return (f"sk.{kind}({end}, start={_literal(sim, f'{p}_{kind}_start')}, "
+            f"time={_literal(sim, f'{p}_{kind}_time')}{factor})")
 
 
 def _inlet_src(sim: "Simulation", eid: int, temperature_kind: str) -> str:

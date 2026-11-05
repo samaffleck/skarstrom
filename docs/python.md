@@ -293,7 +293,7 @@ What each part takes:
 | `inlet.set_buffer_tank(source, percentage=)` | an inlet fed, time-averaged, with `percentage` % of what endpoint `source` produced in its last run; `None` removes it |
 | `sim.kpi.track(component, feed=, product=, recycle=)` | endpoints or step ends (all their streams); `recycle` is optional |
 
-Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)`, `sk.exponential(end, start=, time=)`, `sk.log_linear(end, start=, time=)` and `sk.double_exponential(end, rate_1, rate_2, weight, start=)`; a pressure ramp starts from the bed pressure and lasts the step, so it takes only its end (and, for the double exponential, its rates and weight). `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. `y` and `temperature` of an outlet are the gas that enters if the flow reverses.
+Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)`, `sk.exponential(end, start=, time=, factor=)`, `sk.log_linear(end, start=, time=)` and `sk.double_exponential(end, rate_1, rate_2, weight, start=)`; `factor` is the exponential's F (after `time` the change left is 1/F of the initial; default 100). A pressure ramp starts from the bed pressure, so it takes no `start`; it lasts the whole step unless `time` is given (no longer than the step), e.g. `sk.linear("1 bar", time="10 s")` pressurises in 10 s and holds. The double exponential takes its rates and weight. `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. `y` and `temperature` of an outlet are the gas that enters if the flow reverses.
 
 `set_*` replaces what was there: setting an end's streams removes its old streams and their connections, and a new model kind starts from that model's defaults. Objects held in variables (a step, a layer, `sim.bed`) follow these changes. `sim.describe()` returns the structure (the kind of every model, how each step end is set up, connections and KPI endpoints), and `sim.check()` runs the deck checks without running it.
 
@@ -347,7 +347,7 @@ After a run:
 
 ```python
 sim.cycles                 # logged cycles, e.g. [0, 1, ..., 13]
-sim.kpis()                 # KPIRecord per tracked component per cycle
+sim.kpis()                 # KPIRecord per tracked component per cycle (every cycle run)
 sim.kpi_table()            # the same as a pandas DataFrame
 sim.css_history()          # the deck's CSS check at every cycle: cycle, converged, error, tolerance,
                            # state_change, state_tolerance, passing_cycles, required_cycles
@@ -368,7 +368,7 @@ for s in sim.streams():                                              # every end
 - **Variable names**: `skarstrom.bulk_variables()` (pressure, temperature, velocity, ...) and `skarstrom.component_variables()` (mole_fraction, adsorbed_concentration, ...) list what `series` and `profile` accept. `stream_series` accepts `temperature`, `molar_flow_rate`, `compressor_power` and `pressure` (the bed-end face pressure; a pressure boundary's set value), or `mole_fraction` and `molar_flow` with a component.
 - `sim.save_logs("out")` writes the full solver log as CSV files.
 
-The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory.
+The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles, stream series and CSS history cover those. KPIs are recorded at the end of every cycle, so `sim.kpis()` covers the whole run.
 
 ## Isotherms
 

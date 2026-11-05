@@ -41,6 +41,7 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/solver/coupled_solver.h"
+#include "adsim/solver/kpi_history.h"  // KPIRecord
 #include "adsim/solver/log.h"
 #include "adsim/solver/operating_limits.h"
 #include "adsim/objects/wall_design.h"
@@ -102,22 +103,6 @@ namespace adsim {
     IntegrationStats stats{};  // IDA counters (blocking runs)
 
     bool Ok() const { return status == RunStatus::Completed || status == RunStatus::ReachedCSS; }
-  };
-
-  // KPIs of one tracked component at one logged cycle. A KPI that is not
-  // defined for the run (no product drawn, zero denominator) is NaN, and so is
-  // every KPI when the component's KPI configuration is incomplete (`valid`
-  // false: no feed or no product endpoint).
-  struct KPIRecord {
-    int cycle = 0;
-    std::string component;
-    bool valid = false;
-    double purity = std::numeric_limits<double>::quiet_NaN();               // [mol/mol]
-    double recovery = std::numeric_limits<double>::quiet_NaN();             // [mol/mol]
-    double productivity_mass = std::numeric_limits<double>::quiet_NaN();    // [kg/(kg s)]
-    double productivity_volume = std::numeric_limits<double>::quiet_NaN();  // [kg/(m3 s)]
-    double energy_consumption = std::numeric_limits<double>::quiet_NaN();   // [J/kg]
-    double production_rate = std::numeric_limits<double>::quiet_NaN();      // [mol/s]
   };
 
   // Cyclic-steady-state check for one logged cycle (the deck's CSS method).
@@ -279,10 +264,19 @@ namespace adsim {
     // the z of a face variable's Profile.
     std::vector<double> FacePositions() const;
 
-    // KPIs of every tracked component at every logged cycle (cycle-major).
+    // KPIs of every tracked component at every cycle of the run (cycle-major),
+    // not only the logged ones: a cycle still in the log is computed from it,
+    // an evicted one comes from the record the solver made when the cycle
+    // completed (KPIHistory, with the run's KPI configuration).
     std::vector<KPIRecord> KPIs() const;
-    // KPIs of every tracked component at one cycle (-1 = last).
+    // KPIs of every tracked component at one cycle (-1 = the last logged one).
+    // Throws std::out_of_range for a cycle that is neither logged nor recorded.
     std::vector<KPIRecord> KPIs(int cycle) const;
+    // The cycles KPIs() covers: every completed cycle plus the logged ones
+    // (ascending; a run stopped mid-cycle logs that cycle without completing it).
+    std::vector<int> KPICycles() const;
+    // The KPIs the solver recorded at the end of each completed cycle.
+    const KPIHistory& KPIHistoryRecords() const;
     // The deck's CSS check evaluated at every logged cycle. The consecutive-
     // cycles rule only sees logged cycles, so the earliest logged cycles can
     // show fewer passing cycles than the run counted.

@@ -276,6 +276,36 @@ TEST(DeckBuilder, BuildsADeckThatPassesTheChecksAndRuns) {
   EXPECT_TRUE(kpis[0].valid);
 }
 
+// A pressure ramp lists its step-time switch; turning it off lists its own ramp
+// time (which the checks hold to the step time). Exponentials list their factor.
+TEST(DeckBuilder, PressureRampTimeAndExponentialFactorAreParameters) {
+  Built b;
+  Build(b);
+  ParameterRegistry& reg = b.sim.Parameters();
+  const std::string press = "step[Pressurisation].bottom.pressure_linear";
+  ASSERT_NE(reg.Find(press + "_use_step_time"), nullptr);
+  EXPECT_EQ(b.sim.GetParameter(press + "_use_step_time"), 1.0);
+  EXPECT_EQ(reg.Find(press + "_time"), nullptr);
+  EXPECT_EQ(b.sim.GetParameter("step[Blowdown].top.pressure_exponential_factor"), 100.0);
+  EXPECT_EQ(b.sim.GetParameter("step[Feed].bottom[Feed inlet].temperature_linear_time"), 10.0);
+
+  b.sim.SetParameter(press + "_use_step_time", 0.0);
+  ASSERT_NE(b.sim.Parameters().Find(press + "_time"), nullptr);
+  b.sim.SetParameterText(press + "_time", "5");  // the step is 20 s
+  std::string error;
+  EXPECT_TRUE(b.sim.Check(error)) << error;
+  b.sim.SetParameterText(press + "_time", "25");
+  error.clear();
+  EXPECT_FALSE(b.sim.Check(error));
+  EXPECT_NE(error.find("longer than the step"), std::string::npos) << error;
+  b.sim.SetParameterText(press + "_time", "5");
+
+  b.sim.SetParameterText("step[Blowdown].top.pressure_exponential_factor", "1");
+  error.clear();
+  EXPECT_FALSE(b.sim.Check(error));
+  EXPECT_NE(error.find("exponential factor"), std::string::npos) << error;
+}
+
 TEST(DeckBuilder, ReplacingAnEndDropsItsStreamsAndConnections) {
   Built b;
   Build(b);

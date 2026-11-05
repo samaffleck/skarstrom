@@ -81,7 +81,7 @@ Production rate is 5.72 × 10⁻⁵ mol/s and the mass productivity 1.55 × 10�
 
 The model is 3.3 points low on purity and 3.1 points high on recovery against D1, and within 0.7 and 6 points of the repeat D2. The deck uses the paper's model forms (the test README traces every value and attributes the remaining error): for the four-step cycles A and B the same decks are within 0.6 points of purity and 1.1 points of recovery of the experiments. The remaining LPP excess is the composition-coupled light-product connection, an open item.
 
-**Approach to CSS.** Plot the KPI against the cycle number (only the last `settings.max_cycles_to_keep` = 10 cycles are logged):
+**Approach to CSS.** Plot the KPI against the cycle number (KPIs are kept for every cycle, although only the last `settings.max_cycles_to_keep` = 10 cycles are logged):
 
 ```python
 import matplotlib.pyplot as plt
