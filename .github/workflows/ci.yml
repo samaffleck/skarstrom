@@ -116,7 +116,7 @@ jobs:
             preset: linux-release
             jobs: 4
           - name: macOS arm64 (Apple clang)
-            runner: macos-14
+            runner: macos-15
             preset: macos-release
             jobs: 3
           - name: Windows x64 (MSVC 2022)
