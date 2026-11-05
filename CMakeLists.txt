@@ -215,20 +215,9 @@ add_subdirectory(external/muparser)
 
 # -- dlib (global optimisation, used by adsim/solver/optimisation.h and the
 # isotherm fitter) --
-# Only the core library is needed; disable image formats, GUI, and
-# external numeric backends.
-set(DLIB_NO_GUI_SUPPORT ON CACHE BOOL "Disable dlib GUI support")
-set(DLIB_JPEG_SUPPORT OFF CACHE BOOL "Disable dlib JPEG support")
-set(DLIB_PNG_SUPPORT OFF CACHE BOOL "Disable dlib PNG support")
-set(DLIB_GIF_SUPPORT OFF CACHE BOOL "Disable dlib GIF support")
-set(DLIB_WEBP_SUPPORT OFF CACHE BOOL "Disable dlib WebP support")
-set(DLIB_JXL_SUPPORT OFF CACHE BOOL "Disable dlib JPEG XL support")
-set(DLIB_USE_BLAS OFF CACHE BOOL "Disable dlib BLAS")
-set(DLIB_USE_LAPACK OFF CACHE BOOL "Disable dlib LAPACK")
-set(DLIB_USE_CUDA OFF CACHE BOOL "Disable dlib CUDA")
-set(DLIB_USE_FFMPEG OFF CACHE BOOL "Disable dlib FFmpeg")
-set(DLIB_LINK_WITH_SQLITE3 OFF CACHE BOOL "Disable dlib sqlite3")
-add_subdirectory(external/dlib/dlib)
+# Only find_min_global is used, so build just the five dlib sources it needs
+# (see cmake/dlib_minimal.cmake) rather than all of dlib.
+include(${ADSIM_SOURCE_DIR}/cmake/dlib_minimal.cmake)
 
 # ============================================================
 # Core solver library
