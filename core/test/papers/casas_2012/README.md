@@ -139,4 +139,5 @@ value in a comment next to it. Results of the last run:
 
 - CO2 breakthrough times agree with the paper's simulated Table 5 values to 0.5-1.3 % for the 50/50 and 25/75 feeds and 13 % for 75/25; H2 breakthrough is 15-19 % early for the two CO2-lean feeds.
 - Table 5 is the paper's simulation (feed velocity fitted per experiment, piping to the mass spectrometer modelled); adsim uses the 10 cm3/s set-point and no piping. The experimental curves (Figs. 4, 6) have not been digitised.
+- **Competitive-Sips trace fix (WP19-1, 2026-11).** `arrhenius_sips` used to multiply each competitive term by y²/(y² + 10⁻⁶) in the solver, which halved a component's loading at y = 10⁻³; it now uses the published isotherm down to y = 10⁻⁵ (see `docs/isotherms.md`). The breakthrough times are taken at y > 0.002, on the toe of the front, so they move: CO₂ 0.8, 1.2 and 0.6 s later (errors 0.92 → 0.73 %, 0.64 → 0.45 %, 9.81 → 9.99 %), H₂ 0.3-0.5 s later (16.8 → 16.4 %, 19.8 → 19.4 %, 1.17 → 1.53 %). No tolerance changed.
 - The competitive Arrhenius-Sips isotherm reproduces the paper's per-temperature Sips fits (Schell et al., Table 3) to 7 % (CO2) and 0.6 % (H2).
