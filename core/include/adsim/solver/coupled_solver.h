@@ -15,6 +15,7 @@
 // adsim includes
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/log.h"
+#include "adsim/solver/kpi_history.h"
 
 // SUNDIALS includes
 #include <ida/ida.h>
@@ -420,6 +421,9 @@ namespace adsim {
     void SaveLogs(const std::string& directory = "Results") const { equation_log_.SaveToFile(directory); }
     const EquationLog& GetLog() const { return equation_log_; }
     const BoundaryLog& GetBoundaryLog() const { return boundary_log_; }
+    // KPIs of every completed cycle of the run (the logs keep only the last
+    // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
+    const KPIHistory& GetKPIHistory() const { return kpi_history_; }
     EquationLog ExtractLog() { return std::move(equation_log_); }
     BoundaryLog ExtractBoundaryLog() { return std::move(boundary_log_); }
 
@@ -433,6 +437,7 @@ namespace adsim {
     SolverData solver_data_;
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
+    KPIHistory kpi_history_;
     SolverProgressCallback progress_callback_;
     SolverMessageCallback message_callback_;
     SolverMetricsCallback metrics_callback_;
@@ -459,6 +464,9 @@ namespace adsim {
     void SaveLogs(const std::string& directory = "Results") const { equation_log_.SaveToFile(directory); }
     const EquationLog& GetLog() const { return equation_log_; }
     const BoundaryLog& GetBoundaryLog() const { return boundary_log_; }
+    // KPIs of every completed cycle of the run (the logs keep only the last
+    // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
+    const KPIHistory& GetKPIHistory() const { return kpi_history_; }
     EquationLog ExtractLog() { return std::move(equation_log_); }
     BoundaryLog ExtractBoundaryLog() { return std::move(boundary_log_); }
 
@@ -477,6 +485,7 @@ namespace adsim {
     SolverData solver_data_;
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
+    KPIHistory kpi_history_;
     ChunkStatus status_;
 
     SolverMessageCallback message_callback_;

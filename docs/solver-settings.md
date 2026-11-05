@@ -25,7 +25,7 @@ The solver parameters are stored in the deck and are parameters of the registry 
 | **Maximum Convergence Failures** | `settings.max_conv_fails` | 200 | Non-linear-solver failures tolerated before giving up. |
 | **Maximum Error Test Failures** | `settings.max_err_test_fails` | 40 | Local error-test failures tolerated before giving up. |
 | **Maximum Number of Steps** | `settings.max_num_steps` | 100000 | Cap on total integrator steps. |
-| **Maximum Number of Cycles to Log** | `settings.max_cycles_to_keep` | 10 | How many recent cycles of full profile data are retained for plotting. With a [CSS method](cyclic-steady-state.md#consecutive-cycles) on, at least the cycles the CSS check reads are kept (4 with the default three consecutive cycles). |
+| **Maximum Number of Cycles to Log** | `settings.max_cycles_to_keep` | 10 | How many recent cycles of full profile data are retained for plotting. Every solver step of each kept cycle is stored, so this sets most of a run's memory (on a fine grid, hundreds of MB per cycle). KPIs are kept for every cycle whatever this is. With a [CSS method](cyclic-steady-state.md#consecutive-cycles) on, at least the cycles the CSS check reads are kept (4 with the default three consecutive cycles). |
 
 > **Absolute tolerances** are set internally on a per-variable basis (10⁻⁸ for concentrations, mole fractions and loadings, 10⁻⁶ for pressure and velocity, 10⁻⁴ K for temperatures), so only the single relative tolerance is a setting. See [Numerics](numerics.md#time-integration-sundials-ida).
 

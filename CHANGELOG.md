@@ -8,6 +8,19 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — KPIs of every cycle (KPIHistory)
+- The solvers record the KPIs of every tracked component when each cycle
+  completes (`adsim::KPIHistory`, `adsim/solver/kpi_history.h`;
+  `CoupledSolver::GetKPIHistory`, `CoupledSolverChuncked::GetKPIHistory`), so a
+  run's KPIs cover all its cycles, not only the last
+  `settings.max_cycles_to_keep` the logs hold. `Simulation::KPIs()` (Python
+  `sim.kpis()`, the CLI's `kpis` and `kpis.csv`) now lists every cycle:
+  cycles still in the log are computed from it as before, evicted ones come
+  from the history. New: `Simulation::KPICycles()`,
+  `Simulation::KPIHistoryRecords()`, and `adsim::ComputeCycleKPIs`, the
+  per-cycle computation both use. `KPIRecord` moved from `simulation.h` to
+  `kpi_history.h` (which `simulation.h` includes).
+
 ### Added — own ramp time for pressure ramps; exponential factor
 - Linear, exponential and log-linear pressure profiles (pressure boundaries
   and valve streams) take an optional ramp time of their own:
@@ -47,6 +60,23 @@ root `CMakeLists.txt`.
   van Leer 2 (WENO interior 2.5-2.8 before the second-order central terms
   take over); with the energy balance the temperature is first order for
   every scheme (the convective face temperature is always upwind). About 4 s.
+
+### Fixed — the CSS state test never passed for an inert bed
+- For a bed of inert packing (an adsorbent with no isotherm) the adsorbed
+  loadings are round-off, 1e-26 to 1e-22 mol/kg of either sign. The state
+  test of the mass-balance CSS methods
+  (`CyclicSteadyState::EndOfCycleStateChange`) scales the loading change by
+  the RMS total loading and skipped the field only when that scale was below
+  1e-300, so it divided noise by noise and reported a change of 0.77 to 51
+  on a bed whose state repeats: a mass-balance method with the state test on
+  (the default) never stopped.
+  The loading scale is now floored at the solver's absolute tolerance on the
+  loading unknowns (1e-8 mol/kg); a loading below it is not resolved. Every
+  adsorbing deck has an RMS loading far above the floor, so its state change
+  is unchanged to the last bit. Test:
+  `CyclicSteadyState.InertBedReachesCSSUnderTheStateTest` (the shared PSA
+  cycle with inert packing stops at the minimum-cycle floor, cycle 4). Found
+  by the dynamic-tank CSS test of the verification programme (WP19-E2a).
 
 ### Added — convergence verification of cycle results (grid, integrator tolerance, CSS)
 - `CycleKpiGridConvergence` (`core/test/validation/test_grid_convergence.cpp`):
@@ -111,6 +141,28 @@ root `CMakeLists.txt`.
   retries. Tests: `CompetitiveSipsTraceLoading.*`,
   `CompetitiveSipsBelowThreshold.*` and
   `CompetitiveSipsTraceBreakthrough.FirstMomentMatchesPublishedIsotherm`.
+
+### Fixed — breakthrough decks no longer stall on fine grids
+- `Ward2022_Q50ccm` ran on 10-160 cells but failed on 320 with every
+  advection scheme ("too much work": 50 000 steps, 24 000 Newton convergence
+  failures, 72 000 Jacobians) as the CO2 front left the column. The
+  difference-quotient Jacobian perturbed the pressure by IDA's increment
+  floor reltol |P| + abstol (0.1 Pa at 1 bar). A pressure outlet imposes the
+  outlet-face velocity as the explicit Ergun root of the end-cell pressure
+  drop, which is linear only over A² / (4B), a pressure scale proportional to
+  the cell width (0.12 Pa on 60 cells, 0.02 Pa on 320): the 0.1 Pa secant
+  was half the true slope there, and the modified Newton iteration diverged
+  unless the step was tiny. The pressure columns of the `BandDQ`, `Coloured`
+  and `ColouredCheck` Jacobians now use sqrt(eps) max(|P|, |h P'|) floored at
+  the pressure's absolute tolerance (1.5e-3 Pa at 1 bar); every other column
+  keeps IDA's increment. The deck now runs on 320 cells in 2 169 steps with
+  24 convergence failures (3 s), and on 640 cells in 2 047 steps. Results of
+  every deck move at integrator-tolerance level, since the Jacobian's
+  pressure columns change in the last digits: across the paper validation
+  metrics, front times by at most 2e-5 relative and curve RMSEs by at most
+  1e-5 absolute, and every paper test still passes.
+  `JacobianMode::IdaInternal` (IDA's own Jacobian) is unchanged. Test:
+  `FineGridBreakthrough.Ward2022Q50ccmConvergesTo320Cells`.
 
 ### Fixed — WENO / van Leer outlet-cell mole-fraction sum drifts during fast outflow
 - With `AdvectionScheme::WENO` or `VanLeer` the cell at a bed end that gas
