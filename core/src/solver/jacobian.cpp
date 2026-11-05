@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <random>
+#include <utility>
 
 namespace adsim {
 
@@ -274,9 +275,55 @@ namespace adsim {
     }
   }
 
+  namespace {
+    BandedJacobian::EvaluationObserver& EvaluationObserverForTesting() {
+      static BandedJacobian::EvaluationObserver observer;
+      return observer;
+    }
+  } // namespace
+
+  void BandedJacobian::SetEvaluationObserverForTesting(EvaluationObserver observer) {
+    EvaluationObserverForTesting() = std::move(observer);
+  }
+
   int BandedJacobian::Evaluate(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp,
                                N_Vector rr, SUNMatrix Jac, UserData* udata,
                                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) {
+    last_pass_coloured_ = false;
+    const int retval = EvaluateMatrix(tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
+    const auto& observer = EvaluationObserverForTesting();
+    if (retval != 0 || !observer) return retval;
+
+    // Testing only: the column increments EvaluateGroups used.
+    sunrealtype hh = 0.0;
+    IDAGetCurrentStep(ida_mem_, &hh);
+    IDAGetErrWeights(ida_mem_, ewt_);
+    const sunrealtype* ewt_data = N_VGetArrayPointer(ewt_);
+    const sunrealtype* y_data = N_VGetArrayPointer(yy);
+    const sunrealtype* yp_data = N_VGetArrayPointer(yp);
+    const sunrealtype srur = SUNRsqrt(SUN_UNIT_ROUNDOFF);
+    std::vector<sunrealtype> increments(n_);
+    for (sunindextype j = 0; j < n_; ++j)
+      increments[j] = Increment(y_data[j], yp_data[j], ewt_data[j], hh, srur,
+                                var_[j] == pressure_var_, pressure_abstol_);
+    EvaluationView view;
+    view.kind = last_pass_coloured_ ? EvaluationView::Kind::Coloured : EvaluationView::Kind::Band;
+    view.tt = tt;
+    view.c_j = c_j;
+    view.yy = yy;
+    view.yp = yp;
+    view.jac = Jac;
+    view.mu = mu_;
+    view.ml = ml_;
+    view.increments = &increments;
+    view.udata = udata;
+    observer(view);
+    return retval;
+  }
+
+  int BandedJacobian::EvaluateMatrix(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp,
+                                     N_Vector rr, SUNMatrix Jac, UserData* udata,
+                                     N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) {
     if (mode_ == JacobianMode::BandDQ) {
       return EvaluateGroups(band_groups_, Pass::Band, tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
     }
@@ -297,6 +344,7 @@ namespace adsim {
     const bool audit = !learning && (after_failure || ++evals_since_audit_ >= kAuditInterval);
     if (audit && after_failure) ++num_failure_audits_;
     if (!learning && !audit) {
+      last_pass_coloured_ = true;
       const int retval = EvaluateGroups(colour_groups_, Pass::Coloured, tt, c_j, yy, yp, rr, Jac, udata,
                                         tmp1, tmp2, tmp3);
       // ColouredCheck: compare with a band evaluation that only observes. It
