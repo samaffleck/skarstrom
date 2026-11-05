@@ -377,6 +377,13 @@ TEST(ReactionDeck, DeckChecks) {
       << err;
   dynamic_cast<ReversiblePowerLawRate&>(*src.Get(b.wgs).rate_).pre_exp_factor_ = 1.0;
 
+  // UserData::PerformChecks runs the reaction checks.
+  build::SetReactionStoichiometry(d, b.ni, b.wgs, {{CO, -1}});
+  err.clear();
+  EXPECT_FALSE(d.PerformChecks(err));
+  EXPECT_NE(err.find("has no product"), std::string::npos) << err;
+  build::SetReactionStoichiometry(d, b.ni, b.wgs, {{CO, -1}, {H2O, -1}, {CO2, 1}, {H2, 1}});
+
   // Thiele without a key reactant (the key reactant left the stoichiometry).
   build::SetEffectiveness(d, b.ni, b.wgs, "thiele", CO);
   src.Get(b.wgs).effectiveness_.key_component_ = CO2;
