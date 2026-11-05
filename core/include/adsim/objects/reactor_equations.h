@@ -33,8 +33,8 @@ namespace adsim {
   };
 
   static const char* ThermalEquilibriumModeList[] = {
-    "Local thermal equilibrium (LTE)",
-    "Local thermal non-equilibrium (LTNE)"
+    "Local thermal equilibrium",
+    "Local thermal non-equilibrium"
   };
 
   // Whether the energy balance is solved at all. Orthogonal to
@@ -48,8 +48,8 @@ namespace adsim {
   };
 
   static const char* EnergyBalanceModeList[] = {
-    "Non-isothermal (solve energy balance)",
-    "Isothermal (fixed temperature)"
+    "Non-isothermal",
+    "Isothermal"
   };
 
   class EnergySource {
