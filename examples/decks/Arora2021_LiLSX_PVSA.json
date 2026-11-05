@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 3,
+        "cereal_class_version": 4,
         "Adsorbent_Directory": {
             "cereal_class_version": 1,
             "Adsorbents": [
@@ -865,14 +865,22 @@
             }
         },
         "Fluid": {
-            "cereal_class_version": 3,
+            "cereal_class_version": 4,
             "Components": [
                 "Oxygen",
                 "Nitrogen"
             ],
             "Adsorbed_Heat_Capacity": [],
             "Adsorbed_Heat_Capacity_Mode": 0,
-            "Heat_Of_Adsorption_Convention": 0
+            "Heat_Of_Adsorption_Convention": 0,
+            "Gas_Heat_Capacity_Mode": 0,
+            "Gas_Heat_Capacity": [],
+            "Viscosity_Mode": 0,
+            "Viscosity": {
+                "Value": 0.000018,
+                "Expression": "1.8e-05",
+                "DisplayUnitIndex": 0
+            }
         },
         "Initial_Conditions": {
             "cereal_class_version": 3,
@@ -1282,7 +1290,7 @@
                                     "ptr_wrapper": {
                                         "valid": 1,
                                         "data": {
-                                            "cereal_class_version": 3,
+                                            "cereal_class_version": 4,
                                             "value0": {},
                                             "End_Value": {
                                                 "Value": 50000.0,
@@ -1298,7 +1306,8 @@
                                                 "Value": 1.0,
                                                 "Expression": "1",
                                                 "DisplayUnitIndex": 0
-                                            }
+                                            },
+                                            "Use_Step_Time": true
                                         }
                                     }
                                 },
@@ -1720,7 +1729,8 @@
                                                 "Value": 1.0,
                                                 "Expression": "1",
                                                 "DisplayUnitIndex": 0
-                                            }
+                                            },
+                                            "Use_Step_Time": true
                                         }
                                     }
                                 },
@@ -1828,7 +1838,7 @@
             }
         },
         "Solver_Settings": {
-            "cereal_class_version": 6,
+            "cereal_class_version": 7,
             "Maximum_Number_Of_Steps": 100000,
             "Initial_Step_Size": {
                 "Value": 1e-10,
@@ -1896,7 +1906,8 @@
                 "Vacuum": true,
                 "Design_Temperature": true,
                 "Fluidisation": true
-            }
+            },
+            "Valve_Bed_Pressure": 0
         },
         "Experimental_Data": {
             "cereal_class_version": 1,
@@ -2014,6 +2025,26 @@
             "maintenance_fraction": 0.03,
             "overhead_fraction": 0.02,
             "labour_cost_per_year": 50000.0
+        },
+        "Sensitivity_Study": {
+            "cereal_class_version": 0,
+            "Inputs": [],
+            "Outputs": [],
+            "Policy": {
+                "cereal_class_version": 0,
+                "Require_CSS": true,
+                "Cycles": 0,
+                "Settings": []
+            },
+            "Seed": 1,
+            "Trajectories": 10,
+            "Levels": 4,
+            "Threshold": 0.1,
+            "Runs": 100,
+            "Batch": 50,
+            "Max_Runs": 400,
+            "Rel_Tol": 0.1,
+            "Bootstrap": 1000
         }
     }
 }

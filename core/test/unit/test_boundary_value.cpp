@@ -4,7 +4,14 @@
 // gtest includes
 #include <gtest/gtest.h>
 
+#include <cereal/archives/json.hpp>
+#include <cereal/types/memory.hpp>
+
 #include <cmath>
+#include <memory>
+#include <regex>
+#include <sstream>
+#include <string>
 
 namespace adsim {
 
@@ -270,6 +277,233 @@ TEST(DoubleExponentialBoundaryValue, FactoryAndTemperatureProfileCreateIt) {
   ASSERT_NE(t, nullptr);
   EXPECT_EQ(t->GetType(), BoundaryValueType::DOUBLE_EXPONENTIAL);
   EXPECT_DOUBLE_EQ(t->GetValue(30.0), 300.0);
+}
+
+// ─── Pressure-profile ramp time (use_step_time_) ────────────────────────────
+
+// Off: a pressure-driven parent still sets the start value, but the ramp lasts
+// the profile's own ramp time and then holds the end value.
+TEST(LinearBoundaryValue, OwnRampTimeOverridesTheStepTime) {
+  LinearBoundaryValue bv;
+  bv.end_value_ = 10e5;
+  bv.ramp_time_ = 100.0;
+  bv.use_step_time_ = false;
+  bv.InitialiseStartValue(1e5);
+  bv.InitialiseStepTime(300.0);
+  EXPECT_DOUBLE_EQ(bv.GetValue(50.0), 5.5e5);
+  EXPECT_DOUBLE_EQ(bv.GetValue(100.0), 10e5);
+  EXPECT_DOUBLE_EQ(bv.GetValue(250.0), 10e5);
+}
+
+// Switching the flag takes effect at the next step start (no stale override).
+TEST(LinearBoundaryValue, StepTimeSwitchAppliesAtTheNextStepStart) {
+  LinearBoundaryValue bv;
+  bv.end_value_ = 2.0;
+  bv.ramp_time_ = 10.0;
+  bv.InitialiseStartValue(1.0);
+  bv.InitialiseStepTime(100.0);
+  EXPECT_DOUBLE_EQ(bv.GetValue(10.0), 1.1);
+  bv.use_step_time_ = false;
+  bv.InitialiseStepTime(100.0);
+  EXPECT_DOUBLE_EQ(bv.GetValue(10.0), 2.0);
+  bv.use_step_time_ = true;
+  bv.InitialiseStepTime(100.0);
+  EXPECT_DOUBLE_EQ(bv.GetValue(10.0), 1.1);
+}
+
+TEST(ExponentialBoundaryValue, OwnRampTimeOverridesTheStepTime) {
+  ExponentialBoundaryValue bv;
+  bv.end_value_ = 0.0;
+  bv.step_time_ = 20.0;
+  bv.use_step_time_ = false;
+  bv.InitialiseStartValue(1.0);
+  bv.InitialiseStepTime(200.0);
+  EXPECT_NEAR(bv.GetValue(20.0), 0.01, 1e-12);  // 99 % covered at its own 20 s
+}
+
+TEST(LogLinearBoundaryValue, OwnRampTimeOverridesTheStepTime) {
+  LogLinearBoundaryValue bv;
+  bv.end_value_ = 100.0;
+  bv.ramp_time_ = 10.0;
+  bv.use_step_time_ = false;
+  bv.InitialiseStartValue(1.0);
+  bv.InitialiseStepTime(40.0);
+  EXPECT_NEAR(bv.GetValue(5.0), 10.0, 1e-12);
+  EXPECT_DOUBLE_EQ(bv.GetValue(30.0), 100.0);
+}
+
+// ─── Exponential factor ─────────────────────────────────────────────────────
+
+// v(t) = v1 + (v0 - v1) F^(-t / t_r): the change left at t_r is 1/F of the initial.
+TEST(ExponentialBoundaryValue, FactorSetsTheChangeLeftAtTheRampTime) {
+  for (double F : {2.0, 10.0, 100.0, 1000.0}) {
+    auto bv = MakeExponential(5.0, 1.0, 40.0);
+    bv.factor_ = F;
+    EXPECT_NEAR(bv.GetValue(40.0), 1.0 + 4.0 / F, 1e-12) << "F = " << F;
+    EXPECT_NEAR(bv.GetValue(20.0), 1.0 + 4.0 / std::sqrt(F), 1e-12) << "F = " << F;
+    EXPECT_DOUBLE_EQ(bv.GetValue(0.0), 5.0) << "F = " << F;
+  }
+}
+
+TEST(ExponentialBoundaryValue, DefaultFactorIsOneHundred) {
+  ExponentialBoundaryValue bv;
+  EXPECT_DOUBLE_EQ(bv.factor_.Get(), 100.0);
+  EXPECT_TRUE(bv.use_step_time_);
+}
+
+// F <= 1 is rejected by the checks; GetValue stays finite and holds the start.
+TEST(ExponentialBoundaryValue, FactorAtOrBelowOneHoldsTheStartValue) {
+  for (double F : {1.0, 0.5, 0.0, -3.0}) {
+    auto bv = MakeExponential(5.0, 1.0, 40.0);
+    bv.factor_ = F;
+    EXPECT_DOUBLE_EQ(bv.GetValue(40.0), 5.0) << "F = " << F;
+    std::string err;
+    EXPECT_FALSE(CheckProfileFactor(&bv, "test profile", err)) << "F = " << F;
+    EXPECT_NE(err.find("greater than 1"), std::string::npos) << err;
+  }
+  auto ok = MakeExponential(5.0, 1.0, 40.0);
+  ok.factor_ = 1.5;
+  std::string err;
+  EXPECT_TRUE(CheckProfileFactor(&ok, "test profile", err)) << err;
+}
+
+// ─── CheckPressureProfile ───────────────────────────────────────────────────
+
+TEST(CheckPressureProfile, OwnRampTimeMustFitInTheStep) {
+  LinearBoundaryValue lin;
+  lin.ramp_time_ = 30.0;
+  std::string err;
+  // Over the step time: the user's ramp time is ignored.
+  EXPECT_TRUE(CheckPressureProfile(&lin, 20.0, "p", err)) << err;
+  lin.use_step_time_ = false;
+  EXPECT_TRUE(CheckPressureProfile(&lin, 30.0, "p", err)) << err;  // equal is fine
+  EXPECT_TRUE(CheckPressureProfile(&lin, 40.0, "p", err)) << err;
+  EXPECT_FALSE(CheckPressureProfile(&lin, 20.0, "p", err));
+  EXPECT_NE(err.find("longer than the step"), std::string::npos) << err;
+
+  err.clear();
+  lin.ramp_time_ = -1.0;
+  EXPECT_FALSE(CheckPressureProfile(&lin, 20.0, "p", err));
+  EXPECT_NE(err.find("zero or positive"), std::string::npos) << err;
+
+  LogLinearBoundaryValue lg;
+  lg.ramp_time_ = 30.0;
+  lg.use_step_time_ = false;
+  err.clear();
+  EXPECT_FALSE(CheckPressureProfile(&lg, 20.0, "p", err));
+
+  ExponentialBoundaryValue ex;
+  ex.step_time_ = 30.0;
+  ex.use_step_time_ = false;
+  err.clear();
+  EXPECT_FALSE(CheckPressureProfile(&ex, 20.0, "p", err));
+  ex.step_time_ = 10.0;
+  ex.factor_ = 1.0;
+  err.clear();
+  EXPECT_FALSE(CheckPressureProfile(&ex, 20.0, "p", err));  // the factor is checked too
+
+  ConstantBoundaryValue c(1e5);
+  DoubleExponentialBoundaryValue de;
+  err.clear();
+  EXPECT_TRUE(CheckPressureProfile(&c, 1.0, "p", err));
+  EXPECT_TRUE(CheckPressureProfile(&de, 1.0, "p", err));
+  EXPECT_TRUE(CheckPressureProfile(nullptr, 1.0, "p", err));
+}
+
+// ─── Serialisation ──────────────────────────────────────────────────────────
+
+namespace {
+
+std::string Save(std::unique_ptr<IBoundaryValue> v) {
+  std::ostringstream os;
+  {
+    cereal::JSONOutputArchive ar(os);
+    ar(cereal::make_nvp("profile", v));
+  }
+  return os.str();
+}
+
+std::unique_ptr<IBoundaryValue> Load(const std::string& json) {
+  std::istringstream is(json);
+  std::unique_ptr<IBoundaryValue> v;
+  cereal::JSONInputArchive ar(is);
+  ar(cereal::make_nvp("profile", v));
+  return v;
+}
+
+// The JSON as an older engine wrote it: the class at `version`, without `fields`.
+std::string AsOlderVersion(std::string json, int version, std::initializer_list<const char*> fields) {
+  json = std::regex_replace(json, std::regex("\"cereal_class_version\": [0-9]+"),
+                            "\"cereal_class_version\": " + std::to_string(version), std::regex_constants::format_first_only);
+  for (const char* f : fields) {
+    // A field and its value (a bool or an ExpressionParam object), with the comma before it.
+    json = std::regex_replace(json, std::regex(",\\s*\"" + std::string(f) + "\": (true|false|\\{[^}]*\\})"), "");
+  }
+  return json;
+}
+
+}  // namespace
+
+TEST(BoundaryValueSerialisation, RampTimeSwitchAndFactorRoundTrip) {
+  auto lin = std::make_unique<LinearBoundaryValue>();
+  lin->use_step_time_ = false;
+  lin->ramp_time_ = 12.5;
+  auto back = Load(Save(std::move(lin)));
+  auto* l = dynamic_cast<LinearBoundaryValue*>(back.get());
+  ASSERT_NE(l, nullptr);
+  EXPECT_FALSE(l->use_step_time_);
+  EXPECT_DOUBLE_EQ(l->ramp_time_.Get(), 12.5);
+
+  auto ex = std::make_unique<ExponentialBoundaryValue>();
+  ex->use_step_time_ = false;
+  ex->factor_.SetExpr("2 * 500");
+  auto back_ex = Load(Save(std::move(ex)));
+  auto* e = dynamic_cast<ExponentialBoundaryValue*>(back_ex.get());
+  ASSERT_NE(e, nullptr);
+  EXPECT_FALSE(e->use_step_time_);
+  EXPECT_EQ(e->factor_.GetExpr(), "2 * 500");
+
+  auto lg = std::make_unique<LogLinearBoundaryValue>();
+  lg->use_step_time_ = false;
+  auto back_lg = Load(Save(std::move(lg)));
+  auto* g = dynamic_cast<LogLinearBoundaryValue*>(back_lg.get());
+  ASSERT_NE(g, nullptr);
+  EXPECT_FALSE(g->use_step_time_);
+}
+
+// Decks written before the switch and the factor existed ramp over the step
+// time with F = 100, as they always did.
+TEST(BoundaryValueSerialisation, OlderProfilesRampOverTheStepWithFactor100) {
+  {
+    auto lin = std::make_unique<LinearBoundaryValue>();
+    lin->use_step_time_ = false;
+    const std::string old = AsOlderVersion(Save(std::move(lin)), 3, {"Use_Step_Time"});
+    ASSERT_EQ(old.find("Use_Step_Time"), std::string::npos) << old;
+    auto v = Load(old);
+    auto* l = dynamic_cast<LinearBoundaryValue*>(v.get());
+    ASSERT_NE(l, nullptr);
+    EXPECT_TRUE(l->use_step_time_);
+  }
+  {
+    auto ex = std::make_unique<ExponentialBoundaryValue>();
+    ex->use_step_time_ = false;
+    ex->factor_ = 7.0;
+    const std::string old = AsOlderVersion(Save(std::move(ex)), 3, {"Factor", "Use_Step_Time"});
+    ASSERT_EQ(old.find("Factor"), std::string::npos) << old;
+    auto v = Load(old);
+    auto* e = dynamic_cast<ExponentialBoundaryValue*>(v.get());
+    ASSERT_NE(e, nullptr);
+    EXPECT_TRUE(e->use_step_time_);
+    EXPECT_DOUBLE_EQ(e->factor_.Get(), 100.0);
+  }
+  {
+    auto lg = std::make_unique<LogLinearBoundaryValue>();
+    lg->use_step_time_ = false;
+    auto v = Load(AsOlderVersion(Save(std::move(lg)), 1, {"Use_Step_Time"}));
+    auto* g = dynamic_cast<LogLinearBoundaryValue*>(v.get());
+    ASSERT_NE(g, nullptr);
+    EXPECT_TRUE(g->use_step_time_);
+  }
 }
 
 // Every listed kind has a factory entry.

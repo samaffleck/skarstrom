@@ -913,6 +913,8 @@ class Endpoint(_Node):
     """Duration of the inlet temperature linear ramp [s]."""
     temperature_exponential_time = Real()
     """Duration of the inlet temperature exponential ramp [s]."""
+    temperature_exponential_factor = Real()
+    """Exponential factor F of the inlet temperature ramp: the change left at the ramp time is 1/F of the initial [-]."""
     temperature_log_linear_start = Real()
     """Inlet temperature at the start of a log-linear ramp [K]."""
     temperature_log_linear_end = Real()
@@ -941,6 +943,8 @@ class Endpoint(_Node):
     """Superficial velocity at the end of an exponential ramp [m/s]."""
     velocity_exponential_time = Real()
     """Duration of the velocity exponential ramp [s]."""
+    velocity_exponential_factor = Real()
+    """Exponential factor F of the velocity ramp: the change left at the ramp time is 1/F of the initial [-]."""
     velocity_log_linear_start = Real()
     """Superficial velocity at the start of a log-linear ramp [m/s]."""
     velocity_log_linear_end = Real()
@@ -969,6 +973,8 @@ class Endpoint(_Node):
     """Molar flow at the end of an exponential ramp [mol/s]."""
     molar_flow_exponential_time = Real()
     """Duration of the molar flow exponential ramp [s]."""
+    molar_flow_exponential_factor = Real()
+    """Exponential factor F of the molar flow ramp: the change left at the ramp time is 1/F of the initial [-]."""
     molar_flow_log_linear_start = Real()
     """Molar flow at the start of a log-linear ramp [mol/s]."""
     molar_flow_log_linear_end = Real()
@@ -997,6 +1003,8 @@ class Endpoint(_Node):
     """Volumetric flow at the end of an exponential ramp [m3/s]."""
     volumetric_flow_exponential_time = Real()
     """Duration of the volumetric flow exponential ramp [s]."""
+    volumetric_flow_exponential_factor = Real()
+    """Exponential factor F of the volumetric flow ramp: the change left at the ramp time is 1/F of the initial [-]."""
     volumetric_flow_log_linear_start = Real()
     """Volumetric flow at the start of a log-linear ramp [m3/s]."""
     volumetric_flow_log_linear_end = Real()
@@ -1025,6 +1033,8 @@ class Endpoint(_Node):
     """Mass flow at the end of an exponential ramp [kg/s]."""
     mass_flow_exponential_time = Real()
     """Duration of the mass flow exponential ramp [s]."""
+    mass_flow_exponential_factor = Real()
+    """Exponential factor F of the mass flow ramp: the change left at the ramp time is 1/F of the initial [-]."""
     mass_flow_log_linear_start = Real()
     """Mass flow at the start of a log-linear ramp [kg/s]."""
     mass_flow_log_linear_end = Real()
@@ -1053,10 +1063,24 @@ class Endpoint(_Node):
     """Constant boundary pressure [Pa]."""
     pressure_linear_end = Real()
     """Boundary pressure at the end of a linear ramp [Pa]."""
+    pressure_linear_use_step_time = Boolean()
+    """The pressure linear ramp lasts the whole step (off: it lasts pressure_linear_time)."""
+    pressure_linear_time = Real()
+    """Duration of the pressure linear ramp when it does not use the step time; at most the step time [s]."""
     pressure_exponential_end = Real()
     """Boundary pressure at the end of an exponential ramp [Pa]."""
+    pressure_exponential_use_step_time = Boolean()
+    """The pressure exponential ramp lasts the whole step (off: it lasts pressure_exponential_time)."""
+    pressure_exponential_time = Real()
+    """Duration of the pressure exponential ramp when it does not use the step time; at most the step time [s]."""
+    pressure_exponential_factor = Real()
+    """Exponential factor F of the pressure ramp: the change left at the ramp time is 1/F of the initial [-]."""
     pressure_log_linear_end = Real()
     """Boundary pressure at the end of a log-linear ramp [Pa]."""
+    pressure_log_linear_use_step_time = Boolean()
+    """The pressure log-linear ramp lasts the whole step (off: it lasts pressure_log_linear_time)."""
+    pressure_log_linear_time = Real()
+    """Duration of the pressure log-linear ramp when it does not use the step time; at most the step time [s]."""
     pressure_double_exponential_end = Real()
     """Boundary pressure at the end of a double-exponential decay [Pa]."""
     pressure_double_exponential_rate_1 = Real()

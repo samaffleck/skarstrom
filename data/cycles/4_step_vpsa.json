@@ -318,7 +318,7 @@
                                 "ptr_wrapper": {
                                     "valid": 1,
                                     "data": {
-                                        "cereal_class_version": 3,
+                                        "cereal_class_version": 4,
                                         "value0": {},
                                         "End_Value": {
                                             "Value": 10000.0,
@@ -335,7 +335,13 @@
                                             "Value": 60.0,
                                             "Expression": "6e+01",
                                             "DisplayUnitIndex": 0
-                                        }
+                                        },
+                                        "Factor": {
+                                            "Value": 100.0,
+                                            "Expression": "1e+02",
+                                            "DisplayUnitIndex": 0
+                                        },
+                                        "Use_Step_Time": true
                                     }
                                 }
                             },
@@ -490,7 +496,13 @@
                                             "Value": 200.0,
                                             "Expression": "2e+02",
                                             "DisplayUnitIndex": 0
-                                        }
+                                        },
+                                        "Factor": {
+                                            "Value": 100.0,
+                                            "Expression": "1e+02",
+                                            "DisplayUnitIndex": 0
+                                        },
+                                        "Use_Step_Time": true
                                     }
                                 }
                             },
@@ -633,7 +645,7 @@
                                 "ptr_wrapper": {
                                     "valid": 1,
                                     "data": {
-                                        "cereal_class_version": 3,
+                                        "cereal_class_version": 4,
                                         "value0": {},
                                         "End_Value": {
                                             "Value": 100000.0,
@@ -649,7 +661,8 @@
                                             "Value": 30.0,
                                             "Expression": "3e+01",
                                             "DisplayUnitIndex": 0
-                                        }
+                                        },
+                                        "Use_Step_Time": true
                                     }
                                 }
                             },
