@@ -19,7 +19,7 @@ $$
 
 ## Component Mass Balance
 
-The component mass balance accounts for axial dispersion, convection, and adsorption/desorption accordnig to the rate model selected. Axial dispersion can be constant or calculated from different empirical equations. 
+The component mass balance accounts for axial dispersion, convection, and adsorption/desorption accordnig to the rate model selected. Axial dispersion can be constant or calculated from different empirical equations. How $\rho_b$, $\epsilon_t$ and $\epsilon_b$ follow from the deck's parameters, and which settings to check when comparing with another code, is on [Matching Another Model](model-conventions.md#densities-and-voidages).
 
 $$
 \epsilon_t (\frac{\partial y_i}{\partial t} + \frac{y_i}{P}\frac{\partial P}{\partial t} - \frac{y_i}{T}\frac{\partial T}{\partial t}) + \frac{T}{P} \frac{\partial}{\partial z}(\frac{u y_i P}{T}) - \epsilon_b \frac{T}{P}\frac{\partial}{\partial z}(\frac{D_{ax} P}{T} \frac{\partial y_i}{\partial z}) + \frac{RT}{P} \rho_b \frac{\partial q_i}{\partial t} = 0
