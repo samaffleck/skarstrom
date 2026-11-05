@@ -15,7 +15,8 @@
 // shared PSA cycle (psa_cycle_case.h) to CSS on four grids, each twice as fine
 // as the last (10, 20, 40, 80 cells), with each advection scheme, and apply the
 // standard verification analysis (Roache, "Verification and Validation in
-// Computational Science and Engineering", 1998; ASME V&V 20):
+// Computational Science and Engineering", 1998; ASME V&V 20), as implemented
+// in adsim/solver/grid_convergence.h:
 //
 //   * Monotone convergence: the successive differences d_k = f(2N) - f(N) keep
 //     one sign and shrink.
@@ -102,9 +103,12 @@
 
 #include "psa_cycle_case.h"
 
+#include "adsim/solver/grid_convergence.h"
+
 #include <array>
 #include <cstdio>
 #include <map>
+#include <vector>
 
 namespace adsim {
 
@@ -115,7 +119,6 @@ namespace adsim {
     constexpr std::array<int, 4> kGrids = {10, 20, 40, 80};
     constexpr int kCycles = 9;
     constexpr int kFirstAveraged = 5;  // cycles 5..8 are averaged
-    constexpr double kSafetyFactor = 1.25;  // Roache's factor for a three-grid study
 
     enum Kpi { kPurity = 0, kRecovery = 1, kEnergy = 2, kNumKpis = 3 };
     const char* KpiName(int k) {
@@ -186,24 +189,24 @@ namespace adsim {
       return it->second;
     }
 
+    // The analysis of adsim/solver/grid_convergence.h (safety factor 1.25).
+    // d = f(2N) - f(N), coarse to fine; order from the three finest grids; GCI
+    // relative, of the finest grid; extrapolated = f_fine + d_fine / (2^p - 1).
     struct Richardson {
-      std::array<double, kGrids.size() - 1> d{};  // f(2N) - f(N), coarse to fine
-      double order = 0.0;         // from the three finest grids
-      double gci = 0.0;           // relative, of the finest grid
-      double extrapolated = 0.0;  // f_fine + d_fine / (2^p - 1)
+      std::vector<double> d;
+      double order = 0.0;
+      double gci = 0.0;
+      double extrapolated = 0.0;
       double fine = 0.0;
+      GridConvergenceStatus status = GridConvergenceStatus::Invalid;
     };
 
     Richardson Analyse(const std::array<GridRun, kGrids.size()>& runs, int k) {
-      Richardson r;
-      for (size_t i = 0; i + 1 < runs.size(); ++i) r.d[i] = runs[i + 1].value[k] - runs[i].value[k];
-      const double d_mid = r.d[r.d.size() - 2], d_fine = r.d.back();
-      r.fine = runs.back().value[k];
-      r.order = std::log2(d_mid / d_fine);
-      const double denom = std::pow(2.0, r.order) - 1.0;
-      r.gci = kSafetyFactor * std::abs(d_fine / r.fine) / denom;
-      r.extrapolated = r.fine + d_fine / denom;
-      return r;
+      std::vector<int> cells(kGrids.begin(), kGrids.end());
+      std::vector<double> f;
+      for (const auto& run : runs) f.push_back(run.value[k]);
+      const GridConvergenceResult res = AnalyseGridConvergence(cells, f);
+      return {res.differences, res.order, res.gci, res.extrapolated, res.finest, res.status};
     }
 
     // Guards and monotone convergence, common to every scheme.
@@ -228,6 +231,8 @@ namespace adsim {
           << name << " " << KpiName(k) << ": finest difference " << r.d.back() << " vs noise " << sigma_d;
         std::printf("  %-8s %-15s finest difference %.2e, sd of a difference %.1e\n", name, KpiName(k),
                     std::abs(r.d.back()), sigma_d);
+        EXPECT_EQ(r.status, GridConvergenceStatus::Monotone)
+          << name << " " << KpiName(k) << ": " << ToString(r.status);
         for (size_t i = 1; i < r.d.size(); ++i) {
           EXPECT_GT(r.d[i] * r.d[0], 0.0)
             << name << " " << KpiName(k) << ": oscillatory convergence (differences "
