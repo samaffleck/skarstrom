@@ -6,19 +6,24 @@
 # not start a run of its own; open a pull request (a draft is fine) or start it
 # by hand. A new commit on a pull request cancels the run for the previous one.
 #
-# Test scope (ctest):
-#   * Linux and macOS always run the FULL suite, including the paper
-#     replications (core/test/papers/). Those are the tests that catch
-#     numerical regressions, so they run before a pull request merges, not
-#     after.
-#   * Windows runs the FAST subset on pull requests (everything except the
-#     paper replications and the slow CSS-acceleration test) and the full
-#     suite on main, nightly and manual runs.
-#   * ctest's per-test timings are cached between runs, so the next run starts
-#     the longest tests first (the Nguyen 2023 cases take up to 5 minutes each).
+# Test scope (ctest). The tests are in three tiers, set by ctest labels in
+# core/test/CMakeLists.txt:
+#   * the fast tier (no label): unit tests, "does it run" smoke tests on small
+#     grids and a few cycles, and the cheap verification tests;
+#   * `paper`: the paper replications (core/test/papers/);
+#   * `slow`: verification that needs fine grids or many cycles.
+# Pull requests run the fast tier on Linux, macOS and Windows
+# (`ctest -LE "paper|slow"`). Pushes to main, the nightly run and manual runs
+# (Actions > CI > Run workflow, on any branch: use it to run the paper suites
+# on a pull request's branch before merging) run all three tiers on every
+# platform. ctest's per-test timings are cached between runs, so the next run
+# starts the longest tests first.
 #
 # Build caching: every C++ build goes through ccache, Windows included (Ninja
-# + MSVC, preset windows-ninja-release).
+# + MSVC, preset windows-ninja-release). The engine library is built with a
+# precompiled header, which ccache only caches with the sloppiness below (and,
+# for Clang, a PCH without its timestamp: core/CMakeLists.txt); without it
+# every engine source file was recompiled on every run.
 #
 # Pull requests that change no code skip the builds: the `changes` job lists
 # the PR's files, and the C++, Python wheel, Emscripten and subproject jobs run
@@ -47,8 +52,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  # Paper-replication tests and the slow CSS-acceleration test (excluded from the fast subset).
-  SLOW_TESTS: "^(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)Test\\.|^CSSAcceleration\\."
+  # ccache: cache the translation units that use the engine's precompiled header.
+  CCACHE_SLOPPINESS: pch_defines,time_macros
   HOMEBREW_NO_AUTO_UPDATE: "1"
 
 jobs:
@@ -110,17 +115,14 @@ jobs:
             runner: ubuntu-24.04
             preset: linux-release
             jobs: 4
-            full_on_prs: true
           - name: macOS arm64 (Apple clang)
             runner: macos-14
             preset: macos-release
             jobs: 3
-            full_on_prs: true
           - name: Windows x64 (MSVC 2022)
             runner: windows-2022
             preset: windows-ninja-release
             jobs: 4
-            full_on_prs: false
     defaults:
       run:
         shell: bash
@@ -175,16 +177,14 @@ jobs:
           key: ctest-cost-${{ matrix.preset }}-${{ github.run_id }}
           restore-keys: ctest-cost-${{ matrix.preset }}-
 
-      - name: Test (fast subset)
-        if: >-
-          !matrix.full_on_prs && !(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
-            (github.event_name == 'push' && github.ref == 'refs/heads/main'))
-        run: ctest --preset ${{ matrix.preset }} -E "$SLOW_TESTS" --parallel ${{ matrix.jobs }} --timeout 1800
+      - name: Test (fast tier)
+        if: github.event_name == 'pull_request'
+        run: ctest --preset ${{ matrix.preset }} -LE "paper|slow" --parallel ${{ matrix.jobs }} --timeout 900
 
-      - name: Test (full suite)
-        if: >-
-          matrix.full_on_prs || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
-          (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      - name: Test (all tiers)
+        if: github.event_name != 'pull_request'
+        env:
+          ADSIM_FUZZ_TRIALS: "96"  # robustness fuzz decks (the fast tier's default is 32)
         run: ctest --preset ${{ matrix.preset }} --parallel ${{ matrix.jobs }} --timeout 3600
 
       - name: Save test timings

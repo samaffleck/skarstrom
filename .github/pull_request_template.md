@@ -5,7 +5,7 @@
 ## Checklist
 
 - [ ] Commits are signed off (`git commit -s`, see CONTRIBUTING.md)
-- [ ] Tests added or updated; `ctest` (fast subset at least) and `pytest python/tests` pass
+- [ ] Tests added or updated; `ctest -LE "paper|slow"` (the fast tier) at least and `pytest python/tests` pass
 - [ ] Physics changes are checked against a derived or published reference, not recorded output
 - [ ] Serialised classes changed? `cereal_class_version` bumped and old decks still load
 - [ ] Adsorbent/validation data: every value cited; generated pages regenerated (`scripts/docs/`), not hand-edited

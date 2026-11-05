@@ -444,7 +444,11 @@ namespace adsim {
 
   namespace {
     void BuildConnectedCycle(UserData& data) {
-      BuildPsaCycle(data, 30);
+      // 20 cells: the relation holds on any grid, and the ratios asserted in
+      // the test (CSS discrepancy over cycle-to-cycle change) are the same on
+      // 20 and 30 cells (0.6-1.3 measured with upwind and WENO, bound 2;
+      // 30 cells took 8-10 s).
+      BuildPsaCycle(data, 20);
       data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
       data.cycle.GetStep("Feed").step_time_ = 60.0;
       data.cycle.GetStep("Blowdown").step_time_ = 60.0;

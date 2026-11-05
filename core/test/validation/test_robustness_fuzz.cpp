@@ -30,7 +30,9 @@
 // Determinism: the RNG is seeded from a fixed constant plus the trial index, so
 // the suite is fully reproducible (no wall-clock seeding). Set the environment
 // variable ADSIM_FUZZ_TRIALS to scale the count up for an offline dossier run
-// (thousands); the default is CI-friendly.
+// (thousands). The default, 32, is the pull-request sample (the first 32 of
+// the 96 decks this test used to run; about 1 s instead of 5-15 s); CI's runs
+// on main and nightly set ADSIM_FUZZ_TRIALS=96.
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -82,7 +84,7 @@ namespace adsim {
         const int n = std::atoi(env);
         if (n > 0) return n;
       }
-      return 96;  // CI-friendly default
+      return 32;  // pull-request CI; main and nightly CI run 96
     }
 
   } // namespace

@@ -20,11 +20,75 @@ include(GoogleTest)
 # <build>/validation (see test/fixtures/validation_metrics.h);
 # scripts/docs/gen_validation_page.py merges them into
 # core/test/papers/validation_summary.json and renders docs/validation.md.
-gtest_discover_tests(AdsorptionSimulatorTests
-    WORKING_DIRECTORY ${ADSIM_SOURCE_DIR}/core
-    PROPERTIES ENVIRONMENT "ADSIM_VALIDATION_DIR=${ADSIM_BINARY_DIR}/validation"
-    DISCOVERY_TIMEOUT 120
+#
+# Test tiers (ctest labels). The per-PR CI jobs run everything except the
+# labels `paper` and `slow` (`ctest -LE "paper|slow"`); main, the nightly run
+# and manual runs run everything.
+#   paper  the paper replications (core/test/papers/): agreement with
+#          published results. A new paper suite goes in this list.
+#   slow   verification that cannot be made cheap without losing its point
+#          (a convergence order on fine grids, a long approach to CSS, a
+#          regression that only shows on a fine grid or after many cycles).
+#          Everything else should answer "does it run / does the feature
+#          work" on a small grid and a few cycles (AGENTS.md, "Keep the
+#          fast tier fast").
+# Entries are GoogleTest filter patterns (Suite.Name, '*' wildcards).
+set(ADSIM_PAPER_TESTS
+    "Arora2021Test.*" "Casas2012Test.*" "Ferre2026Test.*" "Nguyen2022Test.*"
+    "Nguyen2023Test.*" "Perez2019Test.*" "Streb2021Test.*" "Vysyaraju2024Test.*"
+    "Ward2022Test.*" "WardPini2024Test.*")
+set(ADSIM_SLOW_TESTS
+    # Cycles to CSS with and without Aitken acceleration on a slow cycle.
+    "CSSAcceleration.ReducesCyclesToCSS*"
+    "CSSAcceleration.SlowGeometricModeReachesCssSooner"
+    # CSS behaviour on a slow (rate 0.97) cycle: needs 100+ cycles.
+    "CSSConvergence.SlowCycleFollowsTheGeometricModel"
+    "CSSConvergence.AitkenAccelerationReachesTheSameKpis"
+    # The stopping rule on Perez2019_A against its 1000-cycle KPIs (stops after
+    # cycle 50; the old rule's early stop is at cycle 43).
+    "CSSRobustDeck.*"
+    # Four-grid KPI studies of three schemes on 10-80 cells (the upwind study,
+    # CycleKpiGridConvergence.UpwindConvergesMonotonicallyAtFirstOrder, stays
+    # in the fast tier; WENO's order is also ManufacturedSolutions.WenoOrder).
+    "CycleKpiGridConvergence.HigherOrderSchemesConvergeFasterToTheSameKpis"
+    # Regressions that only show on a fine grid or after many cycles: the
+    # 320-cell stall, the stall at cycle 112, CSS without a max-step cap (83
+    # cycles), a pressurisation pulse stepped over at cycle 47.
+    "FineGridBreakthrough.Ward2022Q50ccmConvergesTo320Cells"
+    "FourStepLPPTest.FourStepLPP_LongRunDoesNotStall"
+    "FourStepLPPTest.FourStepLPP_NoMaxStepReachesCSS"
+    "StepBoundaryRestart.VysyarajuPressurisationApproachesCSSSmoothly"
+    # Cross-code regressions: frozen outlet curves of two other simulators,
+    # replayed at the reference's grid with bounds set from the measured
+    # difference (like the paper suites, an agreement check, not a smoke test).
+    "CrossCodePeese.*"
+    "CrossCodeToPSAil.*"
 )
+set(_adsim_test_props ENVIRONMENT "ADSIM_VALIDATION_DIR=${ADSIM_BINARY_DIR}/validation")
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.22)  # TEST_FILTER
+  list(JOIN ADSIM_PAPER_TESTS ":" _adsim_paper_filter)
+  list(JOIN ADSIM_SLOW_TESTS ":" _adsim_slow_filter)
+  gtest_discover_tests(AdsorptionSimulatorTests
+      WORKING_DIRECTORY ${ADSIM_SOURCE_DIR}/core
+      TEST_FILTER "-${_adsim_paper_filter}:${_adsim_slow_filter}"
+      PROPERTIES ${_adsim_test_props}
+      DISCOVERY_TIMEOUT 120)
+  gtest_discover_tests(AdsorptionSimulatorTests
+      WORKING_DIRECTORY ${ADSIM_SOURCE_DIR}/core
+      TEST_FILTER "${_adsim_paper_filter}"
+      PROPERTIES ${_adsim_test_props} LABELS paper
+      DISCOVERY_TIMEOUT 120)
+  gtest_discover_tests(AdsorptionSimulatorTests
+      WORKING_DIRECTORY ${ADSIM_SOURCE_DIR}/core
+      TEST_FILTER "${_adsim_slow_filter}"
+      PROPERTIES ${_adsim_test_props} LABELS slow
+      DISCOVERY_TIMEOUT 120)
+else()  # no labels: every test in one tier
+  gtest_discover_tests(AdsorptionSimulatorTests
+      WORKING_DIRECTORY ${ADSIM_SOURCE_DIR}/core
+      PROPERTIES ${_adsim_test_props}
+      DISCOVERY_TIMEOUT 120)
+endif()
 
 # Data file names (examples/decks, data/adsorbents, data/cycles) must be shell-safe (letters, digits and . _ - , = + @):
 # downstream front ends copy the decks and adsorbent files as build assets with
