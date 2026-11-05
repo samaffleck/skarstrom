@@ -59,7 +59,10 @@ it with Emscripten; `bash scripts/test_install_consumer.sh` checks
 - The test suite re-saves the example decks (`examples/decks/`) and some
   adsorbent files; small changes to their embedded numbers are expected —
   commit them with your change.
-- Update the docs (`docs/`) and `CHANGELOG.md` (under *Unreleased*).
+- Update the docs (`docs/`) and `CHANGELOG.md` (under *Unreleased*, in an
+  `### Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` or `Security`
+  subsection: the kinds choose the next version). Do not change the version
+  in `CMakeLists.txt`; the release pull request does (see RELEASING.md).
 - Keep the engine front-end free: no GUI, web or JSON-schema code in `core/`;
   it must keep building as a subproject and with Emscripten.
 
@@ -121,4 +124,6 @@ licensed under the Apache License 2.0 (see [LICENSE](LICENSE)).
 
 ## Releases
 
-Maintainers: see [RELEASING.md](RELEASING.md).
+Releases are cut from `main` by merging the "Release X.Y.Z" pull request
+that the Prepare release workflow keeps open; merging it tags the version
+and publishes it to PyPI. Maintainers: see [RELEASING.md](RELEASING.md).

@@ -1,0 +1,166 @@
+# Prepare release: keep ONE release pull request open, on the bot-owned branch
+# bot/release, whenever CHANGELOG.md has entries under Unreleased. The pull
+# request sets the next version in CMakeLists.txt (and CITATION.cff), and moves
+# the Unreleased entries under a dated heading for that version. Merging it is
+# the release: release.yml sees the version change on main, builds the wheels,
+# tags v<version> and publishes to PyPI. See RELEASING.md.
+#
+# The next version comes from scripts/release.py: Added, Changed, Removed or
+# Deprecated entries make a minor release, Fixed or Security alone a patch
+# release; a major release or a pre-release (rc1, ...) only by hand (Actions >
+# Prepare release > Run workflow). A hand-picked bump or suffix is kept when
+# the pull request is refreshed, until it is merged or closed.
+#
+# The branch is rebuilt from main (force-pushed) on every push to main that
+# touches CHANGELOG.md, CMakeLists.txt or CITATION.cff (nearly every merge adds
+# a changelog entry, so the release date stays current and the pull request
+# never conflicts), and weekly; a rebuild that would change nothing is not
+# pushed. Never push to bot/release by hand; change CHANGELOG.md on main.
+# To release on a fixed cadence, merge the pull request on that cadence.
+#
+# Token: pull requests opened with the workflow token start no workflows, so
+# CI does not run on the release pull request (the push to main and the
+# release build still test everything). Set the secret RELEASE_PR_TOKEN (a
+# fine-grained token or GitHub App token with contents + pull requests write)
+# to have CI run on it. With the workflow token, enable Settings > Actions >
+# General > "Allow GitHub Actions to create and approve pull requests".
+name: Prepare release
+
+on:
+  push:
+    branches: [main]
+    paths: [CHANGELOG.md, CMakeLists.txt, CITATION.cff]
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (auto: from the CHANGELOG.md Unreleased entries)"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+      suffix:
+        description: "Pre-release suffix (rc1, b1, a1), empty for a final release"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: true
+
+env:
+  BRANCH: bot/release
+
+jobs:
+  prepare:
+    name: Release pull request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write       # push bot/release
+      pull-requests: write  # open, update or close the pull request
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+      - name: Prepare the release commit
+        id: prep
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          EVENT: ${{ github.event_name }}
+          IN_BUMP: ${{ inputs.bump }}
+          IN_SUFFIX: ${{ inputs.suffix }}
+        run: |
+          set -euo pipefail
+          pr="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+          bump=auto
+          suffix=""
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            bump="$IN_BUMP"
+            suffix="$IN_SUFFIX"
+          elif [ -n "$pr" ]; then
+            # Keep a hand-picked bump/suffix while its pull request is open.
+            git fetch --quiet --depth=2 origin "$BRANCH"
+            msg="$(git log -1 --format=%B FETCH_HEAD)"
+            bump="$(sed -n 's/^Release-Bump: *//p' <<< "$msg")"
+            suffix="$(sed -n 's/^Release-Suffix: *//p' <<< "$msg")"
+            bump="${bump:-auto}"
+          fi
+          current="$(python3 scripts/release.py current)"
+          set +e
+          version="$(python3 scripts/release.py prepare --bump "$bump" --suffix "$suffix")"
+          rc=$?
+          set -e
+          if [ "$rc" = 3 ]; then
+            echo "Nothing under Unreleased in CHANGELOG.md: no release to prepare." | tee -a "$GITHUB_STEP_SUMMARY"
+            if [ -n "$pr" ]; then
+              gh pr close "$pr" --delete-branch --comment "CHANGELOG.md has nothing under Unreleased any more; closing this release pull request."
+            fi
+            echo "version=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [ "$rc" = 0 ] || exit "$rc"
+          {
+            echo "version=${version}"
+            echo "current=${current}"
+            echo "pr=${pr}"
+          } >> "$GITHUB_OUTPUT"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git switch --quiet -c "$BRANCH"
+          git add CMakeLists.txt CHANGELOG.md CITATION.cff
+          git commit --quiet -F - <<EOF
+          Release ${version}
+
+          Prepared by the Prepare release workflow from the Unreleased entries
+          in CHANGELOG.md. Merging this commit to main publishes ${version}.
+
+          Release-Bump: ${bump}
+          Release-Suffix: ${suffix}
+          EOF
+          if [ -n "$pr" ] && [ "$(git rev-parse HEAD^ HEAD^{tree})" = "$(git rev-parse FETCH_HEAD^ FETCH_HEAD^{tree} 2>/dev/null)" ]; then
+            echo "bot/release already holds this release commit on the current main: not pushed."
+          else
+            git push --force origin "$BRANCH"
+          fi
+          echo "Release ${version} prepared on ${BRANCH} (current ${current}, bump ${bump}, suffix '${suffix}')." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the pull request
+        if: steps.prep.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          VERSION: ${{ steps.prep.outputs.version }}
+          CURRENT: ${{ steps.prep.outputs.current }}
+          PR: ${{ steps.prep.outputs.pr }}
+        run: |
+          set -euo pipefail
+          title="Release ${VERSION}"
+          {
+            echo "Merging this pull request releases **Skarstrom ${VERSION}** (main is at ${CURRENT}):"
+            echo "the Release workflow builds the wheels, tags \`v${VERSION}\`, creates the GitHub Release"
+            echo "and publishes to $(if [[ "$VERSION" =~ (a|b|rc)[0-9]+$ ]]; then echo TestPyPI; else echo PyPI; fi)."
+            echo
+            echo "This pull request is maintained by the Prepare release workflow: it is rebuilt from"
+            echo "\`main\` whenever CHANGELOG.md changes there. Do not push to this branch;"
+            echo "to change the version, run Actions > Prepare release > Run workflow with a bump or"
+            echo "suffix. See RELEASING.md."
+            echo
+            echo "## Changes in ${VERSION}"
+            echo
+            python3 scripts/release.py notes "$VERSION"
+          } > "$RUNNER_TEMP/body.md"
+          # GitHub limits a pull request body to 65536 characters.
+          if [ "$(wc -c < "$RUNNER_TEMP/body.md")" -gt 60000 ]; then
+            head -c 60000 "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/body.cut"
+            printf '\n\n... (truncated; the full list is in CHANGELOG.md)\n' >> "$RUNNER_TEMP/body.cut"
+            mv "$RUNNER_TEMP/body.cut" "$RUNNER_TEMP/body.md"
+          fi
+          if [ -z "$PR" ]; then
+            gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr edit "$PR" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi

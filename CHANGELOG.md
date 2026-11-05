@@ -8,6 +8,27 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Added — automatic releases
+- Merging a version change into `main` now releases it: `release.yml` runs on
+  a push to `main` that changes the version in `CMakeLists.txt`, creates the
+  tag `v<version>` itself, uses the version's CHANGELOG section as the
+  GitHub Release notes and publishes to PyPI (TestPyPI for pre-releases). Before,
+  only a hand-pushed tag released, and 0.2.0 and 0.3.0 were never tagged or
+  published. A pushed tag still works. A final version is published only if
+  CHANGELOG.md has its section with nothing left under Unreleased, and
+  CITATION.cff carries it.
+- New workflow `prepare-release.yml` keeps one "Release X.Y.Z" pull request
+  open (branch `bot/release`) whenever Unreleased has entries, rebuilt from
+  `main` on every changelog change. The next version comes from the Unreleased
+  subsections: Added, Changed, Removed or Deprecated give a minor release,
+  Fixed or Security alone a patch release; major releases and pre-releases are
+  chosen by hand (Run workflow with `bump` / `suffix`).
+- `scripts/release.py` (`current`, `next`, `prepare`, `check`, `notes`) does the
+  version arithmetic and the three-file release change, with tests in
+  `scripts/test_release.py` (run by CI's docs job). The version on `main` is
+  now the last released version; it is no longer bumped for development.
+  RELEASING.md and CONTRIBUTING.md describe the new flow.
+
 ### Added — method-of-manufactured-solutions hook and order test
 - Verification hook `UserData::manufactured_sources_`
   (`adsim/equations/manufactured_sources.h`): source terms, functions of z
