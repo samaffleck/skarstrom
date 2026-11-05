@@ -89,7 +89,7 @@ The state test and the consecutive-cycles rule were added after Skarstrom 0.3.0 
 
 ## Accelerating the approach to CSS
 
-The approach to CSS is often a slow geometric decay. Setting **CSS acceleration method** to *Aitken (Graves-Morris)* makes the solver extrapolate the end-of-cycle state of the slow fields (loadings, solid and wall temperatures, mole fractions) from three successive cycles towards the fixed point, check the jump in a throwaway integrator, and only then apply it. Pair it with a CSS method, otherwise the run still does every cycle. It never makes a run fail: a jump that does not integrate is skipped. In the [Perez 2019 tutorial](perez-2019-vpsa.md) it brought CSS from cycle 190 to 182. The algorithm is described on the [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration) page.
+The approach to CSS is often a slow geometric decay. Setting **CSS acceleration method** to *Aitken (Graves-Morris)* makes the solver extrapolate the end-of-cycle state of the slow fields (loadings, solid and wall temperatures, mole fractions) from three successive cycles towards the fixed point, check the jump in a throwaway integrator, and only then apply it. Pair it with a CSS method, otherwise the run still does every cycle. It never makes a run fail: a jump that does not integrate is skipped, and so is a window of three cycles that is not a geometric decay (the log says *CSS acceleration skipped* and why). In the [Perez 2019 tutorial](perez-2019-vpsa.md) it brought CSS from cycle 189 to 144. The algorithm is described on the [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration) page.
 
 ## Practical guidance
 

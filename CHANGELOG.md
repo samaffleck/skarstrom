@@ -8,6 +8,29 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+### Fixed — Aitken CSS acceleration stopped with WENO / van Leer
+- `AccelerateCyclicSteadyState::Accelerate` skipped every three-cycle window
+  whose fitted jump exceeded five natural steps (|mu| > 5, a decay rate above
+  0.83). Once a run settled on a slow mode (mu about -28 at a rate of 0.965,
+  -140 at 0.993) no window passed again: with WENO or van Leer the
+  acceleration test cycle got two jumps and reached CSS at the same cycle as a
+  plain run. The jump is now limited to twenty steps instead
+  (`AccelerateCyclicSteadyState::kMaxStepMultiple`); a limited jump undershoots
+  the fixed point along a contracting mode.
+- A window whose coefficient has the wrong sign for a geometric decay (mu > 0
+  with steps that point the same way, typically a drifting front) is skipped:
+  it used to be applied and moved the state backwards along its trajectory.
+- Skipped windows are logged as "CSS acceleration skipped (reason)" (MEDIUM),
+  like rejected re-seeds, and each window's fit at HIGH; `Accelerate` takes an
+  optional `AccelerationNote*` that carries them.
+- Effect: the test cycle reaches CSS in 24-26 cycles instead of 39 with every
+  scheme (`CSSAcceleration.ReducesCyclesToCSS{Upwind,Weno,VanLeer}`); Perez
+  2019 D1 at cycle 144 instead of 189 (upwind, 30 cells; 179 before the fix)
+  and 198 instead of 237 with WENO on 80 cells (250 before); Nguyen 2023 X on
+  20 cells (one slow mode of rate 0.985) at 111 instead of 435 (435 before;
+  `CSSAcceleration.SlowGeometricModeReachesCssSooner`). Purity and recovery
+  agree with the plain run's within 3e-5. `CSSConvergence` is unchanged.
+
 ## [0.4.0] — 2026-11-05
 
 ### Added — automatic releases

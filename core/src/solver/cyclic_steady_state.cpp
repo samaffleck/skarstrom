@@ -9,7 +9,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
 #include <limits>
+#include <sstream>
 
 #include "adsim/solver/cycle.h"
 #include "adsim/solver/log.h"
@@ -277,7 +279,7 @@ namespace adsim {
     return result;
   }
 
-  bool AccelerateCyclicSteadyState::Accelerate(Equations& state, int cycle_index) {
+  bool AccelerateCyclicSteadyState::Accelerate(Equations& state, int cycle_index, AccelerationNote* note) {
     if (method_ == AccelerationMethod::NONE) return false;
     // Only the Aitken/Graves-Morris scheme is implemented; it is the body below.
     // Future methods would branch here on method_.
@@ -357,13 +359,13 @@ namespace adsim {
     // with scale_f the RMS magnitude of field f. Applied per field as
     // x*_f = x2_f - mu r2_f, this is exact for a single coupled geometric mode.
     double num = 0.0, den = 0.0;
-    double scaled_r1_sq = 0.0, scaled_r2_sq = 0.0;
+    double scaled_r1_sq = 0.0, scaled_r2_sq = 0.0, scaled_r1r2 = 0.0;
     for (size_t i = 0; i < equations.size(); ++i) {
       if (!extrapolable(equations[i])) continue;
       const auto& x0 = s0[i]; const auto& x1 = s1[i]; const auto& x2 = s2[i];
       if (x0.size() != x1.size() || x1.size() != x2.size() || x2.empty()) continue;
 
-      double mag_sq = 0.0, r1_sq = 0.0, r2_sq = 0.0, r2d = 0.0, dd = 0.0;
+      double mag_sq = 0.0, r1_sq = 0.0, r2_sq = 0.0, r1r2 = 0.0, r2d = 0.0, dd = 0.0;
       for (size_t c = 0; c < x2.size(); ++c) {
         const double r1 = x1[c] - x0[c];
         const double r2 = x2[c] - x1[c];
@@ -371,6 +373,7 @@ namespace adsim {
         mag_sq += x2[c] * x2[c];
         r1_sq  += r1 * r1;
         r2_sq  += r2 * r2;
+        r1r2   += r1 * r2;
         r2d    += r2 * d;
         dd     += d * d;
       }
@@ -380,24 +383,80 @@ namespace adsim {
       den += w * dd;
       scaled_r1_sq += w * r1_sq;
       scaled_r2_sq += w * r2_sq;
+      scaled_r1r2  += w * r1r2;
     }
 
-    // No curvature to fit, or the sequence is not contracting toward a fixed point
-    // (the scaled step must be shrinking). Either way, do not extrapolate.
-    if (den < 1e-300 || scaled_r2_sq >= scaled_r1_sq || scaled_r2_sq < 1e-300) {
+    // Every full window is consumed whether or not it is used, so the next
+    // window is three fresh cycles. (s0, s1, s2 refer into history_: clear it
+    // only on the way out.)
+    auto skip = [&](const std::string& reason) {
       history_.clear();
+      if (note) note->skipped = reason;
       return false;
+    };
+    auto fmt = [](double x, int digits = 3) {
+      std::ostringstream ss;
+      ss << std::setprecision(digits) << x;
+      return ss.str();
+    };
+
+    if (scaled_r2_sq < 1e-300) return skip("the state no longer changes");
+    if (den < 1e-300) return skip("no curvature to fit");
+
+    // The scaled step must be shrinking, or the sequence is not contracting
+    // toward a fixed point and there is nothing to extrapolate to.
+    const double step_ratio = std::sqrt(scaled_r2_sq / scaled_r1_sq);
+    if (!(step_ratio < 1.0)) {
+      return skip("steps not shrinking: step ratio " + fmt(step_ratio));
     }
 
-    const double mu = num / den;
+    double mu = num / den;
 
-    // Safeguard against near-singular curvature: for a single geometric mode of
-    // rate rho the coefficient is mu = rho / (rho - 1), so |mu| grows without
-    // bound as rho -> 1. Cap |mu| at 5 (rho ~ 0.83); a larger implied jump means
-    // the three points are poorly described by one mode, so skip.
-    if (!(std::abs(mu) <= 5.0)) {
-      history_.clear();
-      return false;
+    // The decay rate a single geometric mode would have, from the projection of
+    // the second step on the first: rate = (r1 . r2) / (r1 . r1). It lies below
+    // the step ratio, so below 1. For one mode of rate rho, r2 = rho r1 and
+    // mu = rho / (rho - 1): negative for monotone decay (0 < rho < 1), when the
+    // jump continues along the steps, and positive only for an oscillating mode
+    // (rho < 0). A coefficient of the other sign means the three samples are not
+    // one geometric mode -- typically a front that drifts by the same amount
+    // every cycle, where d = r2 - r1 is mostly noise -- and a jump would move
+    // the state BACK along its own trajectory (undoing natural progress). Skip.
+    const double rate = scaled_r1r2 / scaled_r1_sq;
+    if (note) {
+      note->fit = "mu = " + fmt(mu) + ", step ratio " + fmt(step_ratio, 4)
+                + ", single-mode rate " + fmt(rate, 4);
+    }
+    //
+    // A positive mu belongs to an oscillating mode, rho < 0, for which
+    // mu = rho / (rho - 1) lies in (0, 1/2) while |rho| < 1. A positive mu of 1
+    // or more has no contracting single mode behind it, so it is skipped too,
+    // never limited: the limit below applies to negative mu only. (With the
+    // weighted inner product used throughout, mu >= 1/2 is the same as
+    // |r2| >= |r1|, so after the step-ratio test this guard only catches
+    // rounding; it states the rule rather than relying on that identity.)
+    if ((rate > 0.0) != (mu < 0.0) || mu >= 1.0) {
+      return skip("steps do not follow one geometric mode: mu = " + fmt(mu)
+                  + ", single-mode rate " + fmt(rate));
+    }
+
+    // Limit the jump. |mu| grows without bound as the rate approaches 1
+    // (|mu| = 5 at a rate of 0.83, 20 at 0.95, 28 at 0.965, 140 at 0.993).
+    // Such slow modes are where acceleration matters most, so the jump is
+    // SHORTENED to kMaxStepMultiple natural steps rather than dropped (an
+    // earlier version skipped every window with |mu| > 5, which stopped
+    // acceleration altogether once the run settled on its slow mode). Along a
+    // contracting mode of rate rho, a jump of m < |mu| steps multiplies the
+    // remaining error by 1 - m (1 - rho) / rho, which is between 0 and 1: it
+    // undershoots, and never jumps past the fixed point. The limit bounds what
+    // the jump does to a faster mode of rate rho_f still in the samples
+    // (multiplied by 1 - m (1 - rho_f) / rho_f). 20 was chosen on measured
+    // decks: up to 20 the KPIs at the CSS stop stayed within the plain run's
+    // stopping error; at 50 one deck (Perez 2019 F, 10 cells) stopped 1.6x
+    // further from its CSS than the plain run.
+    if (!std::isfinite(mu)) return skip("no curvature to fit");
+    if (mu < -kMaxStepMultiple) {
+      if (note) note->fit += " (jump limited to mu = " + fmt(-kMaxStepMultiple) + ")";
+      mu = -kMaxStepMultiple;
     }
 
     // Apply x*_f = x2_f - mu r2_f per field, then PROJECT back onto the physical

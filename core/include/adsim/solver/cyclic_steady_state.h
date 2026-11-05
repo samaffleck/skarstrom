@@ -212,11 +212,30 @@ namespace adsim {
   // direction, keeps the re-seed balanced so the fields do not fight and snap
   // back. Each re-seed is validated in a throwaway integrator before it is
   // committed (see CoupledSolver), so acceleration never destabilises a run.
+  //
+  // The jump is limited to kMaxStepMultiple natural steps: when the fitted
+  // coefficient asks for more (a slow mode, rate above about 0.95), the jump is
+  // shortened to that limit rather than dropped. A shortened jump along a
+  // contracting mode undershoots the fixed point, so it still closes part of
+  // the gap. A window that is not a geometric decay is skipped (see
+  // Accelerate).
+  struct AccelerationNote {
+    std::string skipped;  // set when a full three-cycle window is rejected: the reason
+    std::string fit;      // set for every full window: the fitted coefficient and rates
+  };
+
   class AccelerateCyclicSteadyState {
   public:
     AccelerationMethod method_ = AccelerationMethod::NONE;
 
-    bool Accelerate(Equations& state, int cycle_index);
+    // Largest jump, in multiples of the last natural cycle-to-cycle step.
+    static constexpr double kMaxStepMultiple = 20.0;
+
+    // Called after every cycle with the natural end-of-cycle state. Returns
+    // true when it has moved the extrapolable fields of state (the caller then
+    // validates and commits the re-seed). note, when given, says why a full
+    // window was skipped and what was fitted.
+    bool Accelerate(Equations& state, int cycle_index, AccelerationNote* note = nullptr);
 
   private:
     // Rolling history of natural end-of-cycle snapshots. Each snapshot holds one
