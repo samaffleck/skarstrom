@@ -1,26 +1,49 @@
-# Release: on a version tag (v0.1.0, or a pre-release such as v0.2.0rc1),
-# build the Python wheels (cibuildwheel), an sdist that contains the submodule
-# sources, and a full source tarball; attach them to a GitHub Release; and,
-# when enabled, publish to PyPI (final tags) or TestPyPI (pre-release tags)
-# with trusted publishing (OpenID Connect, no API tokens).
+# Release: build the Python wheels (cibuildwheel), an sdist that contains the
+# submodule sources, and a full source tarball; tag the commit and attach them
+# to a GitHub Release; and, when enabled, publish to PyPI (final versions) or
+# TestPyPI (pre-releases) with trusted publishing (OpenID Connect, no tokens).
 #
-# The tag must equal the version in CMakeLists.txt (ADSIM_PROJECT_VERSION +
-# ADSIM_VERSION_SUFFIX), e.g. tag v0.2.0rc1 for 0.2.0 + "rc1". See RELEASING.md.
+# What starts a release (see RELEASING.md):
+#   * A push to main that changes the version in CMakeLists.txt
+#     (ADSIM_PROJECT_VERSION + ADSIM_VERSION_SUFFIX) to one that has no tag
+#     yet. This is the normal route: merging the release pull request that
+#     prepare-release.yml keeps open. The workflow creates the tag v<version>.
+#   * A pushed tag v<version> (the manual route; the tag must equal the version
+#     in CMakeLists.txt at that commit).
+#   * Actions > Release > Run workflow on main with "publish" ticked: releases
+#     the version in CMakeLists.txt if it has no tag yet (e.g. to retry).
+# Any other run (a manual run without "publish", a main push that leaves the
+# version alone) only builds the artefacts. A final version is published only
+# if CHANGELOG.md has its section, nothing is left under Unreleased and
+# CITATION.cff carries it (`python scripts/release.py check <version>`), so
+# main is never published under a version whose changelog does not list it.
 #
 # Publishing stays off until the repository owner sets up the trusted
 # publishers and environments (RELEASING.md) and sets the repository variables:
-#   PYPI_PUBLISH=true      final tags      -> PyPI      (environment "pypi")
-#   TESTPYPI_PUBLISH=true  pre-release tags -> TestPyPI (environment "testpypi")
-# A manual run (workflow_dispatch) only builds the artefacts.
+#   PYPI_PUBLISH=true      final versions -> PyPI      (environment "pypi")
+#   TESTPYPI_PUBLISH=true  pre-releases   -> TestPyPI  (environment "testpypi")
+# The environments must accept deployments from main as well as v* tags.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+    branches: [main]
+    # Path filters apply to the branch push only; a tag push always runs.
+    paths: [CMakeLists.txt]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Release the version in CMakeLists.txt if it has no tag yet (main only)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   version:
@@ -29,21 +52,74 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
       prerelease: ${{ steps.v.outputs.prerelease }}
+      release: ${{ steps.v.outputs.release }}
+      tag: ${{ steps.v.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - id: v
-        name: Read the version and compare it with the tag
+        name: Read the version and decide whether this run releases it
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
-          version="$(sed -n 's/^set(ADSIM_PROJECT_VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)"
-          suffix="$(sed -n 's/^set(ADSIM_VERSION_SUFFIX "\([a-z0-9]*\)").*/\1/p' CMakeLists.txt)"
-          full="${version}${suffix}"
-          echo "version=${full}" >> "$GITHUB_OUTPUT"
-          if [ -n "$suffix" ]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
-          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v${full}" ]; then
-            echo "::error::tag $GITHUB_REF_NAME does not match the version in CMakeLists.txt (v${full})"
+          set -euo pipefail
+          read_version() {  # CMakeLists.txt text on stdin -> version + suffix
+            local text version suffix
+            text="$(cat)"
+            version="$(sed -n 's/^set(ADSIM_PROJECT_VERSION \([0-9.]*\)).*/\1/p' <<< "$text")"
+            suffix="$(sed -n 's/^set(ADSIM_VERSION_SUFFIX "\([a-z0-9]*\)").*/\1/p' <<< "$text")"
+            echo "${version}${suffix}"
+          }
+          full="$(read_version < CMakeLists.txt)"
+          [ -n "$full" ] || { echo "::error::no version found in CMakeLists.txt"; exit 1; }
+          if [[ "$full" =~ (a|b|rc)[0-9]+$ ]]; then prerelease=true; else prerelease=false; fi
+          tag_exists() { git ls-remote --exit-code --tags origin "refs/tags/v${full}" > /dev/null; }
+
+          release=false
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            if [ "$GITHUB_REF_NAME" != "v${full}" ]; then
+              echo "::error::tag $GITHUB_REF_NAME does not match the version in CMakeLists.txt (v${full})"
+              exit 1
+            fi
+            python3 scripts/release.py check "$full" || echo "::warning::released from a tag although the check above failed"
+            release=true
+          elif [ "$GITHUB_REF" = "refs/heads/main" ] && { [ "$EVENT" = "push" ] || [ "$PUBLISH" = "true" ]; }; then
+            if [ "$EVENT" = "push" ]; then
+              previous=""
+              if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+                git fetch --quiet --depth=1 origin "$BEFORE"
+                previous="$(git show "$BEFORE:CMakeLists.txt" | read_version)"
+              fi
+              if [ "$previous" = "$full" ]; then
+                echo "The version is still ${full}: build only."
+              elif tag_exists; then
+                echo "::notice::v${full} is already tagged: build only."
+              else
+                echo "Version changed from ${previous:-?} to ${full}."
+                release=true
+              fi
+            elif tag_exists; then
+              echo "::error::v${full} is already tagged; nothing to publish."
+              exit 1
+            else
+              release=true
+            fi
+            if [ "$release" = true ] && ! python3 scripts/release.py check "$full"; then
+              echo "::error::${full} is not ready to publish (see above). Prepare the release with the Prepare release workflow or scripts/release.py prepare."
+              exit 1
+            fi
+          elif [ "$PUBLISH" = "true" ]; then
+            echo "::error::publish runs only on main (this run is on $GITHUB_REF)"
             exit 1
           fi
-          echo "version ${full} (pre-release: ${suffix:-no})"
+          {
+            echo "version=${full}"
+            echo "prerelease=${prerelease}"
+            echo "release=${release}"
+            echo "tag=v${full}"
+          } >> "$GITHUB_OUTPUT"
+          echo "version ${full} (pre-release: ${prerelease}, release: ${release})" | tee -a "$GITHUB_STEP_SUMMARY"
 
   wheels:
     name: Wheels ${{ matrix.name }}
@@ -133,11 +209,14 @@ jobs:
   github-release:
     name: GitHub Release
     needs: [version, wheels, sdist, source-tarball]
-    if: github.ref_type == 'tag'
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-24.04
     permissions:
-      contents: write  # create the release and upload its assets
+      contents: write  # create the tag and the release, upload its assets
     steps:
+      - uses: actions/checkout@v4
+      - name: Release notes from CHANGELOG.md
+        run: python3 scripts/release.py notes "${{ needs.version.outputs.version }}" > "$RUNNER_TEMP/notes.md"
       - uses: actions/download-artifact@v4
         with:
           pattern: dist-*
@@ -147,9 +226,14 @@ jobs:
         with:
           name: source-tarball
           path: dist
+      # Creates the tag at this commit when it does not exist (a release from
+      # main). A tag made with the workflow token starts no further workflow.
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: Skarstrom ${{ needs.version.outputs.version }}
+          body_path: ${{ runner.temp }}/notes.md
           prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
           generate_release_notes: true
           fail_on_unmatched_files: true
@@ -159,9 +243,10 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [version, wheels, sdist]
+    # After the GitHub Release, so a published version always has its tag.
+    needs: [version, github-release]
     if: >-
-      github.ref_type == 'tag' && needs.version.outputs.prerelease == 'false' &&
+      needs.version.outputs.release == 'true' && needs.version.outputs.prerelease == 'false' &&
       vars.PYPI_PUBLISH == 'true'
     runs-on: ubuntu-24.04
     environment:
@@ -181,9 +266,10 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [version, wheels, sdist]
+    # After the GitHub Release, so a published version always has its tag.
+    needs: [version, github-release]
     if: >-
-      github.ref_type == 'tag' && needs.version.outputs.prerelease == 'true' &&
+      needs.version.outputs.release == 'true' && needs.version.outputs.prerelease == 'true' &&
       vars.TESTPYPI_PUBLISH == 'true'
     runs-on: ubuntu-24.04
     environment:
