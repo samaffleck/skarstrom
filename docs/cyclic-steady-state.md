@@ -161,16 +161,16 @@ A study changes the deck between runs. A warm start from the previous run's CSS 
 
 | Deck (cells, base CSS cycles) | Edit | Cold | Warm | Purity / recovery difference |
 |---|---|---|---|---|
-| Illustrative_TSA_13X (30 cells, 16) | Adsorption step +10 % | 15 | 9 | 7e-8 / 4e-7 |
-| Illustrative_TSA_13X | feed CO₂ 0.15 → 0.20 | 15 | 10 | 5e-7 / 3e-6 |
-| Illustrative_TSA_13X | cells × 1.5 (30 → 45) | 16 | 5 | 6e-7 / 4e-6 |
-| Perez2019_A (80 cells, 49) | Feed step +10 % | 46 | 31 | 2e-6 / 6e-5 |
-| Perez2019_A | feed CO₂ 0.15 → 0.20 | 50 | 44 | 4e-11 / 4e-5 |
-| Perez2019_A | cells × 1.5 (80 → 120) | 49 | 6 | 2e-6 / 3e-5 |
-| Nguyen2023_Exp_VI (80 cells, 80) | Feed 2 step +10 % | 68 | 50 | 7e-7 / 1e-5 |
-| Nguyen2023_Exp_VI | connected Feed 1 + Pressurisation 50 → 55 s (histories stretched) | 76 | 45 | 7e-7 / 7e-7 |
+| Illustrative_TSA_13X (30 cells, 16) | Adsorption step +10 % | 15 | 9 | 1e-7 / 7e-7 |
+| Illustrative_TSA_13X | feed CO₂ 0.15 → 0.20 | 15 | 10 | 1e-7 / 9e-7 |
+| Illustrative_TSA_13X | cells × 1.5 (30 → 45) | 16 | 5 | 4e-7 / 3e-6 |
+| Perez2019_A (80 cells, 49) | Feed step +10 % | 45 | 31 | 2e-6 / 7e-5 |
+| Perez2019_A | feed CO₂ 0.15 → 0.20 | 50 | 45 | 2e-9 / 3e-5 |
+| Perez2019_A | cells × 1.5 (80 → 120) | 49 | 6 | 6e-7 / 7e-6 |
+| Nguyen2023_Exp_VI (80 cells, 80) | Feed 2 step +10 % | 68 | 49 | 1e-6 / 2e-5 |
+| Nguyen2023_Exp_VI | connected Feed 1 + Pressurisation 50 → 55 s (histories stretched) | 76 | 45 | 1e-6 / 1e-5 |
 | Nguyen2023_Exp_VI | feed CO₂ 0.15 → 0.20 | 52 | 48 | 4e-6 / 4e-5 |
-| Nguyen2023_Exp_VI | cells × 1.5 (80 → 120) | 81 | 16 | 5e-6 / 1e-5 |
+| Nguyen2023_Exp_VI | cells × 1.5 (80 → 120) | 81 | 17 | 3e-6 / 1e-5 |
 
 The saving is largest when the edit leaves the bed close to its old CSS, as with a grid refinement. An edit that moves the CSS a long way still leaves many cycles of slow approach. The largest differences come from where the stopping rule halts each run, not from the start.
 
