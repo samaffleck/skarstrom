@@ -42,6 +42,7 @@
 #include "adsim/equations/iast.h"
 #include "adsim/equations/mass_transfer_model.h"
 #include "adsim/objects/reactor_equations.h"
+#include "adsim/objects/reaction.h"
 #include "adsim/objects/domain.h"
 #include "adsim/equations/equation.h"
 #include "adsim/math/expression_param.h"
@@ -204,6 +205,9 @@ namespace adsim {
     ExpressionParam thermal_conductivity_{0.5};     // Thermal conductivity [W/(m-K)]
     ExpressionParam ep_{0.35};                      // Intra-particle void fraction [m3/m3]
     AdsorptionSource adsorption_source_{};
+    // Heterogeneous reactions this solid catalyses (objects/reaction.h); empty
+    // for a plain sorbent. Rates are per kg of this solid.
+    ReactionSource reaction_source_{};
 
     // Defined out-of-line in porous_media.cpp so it can cascade into
     // adsorption_source_ (isotherms + MTC models) once those are migrated.
@@ -212,7 +216,7 @@ namespace adsim {
   private:
     friend class cereal::access;
     template<class Archive>
-    void serialize(Archive& ar, std::uint32_t const /*version*/) {
+    void serialize(Archive& ar, std::uint32_t const version) {
       ar(
         cereal::make_nvp("Name", name_),
         cereal::make_nvp("Density", solid_density_),
@@ -221,6 +225,12 @@ namespace adsim {
         cereal::make_nvp("Adsorption_Source", adsorption_source_),
         cereal::make_nvp("Particle_Void_Fraction", ep_)
       );
+      // Version 5 adds the reactions; older archives have none.
+      if (version >= 5) {
+        ar(cereal::make_nvp("Reaction_Source", reaction_source_));
+      } else if constexpr (Archive::is_loading::value) {
+        reaction_source_ = ReactionSource{};
+      }
     }
   };
 
@@ -495,3 +505,7 @@ namespace adsim {
   }
 
 } // end adsim namespace
+
+// In the header (not porous_media.cpp) because Adsorbent::serialize branches
+// on it: every translation unit that saves or loads a deck must see version 5.
+CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
