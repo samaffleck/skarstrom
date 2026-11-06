@@ -16,23 +16,18 @@ namespace adsim {
       return false;
     }
 
-    // Check that each layer has at least one adsorbent selected
-    for (size_t i = 0; i < layers_.layers_.size(); ++i) {
-      const auto& layer = layers_.layers_[i];
-      if (layer.composition_.empty()) {
-        errorMsg += "Error: Layer \"" + layer.name_ + "\" has no adsorbent selected. Each layer must have at least one adsorbent.\n";
-        return false;
-      }
-      // Every composition entry must name an adsorbent that still exists in the
-      // library; otherwise the directory lookups during initialisation throw.
-      for (const auto& [ads_id, frac] : layer.composition_) {
-        if (!dir.Contains(ads_id)) {
-          errorMsg += "Error: Layer \"" + layer.name_ + "\" references adsorbent id " + std::to_string(ads_id)
-                    + ", which does not exist in the adsorbent library. Remove it from the layer composition or select another adsorbent.\n";
-          return false;
-        }
+    // Each layer's composition (CheckLayerComposition, porous_media.h): every
+    // error of every layer is reported; warnings are left to the run-start
+    // deck warnings (LayerCompositionWarnings).
+    bool compositions_ok = true;
+    for (const auto& layer : layers_.layers_) {
+      for (const auto& issue : CheckLayerComposition(layer, dir)) {
+        if (issue.severity != LayerCompositionIssue::Severity::Error) continue;
+        errorMsg += issue.message + "\n";
+        compositions_ok = false;
       }
     }
+    if (!compositions_ok) return false;
 
     // Check that LTNE mode has a valid particle heat transfer model
     if (equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL) {

@@ -311,7 +311,13 @@ TEST(ReactionDeck, RemovingTheSolidRemovesItsReactions) {
   Reformer b;
   Build(b);
   UserData& d = b.sim.Data();
-  RemoveAdsorbentFromDeck(d, b.ni);
+  // The catalyst is part of the layer's blend: refused until the blend no
+  // longer holds it.
+  std::string why;
+  EXPECT_FALSE(RemoveAdsorbentFromDeck(d, b.ni, why));
+  EXPECT_TRUE(d.adsorbent_directory.Contains(b.ni));
+  build::SetLayerComposition(d, b.layer, {{b.sorbent, 1.0}});
+  EXPECT_TRUE(RemoveAdsorbentFromDeck(d, b.ni, why)) << why;
   EXPECT_FALSE(d.adsorbent_directory.Contains(b.ni));
   std::string err;
   EXPECT_TRUE(RemoveComponentFromDeck(d, H2O, err)) << err;
