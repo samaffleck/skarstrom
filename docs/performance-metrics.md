@@ -65,7 +65,7 @@ $$
 \text{Thermal Energy} = \frac{\sum_{s} Q^{+}_{s}\thinspace t_s}{n_{\text{product}}\thinspace M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
 $$
 
-where $Q^{+}_{s}$ is the total power of the step's heating [energy sources](energy-balance.md#energy-source-heating-cooling) (those with a positive power) and $t_s$ the step time. A heating medium's duty will be added to it once the engine has one.
+where $Q^{+}_{s}$ is the total power of the step's heating [energy sources](energy-balance.md#energy-source-heating-cooling) (those with a positive power) and $t_s$ the step time. Today it counts the energy sources only: the heat a step's [heating medium](wall-energy-balance.md#heating-medium-jacket) (jacket) passes through the wall is not logged yet, so it is **not** in the thermal energy or the cooling duty. It will be added to both once it is.
 
 **Cooling Duty** (`cooling_duty`) — the heat removed by the cooling energy sources (negative power) over the cycle per unit mass of net product, reported as a **positive** magnitude with the same formula using $|Q^{-}_{s}|$. It is for information: it is not subtracted from the thermal energy.
 
@@ -86,8 +86,8 @@ where $n_{\text{product}} = n_{\text{product, out}} - n_{\text{product, recycled
 | KPI | What it counts | Field |
 |---|---|---|
 | Electrical energy | compressor and vacuum-pump work | `electrical_energy` (also `energy_consumption`) |
-| Thermal energy | heat supplied by the heating energy sources | `thermal_energy` |
-| Cooling duty | heat removed by the cooling energy sources (positive) | `cooling_duty` |
+| Thermal energy | heat supplied by the heating energy sources (a heating medium's duty: not yet) | `thermal_energy` |
+| Cooling duty | heat removed by the cooling energy sources, positive (a cooling medium: not yet) | `cooling_duty` |
 
 All three are in **J per kg of net product**. They are separate: add them only if your comparison means to (electricity and heat are not worth the same, so a plant study usually weighs them, for example by converting heat to primary energy or cost). To convert:
 
