@@ -293,7 +293,7 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
       qm.name = "q_m0";
       qm.scale = Scale::Log;
       qm.lower = s.q_max * 1e-2;
-      qm.upper = s.q_max * 1e2;
+      qm.upper = s.q_max * 10.0;  // the monolayer is below the loading near saturation
       qm.value = s.q_max * 0.4;
       qm.pair_energy = "dH_m";
       qm.note = "bounds apply to q_m at T_ref";
@@ -329,7 +329,11 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
       };
       gab_constant("C0", "dH_C", 1e-2, 1e4, 5.0);
       gab_energy("dH_C");
-      gab_constant("K0", "dH_K", 0.05, 1.2, 0.8);
+      // K is 0.5-0.95 for water on sorbents (the multilayer is close to
+      // liquid); a lower bound of 0.3 keeps the search out of the near-linear
+      // corner (K -> 0 with a huge q_m), a local minimum that the global
+      // search can end in on some platforms.
+      gab_constant("K0", "dH_K", 0.3, 1.2, 0.8);
       gab_energy("dH_K");
       break;
     }
@@ -339,12 +343,13 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
       // keep their defaults (Young et al. 2021), G freed with several
       // temperatures; E10 is the bulk liquid's heat of condensation (water).
       // Bounds on C_E and F are those that keep C in [1e-2, 1e4] and K in
-      // [0.05, 1.2] at T_ref (the GAB kind's ranges), so the search stays
+      // [0.3, 1.2] at T_ref (the GAB kind's ranges), so the search stays
       // clear of the pole: C_E = E10 + exp(D T) + R T ln C,
       // F = E10 - G T + R T ln K.
       const double D0 = 0.023744, G0 = -47.814, RTr = constants::kIdealGasConstant * t_ref;
       const double E10r = 57220.0 - 44.38 * t_ref;
       capacity("q_m", 0.01);
+      out.back().upper = s.q_max * 10.0;
       out.back().value = s.q_max * 0.4;
       const double ce0 = E10r + std::exp(D0 * t_ref);
       exponent("C_E", ce0 + RTr * std::log(1e-2), ce0 + RTr * std::log(1e4), ce0 + RTr * std::log(5.0));
@@ -355,7 +360,7 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
       d.note = "held at the Young et al. (2021) value; free it with data over a wide temperature range";
       out.push_back(d);
       const double f0 = E10r - G0 * t_ref;
-      exponent("F", f0 + RTr * std::log(0.05), f0 + RTr * std::log(1.2), f0 + RTr * std::log(0.8));
+      exponent("F", f0 + RTr * std::log(0.3), f0 + RTr * std::log(1.2), f0 + RTr * std::log(0.8));
       ParamSpec g;
       g.name = "G";
       g.scale = Scale::Linear;

@@ -162,6 +162,7 @@ namespace adsim {
     void UpdateDiagnosticEquations(UserData* udata);
     void UpdateBoundaryConditions(UserData* udata, double time);
     void SetCurrentStep(Step* step) { current_step_ = step; }
+    const Step* CurrentStep() const { return current_step_; }
     void Resize(size_t n_cells);
     int GetSystemSize();
     void SetInitialConditions(InitialConditions& ic, ThermalEquilibriumMode mode);

@@ -62,6 +62,8 @@ set(ADSIM_SLOW_TESTS
     "CSSAcceleration.ReducesCyclesToCSS*"
     "FourStepLPPTest.FourStepLPP_ThermalCSS_AccelerationReducesCycles"
     "CSSAcceleration.SlowGeometricModeReachesCssSooner"
+    # Anderson acceleration on Perez 2019 A and E as shipped (~50 s).
+    "CSSAndersonDecks.*"
     # CSS behaviour on a slow (rate 0.97) cycle: needs 100+ cycles.
     "CSSConvergence.SlowCycleFollowsTheGeometricModel"
     "CSSConvergence.AitkenAccelerationReachesTheSameKpis"

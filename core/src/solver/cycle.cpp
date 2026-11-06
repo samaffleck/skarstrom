@@ -225,6 +225,7 @@ namespace adsim {
 
       if (!validate_boundary(step.top_boundary_condition_.get(), "top", step))    return false;
       if (!validate_boundary(step.bottom_boundary_condition_.get(), "bottom", step)) return false;
+      if (!step.heating_medium_.PerformChecks(step.step_name_, error_message)) return false;
     }
 
     if (!CheckConnectionPartners(step_list_, error_message)) return false;

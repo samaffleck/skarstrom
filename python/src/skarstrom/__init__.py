@@ -684,6 +684,7 @@ class Simulation:
         progress: Optional[Callable[[Dict[str, Any]], Optional[bool]]] = None,
         log_level: str = "low",
         on_message: Optional[Callable[[str, str], None]] = None,
+        initial_state: Optional[CycleState] = None,
     ) -> RunResult:
         """Run the deck (blocking) and return the run summary.
 
@@ -692,8 +693,16 @@ class Simulation:
         total_steps, fraction); return False to cancel. ``on_message`` gets
         the solver's messages up to ``log_level`` ("low", "medium", "high").
         Ctrl-C cancels the run and raises KeyboardInterrupt.
+
+        ``initial_state`` (a :class:`CycleState`, e.g. a previous run's
+        :meth:`final_state`) starts this run from that state instead of the
+        initial conditions, for this run only (see :meth:`set_initial_state`
+        for every later run). A state on other cells per layer is remapped
+        onto this deck's grid and its histories are stretched onto changed
+        step times (:meth:`prepare_state`); one that does not fit (other
+        components, layers or steps) fails the run with the reason.
         """
-        return self._sim.run(cycles, progress, log_level, on_message)
+        return self._sim.run(cycles, progress, log_level, on_message, initial_state)
 
     # ---- cycle state: restart, warm start, the cycle map ------------------------------
     @property
@@ -755,15 +764,24 @@ class Simulation:
         """The warm-start state, or None."""
         return self._sim.initial_state
 
+    def prepare_state(self, state: CycleState) -> tuple:
+        """``(state, note)``: ``state`` as a run of this deck would start from it.
+
+        Remapped onto this deck's cells per layer (conservatively: every
+        component's inventory in every layer is kept) and with its endpoint
+        histories stretched onto changed step times; ``note`` says what was
+        done ('' when nothing). Raises ValueError when the state does not fit.
+        """
+        return self._sim.prepare_state(state)
+
     def check_state(self, state: CycleState) -> str:
         """Why ``state`` cannot start a run of this deck ('' when it can).
 
-        Refused: other components, layers or cell counts (remapping is not
-        supported yet), another step or endpoint structure, and changed step
-        times when the deck's connections or buffer tanks read the state's
-        histories (resampling them is not supported yet). A different DAE
-        layout (e.g. another energy balance) is found when the run starts and
-        fails it with the reason.
+        Refused: other components, layers or void regions, or another step or
+        endpoint structure. Other cells per layer and changed step times are
+        fine (see :meth:`prepare_state`). A different DAE layout (e.g. another
+        energy balance) is found when the run starts and fails it with the
+        reason.
         """
         return self._sim.check_state(state)
 

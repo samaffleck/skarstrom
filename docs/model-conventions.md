@@ -35,6 +35,27 @@ A layer of several adsorbents (`composition` mass fractions $w_k$) uses the mixt
 
 The mass fractions of a layer must sum to 1 (within $10^{-6}$) and none may be negative; otherwise the deck checks refuse the deck (`CheckLayerComposition` in `porous_media.h`, which `sim.check()` and every run use). The fractions are never renormalised. A solid at mass fraction 0 is allowed but takes no part in the run, and the run-start warnings say so. A solid whose components all use the Inert isotherm is a valid member of a blend (an inert diluent or packing). A solid that is part of a blend (a layer that also holds another solid) cannot be removed from the deck until it has been taken out of that layer's composition. The blend edits of `deck_edit.h` (`AddSolidToLayer`, `SetLayerMassFraction`, `RemoveSolidFromLayer`) keep the fractions summing to 1 by rescaling the other solids in proportion.
 
+**Varying a fraction in a study.** A mass fraction is a number, not an expression, and changing one solid's fraction on its own breaks the sum. So the deck checks refuse it, and the error says how to proceed: set all of the layer's fractions together at each point. For two solids that means $x$ and $1 - x$. In Python:
+
+```python
+import skarstrom as sk
+
+base = sk.Simulation("blend.json")          # one layer of "13X" and "Glass beads"
+for x in (0.6, 0.7, 0.8, 0.9):
+    sim = base.copy()
+    sim.layers[0].set_composition({"13X": x, "Glass beads": 1 - x})
+    result = sim.run()
+    print(x, result.status, sim.kpis(cycle=-1))
+```
+
+From the command line, give both paths in the same run (the IDs are those of `skarstrom params blend.json --search mass_fraction`):
+
+```bash
+skarstrom run blend.json --set "layer[1].mass_fraction[1]=0.7" --set "layer[1].mass_fraction[2]=0.3" --json -q
+```
+
+A sensitivity study (`skarstrom.sensitivity`) varies each path on its own, so it cannot vary a blend's fraction. Use a loop like the one above.
+
 ### Total voidage
 
 The gas held in the bed (the accumulation terms of the mass and energy balances) uses the **total voidage**

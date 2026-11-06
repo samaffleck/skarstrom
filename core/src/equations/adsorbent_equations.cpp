@@ -6,6 +6,7 @@
  */
 #include "adsim/equations/adsorbent_equations.h"
 #include "adsim/objects/user_data.h"
+#include "adsim/boundary_conditions/step.h"
 #include "adsim/math/constants.h"  // kMinDenomPressure/Temperature, detail::DenomFloor
 
 // STL includes
@@ -40,6 +41,14 @@ namespace adsim {
     const int last_bed = bed.GetLastBedCellIndex();
     if (first_bed >= 0 && first_bed < N) var[0] = var[first_bed];
     if (last_bed >= 0 && last_bed < N) var[N - 1] = var[last_bed];
+  }
+
+  // The running step's heating medium on the wall's outer face, or nullptr
+  // when the step has none (or no step is set): the wall then exchanges heat
+  // with Bed::ambient_temperature_ through each layer's external coefficient.
+  static inline const HeatingMedium* ActiveHeatingMedium(const Equations& state) {
+    const Step* step = state.CurrentStep();
+    return step ? step->ActiveHeatingMedium() : nullptr;
   }
 
 
@@ -715,7 +724,13 @@ namespace adsim {
 
     const auto& d_i = state.domain_vectors.di;
     const auto& d_o = state.domain_vectors.de;
-    const double Tamb = bed.ambient_temperature_;
+    // Outer-face sink: the step's heating medium (jacket) when it has one,
+    // else the surroundings. The medium's h_m is already in ho (see
+    // UpdateExternalHeatTransferCoefficient).
+    double Tamb = bed.ambient_temperature_;
+    if (const HeatingMedium* medium = ActiveHeatingMedium(state)) {
+      Tamb = medium->Temperature(udata->residual_time_ - udata->step_start_time_);
+    }
 
     int N = Tw.size();
 
@@ -1644,9 +1659,18 @@ namespace adsim {
     auto& state = udata->state;
     auto& bed = udata->bed;
 
+    // A step with a heating medium replaces every layer's outer-face
+    // coefficient with the medium's h_m (one jacket around the whole bed).
+    const HeatingMedium* medium = ActiveHeatingMedium(state);
+    auto& ho = state.external_heat_transfer_coefficient.var;
     for (auto& layer : bed.layers_.layers_) {
-      auto& eq = layer.equations_.external_heat_transfer_model_;
-      eq->Update(state, layer, bed.wall_);
+      if (medium) {
+        const double h_m = medium->heat_transfer_coefficient_;
+        for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) ho[n] = h_m;
+      } else {
+        auto& eq = layer.equations_.external_heat_transfer_model_;
+        eq->Update(state, layer, bed.wall_);
+      }
     }
 
     ZeroVoidCellsAndMirrorGhosts(state.external_heat_transfer_coefficient.var, bed);
