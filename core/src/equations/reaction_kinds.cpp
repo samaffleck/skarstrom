@@ -300,9 +300,3 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IReactionRate, adsim::PowerLawRate)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IReactionRate, adsim::ReversiblePowerLawRate)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IReactionRate, adsim::LhhwRate)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IReactionRate, adsim::ExpressionRate)
-CEREAL_CLASS_VERSION(adsim::IReactionRate, 1);
-CEREAL_CLASS_VERSION(adsim::PowerLawRate, 1);
-CEREAL_CLASS_VERSION(adsim::ReversiblePowerLawRate, 1);
-CEREAL_CLASS_VERSION(adsim::LhhwRate, 1);
-CEREAL_CLASS_VERSION(adsim::ExpressionRate, 1);
-CEREAL_CLASS_VERSION(adsim::LhhwAdsorptionTerm, 1);

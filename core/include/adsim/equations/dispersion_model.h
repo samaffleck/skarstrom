@@ -213,3 +213,11 @@ namespace adsim {
 	}
 
 } // end adsim namespace
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::DispersionModelConstant, 1);
+CEREAL_CLASS_VERSION(adsim::HeatDispersionModelConstant, 1);
+CEREAL_CLASS_VERSION(adsim::DispersionModelRuthven, 1);
+CEREAL_CLASS_VERSION(adsim::HeatDispersionModelRuthven, 1);
+CEREAL_CLASS_VERSION(adsim::HeatDispersionModelYagiandKunii, 1);

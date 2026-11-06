@@ -186,6 +186,7 @@ namespace adsim {
     registry_.reset();
     result_ = RunResult{};
     messages_.clear();
+    final_state_.reset();
   }
 
   void Simulation::Load(const std::string& path) {
@@ -193,6 +194,7 @@ namespace adsim {
     LoadFromJson(*fresh, path);
     fresh->EvaluateAllExpressions();
     ResetResults();
+    initial_state_.reset();
     fresh->load_generation_ = data_->load_generation_ + 1;
     data_ = std::move(fresh);
   }
@@ -202,6 +204,7 @@ namespace adsim {
     LoadFromJsonText(*fresh, json);
     fresh->EvaluateAllExpressions();
     ResetResults();
+    initial_state_.reset();
     fresh->load_generation_ = data_->load_generation_ + 1;
     data_ = std::move(fresh);
   }
@@ -297,8 +300,66 @@ namespace adsim {
   // Simulation: run
   // -------------------------------------------------------------------------
 
+  const CycleState& Simulation::FinalState() const {
+    if (!final_state_) throw std::logic_error("no final state: run the simulation first (a completed blocking run)");
+    return *final_state_;
+  }
+
+  const CycleState& Simulation::InitialState() const {
+    if (!initial_state_) throw std::logic_error("no initial state is set");
+    return *initial_state_;
+  }
+
+  std::string Simulation::CheckState(const CycleState& state) {
+    data_->EvaluateAllExpressions();
+    return CycleStateIncompatibility(state, *data_);
+  }
+
+  void Simulation::SetInitialState(CycleState state) {
+    const std::string why = CheckState(state);
+    if (!why.empty()) throw std::invalid_argument("the state does not fit the deck: " + why);
+    initial_state_ = std::make_unique<CycleState>(std::move(state));
+  }
+
   RunResult Simulation::Run(const RunOptions& options) {
+    return RunFrom(options, initial_state_.get());
+  }
+
+  RunResult Simulation::RunCycle(const RunOptions& options) {
+    if (final_state_) {
+      // RunFrom resets the results (and the final state) first.
+      const CycleState from = *final_state_;
+      return RunCycle(from, options);
+    }
+    if (initial_state_) {
+      const CycleState from = *initial_state_;
+      return RunCycle(from, options);
+    }
+    RunOptions one = options;
+    one.cycles.reset();
+    UserData& data = *data_;
+    const int saved = data.cycle.number_of_cycles_;
+    data.cycle.number_of_cycles_ = 1;
+    RunResult r = RunFrom(one, nullptr);
+    data.cycle.number_of_cycles_ = saved;
+    return r;
+  }
+
+  RunResult Simulation::RunCycle(const CycleState& from, const RunOptions& options) {
+    RunOptions one = options;
+    one.cycles.reset();
+    UserData& data = *data_;
+    const int saved = data.cycle.number_of_cycles_;
+    data.cycle.number_of_cycles_ = 1;
+    RunResult r = RunFrom(one, &from);
+    data.cycle.number_of_cycles_ = saved;
+    return r;
+  }
+
+  RunResult Simulation::RunFrom(const RunOptions& options, const CycleState* start) {
     if (IsRunning()) throw std::logic_error("a chunked run is already in progress");
+    // `start` must not be final_state_, which ResetResults clears (RunCycle
+    // passes a copy).
     ResetResults();
     UserData& data = *data_;
     if (options.cycles) data.cycle.number_of_cycles_ = std::max(1, *options.cycles);
@@ -314,6 +375,7 @@ namespace adsim {
 
     solver_ = std::make_unique<CoupledSolver>(data);
     CoupledSolver& solver = *solver_;
+    solver.SetInitialState(start);
     solver.SetLogLevel(options.log_level);
     const LogLevel keep = options.log_level;
     auto forward = options.on_message;
@@ -348,6 +410,12 @@ namespace adsim {
       });
     }
 
+    // A warm start continues the cycles behind its state: the CSS minimum
+    // number of cycles counts them (restored after the run).
+    auto& css = data.settings.css;
+    const int saved_min_cycles = css.min_cycles_;
+    if (start) css.min_cycles_ = std::max(1, css.min_cycles_ - start->cycles);
+
     const auto t0 = std::chrono::steady_clock::now();
     int rc = -1;
     std::string exception_text;
@@ -356,6 +424,8 @@ namespace adsim {
     } catch (const std::exception& e) {
       exception_text = e.what();
     }
+    css.min_cycles_ = saved_min_cycles;
+    solver.SetInitialState(nullptr);
     result_.wall_time_s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     // The callbacks capture locals of this call; the solver outlives it.
     solver.SetProgressCallback({});
@@ -389,6 +459,14 @@ namespace adsim {
     } else {
       result_.status = RunStatus::Completed;
       result_.message = "completed " + std::to_string(result_.cycles_run) + " cycle(s)";
+    }
+    if (result_.Ok() && result_.cycles_run > 0) {
+      try {
+        final_state_ = std::make_unique<CycleState>(
+            CaptureCycleState(data, (start ? start->cycles : 0) + result_.cycles_run));
+      } catch (const std::exception& e) {
+        messages_.push_back({LogLevel::LOW, std::string("could not capture the final state: ") + e.what()});
+      }
     }
     return result_;
   }

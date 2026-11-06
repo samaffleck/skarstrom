@@ -123,9 +123,4 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDis
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelYagiandKunii)
-CEREAL_CLASS_VERSION(adsim::DispersionModelConstant, 1);
-CEREAL_CLASS_VERSION(adsim::HeatDispersionModelConstant, 1);
 // CEREAL_CLASS_VERSION(adsim::DispersionModelWakaoAndFunazkri, 1);
-CEREAL_CLASS_VERSION(adsim::DispersionModelRuthven, 1);
-CEREAL_CLASS_VERSION(adsim::HeatDispersionModelRuthven, 1);
-CEREAL_CLASS_VERSION(adsim::HeatDispersionModelYagiandKunii, 1);

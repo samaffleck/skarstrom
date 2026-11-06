@@ -280,3 +280,12 @@ namespace adsim {
   std::vector<std::pair<std::string, ExpressionParam*>> ReactionRateFields(IReactionRate* rate);
 
 }  // namespace adsim
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::IReactionRate, 1);
+CEREAL_CLASS_VERSION(adsim::PowerLawRate, 1);
+CEREAL_CLASS_VERSION(adsim::ReversiblePowerLawRate, 1);
+CEREAL_CLASS_VERSION(adsim::LhhwRate, 1);
+CEREAL_CLASS_VERSION(adsim::ExpressionRate, 1);
+CEREAL_CLASS_VERSION(adsim::LhhwAdsorptionTerm, 1);

@@ -275,15 +275,11 @@ CEREAL_REGISTER_TYPE(adsim::ConstantPumpPowerModel)
 CEREAL_REGISTER_TYPE(adsim::PolyPumpPowerModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPumpPowerModel, adsim::ConstantPumpPowerModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPumpPowerModel, adsim::PolyPumpPowerModel)
-CEREAL_CLASS_VERSION(adsim::ConstantPumpPowerModel, 2);
-CEREAL_CLASS_VERSION(adsim::PolyPumpPowerModel, 2);
 
 CEREAL_REGISTER_TYPE(adsim::IsothermalCompressorEnergyModel)
 CEREAL_REGISTER_TYPE(adsim::AdiabaticCompressorEnergyModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::ICompressorEnergyModel, adsim::IsothermalCompressorEnergyModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::ICompressorEnergyModel, adsim::AdiabaticCompressorEnergyModel)
-CEREAL_CLASS_VERSION(adsim::IsothermalCompressorEnergyModel, 1);
-CEREAL_CLASS_VERSION(adsim::AdiabaticCompressorEnergyModel, 1);
 
 CEREAL_REGISTER_TYPE(adsim::ConstantPumpEfficiencyModel)
 CEREAL_REGISTER_TYPE(adsim::VacuumPumpEfficiencyModel)
@@ -291,14 +287,8 @@ CEREAL_REGISTER_TYPE(adsim::PolyPumpEfficiencyModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPumpEfficiencyModel, adsim::ConstantPumpEfficiencyModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPumpEfficiencyModel, adsim::VacuumPumpEfficiencyModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPumpEfficiencyModel, adsim::PolyPumpEfficiencyModel)
-CEREAL_CLASS_VERSION(adsim::ConstantPumpEfficiencyModel, 2);
-CEREAL_CLASS_VERSION(adsim::VacuumPumpEfficiencyModel, 2);
-CEREAL_CLASS_VERSION(adsim::PolyPumpEfficiencyModel, 3);
 
 CEREAL_REGISTER_TYPE(adsim::Compressor)
 CEREAL_REGISTER_TYPE(adsim::VacuumPump)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPump, adsim::Compressor)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IPump, adsim::VacuumPump)
-CEREAL_CLASS_VERSION(adsim::IPump, 3);
-CEREAL_CLASS_VERSION(adsim::Compressor, 2);
-CEREAL_CLASS_VERSION(adsim::VacuumPump, 2);

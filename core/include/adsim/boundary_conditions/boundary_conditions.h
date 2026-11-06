@@ -234,3 +234,9 @@ namespace adsim {
 	}
 
 } // end adsim namespace
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::PressureBoundaryCondition, 5);
+CEREAL_CLASS_VERSION(adsim::FlowBoundaryCondition, 1);
+CEREAL_CLASS_VERSION(adsim::ClosedBoundaryCondition, 1);
