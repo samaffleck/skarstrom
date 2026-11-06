@@ -2,7 +2,7 @@
 
 > **Illustrative deck, not a validated reproduction.** No temperature swing experiment is bundled with Skarstrom yet, so this tutorial uses a deck built for the documentation. The adsorbent is a cited [library entry](adsorbent-library.md#zeolite-13x-perez2019) and the column is that of the Perez (2019) experiments, but the operating conditions (feed velocity, step times, heater and cooler duties) are round numbers we chose, and the heating step takes the isotherm above its 298–348 K fit range. Use it to learn the workflow, not as design data.
 
-**Goal.** Capture CO₂ from a 15 % CO₂ / 85 % N₂ flue gas with a four-step, indirectly heated temperature swing adsorption (TSA) cycle: adsorb cold, heat the bed to release CO₂, cool it down again, re-pressurise. You will set up per-step **energy sources** (an electric heater and a cooler), run to cyclic steady state, and read purity, recovery and the heat duty per kilogram of CO₂.
+**Goal.** Capture CO₂ from a 15 % CO₂ / 85 % N₂ flue gas with a four-step, indirectly heated temperature swing adsorption (TSA) cycle: adsorb cold, heat the bed to release CO₂, cool it down again, re-pressurise. You will set up per-step **energy sources** (an electric heater and a cooler), run to cyclic steady state, and read purity, recovery and the thermal energy and cooling duty per kilogram of CO₂.
 
 ---
 
@@ -70,9 +70,16 @@ k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")
 | CO₂ recovery | 66.59 % |
 | Production rate | 4.16 × 10⁻⁵ mol/s |
 | Productivity (mass) | 1.13 × 10⁻⁵ kg CO₂ per kg adsorbent per second |
-| Energy | 0 |
+| Electrical energy | 0 |
+| Thermal energy | 6.07 MJ per kg CO₂ |
+| Cooling duty | 2.43 MJ per kg CO₂ |
 
-The **energy** KPI counts only compressor and vacuum-pump work, so it is zero here: energy sources are not included. Work out the heat duty yourself: the heater supplies 30 W × 900 s = 27 kJ per cycle, and the cycle produces 4.16 × 10⁻⁵ mol/s × 2430 s = 0.101 mol (4.4 g) of CO₂, so the heater energy is **6.1 MJ per kg of CO₂**. The cooling duty, 12 W × 900 s = 10.8 kJ per cycle, would come on top of that in a real plant.
+```python
+print(k.electrical_energy, k.thermal_energy, k.cooling_duty)    # J/kg
+print(k.step_thermal_energy, k.step_cooling_duty)                # each step's share
+```
+
+The **electrical energy** counts compressor and vacuum-pump work, so it is zero here. The **thermal energy** is the heat the energy sources supply: the heater's 30 W × 900 s = 27 kJ per cycle over the 4.16 × 10⁻⁵ mol/s × 2430 s = 0.101 mol (4.45 g) of CO₂ produced, **6.07 MJ per kg of CO₂** (6.07 GJ/t; see [energy units](performance-metrics.md#energy-the-three-figures-and-their-units)). The **cooling duty**, 12 W × 900 s = 10.8 kJ per cycle or 2.43 MJ/kg, is the heat the cooler removes; it is reported separately, not subtracted from the thermal energy, and in a real plant it would come on top of it. `step_thermal_energy` puts all the heat on *Heating* and `step_cooling_duty` all the cooling on *Cooling*. The thermal energy counts energy sources such as this heater; if you heat with a [heating medium](wall-energy-balance.md#heating-medium-jacket) instead, its duty is not in the KPI yet.
 
 **Temperatures.** The axial temperature profile at the end of each step of the last cycle:
 
@@ -99,7 +106,7 @@ The first gas out of the bed is the feed left in the voids, 15 % CO₂. The outl
 
 ## 5. What to try next
 
-- **Change the cooling duty.** The energy-source powers are not yet registry parameters, so change them in the C++ test that builds the deck or in the deck JSON. While building the deck we ran the same cycle (native build, Ergun, upwind advection and the CSS rule of the time, so the cycle counts are lower than today's) with three cooler powers:
+- **Change the cooling duty.** The energy-source powers are registry parameters: `sim["step[Cooling].energy[13X].power"] = -20` in Python, or `--set "step[Cooling].energy[13X].power=-20"` on the command line; the cooling duty KPI follows. While building the deck we ran the same cycle (native build, Ergun, upwind advection and the CSS rule of the time, so the cycle counts are lower than today's) with three cooler powers:
 
   | Cooler | CSS at cycle | Purity | Recovery | Lowest bed temperature in the last cycle |
   |---|---|---|---|---|
@@ -110,7 +117,7 @@ The first gas out of the bed is the feed left in the voids, 15 % CO₂. The outl
   More cooling leaves the bed colder and able to hold more CO₂, so recovery rises, but a fixed duty overshoots far below ambient. The deck uses −12 W because it brings the bed back to about ambient temperature.
 - **Discard the diluted start of the heating step.** Split *Heating* into two steps, say 150 s and 750 s, each with the 30 W source, and mark only the second step's outlet as Product in the KPI configuration so the first is vented. Purity should rise and recovery fall. Splitting steps and editing energy sources are deck edits (see the C++ test that builds this deck); from Python you can estimate the effect from the stream logs, integrating the Heating outlet flows from 150 s onwards.
 - **Heat with a hot purge instead of the heater.** Remove the Heating energy source and give the step a top **Flow** inlet of N₂ whose **Temperature Profile** is *Linear* from 298 K to 423 K (see [inlet temperature profiles](boundary-conditions.md#inlet-temperature-profile)). The purge sweeps CO₂ out faster but dilutes the product.
-- **Add a vacuum.** Lower the Heating outlet pressure (a temperature–vacuum swing; `step[Heating].bottom.pressure`) and give that boundary a vacuum pump with power calculation so the energy KPI picks up the pump work.
+- **Add a vacuum.** Lower the Heating outlet pressure (a temperature–vacuum swing; `step[Heating].bottom.pressure`) and give that boundary a vacuum pump with power calculation so the electrical energy KPI picks up the pump work.
 - **Use a direct air capture sorbent.** The library's [APDES-NFC](adsorbent-library.md#apdes-nfc-stampi2020) amine sorbent has a temperature-dependent Toth isotherm for CO₂ from Stampi-Bombelli et al. (2020). Its rate constant is 2 × 10⁻⁴ s⁻¹, so adsorption steps last hours rather than minutes.
 - **Compare the momentum models.** Switch the layer's momentum model (`layer[13X].momentum_model`) to *Darcy (Kozeny–Carman)*, as in the Perez2019 decks. At 0.05 m/s through 1.5 mm particles the inertial (Burke–Plummer) term of Ergun is small, so the results barely move: in our native run the cycle again reached CSS at cycle 9, with a CO₂ purity of 83.55 % and a recovery of 66.94 %. Both models cross this cycle's abrupt step switches without a solver retry.
-- **Sweep the heating time** (`step[Heating].time`) in a [parametric study](parameterisation.md) and plot recovery against heater energy per kilogram.
+- **Sweep the heating time** (`step[Heating].time`) in a [parametric study](parameterisation.md) and plot recovery against the thermal energy (`k.thermal_energy`).
