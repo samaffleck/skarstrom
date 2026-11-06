@@ -275,8 +275,8 @@ namespace adsim {
 			}
 		}
 		if (!negative && !(std::abs(total - 1.0) <= kCompositionSumTolerance)) {
-			issues.push_back({Severity::Error, "Error: The mass fractions of layer " + ln + " sum to " + number(total) +
-				", not 1. Every property of the layer's solid scales with this sum, so set the fractions to sum to 1."});
+			issues.push_back({Severity::Error, "Error: Layer " + ln + ": mass fractions sum to " + number(total) +
+				"; they must sum to 1. Change the fractions so they add up to 1 (they are not rescaled automatically)."});
 		}
 		return issues;
 	}

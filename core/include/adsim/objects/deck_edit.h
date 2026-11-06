@@ -66,9 +66,32 @@ std::string ComponentInUseByReactions(const UserData& data, const std::string& n
 
 // ---- layers and adsorbents -----------------------------------------------------
 
-// Give a layer the lowest-id adsorbent of the directory at mass fraction 1.0
-// (no-op when the directory is empty).
+// Give an empty layer the lowest-id adsorbent of the directory at mass
+// fraction 1.0 (no-op when the directory is empty or the layer already holds
+// a solid).
 void SeedLayerComposition(UserData& data, MixedAdsorbentLayer& layer);
+
+// Blend edits. Each leaves the layer's mass fractions summing to 1, so a
+// front end that edits blends only through them never builds a deck the
+// composition check (CheckLayerComposition) refuses. The other solids are
+// rescaled in proportion to their fractions (equal shares when they are all
+// 0). False + err, with nothing changed, for an unknown solid or a fraction
+// outside the stated range.
+
+// Add solid `id` to the layer at `mass_fraction` (0 < w <= 1), scaling the
+// others by (1 - w). The first solid of an empty layer gets 1. A solid the
+// layer already holds is set as by SetLayerMassFraction.
+bool AddSolidToLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, double mass_fraction,
+                     std::string& err);
+
+// Set the mass fraction of a solid the layer holds (0 <= w <= 1) and rescale
+// the others to 1 - w. A layer whose only solid this is accepts only 1.
+bool SetLayerMassFraction(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, double mass_fraction,
+                          std::string& err);
+
+// Take a solid out of the layer and rescale the rest to sum to 1. Refused for
+// the layer's only solid (a layer needs one: add another first).
+bool RemoveSolidFromLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, std::string& err);
 
 // SeedLayerComposition for every layer whose composition is empty.
 void SeedEmptyLayerCompositions(UserData& data);

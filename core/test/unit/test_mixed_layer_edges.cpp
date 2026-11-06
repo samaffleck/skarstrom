@@ -57,7 +57,8 @@ namespace {
       const auto issues = CheckLayerComposition(x.layer, x.dir);
       ASSERT_EQ(issues.size(), 1u);
       EXPECT_EQ(issues[0].severity, Severity::Error);
-      EXPECT_NE(issues[0].message.find("layer \"Bottom\" sum to " + std::string(second < 0.3 ? "0.8" : "1.2")),
+      EXPECT_NE(issues[0].message.find("Layer \"Bottom\": mass fractions sum to " +
+                                       std::string(second < 0.3 ? "0.8" : "1.2") + "; they must sum to 1"),
                 std::string::npos) << issues[0].message;
       EXPECT_FALSE(x.layer.ValidateComposition());
     }
@@ -145,8 +146,8 @@ namespace {
     d.bed.layers_.Get(top).composition_[solid] = 0.5;
     err.clear();
     EXPECT_FALSE(sim.Check(err));
-    EXPECT_NE(err.find("layer \"" + name0 + "\" sum to 0.8"), std::string::npos) << err;
-    EXPECT_NE(err.find("layer \"Top\" sum to 0.5"), std::string::npos) << err;
+    EXPECT_NE(err.find("Layer \"" + name0 + "\": mass fractions sum to 0.8"), std::string::npos) << err;
+    EXPECT_NE(err.find("Layer \"Top\": mass fractions sum to 0.5"), std::string::npos) << err;
 
     // A zero fraction passes the checks and is a run-start warning.
     d.bed.layers_.Remove(top);
@@ -200,6 +201,73 @@ namespace {
     ASSERT_EQ(top.size(), 1u);
     EXPECT_EQ(top.begin()->first, solid);
     EXPECT_DOUBLE_EQ(top.begin()->second, 1.0);
+    err.clear();
+    EXPECT_TRUE(d.PerformChecks(err)) << err;
+  }
+
+  double Sum(const MixedAdsorbentLayer& layer) {
+    double s = 0.0;
+    for (const auto& [id, w] : layer.composition_) s += w;
+    return s;
+  }
+
+  // The blend edits keep the fractions summing to 1, so a front end that
+  // builds blends through them never makes a deck the check refuses.
+  TEST(MixedLayerEdges, BlendEditsKeepTheSumAtOne) {
+    UserData d;
+    LoadFromJson(d, (kExamples / "Perez2019_A.json").string());
+    auto layer = [&]() -> MixedAdsorbentLayer& { return d.bed.layers_.layers_.front(); };
+    const AdsorbentID a = layer().composition_.begin()->first;
+    const AdsorbentID b = AddAdsorbentToDeck(d, "B");  // no empty layer: not added anywhere
+    const AdsorbentID c = AddAdsorbentToDeck(d, "C");
+    EXPECT_EQ(layer().composition_.size(), 1u);
+    SeedLayerComposition(d, layer());  // a layer that holds a solid is left alone
+    EXPECT_EQ(layer().composition_.size(), 1u);
+    EXPECT_DOUBLE_EQ(Sum(layer()), 1.0);
+
+    std::string err;
+    ASSERT_TRUE(AddSolidToLayer(d, layer(), b, 0.3, err)) << err;  // a: 1 -> 0.7
+    EXPECT_DOUBLE_EQ(layer().composition_.at(a), 0.7);
+    EXPECT_DOUBLE_EQ(layer().composition_.at(b), 0.3);
+    ASSERT_TRUE(AddSolidToLayer(d, layer(), c, 0.5, err)) << err;  // a, b scaled by 0.5
+    EXPECT_DOUBLE_EQ(layer().composition_.at(a), 0.35);
+    EXPECT_DOUBLE_EQ(layer().composition_.at(b), 0.15);
+    EXPECT_NEAR(Sum(layer()), 1.0, 1e-15);
+    ASSERT_TRUE(SetLayerMassFraction(d, layer(), a, 0.6, err)) << err;  // b : c stays 0.15 : 0.5
+    EXPECT_NEAR(layer().composition_.at(b) / layer().composition_.at(c), 0.3, 1e-14);
+    EXPECT_NEAR(Sum(layer()), 1.0, 1e-15);
+    ASSERT_TRUE(AddSolidToLayer(d, layer(), a, 0.2, err)) << err;  // already held: a set
+    EXPECT_DOUBLE_EQ(layer().composition_.at(a), 0.2);
+    EXPECT_NEAR(Sum(layer()), 1.0, 1e-15);
+    ASSERT_TRUE(RemoveSolidFromLayer(d, layer(), c, err)) << err;  // a : b kept, sum 1
+    EXPECT_NEAR(Sum(layer()), 1.0, 1e-15);
+    EXPECT_TRUE(CheckLayerComposition(layer(), d.adsorbent_directory).empty());
+
+    // Others at 0 share the rest equally.
+    ASSERT_TRUE(SetLayerMassFraction(d, layer(), a, 1.0, err)) << err;
+    EXPECT_DOUBLE_EQ(layer().composition_.at(b), 0.0);
+    ASSERT_TRUE(SetLayerMassFraction(d, layer(), a, 0.4, err)) << err;
+    EXPECT_DOUBLE_EQ(layer().composition_.at(b), 0.6);
+
+    // Refusals change nothing.
+    const auto before = layer().composition_;
+    EXPECT_FALSE(AddSolidToLayer(d, layer(), 9999, 0.5, err));
+    EXPECT_FALSE(AddSolidToLayer(d, layer(), c, 0.0, err));
+    EXPECT_FALSE(AddSolidToLayer(d, layer(), c, 1.5, err));
+    EXPECT_FALSE(SetLayerMassFraction(d, layer(), a, -0.1, err));
+    EXPECT_FALSE(SetLayerMassFraction(d, layer(), c, 0.5, err));  // not in the layer
+    EXPECT_EQ(layer().composition_, before);
+    ASSERT_TRUE(RemoveSolidFromLayer(d, layer(), b, err)) << err;
+    EXPECT_FALSE(RemoveSolidFromLayer(d, layer(), a, err));  // the only solid
+    EXPECT_FALSE(SetLayerMassFraction(d, layer(), a, 0.5, err));
+    EXPECT_NE(err.find("only solid"), std::string::npos) << err;
+    EXPECT_DOUBLE_EQ(layer().composition_.at(a), 1.0);
+
+    // An empty layer: the first solid gets 1, whatever was asked.
+    const LayerID top = d.bed.layers_.Add("Top");
+    d.bed.layers_.Get(top).composition_.clear();
+    ASSERT_TRUE(AddSolidToLayer(d, d.bed.layers_.Get(top), b, 0.3, err)) << err;
+    EXPECT_DOUBLE_EQ(d.bed.layers_.Get(top).composition_.at(b), 1.0);
     err.clear();
     EXPECT_TRUE(d.PerformChecks(err)) << err;
   }

@@ -112,10 +112,86 @@ void RemoveComponentFromDeck(UserData& data, const std::string& name) {
 
 void SeedLayerComposition(UserData& data, MixedAdsorbentLayer& layer) {
   const auto& dir = data.adsorbent_directory.GetAll();
-  if (dir.empty()) return;
+  if (dir.empty() || !layer.composition_.empty()) return;
   AdsorbentID lowest = dir.begin()->first;
   for (const auto& [id, a] : dir) lowest = std::min(lowest, id);
   layer.AddAdsorbent(lowest, 1.0);
+}
+
+namespace {
+
+// Scale every fraction except `keep`'s so they sum to `target` (in proportion;
+// equal shares when they are all 0).
+void RescaleOthers(MixedAdsorbentLayer& layer, AdsorbentID keep, double target) {
+  double others = 0.0;
+  size_t n = 0;
+  for (const auto& [id, w] : layer.composition_)
+    if (id != keep) { others += w; ++n; }
+  if (n == 0) return;
+  for (auto& [id, w] : layer.composition_) {
+    if (id == keep) continue;
+    w = others > 0.0 ? w * (target / others) : target / static_cast<double>(n);
+  }
+}
+
+bool ValidFraction(double w, bool allow_zero, std::string& err) {
+  if (w <= 1.0 && (allow_zero ? w >= 0.0 : w > 0.0)) return true;
+  std::ostringstream ss;
+  ss << "a mass fraction must be " << (allow_zero ? "between 0 and 1" : "above 0 and at most 1") << ", not " << w;
+  err = ss.str();
+  return false;
+}
+
+}  // namespace
+
+bool AddSolidToLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, double mass_fraction,
+                     std::string& err) {
+  if (!data.adsorbent_directory.Contains(id)) {
+    err = "no adsorbent with id " + std::to_string(id);
+    return false;
+  }
+  if (layer.composition_.count(id)) return SetLayerMassFraction(data, layer, id, mass_fraction, err);
+  if (layer.composition_.empty()) {
+    layer.composition_[id] = 1.0;
+    return true;
+  }
+  if (!ValidFraction(mass_fraction, false, err)) return false;
+  layer.composition_[id] = mass_fraction;
+  RescaleOthers(layer, id, 1.0 - mass_fraction);
+  return true;
+}
+
+bool SetLayerMassFraction(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, double mass_fraction,
+                          std::string& err) {
+  (void)data;
+  auto it = layer.composition_.find(id);
+  if (it == layer.composition_.end()) {
+    err = "layer \"" + layer.name_ + "\" does not hold adsorbent id " + std::to_string(id);
+    return false;
+  }
+  if (!ValidFraction(mass_fraction, true, err)) return false;
+  if (layer.composition_.size() == 1 && mass_fraction != 1.0) {
+    err = "the only solid of layer \"" + layer.name_ + "\" has mass fraction 1; add another solid first";
+    return false;
+  }
+  it->second = mass_fraction;
+  RescaleOthers(layer, id, 1.0 - mass_fraction);
+  return true;
+}
+
+bool RemoveSolidFromLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, std::string& err) {
+  (void)data;
+  if (!layer.composition_.count(id)) {
+    err = "layer \"" + layer.name_ + "\" does not hold adsorbent id " + std::to_string(id);
+    return false;
+  }
+  if (layer.composition_.size() == 1) {
+    err = "it is the only solid of layer \"" + layer.name_ + "\"; add another solid first";
+    return false;
+  }
+  layer.composition_.erase(id);
+  RescaleOthers(layer, id, 1.0);
+  return true;
 }
 
 void SeedEmptyLayerCompositions(UserData& data) {

@@ -1,4 +1,8 @@
 ### Changed — layer compositions are checked
+- **Behaviour change:** a deck whose layer mass fractions do not sum to 1 now
+  fails the deck checks instead of running with scaled properties. The
+  message names the layer, the sum and the fix, e.g. `Layer "Bottom": mass
+  fractions sum to 0.8; they must sum to 1`. No bundled deck is affected.
 - A layer whose mass fractions do not sum to 1 (within 1e-6), or that holds a
   negative fraction, is now refused by the deck checks, with a message naming
   the layer and the sum. Every property of a layer's solid scales with the
@@ -14,6 +18,12 @@
   removing a component that a reaction uses. A layer that holds only that
   solid is still re-seeded with another one. New checked overload
   `RemoveAdsorbentFromDeck(data, id, err)` and `AdsorbentInUseByMixtures`.
+- New blend edits in `deck_edit.h` that keep a layer's fractions summing to 1
+  (the other solids are rescaled in proportion): `AddSolidToLayer`,
+  `SetLayerMassFraction`, `RemoveSolidFromLayer`. `SeedLayerComposition` no
+  longer adds a second solid at 1.0 to a layer that already holds one.
+- The solver logs the composition warnings at the start of a run, with the
+  other deck warnings.
 
 ### Added — verification of mixed-layer edges
 - `MixedLayers.*`: a solid at mass fraction 0 changes nothing; a layer of an
