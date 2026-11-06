@@ -18,7 +18,7 @@ available (an SI table or a data repository), they replace these files
 
 | Item | Record |
 |---|---|
-| Figure | Fig. 2 according to the first version of this README (2026-10-31); the test source (`ward_2022.cpp`) labels the comparison "Fig. 3 / data of ref. [5]". Which is right has not been re-checked against the paper. |
+| Figure | **Fig. 2 or 3, to be checked against the paper.** The first version of this README (2026-10-31) recorded Fig. 2; the test source (`ward_2022.cpp`) labels the comparison "Fig. 3 / data of ref. [5]". Neither could be checked: the paper text is not in the repository and the publisher's page did not open without a login when this was last looked at (2026-11-06). |
 | Panel per file | not recorded |
 | Figure axis ranges | not recorded |
 | Digitising tool and operator | not recorded (the files predate the repository's history, which starts with the open-source release of 2026-10-17) |
@@ -35,13 +35,13 @@ time in s and the quantity named in the header, comma-separated.
 | File | Quantity (header) | Points | Time range [s] | Data range | Note |
 |---|---|---|---|---|---|
 | `Qin=100/outlet_CO2_mole_fraction[-]_Qin=100[ccm].csv` | `Time [s], y_CO2 [-]` | 29 | 0–3000 | 0–0.9961 |  |
-| `Qin=100/outlet_volumetric_flowrate_Qin=100[ccm].csv` | `Time [s], Outlet volumetric flowrate [ccm]` | 26 | 0–3002 | 3.025e-08–1.686e-06 | values are in m³/s, not the cm³/min of the header: the plateau 1.686e-06 m³/s = 101.2 cm³/min |
+| `Qin=100/outlet_volumetric_flowrate_Qin=100[ccm].csv` | `Time [s], Outlet volumetric flowrate [m3/s]` | 26 | 0–3002 | 3.025e-08–1.686e-06 | the plateau 1.686e-06 m³/s = 101.2 cm³/min |
 | `Qin=100/temperature[K]_z=0.0715[m]_Qin=100[ccm].csv` | `Time [s], Temperature [K]` | 37 | 0–2996 | 291.4–306.1 |  |
 | `Qin=200/outlet_CO2_mole_fraction[-]_Qin=200[ccm].csv` | `Time [s], y_CO2 [-]` | 28 | 0–2992 | 0–0.9974 |  |
-| `Qin=200/outlet_volumetric_flowrate_Qin=200[ccm].csv` | `Time [s], Outlet volumetric flowrate [ccm]` | 30 | 0–2998 | 8.2e-08–3.333e-06 | values are in m³/s, not the cm³/min of the header: the plateau 3.333e-06 m³/s = 200 cm³/min |
+| `Qin=200/outlet_volumetric_flowrate_Qin=200[ccm].csv` | `Time [s], Outlet volumetric flowrate [m3/s]` | 30 | 0–2998 | 8.2e-08–3.333e-06 | the plateau 3.333e-06 m³/s = 200 cm³/min |
 | `Qin=200/temperature[K]_z=0.0715[m]_Qin=200[ccm].csv` | `Time [s], Temperature [K]` | 42 | 0–3008 | 291.7–313.3 |  |
 | `Qin=50/outlet_CO2_mole_fraction[-]_Qin=50[ccm].csv` | `Time [s], y_CO2 [-]` | 27 | 0–2994 | 0–0.9961 |  |
-| `Qin=50/outlet_volumetric_flowrate_Qin=50[ccm].csv` | `Time [s], Outlet volumetric Flowrate [ccm]` | 23 | 0–2998 | 2.163e-08–8.323e-07 | values are in m³/s, not the cm³/min of the header: the plateau 8.323e-07 m³/s = 49.94 cm³/min |
+| `Qin=50/outlet_volumetric_flowrate_Qin=50[ccm].csv` | `Time [s], Outlet volumetric flowrate [m3/s]` | 23 | 0–2998 | 2.163e-08–8.323e-07 | the plateau 8.323e-07 m³/s = 49.94 cm³/min |
 | `Qin=50/temperature[K]_z=0.0715[m]_Qin=50[ccm].csv` | `Time [s], Temperature [K]` | 31 | 0–3000 | 291.7–299.4 |  |
 
 ## Use
@@ -55,10 +55,12 @@ time in s and the quantity named in the header, comma-separated.
 
 ## Known caveats
 
-- **Outlet-flow unit.** The header says `[ccm]` but the values are m³/s
-  (plateaus of 8.32 × 10⁻⁷, 1.69 × 10⁻⁶ and 3.33 × 10⁻⁶ m³/s are 49.9, 101
-  and 200 cm³/min). The experimental-data loader does not parse units from
-  headers, so the decks show the mislabelled header with SI values.
+- **Outlet-flow unit.** The values are in m³/s (plateaus of 8.32 × 10⁻⁷,
+  1.69 × 10⁻⁶ and 3.33 × 10⁻⁶ m³/s are 49.9, 101 and 200 cm³/min). The
+  header said `[ccm]` until 2026-11-06 and now says `[m3/s]`; only the label
+  changed, not the values. The experimental-data loader does not parse units
+  from headers, so the label is what the bundled decks show. The `[ccm]` in
+  the file names is the feed flow `Qin`, which is in cm³/min.
 - **Front timing.** A digitised point on the steep part of a front carries a
   time uncertainty of a few seconds, below the differences the validation
   reports.
