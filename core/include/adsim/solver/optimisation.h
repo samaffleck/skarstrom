@@ -41,6 +41,9 @@ namespace adsim {
     ENERGY_CONSUMPTION,
     PRODUCTION_RATE,
     LCOC,
+    THERMAL_ENERGY,
+    COOLING_DUTY,
+    // Aliases last: an enumerator after them would take the alias's value + 1.
     ELECTRICAL_ENERGY = ENERGY_CONSUMPTION
   };
 
@@ -51,7 +54,9 @@ namespace adsim {
     "Productivity (volume)",
     "Electrical Energy",
     "Production Rate",
-    "LCOC"
+    "LCOC",
+    "Thermal Energy",
+    "Cooling Duty"
   };
 
   static std::string GetKPITypeUnits(KPIType type) {
@@ -63,6 +68,8 @@ namespace adsim {
       case KPIType::ENERGY_CONSUMPTION: return "[J/kg]";
       case KPIType::PRODUCTION_RATE: return "[mol/s]";
       case KPIType::LCOC: return "[£/kg]";
+      case KPIType::THERMAL_ENERGY: return "[J/kg]";
+      case KPIType::COOLING_DUTY: return "[J/kg]";
       default: return "[-]";
     }
   }

@@ -44,6 +44,18 @@ namespace adsim {
     double energy_consumption = std::numeric_limits<double>::quiet_NaN();   // [J/kg]
     double production_rate = std::numeric_limits<double>::quiet_NaN();      // [mol/s]
     double electrical_energy = std::numeric_limits<double>::quiet_NaN();    // [J/kg], = energy_consumption
+    // Specific thermal energy: heat supplied to the bed over the cycle (step
+    // energy sources; a heating medium when there is one) per kg of net
+    // product. Defined and undefined as the electrical energy.
+    double thermal_energy = std::numeric_limits<double>::quiet_NaN();       // [J/kg]
+    // Specific cooling duty: heat removed over the cycle per kg of net product,
+    // as a positive magnitude. Reported for information, not part of the
+    // thermal energy.
+    double cooling_duty = std::numeric_limits<double>::quiet_NaN();         // [J/kg]
+    // Each step's share of thermal_energy and cooling_duty, in the deck's step
+    // order (they sum to the cycle values); empty when `valid` is false.
+    std::vector<double> step_thermal_energy;                                // [J/kg]
+    std::vector<double> step_cooling_duty;                                  // [J/kg]
   };
 
   // KPIs of every tracked component of `config` at one logged cycle, computed

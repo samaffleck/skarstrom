@@ -209,6 +209,8 @@ double KPIValue(const KPIRecord& k, const std::string& kpi) {
   if (kpi == "energy_consumption") return k.energy_consumption;
   if (kpi == "production_rate") return k.production_rate;
   if (kpi == "electrical_energy") return k.electrical_energy;
+  if (kpi == "thermal_energy") return k.thermal_energy;
+  if (kpi == "cooling_duty") return k.cooling_duty;
   throw std::invalid_argument("unknown KPI '" + kpi + "'");
 }
 
@@ -421,7 +423,8 @@ const std::vector<std::string>& KPINames() {
   static const std::vector<std::string> names = {"purity",           "recovery",
                                                  "productivity_mass", "productivity_volume",
                                                  "energy_consumption", "production_rate",
-                                                 "electrical_energy"};
+                                                 "electrical_energy", "thermal_energy",
+                                                 "cooling_duty"};
   return names;
 }
 

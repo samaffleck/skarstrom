@@ -28,7 +28,7 @@ def assert_same_run(a, b, cycles):
         dx, dy = x.as_dict(), y.as_dict()
         assert dx.keys() == dy.keys()
         for k in dx:
-            if isinstance(dx[k], float):
+            if isinstance(dx[k], (float, list)):
                 np.testing.assert_allclose(dy[k], dx[k], rtol=1e-9, atol=0, err_msg=k)
             else:
                 assert dx[k] == dy[k], k
@@ -627,3 +627,23 @@ def test_evaluate_iast_equal_capacity_langmuir_is_extended_langmuir():
                          mole_fraction=[0.5, 0.5])
     with pytest.raises(ValueError, match="one entry per component"):
         sk._core.evaluate_iast(["sips", "sips"], [{}], P, T, [0.5, 0.5])
+
+
+def test_thermal_energy_and_cooling_duty_of_a_tsa_deck():
+    sim = sk.examples.Illustrative_TSA_13X.load()
+    result = sim.run(cycles=1)
+    assert result.ok, result.message
+    (k,) = sim.kpis(cycle=-1)
+    assert k.valid and k.thermal_energy > 0 and k.cooling_duty > 0  # a heating and a cooling step
+    assert len(k.step_thermal_energy) == len(k.step_cooling_duty) == len(sim.steps)
+    assert sum(k.step_thermal_energy) == pytest.approx(k.thermal_energy, rel=1e-12)
+    assert sum(k.step_cooling_duty) == pytest.approx(k.cooling_duty, rel=1e-12)
+    # Heat supplied / removed: 30 W and 12 W over their steps' times.
+    t = {s.name: sim.get(f"step[{s.id}].time") for s in sim.steps}
+    names = [s.name for s in sim.steps]
+    heat = k.step_thermal_energy[names.index("Heating")]
+    cool = k.step_cooling_duty[names.index("Cooling")]
+    assert heat / cool == pytest.approx((30 * t["Heating"]) / (12 * t["Cooling"]), rel=1e-9)
+    d = k.as_dict()
+    assert {"thermal_energy", "cooling_duty", "step_thermal_energy", "step_cooling_duty"} <= set(d)
+

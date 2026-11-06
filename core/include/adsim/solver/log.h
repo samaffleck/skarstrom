@@ -283,10 +283,20 @@ namespace adsim {
   using VariableLog = std::unordered_map<VariableType, VariableData>;
   using ComponentVariableLog = std::unordered_map<std::string, std::unordered_map<ComponentVariableType, VariableData>>;
 
+  // Heat put into the bed during one step, as the solver applied it. Constant
+  // over the step: the energy sources are set when the step starts. Both
+  // powers are 0 in an isothermal run, where the sources do nothing. A
+  // heating-medium duty, when there is one, belongs here too.
+  struct StepHeatDuty {
+    double heating_power = 0.0;  // [W] sum of the positive energy-source powers
+    double cooling_power = 0.0;  // [W] magnitude of the negative ones (>= 0)
+  };
+
   struct Log {
     StepData step_data;  // Shared metadata including times
     VariableLog variables;
     ComponentVariableLog component_variables;
+    StepHeatDuty heat_duty;  // recorded with the step's first log; evicted with the cycle
   };
 
   // [cycle_index][step_index]
