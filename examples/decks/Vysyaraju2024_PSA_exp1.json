@@ -639,16 +639,16 @@
                                                     "Cycle_Endpoint_Summary": {
                                                         "cereal_class_version": 1,
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.16833575858430484,
-                                                        "Average_Temperature": 298.0000000000002,
+                                                        "Total_Moles": 0.16814802501873903,
+                                                        "Average_Temperature": 298.00000000000048,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Nitrogen",
-                                                                "value": 0.8999999999999997
+                                                                "value": 0.8999999999999998
                                                             },
                                                             {
                                                                 "key": "Helium",
-                                                                "value": 0.10000000000000033
+                                                                "value": 0.1000000000000001
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 59
@@ -830,16 +830,16 @@
                                 },
                                 "Cycle_Endpoint_Summary": {
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.013440404746949722,
-                                    "Average_Temperature": 298.9825619704792,
+                                    "Total_Moles": 0.01344194316412965,
+                                    "Average_Temperature": 299.0679807474611,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.9993352424695244
+                                            "value": 0.9993188552865927
                                         },
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.0006647575304756202
+                                            "value": 0.0006811447134072674
                                         }
                                     ],
                                     "Source_Cycle_Index": 59
@@ -911,8 +911,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.04149901774054363,
-                                                        "Average_Temperature": 297.9999999999999,
+                                                        "Total_Moles": 0.04149901816245328,
+                                                        "Average_Temperature": 297.9999999999996,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Nitrogen",
@@ -1079,16 +1079,16 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.03795829909513877,
-                                                        "Average_Temperature": 298.6610738335831,
+                                                        "Total_Moles": 0.03793020168630495,
+                                                        "Average_Temperature": 298.73840758627429,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Nitrogen",
-                                                                "value": 0.0011508886542485463
+                                                                "value": 0.0011787734062755557
                                                             },
                                                             {
                                                                 "key": "Helium",
-                                                                "value": 0.9988491113457515
+                                                                "value": 0.9988212265937245
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 59
@@ -1297,16 +1297,16 @@
                                 },
                                 "Cycle_Endpoint_Summary": {
                                     "Is_Valid": true,
-                                    "Total_Moles": -0.19639007588340119,
-                                    "Average_Temperature": 287.25119214221379,
+                                    "Total_Moles": -0.19619858093869806,
+                                    "Average_Temperature": 286.4597629993484,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.03845317608413393
+                                            "value": 0.03838588507637525
                                         },
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.9615468239158661
+                                            "value": 0.9616141149236248
                                         }
                                     ],
                                     "Source_Cycle_Index": 59
@@ -1391,16 +1391,16 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": -0.03796091133278624,
-                                                        "Average_Temperature": 298.6610731010093,
+                                                        "Total_Moles": -0.037934149183545189,
+                                                        "Average_Temperature": 298.7384030277201,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Nitrogen",
-                                                                "value": 0.0011508910263115719
+                                                                "value": 0.0011787888008101206
                                                             },
                                                             {
                                                                 "key": "Helium",
-                                                                "value": 0.9988491089736885
+                                                                "value": 0.99882121119919
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 59
