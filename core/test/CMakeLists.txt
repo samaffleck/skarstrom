@@ -71,6 +71,9 @@ set(ADSIM_SLOW_TESTS
     # The same decks from a clean, a feed-saturated, a hot and a cold bed and
     # from a neighbouring deck's CSS: all must reach the same CSS (2-10 min each).
     "*CSSStartIndependence.*"
+    # Grid sequencing: coarse-to-fine warm starts against a cold fine grid on
+    # six decks, three paths each (2-8 min per deck).
+    "*GridSequencing.*"
     # CSS behaviour on a slow (rate 0.97) cycle: needs 100+ cycles.
     "CSSConvergence.SlowCycleFollowsTheGeometricModel"
     "CSSConvergence.AitkenAccelerationReachesTheSameKpis"
