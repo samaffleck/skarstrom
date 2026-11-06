@@ -6,6 +6,8 @@
  */
 #include "../pch.h"
 #include "adsim/solver/log.h"
+
+#include <sstream>
 #include "adsim/solver/cycle.h"
 #include "adsim/objects/reactor.h"
 #include "adsim/objects/user_data.h"
@@ -201,6 +203,86 @@ namespace adsim {
     log_aggregate(ComponentVariableType::ADSORBED_CONCENTRATION, state.ads_concentration);
     log_aggregate(ComponentVariableType::EQUILIBRIUM_ADSORBED_CONCENTRATION, state.eq_ads_concentration);
     log_aggregate(ComponentVariableType::MASS_TRANSFER_COEFFICIENT, state.mass_transfer_coefficient);
+
+    ThinIfOverBudget(sim_log);
+  }
+
+  // A row is every variable's snapshot plus its time. A step whose rows would
+  // exceed max_bytes_per_step_ (a stalled or very stiff run taking very many
+  // solver steps) is thinned: its rows are halved, keeping every other one
+  // from the first, and from then on only every `stride`-th LogState call
+  // (doubled at each halving) is kept for good, so the rows stay evenly spaced
+  // in calls. The newest row is always kept: if it is off the stride it is
+  // provisional and the next call replaces it, so the end-of-step state (read
+  // by the CSS check and its acceleration) stays exact. The step then holds
+  // between half the budget and the budget. Profiles, series and the face-flux
+  // integrals of the mass-balance check use these coarser points in that step;
+  // the per-stream logs that feed the KPIs are not affected.
+  void EquationLog::ThinIfOverBudget(Log& log) {
+    auto& sd = log.step_data;
+    const std::size_t call = sd.calls++;  // index of the row LogState just appended
+    if (max_bytes_per_step_ == 0) return;
+
+    auto for_each_series = [&](auto&& f) {
+      for (auto& [type, data] : log.variables) f(data.values);
+      for (auto& [component, vars] : log.component_variables)
+        for (auto& [type, data] : vars) f(data.values);
+    };
+    if (sd.row_bytes == 0) {
+      std::size_t doubles = 1;  // the time
+      for_each_series([&](auto& values) { if (!values.empty()) doubles += values.back().size(); });
+      sd.row_bytes = doubles * sizeof(double);
+    }
+
+    // Drop the previous provisional row (second to last): the new row replaces it.
+    auto erase_at = [&](std::size_t i) {
+      sd.times.erase(sd.times.begin() + static_cast<std::ptrdiff_t>(i));
+      for_each_series([&](auto& values) {
+        if (i >= values.size()) return;
+        spare_rows_.push_back(std::move(values[i]));
+        values.erase(values.begin() + static_cast<std::ptrdiff_t>(i));
+      });
+    };
+    if (sd.last_provisional && sd.times.size() >= 2) erase_at(sd.times.size() - 2);
+    sd.last_provisional = sd.stride > 1 && call % sd.stride != 0;
+
+    const std::size_t n = sd.times.size();
+    if (n < 3 || n * sd.row_bytes <= max_bytes_per_step_) return;
+
+    // Halve: the rows on the stride are at calls 0, s, 2s, ...; keep every
+    // other one (calls 0, 2s, 4s, ...) and the newest row.
+    const std::size_t m = sd.last_provisional ? n - 1 : n;  // rows on the stride
+    auto keep = [m, n](std::size_t i) { return i == n - 1 || (i < m && i % 2 == 0); };
+    std::size_t w = 0;
+    for (std::size_t i = 0; i < n; ++i)
+      if (keep(i)) sd.times[w++] = sd.times[i];
+    sd.times.resize(w);
+    for_each_series([&](auto& values) {
+      if (values.size() != n) return;  // not logged at every row: leave it
+      std::size_t k = 0;
+      for (std::size_t i = 0; i < n; ++i) {
+        if (keep(i)) {
+          if (k != i) values[k] = std::move(values[i]);
+          ++k;
+        } else {
+          spare_rows_.push_back(std::move(values[i]));
+        }
+      }
+      values.resize(k);
+    });
+    sd.stride *= 2;
+    sd.last_provisional = call % sd.stride != 0;
+
+    if (sd.thinnings++ == 0 && message_sink_) {
+      const std::string& name = (sd.step_index >= 0 && static_cast<std::size_t>(sd.step_index) < sys_data.step_list_.size())
+                                    ? sys_data.step_list_[static_cast<std::size_t>(sd.step_index)]
+                                    : std::string("?");
+      std::ostringstream ss;
+      ss << "  Step \"" << name << "\" (cycle " << sd.cycle_index + 1 << "): the result log reached its memory budget ("
+         << (max_bytes_per_step_ >> 20) << " MB, " << n << " solver steps logged); keeping every other logged point"
+         << " from here, so this step's profiles and mass-balance integrals use coarser time points.";
+      message_sink_(ss.str());
+    }
   }
 
   // Format doubles with std::to_chars (printf "%.6g" semantics — identical

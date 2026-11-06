@@ -72,14 +72,15 @@ namespace adsim {
 
     int max_cycles_to_keep_ = 10;
 
-    // Cap on the number of full spatial-profile snapshots recorded per step in
-    // the EquationLog (the largest output by far — every internal solver step
-    // was previously logged, producing ~1000 points/step and GB-scale CSVs).
-    // Snapshots are spaced uniformly in time (step_time / max_log_points_per_step_);
-    // the first and last point of every step are always kept, so the cyclic
-    // steady-state check and acceleration (which read only those two points) are
-    // unaffected and results are unchanged. The per-step outlet/boundary log that
-    // feeds KPIs is never decimated. <= 0 disables the cap (log every step).
+    // Number of rows per step written to the profile CSV files
+    // (EquationLog::SaveToFile): the written rows are decimated to about this
+    // many, the first and last row of every step always included. It does not
+    // limit the in-memory log, which records every accepted solver step (the
+    // mass-balance check and the profiles use that resolution) up to the memory
+    // budget kMaxEquationLogBytesPerStep (log.h). The solver also logs at least
+    // this many points per step: when one solver step is longer than
+    // step_time / max_log_points_per_step_, fill-in points are interpolated
+    // inside it. <= 0 writes every row and adds no fill-in points.
     int max_log_points_per_step_ = 200;
 
     // Jacobian construction (transient, not serialised): benchmarking and
