@@ -869,8 +869,16 @@ namespace adsim {
       return curve;
     }
 
+    // CoolPropTools.h redefines the keyword thread_local as a macro
+    // (__declspec(thread) on MSVC, __thread on GCC), which cannot hold a
+    // non-trivial type such as std::map: use the language keyword here.
+#pragma push_macro("thread_local")
+#undef thread_local
+    thread_local std::map<std::string, SaturationCurve> t_saturation_curves;
+#pragma pop_macro("thread_local")
+
     const SaturationCurve& SaturationCurveFor(const std::string& component) {
-      thread_local std::map<std::string, SaturationCurve> curves;
+      auto& curves = t_saturation_curves;
       auto it = curves.find(component);
       if (it == curves.end()) it = curves.emplace(component, MakeSaturationCurve(component)).first;
       return it->second;
