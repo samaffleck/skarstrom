@@ -13,6 +13,8 @@
 #include <limits>
 #include <sstream>
 
+#include <Eigen/Dense>
+
 #include "adsim/solver/cycle.h"
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpis.h"
@@ -279,24 +281,8 @@ namespace adsim {
     return result;
   }
 
-  bool AccelerateCyclicSteadyState::Accelerate(Equations& state, int cycle_index, AccelerationNote* note) {
-    if (method_ == AccelerationMethod::NONE) return false;
-    // Only the Aitken/Graves-Morris scheme is implemented; it is the body below.
-    // Future methods would branch here on method_.
-
-    // A cycle index that does not advance means a new run has started; drop the
-    // history collected for the previous one.
-    if (cycle_index <= last_cycle_index_) history_.clear();
-    last_cycle_index_ = cycle_index;
-
-    // Skip the initial transient: the extrapolation assumes near-geometric decay
-    // of the slowest error mode, which only holds once the start-up front has
-    // washed through.
-    if (cycle_index < 2) return false;
-
-    const std::vector<Equation*>& equations = state.GetEquations();
-
-    // Which fields the extrapolation is allowed to move. We extrapolate the SLOW
+  namespace {
+    // Which fields an acceleration is allowed to move. We extrapolate the SLOW
     // differential fields -- adsorbed loadings, solid and wall temperature, gas
     // composition -- but deliberately leave the total gas concentration and the
     // fluid temperature untouched, and skip the algebraic fields (pressure,
@@ -312,11 +298,59 @@ namespace adsim {
     // within the first step of the next cycle -- so leaving them out costs almost
     // nothing while keeping the seed integrable. The slow fields carry the
     // cycle-to-cycle memory that actually governs the approach to CSS.
-    auto extrapolable = [&](const Equation* eq) {
+    bool IsExtrapolable(const Equations& state, const Equation* eq) {
       return eq->GetEquationType() == EquationType::Differential
           && eq != &state.concentration
           && eq != &state.fluid_temperature;
-    };
+    }
+
+    // Mole fractions must remain a valid composition after a jump: renormalise
+    // them to sum to one in every cell, or the species balance seeds an
+    // impossible gas mixture. (Negative values are clipped where the jump is
+    // applied.)
+    void RenormaliseMoleFractions(Equations& state) {
+      if (state.mole_fraction.empty()) return;
+      const size_t n_cells = state.mole_fraction.begin()->second.var.size();
+      for (size_t c = 0; c < n_cells; ++c) {
+        double sum = 0.0;
+        for (auto& [component, eq] : state.mole_fraction) sum += eq.var[c];
+        if (sum > 1e-30) {
+          for (auto& [component, eq] : state.mole_fraction) eq.var[c] /= sum;
+        }
+      }
+    }
+
+    std::string FormatNumber(double x, int digits = 3) {
+      std::ostringstream ss;
+      ss << std::setprecision(digits) << x;
+      return ss.str();
+    }
+  }
+
+  bool AccelerateCyclicSteadyState::Accelerate(Equations& state, int cycle_index, AccelerationNote* note) {
+    switch (method_) {
+      case AccelerationMethod::AITKEN: return AccelerateAitken(state, cycle_index, note);
+      case AccelerationMethod::ANDERSON: return AccelerateAnderson(state, cycle_index, note);
+      case AccelerationMethod::NONE: break;
+    }
+    return false;
+  }
+
+  bool AccelerateCyclicSteadyState::AccelerateAitken(Equations& state, int cycle_index, AccelerationNote* note) {
+    // A cycle index that does not advance means a new run has started; drop the
+    // history collected for the previous one.
+    if (cycle_index <= last_cycle_index_) history_.clear();
+    last_cycle_index_ = cycle_index;
+
+    // Skip the initial transient: the extrapolation assumes near-geometric decay
+    // of the slowest error mode, which only holds once the start-up front has
+    // washed through.
+    if (cycle_index < 2) return false;
+
+    const std::vector<Equation*>& equations = state.GetEquations();
+
+    // The fields the extrapolation moves (see IsExtrapolable).
+    auto extrapolable = [&](const Equation* eq) { return IsExtrapolable(state, eq); };
 
     // Snapshot the current (natural) end-of-cycle state -- one profile per
     // extrapolable equation, in GetEquations() order (an empty placeholder keeps
@@ -394,11 +428,7 @@ namespace adsim {
       if (note) note->skipped = reason;
       return false;
     };
-    auto fmt = [](double x, int digits = 3) {
-      std::ostringstream ss;
-      ss << std::setprecision(digits) << x;
-      return ss.str();
-    };
+    auto fmt = [](double x, int digits = 3) { return FormatNumber(x, digits); };
 
     if (scaled_r2_sq < 1e-300) return skip("the state no longer changes");
     if (den < 1e-300) return skip("no curvature to fit");
@@ -473,18 +503,7 @@ namespace adsim {
       }
     }
 
-    // Mole fractions must remain a valid composition: renormalise to sum to one in
-    // every cell, or the species balance seeds an impossible gas mixture.
-    if (!state.mole_fraction.empty()) {
-      const size_t n_cells = state.mole_fraction.begin()->second.var.size();
-      for (size_t c = 0; c < n_cells; ++c) {
-        double sum = 0.0;
-        for (auto& [component, eq] : state.mole_fraction) sum += eq.var[c];
-        if (sum > 1e-30) {
-          for (auto& [component, eq] : state.mole_fraction) eq.var[c] /= sum;
-        }
-      }
-    }
+    RenormaliseMoleFractions(state);
 
     // Restart: the three samples are consumed, so the next triple is collected
     // fresh from the (post-jump) trajectory. This keeps the geometric-mode fit
@@ -492,6 +511,144 @@ namespace adsim {
     // them.
     history_.clear();
 
+    return true;
+  }
+
+  bool AccelerateCyclicSteadyState::AccelerateAnderson(Equations& state, int cycle_index, AccelerationNote* note) {
+    // A cycle index that does not advance means a new run has started.
+    if (cycle_index <= last_cycle_index_) {
+      pairs_.clear();
+      previous_end_.clear();
+      previous_jumped_ = false;
+    }
+    last_cycle_index_ = cycle_index;
+
+    const std::vector<Equation*>& equations = state.GetEquations();
+
+    // The natural end state of this cycle, the slow fields flattened in
+    // GetEquations() order, and each field's range in the flat vector.
+    struct Range { size_t eq, begin, end; };
+    std::vector<Range> ranges;
+    std::vector<double> end_state;
+    for (size_t i = 0; i < equations.size(); ++i) {
+      if (!IsExtrapolable(state, equations[i])) continue;
+      const auto& var = equations[i]->var;
+      ranges.push_back({i, end_state.size(), end_state.size() + var.size()});
+      end_state.insert(end_state.end(), var.begin(), var.end());
+    }
+
+    // A pair (x, G(x)) needs this cycle's start state x exactly: the previous
+    // cycle's natural end state, when no jump came between. Skip the start-up
+    // transient (cycles 0 and 1) as Aitken does: the cycle map is far from
+    // linear there.
+    const bool layout_changed = !previous_end_.empty() && previous_end_.size() != end_state.size();
+    if (layout_changed) pairs_.clear();
+    const bool new_pair = cycle_index >= 2 && !previous_jumped_ && !layout_changed && !previous_end_.empty();
+    if (new_pair) {
+      pairs_.push_back({previous_end_, end_state});
+      if (pairs_.size() > static_cast<size_t>(kAndersonDepth) + 1) pairs_.erase(pairs_.begin());
+    }
+    previous_end_ = end_state;
+    previous_jumped_ = false;
+
+    // A jump starts from the newest pair's end state, which must be the state
+    // the solver holds now, and needs at least one earlier pair.
+    if (!new_pair || pairs_.size() < 2) return false;
+
+    auto skip = [&](const std::string& reason) {
+      if (note) note->skipped = reason;
+      return false;
+    };
+
+    // Field-scaled norm, as in Aitken: each field weighted by 1 / RMS magnitude,
+    // so a temperature (~300) does not outweigh a mole fraction (~0.2).
+    std::vector<double> weight(end_state.size());
+    for (const Range& r : ranges) {
+      double mag_sq = 0.0;
+      for (size_t k = r.begin; k < r.end; ++k) mag_sq += end_state[k] * end_state[k];
+      const size_t n = r.end - r.begin;
+      const double scale = std::sqrt(std::max(n > 0 ? mag_sq / static_cast<double>(n) : 0.0, 1e-30));
+      for (size_t k = r.begin; k < r.end; ++k) weight[k] = 1.0 / scale;
+    }
+
+    const AndersonPair& newest = pairs_.back();
+    const Eigen::Index n_rows = static_cast<Eigen::Index>(end_state.size());
+    Eigen::VectorXd f_n(n_rows);
+    for (Eigen::Index k = 0; k < n_rows; ++k) f_n[k] = weight[k] * (newest.g[k] - newest.x[k]);
+    const double residual = f_n.norm();
+    // Below 1e-12 RMS (relative to each field's magnitude) the steps are
+    // rounding: there is nothing left to fit.
+    if (!(residual > 1e-12 * std::sqrt(static_cast<double>(n_rows))))
+      return skip("the state no longer changes");
+
+    // Columns: differences of the newest residual (and end state) with each
+    // earlier pair's, newest first, so a rank-deficient fit drops the oldest.
+    const int n_cols = static_cast<int>(pairs_.size()) - 1;
+    Eigen::MatrixXd dF(n_rows, n_cols);
+    for (int j = 0; j < n_cols; ++j) {
+      const AndersonPair& older = pairs_[pairs_.size() - 2 - j];
+      for (Eigen::Index k = 0; k < n_rows; ++k)
+        dF(k, j) = weight[k] * ((newest.g[k] - newest.x[k]) - (older.g[k] - older.x[k]));
+    }
+
+    // Least squares by column-pivoted QR. Columns that are (nearly) linear
+    // combinations of others carry no new information: drop the oldest until
+    // the fit has full rank.
+    int used = n_cols;
+    Eigen::VectorXd gamma;
+    while (used > 0) {
+      Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(dF.leftCols(used));
+      qr.setThreshold(1e-10);
+      if (qr.rank() == used) {
+        gamma = qr.solve(f_n);
+        break;
+      }
+      --used;
+    }
+    if (used == 0 || !gamma.allFinite()) return skip("no independent steps to combine");
+
+    const double fit_residual = (f_n - dF.leftCols(used) * gamma).norm();
+    const double ratio = fit_residual / residual;
+
+    // The jump from the newest end state: -sum_j gamma_j (g_n - g_j), and its
+    // size in natural steps (the newest step g_n - x_n, in the same norm).
+    std::vector<double> jump(end_state.size(), 0.0);
+    for (int j = 0; j < used; ++j) {
+      const AndersonPair& older = pairs_[pairs_.size() - 2 - j];
+      for (size_t k = 0; k < jump.size(); ++k) jump[k] -= gamma[j] * (newest.g[k] - older.g[k]);
+    }
+    double jump_norm = 0.0;
+    for (size_t k = 0; k < jump.size(); ++k) jump_norm += weight[k] * weight[k] * jump[k] * jump[k];
+    jump_norm = std::sqrt(jump_norm);
+    double multiple = jump_norm / residual;
+
+    if (note) {
+      note->fit = "Anderson depth " + std::to_string(used) + ", residual ratio " + FormatNumber(ratio, 4)
+                + ", jump " + FormatNumber(multiple) + " natural steps";
+    }
+    if (!(ratio < kAndersonMaxResidualRatio)) {
+      return skip("the fit does not reduce the residual: ratio " + FormatNumber(ratio));
+    }
+    if (!(jump_norm > 0.0) || !std::isfinite(jump_norm)) return skip("no jump to make");
+
+    // Shorten, never drop, a jump longer than kMaxStepMultiple natural steps
+    // (as for Aitken: it then closes part of the gap along the same direction).
+    double factor = 1.0;
+    if (multiple > kMaxStepMultiple) {
+      factor = kMaxStepMultiple / multiple;
+      if (note) note->fit += " (limited to " + FormatNumber(kMaxStepMultiple) + ")";
+    }
+
+    // Apply from the newest end state (the state the solver holds), clip at
+    // zero and renormalise the mole fractions, as for Aitken.
+    for (const Range& r : ranges) {
+      std::vector<double>& var = equations[r.eq]->var;
+      for (size_t k = r.begin; k < r.end; ++k)
+        var[k - r.begin] = std::max(newest.g[k] + factor * jump[k], 0.0);
+    }
+    RenormaliseMoleFractions(state);
+
+    previous_jumped_ = true;
     return true;
   }
 
