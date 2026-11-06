@@ -8,6 +8,230 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-06
+
+### Added — Anderson acceleration of the approach to cyclic steady state
+- New CSS acceleration method *Anderson* (`AccelerationMethod::ANDERSON`).
+  It moves the slow fields (loadings, solid and wall temperatures, mole
+  fractions) along a combination of up to four earlier cycle-to-cycle steps,
+  so it can remove several slowly decaying modes in one jump, where Aitken
+  removes one. It uses the same projection and the same re-seed check as
+  Aitken. Measured CSS stops (plain / Aitken / Anderson): Perez 2019 E
+  205 / 65 / 45, Nguyen 2023 X over 800 / 548 / 190, Perez 2019 A 48 / 32 / 35,
+  at KPIs as close to a long reference run as the plain stop's. Decks that do
+  not select it are unchanged.
+
+### Changed — hint for varying a blend fraction
+- The error for layer mass fractions that do not sum to 1 now also says how to
+  vary one solid's fraction in a study: change the others with it (for two
+  solids, x and 1 - x together at each point). A mass fraction is a number, not
+  an expression. `docs/model-conventions.md` gives a Python loop and the CLI
+  form, and says that a sensitivity study cannot vary a blend fraction yet.
+
+### Changed — cycle counts in the CSS acceleration docs
+- The Numerics, Cyclic Steady State and Perez 2019 tutorial pages now give
+  the stopping cycles and KPI differences of the current engine. Among them:
+  Nguyen 2023 X on 20 cells reaches CSS at cycle 84 with Aitken instead of
+  349, and the accelerated test cycle stops 28 cycles before the plain rule.
+  The counts for a clean bed and for the old upwind 30-cell deck are removed.
+
+### Changed — faster builds: only the dlib sources the engine uses
+- The build compiles 6 of dlib's ~50 sources: the ones behind
+  `dlib::find_min_global` (the global optimiser, its thread pool and dlib's
+  build-consistency check), not the
+  whole library. A cold dlib build needs about a seventh of the CPU time it did.
+  The `dlib::dlib` target, the installed `Adsim::dlib` export and the
+  installed dlib headers are unchanged (`cmake/dlib_minimal.cmake`).
+
+### Changed — shorter pull-request CI: the JS-exceptions Emscripten build runs nightly
+- The "Engine with Emscripten" CI job builds the engine with native
+  WebAssembly exceptions (the default) on every pull request. The second build,
+  with JavaScript-based exceptions (`ADSIM_EMSCRIPTEN_EXCEPTIONS=js`), now runs
+  only on pushes to main, the nightly run and manual runs.
+
+### Changed — face temperature follows the advection scheme
+- The energy balance's convective face temperature is now reconstructed with
+  the selected advection scheme (WENO or van Leer), with the same stencils and
+  the same upwind faces (bed ends, void cells) as the mole fractions. It used
+  to be the upwind value whatever the scheme, which kept the temperature first
+  order. In the manufactured-solution test the temperature now converges at
+  order 2 with WENO and van Leer, and the other fields of a thermal run keep
+  their second order on fine grids. Upwind runs are unchanged. Results of
+  thermal runs with WENO (the default) or van Leer move; the re-saved example
+  decks and the paper comparisons record by how much.
+
+### Changed — energy KPI documentation
+- The performance metrics page lists the three energy figures (electrical
+  energy, thermal energy, cooling duty) in one table and shows how to convert
+  J/kg to MJ/kg, GJ/t and kWh/t, and says that the thermal energy and cooling
+  duty count the energy sources only: a heating medium's duty is not logged
+  yet. The TSA tutorial reads the heater's thermal
+  energy (6.07 MJ per kg of CO₂) and the cooling duty from the KPIs instead
+  of working them out by hand, and changes the cooler power through the
+  parameter registry.
+- A closed-bed test checks that the logged heat duty of a step equals the
+  analytic power × time, for heating and for cooling. Results do not change.
+
+### Fixed — memory grows without bound when a step takes very many solver steps
+- The result log records a full snapshot of every variable at every accepted
+  solver step (about 100 kB per solver step at 320 cells), so a stalled or
+  very stiff step could exhaust memory before it failed. Each (cycle, step)
+  now has a memory budget of 2 GiB, sized from the row size: when a step
+  reaches it, every other interior row of that step is dropped (the first
+  row and the newest row are always kept, so the end-of-step state used by
+  the CSS check is exact), and the solver log says so once at the LOW level.
+  The budget is above every bundled deck (the largest, Streb2021_A1, logs
+  about 1.07 GB in its one step), so no result changes.
+- The `max_log_points_per_step` setting is now documented as what it does:
+  it decimates the profile CSV files and adds fill-in points in long solver
+  steps; it does not limit the in-memory log.
+
+### Fixed — GAB fit set-up and its test
+- The default fit set-up for the GAB kinds keeps K between 0.3 and 1.2 and
+  the monolayer capacity below ten times the largest loading, the physical
+  range for water, so the search stays out of the near-linear corner
+  (K -> 0 with a very large q_m) where the parameters are not identifiable.
+- The `gab_young` fit test used a non-physical target (K = 0.14 at 298 K),
+  where the fit is ill-conditioned and ended in a different corner on macOS
+  arm64; it now uses the consistent Young et al. (2021) Lewatit set, and a
+  new test checks that the GAB fits recover the same parameters for every
+  global-search budget and a last-digit perturbation of the data.
+
+### Added — heating-medium duty
+- Each step's log records the heat its heating medium passed into the wall
+  and took back out over the step (`StepHeatDuty::medium_heat_in` and
+  `medium_heat_out`, J). It is integrated with the trapezoidal rule over
+  every logged point, separately from the energy-source powers.
+- The thermal-energy and cooling-duty KPIs, total and per step, now include
+  the medium's heat in and heat out. `CalculateStepThermalDuty` also reports
+  the medium's share (`medium_heating`, `medium_cooling`). Results do not
+  change for decks without a medium.
+
+### Added — heating medium on the wall's outer face
+- Each step can heat or cool the column through a jacket: a heating medium
+  at a set temperature (constant, or a ramp with the inlet-temperature
+  profiles) and a heat transfer coefficient on the wall's outer face. While
+  the step runs they replace the ambient temperature and every layer's
+  external heat transfer coefficient; steps without a medium keep the
+  ambient exchange. The medium temperature is set, not solved.
+- Registry parameters `step[ID].medium.enabled`, `.temperature` (or
+  `.temperature_linear_start`, `_end`, `_time`, ... for a ramp) and
+  `.heat_transfer_coefficient`, listed for every step, so a medium can be
+  switched on from the CLI (`--set`), swept, optimised and used in
+  sensitivity studies; in Python, `sim.steps["Heat"].medium`.
+- `Step` is at class version 6 and carries a new `HeatingMedium` (class
+  version 0). Older decks load with no medium and give the same results;
+  re-saved decks gain a disabled `Heating_Medium` in every step.
+
+### Added — internal heat exchanger
+- A step's heating medium can also heat or cool the bed directly, through an
+  internal heat exchanger: `a_x h_x (T_m - T)` per bed volume in every bed
+  cell, at the same medium temperature as the jacket. Under LTNE the gas
+  takes the `eb` share and the solid the `1 - eb` share. It is off by default
+  (`a_x = 0`).
+- Registry parameters `step[ID].medium.exchanger_area_per_volume` (m2/m3)
+  and `step[ID].medium.exchanger_heat_transfer_coefficient` (W/(m2 K)).
+- The exchanger's heat is part of the logged medium duty
+  (`StepHeatDuty::medium_heat_in` / `medium_heat_out`), and so of the
+  thermal-energy and cooling-duty KPIs. Its share is also logged on its own
+  (`exchanger_heat_in` / `exchanger_heat_out`).
+- `HeatingMedium` is at class version 1. Older decks load with no exchanger
+  and give the same results. Re-saved decks gain the two exchanger fields.
+
+### Changed — layer compositions are checked
+- **Behaviour change:** a deck whose layer mass fractions do not sum to 1 now
+  fails the deck checks instead of running with scaled properties. The
+  message names the layer, the sum and the fix, e.g. `Layer "Bottom": mass
+  fractions sum to 0.8; they must sum to 1`. No bundled deck is affected.
+- A layer whose mass fractions do not sum to 1 (within 1e-6), or that holds a
+  negative fraction, is now refused by the deck checks, with a message naming
+  the layer and the sum. Every property of a layer's solid scales with the
+  sum, so a sum of 0.8 used to mean 80 % of the solid without notice. The
+  fractions are never renormalised.
+- A solid at mass fraction 0 is allowed but reported as a warning (it takes no
+  part in the run).
+- The rules live in one engine function, `CheckLayerComposition`
+  (`porous_media.h`), which the deck checks (C++ runs, Python `sim.check()`),
+  `LayerCompositionWarnings` (`deck_warnings.h`) and front ends share.
+- `RemoveAdsorbentFromDeck` refuses to remove a solid that is part of a blend
+  (a layer that also holds another solid) and says which layers use it, like
+  removing a component that a reaction uses. A layer that holds only that
+  solid is still re-seeded with another one. New checked overload
+  `RemoveAdsorbentFromDeck(data, id, err)` and `AdsorbentInUseByMixtures`.
+- New blend edits in `deck_edit.h` that keep a layer's fractions summing to 1
+  (the other solids are rescaled in proportion): `AddSolidToLayer`,
+  `SetLayerMassFraction`, `RemoveSolidFromLayer`. `SeedLayerComposition` no
+  longer adds a second solid at 1.0 to a layer that already holds one.
+- The solver logs the composition warnings at the start of a run, with the
+  other deck warnings.
+
+### Added — verification of mixed-layer edges
+- `MixedLayers.*`: a solid at mass fraction 0 changes nothing; a layer of an
+  inert solid alone holds nothing and balances; splitting a layer into two of
+  the same blend gives the same solution bit for bit; the mole balance closes
+  across the interface between two layers of different blends.
+
+### Changed — faster test builds: a precompiled header for the test target
+- `AdsorptionSimulatorTests` gets its own precompiled header (the engine's
+  `core/src/pch.h` plus GoogleTest), so its ~130 sources no longer parse
+  cereal, Eigen, CoolProp, SUNDIALS and GoogleTest from scratch.
+  `_USE_MATH_DEFINES` becomes a definition on the test target, since a
+  `#define` above `<cmath>` in a source file no longer reaches a header that
+  the precompiled header already includes.
+
+### Added — thermal energy and cooling duty KPIs
+- Two KPIs from the step energy sources, per kg of net product (J/kg),
+  defined and undefined exactly as the electrical energy:
+  `thermal_energy`, the heat supplied over the cycle (sources with a
+  positive power), and `cooling_duty`, the heat removed (negative power),
+  reported as a positive magnitude and not subtracted from the thermal
+  energy. Each `KPIRecord` also has `step_thermal_energy` and
+  `step_cooling_duty`, every step's share in the deck's step order. They are
+  in `KPIRecord` (C++ and Python), `as_dict()`, `kpi_table()`, the CLI's
+  `--json` and its printed table, two columns appended to `kpis.csv`, the
+  sensitivity outputs (`Component.thermal_energy`, `Component.cooling_duty`)
+  and the `KPIType` / `KPIVariableType` enumerators `THERMAL_ENERGY` and
+  `COOLING_DUTY`, appended so no stored index moves.
+- They use the power the solver applied in each step, logged once per step
+  with the step's log (`Log::heat_duty`, evicted with its cycle): a disabled
+  source, or one left on a removed layer, counts nothing, and both are 0 in an
+  isothermal run. Results do not change.
+
+### Fixed — Ward 2022 outlet-flow label and paper README links
+- The outlet volumetric flow files of the Ward & Pini (2022) breakthrough data
+  (`core/data/ward_2022/Qin=*/outlet_volumetric_flowrate_*.csv`) now carry
+  the unit of their values, `[m3/s]`, instead of `[ccm]`; the values are
+  unchanged. The bundled `Ward2022_Q50ccm`, `Ward2022_Q100ccm` and
+  `Ward2022_Q200ccm` decks show the corrected label. Results do not change.
+- The data README records the source figure as "Fig. 2 or 3, to be checked"
+  rather than asserting either, and the Nguyen 2022 test README no longer
+  links a `reference_values.csv` that does not exist (that suite compares
+  only with digitised curves).
+
+### Added — warm starts after an edit
+- `RunOptions::initial_state` / Python `run(initial_state=state)` start one
+  run from a previous run's state, for example its `final_state()`. A state
+  set with `SetInitialState` is used for every later run.
+- A state now starts a run after the step times change, where it was refused
+  before. Each changed step's logged histories are stretched onto the new
+  duration, and its buffer-tank summary moles are scaled with it
+  (`ResampleCycleStateHistories`).
+- `PrepareCycleState` / `Simulation::PrepareState` / Python
+  `prepare_state()` return the state as a run would start from it (remapped
+  onto other cells per layer, histories stretched) with a note of what was
+  done. The run logs the same note. Other components, layers, void regions or
+  step structure are still refused with the reason.
+- Fewer cycles to the new CSS after typical edits (a step time, a feed
+  composition, the cell count), with the same purity and recovery as a cold
+  start. The table is in `docs/cyclic-steady-state.md`.
+
+### Fixed — grid remap overshot the pressure at temperature fronts
+- `RemapCycleState` now remaps the fluid temperature weighted by the gas
+  concentration. The remapped pressure is then the plain cell average of the
+  old pressure. Before, it could overshoot both neighbours where the
+  temperature changed sharply (by 20 Pa on the TSA example, 30 → 45 cells),
+  and the consistent-initial-condition solve then failed.
+
 ## [0.6.0] — 2026-11-06
 
 ### Added — regression test for CSS acceleration on a thermal cycle
