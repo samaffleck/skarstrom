@@ -55,7 +55,29 @@ $$
 \text{Fixed: } \left.T_w\right|_{z=0,\thinspace L} = T_{w,bc}
 $$
 
-This condition only concerns the ends of the wall. Heat loss through the side of the column is always governed by $h_o$ and $T_{amb}$.
+This condition only concerns the ends of the wall. Heat loss through the side of the column is governed by $h_o$ and $T_{amb}$, or, during a step that has one, by a [heating medium](#heating-medium-jacket).
+
+### Heating medium (jacket)
+
+A temperature swing or direct air capture column is often heated and cooled by a fluid in a jacket around it (steam, hot oil or cooling water) rather than left to the surroundings. Each step can have such a **heating medium** on the wall's outer face. While the step runs, the outer-face term of the wall balance becomes
+
+$$
+-\frac{4\thinspace d_o\thinspace h_m}{d_o^2 - d_i^2}\left(T_w - T_m(t)\right)
+$$
+
+so the medium's heat transfer coefficient $h_m$ replaces every layer's $h_o$, and the medium temperature $T_m$ replaces $T_{amb}$, over the whole length of the column (one jacket per bed; a [void region](getting-started.md) still exchanges no heat). Heat reaches the bed through the wall, so the wall's heat capacity and $h_i$ set how fast the bed follows the medium.
+
+| Symbol  | Description | Unit | Parameter path |
+|---------|-------------|------|----------------|
+| –       | Whether the step has a medium (off by default) | – | `step[ID].medium.enabled` |
+| $T_m$   | Medium temperature: a constant, or a ramp over the step | K | `step[ID].medium.temperature` (ramp: `.temperature_linear_start`, `_end`, `_time`, ...) |
+| $h_m$   | Medium-to-wall heat transfer coefficient on the outer surface | W m⁻² K⁻¹ | `step[ID].medium.heat_transfer_coefficient` |
+
+- $T_m$ takes the same profiles as an [inlet temperature](boundary-conditions.md#inlet-temperature-profile): constant, linear, exponential, log-linear or double exponential, with $t$ the time since the step started. The medium temperature is set, not solved: there is no energy balance on the medium, so the jacket behaves as if its flow were large enough to hold $T_m$.
+- A step without a medium (the default, and every deck saved before media existed) keeps the ambient exchange. A medium is set step by step, so a heating step and a cooling step can use different fluids, and a step left without one returns to $h_o$ and $T_{amb}$.
+- The logged *External Heat Transfer Coefficient* shows $h_m$ during a step with a medium.
+- All three values are registry parameters, so they can be set from the command line (`--set "step[Heat].medium.enabled=true"`), swept, optimised and used in [sensitivity studies](sensitivity.md). In Python, `sim.steps["Heat"].medium.temperature = 393.15`.
+- $h_m = 0$ makes the step adiabatic towards the outside, whatever the layers' $h_o$.
 
 ### Wall materials
 

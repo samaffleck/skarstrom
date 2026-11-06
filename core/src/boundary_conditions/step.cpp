@@ -11,6 +11,40 @@
 
 namespace adsim {
 
+  bool HeatingMedium::PerformChecks(const std::string& step_name, std::string& error_message) const {
+    if (!enabled_) return true;
+    const std::string where = "the heating medium of step '" + step_name + "'";
+    const double h = heat_transfer_coefficient_.Get();
+    if (!std::isfinite(h) || h < 0.0) {
+      error_message += "The heat transfer coefficient of " + where + " is " + std::to_string(h)
+                       + " W/(m2 K); it must be zero or positive. ";
+      return false;
+    }
+    if (!CheckProfileFactor(temperature_profile_.get(), "temperature profile of " + where, error_message))
+      return false;
+    // A ramp's start and end bound every temperature it takes (all the
+    // profile kinds are monotonic between them).
+    std::vector<double> temperatures;
+    if (auto* l = dynamic_cast<const LinearBoundaryValue*>(temperature_profile_.get()))
+      temperatures = {l->start_value_.Get(), l->end_value_.Get()};
+    else if (auto* e = dynamic_cast<const ExponentialBoundaryValue*>(temperature_profile_.get()))
+      temperatures = {e->start_value_.Get(), e->end_value_.Get()};
+    else if (auto* g = dynamic_cast<const LogLinearBoundaryValue*>(temperature_profile_.get()))
+      temperatures = {g->start_value_.Get(), g->end_value_.Get()};
+    else if (auto* d = dynamic_cast<const DoubleExponentialBoundaryValue*>(temperature_profile_.get()))
+      temperatures = {d->start_value_.Get(), d->end_value_.Get()};
+    else
+      temperatures = {temperature_.Get()};
+    for (double T : temperatures) {
+      if (!std::isfinite(T) || T <= 0.0) {
+        error_message += "The temperature of " + where + " is " + std::to_string(T)
+                         + " K; it must be above absolute zero. ";
+        return false;
+      }
+    }
+    return true;
+  }
+
   Step::Step() {
     auto top_boundary = std::make_shared<PressureBoundaryCondition>();
     top_boundary->location_ = BoundaryLocation::TOP;

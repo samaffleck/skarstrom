@@ -7,7 +7,7 @@
                 {
                     "key": 1,
                     "value": {
-                        "cereal_class_version": 4,
+                        "cereal_class_version": 5,
                         "Name": "CALF-20",
                         "Density": {
                             "cereal_class_version": 2,
@@ -230,6 +230,11 @@
                             "Value": 0.35,
                             "Expression": "0.35",
                             "DisplayUnitIndex": 0
+                        },
+                        "Reaction_Source": {
+                            "cereal_class_version": 1,
+                            "Reactions": [],
+                            "Next_Reaction_ID": 0
                         }
                     }
                 }
@@ -585,7 +590,7 @@
             "Number_Of_Cycles": 430,
             "Step_List": [
                 {
-                    "cereal_class_version": 5,
+                    "cereal_class_version": 6,
                     "Step_Time": {
                         "Value": 50.0,
                         "Expression": "5e+01",
@@ -1023,7 +1028,24 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 1
+                    "ID": 1,
+                    "Heating_Medium": {
+                        "cereal_class_version": 0,
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 },
                 {
                     "Step_Time": {
@@ -1299,7 +1321,23 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 2
+                    "ID": 2,
+                    "Heating_Medium": {
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 },
                 {
                     "Step_Time": {
@@ -1478,7 +1516,23 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 3
+                    "ID": 3,
+                    "Heating_Medium": {
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 },
                 {
                     "Step_Time": {
@@ -1651,7 +1705,23 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 4
+                    "ID": 4,
+                    "Heating_Medium": {
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 },
                 {
                     "Step_Time": {
@@ -1820,7 +1890,23 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 5
+                    "ID": 5,
+                    "Heating_Medium": {
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 }
             ],
             "Step_Time_Mode": 0,
