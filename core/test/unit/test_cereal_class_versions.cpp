@@ -15,9 +15,6 @@
 //     same versions (polymorphic classes, their bases, and the plain classes
 //     at fixed places in the deck). An unknown polymorphic class also fails,
 //     so a new class must be added to the table.
-//
-// Not yet pinned (their versions are still declared in a .cpp): adsim::Fluid,
-// adsim::Connection, adsim::AccelerateCyclicSteadyState.
 
 #include <algorithm>
 #include <cstdint>
@@ -36,6 +33,7 @@
 #include "adsim/boundary_conditions/boundary_stream.h"
 #include "adsim/boundary_conditions/boundary_value.h"
 #include "adsim/boundary_conditions/buffer_tank_source.h"
+#include "adsim/boundary_conditions/connection.h"
 #include "adsim/boundary_conditions/cycle_endpoint_summary.h"
 #include "adsim/boundary_conditions/flow_boundary_value.h"
 #include "adsim/boundary_conditions/step.h"
@@ -48,6 +46,7 @@
 #include "adsim/math/expression_param.h"
 #include "adsim/math/user_variables.h"
 #include "adsim/objects/compressor.h"
+#include "adsim/objects/fluid.h"
 #include "adsim/objects/porous_media.h"
 #include "adsim/objects/reaction.h"
 #include "adsim/objects/reactor.h"
@@ -57,6 +56,7 @@
 #include "adsim/objects/void_region.h"
 #include "adsim/objects/wall.h"
 #include "adsim/solver/cycle.h"
+#include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/experimental_data.h"
 #include "adsim/solver/ida_settings.h"
 #include "adsim/solver/initial_conditions.h"
@@ -80,6 +80,7 @@ const std::vector<Pinned>& PinnedVersions() {
   static const std::vector<Pinned> table = {
       // objects
       ADSIM_PIN(adsim::UserData, 4),
+      ADSIM_PIN(adsim::Fluid, 4),
       ADSIM_PIN(adsim::Bed, 4),
       ADSIM_PIN(adsim::BedWall, 4),
       ADSIM_PIN(adsim::VoidRegion, 2),
@@ -181,10 +182,12 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::Step, 5),
       ADSIM_PIN(adsim::BufferTankSource, 3),
       ADSIM_PIN(adsim::CycleEndpointSummary, 1),
+      ADSIM_PIN(adsim::Connection, 1),
       // solver
       ADSIM_PIN(adsim::Cycle, 2),
       ADSIM_PIN(adsim::ExperimentalData, 1),
       ADSIM_PIN(adsim::CyclicSteadyState, 2),
+      ADSIM_PIN(adsim::AccelerateCyclicSteadyState, 0),
       ADSIM_PIN(adsim::IDASettings, 7),
       ADSIM_PIN(adsim::InitialConditions, 3),
       ADSIM_PIN(adsim::WarningSettings, 0),
@@ -256,6 +259,27 @@ void WalkPolymorphic(const rapidjson::Value& v, const std::string& deck, int& se
   }
 }
 
+// Plain members whose place in a deck varies (inside polymorphic boundary
+// conditions and streams), found by member name.
+void WalkNamed(const rapidjson::Value& v, const std::string& deck, int& seen) {
+  static const std::map<std::string, std::string> named = {
+      {"Boundary_Condition_Connection", "adsim::Connection"},
+      {"Boundary_Connection", "adsim::Connection"},
+  };
+  if (v.IsObject()) {
+    for (auto it = v.MemberBegin(); it != v.MemberEnd(); ++it) {
+      auto cls = named.find(it->name.GetString());
+      if (cls != named.end()) {
+        if (it->value.IsObject() && it->value.HasMember("cereal_class_version")) ++seen;
+        CheckVersion(it->value, PinnedVersion(cls->second), deck + ": " + cls->first + " (" + cls->second + ")");
+      }
+      WalkNamed(it->value, deck, seen);
+    }
+  } else if (v.IsArray()) {
+    for (const auto& e : v.GetArray()) WalkNamed(e, deck, seen);
+  }
+}
+
 std::vector<std::filesystem::path> ExampleDecks() {
   const auto dir = std::filesystem::current_path() / ".." / "examples" / "decks";
   std::vector<std::filesystem::path> decks;
@@ -269,6 +293,7 @@ TEST(CerealClassVersions, SavedDecksWriteDeclaredVersions) {
   // Plain (non-polymorphic) members at fixed places in a deck.
   const std::vector<std::pair<const char*, const char*>> fixed = {
       {"/value0", "adsim::UserData"},
+      {"/value0/Fluid", "adsim::Fluid"},
       {"/value0/Adsorbent_Directory", "adsim::AdsorbentDirectory"},
       {"/value0/Adsorbent_Directory/Adsorbents/0/value", "adsim::Adsorbent"},
       {"/value0/Adsorbent_Directory/Adsorbents/0/value/Adsorption_Source", "adsim::AdsorptionSource"},
@@ -284,6 +309,7 @@ TEST(CerealClassVersions, SavedDecksWriteDeclaredVersions) {
       {"/value0/Cycle/Step_List/0", "adsim::Step"},
       {"/value0/Solver_Settings", "adsim::IDASettings"},
       {"/value0/Solver_Settings/Cyclic_Steady_State", "adsim::CyclicSteadyState"},
+      {"/value0/Solver_Settings/Accelerate_Cyclic_Steady_State", "adsim::AccelerateCyclicSteadyState"},
       {"/value0/Experimental_Data", "adsim::ExperimentalData"},
       {"/value0/KPI_Config", "adsim::KPIConfig"},
       {"/value0/Variable_Registry", "adsim::UserVariableRegistry"},
@@ -292,6 +318,7 @@ TEST(CerealClassVersions, SavedDecksWriteDeclaredVersions) {
   const auto decks = ExampleDecks();
   ASSERT_FALSE(decks.empty());
   int polymorphic_seen = 0;
+  int named_seen = 0;
   for (const auto& deck : decks) {
     SCOPED_TRACE(deck.filename().string());
     UserData data;
@@ -318,8 +345,10 @@ TEST(CerealClassVersions, SavedDecksWriteDeclaredVersions) {
     EXPECT_TRUE(layer->HasMember("Momentum_Model"));
 
     WalkPolymorphic(doc, deck.filename().string(), polymorphic_seen);
+    WalkNamed(doc, deck.filename().string(), named_seen);
   }
   EXPECT_GT(polymorphic_seen, 0);
+  EXPECT_GT(named_seen, 0);
 }
 
 }  // namespace

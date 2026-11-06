@@ -256,3 +256,4 @@ namespace adsim {
 // Here rather than in the .cpp, so that every archive that serialises the CSS
 // settings sees the version. 2: state_tolerance and consecutive_cycles.
 CEREAL_CLASS_VERSION(adsim::CyclicSteadyState, 2);
+CEREAL_CLASS_VERSION(adsim::AccelerateCyclicSteadyState, 0);

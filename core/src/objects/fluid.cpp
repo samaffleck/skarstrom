@@ -116,6 +116,3 @@ namespace adsim {
 	}
 
 } // end adsim namespace
-
-
-CEREAL_CLASS_VERSION(adsim::Fluid, 4);
