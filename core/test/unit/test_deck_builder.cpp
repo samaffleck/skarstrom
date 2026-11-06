@@ -18,6 +18,7 @@
 
 #include "adsim/objects/deck_builder.h"
 #include "adsim/simulation.h"
+#include "adsim/solver/kpis.h"
 
 namespace adsim {
 namespace {
@@ -317,6 +318,67 @@ TEST(DeckBuilder, ThermalEnergyAndCoolingDutyComeFromTheEnergySources) {
   const KPIRecord iso = b.sim.KPIs(-1).at(0);
   EXPECT_EQ(iso.thermal_energy, 0.0);
   EXPECT_EQ(iso.cooling_duty, 0.0);
+}
+
+// A closed bed (no flow at either end) with an energy source of known power:
+// the logged heat duty of each step is the analytic Q = P t, heating for a
+// positive power and cooling for a negative one, and the bed warms and cools
+// accordingly. With no product the specific KPIs are undefined, so the raw
+// duty [J] is checked.
+TEST(DeckBuilder, ClosedBedHeatDutyIsPowerTimesTime) {
+  Built b;
+  Build(b);
+  UserData& d = b.sim.Data();
+  for (size_t step : {b.feed, b.blowdown, b.evacuation, b.pressurisation}) {
+    build::SetClosed(d, step, "top");
+    build::SetClosed(d, step, "bottom");
+  }
+  build::SetEnergySource(d, b.evacuation, b.layer, true);
+  b.sim.RefreshParameters();
+  const double p_heat = 5.0, p_cool = -2.0;  // [W]
+  const double t_heat = 60.0, t_cool = 40.0, t_rest = 20.0;  // [s]
+  b.sim.SetParameterText("step[Feed].energy[13X].power", std::to_string(p_heat));
+  b.sim.SetParameterText("step[Feed].time", std::to_string(t_heat));
+  b.sim.SetParameterText("step[Evacuation].energy[13X].power", std::to_string(p_cool));
+  b.sim.SetParameterText("step[Evacuation].time", std::to_string(t_cool));
+  b.sim.SetParameterText("step[Blowdown].time", std::to_string(t_rest));
+  b.sim.SetParameterText("step[Pressurisation].time", std::to_string(t_rest));
+  std::string error;
+  ASSERT_TRUE(b.sim.Check(error)) << error;
+  RunOptions options;
+  options.cycles = 1;
+  const RunResult r = b.sim.Run(options);
+  ASSERT_TRUE(r.Ok()) << r.message;
+
+  const int cycle = 0;
+  KPIParams params(b.sim.Log(), b.sim.Boundaries());
+  params.cycle_index_ = cycle;
+  const double expected[4][2] = {{p_heat * t_heat, 0.0}, {0.0, 0.0}, {0.0, -p_cool * t_cool}, {0.0, 0.0}};
+  for (int s = 0; s < 4; ++s) {
+    const StepThermalDuty duty = CalculateStepThermalDuty(params, s);
+    EXPECT_NEAR(duty.heating, expected[s][0], 1e-9 * p_heat * t_heat) << "step " << s;
+    EXPECT_NEAR(duty.cooling, expected[s][1], 1e-9 * p_heat * t_heat) << "step " << s;
+  }
+  const StepThermalDuty cycle_duty = CalculateCycleThermalDuty(params);
+  EXPECT_NEAR(cycle_duty.heating, 300.0, 1e-7);
+  EXPECT_NEAR(cycle_duty.cooling, 80.0, 1e-7);
+
+  // The heater warms the bed and the cooler cools it.
+  auto mean_temperature = [&](int step, bool at_end) {
+    const VariableLogEntry T = b.sim.Log().GetVariable(cycle, step, VariableType::TEMPERATURE);
+    const auto& row = at_end ? T.values.back() : T.values.front();
+    double sum = 0.0;
+    for (double v : row) sum += v;
+    return sum / static_cast<double>(row.size());
+  };
+  EXPECT_GT(mean_temperature(0, true), mean_temperature(0, false) + 0.1);
+  EXPECT_LT(mean_temperature(2, true), mean_temperature(2, false) - 0.1);
+
+  // No product: the specific KPIs are undefined, never a number per zero kg.
+  for (const KPIRecord& k : b.sim.KPIs(-1)) {
+    EXPECT_TRUE(std::isnan(k.thermal_energy));
+    EXPECT_TRUE(std::isnan(k.cooling_duty));
+  }
 }
 
 // A pressure ramp lists its step-time switch; turning it off lists its own ramp

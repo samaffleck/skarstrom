@@ -81,6 +81,30 @@ where $n_{\text{product}} = n_{\text{product, out}} - n_{\text{product, recycled
 
 > **Electrical Energy requires compression power.** For the electrical energy KPI to be non-zero, enable **Calculate pump power** (or use a pump device) on the [boundary conditions](boundary-conditions.md#pumps-compressors-and-vacuum-pumps) that do work — pressurisation, blowdown, evacuation — and set their efficiency and energy models.
 
+### Energy: the three figures and their units
+
+| KPI | What it counts | Field |
+|---|---|---|
+| Electrical energy | compressor and vacuum-pump work | `electrical_energy` (also `energy_consumption`) |
+| Thermal energy | heat supplied by the heating energy sources | `thermal_energy` |
+| Cooling duty | heat removed by the cooling energy sources (positive) | `cooling_duty` |
+
+All three are in **J per kg of net product**. They are separate: add them only if your comparison means to (electricity and heat are not worth the same, so a plant study usually weighs them, for example by converting heat to primary energy or cost). To convert:
+
+| To | From J/kg | Note |
+|---|---|---|
+| MJ/kg | divide by 10⁶ | |
+| GJ/t (GJ per tonne) | divide by 10⁶ | 1 GJ/t = 10⁹ J / 10³ kg = 1 MJ/kg, so the number is the same as in MJ/kg |
+| kWh/t | divide by 3600 | 1 kWh/t = 3.6 × 10⁶ J / 10³ kg = 3600 J/kg |
+
+For example, the [TSA tutorial](tsa-regeneration.md) heater gives a thermal energy of 6.07 × 10⁶ J/kg of CO₂: 6.07 MJ/kg, 6.07 GJ/t, or 1685 kWh/t.
+
+```python
+k = sim.kpis(cycle=-1)[0]
+print(f"electrical {k.electrical_energy / 1e6:.3f} GJ/t, thermal {k.thermal_energy / 1e6:.3f} GJ/t, "
+      f"cooling {k.cooling_duty / 1e6:.3f} GJ/t")
+```
+
 ## Reading the results
 
 After a run, `sim.kpis()` returns one record per tracked component per cycle of the run (every cycle, not only the logged ones: the solver records the KPIs when each cycle completes) with **purity**, **recovery**, **productivity_mass**, **productivity_volume**, **energy_consumption**, **production_rate**, **electrical_energy** (the same value as energy_consumption), **thermal_energy**, **cooling_duty**, **step_thermal_energy** and **step_cooling_duty**; `sim.kpis(cycle=-1)` keeps the last cycle and `sim.kpi_table()` returns a pandas DataFrame. `skarstrom run deck.json` prints the KPIs of the last cycle, and `--csv DIR` writes every cycle to `kpis.csv` (its `energy [J/kg]` column is the electrical energy; `electrical energy [J/kg]`, `thermal energy [J/kg]` and `cooling duty [J/kg]` columns are appended). Cycles are numbered from 0, so cycle 49 is the 50th, while the solver log counts from 1 (*CSS reached at cycle 50*). A KPI that is undefined for the run, for example a purity with no product drawn, is `nan` (`null` in JSON output).
