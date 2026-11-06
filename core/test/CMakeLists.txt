@@ -8,6 +8,25 @@ add_executable(AdsorptionSimulatorTests ${TEST_SOURCES})
 # Link the adsim library (includes are inherited from the target)
 target_link_libraries(AdsorptionSimulatorTests PRIVATE adsim gtest_main)
 
+# Precompiled header: the test sources include ../src/pch.h (cereal, Eigen,
+# CoolProp, SUNDIALS, the STL) and GoogleTest, which every translation unit
+# otherwise parses from scratch. The PCH is the test target's own rather than
+# REUSE_FROM adsim, because adsim compiles with private definitions the tests
+# do not share. A PCH is included before anything in a source file, so a
+# #define placed above <cmath> no longer reaches it; _USE_MATH_DEFINES (M_PI on
+# MSVC) is therefore a target definition. It is defined empty, exactly as the
+# test files' own `#define _USE_MATH_DEFINES` lines define it, so those lines
+# are identical redefinitions and raise no warning.
+target_compile_definitions(AdsorptionSimulatorTests PRIVATE _USE_MATH_DEFINES=)
+target_precompile_headers(AdsorptionSimulatorTests PRIVATE
+    ${ADSIM_SOURCE_DIR}/core/src/pch.h
+    <gtest/gtest.h>)
+# As for adsim (core/CMakeLists.txt): no timestamp in a Clang PCH, so a
+# compiler cache can reuse it on a fresh checkout.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(AdsorptionSimulatorTests PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
+endif()
+
 # Auto-register tests with CTest.
 # The working directory is core/, so relative paths resolve as follows:
 #   data/...                digitised experimental curves (core/data/)
