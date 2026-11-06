@@ -262,10 +262,17 @@ namespace adsim {
     bool HasInitialState() const { return initial_state_ != nullptr; }
     const CycleState& InitialState() const;
     // Why `state` cannot start a run of this deck, or an empty string. Checks
-    // the components, layers and cell counts, step and endpoint structure, and
-    // the step times when the deck's connections or buffer tanks read the
-    // state's histories (resampling them is not supported yet).
+    // the components, layers and void regions, step and endpoint structure,
+    // and the step times when the deck's connections or buffer tanks read the
+    // state's histories (resampling them is not supported yet). A state on
+    // other cell counts is fine: a run remaps it onto the deck's grid.
     std::string CheckState(const CycleState& state);
+    // The state transferred onto this deck's cells per layer (RemapCycleState
+    // in cycle_state.h: a conservative per-layer remap that keeps every
+    // component's inventory in every layer). Runs started from a state on
+    // another grid do this themselves. Throws std::invalid_argument when the
+    // state does not fit the deck.
+    CycleState RemapState(const CycleState& state);
 
     // Runs exactly one cycle, from `from`, without changing the deck's number
     // of cycles; FinalState() is then the cycle map applied to `from`. Without
