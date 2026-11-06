@@ -1125,7 +1125,15 @@ namespace adsim {
     //     a ghost contributes as the far cell of a reconstruction, is that
     //     mean (see BoundaryFaceUpstreamT);
     //   * the face value is not bounded: a temperature has no [0, 1] range,
-    //     and the van Leer face lies between its two cells anyway.
+    //     and the van Leer face lies between its two cells anyway;
+    //   * the reconstruction acts on T / T_c, T_c the upwind cell's
+    //     temperature, and the face value is scaled back. WENO's epsilon and
+    //     van Leer's delta are absolute and sized for mole fractions of order
+    //     one; on kelvin they put the noise-level differences of a nearly
+    //     flat profile in the range where the weights switch, which made the
+    //     residual noisy (more steps, run-to-run scatter). Relative to T_c a
+    //     temperature has the scale of a mole fraction, and both
+    //     reconstructions are otherwise homogeneous of degree one.
     // T_face[i] and T_face[i - 1] are the east and west faces of cell i, so
     // both cells of a face see the same value. The stencil reaches two cells
     // on either side, as the mole fractions' do, which the Jacobian band of
@@ -1150,9 +1158,10 @@ namespace adsim {
             return upwind;
           const bool cu_lumped = IsLumpedCell(dv, n - 1, last);
           const double T_cu = cu_lumped ? lumped_value(n - 1, n) : T[n - 1];
-          return scheme == AdvectionScheme::WENO
-                     ? WenoFace(T_cu, T[n], T[n + 1], dx[n - 1], dx[n], dx[n + 1], cu_lumped)
-                     : VanLeerFace(T_cu, T[n], T[n + 1], cu_lumped);
+          const double s = T[n];
+          return s * (scheme == AdvectionScheme::WENO
+                          ? WenoFace(T_cu / s, 1.0, T[n + 1] / s, dx[n - 1], dx[n], dx[n + 1], cu_lumped)
+                          : VanLeerFace(T_cu / s, 1.0, T[n + 1] / s, cu_lumped));
         };
         // Negative velocity: mirror image (cells n + 2, n + 1, n).
         auto right_biased = [&]() {
@@ -1161,9 +1170,10 @@ namespace adsim {
             return upwind;
           const bool cu_lumped = IsLumpedCell(dv, n + 2, last);
           const double T_cu = cu_lumped ? lumped_value(n + 2, n + 1) : T[n + 2];
-          return scheme == AdvectionScheme::WENO
-                     ? WenoFace(T_cu, T[n + 1], T[n], dx[n + 2], dx[n + 1], dx[n], cu_lumped)
-                     : VanLeerFace(T_cu, T[n + 1], T[n], cu_lumped);
+          const double s = T[n + 1];
+          return s * (scheme == AdvectionScheme::WENO
+                          ? WenoFace(T_cu / s, 1.0, T[n] / s, dx[n + 2], dx[n + 1], dx[n], cu_lumped)
+                          : VanLeerFace(T_cu / s, 1.0, T[n] / s, cu_lumped));
         };
         T_face[static_cast<size_t>(n)] = UpwindFace(u[static_cast<size_t>(n)], left_biased, right_biased);
       }
