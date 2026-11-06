@@ -86,6 +86,14 @@ namespace adsim {
     // Called after every accepted internal step with (time, step size, error
     // norm, cycle, step) -- for diagnostics (bench_solver --trace).
     SolverMetricsCallback on_step;
+    // Start this run from a state (cycle_state.h) instead of the deck's
+    // initial conditions; overrides SetInitialState for this run only. The
+    // state is adapted to the deck first (PrepareCycleState: remapped onto
+    // other cells per layer, histories stretched onto changed step times);
+    // a state that does not fit fails the run with the reason. Must outlive
+    // the Run call. nullptr: the warm-start state if set, else the initial
+    // conditions.
+    const CycleState* initial_state = nullptr;
   };
 
   struct SolverMessage {
@@ -262,11 +270,15 @@ namespace adsim {
     bool HasInitialState() const { return initial_state_ != nullptr; }
     const CycleState& InitialState() const;
     // Why `state` cannot start a run of this deck, or an empty string. Checks
-    // the components, layers and void regions, step and endpoint structure,
-    // and the step times when the deck's connections or buffer tanks read the
-    // state's histories (resampling them is not supported yet). A state on
-    // other cell counts is fine: a run remaps it onto the deck's grid.
+    // the components, layers and void regions, and the step and endpoint
+    // structure. Other cell counts and step times are fine: a run adapts the
+    // state (PrepareState).
     std::string CheckState(const CycleState& state);
+    // The state as a run would start from it: remapped onto this deck's cells
+    // per layer and with its histories stretched onto the deck's step times
+    // (PrepareCycleState in cycle_state.h). `note`, when given, says what was
+    // done. Throws std::invalid_argument when the state does not fit.
+    CycleState PrepareState(const CycleState& state, std::string* note = nullptr);
     // The state transferred onto this deck's cells per layer (RemapCycleState
     // in cycle_state.h: a conservative per-layer remap that keeps every
     // component's inventory in every layer). Runs started from a state on
@@ -278,7 +290,8 @@ namespace adsim {
     // of cycles; FinalState() is then the cycle map applied to `from`. Without
     // a state: from the last run's final state if there is one, else from the
     // warm-start state if set, else from the initial conditions -- so repeated
-    // RunCycle() calls step the cycle map. options.cycles is ignored.
+    // RunCycle() calls step the cycle map; options.initial_state, when set,
+    // comes first. options.cycles is ignored.
     RunResult RunCycle(const RunOptions& options = {});
     RunResult RunCycle(const CycleState& from, const RunOptions& options = {});
 

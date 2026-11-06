@@ -82,6 +82,10 @@ $t$ is the time since the start of the step, so the ramp restarts every time the
 
 The profile replaces the typed-in temperature only. When the inlet is fed from a [buffer tank](#drawing-gas-from-another-step-buffer-tank) or a connected stream, the gas keeps that source's temperature as before, and the profile acts as the first-cycle assumption. In an [isothermal](energy-balance.md#isothermal-mode) run inlet temperatures have no effect.
 
+### Heating and cooling the column
+
+A step can also heat or cool the column from outside, through a [heating medium](wall-energy-balance.md#heating-medium-jacket) on the wall's outer face: a jacket fluid at a set temperature (constant or ramped, with the same profiles as an inlet temperature) and heat transfer coefficient. It replaces the ambient exchange while the step runs; steps without one keep it.
+
 ---
 
 ## Time-varying profiles

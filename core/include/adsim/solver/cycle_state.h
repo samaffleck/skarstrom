@@ -137,9 +137,9 @@ namespace adsim {
 
   // Why `state` cannot start a run of `data`, or an empty string when it can.
   // Checks what the deck alone determines: the components, the layers and the
-  // void regions, the step and endpoint structure, and the step times when the
-  // state carries history that a connection or buffer tank reads. Different
-  // cell counts are not a reason: such a state is remapped (RemapCycleState).
+  // void regions, and the step and endpoint structure. Different cell counts
+  // and step times are not reasons: PrepareCycleState remaps the state
+  // (RemapCycleState) and stretches its histories (ResampleCycleStateHistories).
   std::string CycleStateIncompatibility(const CycleState& state, UserData& data);
 
   // True when the state's cells per layer differ from the deck's, i.e. the
@@ -155,10 +155,11 @@ namespace adsim {
   // piecewise-constant remap on the layer's uniform cells, which keeps each
   // field's layer average (sum of value x cell width) and is monotone. The gas
   // is remapped as component concentrations c_i = C y_i (C the total gas
-  // concentration, or P / (R T)); the remapped composition is y_i = c_i / sum c
-  // and the pressure P = (sum c) R T with the remapped fluid temperature. So
-  // each component's gas and adsorbed inventory in each layer is kept to
-  // rounding. Face fields (velocity: algebraic, only a guess for the
+  // concentration, or P / (R T)); the remapped composition is y_i = c_i / sum c.
+  // The fluid temperature is remapped weighted by the gas concentration (it
+  // keeps C T, the gas's sensible heat), and the pressure is P = (sum c) R T,
+  // which makes it the plain cell average of P (monotone). So each component's
+  // gas and adsorbed inventory in each layer is kept to rounding. Face fields (velocity: algebraic, only a guess for the
   // consistent-IC solve) are interpolated linearly in the layer coordinate.
   // Ghost and void cells (one each on both grids) are copied, and so are the
   // endpoint histories and summaries (they belong to steps, not cells).
@@ -166,6 +167,26 @@ namespace adsim {
   // the original state back. Throws std::invalid_argument for an incompatible
   // state.
   CycleState RemapCycleState(const CycleState& state, UserData& data);
+
+  // True when a step's time differs between the state and the deck.
+  bool CycleStateNeedsResample(const CycleState& state, const UserData& data);
+
+  // The state with its endpoint histories moved onto the deck's step times:
+  // each changed step's logged time series is stretched onto the new duration
+  // (same shape in step-relative time) and its summaries' total moles are
+  // scaled with the duration (same average flow). A step whose old or new time
+  // is zero has its histories and summaries cleared (its consumers then use
+  // their first-cycle values). The DAE vector is unchanged. `note`, when
+  // given, lists the changed steps. Throws std::invalid_argument for a
+  // different step structure.
+  CycleState ResampleCycleStateHistories(const CycleState& state, const UserData& data, std::string* note = nullptr);
+
+  // Everything a run does to start from `state`: refuses a state that does not
+  // fit (std::invalid_argument with the reason), stretches the histories onto
+  // changed step times, and remaps onto other cells per layer. A state that
+  // fits as it is comes back unchanged. `note`, when given, says what was done
+  // (empty when nothing). Initialises data.state when it remaps.
+  CycleState PrepareCycleState(const CycleState& state, UserData& data, std::string* note = nullptr);
 
   // Why the DAE layout of `state` does not match `data.state` (which must be
   // initialised, as in the solver after UserData::Initialise), or empty.
