@@ -545,3 +545,7 @@ namespace adsim {
   }
 
 } // end adsim namespace
+
+// Here rather than in the .cpp, so that every archive that serialises this
+// class sees the version (a translation unit without it would use 0).
+CEREAL_CLASS_VERSION(adsim::Fluid, 4);
