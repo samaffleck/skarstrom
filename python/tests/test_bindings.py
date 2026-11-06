@@ -229,7 +229,9 @@ def test_kpi_table(perez_run):
     pd = pytest.importorskip("pandas")
     df = perez_run.kpi_table()
     assert list(df["cycle"]) == [0, 1, 2]
-    assert {"purity", "recovery", "energy_consumption"} <= set(df.columns)
+    assert {"purity", "recovery", "energy_consumption", "electrical_energy"} <= set(df.columns)
+    # The electrical energy is energy_consumption under its explicit name.
+    assert df["electrical_energy"].equals(df["energy_consumption"])
 
 
 def test_progress_cancel_and_messages(perez):

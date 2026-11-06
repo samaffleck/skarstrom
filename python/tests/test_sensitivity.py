@@ -46,6 +46,7 @@ def test_inputs():
     with pytest.raises(ValueError):
         sa.uniform("a", 2, 1).quantile(0.5)
     assert "purity" in sa.kpi_names() and "energy_consumption" in sa.kpi_names()
+    assert "electrical_energy" in sa.kpi_names()
 
 
 def test_study_resolves_and_checks_inputs(sim, paths):
