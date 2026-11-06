@@ -633,6 +633,18 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
             base = f"step[{s['id']}].energy[{layer_id}]"
             w(f"{v}.add_energy_source({layer_var.get(layer_id, layer_id)}, power={_literal(sim, base + '.power')}, "
               f"enabled={_literal(sim, base + '.enabled')})")
+        # The step's heating medium (jacket and internal exchanger), when it has one.
+        mp = f"step[{s['id']}].medium"
+        paths = sim._index().by_path
+        if f"{mp}.enabled" in paths and sim.get(f"{mp}.enabled"):
+            w(f"{v}.medium.enabled = True")
+            if f"{mp}.temperature" in paths:
+                w(f"{v}.medium.temperature = {_literal(sim, mp + '.temperature')}")
+            else:
+                w(f"# {v}.medium.temperature: a ramp, which the builder does not create")
+            for f in ("heat_transfer_coefficient", "exchanger_area_per_volume", "exchanger_heat_transfer_coefficient"):
+                if f"{mp}.{f}" in paths:
+                    w(f"{v}.medium.{f} = {_literal(sim, f'{mp}.{f}')}")
     for a_id, b_id in d["connections"]:
         w(f"{name}.connect({ep_expr.get(a_id, a_id)}, {ep_expr.get(b_id, b_id)})")
     for s in d["steps"]:
