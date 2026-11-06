@@ -15,7 +15,8 @@
 // - Pressure is taken over the column (packed cells and void cells), wall
 //   temperature over the packed cells, and approach to fluidisation over the
 //   faces between packed cells (the faces at a void or ghost cell compare the
-//   pressure across a different region).
+//   pressure across a different region). Faces touching a structured layer
+//   (monolith, laminate) are not checked: its solid is fixed and cannot lift.
 // - The design checks run only when the wall's design is in use
 //   (BedWall::DesignInUse: a positive design pressure or vacuum service).
 //   Gauge pressure is relative to kAtmosphericPressure. A pressure limit

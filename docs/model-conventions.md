@@ -56,6 +56,8 @@ skarstrom run blend.json --set "layer[1].mass_fraction[1]=0.7" --set "layer[1].m
 
 A sensitivity study (`skarstrom.sensitivity`) varies each path on its own, so it cannot vary a blend's fraction. Use a loop like the one above.
 
+For a structured layer (monolith or laminate), the open frontal area of its channels takes the bed void fraction's place in these formulas ([Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)).
+
 ### Total voidage
 
 The gas held in the bed (the accumulation terms of the mass and energy balances) uses the **total voidage**

@@ -14,6 +14,9 @@
 #include "adsim/objects/porous_media.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/equations/dispersion_model.h"
+#include "adsim/equations/heat_transfer_model.h"
+#include "adsim/equations/mass_transfer_model.h"
 
 #include <algorithm>
 #include <cmath>
@@ -190,6 +193,65 @@ namespace adsim {
     for (const auto& layer : bed.layers_.layers_)
       for (const auto& issue : CheckLayerComposition(layer, adsorbents))
         if (issue.severity == LayerCompositionIssue::Severity::Warning) warnings.push_back(issue.message);
+    return warnings;
+  }
+
+  std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed) {
+    std::vector<std::string> warnings;
+    bool any_structured = false;
+    for (const auto& layer : bed.layers_.layers_) {
+      if (!layer.IsStructured()) continue;
+      any_structured = true;
+      const std::string what = std::string(LayerKindList[static_cast<int>(layer.kind_)]);
+      std::vector<std::string> uses;
+      const auto& eqs = layer.equations_;
+      if (dynamic_cast<const DispersionModelRuthven*>(eqs.dispersion_model_.get()))
+        uses.push_back("Ruthven axial dispersion");
+      if (dynamic_cast<const HeatDispersionModelRuthven*>(eqs.heat_dispersion_model_.get()))
+        uses.push_back("Ruthven heat dispersion");
+      if (dynamic_cast<const HeatDispersionModelYagiandKunii*>(eqs.heat_dispersion_model_.get()))
+        uses.push_back("Yagi-Kunii heat dispersion");
+      if (dynamic_cast<const InternalHeatTransferModel_Dixon*>(eqs.internal_heat_transfer_model_.get()))
+        uses.push_back("Dixon wall heat transfer");
+      if (dynamic_cast<const InternalHeatTransferModel_Leva*>(eqs.internal_heat_transfer_model_.get()))
+        uses.push_back("Leva wall heat transfer");
+      if (bed.equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL &&
+          dynamic_cast<const ConstantParticleHeatTransferModel*>(bed.equations_.particle_heat_transfer_model_.get()))
+        uses.push_back("the gas-solid heat transfer area 6 (1 - eb) / dp");
+      for (const auto& [id, frac] : layer.composition_) {
+        if (!adsorbents.Contains(id)) continue;
+        const Adsorbent& ads = adsorbents.Get(id);
+        std::vector<std::string> comps;
+        std::vector<std::string> names;
+        for (const auto& [c, model] : ads.adsorption_source_.mass_transfer_models_) names.push_back(c);
+        std::sort(names.begin(), names.end());
+        for (const auto& c : names) {
+          const auto& model = ads.adsorption_source_.mass_transfer_models_.at(c);
+          const auto* k = model ? model->mtc_model_.get() : nullptr;
+          if (dynamic_cast<const MassTransferCoefficientMacropore*>(k) ||
+              dynamic_cast<const MassTransferCoefficientMacroporeKnudsen*>(k) ||
+              dynamic_cast<const MassTransferCoefficientMacroporeCapacity*>(k) ||
+              dynamic_cast<const MassTransferCoefficient_Haynes*>(k))
+            comps.push_back(c);
+        }
+        if (comps.empty()) continue;
+        std::string list;
+        for (size_t i = 0; i < comps.size(); ++i) list += (i ? ", " : "") + comps[i];
+        uses.push_back("the particle-radius rate coefficient of '" + ads.name_ + "' for " + list);
+      }
+      if (uses.empty()) continue;
+      std::ostringstream ss;
+      ss << "Warning: layer '" << layer.name_ << "' is a " << what << " but uses packed-bed closures that read the"
+         << " particle diameter (" << std::setprecision(4) << layer.particle_diameter_.Get() << " m): ";
+      for (size_t i = 0; i < uses.size(); ++i) ss << (i ? "; " : "") << uses[i];
+      ss << ". Closures for channels are not available yet; set the particle diameter to the length these"
+            " correlations should use, or choose constant coefficients.";
+      warnings.push_back(ss.str());
+    }
+    if (any_structured && bed.equations_.thermal_equilibrium_mode_ != ThermalEquilibriumMode::NON_LOCAL)
+      warnings.push_back("Warning: the bed has a structured layer (monolith or laminate) and uses local thermal"
+                         " equilibrium (LTE), which takes heat exchange between the gas and the thin channel walls"
+                         " as instantaneous; local thermal non-equilibrium (LTNE) is recommended.");
     return warnings;
   }
 

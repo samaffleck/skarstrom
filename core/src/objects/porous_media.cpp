@@ -284,11 +284,185 @@ namespace adsim {
 	}
 
 	double MixedAdsorbentLayer::GetPermeability() const {
-		return GetLayerPermeability(eb_, particle_diameter_, momentum_model_);
+		if (!IsStructured()) return GetLayerPermeability(eb_, particle_diameter_, momentum_model_);
+		// Laminar channel flow: u_channel = D_h^2 / (2 fRe mu) (-dP/dz) with the
+		// Fanning fRe, and the superficial velocity is OFA u_channel.
+		const double dh = GetHydraulicDiameter();
+		return GetOpenFraction() * dh * dh / (2.0 * GetFrictionFactorReynolds());
 	}
 
 	double MixedAdsorbentLayer::GetInertialCoefficient() const {
-		return GetLayerInertialCoefficient(eb_, particle_diameter_, momentum_model_);
+		if (!IsStructured()) return GetLayerInertialCoefficient(eb_, particle_diameter_, momentum_model_);
+		return 0.0;  // laminar channels: the linear Darcy path
+	}
+
+	namespace {
+		constexpr double kPi = 3.14159265358979323846;
+
+		// Monolith pitch p and open channel width a = p - w - 2 t_wc [m].
+		void MonolithWidths(const StructuredGeometry& g, double& p, double& a) {
+			const double n = g.cell_density_.Get();
+			p = n > 0.0 ? 1.0 / std::sqrt(n) : 0.0;
+			a = p - g.wall_thickness_.Get() - 2.0 * g.washcoat_thickness_.Get();
+		}
+	}  // namespace
+
+	double MixedAdsorbentLayer::GetOpenFraction() const {
+		const StructuredGeometry& g = structured_;
+		switch (kind_) {
+			case LayerKind::Packed: return eb_.Get();
+			case LayerKind::Monolith: {
+				double p, a;
+				MonolithWidths(g, p, a);
+				if (!(p > 0.0)) return 0.0;
+				const double square = a * a / (p * p);
+				return g.channel_shape_ == ChannelShape::Circular ? 0.25 * kPi * square : square;
+			}
+			case LayerKind::Laminate: {
+				const double period = g.gap_.Get() + g.sheet_thickness_.Get();
+				return period > 0.0 ? (g.gap_.Get() - 2.0 * g.washcoat_thickness_.Get()) / period : 0.0;
+			}
+		}
+		return 0.0;
+	}
+
+	double MixedAdsorbentLayer::GetHydraulicDiameter() const {
+		const StructuredGeometry& g = structured_;
+		switch (kind_) {
+			case LayerKind::Packed: {
+				const double e = eb_.Get();
+				return (2.0 / 3.0) * e * particle_diameter_.Get() / (1.0 - e);
+			}
+			case LayerKind::Monolith: {
+				double p, a;
+				MonolithWidths(g, p, a);
+				return a;  // square: 4 a^2 / (4 a); circular: the diameter
+			}
+			case LayerKind::Laminate:
+				return 2.0 * (g.gap_.Get() - 2.0 * g.washcoat_thickness_.Get());
+		}
+		return 0.0;
+	}
+
+	double MixedAdsorbentLayer::GetSpecificSurfaceArea() const {
+		const StructuredGeometry& g = structured_;
+		switch (kind_) {
+			case LayerKind::Packed: {
+				const double dp = particle_diameter_.Get();
+				return dp > 0.0 ? 6.0 * (1.0 - eb_.Get()) / dp : 0.0;
+			}
+			case LayerKind::Monolith: {
+				double p, a;
+				MonolithWidths(g, p, a);
+				if (!(p > 0.0)) return 0.0;
+				const double perimeter = g.channel_shape_ == ChannelShape::Circular ? kPi * a : 4.0 * a;
+				return perimeter / (p * p);
+			}
+			case LayerKind::Laminate: {
+				const double period = g.gap_.Get() + g.sheet_thickness_.Get();
+				return period > 0.0 ? 2.0 / period : 0.0;
+			}
+		}
+		return 0.0;
+	}
+
+	double MixedAdsorbentLayer::GetFrictionFactorReynolds() const {
+		switch (kind_) {
+			case LayerKind::Packed: return 0.0;
+			case LayerKind::Monolith: return structured_.channel_shape_ == ChannelShape::Circular ? 16.0 : 14.23;
+			case LayerKind::Laminate: return 24.0;
+		}
+		return 0.0;
+	}
+
+	double MixedAdsorbentLayer::GetDiffusionLength() const {
+		const StructuredGeometry& g = structured_;
+		const double t_wc = g.washcoat_thickness_.Get();
+		switch (kind_) {
+			case LayerKind::Packed: return 0.5 * particle_diameter_.Get();
+			case LayerKind::Monolith: return t_wc > 0.0 ? t_wc : 0.5 * g.wall_thickness_.Get();
+			case LayerKind::Laminate: return t_wc > 0.0 ? t_wc : 0.5 * g.sheet_thickness_.Get();
+		}
+		return 0.0;
+	}
+
+	double MixedAdsorbentLayer::GetWashcoatFraction() const {
+		const StructuredGeometry& g = structured_;
+		const double t_wc = g.washcoat_thickness_.Get();
+		if (!(t_wc > 0.0)) return 0.0;
+		switch (kind_) {
+			case LayerKind::Packed: return 0.0;
+			case LayerKind::Monolith: {
+				double p, a;
+				MonolithWidths(g, p, a);
+				const double b = p - g.wall_thickness_.Get();  // substrate channel width
+				const double k = g.channel_shape_ == ChannelShape::Circular ? 0.25 * kPi : 1.0;
+				const double solid = p * p - k * a * a;
+				return solid > 0.0 ? k * (b * b - a * a) / solid : 0.0;
+			}
+			case LayerKind::Laminate: {
+				const double solid = g.sheet_thickness_.Get() + 2.0 * t_wc;
+				return solid > 0.0 ? 2.0 * t_wc / solid : 0.0;
+			}
+		}
+		return 0.0;
+	}
+
+	LayerGeometry LayerGeometrySummary(const MixedAdsorbentLayer& layer, double cross_section_area) {
+		LayerGeometry s;
+		s.kind = layer.kind_;
+		s.open_fraction = layer.GetOpenFraction();
+		s.hydraulic_diameter = layer.GetHydraulicDiameter();
+		s.specific_surface_area = layer.GetSpecificSurfaceArea();
+		s.diffusion_length = layer.GetDiffusionLength();
+		s.washcoat_fraction = layer.GetWashcoatFraction();
+		s.friction_factor_reynolds = layer.GetFrictionFactorReynolds();
+		if (layer.kind_ == LayerKind::Monolith)
+			s.channel_count = layer.structured_.cell_density_.Get() * cross_section_area;
+		return s;
+	}
+
+	std::vector<std::string> CheckLayerGeometry(const MixedAdsorbentLayer& layer) {
+		std::vector<std::string> errors;
+		if (!layer.IsStructured()) return errors;
+		const std::string ln = "Error: Layer \"" + layer.name_ + "\" (" + LayerKindList[static_cast<int>(layer.kind_)] + "): ";
+		auto number = [](double v) {
+			std::ostringstream ss;
+			ss << std::setprecision(6) << v;
+			return ss.str();
+		};
+		const StructuredGeometry& g = layer.structured_;
+		auto positive = [&](const char* what, double v) {
+			if (!(v > 0.0)) errors.push_back(ln + what + " must be greater than 0, not " + number(v) + ".");
+		};
+		if (!(g.washcoat_thickness_.Get() >= 0.0))
+			errors.push_back(ln + "the washcoat thickness must not be negative, not " + number(g.washcoat_thickness_.Get()) + ".");
+		if (layer.kind_ == LayerKind::Monolith) {
+			positive("the cell density", g.cell_density_.Get());
+			positive("the wall thickness", g.wall_thickness_.Get());
+			double p, a;
+			MonolithWidths(g, p, a);
+			if (p > 0.0 && !(a > 0.0))
+				errors.push_back(ln + "the walls (" + number(g.wall_thickness_.Get()) + " m) and twice the washcoat (" +
+				                 number(2.0 * g.washcoat_thickness_.Get()) + " m) fill the channel pitch (" + number(p) +
+				                 " m), leaving no open channel.");
+		} else {
+			positive("the sheet thickness", g.sheet_thickness_.Get());
+			positive("the gap", g.gap_.Get());
+			if (g.gap_.Get() > 0.0 && !(g.gap_.Get() - 2.0 * g.washcoat_thickness_.Get() > 0.0))
+				errors.push_back(ln + "twice the washcoat (" + number(2.0 * g.washcoat_thickness_.Get()) +
+				                 " m) fills the gap (" + number(g.gap_.Get()) + " m), leaving no open channel.");
+		}
+		if (errors.empty()) {
+			const double ofa = layer.GetOpenFraction();
+			if (!(ofa > 0.0 && ofa < 1.0))
+				errors.push_back(ln + "the open fraction is " + number(ofa) + "; it must lie between 0 and 1.");
+			if (!(layer.GetHydraulicDiameter() > 0.0))
+				errors.push_back(ln + "the hydraulic diameter is " + number(layer.GetHydraulicDiameter()) + " m; it must be positive.");
+			if (!(layer.GetDiffusionLength() > 0.0))
+				errors.push_back(ln + "the diffusion length is " + number(layer.GetDiffusionLength()) + " m; it must be positive.");
+		}
+		return errors;
 	}
 
 	// Mixing rules. composition_ holds MASS fractions w_k, so the extensive
@@ -342,7 +516,7 @@ namespace adsim {
 		// rho_b,k = (1 - eb) * rho_mix * w_k: the mass of adsorbent k per bed volume.
 		// These sum to GetBulkDensity() = (1 - eb) * W * rho_mix.
 		const double rho_mix = GetMixtureSolidDensity(dir);
-		const double solid_fraction = 1.0 - eb_.Get();
+		const double solid_fraction = 1.0 - GetVoidFraction();
 		std::map<AdsorbentID, double> rho_b;
 		for (const auto& [id, frac] : composition_) {
 			rho_b[id] = solid_fraction * (rho_mix * frac);
