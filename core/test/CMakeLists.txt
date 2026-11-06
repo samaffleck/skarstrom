@@ -38,8 +38,10 @@ set(ADSIM_PAPER_TESTS
     "Nguyen2023Test.*" "Perez2019Test.*" "Streb2021Test.*" "Vysyaraju2024Test.*"
     "Ward2022Test.*" "WardPini2024Test.*")
 set(ADSIM_SLOW_TESTS
-    # Cycles to CSS with and without Aitken acceleration on a slow cycle.
+    # Cycles to CSS with and without Aitken acceleration on a slow cycle, and
+    # on the thermal four-step LPP deck (87 vs 39 cycles, ~10 s).
     "CSSAcceleration.ReducesCyclesToCSS*"
+    "FourStepLPPTest.FourStepLPP_ThermalCSS_AccelerationReducesCycles"
     "CSSAcceleration.SlowGeometricModeReachesCssSooner"
     # CSS behaviour on a slow (rate 0.97) cycle: needs 100+ cycles.
     "CSSConvergence.SlowCycleFollowsTheGeometricModel"
