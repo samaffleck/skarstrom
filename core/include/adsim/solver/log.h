@@ -12,6 +12,8 @@
 #include <map>
 #include <set>
 #include <iterator>
+#include <cstddef>
+#include <functional>
 
 // SUNDIALS includes
 #include <ida/ida.h>
@@ -251,11 +253,29 @@ namespace adsim {
   // using Var0D = float;
   // using Var1D = std::vector<float>;
 
+  // Memory budget of the equation log per (cycle, step) [bytes]. LogState
+  // records a full snapshot at every accepted solver step; a step that takes
+  // very many steps (a stalled or very stiff run) would otherwise grow without
+  // bound (about 100 kB per solver step at 320 cells). When a step's rows reach
+  // the budget, its interior rows are thinned (see EquationLog::LogState). Set
+  // above the largest bundled deck (Streb2021_A1: 16,672 rows x ~65 kB, about
+  // 1.07 GB in one step), so no bundled deck is thinned.
+  inline constexpr std::size_t kMaxEquationLogBytesPerStep = std::size_t(2) << 30;  // 2 GiB
+
   // Step-level shared data (times stored once per step, not per variable)
   struct StepData {
     std::vector<double> times{};  // Shared times vector - stored once per step (as double)
     int cycle_index = 0;
     int step_index = 0;
+    std::size_t row_bytes = 0;    // bytes of one logged row (every variable + its time)
+    int thinnings = 0;            // times the step's rows were halved to stay in budget
+    // Budget bookkeeping (EquationLog::ThinIfOverBudget): LogState calls in
+    // this step, the stride of the kept rows in calls (1 until the first
+    // thinning), and whether the last row is off that stride (kept only
+    // because it is the newest, replaced by the next call).
+    std::size_t calls = 0;
+    std::size_t stride = 1;
+    bool last_provisional = false;
   };
 
   // Internal storage structure (optimized)
@@ -320,8 +340,15 @@ namespace adsim {
 
     int max_cycles_to_keep_ = 10;
     // Max rows written per (cycle, step) in SaveToFile (CSV plotting output
-    // only; the in-memory log stays full-resolution). <= 0 writes every row.
+    // only; the in-memory log keeps every solver step, up to the budget
+    // below). <= 0 writes every row.
     int max_log_points_per_step_ = 0;
+    // Memory budget per (cycle, step) [bytes]; kMaxEquationLogBytesPerStep
+    // (runtime only, not a deck field; tests lower it). 0 disables thinning.
+    std::size_t max_bytes_per_step_ = kMaxEquationLogBytesPerStep;
+    // Receives one message per (cycle, step) the first time that step reaches
+    // the budget (the solvers forward it to their LOW-level log). May be unset.
+    std::function<void(const std::string&)> message_sink_;
     SystemData sys_data;
 
   private:
@@ -334,6 +361,8 @@ namespace adsim {
     Var1D TakeRow();
     Var1D CopyRow(const std::vector<double>& values);
     void RecycleRows(Log& log);
+    // Keep a step within max_bytes_per_step_: see the definition in log.cpp.
+    void ThinIfOverBudget(Log& log);
     std::vector<Var1D> spare_rows_;
   
     SimulationLog var_log_;

@@ -105,6 +105,7 @@ namespace adsim {
     // Initialise member variables 
     user_data_.Initialise();
     equation_log_.Initialise(user_data_);
+    equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
     boundary_log_.Initialise(user_data_);
     kpi_history_.Clear();
     
@@ -602,6 +603,7 @@ namespace adsim {
       // Initialise member variables
       user_data_.Initialise();
       equation_log_.Initialise(user_data_);
+      equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
       boundary_log_.Initialise(user_data_);
       kpi_history_.Clear();
 
