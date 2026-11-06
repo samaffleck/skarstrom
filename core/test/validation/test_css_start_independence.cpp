@@ -7,8 +7,12 @@
 //     it is adsorbed at the start (loadings start in equilibrium with the
 //     initial gas);
 //   * a bed saturated with the feed: the feed gas, loadings in equilibrium;
-//   * a hot and a cold bed: the deck's initial temperatures (bed and wall)
-//     raised and lowered by 40 K;
+//   * a hot and a cold bed: the state after one cycle from the shipped start
+//     with every temperature (fluid, solid, wall) raised or lowered by 40 K,
+//     given through the warm-start API. Not by editing the deck's initial
+//     temperature: with the default CoolProp gas heat capacities that also
+//     sets the heat capacities for the whole run (Fluid::Initialise), so it
+//     changes the model, not only the start (issue #145);
 //   * a neighbouring deck's CSS: the CSS of a deck with the same cycle at
 //     another operating point, given through the warm-start API (decks with
 //     no such neighbour skip this start).
@@ -55,14 +59,6 @@ namespace adsim {
       Composition clean;      // gas of a clean bed
       Composition feed;       // feed gas
       const char* neighbour;  // deck with the same cycle at another operating point, or nullptr
-      // State tolerance of the stop rule for this test; 0 keeps the deck's.
-      // Ward2024 uses 5e-6: under its shipped rule (2e-5) the cold start
-      // stops 132 eps from the shipped start's CSS. Both reach the same CSS
-      // when continued (600 cycles, CSS check off: 0.05 eps apart), so the
-      // deck has one CSS that the shipped rule stops too far from on its slow
-      // (rate ~0.99) approach from the cold side; see
-      // docs/cyclic-steady-state.md. The bound c <= 100 is unchanged.
-      double state_tolerance = 0.0;
     };
 
     const Composition kCleanN2 = {{"Nitrogen", 1.0}, {"CarbonDioxide", 0.0}};
@@ -80,12 +76,11 @@ namespace adsim {
     // A run of `deck` to CSS, after `edit` changes its initial conditions,
     // or from `from` (warm start) when given.
     Result RunToCss(const std::string& deck, const std::function<void(UserData&)>& edit,
-                    const CycleState* from = nullptr, double state_tolerance = 0.0) {
+                    const CycleState* from = nullptr) {
       Simulation sim = Simulation::FromFile(DeckPath(deck));
       auto& data = sim.Data();
       if (data.settings.css.method_ == CSSMethod::NONE) data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
       data.settings.acc_css.method_ = AccelerationMethod::NONE;
-      if (state_tolerance > 0.0) data.settings.css.state_tolerance_ = state_tolerance;
       if (edit) edit(data);
       RunOptions options;
       options.cycles = kMaxCycles;
@@ -117,11 +112,22 @@ namespace adsim {
       };
     }
 
-    std::function<void(UserData&)> WithTemperatureShift(double dT) {
-      return [dT](UserData& data) {
-        data.ic.temperature = data.ic.temperature.Get() + dT;
-        data.ic.wall_temperature = data.ic.wall_temperature.Get() + dT;
-      };
+    // The shipped deck's state after one cycle, with every temperature
+    // shifted by dT and its cycle count reset (the minimum cycles apply).
+    CycleState ShiftedState(const std::string& deck, double dT) {
+      Simulation sim = Simulation::FromFile(DeckPath(deck));
+      sim.Data().settings.css.method_ = CSSMethod::NONE;
+      RunOptions options;
+      options.cycles = 1;
+      options.on_message = [](LogLevel, const std::string&) {};
+      const RunResult run = sim.Run(options);
+      EXPECT_TRUE(run.Ok()) << deck << ": " << run.message;
+      CycleState s = sim.FinalState();
+      for (const auto& f : s.fields)
+        if (f.name.find("Temperature") != std::string::npos)
+          for (size_t i : f.index) s.y[i] += dT;
+      s.cycles = 0;
+      return s;
     }
 
   }  // namespace
@@ -134,26 +140,25 @@ namespace adsim {
     Simulation shipped = Simulation::FromFile(DeckPath(deck));
     const UserData& shipped_data = shipped.Data();
 
-    const double tol = spec.state_tolerance;
-    const Result base = RunToCss(deck, nullptr, nullptr, tol);
+    const Result base = RunToCss(deck, nullptr);
     ASSERT_GE(base.css_cycle, 0) << deck << ": the shipped start did not reach CSS";
     ASSERT_GT(base.eps, 0.0);
     std::printf("[CSSSTART] %-24s %-10s stop %4d  (state tolerance %.1e)\n", deck.c_str(), "shipped",
                 base.css_cycle, base.eps);
 
     std::vector<std::pair<std::string, Result>> starts;
-    if (!SameComposition(shipped_data, spec.clean))
-      starts.emplace_back("clean", RunToCss(deck, WithGas(spec.clean), nullptr, tol));
-    if (!SameComposition(shipped_data, spec.feed))
-      starts.emplace_back("feed", RunToCss(deck, WithGas(spec.feed), nullptr, tol));
-    starts.emplace_back("hot", RunToCss(deck, WithTemperatureShift(kTemperatureShift), nullptr, tol));
-    starts.emplace_back("cold", RunToCss(deck, WithTemperatureShift(-kTemperatureShift), nullptr, tol));
+    if (!SameComposition(shipped_data, spec.clean)) starts.emplace_back("clean", RunToCss(deck, WithGas(spec.clean)));
+    if (!SameComposition(shipped_data, spec.feed)) starts.emplace_back("feed", RunToCss(deck, WithGas(spec.feed)));
+    const CycleState hot = ShiftedState(deck, kTemperatureShift);
+    starts.emplace_back("hot", RunToCss(deck, nullptr, &hot));
+    const CycleState cold = ShiftedState(deck, -kTemperatureShift);
+    starts.emplace_back("cold", RunToCss(deck, nullptr, &cold));
     if (spec.neighbour) {
       const Result other = RunToCss(spec.neighbour, nullptr);
       ASSERT_GE(other.css_cycle, 0) << spec.neighbour << ": no CSS";
       CycleState from = other.state;
       from.cycles = 0;  // the minimum cycles apply again
-      starts.emplace_back(std::string("neighbour"), RunToCss(deck, nullptr, &from, tol));
+      starts.emplace_back(std::string("neighbour"), RunToCss(deck, nullptr, &from));
     }
 
     for (const auto& [name, r] : starts) {
@@ -177,7 +182,7 @@ namespace adsim {
                         DeckSpec{"Nguyen2023_Exp_VI", kCleanN2, kFlueGas, "Nguyen2023_Exp_VII"},
                         DeckSpec{"Vysyaraju2024_PSA_exp1", {{"Helium", 1.0}, {"Nitrogen", 0.0}},
                                  {{"Helium", 0.1}, {"Nitrogen", 0.9}}, nullptr},
-                        DeckSpec{"Ward2024", kCleanN2, kFlueGas, nullptr, 5e-6},
+                        DeckSpec{"Ward2024", kCleanN2, kFlueGas, nullptr},
                         DeckSpec{"FiveStepProductPurge", kCleanN2, kFlueGas, nullptr}),
       [](const ::testing::TestParamInfo<DeckSpec>& info) { return std::string(info.param.deck); });
 
