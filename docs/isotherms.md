@@ -320,6 +320,79 @@ The affinity multiplies the power, $b P^n$, where Sips 2 raises the affinity wit
 
 ---
 
+## GAB and BET (water and other vapours)
+
+The Guggenheim–Anderson–de Boer (GAB) isotherm describes multilayer adsorption of a condensable vapour, typically water, as a function of the **relative pressure** (relative humidity for water) $x_i = P_i / p_{sat,i}(T)$ with $P_i = y_i P$. Two kinds share the equation and differ only in how $C$ and $K$ depend on temperature.
+
+$$
+q_i^* = \frac{q_m\thinspace C\thinspace K\thinspace x_i}{(1 - K x_i)\thinspace(1 - K x_i + C K x_i)}
+$$
+
+$C$ measures how much more strongly the first layer binds than the bulk liquid, and $K$ how much the multilayer differs from it ($K = 1$: the multilayer is liquid). **BET** is the special case $K = 1$: use kind `gab` with $K_0 = 1$, $\Delta H_K = 0$. It has no kind of its own, so it shares the same code and the same safeguards below.
+
+**Kind `gab`** (constants with an optional Arrhenius temperature dependence):
+
+$$
+q_m = q_{m0} \exp\negthinspace\left(\frac{\Delta H_m}{RT}\right), \qquad
+C = C_0 \exp\negthinspace\left(\frac{\Delta H_C}{RT}\right), \qquad
+K = K_0 \exp\negthinspace\left(\frac{\Delta H_K}{RT}\right)
+$$
+
+| Symbol | Name | Description | Unit |
+|--------|------|-------------|------|
+| $q_{m0}$ | `q_m0` | Monolayer capacity (its value when $\Delta H_m = 0$) | mol kg⁻¹ |
+| $\Delta H_m$ | `dH_m` | Temperature coefficient of $q_m$ | J mol⁻¹ |
+| $C_0$ | `C0` | GAB constant $C$ pre-factor | - |
+| $\Delta H_C$ | `dH_C` | Temperature coefficient of $C$ | J mol⁻¹ |
+| $K_0$ | `K0` | GAB constant $K$ pre-factor | - |
+| $\Delta H_K$ | `dH_K` | Temperature coefficient of $K$ | J mol⁻¹ |
+
+With $\Delta H_m = \Delta H_C = \Delta H_K = 0$, the loading depends on temperature only through $p_{sat}(T)$: the isotherms at different temperatures collapse onto one curve in relative humidity. That is the form of Stampi-Bombelli et al. (*Adsorption* 26 (2020) 1183, Eq. 6 and Table 2; their $c_m$, $c_G$, $K_{ads}$ are $q_{m0}$, $C_0$, $K_0$) and of Grossmann et al. (*Ind. Eng. Chem. Res.* 64 (2025), Eq. 12 and Table 5).
+
+**Kind `gab_young`** (layer energies of Young et al., *Energy Environ. Sci.* 14 (2021) 5377, also used by Low et al., *J. Chem. Eng. Data* 68 (2023), Eqs. 17–22 and Table 9, and by pyDAC):
+
+$$
+C = \exp\negthinspace\left(\frac{E_1 - E_{10}}{RT}\right), \qquad
+K = \exp\negthinspace\left(\frac{E_{2\text{–}9} - E_{10}}{RT}\right), \qquad
+E_1 = C_E - e^{D T}, \quad E_{2\text{–}9} = F + G\thinspace T, \quad E_{10} = E_{10,A} + E_{10,B}\thinspace T
+$$
+
+| Symbol | Name | Description | Unit |
+|--------|------|-------------|------|
+| $q_m$ | `q_m` | Monolayer capacity | mol kg⁻¹ |
+| $C_E$ | `C_E` | First-layer energy constant (the papers' $C$) | J mol⁻¹ |
+| $D$ | `D` | First-layer energy exponent | K⁻¹ |
+| $F$ | `F` | Energy of layers 2–9 at 0 K | J mol⁻¹ |
+| $G$ | `G` | Temperature slope of the layers 2–9 energy | J mol⁻¹ K⁻¹ |
+| $E_{10,A}$ | `E10_A` | Heat of condensation of the bulk liquid at 0 K (water: 57220) | J mol⁻¹ |
+| $E_{10,B}$ | `E10_B` | Its temperature slope (water: −44.38) | J mol⁻¹ K⁻¹ |
+
+The papers print $C_E$, $F$ and $G$ in kJ: enter them in J ($C_E = 46.83$ kJ mol⁻¹ is `46830`). The defaults are the Lewatit VP OC 1065 values of Young et al. as reprinted by Low et al. (SI Table S5).
+
+**Saturation pressure.** $p_{sat,i}(T)$ comes from CoolProp for the component (its saturation ancillary equation: a closed-form fit of the full equation of state, about 0.1 µs per call). For water it agrees with the IAPWS-95 saturation pressure to within 0.02 % from 273 K to the critical point. Above the critical temperature $p_{sat}$ is held at the critical pressure. Below 0.75 times the triple-point temperature it is held at its value there; between that and the triple point, the curve over the (supercooled) liquid is extrapolated. Any CoolProp fluid can use a GAB kind, not only water.
+
+**Safe limits.** The GAB has a pole at $K x = 1$, and a simulation can briefly produce $x > 1$ (supersaturation; condensation is not modelled) or $y_i < 0$ ahead of a front. So the loading is exact for $0 \le x \le x_c$ with $x_c = \min(1,\ 0.95/K)$, and continued so that it stays finite, smooth (continuous slope) and increasing everywhere:
+
+- for $x < 0$ it follows the Henry line $q = q_m C K x$, the GAB's slope at $x = 0$;
+- for $x > x_c$ it follows the tangent at $x_c$, $q = q(x_c) + q'(x_c)\thinspace(x - x_c)$.
+
+With $K \le 0.95$, the usual case for water on amine sorbents, the GAB is therefore exact up to saturation. With $K$ near 1 (BET) it is exact up to $K x = 0.95$. GAB parameters are usually fitted to data up to $x \approx 0.9$, so loadings above that are extrapolations in any case.
+
+**Mixtures.** A GAB component's loading depends only on its own relative pressure: the kinds are not competitive. Under the default mixing rule, water adsorbs independently of the other components, which keep their own isotherms. Under the IAST mixing rule a GAB kind takes part like any pure isotherm: its spreading pressure has the closed form $\psi = q_m \left[\ln(1 + (C - 1) K x) - \ln(1 - K x)\right]$ (and the matching integral of the tangent above $x_c$). Coupled CO₂–H₂O models, where water changes the CO₂ loading, are separate kinds.
+
+**From Python.** `skarstrom.evaluate_isotherm("gab", ...)` and `skarstrom.isotherm_parameters("gab")` evaluate the GAB kinds for **water** (its saturation pressure). In a deck, each component uses its own.
+
+**Heat of adsorption.** The temperature dependence implies an isosteric heat that varies with loading:
+
+$$
+q_{st} = R T^2 \left(\frac{\partial \ln P_i}{\partial T}\right)_{q} = \Delta H_{vap}(T) + R T^2 \left(\frac{\partial \ln x_i}{\partial T}\right)_{q},
+\qquad \Delta H_{vap} = R T^2 \frac{d \ln p_{sat}}{dT}
+$$
+
+At low loading, $q \approx q_m C K x$, so for kind `gab` $q_{st} \to \Delta H_{vap} + \Delta H_m + \Delta H_C + \Delta H_K$ (water at 25 °C: $\Delta H_{vap} \approx 44.0$ kJ mol⁻¹). At high loading it tends towards $\Delta H_{vap} + \Delta H_m + \Delta H_K$, as the multilayer approaches liquid. The energy balance, as for every kind, takes the adsorbent's constant `heat_of_adsorption[<component>]` and does not derive it from the isotherm (under the default isosteric convention it is $q_{st}$; see [Model Conventions](model-conventions.md)). The C++ function `adsim::IsostericHeat(isotherm, component, T, P, y)` (`adsim/equations/isotherm_kinds.h`) evaluates the expression above for any kind at a given state, which helps choose that constant for the loadings of the process. For water, a value near the heat of condensation plus a few kJ mol⁻¹ is typical.
+
+---
+
 ## Mixture loadings: the mixing rule and IAST
 
 Every adsorbent has a **mixing rule**, which says how its components' isotherms combine into mixture loadings. It is one switch per adsorbent: the registry parameter `adsorbent[<id>].mixing_rule`, `ads.mixing_rule` or `ads.set_mixing_rule(kind)` in Python.
@@ -347,7 +420,7 @@ $$
 | $x_i$ | Mole fraction of $i$ in the adsorbed phase | - |
 | $q_T$ | Total mixture loading | mol kg⁻¹ |
 
-**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips and anti-Langmuir. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, Langmuir, Freundlich, Sips and anti-Langmuir, and a Newton iteration otherwise.
+**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir and the GAB kinds. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, Langmuir, Freundlich, Sips and anti-Langmuir, and a Newton iteration otherwise. A kind without an IAST form is an error, never treated as inert.
 
 **Limits that hold exactly.** A single adsorbing component gives its pure isotherm at its partial pressure. Langmuir isotherms with **equal saturation capacities** give the extended Langmuir model. With unequal capacities, extended Langmuir is thermodynamically inconsistent and IAST is not.
 

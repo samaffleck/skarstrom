@@ -1300,6 +1300,27 @@ namespace adsim {
               E("P_ref", "Pa", p->P_ref, 1.0, 1e7);
             }
             break;
+          case IsothermType::GAB:
+            if (auto* p = params(dynamic_cast<GabIsotherm*>(iso))) {
+              E("q_m0", "mol/kg", p->q_m0, 0.01, 50.0);
+              E("dH_m", "J/mol", p->dH_m, -1e5, 1e5);
+              E("C0", "-", p->C0, 1e-6, 1e6);
+              E("dH_C", "J/mol", p->dH_C, -1e5, 1e5);
+              E("K0", "-", p->K0, 0.01, 2.0);
+              E("dH_K", "J/mol", p->dH_K, -1e5, 1e5);
+            }
+            break;
+          case IsothermType::GAB_YOUNG:
+            if (auto* p = params(dynamic_cast<GabYoungIsotherm*>(iso))) {
+              E("q_m", "mol/kg", p->q_m, 0.01, 50.0);
+              E("C_E", "J/mol", p->C_E, 0.0, 2e5);
+              E("D", "1/K", p->D, 0.0, 0.1);
+              E("F", "J/mol", p->F, 0.0, 2e5);
+              E("G", "J/(mol-K)", p->G, -500.0, 500.0);
+              E("E10_A", "J/mol", p->E10_A, 0.0, 2e5);
+              E("E10_B", "J/(mol-K)", p->E10_B, -500.0, 500.0);
+            }
+            break;
           case IsothermType::INERT:
           default:
             break;

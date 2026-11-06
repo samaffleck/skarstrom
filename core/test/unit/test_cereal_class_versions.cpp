@@ -136,6 +136,8 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::Toth2Isotherm, 2),
       ADSIM_PIN(adsim::ArrheniusSipsIsotherm, 2),
       ADSIM_PIN(adsim::ExtendedLangmuirFreundlichIsotherm, 1),
+      ADSIM_PIN(adsim::GabIsotherm, 1),
+      ADSIM_PIN(adsim::GabYoungIsotherm, 1),
       ADSIM_PIN(adsim::ExtendedLangmuirIsotherm, 2),
       ADSIM_PIN(adsim::DualSiteLangmuirIsotherm, 2),
       ADSIM_PIN(adsim::ExtendedDualSiteLangmuirIsotherm, 2),

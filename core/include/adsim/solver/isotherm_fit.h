@@ -106,9 +106,15 @@ struct FitOptions {
 
 class Model {
  public:
-  explicit Model(IsothermType type) : type_(type) {
-    iso_ = CreateIsotherm(type, kComp);
-    if (iso_) fields_ = IsothermFields(iso_.get(), kComp);
+  // `component` names the fluid; only the GAB kinds use it (for its
+  // saturation pressure). Empty: "Water" for the GAB kinds, a placeholder
+  // otherwise.
+  explicit Model(IsothermType type, std::string component = "") : type_(type) {
+    if (component.empty())
+      component = (type == IsothermType::GAB || type == IsothermType::GAB_YOUNG) ? "Water" : "fit";
+    comp_ = std::move(component);
+    iso_ = CreateIsotherm(type, comp_);
+    if (iso_) fields_ = IsothermFields(iso_.get(), comp_);
   }
 
   bool valid() const { return iso_ != nullptr; }
@@ -138,11 +144,11 @@ class Model {
   }
 
   double Eval(double T, double P, double y) const {
-    return EvalIsotherm(iso_.get(), kComp, T, P, y);
+    return EvalIsotherm(iso_.get(), comp_, T, P, y);
   }
 
  private:
-  static constexpr const char* kComp = "fit";
+  std::string comp_;
   IsothermType type_;
   std::unique_ptr<IIsotherm> iso_;
   std::vector<std::pair<std::string, ExpressionParam*>> fields_;
