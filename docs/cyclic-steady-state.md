@@ -335,6 +335,52 @@ What the table shows:
 - **In the KPIs the largest difference between starts is 7 ε** (`Perez2019_E`), about 1.4×10⁻⁴ in purity or recovery.
 - **The neighbour start helps most on the slow deck.** `Perez2019_E` from `Perez2019_D1`'s CSS stops at cycle 174 instead of 205, within 0.14 ε of the shipped start's CSS.
 
+## Grid sequencing
+
+Does it pay to run a coarse grid to CSS first and warm-start the fine grid from it ([moving a state to another grid](#moving-a-state-to-another-grid))? `core/test/validation/test_grid_sequencing.cpp` (slow tier) measures the time to the fine-grid CSS three ways on six of the [reference decks](#verification-against-a-long-reference), each with its own stop rule and no acceleration:
+
+- **cold**: the deck's own grid (N cells per layer) from its initial conditions;
+- **2-level**: N/2 cells to CSS, then N cells from that state;
+- **3-level**: N/4 → N/2 → N cells, each level from the last one's CSS.
+
+The table gives the cycles run at each level (cells: cycles) and the wall time of each path. The times are from one Linux run with two decks running at a time, so read them to about 10 %. The test asserts no times, only that every level reaches CSS, that the final state agrees with the cold run's within the [same bound](#verification-against-a-long-reference) ($c \le 100$), and that the warm-started fine level needs fewer cycles than the cold run.
+
+| Deck | Path | Cycles per level | Total cycles | Time [s] | Speed-up | $c$ state / KPIs vs cold |
+|---|---|---|---|---|---|---|
+| `Illustrative_TSA_13X` | cold | 30: 27 | 27 | 4.5 | | |
+| | 2-level | 15: 27, 30: 13 | 40 | 4.1 | 1.1 | 0.49 / 0.08 |
+| | 3-level | 8: 25, 15: 13, 30: 13 | 51 | 4.1 | 1.1 | 0.49 / 0.08 |
+| `Perez2019_A` | cold | 80: 49 | 49 | 29.2 | | |
+| | 2-level | 40: 49, 80: 9 | 58 | 18.4 | 1.6 | 2.7 / 1.4 |
+| | 3-level | 20: 49, 40: 12, 80: 9 | 70 | 14.0 | 2.1 | 3.1 / 2.2 |
+| `Perez2019_E` | cold | 80: 206 | 206 | 56.5 | | |
+| | 2-level | 40: 204, 80: 36 | 240 | 38.6 | 1.5 | 14 / 3.7 |
+| | 3-level | 20: 195, 40: 60, 80: 38 | 293 | 34.0 | 1.7 | 13 / 3.5 |
+| `Nguyen2023_Exp_I` | cold | 80: 37 | 37 | 20.1 | | |
+| | 2-level | 40: 36, 80: 10 | 46 | 12.2 | 1.6 | 0.51 / 0.20 |
+| | 3-level | 20: 37, 40: 12, 80: 10 | 59 | 10.7 | 1.9 | 0.54 / 0.22 |
+| `Vysyaraju2024_PSA_exp1` (no KPI configured) | cold | 80: 73 | 73 | 32.7 | | |
+| | 2-level | 40: 73, 80: 36 | 109 | 31.7 | 1.0 | 12 / — |
+| | 3-level | 20: 72, 40: 38, 80: 35 | 145 | 31.5 | 1.0 | 13 / — |
+| `Ward2024` | cold | 100: 154 | 154 | 84.1 | | |
+| | 2-level | 50: 150, 100: 48 | 198 | 58.9 | 1.4 | 40 / 0.68 |
+| | 3-level | 25: 153, 50: 55, 100: 53 | 261 | 56.2 | 1.5 | 42 / 0.72 |
+
+What the table shows:
+
+- **A cycle costs about in proportion to the cells**: halving the grid makes a cycle 2.2-2.5 times cheaper (`Perez2019_A`: 0.60, 0.27 and 0.12 s per cycle on 80, 40 and 20 cells).
+- **A coarse grid needs as many cycles to CSS as the fine one.** The approach to CSS is set by the cycle, not by the grid.
+- **The warm-started fine level needs 17-49 % of the cold cycles**: 17-18 % on `Perez2019_A` and `E`, 27-31 % on `Nguyen2023_Exp_I` and `Ward2024`, about half on `Illustrative_TSA_13X` and `Vysyaraju2024_PSA_exp1`. On the TSA deck the fine level cannot go much below its 13 cycles: three consecutive passing cycles and the settling of the remapped fronts take most of them. The PSA deck still needs 36 cycles on the fine grid from the coarse CSS; it is the one deck where the warm start saves no time.
+- **So sequencing saves 30-50 % of the time where the fine level needs less than about a third of the cold cycles**, and nothing where it needs half. A third level helps a little more (it makes the first CSS cheaper still), at most another 0.5 in speed-up; it never made a path slower.
+- **Every path reaches the same CSS.** The largest distance from the cold run is 42 ε in the state (`Ward2024`), the same as the [cold and feed starts](#independence-from-the-starting-state) of that deck, which approach from the same side; in the KPIs at most 3.7 ε.
+
+Recommendation:
+
+- **For one run on one grid**, sequencing pays on decks that take more than about 40 cycles to CSS: expect 1.4-2× on the slower VSA decks. On a deck that converges in a few tens of cycles it saves nothing worth the extra step. It never changes the answer beyond the stop rule's own spread.
+- **Use two or three levels, each half the last**, and keep each level's own stop rule. Going below about 20 cells on these decks gains little more, since the coarsest level costs little already.
+- **A grid-refinement study should always warm-start each level from the previous level's CSS** (`RemapCycleState`). The study needs every level's CSS anyway, so the coarse levels cost nothing extra and each finer level needs only 17-50 % of its cold cycles. The last level of a study is the most expensive one, so this saves most of the study's time on the decks that need many cycles. Tighten `css.state_tolerance` as the study does; the agreement above scales with it.
+- Sequencing is a two-line loop over `RunOptions::initial_state` (`sim.run(initial_state=coarse.final_state())` in Python, after setting the fine cell counts), so there is no separate grid-sequence option.
+
 ## Practical guidance
 
 - Set a generous **Number of Cycles** (an upper bound) and let a CSS method stop the run when converged.
