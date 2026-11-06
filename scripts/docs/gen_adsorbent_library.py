@@ -664,7 +664,9 @@ def render_docs(entries) -> str:
     out("")
     complete = sum(1 for e in entries if e["meta"]["completeness"]["complete"])
     with_points = sum(1 for e in entries if any(i["source_points"] for i in e["meta"]["isotherms"]))
-    out(f"**Completeness:** {complete} of {len(entries)} entries carry every required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) as a sourced value or an explicit *not stated in source* note; the others are listed as incomplete below. **Tabulated source data:** {with_points} entries include equilibrium points tabulated in their source (tables, SI files or datasets — never digitised from plots), stored with the entry in `library.json`.")
+    out(f"**Completeness:** {complete} of {len(entries)} entries carry every required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks; for a support solid DOI, density, heat capacity and thermal conductivity) as a sourced value or an explicit *not stated in source* note; the others are listed as incomplete below. **Tabulated source data:** {with_points} entries include equilibrium points tabulated in their source (tables, SI files or datasets — never digitised from plots), stored with the entry in `library.json`.")
+    out("")
+    out("**Support solids** (family *support*: cordierite, aluminium, stainless steel, ceramic fibre paper) are the non-adsorbing walls and sheets of structured contactors. A support has no adsorbing component (every component uses the inert isotherm); mix it by mass with a sorbent in a structured layer's composition. Its density is the apparent density of the wall or sheet, with particle voidage 0 by convention, and it has no particle size; its required fields are density, heat capacity and thermal conductivity. Where the source tabulates a property against temperature, the table is listed under the entry; the engine uses the constant value at the reference temperature (300 K unless stated).")
     out("")
     out("## Using the library")
     out("")
@@ -692,7 +694,7 @@ def render_docs(entries) -> str:
         r = members[0]["meta"]
         src = "source unknown (legacy)" if r["status"] == "legacy" else ", ".join(f"[{md(s['doi'])}]({s['url']})" for s in r["sources"])
         others = ", ".join(f"[{md(e['meta']['variant'])}](#{anchor(e['meta']['key'])})" for e in members[1:]) or "—"
-        out(f"| [{md(mat['name'])}](#material-{mid}) | `{mid}` | {md(mat['family'])} | [{md(r['variant'] or r['label'])}](#{anchor(r['key'])}) | {', '.join(md(c) for c in r['components'])} | {src} | {others} |")
+        out(f"| [{md(mat['name'])}](#material-{mid}) | `{mid}` | {md(mat['family'])} | [{md(r['variant'] or r['label'])}](#{anchor(r['key'])}) | {', '.join(md(c) for c in r['components']) or 'none (inert)'} | {src} | {others} |")
     out("")
     for mid, mat, members in groups:
         if not members:
@@ -733,10 +735,11 @@ def render_entry(out, e) -> None:
     else:
         out("| Component | Isotherm | Parameters | T range of fit | P range of fit | Data quality | Ref. |")
         out("|---|---|---|---|---|---|---|")
-    for i in m["isotherms"]:
+    for i in m["isotherms"]:  # (none for a support solid)
         params = "; ".join(f"{md(p['name'])} = {fmt_num(p['value'])}" for p in i["params"])
         out(f"| {md(i['component'])} | {md(i['kind_label'])} | {params} | {fmt_range(i['T_range_K'], 1, ' K')} | {fmt_range(i['P_range_Pa'], 1e-5, ' bar')} | {DATA_QUALITY_LABELS.get(i['data_quality'], md(i['data_quality']))} | {md(i['ref'])} |")
-    out("")
+    if not m["support"]:
+        out("")
     dq_notes = [f"{md(i['component'])}: {md(i['data_quality_note'])}" for i in m["isotherms"] if i["data_quality_note"]]
     if dq_notes:
         out(f"*Data quality.* {' '.join(dq_notes)}")
