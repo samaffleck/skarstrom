@@ -24,3 +24,6 @@
 ### Changed — adsorbent archive version 5
 - `Adsorbent` is saved at cereal version 5 with a `Reaction_Source` node.
   Decks and library files at version 4 load unchanged, with no reactions.
+- The library files in `data/adsorbents/` and `examples/decks/Illustrative_TSA_13X.json`
+  are re-saved by the test suite at version 5 (version stamp and an empty
+  `Reaction_Source` only).
