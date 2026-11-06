@@ -259,6 +259,91 @@ TEST(IsothermFit, UserFixedParameterIsHeld) {
   ExpectRel(ValueOf(r, "b1"), 1.0e-9, 1e-3, "b1");
 }
 
+// ---- GAB (water) ---------------------------------------------------------------------
+//
+// Points at relative humidities 0.05-0.85 of water at each temperature
+// (the GAB kinds use the saturation pressure of their component, water by
+// default).
+
+namespace {
+std::vector<Point> HumidityGrid(const std::vector<double>& temps, const std::string& component = "Water") {
+  std::vector<Point> pts;
+  for (double T : temps) {
+    const double ps = adsim::SaturationPressure(component, T);
+    for (int i = 0; i < 12; ++i) {
+      Point p;
+      p.T = T;
+      p.P = (0.05 + 0.8 * i / 11.0) * ps;
+      pts.push_back(p);
+    }
+  }
+  return pts;
+}
+}  // namespace
+
+TEST(IsothermFit, GabSingleTemperatureRecoversConstants) {
+  // Grossmann et al. (2025) style: constants only.
+  const Values truth = {{"q_m0", 3.51}, {"dH_m", 0.0}, {"C0", 2.73}, {"dH_C", 0.0}, {"K0", 0.867}, {"dH_K", 0.0}};
+  const auto pts = Synthesise(IsothermType::GAB, truth, HumidityGrid({298.15}));
+  const auto r = FitDefault(IsothermType::GAB, pts);
+  ASSERT_TRUE(r.ok) << r.error;
+  EXPECT_TRUE(FixedOf(r, "dH_C"));
+  EXPECT_TRUE(FixedOf(r, "dH_K"));
+  EXPECT_TRUE(FixedOf(r, "dH_m"));
+  ExpectRel(ValueOf(r, "q_m0"), 3.51, 1e-4, "q_m0");
+  ExpectRel(ValueOf(r, "C0"), 2.73, 1e-4, "C0");
+  ExpectRel(ValueOf(r, "K0"), 0.867, 1e-5, "K0");
+  EXPECT_GT(r.r2, 1.0 - 1e-10);
+  ExpectQFitConsistent(IsothermType::GAB, r, pts);
+}
+
+TEST(IsothermFit, GabMultiTemperatureRecoversEnergies) {
+  const Values truth = {{"q_m0", 2.0}, {"dH_m", 0.0}, {"C0", 0.8}, {"dH_C", 6000.0}, {"K0", 0.6}, {"dH_K", 800.0}};
+  const auto pts = Synthesise(IsothermType::GAB, truth, HumidityGrid({283.15, 298.15, 313.15}));
+  const auto r = FitDefault(IsothermType::GAB, pts);
+  ASSERT_TRUE(r.ok) << r.error;
+  EXPECT_FALSE(FixedOf(r, "dH_C"));
+  ExpectRel(ValueOf(r, "q_m0"), 2.0, 1e-3, "q_m0");
+  ExpectRel(ValueOf(r, "dH_C"), 6000.0, 1e-2, "dH_C");
+  ExpectRel(ValueOf(r, "dH_K"), 800.0, 2e-2, "dH_K");
+  EXPECT_GT(r.r2, 1.0 - 1e-9);
+}
+
+TEST(IsothermFit, GabYoungSingleTemperatureFitsFirstLayerAndMultilayerEnergies) {
+  // Low et al. (2023) Lewatit values (energies in J/mol).
+  const Values truth = {{"q_m", 3.23}, {"C_E", 46830.0}, {"D", 0.023744}, {"F", 53310.0}, {"G", -47.814}};
+  const auto pts = Synthesise(IsothermType::GAB_YOUNG, truth, HumidityGrid({298.15}));
+  const auto r = FitDefault(IsothermType::GAB_YOUNG, pts);
+  ASSERT_TRUE(r.ok) << r.error;
+  for (const char* held : {"D", "G", "E10_A", "E10_B"}) EXPECT_TRUE(FixedOf(r, held)) << held;
+  ExpectRel(ValueOf(r, "q_m"), 3.23, 1e-4, "q_m");
+  ExpectRel(ValueOf(r, "C_E"), 46830.0, 1e-5, "C_E");
+  ExpectRel(ValueOf(r, "F"), 53310.0, 1e-5, "F");
+}
+
+// Another vapour by name: fitted against ethanol's saturation pressure, the
+// constants come back; read against water's they would not.
+TEST(IsothermFit, GabForAnotherVapour) {
+  const Values truth = {{"q_m0", 1.5}, {"C0", 8.0}, {"dH_C", 0.0}, {"K0", 0.7}, {"dH_K", 0.0}};
+  auto pts = HumidityGrid({298.15}, "Ethanol");
+  std::vector<double> q;
+  std::string err;
+  ASSERT_TRUE(adsim::isofit::Evaluate(IsothermType::GAB, truth, pts, q, err, "Ethanol")) << err;
+  for (size_t i = 0; i < pts.size(); ++i) pts[i].q = q[i];
+  std::vector<ParamSpec> specs;
+  double t_ref = 0.0;
+  ASSERT_TRUE(adsim::isofit::DefaultSpecs(IsothermType::GAB, pts, specs, t_ref, err)) << err;
+  adsim::isofit::FitOptions opt;
+  opt.component = "Ethanol";
+  const auto r = adsim::isofit::Fit(IsothermType::GAB, pts, specs, t_ref, opt);
+  ASSERT_TRUE(r.ok) << r.error;
+  ExpectRel(ValueOf(r, "C0"), 8.0, 1e-4, "C0");
+  ExpectRel(ValueOf(r, "K0"), 0.7, 1e-5, "K0");
+  std::vector<double> q_water;
+  ASSERT_TRUE(adsim::isofit::Evaluate(IsothermType::GAB, truth, pts, q_water, err));  // default: water
+  EXPECT_GT(std::abs(q_water[5] - q[5]), 0.1 * q[5]);
+}
+
 TEST(IsothermFit, Errors) {
   const auto pts = Synthesise(IsothermType::SIPS, {{"q_sat", 5.0}, {"b", 3e-6}, {"v", 1.0}},
                               Grid({298.15}, 1e3, 1e6, 2));
