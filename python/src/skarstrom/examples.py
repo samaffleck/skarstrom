@@ -105,14 +105,15 @@ The feed is split into two sub-steps (Feed1, Feed2) so that each light-product
 connection draws from its own part of it: Feed1's light product pressurises the bed and
 Feed2's purges it. Six steps in the deck, five in the cycle."""
 
-Illustrative_TSA_13X = Example('Illustrative_TSA_13X', 'Illustrative TSA - CO2/N2 on 13X', "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, electric heating with CO2 product at the feed end, cooling, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.")
+Illustrative_TSA_13X = Example('Illustrative_TSA_13X', 'Illustrative TSA - CO2/N2 on 13X', "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.")
 """Illustrative TSA - CO2/N2 on 13X
 
 ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption,
-electric heating with CO2 product at the feed end, cooling, feed pressurisation) for a
-15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column,
-wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers
-for the docs tutorial; heating goes above the isotherm's 298-348 K fit range."""
+heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at
+the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2
+flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat
+transfer from the Perez2019 decks. Operating conditions are round numbers for the docs
+tutorial; heating goes above the isotherm's 298-348 K fit range."""
 
 Nguyen2022_Fig4 = Example('Nguyen2022_Fig4', 'Nguyen 2022 - Fig. 4', 'Binary CO2/He breakthrough experiment with CALF-20. Results correspond Fig 4 from the publication. The example is initialised with an inlet CO2 mole fraction of 0.7. Varying this value will correspond to the other cases in the paper. Experimental data from the publication is included in the example under the Data Plotter window.')
 """Nguyen 2022 - Fig. 4

@@ -84,7 +84,14 @@ The profile replaces the typed-in temperature only. When the inlet is fed from a
 
 ### Heating and cooling the column
 
-A step can also heat or cool the column from outside, through a [heating medium](wall-energy-balance.md#heating-medium-jacket) on the wall's outer face: a jacket fluid at a set temperature (constant or ramped, with the same profiles as an inlet temperature) and heat transfer coefficient. It replaces the ambient exchange while the step runs; steps without one keep it.
+A step can also heat or cool the column through a [heating medium](wall-energy-balance.md#heating-medium-jacket): a fluid at a set temperature, constant or ramped with the same profiles as an inlet temperature.
+
+- **Jacket.** The medium flows over the wall's outer face with heat transfer coefficient $h_m$, and replaces the ambient exchange while the step runs.
+- **Internal heat exchanger** (optional). The same medium also runs through tubes or plates in the packing and heats the bed directly: $a_x h_x (T_m - T)$ per bed volume, with $a_x$ the exchanger's area per bed volume (see [internal heat exchanger](wall-energy-balance.md#internal-heat-exchanger)).
+- Steps without a medium keep the ambient exchange.
+- The heat the medium puts in and takes out is logged per step and counted in the thermal-energy and cooling-duty [KPIs](performance-metrics.md).
+- The values are parameters of the step: `step[ID].medium.enabled`, `.temperature`, `.heat_transfer_coefficient`, `.exchanger_area_per_volume` and `.exchanger_heat_transfer_coefficient`.
+- This is different from an [energy source](energy-balance.md#energy-source-heating-cooling), which puts a fixed power into a layer whatever its temperature. A medium's heat flow depends on how far the column is from $T_m$, so it stops once the column reaches $T_m$.
 
 ---
 

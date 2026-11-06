@@ -630,6 +630,7 @@ def test_evaluate_iast_equal_capacity_langmuir_is_extended_langmuir():
 
 
 def test_thermal_energy_and_cooling_duty_of_a_tsa_deck():
+    # As shipped, a heating medium heats (Heating) and cools (Cooling) the column.
     sim = sk.examples.Illustrative_TSA_13X.load()
     result = sim.run(cycles=1)
     assert result.ok, result.message
@@ -638,9 +639,21 @@ def test_thermal_energy_and_cooling_duty_of_a_tsa_deck():
     assert len(k.step_thermal_energy) == len(k.step_cooling_duty) == len(sim.steps)
     assert sum(k.step_thermal_energy) == pytest.approx(k.thermal_energy, rel=1e-12)
     assert sum(k.step_cooling_duty) == pytest.approx(k.cooling_duty, rel=1e-12)
-    # Heat supplied / removed: 30 W and 12 W over their steps' times.
-    t = {s.name: sim.get(f"step[{s.id}].time") for s in sim.steps}
     names = [s.name for s in sim.steps]
+    assert k.step_thermal_energy[names.index("Heating")] == pytest.approx(k.thermal_energy, rel=1e-12)
+    assert k.step_cooling_duty[names.index("Cooling")] == pytest.approx(k.cooling_duty, rel=1e-12)
+
+    # The same cycle heated and cooled by energy sources: the heat supplied and
+    # removed are 30 W and 12 W over their steps' times.
+    sim = sk.examples.Illustrative_TSA_13X.load()
+    sim.steps["Heating"].medium.enabled = False
+    sim.steps["Cooling"].medium.enabled = False
+    sim.steps["Heating"].add_energy_source("13X", power=30)
+    sim.steps["Cooling"].add_energy_source("13X", power=-12)
+    result = sim.run(cycles=1)
+    assert result.ok, result.message
+    (k,) = sim.kpis(cycle=-1)
+    t = {s.name: sim.get(f"step[{s.id}].time") for s in sim.steps}
     heat = k.step_thermal_energy[names.index("Heating")]
     cool = k.step_cooling_duty[names.index("Cooling")]
     assert heat / cool == pytest.approx((30 * t["Heating"]) / (12 * t["Cooling"]), rel=1e-9)

@@ -41,7 +41,7 @@ configuration).
 | [`perez_2019.py`](perez_2019.py) | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on 13X, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 3) | 6 min |
 | [`vysyaraju_2024.py`](vysyaraju_2024.py) | `Vysyaraju2024_PSA_exp1` | He/N₂ 5-step PSA on binderless 5A, to CSS | measured and paper-model He purity/recovery (Table 3) | 30 s |
 | [`ward_pini_2024.py`](ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 80 s |
-| [`tsa_illustrative.py`](tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA with heater and cooler, to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
+| [`tsa_illustrative.py`](tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA heated and cooled by a medium (jacket + internal exchanger), to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
 | [`five_step_product_purge.py`](five_step_product_purge.py) | `FiveStepProductPurge` | CO₂/N₂ VSA template with product purge | — (CSS status, integrator statistics) | 4 s |
 | [`optimise_nsga2.py`](optimise_nsga2.py) | `Perez2019_A` | NSGA-II search (pymoo) of feed time and evacuation pressure, each candidate run to CSS in a process pool | — (the CO₂ purity / recovery Pareto front) | about 10 min (estimated: 60 runs of about 30 s, 4 cores) |
 

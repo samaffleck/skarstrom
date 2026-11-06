@@ -1,13 +1,15 @@
 """Illustrative TSA: CO2 capture on zeolite 13X with indirect heating and cooling.
 
 Not a reproduction of a paper: a four-step temperature swing cycle
-(adsorption, electric heating with the CO2 product leaving the feed end,
-cooling with both ends closed, feed pressurisation) driven by heater and
-cooler energy sources, built for the TSA tutorial in the documentation.
+(adsorption, heating with the CO2 product leaving the feed end, cooling with
+both ends closed, feed pressurisation) heated by a 150 C medium (steam or hot
+oil) and cooled by 25 C water, both through a jacket on the wall and an
+internal heat exchanger in the packing, built for the TSA tutorial in the
+documentation.
 
 The script builds the cycle from scratch in code: the fluid, the adsorbent
 (the values of the adsorbent library entry "Zeolite 13X (Perez 2019)"), the
-column, the four steps with their boundary conditions and energy sources, the
+column, the four steps with their boundary conditions and heating media, the
 KPI definition and the solver settings. Every value is set explicitly, with
 its unit. It runs the cycle to cyclic steady state, prints the CSS check and
 the KPIs, and plots the bed temperature at both ends over the last cycle.
@@ -35,8 +37,9 @@ def build(case: str = "TSA") -> sk.Simulation:
     sim = sk.Simulation.new(
         title="Illustrative TSA - CO2/N2 on 13X",
         description="ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, "
-                    "electric heating with CO2 product at the feed end, cooling, feed pressurisation) for a "
-                    "15 % CO2 / 85 % N2 flue gas.",
+                    "heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at "
+                    "the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 "
+                    "flue gas.",
         author="Skarstrom examples",
     )
 
@@ -106,17 +109,26 @@ def build(case: str = "TSA") -> sk.Simulation:
     ])
     adsorption.top.set_pressure("outlet", 1 * u.bar, y={"Nitrogen": 1.0, "CarbonDioxide": 0.0}, temperature=293 * u.K)
 
-    # 2. Heating: top closed; CO2 leaves the feed end at 1 bar while a heater puts 30 W into the layer.
+    # 2. Heating: top closed; CO2 leaves the feed end at 1 bar while a 150 C medium heats the column.
     heating = sim.add_step("Heating", time=900 * u.s)
     heating.bottom.set_pressure("outlet", 1 * u.bar, y={"Nitrogen": 0.0, "CarbonDioxide": 1.0}, temperature=293 * u.K)
     heating.top.set_closed()
-    heating.add_energy_source(layer, power=30 * u.W, enabled=True)
 
-    # 3. Cooling: both ends closed while 12 W is removed from the layer.
+    # 3. Cooling: both ends closed while 25 C water cools the column.
     cooling = sim.add_step("Cooling", time=900 * u.s)
     cooling.bottom.set_closed()
     cooling.top.set_closed()
-    cooling.add_energy_source(layer, power=-12 * u.W, enabled=True)
+
+    # The heating medium of both steps flows through a jacket on the wall (h_m, typical of condensing
+    # steam or a pumped liquid) and an internal exchanger in the packing: 50 m2 of tube per m3 of bed with
+    # a bed-side coefficient of 40 W/(m2 K). The 8.6 W/(m2 K) bed-to-wall coefficient limits the jacket,
+    # so most of the heat reaches the bed through the exchanger.
+    for step, medium_temperature in ((heating, u.Quantity(150, "degC")), (cooling, u.Quantity(25, "degC"))):
+        step.medium.enabled = True
+        step.medium.temperature = medium_temperature
+        step.medium.heat_transfer_coefficient = 500 * u.W / (u.m**2 * u.K)
+        step.medium.exchanger_area_per_volume = 50 * u.m**2 / u.m**3
+        step.medium.exchanger_heat_transfer_coefficient = 40 * u.W / (u.m**2 * u.K)
 
     # 4. Pressurisation: feed gas back to 1 bar through the bottom, top closed.
     pressurisation = sim.add_step("Pressurisation", time=30 * u.s)
