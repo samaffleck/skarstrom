@@ -69,6 +69,23 @@ namespace adsim {
     // Use [] operator to create entries if they don't exist
     auto& sim_log = var_log_[cycle_index][step_index];
 
+    // The step's heat duty: the energy-source powers applied over the step
+    // (the domain snapshot above), stored once per step with its log.
+    if (is_new_step) {
+      StepHeatDuty duty;
+      if (!state.IsIsothermal()) {
+        const auto& q = state.domain_vectors.energy_source_power;  // [W/m3]
+        const auto& vol = state.domain_vectors.volume;              // [m3]
+        const size_t n = std::min(q.size(), vol.size());
+        for (size_t i = 0; i < n; ++i) {
+          const double p = q[i] * vol[i];
+          if (p > 0.0) duty.heating_power += p;
+          else duty.cooling_power -= p;
+        }
+      }
+      sim_log.heat_duty = duty;
+    }
+
     // OPTIMIZATION: Store times once per step, not per variable
     sim_log.step_data.times.push_back(t);
     sim_log.step_data.cycle_index = cycle_index;

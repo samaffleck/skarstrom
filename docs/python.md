@@ -58,6 +58,16 @@ for k in sim.kpis(cycle=-1):                    # KPIs at the last cycle
 
 Options: `run(cycles=N)` overrides the number of cycles. `progress=f` calls `f(info)` after every step with a dict holding `cycle`, `step`, `total_cycles`, `total_steps` and `fraction`. Return `False` from it to cancel. `log_level="medium"` and `on_message=f` pass the solver's log messages to `f(level, text)`. Ctrl-C cancels a run and raises `KeyboardInterrupt`.
 
+`run(initial_state=state)` starts this run from a previous run's state instead of the deck's initial conditions. The state is a `CycleState`, for example `sim.final_state()`. This is a warm start: after an edit (a step time, a feed composition, the cell count), the run reaches the new cyclic steady state in fewer cycles. A state taken on other cells per layer is remapped onto the deck's grid, and its histories are stretched onto changed step times. A state that does not fit (other components, layers or steps) fails the run with the reason. See [Restarting from a cycle state and warm starts](cyclic-steady-state.md#restarting-from-a-cycle-state-and-warm-starts) for `final_state()`, `run_cycle()`, `set_initial_state()`, `prepare_state()` and `check_state()`.
+
+```python
+base = skarstrom.examples.Illustrative_TSA_13X.load()
+base.run()                                        # CSS after 16 cycles
+edited = skarstrom.examples.Illustrative_TSA_13X.load()
+edited.steps["Adsorption"].time = 660
+edited.run(initial_state=base.final_state())      # CSS after 9 cycles (15 from cold)
+```
+
 ## Example decks
 
 `skarstrom.examples` has one attribute per bundled deck, so your editor completes the names and shows each deck's title and description:

@@ -60,6 +60,8 @@ namespace {
       EXPECT_NE(issues[0].message.find("Layer \"Bottom\": mass fractions sum to " +
                                        std::string(second < 0.3 ? "0.8" : "1.2") + "; they must sum to 1"),
                 std::string::npos) << issues[0].message;
+      // The hint for studies: vary the fractions together.
+      EXPECT_NE(issues[0].message.find("set them to x and 1 - x together"), std::string::npos) << issues[0].message;
       EXPECT_FALSE(x.layer.ValidateComposition());
     }
     // A single solid below 1 is the same error (it would scale the solid).

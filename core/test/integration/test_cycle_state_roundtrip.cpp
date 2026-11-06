@@ -39,10 +39,13 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/simulation.h"
 #include "adsim/solver/cycle_state.h"
+#include "cycle_state_decks.h"
 
 namespace adsim {
 
 namespace {
+
+using namespace test_decks;
 
 constexpr double kRoundTripTol = 1e-4;
 // A state without its histories must miss by far more than the tolerance.
@@ -63,132 +66,6 @@ double StateDifference(const CycleState& a, const CycleState& b) {
     for (size_t g : f.index) worst = std::max(worst, std::abs(a.y[g] - b.y[g]) / scale);
   }
   return worst;
-}
-
-// ---- a buffer-tank deck (consumer before source) ---------------------------
-// Purge feeds the top of the bed from a tank holding 60 % of the moles Feed
-// vented through its top in its last run; Feed runs after Purge, so from cycle
-// 2 on Purge replays the previous cycle's summary.
-
-std::unique_ptr<ConstantBoundaryValue> Constant(double v) {
-  auto bv = std::make_unique<ConstantBoundaryValue>();
-  bv->constant_value_ = v;
-  return bv;
-}
-
-std::unique_ptr<VelocityBoundaryValue> Velocity(double v) {
-  auto vel = std::make_unique<VelocityBoundaryValue>();
-  static_cast<ConstantBoundaryValue*>(vel->profile_.get())->constant_value_ = v;
-  return vel;
-}
-
-std::unique_ptr<PressureBoundaryCondition> PressureOutlet(BoundaryLocation loc) {
-  auto pbc = std::make_unique<PressureBoundaryCondition>();
-  pbc->direction_ = BoundaryDirection::OUTLET;
-  pbc->location_ = loc;
-  pbc->pressure_ = Constant(101325.0);
-  pbc->mole_fraction_["Oxygen"] = 0.21;
-  pbc->mole_fraction_["Nitrogen"] = 0.79;
-  return pbc;
-}
-
-std::unique_ptr<FlowBoundaryCondition> FlowInlet(BoundaryLocation loc, std::unique_ptr<BoundaryStream> stream) {
-  auto fbc = std::make_unique<FlowBoundaryCondition>();
-  fbc->direction_ = BoundaryDirection::INLET;
-  fbc->location_ = loc;
-  fbc->streams_.push_back(std::move(stream));
-  return fbc;
-}
-
-UserData BufferTankDeck() {
-  UserData data;
-  data.bed.wall_.thickness_ = 0.0175;
-  data.bed.wall_.heat_capacity_ = 537;
-  data.bed.wall_.density_ = 7800;
-  data.bed.wall_.thermal_conductivity_ = 16.2;
-
-  data.fluid.AddComponent("Oxygen");
-  data.fluid.AddComponent("Nitrogen");
-
-  auto ads_id = data.adsorbent_directory.Add("13X");
-  auto layer_id = data.bed.layers_.Add("13X");
-  auto& layer = data.bed.layers_.Get(layer_id);
-  layer.momentum_model_ = MomentumModel::KarmenCozeny;
-  layer.domain_.length = 1.0;
-  layer.domain_.n_cells = 10;
-  layer.particle_diameter_ = 0.0011;
-  layer.eb_ = 0.37;
-  layer.composition_[ads_id] = 1.0;
-
-  auto& ads = data.adsorbent_directory.Get(ads_id);
-  ads.ep_ = 0.37;
-  auto langmuir = std::make_unique<LangmuirIsotherm>();
-  langmuir->params_["Oxygen"].m1 = 0.5;
-  langmuir->params_["Oxygen"].b1 = 3e-11;
-  langmuir->params_["Oxygen"].q1 = 30000;
-  langmuir->params_["Nitrogen"].m1 = 1.5;
-  langmuir->params_["Nitrogen"].b1 = 3e-11;
-  langmuir->params_["Nitrogen"].q1 = 35000;
-  ads.adsorption_source_.AddIsotherm({"Oxygen", "Nitrogen"}, std::move(langmuir));
-  for (const char* comp : {"Oxygen", "Nitrogen"}) {
-    auto ldf = std::make_unique<LinearDrivingForce>();
-    auto mtc = std::make_unique<MassTransferCoefficientConstant>();
-    mtc->constant_mtc_ = 0.1;
-    ldf->mtc_model_ = std::move(mtc);
-    ads.adsorption_source_.mass_transfer_models_[comp] = std::move(ldf);
-  }
-  auto ihtc = std::make_unique<ConstantInternalHeatTransferModel>();
-  ihtc->heat_transfer_coefficient_ = 0.0;
-  layer.equations_.internal_heat_transfer_model_ = std::move(ihtc);
-  auto ehtc = std::make_unique<ConstantExternalHeatTransferModel>();
-  ehtc->heat_transfer_coefficient_ = 0.0;
-  layer.equations_.external_heat_transfer_model_ = std::move(ehtc);
-
-  data.ic.pressure = 101325.0;
-  data.ic.temperature = 298.0;
-  data.ic.wall_temperature = 298.0;
-  data.ic.velocity = 0.0;
-  data.ic.mole_fraction["Oxygen"] = 0.21;
-  data.ic.mole_fraction["Nitrogen"] = 0.79;
-
-  data.cycle.AddStep("Purge");
-  {
-    Step& purge = data.cycle.GetStep("Purge");
-    purge.step_time_ = 20.0;
-    auto in = std::make_unique<BoundaryStream>();
-    in->name_ = "Purge In";
-    in->boundary_flow_ = Velocity(0.01);  // first-cycle assumption
-    in->mole_fraction["Oxygen"] = 1.0;
-    in->mole_fraction["Nitrogen"] = 0.0;
-    in->temperature_ = 298.0;
-    in->buffer_tank_.Activate("Feed", kPressureBoundaryEndpointName);
-    in->buffer_tank_.percentage_ = 60.0;
-    purge.top_boundary_condition_ = FlowInlet(BoundaryLocation::TOP, std::move(in));
-    purge.bottom_boundary_condition_ = PressureOutlet(BoundaryLocation::BOTTOM);
-  }
-  data.cycle.AddStep("Feed");
-  {
-    Step& feed = data.cycle.GetStep("Feed");
-    feed.step_time_ = 20.0;
-    auto air = std::make_unique<BoundaryStream>();
-    air->name_ = "Feed In";
-    air->boundary_flow_ = Velocity(0.1);
-    air->mole_fraction["Oxygen"] = 0.21;
-    air->mole_fraction["Nitrogen"] = 0.79;
-    air->temperature_ = 298.0;
-    feed.bottom_boundary_condition_ = FlowInlet(BoundaryLocation::BOTTOM, std::move(air));
-    feed.top_boundary_condition_ = PressureOutlet(BoundaryLocation::TOP);
-  }
-  data.cycle.EnsureIds();
-  data.cycle.number_of_cycles_ = 3;
-  data.settings.max_step = 1.0;
-  return data;
-}
-
-Simulation BufferTankSimulation() {
-  Simulation sim;
-  sim.SetData(BufferTankDeck());
-  return sim;
 }
 
 // An example deck with inter-bed connections, on a coarse grid with the CSS
@@ -317,14 +194,10 @@ TEST(CycleStateRoundTrip, IncompatibleStatesAreRefusedWithAReason) {
     other.Data().fluid.AddComponent("Argon");
     EXPECT_NE(other.CheckState(x).find("components"), std::string::npos);
   }
-  {  // a changed step time on a deck whose buffer tank reads the histories
+  {  // a changed step time is not a refusal: the histories are stretched
     Simulation other = BufferTankSimulation();
     other.Data().cycle.step_list_[1].step_time_ = 25.0;
-    EXPECT_NE(other.CheckState(x).find("changed its time"), std::string::npos) << other.CheckState(x);
-    // ... is fine when nothing reads a history.
-    CycleState bare = x;
-    for (auto& e : bare.endpoints) { e.history.Clear(); e.summary.Clear(); }
-    EXPECT_EQ(other.CheckState(bare), "");
+    EXPECT_EQ(other.CheckState(x), "");
   }
   {  // a removed step
     Simulation other = BufferTankSimulation();

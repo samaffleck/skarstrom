@@ -102,7 +102,11 @@ Plan MonteCarloPlan(const std::vector<Input>& inputs, int runs, std::uint64_t se
 // ---- running one sample ------------------------------------------------------
 
 // The KPI fields a study can watch (KPIRecord members): purity, recovery,
-// productivity_mass, productivity_volume, energy_consumption, production_rate.
+// productivity_mass, productivity_volume, energy_consumption, production_rate,
+// electrical_energy (the same value as energy_consumption, the compressor and
+// pump work), thermal_energy (heat supplied) and cooling_duty (heat removed).
+// The default outputs are purity, recovery, productivity_mass and
+// energy_consumption.
 const std::vector<std::string>& KPINames();
 
 // One watched value: a tracked component's KPI at the last logged cycle.
