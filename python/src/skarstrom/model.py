@@ -788,7 +788,7 @@ class Settings(_Node):
     warn_fluidisation = Boolean()
     """Warn when the last cycle's approach to fluidisation passes 1."""
     acceleration_method = Choice()
-    """Cyclic-steady-state acceleration: "none" or "aitken" (Graves-Morris extrapolation)."""
+    """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation) or "anderson"."""
 
 
 class CSS(_Node):

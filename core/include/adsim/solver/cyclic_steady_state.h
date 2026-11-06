@@ -44,14 +44,18 @@ namespace adsim {
   // Formula used to accelerate the approach to cyclic steady state. NONE disables
   // acceleration; add further entries here (and a case in Accelerate) to offer
   // additional extrapolation schemes.
+  // The values are stored in decks by number: append new methods, never
+  // reorder.
   enum class AccelerationMethod {
     NONE,     // No acceleration (plain successive substitution)
-    AITKEN    // Aitken delta^2 / Graves-Morris vector extrapolation
+    AITKEN,   // Aitken delta^2 / Graves-Morris vector extrapolation
+    ANDERSON  // Anderson mixing over the last few cycles (see AccelerateCyclicSteadyState)
   };
 
   static const char* AccelerationMethodList[] = {
     "None",
-    "Aitken (Graves-Morris)"
+    "Aitken (Graves-Morris)",
+    "Anderson"
   };
 
   struct CSSResult {
@@ -219,6 +223,24 @@ namespace adsim {
   // contracting mode undershoots the fixed point, so it still closes part of
   // the gap. A window that is not a geometric decay is skipped (see
   // Accelerate).
+  //
+  // Anderson (AccelerationMethod::ANDERSON) moves the same fields along a
+  // combination of up to kAndersonDepth earlier natural cycle-to-cycle steps,
+  // so it can remove several slow modes at once where Aitken removes one.
+  // It is not restarted: it keeps pairs (x, G(x)) of a cycle's start and end
+  // state, where G is the cycle-to-cycle map. A pair is kept only when x is
+  // known exactly: when the previous cycle ended without a jump, x is that
+  // cycle's natural end state. The cycle that follows a jump gives no pair (the
+  // caller may have rejected the jump, so its start state is not known), but
+  // the older pairs remain valid samples of G and are kept. Jumps are thus at
+  // most every other cycle. With residuals f = G(x) - x, the newest pair n and
+  // the older pairs j, the jump is
+  //     x* = G(x_n) - sum_j gamma_j (G(x_n) - G(x_j)),
+  //     gamma = argmin || f_n - sum_j gamma_j (f_n - f_j) ||,
+  // in the same field-scaled norm as Aitken. The jump is skipped when the
+  // fitted combination does not reduce the residual, and shortened to
+  // kMaxStepMultiple natural steps. It goes through the same projection and
+  // the caller's re-seed probe as an Aitken jump.
   struct AccelerationNote {
     std::string skipped;  // set when a full three-cycle window is rejected: the reason
     std::string fit;      // set for every full window: the fitted coefficient and rates
@@ -230,6 +252,15 @@ namespace adsim {
 
     // Largest jump, in multiples of the last natural cycle-to-cycle step.
     static constexpr double kMaxStepMultiple = 20.0;
+    // Anderson: the most earlier pairs combined in one jump (the depth m).
+    static constexpr int kAndersonDepth = 4;
+    // Anderson: skip a jump whose fit leaves more than this fraction of the
+    // residual. Such a fit gains little over the natural cycle, and a jump
+    // late in a run delays the stopping rule (it needs consecutive quiet
+    // cycles). 0.5 was chosen on Perez 2019 A and E and Nguyen 2023 X: 0.7 and
+    // 0.9 stopped Perez 2019 A and E as late or later, and 0.9 stopped Nguyen
+    // 2023 X at cycle 234 instead of 190 (see docs/numerics.md).
+    static constexpr double kAndersonMaxResidualRatio = 0.5;
 
     // Called after every cycle with the natural end-of-cycle state. Returns
     // true when it has moved the extrapolable fields of state (the caller then
@@ -238,11 +269,24 @@ namespace adsim {
     bool Accelerate(Equations& state, int cycle_index, AccelerationNote* note = nullptr);
 
   private:
+    bool AccelerateAitken(Equations& state, int cycle_index, AccelerationNote* note);
+    bool AccelerateAnderson(Equations& state, int cycle_index, AccelerationNote* note);
+
     // Rolling history of natural end-of-cycle snapshots. Each snapshot holds one
     // profile per equation in Equations::GetEquations() order. Transient: rebuilt
     // every run, never serialized.
     std::vector<std::vector<std::vector<double>>> history_;
     int last_cycle_index_ = -1;
+
+    // Anderson (transient, like history_): the slow fields flattened into one
+    // vector, in GetEquations() order.
+    struct AndersonPair {
+      std::vector<double> x;  // start-of-cycle state
+      std::vector<double> g;  // end-of-cycle state, G(x)
+    };
+    std::vector<AndersonPair> pairs_;   // oldest first, at most kAndersonDepth + 1
+    std::vector<double> previous_end_;  // the previous cycle's end state
+    bool previous_jumped_ = false;      // the previous call returned true
 
     friend class cereal::access;
     template <class Archive>

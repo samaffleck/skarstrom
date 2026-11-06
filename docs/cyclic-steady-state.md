@@ -91,6 +91,22 @@ The state test and the consecutive-cycles rule were added after Skarstrom 0.3.0 
 
 The approach to CSS is often a slow geometric decay. Setting **CSS acceleration method** to *Aitken (Graves-Morris)* makes the solver extrapolate the end-of-cycle state of the slow fields (loadings, solid and wall temperatures, mole fractions) from three successive cycles towards the fixed point, check the jump in a throwaway integrator, and only then apply it. Pair it with a CSS method, otherwise the run still does every cycle. It never makes a run fail: a jump that does not integrate is skipped, and so is a window of three cycles that is not a geometric decay (the log says *CSS acceleration skipped* and why). In the [Perez 2019 tutorial](perez-2019-vpsa.md) it brought CSS from cycle 94 to 48. The algorithm is described on the [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration) page.
 
+*Anderson* moves the same slow fields along a combination of up to four earlier cycle-to-cycle steps instead of one, so it can remove several slowly decaying modes in one jump where Aitken removes one. It jumps at most every other cycle, goes through the same throwaway-integrator check, and skips a jump whose fit would remove less than half of the remaining cycle-to-cycle change. On the shipped decks, with their own CSS settings (cycle of the CSS stop; errors of CO2 purity and recovery at the stop against a long plain run with the CSS check off, cycle 499 for Perez 2019 A and 999 for Perez 2019 E):
+
+| Deck | Method | CSS stop | Purity error | Recovery error |
+|---|---|---|---|---|
+| Perez 2019 A | none | 48 | 3.2×10⁻⁷ | 2.4×10⁻⁵ |
+| | Aitken | 32 | 5.0×10⁻⁷ | 1.4×10⁻⁵ |
+| | Anderson | 35 | 7.9×10⁻⁷ | 3.4×10⁻⁵ |
+| Perez 2019 E | none | 205 | 7.1×10⁻⁵ | 6.9×10⁻⁶ |
+| | Aitken | 65 | 3.9×10⁻⁵ | 8.8×10⁻⁶ |
+| | Anderson | 45 | 1.1×10⁻⁶ | 1.5×10⁻⁵ |
+| Nguyen 2023 X | none | over 800 | | |
+| | Aitken | 548 | | |
+| | Anderson | 190 | | |
+
+The long reference runs themselves wander by about 10⁻⁷ (A) and 10⁻⁶ (E) in purity and 2×10⁻⁶ (A) and 2×10⁻⁵ (E) in recovery over their last few hundred cycles. Anderson gains most where the approach to CSS is slow (Perez 2019 E, Nguyen 2023 X); on a deck that already converges in a few dozen cycles (Perez 2019 A) it does about as well as Aitken.
+
 ## Restarting from a cycle state and warm starts
 
 A completed run keeps its **final state**, the state at the end of its last cycle. It holds everything the next cycle depends on:

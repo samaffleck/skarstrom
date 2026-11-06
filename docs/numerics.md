@@ -154,6 +154,18 @@ $$
 
 The gain depends on the deck. For the [Perez 2019 VPSA tutorial](perez-2019-vpsa.md) deck (WENO, 80 cells, feed-loaded start), acceleration brings CSS from cycle 94 to cycle 48; from a clean bed, from cycle 237 to 198 (and from 189 to 144 on the earlier upwind 30-cell deck). Nguyen 2023 experiment X on 20 cells, whose approach to CSS is one slow mode of rate 0.985, reaches CSS at cycle 111 instead of 435. In each case purity and recovery agree with the plain run's within 3×10⁻⁵ and are closer than the plain run's to the values of a long (450 to 1200 cycles) plain run. On the test cycle of `CSSAcceleration.ReducesCyclesToCSS*` acceleration reaches CSS in 24 to 26 cycles instead of 39 with each advection scheme.
 
+**Anderson acceleration.** With the method set to *Anderson*, the solver combines several earlier cycle-to-cycle steps instead of fitting one geometric mode (`AccelerateCyclicSteadyState::AccelerateAnderson`). It moves the same slow fields, in the same weighted norm, through the same projection and the same throwaway-integrator probe as Aitken.
+
+1. It keeps up to five pairs $(x_j, G(x_j))$ of a cycle's start and end state ($G$ is the cycle-to-cycle map). A pair is kept only when $x_j$ is known exactly: when the previous cycle ended without a jump, so $x_j$ is that cycle's natural end state. The cycle after a jump gives no pair, because the probe may have rejected the jump and the solver then continued from the natural state. The older pairs remain valid samples of $G$ and are kept, so the method is not restarted. Pairs start from the third cycle.
+2. With residuals $f_j = G(x_j) - x_j$, the newest pair $n$ and the older pairs $j$, it solves the small least-squares problem
+$$
+\gamma = \arg\min_\gamma \Bigl\lVert f_n - \sum_j \gamma_j (f_n - f_j) \Bigr\rVert_w
+$$
+   by column-pivoted QR, dropping the oldest pairs until the columns are independent, and jumps to $x^{*} = G(x_n) - \sum_j \gamma_j \bigl(G(x_n) - G(x_j)\bigr)$. For a cycle map that is linear with $k$ error modes, $k$ independent steps put $x^{*}$ on the fixed point.
+3. It skips the jump when the fitted residual is more than half of $\lVert f_n\rVert_w$ (little gain, and a late jump delays the stopping rule, which needs consecutive quiet cycles), and limits it to twenty natural steps $\lVert f_n\rVert_w$, as for Aitken. Jumps are at most every other cycle.
+
+The depth (four earlier steps), the jump spacing and the skip threshold (one half) were chosen on Perez 2019 A and E and Nguyen 2023 X. With a threshold of 0.9, a depth of three or five, or a jump every third cycle, stopped Perez 2019 E at cycle 55 to 64 instead of 48, and Perez 2019 A between cycles 34 and 37 instead of 35. With depth four, thresholds of 0.7 and 0.9 stopped Perez 2019 A and E as late or later than one half, and 0.9 stopped Nguyen 2023 X at cycle 234 instead of 190. The stops and their KPI errors are tabulated on the [Cyclic Steady State](cyclic-steady-state.md#accelerating-the-approach-to-css) page.
+
 Earlier versions skipped every window with $\lvert\mu\rvert > 5$ (a decay rate above 0.83) instead of limiting the jump, and accepted a $\mu$ of either sign. Once a run settled on a slow mode no window passed again (with WENO or van Leer, acceleration stopped after two jumps on the test cycle), and in a drifting-front phase the accepted positive $\mu$ moved the state backwards: Perez 2019 D1 with WENO reached CSS at cycle 250 accelerated against 237 plain.
 
 ### Convergence of the results
