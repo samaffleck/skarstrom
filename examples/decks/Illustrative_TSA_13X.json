@@ -1044,20 +1044,7 @@
                         }
                     },
                     "Step_Name": "Heating",
-                    "Energy_Sources": [
-                        {
-                            "key": 1,
-                            "value": {
-                                "cereal_class_version": 2,
-                                "Power": {
-                                    "Value": 30.0,
-                                    "Expression": "3e+01",
-                                    "DisplayUnitIndex": 0
-                                },
-                                "Enabled": true
-                            }
-                        }
-                    ],
+                    "Energy_Sources": [],
                     "Step_Fraction": {
                         "Value": 0.0,
                         "Expression": "0",
@@ -1065,18 +1052,18 @@
                     },
                     "ID": 2,
                     "Heating_Medium": {
-                        "Enabled": false,
+                        "Enabled": true,
                         "Temperature": {
-                            "Value": 293.0,
-                            "Expression": "293",
+                            "Value": 373.15,
+                            "Expression": "373.15",
                             "DisplayUnitIndex": 0
                         },
                         "Temperature_Profile": {
                             "polymorphic_id": 0
                         },
                         "Heat_Transfer_Coefficient": {
-                            "Value": 100.0,
-                            "Expression": "1e+02",
+                            "Value": 500.0,
+                            "Expression": "5e+02",
                             "DisplayUnitIndex": 0
                         },
                         "Exchanger_Area_Per_Volume": {
@@ -1122,19 +1109,7 @@
                         }
                     },
                     "Step_Name": "Cooling",
-                    "Energy_Sources": [
-                        {
-                            "key": 1,
-                            "value": {
-                                "Power": {
-                                    "Value": -12.0,
-                                    "Expression": "-12",
-                                    "DisplayUnitIndex": 0
-                                },
-                                "Enabled": true
-                            }
-                        }
-                    ],
+                    "Energy_Sources": [],
                     "Step_Fraction": {
                         "Value": 0.0,
                         "Expression": "0",
@@ -1142,18 +1117,18 @@
                     },
                     "ID": 3,
                     "Heating_Medium": {
-                        "Enabled": false,
+                        "Enabled": true,
                         "Temperature": {
-                            "Value": 293.0,
-                            "Expression": "293",
+                            "Value": 298.15,
+                            "Expression": "298.15",
                             "DisplayUnitIndex": 0
                         },
                         "Temperature_Profile": {
                             "polymorphic_id": 0
                         },
                         "Heat_Transfer_Coefficient": {
-                            "Value": 100.0,
-                            "Expression": "1e+02",
+                            "Value": 500.0,
+                            "Expression": "5e+02",
                             "DisplayUnitIndex": 0
                         },
                         "Exchanger_Area_Per_Volume": {
@@ -1441,7 +1416,7 @@
         "System_Information": {
             "cereal_class_version": 0,
             "Title": "Illustrative TSA - CO2/N2 on 13X",
-            "Description": "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, electric heating with CO2 product at the feed end, cooling, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.",
+            "Description": "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating through a 100 C jacket with CO2 product at the feed end, cooling through the jacket with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.",
             "Author": "Skarstrom docs tutorial",
             "Version": 2
         },

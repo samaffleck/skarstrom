@@ -115,6 +115,18 @@ $q_i$ is the outer-face flow of cell $i$, the same term the wall balance uses. A
 - The thermal-energy and cooling-duty KPIs (total and per step) add $Q_{m,\text{in}}$ to the heat supplied and $Q_{m,\text{out}}$ to the heat removed. `CalculateStepThermalDuty` also returns the medium's share on its own (`medium_heating`, `medium_cooling`).
 - For a closed bed with insulated wall ends, $Q_{m,\text{in}} - Q_{m,\text{out}}$ equals the change in bed and wall internal energy over the step. The tests `HeatingMediumDutyTest.LoggedDutyClosesTheEnergyBalance` (jacket) and `ExchangerDutyClosesTheEnergyBalance` (exchanger alone, and with the jacket) check this; the measured mismatch is below $10^{-4}$ of the change.
 
+#### Verification
+
+`core/test/validation/test_heating_medium_analytic.cpp` compares heat-up by a medium at fixed $T_m$ with closed-form solutions. Each case uses a closed, non-adsorbing bed with insulated wall ends, so every cell follows the same linear equations. The comparison covers the whole step.
+
+| Case | Model | Exact solution | Measured error (of $T_m - T_0$) |
+|------|-------|----------------|---------------------------------|
+| Jacket heats the wall alone ($h_i = 0$) | $\rho_w C_{p,w}\thinspace \dot T_w = K_o (T_m - T_w)$, $K_o = \frac{4 d_o h_m}{d_o^2 - d_i^2}$ | exponential approach to $T_m$, time constant $\rho_w C_{p,w}/K_o$ | $5\times10^{-6}$ |
+| Jacket heats wall and bed | wall as above plus $K_i (T - T_w)$, $K_i = \frac{4 d_i h_i}{d_o^2 - d_i^2}$; bed $C_b \dot T = \frac{4 h_i}{d_i}(T_w - T)$ | $2\times2$ matrix exponential | $5\times10^{-7}$ |
+| Internal exchanger heats the bed alone | $C_b \dot T = a_x h_x (T_m - T)$ | exponential, time constant $C_b/(a_x h_x)$ | $8\times10^{-8}$ |
+
+$C_b = \varepsilon_b C c_v + \rho_b C_{p,s}$ is the bed's heat capacity per volume at constant volume. In a closed bed the energy balance's $P\thinspace dV$ work term turns the gas $c_p$ into $c_v$.
+
 ### Wall materials
 
 Choosing a preset **Material** fills in the density, heat capacity and thermal conductivity, which are then read-only; *Custom* lets you type all three. The presets are reference values at about 20 °C (the source comments in `wall.h` cite the ASM Handbook, ASME B31.3 and MatWeb):
