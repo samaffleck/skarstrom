@@ -80,7 +80,7 @@ source /path/to/emsdk/emsdk_env.sh
 bash scripts/test_subproject_consumer.sh --emscripten   # builds adsim + a tiny module, runs it under Node.js
 ```
 
-CI builds the engine this way on every push, with each exception scheme (`CMAKE_ARGS="-DADSIM_EMSCRIPTEN_EXCEPTIONS=js"` selects the other one in the script).
+CI builds the engine this way with native WebAssembly exceptions on every pull request, and with both schemes on pushes to main, nightly and manual runs (`CMAKE_ARGS="-DADSIM_EMSCRIPTEN_EXCEPTIONS=js"` selects the other one in the script).
 
 ## Deck files and versioning
 
