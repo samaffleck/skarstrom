@@ -1,18 +1,18 @@
 // Illustrative TSA example deck (examples/decks/Illustrative_TSA_13X.json).
 //
 // A four-step, indirectly heated temperature swing adsorption cycle for CO2
-// capture from a 15 % CO2 / 85 % N2 flue gas: adsorption, heating through a
-// jacket of hot medium at 100 C (CO2 product leaves the feed end), cooling
-// through the same jacket with cooling water at 25 C (column closed) and feed
-// pressurisation.
+// capture from a 15 % CO2 / 85 % N2 flue gas: adsorption, heating with a
+// 150 C medium (steam or hot oil) in a jacket and an internal heat exchanger
+// (CO2 product leaves the feed end), cooling with 25 C water through the same
+// jacket and exchanger (column closed) and feed pressurisation.
 //
 // ILLUSTRATIVE ONLY. This is not a reproduction of any published experiment or
 // simulation. The adsorbent is the library entry "Zeolite 13X (Perez 2019)"
 // (data/adsorbents/, Estupinan Perez et al., Sep. Purif. Technol. 224
 // (2019) 553-563), loaded unchanged, and the column geometry, wall and heat
 // transfer coefficients are those of the Perez2019 decks. The operating
-// conditions (feed velocity, step times, medium temperatures and jacket
-// coefficient) are round
+// conditions (feed velocity, step times, medium temperatures and heat
+// transfer coefficients) are round
 // numbers chosen for the docs tutorial (docs/tutorials/tsa-regeneration.md), and the
 // heating step takes the isotherm above its 298-348 K fit range.
 //
@@ -57,12 +57,19 @@ namespace adsim {
     constexpr double kHeatingTime = 900;     // [s]
     constexpr double kCoolingTime = 900;     // [s]
     constexpr double kPressurisationTime = 30; // [s]
-    constexpr double kHotMedium = 373.15;    // [K] heating medium in the jacket (100 C)
-    constexpr double kCoolingWater = 298.15; // [K] cooling water in the jacket (25 C)
-    // [W/(m2 K)] jacket-side coefficient, typical of a pumped liquid or
-    // condensing steam in a jacket. The bed-to-wall coefficient (8.6) is much
-    // smaller, so it, not the jacket, limits how fast the bed follows the medium.
+    constexpr double kHotMedium = 423.15;    // [K] heating medium, steam or hot oil (150 C)
+    constexpr double kCoolingWater = 298.15; // [K] cooling water (25 C)
+    // [W/(m2 K)] jacket-side coefficient, typical of condensing steam or a
+    // pumped liquid in a jacket. The bed-to-wall coefficient (8.6) is far
+    // smaller, so through the jacket alone the bed follows the medium slowly.
     constexpr double kJacketHTC = 500.0;
+    // Internal exchanger in the packing: 50 m2 of tube surface per m3 of bed
+    // (about one 10 mm tube per 8 cm2 of cross-section) with a bed-side
+    // coefficient of 40 W/(m2 K), within the 20-100 range usual for gas-filled
+    // packed beds on an immersed surface. a_x h_x = 2000 W/(m3 K) heats the
+    // bed with a time constant of about 5 minutes.
+    constexpr double kExchangerArea = 50.0;  // [m2/m3]
+    constexpr double kExchangerHTC = 40.0;   // [W/(m2 K)]
     constexpr int kMaxCycles = 60;
   }
 
@@ -88,8 +95,9 @@ namespace adsim {
     data.info.title = "Illustrative TSA - CO2/N2 on 13X";
     data.info.description =
       "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA "
-      "(adsorption, heating through a 100 C jacket with CO2 product at the feed end, cooling "
-      "through the jacket with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. "
+      "(adsorption, heating with a 150 C medium in a jacket and an internal exchanger with CO2 "
+      "product at the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / "
+      "85 % N2 flue gas. "
       "Adsorbent: library entry "
       "Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. "
       "Operating conditions are round numbers for the docs tutorial; heating goes above "
@@ -149,13 +157,13 @@ namespace adsim {
                         { {CO2, 0.0}, {N2, 1.0} });
 
     // 2. Heating: top closed, CO2 leaves the feed end at 1 bar while the
-    //    jacket's hot medium heats the column through the wall.
+    //    hot medium heats the column through the jacket and the internal exchanger.
     AddStep("Heating", kHeatingTime);
     AddClosedBC(BoundaryLocation::TOP, "Heating");
     AddPressureOutletBC(CreateConstantBoundaryValue(kPressure), BoundaryLocation::BOTTOM, "Heating",
                         { {CO2, 1.0}, {N2, 0.0} });
 
-    // 3. Cooling: both ends closed, cooling water in the jacket.
+    // 3. Cooling: both ends closed, cooling water through the jacket and exchanger.
     AddStep("Cooling", kCoolingTime);
     AddClosedBC(BoundaryLocation::TOP, "Cooling");
     AddClosedBC(BoundaryLocation::BOTTOM, "Cooling");
@@ -166,16 +174,19 @@ namespace adsim {
     AddPressureInletBC(CreateLinearBoundaryValue(kPressure, kPressurisationTime), feed, kFeedTemperature,
                        BoundaryLocation::BOTTOM, "Pressurisation");
 
-    // The jacket: a heating medium on the wall's outer face in Heating and
-    // Cooling (it replaces the ambient exchange while those steps run).
-    auto& hot = data.cycle.GetStep("Heating").heating_medium_;
-    hot.enabled_ = true;
-    hot.temperature_ = kHotMedium;
-    hot.heat_transfer_coefficient_ = kJacketHTC;
-    auto& cold = data.cycle.GetStep("Cooling").heating_medium_;
-    cold.enabled_ = true;
-    cold.temperature_ = kCoolingWater;
-    cold.heat_transfer_coefficient_ = kJacketHTC;
+    // The heating medium in Heating and Cooling: a jacket on the wall's outer
+    // face (it replaces the ambient exchange while those steps run) and an
+    // internal heat exchanger in the packing, both at the medium temperature.
+    auto set_medium = [&](const std::string& step, double temperature) {
+      auto& m = data.cycle.GetStep(step).heating_medium_;
+      m.enabled_ = true;
+      m.temperature_ = temperature;
+      m.heat_transfer_coefficient_ = kJacketHTC;
+      m.exchanger_area_per_volume_ = kExchangerArea;
+      m.exchanger_heat_transfer_coefficient_ = kExchangerHTC;
+    };
+    set_medium("Heating", kHotMedium);
+    set_medium("Cooling", kCoolingWater);
 
     ConfigureCycle(kMaxCycles);
     data.settings.css.method_ = CSSMethod::MASS_BALANCE_COMPONENT;
@@ -260,7 +271,8 @@ namespace adsim {
               << " | CO2 purity = " << purity * 100 << " % | CO2 recovery = " << recovery * 100
               << " % | production rate = " << production_rate << " mol/s"
               << " | thermal energy = " << thermal_energy / 1e6 << " MJ/kg (medium in " << medium_in
-              << " J) | cooling duty = " << cooling / 1e6 << " MJ/kg (medium out " << medium_out << " J)"
+              << " J, exchanger " << heating_duty.exchanger_heat_in << " J) | cooling duty = " << cooling / 1e6
+              << " MJ/kg (medium out " << medium_out << " J, exchanger " << cooling_duty.exchanger_heat_out << " J)"
               << " | bed T range in last cycle = [" << t_min << ", " << t_max << "] K" << std::endl;
 
     // TSA behaviour, not a validation: the heating-step product is enriched in CO2

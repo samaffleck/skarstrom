@@ -1054,8 +1054,8 @@
                     "Heating_Medium": {
                         "Enabled": true,
                         "Temperature": {
-                            "Value": 373.15,
-                            "Expression": "373.15",
+                            "Value": 423.15,
+                            "Expression": "423.15",
                             "DisplayUnitIndex": 0
                         },
                         "Temperature_Profile": {
@@ -1067,13 +1067,13 @@
                             "DisplayUnitIndex": 0
                         },
                         "Exchanger_Area_Per_Volume": {
-                            "Value": 0.0,
-                            "Expression": "0",
+                            "Value": 50.0,
+                            "Expression": "5e+01",
                             "DisplayUnitIndex": 0
                         },
                         "Exchanger_Heat_Transfer_Coefficient": {
-                            "Value": 100.0,
-                            "Expression": "1e+02",
+                            "Value": 40.0,
+                            "Expression": "4e+01",
                             "DisplayUnitIndex": 0
                         }
                     }
@@ -1132,13 +1132,13 @@
                             "DisplayUnitIndex": 0
                         },
                         "Exchanger_Area_Per_Volume": {
-                            "Value": 0.0,
-                            "Expression": "0",
+                            "Value": 50.0,
+                            "Expression": "5e+01",
                             "DisplayUnitIndex": 0
                         },
                         "Exchanger_Heat_Transfer_Coefficient": {
-                            "Value": 100.0,
-                            "Expression": "1e+02",
+                            "Value": 40.0,
+                            "Expression": "4e+01",
                             "DisplayUnitIndex": 0
                         }
                     }
@@ -1416,7 +1416,7 @@
         "System_Information": {
             "cereal_class_version": 0,
             "Title": "Illustrative TSA - CO2/N2 on 13X",
-            "Description": "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating through a 100 C jacket with CO2 product at the feed end, cooling through the jacket with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.",
+            "Description": "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.",
             "Author": "Skarstrom docs tutorial",
             "Version": 2
         },
