@@ -243,6 +243,8 @@ TEST(Sensitivity, Outputs) {
   // The electrical energy is watched under its explicit name or the original one.
   EXPECT_EQ(ParseOutput("CarbonDioxide.electrical_energy").kpi, "electrical_energy");
   EXPECT_EQ(ParseOutput("CarbonDioxide.energy_consumption").kpi, "energy_consumption");
+  EXPECT_EQ(ParseOutput("CarbonDioxide.thermal_energy").kpi, "thermal_energy");
+  EXPECT_EQ(ParseOutput("CarbonDioxide.cooling_duty").kpi, "cooling_duty");
 }
 
 // ---- a real deck ------------------------------------------------------------------

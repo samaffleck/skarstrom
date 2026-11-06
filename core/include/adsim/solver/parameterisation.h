@@ -191,6 +191,8 @@ namespace adsim {
         case KPIVariableType::PRODUCTIVITY_VOLUME: kpi_val = CalculateProductivityVolume(kpi_p);       break;
         case KPIVariableType::ENERGY_CONSUMPTION:  kpi_val = CalculateSpecificEnergyConsumption(kpi_p);break;
         case KPIVariableType::PRODUCTION_RATE:     kpi_val = CalculateProductionRate(kpi_p);           break;
+        case KPIVariableType::THERMAL_ENERGY:      kpi_val = CalculateSpecificThermalEnergy(kpi_p);    break;
+        case KPIVariableType::COOLING_DUTY:        kpi_val = CalculateSpecificCoolingDuty(kpi_p);      break;
       }
 
       double res = kpi_val - exp_data.y[i];

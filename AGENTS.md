@@ -111,7 +111,10 @@ Flows: `sk.velocity|volumetric_flow|molar_flow|mass_flow(value or profile)`; pro
 
 ```python
 sim.kpis(cycle=-1)        # KPIRecord: component, cycle, valid, purity, recovery, productivity_mass,
-                          #            productivity_volume, energy_consumption, production_rate (nan if undefined)
+                          #            productivity_volume, energy_consumption, production_rate,
+                          #            electrical_energy (= energy_consumption: compressor/pump work),
+                          #            thermal_energy (heat supplied), cooling_duty (heat removed, >= 0),
+                          #            step_thermal_energy, step_cooling_duty (per step) (nan if undefined)
 sim.kpi_table()           # pandas DataFrame
 sim.css_history()         # CSSRecord per cycle: converged, error, tolerance, method
 sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=-1)   # .time, .values (NumPy), .unit
@@ -134,7 +137,7 @@ screen = study.screen(trajectories=10)            # Morris: .table() (mu*, mu, s
 spread = study.propagate(inputs=screen.important())   # LHS Monte Carlo: .table() (p05/p50/p95, converged), .shares()
 ```
 
-CLI: `skarstrom sensitivity deck.json --input "PATH=10%" --input "PATH=LO:HI" --input "PATH=normal:MEAN:SD" [--output Component.kpi] [--method screen|propagate|both] [--workers N] [--json] [--save FILE]`. Outputs are `Component.kpi` at the last cycle (default: purity, recovery, productivity_mass, energy_consumption of every tracked component). Runs must reach CSS unless `require_css=False` / `--no-require-css`; a deck whose `css.method` is none (e.g. the Arora decks) needs `settings={"css.method": 3}` or the flag. Not-accepted runs are counted in `.failed` / `.warnings`, never dropped silently. C++: `adsim/solver/sensitivity.h` (plans, `EvaluateSample`, analyses). Guide: `docs/sensitivity.md`.
+CLI: `skarstrom sensitivity deck.json --input "PATH=10%" --input "PATH=LO:HI" --input "PATH=normal:MEAN:SD" [--output Component.kpi] [--method screen|propagate|both] [--workers N] [--json] [--save FILE]`. Outputs are `Component.kpi` at the last cycle, any KPI of `sa.kpi_names()` (default: purity, recovery, productivity_mass, energy_consumption of every tracked component). Runs must reach CSS unless `require_css=False` / `--no-require-css`; a deck whose `css.method` is none (e.g. the Arora decks) needs `settings={"css.method": 3}` or the flag. Not-accepted runs are counted in `.failed` / `.warnings`, never dropped silently. C++: `adsim/solver/sensitivity.h` (plans, `EvaluateSample`, analyses). Guide: `docs/sensitivity.md`.
 
 ### Isotherms and the adsorbent library
 

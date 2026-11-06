@@ -2,6 +2,7 @@
 #pragma once
 
 // STL includes
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -26,6 +27,9 @@ namespace adsim {
     PRODUCTIVITY_VOLUME,
     ENERGY_CONSUMPTION,
     PRODUCTION_RATE,
+    THERMAL_ENERGY,
+    COOLING_DUTY,
+    // Aliases last: an enumerator after them would take the alias's value + 1.
     ELECTRICAL_ENERGY = ENERGY_CONSUMPTION
   };
 
@@ -35,7 +39,9 @@ namespace adsim {
     "Productivity (mass)",
     "Productivity (volume)",
     "Electrical Energy",
-    "Production Rate"
+    "Production Rate",
+    "Thermal Energy",
+    "Cooling Duty"
   };
 
   static std::string GetKPIUnits(KPIVariableType variable) {
@@ -46,6 +52,8 @@ namespace adsim {
       case KPIVariableType::PRODUCTIVITY_VOLUME: return "[kg_gas/(m3·s)]";
       case KPIVariableType::ENERGY_CONSUMPTION: return "[J/kg]";
       case KPIVariableType::PRODUCTION_RATE: return "[mol/s]";
+      case KPIVariableType::THERMAL_ENERGY: return "[J/kg]";
+      case KPIVariableType::COOLING_DUTY: return "[J/kg]";
       default: return "[-]";
     }
   }
@@ -617,6 +625,97 @@ namespace adsim {
   // The specific electrical energy under its explicit name.
   static double CalculateSpecificElectricalEnergy(const KPIParams& params, bool* defined = nullptr) {
     return CalculateSpecificEnergyConsumption(params, defined);
+  }
+
+  // ---- Thermal energy and cooling duty -------------------------------------
+  //
+  // The thermal energy is the heat supplied to the bed over the cycle; the
+  // cooling duty is the heat removed, reported separately (as a positive
+  // magnitude) and not subtracted from the thermal energy. Both come from the
+  // heat duty the solver logged for each step (StepHeatDuty: the step energy
+  // sources, zero in an isothermal run) times the step's duration. A
+  // heating-medium duty is added to StepHeatDuty, and so to these sums, when
+  // it is logged. The electrical energy (compressor and pump work) is separate.
+
+  // Duration [s] of a logged step: from its first logged time (the step start)
+  // to the next step's start, or to the cycle's end for the last step. 0 when
+  // the step was not logged.
+  inline double LoggedStepDuration(const EquationLog& eq_log, int cycle_index, int step_idx) {
+    const auto& times = eq_log.GetLog(cycle_index, step_idx).step_data.times;
+    if (times.empty()) return 0.0;
+    const double start = times.front();
+    const auto& next = eq_log.GetLog(cycle_index, step_idx + 1).step_data.times;
+    double end = 0.0;
+    if (!next.empty()) {
+      end = next.front();
+    } else {
+      const auto& sim_log = eq_log.GetSimulationLog();
+      const auto it = sim_log.find(cycle_index);
+      if (it == sim_log.end()) return 0.0;
+      double cycle_start = start;  // the first logged time of the cycle
+      for (const auto& entry : it->second) {
+        const auto& t = entry.second.step_data.times;
+        if (!t.empty()) { cycle_start = t.front(); break; }
+      }
+      end = cycle_start + eq_log.sys_data.total_cycle_time;
+    }
+    return std::max(0.0, end - start);
+  }
+
+  struct StepThermalDuty {
+    double heating = 0.0;  // [J] heat supplied over the step
+    double cooling = 0.0;  // [J] heat removed over the step (>= 0)
+  };
+
+  // Heat supplied and removed over one step of the params' cycle [J]. Needs no
+  // KPI configuration: it does not depend on the product.
+  static StepThermalDuty CalculateStepThermalDuty(const KPIParams& params, int step_idx) {
+    const auto& eq_log = params.eq_log_;
+    const StepHeatDuty& duty = eq_log.GetLog(params.cycle_index_, step_idx).heat_duty;
+    const double dt = LoggedStepDuration(eq_log, params.cycle_index_, step_idx);
+    return {duty.heating_power * dt, duty.cooling_power * dt};
+  }
+
+  // Heat supplied and removed over the whole cycle [J].
+  static StepThermalDuty CalculateCycleThermalDuty(const KPIParams& params) {
+    StepThermalDuty total;
+    const int n_steps = static_cast<int>(params.eq_log_.sys_data.step_list_.size());
+    for (int s = 0; s < n_steps; ++s) {
+      const StepThermalDuty d = CalculateStepThermalDuty(params, s);
+      total.heating += d.heating;
+      total.cooling += d.cooling;
+    }
+    return total;
+  }
+
+  // Net product mass of the params' cycle [kg]; `ok` false when undefined.
+  static double NetProductMass(const KPIParams& params, bool& ok) {
+    if (!params.Check()) { ok = false; return 0.0; }
+    const double moles = CalculateNetComponentMolesInProduct(params);
+    const double mass = moles * params.eq_log_.sys_data.molar_mass.at(params.product_comp_);
+    if (!std::isfinite(mass) || !(mass > 0.0)) ok = false;
+    return mass;
+  }
+
+  // Specific thermal energy [J/kg]: heat supplied over the cycle per kg of net
+  // product. Defined and undefined exactly as the electrical energy.
+  static double CalculateSpecificThermalEnergy(const KPIParams& params, bool* defined = nullptr) {
+    if (!params.Check()) return KPIResult(0.0, false, defined);
+    bool ok = true;
+    const double mass = NetProductMass(params, ok);
+    const double value = KPIRatio(CalculateCycleThermalDuty(params).heating, mass, ok);
+    return KPIResult(value, ok, defined);
+  }
+
+  // Specific cooling duty [J/kg]: heat removed over the cycle per kg of net
+  // product, as a positive magnitude. For information; not part of the
+  // thermal energy.
+  static double CalculateSpecificCoolingDuty(const KPIParams& params, bool* defined = nullptr) {
+    if (!params.Check()) return KPIResult(0.0, false, defined);
+    bool ok = true;
+    const double mass = NetProductMass(params, ok);
+    const double value = KPIRatio(CalculateCycleThermalDuty(params).cooling, mass, ok);
+    return KPIResult(value, ok, defined);
   }
 
 }

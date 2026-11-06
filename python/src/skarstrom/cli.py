@@ -105,6 +105,8 @@ KPI_FIELDS = [
     ("productivity_mass", "productivity [kg/(kg s)]"),
     ("productivity_volume", "productivity [kg/(m3 s)]"),
     ("electrical_energy", "electrical energy [J/kg]"),
+    ("thermal_energy", "thermal energy [J/kg]"),
+    ("cooling_duty", "cooling duty [J/kg]"),
     ("production_rate", "production [mol/s]"),
 ]
 
@@ -118,6 +120,8 @@ KPI_CSV_FIELDS = [
     ("energy_consumption", "energy [J/kg]"),
     ("production_rate", "production [mol/s]"),
     ("electrical_energy", "electrical energy [J/kg]"),
+    ("thermal_energy", "thermal energy [J/kg]"),
+    ("cooling_duty", "cooling duty [J/kg]"),
 ]
 
 

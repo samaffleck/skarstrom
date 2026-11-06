@@ -8,6 +8,7 @@
 // builder creates structure by kind name, the parameter registry sets values.
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <stdexcept>
 #include <string>
@@ -274,6 +275,48 @@ TEST(DeckBuilder, BuildsADeckThatPassesTheChecksAndRuns) {
   ASSERT_EQ(kpis.size(), 1u);
   EXPECT_EQ(kpis[0].component, "CarbonDioxide");
   EXPECT_TRUE(kpis[0].valid);
+}
+
+// The thermal energy is the energy-source heat supplied over the cycle and the
+// cooling duty the heat removed (a positive magnitude), each the logged step
+// power times the step time per kg of net product; zero in an isothermal run.
+TEST(DeckBuilder, ThermalEnergyAndCoolingDutyComeFromTheEnergySources) {
+  Built b;
+  Build(b);  // Feed: a -1 W energy source over 60 s
+  UserData& d = b.sim.Data();
+  build::SetEnergySource(d, b.evacuation, b.layer, true);
+  b.sim.RefreshParameters();
+  b.sim.SetParameterText("step[Evacuation].energy[13X].power", "5");  // 5 W over 60 s
+  RunOptions options;
+  options.cycles = 1;
+  ASSERT_TRUE(b.sim.Run(options).Ok());
+
+  const KPIRecord k = b.sim.KPIs(-1).at(0);
+  const Log& feed = b.sim.Log().GetLog(k.cycle, 0);
+  const Log& evac = b.sim.Log().GetLog(k.cycle, 2);
+  EXPECT_NEAR(feed.heat_duty.cooling_power, 1.0, 1e-9);
+  EXPECT_EQ(feed.heat_duty.heating_power, 0.0);
+  EXPECT_NEAR(evac.heat_duty.heating_power, 5.0, 1e-9);
+  EXPECT_EQ(evac.heat_duty.cooling_power, 0.0);
+
+  ASSERT_TRUE(std::isfinite(k.thermal_energy) && k.thermal_energy > 0.0);
+  ASSERT_TRUE(std::isfinite(k.cooling_duty) && k.cooling_duty > 0.0);
+  EXPECT_NEAR(k.thermal_energy / k.cooling_duty, (5.0 * 60.0) / (1.0 * 60.0), 1e-9);
+  ASSERT_EQ(k.step_thermal_energy.size(), 4u);
+  ASSERT_EQ(k.step_cooling_duty.size(), 4u);
+  EXPECT_DOUBLE_EQ(k.step_thermal_energy[2], k.thermal_energy);
+  EXPECT_DOUBLE_EQ(k.step_cooling_duty[0], k.cooling_duty);
+  EXPECT_EQ(k.step_thermal_energy[0] + k.step_thermal_energy[1] + k.step_thermal_energy[3], 0.0);
+  // The electrical energy (the vacuum pump) is unchanged and separate.
+  EXPECT_EQ(k.electrical_energy, k.energy_consumption);
+
+  // Isothermal: the sources do nothing, so there is no heat duty.
+  b.sim.SetParameterText("energy_balance.energy_balance_mode",
+                         std::to_string(static_cast<int>(EnergyBalanceMode::ISOTHERMAL)));
+  ASSERT_TRUE(b.sim.Run(options).Ok());
+  const KPIRecord iso = b.sim.KPIs(-1).at(0);
+  EXPECT_EQ(iso.thermal_energy, 0.0);
+  EXPECT_EQ(iso.cooling_duty, 0.0);
 }
 
 // A pressure ramp lists its step-time switch; turning it off lists its own ramp

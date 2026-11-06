@@ -360,6 +360,10 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("energy_consumption", &adsim::KPIRecord::energy_consumption)
       .def_readonly("production_rate", &adsim::KPIRecord::production_rate)
       .def_readonly("electrical_energy", &adsim::KPIRecord::electrical_energy)
+      .def_readonly("thermal_energy", &adsim::KPIRecord::thermal_energy)
+      .def_readonly("cooling_duty", &adsim::KPIRecord::cooling_duty)
+      .def_readonly("step_thermal_energy", &adsim::KPIRecord::step_thermal_energy)
+      .def_readonly("step_cooling_duty", &adsim::KPIRecord::step_cooling_duty)
       .def("as_dict", [](const adsim::KPIRecord& k) {
         py::dict d;
         d["cycle"] = k.cycle;
@@ -372,6 +376,10 @@ PYBIND11_MODULE(_core, m) {
         d["energy_consumption"] = k.energy_consumption;
         d["production_rate"] = k.production_rate;
         d["electrical_energy"] = k.electrical_energy;
+        d["thermal_energy"] = k.thermal_energy;
+        d["cooling_duty"] = k.cooling_duty;
+        d["step_thermal_energy"] = k.step_thermal_energy;
+        d["step_cooling_duty"] = k.step_cooling_duty;
         return d;
       })
       .def("__repr__", [](const adsim::KPIRecord& k) {
