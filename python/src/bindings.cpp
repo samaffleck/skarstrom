@@ -1038,30 +1038,40 @@ PYBIND11_MODULE(_core, m) {
     if (!model.valid()) throw py::value_error("cannot build an isotherm of kind '" + kind + "'");
     return model.Names();
   }, py::arg("kind"));
+  // `component`: the fluid (CoolProp name) whose saturation pressure the GAB
+  // kinds use; empty means water. Other kinds ignore it.
   m.def("evaluate_isotherm", [](const std::string& kind, const std::map<std::string, double>& params,
                                 const std::vector<double>& pressure, const std::vector<double>& temperature,
-                                const std::vector<double>& mole_fraction) {
+                                const std::vector<double>& mole_fraction, const std::string& component) {
     const auto pts = MakePoints(pressure, {}, temperature, mole_fraction);
     std::vector<std::pair<std::string, double>> values(params.begin(), params.end());
     std::vector<double> q;
     std::string err;
-    if (!adsim::isofit::Evaluate(ParseIsothermKind(kind), values, pts, q, err)) throw py::value_error(err);
+    if (!adsim::isofit::Evaluate(ParseIsothermKind(kind), values, pts, q, err, component)) throw py::value_error(err);
     return ToArray(q);
   }, py::arg("kind"), py::arg("params"), py::arg("pressure"), py::arg("temperature"),
-     py::arg("mole_fraction") = std::vector<double>{});
+     py::arg("mole_fraction") = std::vector<double>{}, py::arg("component") = std::string());
   // IAST mixture loadings from several pure (kind, params) isotherms at one
   // (T, P, y): the engine's adsim/equations/iast.h.
   m.def("evaluate_iast", [](const std::vector<std::string>& kinds,
                             const std::vector<std::map<std::string, double>>& params,
-                            double pressure, double temperature, const std::vector<double>& mole_fraction) {
+                            double pressure, double temperature, const std::vector<double>& mole_fraction,
+                            const std::vector<std::string>& components) {
     if (kinds.size() != params.size() || kinds.size() != mole_fraction.size())
       throw py::value_error("kinds, params and mole_fraction must have one entry per component");
+    if (!components.empty() && components.size() != kinds.size())
+      throw py::value_error("components must be empty or have one entry per component");
     std::vector<std::unique_ptr<adsim::IIsotherm>> owned;
     std::vector<adsim::IIsotherm*> isos;
     std::vector<std::string> names;
     for (size_t i = 0; i < kinds.size(); ++i) {
-      const std::string name = "component_" + std::to_string(i);
-      auto iso = adsim::CreateIsotherm(ParseIsothermKind(kinds[i]), name);
+      // The isotherm's component name: the GAB kinds look up its saturation
+      // pressure (water unless `components` names the fluid).
+      const auto type = ParseIsothermKind(kinds[i]);
+      const bool gab = type == adsim::IsothermType::GAB || type == adsim::IsothermType::GAB_YOUNG;
+      const std::string name = !components.empty() && !components[i].empty() ? components[i]
+                               : gab ? std::string("Water") : "component_" + std::to_string(i);
+      auto iso = adsim::CreateIsotherm(type, name);
       if (!iso) throw py::value_error("cannot build an isotherm of kind '" + kinds[i] + "'");
       auto fields = adsim::IsothermFields(iso.get(), name);
       for (const auto& [nm, v] : params[i]) {
@@ -1077,7 +1087,8 @@ PYBIND11_MODULE(_core, m) {
     const auto r = adsim::EvalIastMixture(isos, names, temperature, pressure, mole_fraction, q);
     if (!r.converged) throw py::value_error("the IAST solve did not converge at this state");
     return ToArray(q);
-  }, py::arg("kinds"), py::arg("params"), py::arg("pressure"), py::arg("temperature"), py::arg("mole_fraction"));
+  }, py::arg("kinds"), py::arg("params"), py::arg("pressure"), py::arg("temperature"), py::arg("mole_fraction"),
+     py::arg("components") = std::vector<std::string>{});
   m.def("default_fit_specs", [](const std::string& kind, const std::vector<double>& pressure,
                                 const std::vector<double>& loading, const std::vector<double>& temperature) {
     const auto pts = MakePoints(pressure, loading, temperature, {});
@@ -1093,7 +1104,7 @@ PYBIND11_MODULE(_core, m) {
   m.def("fit_isotherm", [](const std::string& kind, const std::vector<double>& pressure,
                            const std::vector<double>& loading, const std::vector<double>& temperature,
                            const std::vector<double>& mole_fraction, py::object specs_in, double t_ref,
-                           int max_global_evals) {
+                           int max_global_evals, const std::string& component) {
     const auto type = ParseIsothermKind(kind);
     const auto pts = MakePoints(pressure, loading, temperature, mole_fraction);
     std::vector<adsim::isofit::ParamSpec> specs;
@@ -1107,6 +1118,7 @@ PYBIND11_MODULE(_core, m) {
     }
     adsim::isofit::FitOptions opt;
     opt.max_global_evals = max_global_evals;
+    opt.component = component;
     adsim::isofit::FitResult r;
     {
       py::gil_scoped_release release;
@@ -1138,7 +1150,7 @@ PYBIND11_MODULE(_core, m) {
     return d;
   }, py::arg("kind"), py::arg("pressure"), py::arg("loading"), py::arg("temperature"),
      py::arg("mole_fraction") = std::vector<double>{}, py::arg("specs") = py::none(), py::arg("t_ref") = 0.0,
-     py::arg("max_global_evals") = 0);
+     py::arg("max_global_evals") = 0, py::arg("component") = std::string());
 
   m.def("sensitivity_morris_plan", [](const py::list& inputs, int trajectories, int levels, std::uint64_t seed) {
     return PlanToDict(sa::MorrisPlan(InputsFromList(inputs), trajectories, levels, seed));

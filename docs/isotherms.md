@@ -380,7 +380,7 @@ With $K \le 0.95$, the usual case for water on amine sorbents, the GAB is theref
 
 **Mixtures.** A GAB component's loading depends only on its own relative pressure: the kinds are not competitive. Under the default mixing rule, water adsorbs independently of the other components, which keep their own isotherms. Under the IAST mixing rule a GAB kind takes part like any pure isotherm: its spreading pressure has the closed form $\psi = q_m \left[\ln(1 + (C - 1) K x) - \ln(1 - K x)\right]$ (and the matching integral of the tangent above $x_c$). Coupled CO₂–H₂O models, where water changes the CO₂ loading, are separate kinds.
 
-**From Python.** `skarstrom.evaluate_isotherm("gab", ...)` and `skarstrom.isotherm_parameters("gab")` evaluate the GAB kinds for **water** (its saturation pressure). In a deck, each component uses its own.
+**From Python.** `skarstrom.evaluate_isotherm`, `fit_isotherm` and `evaluate_iast` evaluate the GAB kinds for water unless `component=` (`components=` for IAST) names another vapour; see [Isotherm Fitting](isotherm-fitting.md). In a deck, each component uses its own saturation pressure.
 
 **Heat of adsorption.** The temperature dependence implies an isosteric heat that varies with loading:
 
