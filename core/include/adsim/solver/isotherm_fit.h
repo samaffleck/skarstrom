@@ -98,6 +98,9 @@ struct FitResult {
 struct FitOptions {
   int max_global_evals = 0;  // 0 => automatic (100 + 80 * free parameters)
   int max_local_evals = 4000;
+  // Fluid the isotherm is for (a CoolProp name); only the GAB kinds use it,
+  // for its saturation pressure. Empty: "Water" for the GAB kinds.
+  std::string component;
 };
 
 // ---------------------------------------------------------------------------
@@ -202,9 +205,10 @@ FitResult Fit(IsothermType type, const std::vector<Point>& points_in,
 
 // Evaluate a kind at arbitrary points with the given parameter values (any
 // parameter not listed keeps its engine default). Returns false on an unknown
-// parameter name.
+// parameter name. `component` as in FitOptions::component.
 bool Evaluate(IsothermType type, const std::vector<std::pair<std::string, double>>& values,
-              const std::vector<Point>& pts, std::vector<double>& q, std::string& err);
+              const std::vector<Point>& pts, std::vector<double>& q, std::string& err,
+              const std::string& component = "");
 
 }  // namespace isofit
 }  // namespace adsim

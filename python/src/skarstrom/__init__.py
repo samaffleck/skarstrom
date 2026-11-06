@@ -1080,15 +1080,19 @@ def evaluate_isotherm(
     pressure: Union[float, Sequence[float], np.ndarray],
     temperature: Union[float, Sequence[float], np.ndarray],
     mole_fraction: Union[float, Sequence[float], np.ndarray] = 1.0,
+    component: Optional[str] = None,
 ) -> np.ndarray:
     """Equilibrium loading q [mol/kg] from the engine's isotherm code.
 
     ``pressure`` [Pa] is the total pressure; the component's partial pressure
     is ``mole_fraction * pressure``. Parameters left out keep the engine
-    default.
+    default. ``component`` (a CoolProp name such as ``"Ethanol"``) is the
+    vapour whose saturation pressure the GAB kinds use; default water. Other
+    kinds ignore it.
     """
     p = _as_list(pressure)
-    return _core.evaluate_isotherm(kind, dict(params), p, _as_list(temperature, len(p)), _as_list(mole_fraction, len(p)))
+    return _core.evaluate_isotherm(kind, dict(params), p, _as_list(temperature, len(p)), _as_list(mole_fraction, len(p)),
+                                   component or "")
 
 
 def evaluate_iast(
@@ -1097,6 +1101,7 @@ def evaluate_iast(
     pressure: float,
     temperature: float,
     mole_fraction: Sequence[float],
+    components: Optional[Sequence[Optional[str]]] = None,
 ) -> np.ndarray:
     """Mixture loadings q_i [mol/kg] by Ideal Adsorbed Solution Theory.
 
@@ -1105,9 +1110,14 @@ def evaluate_iast(
     at total ``pressure`` [Pa], ``temperature`` [K] and gas mole fractions
     ``mole_fraction``. An inert kind or a zero mole fraction gives zero loading.
     The engine's ``adsim/equations/iast.h``; see the isotherms page of the docs.
+    ``components`` optionally names each component (CoolProp names); the GAB
+    kinds use it for the saturation pressure (default water).
     """
+    names = [] if components is None else [c or "" for c in components]
+    if names and len(names) != len(kinds):
+        raise ValueError("components must have one entry per kind")
     return _core.evaluate_iast(list(kinds), [dict(p) for p in params], float(pressure), float(temperature),
-                               _as_list(mole_fraction, len(kinds)))
+                               _as_list(mole_fraction, len(kinds)), names)
 
 
 def fit_isotherm(
@@ -1120,6 +1130,7 @@ def fit_isotherm(
     initial: Optional[Mapping[str, float]] = None,
     bounds: Optional[Mapping[str, tuple]] = None,
     max_global_evals: int = 0,
+    component: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Fit an isotherm kind to (pressure [Pa], loading [mol/kg], temperature [K]) data.
 
@@ -1129,7 +1140,9 @@ def fit_isotherm(
     (for a pre-exponential factor paired with an energy, b in b*exp(Q/RT),
     the bounds apply to its value at the reference temperature t_ref).
     Returns a dict with params, std_errors, r2, rmse, sse, n, dof, t_ref,
-    q_fit (model at each point) and any warning.
+    q_fit (model at each point) and any warning. ``component`` (a CoolProp
+    name) is the vapour whose saturation pressure the GAB kinds use; default
+    water.
     """
     p = _as_list(pressure)
     q = _as_list(loading)
@@ -1152,4 +1165,4 @@ def fit_isotherm(
             if fixed and n in fixed:
                 s["value"] = float(fixed[n])  # held: bounds are not used
                 s["fixed"] = True
-    return _core.fit_isotherm(kind, p, q, t, y, specs, 0.0, max_global_evals)
+    return _core.fit_isotherm(kind, p, q, t, y, specs, 0.0, max_global_evals, component or "")

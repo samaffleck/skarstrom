@@ -34,6 +34,8 @@ const std::vector<IsothermType>& FittableKinds() {
       T::SIPS_2,
       T::EXTENDED_SIPS_2,
       T::TOTH_2,
+      T::GAB,
+      T::GAB_YOUNG,
   };
   return kinds;
 }
@@ -50,6 +52,8 @@ bool IsTemperatureDependent(IsothermType t) {
     case T::SIPS_2:
     case T::EXTENDED_SIPS_2:
     case T::TOTH_2:
+    case T::GAB:
+    case T::GAB_YOUNG:
       return true;
     default:
       return false;
@@ -281,6 +285,95 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
       exponent("w0", 0.05, 2.0, 1.0);
       tdep("alpha", -5.0, 5.0);
       break;
+    case T::GAB: {
+      // q = q_m C K x / ((1 - K x)(1 - K x + C K x)), x = p / p_sat: the
+      // monolayer q_m is typically a third to a half of the loading near
+      // saturation; C and K are pre-factors paired with their energies.
+      ParamSpec qm;
+      qm.name = "q_m0";
+      qm.scale = Scale::Log;
+      qm.lower = s.q_max * 1e-2;
+      qm.upper = s.q_max * 1e2;
+      qm.value = s.q_max * 0.4;
+      qm.pair_energy = "dH_m";
+      qm.note = "bounds apply to q_m at T_ref";
+      out.push_back(qm);
+      ParamSpec dhm;
+      dhm.name = "dH_m";
+      dhm.value = dhm.lower = dhm.upper = 0.0;
+      dhm.fixed = true;
+      dhm.note = "held at 0 (temperature-independent monolayer capacity); free it to fit one";
+      out.push_back(dhm);
+      auto gab_constant = [&](const char* name, const char* energy, double lo, double hi, double init) {
+        ParamSpec p;
+        p.name = name;
+        p.scale = Scale::Log;
+        p.lower = lo;
+        p.upper = hi;
+        p.value = init;
+        p.pair_energy = energy;
+        p.note = "bounds apply to the value at T_ref, " + std::string(name) + "*exp(" + energy + "/(R*T_ref))";
+        out.push_back(p);
+      };
+      auto gab_energy = [&](const char* name) {
+        // Relative to p_sat, the GAB constants often barely depend on T
+        // (isotherms collapse in relative humidity): start at 0.
+        ParamSpec p;
+        p.name = name;
+        p.scale = Scale::Linear;
+        p.lower = -5.0e4;
+        p.upper = 5.0e4;
+        p.value = 0.0;
+        if (!multi_t) { p.fixed = true; p.note = single_t_note; }
+        out.push_back(p);
+      };
+      gab_constant("C0", "dH_C", 1e-2, 1e4, 5.0);
+      gab_energy("dH_C");
+      gab_constant("K0", "dH_K", 0.05, 1.2, 0.8);
+      gab_energy("dH_K");
+      break;
+    }
+    case T::GAB_YOUNG: {
+      // At one temperature the data fix only C and K, so of the layer
+      // energies only C_E (first layer) and F (layers 2-9) are free; D and G
+      // keep their defaults (Young et al. 2021), G freed with several
+      // temperatures; E10 is the bulk liquid's heat of condensation (water).
+      // Bounds on C_E and F are those that keep C in [1e-2, 1e4] and K in
+      // [0.05, 1.2] at T_ref (the GAB kind's ranges), so the search stays
+      // clear of the pole: C_E = E10 + exp(D T) + R T ln C,
+      // F = E10 - G T + R T ln K.
+      const double D0 = 0.023744, G0 = -47.814, RTr = constants::kIdealGasConstant * t_ref;
+      const double E10r = 57220.0 - 44.38 * t_ref;
+      capacity("q_m", 0.01);
+      out.back().value = s.q_max * 0.4;
+      const double ce0 = E10r + std::exp(D0 * t_ref);
+      exponent("C_E", ce0 + RTr * std::log(1e-2), ce0 + RTr * std::log(1e4), ce0 + RTr * std::log(5.0));
+      ParamSpec d;
+      d.name = "D";
+      d.value = d.lower = d.upper = D0;
+      d.fixed = true;
+      d.note = "held at the Young et al. (2021) value; free it with data over a wide temperature range";
+      out.push_back(d);
+      const double f0 = E10r - G0 * t_ref;
+      exponent("F", f0 + RTr * std::log(0.05), f0 + RTr * std::log(1.2), f0 + RTr * std::log(0.8));
+      ParamSpec g;
+      g.name = "G";
+      g.scale = Scale::Linear;
+      g.lower = -200.0;
+      g.upper = 100.0;
+      g.value = G0;
+      if (!multi_t) { g.fixed = true; g.note = single_t_note; }
+      out.push_back(g);
+      for (const auto& [name, v] : {std::pair<const char*, double>{"E10_A", 57220.0}, {"E10_B", -44.38}}) {
+        ParamSpec e;
+        e.name = name;
+        e.value = e.lower = e.upper = v;
+        e.fixed = true;
+        e.note = "heat of condensation of liquid water, E10 = 57220 - 44.38 T J/mol";
+        out.push_back(e);
+      }
+      break;
+    }
     default:
       err = std::string("no default fit set-up for isotherm kind '") + IsothermKindString(type) +
             "'; supply every parameter with bounds";
@@ -376,7 +469,7 @@ FitResult Fit(IsothermType type, const std::vector<Point>& points_in,
               std::vector<ParamSpec> specs, double t_ref,
               const FitOptions& opt) {
   FitResult res;
-  Model model(type);
+  Model model(type, opt.component);
   if (!model.valid()) { res.error = "cannot build an isotherm of this kind"; return res; }
 
   std::vector<Point> pts;
@@ -643,8 +736,9 @@ FitResult Fit(IsothermType type, const std::vector<Point>& points_in,
   return res;
 }
 bool Evaluate(IsothermType type, const std::vector<std::pair<std::string, double>>& values,
-              const std::vector<Point>& pts, std::vector<double>& q, std::string& err) {
-  Model m(type);
+              const std::vector<Point>& pts, std::vector<double>& q, std::string& err,
+              const std::string& component) {
+  Model m(type, component);
   if (!m.valid()) { err = "cannot build an isotherm of this kind"; return false; }
   for (const auto& [nm, v] : values) {
     if (!m.Set(nm, v)) { err = "unknown parameter '" + nm + "' for this isotherm kind"; return false; }

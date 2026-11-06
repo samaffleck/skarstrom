@@ -388,7 +388,7 @@ q_mix = skarstrom.evaluate_iast(["toth", "dual_site_langmuir_p"],
                                 pressure=2e5, temperature=298.15, mole_fraction=[0.3, 0.7])
 ```
 
-`fit_isotherm` accepts `fixed={...}` to hold parameters, and `initial={...}` and `bounds={...}` to override the starting guesses and search bounds derived from the data.
+The GAB water kinds (`gab`, `gab_young`) take `component="Ethanol"` (a CoolProp name; default water) in `evaluate_isotherm` and `fit_isotherm`, and `components=[...]` in `evaluate_iast`, for the vapour's saturation pressure. `fit_isotherm` accepts `fixed={...}` to hold parameters, and `initial={...}` and `bounds={...}` to override the starting guesses and search bounds derived from the data.
 
 ## Command line
 

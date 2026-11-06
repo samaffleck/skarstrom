@@ -287,3 +287,48 @@ def test_isotherm_evaluate_and_fit():
         skarstrom.fit_isotherm(kind, PP, q, T, fixed={"bogus": 1.0})
     with pytest.raises(ValueError):
         skarstrom.evaluate_isotherm("not-a-kind", {}, [1e5], 298.15)
+
+
+def _gab(qm, c, k, x):
+    return qm * c * k * x / ((1 - k * x) * (1 - k * x + c * k * x))
+
+
+def test_gab_isotherm_component_evaluate_fit_and_iast():
+    """The GAB kinds work in relative pressure x = p / p_sat(T) of a named vapour (default water)."""
+    kinds = skarstrom.isotherm_kinds()
+    assert {"gab", "gab_young"} <= set(kinds)
+    assert skarstrom.isotherm_parameters("gab") == ["q_m0", "dH_m", "C0", "dH_C", "K0", "dH_K"]
+
+    truth = {"q_m0": 3.51, "dH_m": 0.0, "C0": 2.73, "dH_C": 0.0, "K0": 0.867, "dH_K": 0.0}
+    ps = 3169.89  # water at 298.15 K [Pa] (CoolProp saturation ancillary)
+    x = np.linspace(0.05, 0.85, 12)
+    q = skarstrom.evaluate_isotherm("gab", truth, x * ps, 298.15)
+    np.testing.assert_allclose(q, _gab(3.51, 2.73, 0.867, x), rtol=1e-4)
+    np.testing.assert_allclose(skarstrom.evaluate_isotherm("gab", truth, x * ps, 298.15, component="Water"), q, rtol=0)
+
+    # Another vapour: the same relative pressures of ethanol give the same loadings;
+    # read against water's saturation pressure they do not.
+    pe = 7870.0  # ethanol at 298.15 K, approximately [Pa]
+    q_eth = skarstrom.evaluate_isotherm("gab", truth, x * pe, 298.15, component="Ethanol")
+    np.testing.assert_allclose(q_eth, q, rtol=2e-2)
+    assert not np.allclose(skarstrom.evaluate_isotherm("gab", truth, x * pe, 298.15), q_eth, rtol=0.1)
+
+    fit = skarstrom.fit_isotherm("gab", x * ps, q, 298.15)
+    assert fit["r2"] > 0.9999
+    for k in ("q_m0", "C0", "K0"):
+        assert fit["params"][k] == pytest.approx(truth[k], rel=1e-3)
+    assert {"dH_m", "dH_C", "dH_K"} <= set(fit["fixed"])  # one temperature
+    fit_eth = skarstrom.fit_isotherm("gab", x * pe, q_eth, 298.15, component="Ethanol")
+    assert fit_eth["params"]["K0"] == pytest.approx(0.867, rel=1e-3)
+
+    # IAST: water (GAB) with an inert component gets its pure loading.
+    yw = 0.5 * ps / 1e5
+    qi = skarstrom.evaluate_iast(["gab", "inert"], [truth, {}], pressure=1e5, temperature=298.15,
+                                 mole_fraction=[yw, 1 - yw])
+    assert qi[0] == pytest.approx(_gab(3.51, 2.73, 0.867, 0.5), rel=1e-4)
+    assert qi[1] == 0.0
+    qe = skarstrom.evaluate_iast(["gab", "inert"], [truth, {}], pressure=1e5, temperature=298.15,
+                                 mole_fraction=[0.5 * pe / 1e5, 1 - 0.5 * pe / 1e5], components=["Ethanol", None])
+    assert qe[0] == pytest.approx(qi[0], rel=2e-2)
+    with pytest.raises(ValueError):
+        skarstrom.evaluate_iast(["gab", "inert"], [truth, {}], 1e5, 298.15, [0.01, 0.99], components=["Water"])
