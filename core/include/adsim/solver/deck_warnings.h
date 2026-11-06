@@ -53,6 +53,17 @@ namespace adsim {
   // run). Layer composition errors stop the run in the deck checks instead.
   std::vector<std::string> LayerCompositionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
 
+  // Structured layers (monolith, laminate; porous_media.h), one warning each:
+  // - local thermal equilibrium (LTE) in a bed with a structured layer: the
+  //   thin walls exchange heat with the gas through the channel film, which
+  //   LTE takes as infinitely fast; LTNE is recommended.
+  // - per structured layer, the packed-bed closures it still uses, which read
+  //   the particle diameter (channel closures replace them later): Ruthven
+  //   dispersion, Ruthven or Yagi-Kunii heat dispersion, Dixon or Leva
+  //   internal heat transfer, the LTNE particle heat-transfer area, and the
+  //   macropore / Haynes rate coefficients of the layer's adsorbents.
+  std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
+
   // Reactions (objects/reaction.h): one warning per solid with reactions that
   // no layer uses (its reactions take no part, and the deck checks skip
   // them); one per reaction with a nonzero heat of reaction in an isothermal

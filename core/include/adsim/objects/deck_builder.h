@@ -70,6 +70,8 @@ const std::vector<std::string>& RateModelKinds();
 const std::vector<std::string>& RateCoefficientKinds();
 const std::vector<std::string>& MixingRuleKinds();
 const std::vector<std::string>& MomentumKinds();
+const std::vector<std::string>& LayerKinds();          // packed, monolith, laminate
+const std::vector<std::string>& ChannelShapeKinds();   // square, circular
 const std::vector<std::string>& DispersionKinds();
 const std::vector<std::string>& HeatDispersionKinds();
 const std::vector<std::string>& InternalHeatTransferKinds();
@@ -156,6 +158,15 @@ size_t AddLayer(UserData& data, const std::string& name);
 void SetLayerComposition(UserData& data, size_t layer,
                          const std::vector<std::pair<AdsorbentID, double>>& composition);
 void SetMomentum(UserData& data, size_t layer, const std::string& kind);
+// What the layer is packed with (LayerKinds: "packed", "monolith",
+// "laminate"). The composition, domain, name and every other field are kept,
+// including the structured geometry and the packed-bed fields, so switching
+// back restores them. A structured kind uses laminar channel flow instead of
+// the momentum model.
+void SetLayerKind(UserData& data, size_t layer, const std::string& kind);
+// The monolith channel cross-section (ChannelShapeKinds: "square",
+// "circular"); kept, unused, for other kinds.
+void SetChannelShape(UserData& data, size_t layer, const std::string& shape);
 void SetDispersion(UserData& data, size_t layer, const std::string& kind);
 void SetHeatDispersion(UserData& data, size_t layer, const std::string& kind);
 void SetInternalHeatTransfer(UserData& data, size_t layer, const std::string& kind);

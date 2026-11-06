@@ -54,6 +54,26 @@ The first (Blake–Kozeny) term dominates at low Reynolds number; the second (Bu
 
 At low Reynolds number the inertial term vanishes and Ergun reduces to Darcy's law with the constant 150 instead of 180, so in the creeping-flow limit the Darcy (Kozeny–Carman) pressure drop is 180/150 = 1.2 times the Ergun one. Switching a layer between them is therefore a (small) physical change, not just a numerical one.
 
+### Structured layers: laminar flow in channels
+
+A layer can be a **monolith** (straight parallel channels in a honeycomb) or a **laminate** (parallel sheets with a gap between them) instead of a packed bed (`build::SetLayerKind(data, layer, "monolith" | "laminate")`). Its momentum model is then not used: the gas flows laminar through straight channels, and the fully developed Hagen–Poiseuille law on the superficial velocity $u$ is
+
+$$
+-\frac{\partial P}{\partial z} = \frac{\mu}{K}\thinspace u, \qquad K = \frac{\phi\thinspace D_h^2}{2\thinspace (f\thinspace Re)},
+$$
+
+with $\phi$ the open frontal area (OFA), $D_h$ the hydraulic diameter and $f\thinspace Re$ the laminar Fanning friction factor times Reynolds number of the cross-section (Shah and London, *Laminar Flow Forced Convection in Ducts*, 1978). There is no inertial term, so the face velocity takes the linear (Darcy) path below. With pitch $p = 1/\sqrt{n}$ for a cell density $n$ [channels/m²], wall thickness $w$, sheet thickness $t$, gap $g$ and washcoat thickness $t_{wc}$, and the open width $a = p - w - 2 t_{wc}$:
+
+| Kind | Open frontal area $\phi$ | $D_h$ | Specific surface $a_v$ | $f\thinspace Re$ |
+|---|---|---|---|---|
+| Monolith, square channels | $a^2/p^2$ | $a$ | $4a/p^2$ | 14.23 |
+| Monolith, circular channels | $\pi a^2/(4p^2)$ | $a$ | $\pi a/p^2$ | 16 |
+| Laminate | $(g - 2t_{wc})/(g + t)$ | $2(g - 2t_{wc})$ | $2/(g + t)$ | 24 |
+
+The defaults are a 400 cpsi monolith ($n = 6.2\times10^5$ m⁻², $w = 0.165$ mm, $\phi \approx 0.76$) and a 0.2 mm sheet with a 0.2 mm gap. The open frontal area takes the place of the bed void fraction everywhere it is used: gas holdup, bulk density $(1-\phi)\thinspace\rho_s$, the dispersion area and the gas/solid split of heat. The deck checks refuse a geometry that leaves no open channel ($w + 2t_{wc} \ge p$, or $2t_{wc} \ge g$). `StructuredGeometry` and `LayerGeometrySummary` (`porous_media.h`) give the derived values (open fraction, $D_h$, $a_v$, diffusion length, channel count, washcoat fraction).
+
+The heat- and mass-transfer closures are still the packed-bed ones: those that read the particle diameter (Ruthven dispersion, Yagi–Kunii, Dixon and Leva wall heat transfer, the LTNE particle heat-transfer area, the macropore rate coefficients) use the layer's particle diameter, and a run-start warning names them. Local thermal equilibrium is allowed with a structured layer, with a warning that recommends LTNE. The test `StructuredLayers.HagenPoiseuillePressureDropForEachShape` checks the simulated pressure drop of each shape against the closed form above.
+
 ### Solving for the velocity
 
 The velocity is an algebraic unknown on every cell face. For a given driving pressure difference $g$ across a face, the quadratic $g = A u + B\lvert u\rvert u$ has the unique physical root
