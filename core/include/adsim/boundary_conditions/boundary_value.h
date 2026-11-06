@@ -420,3 +420,11 @@ namespace adsim {
 	}
 
 } // end adsim namespace
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::ConstantBoundaryValue, 2);
+CEREAL_CLASS_VERSION(adsim::LinearBoundaryValue, 4);
+CEREAL_CLASS_VERSION(adsim::ExponentialBoundaryValue, 4);
+CEREAL_CLASS_VERSION(adsim::LogLinearBoundaryValue, 2);
+CEREAL_CLASS_VERSION(adsim::DoubleExponentialBoundaryValue, 1);

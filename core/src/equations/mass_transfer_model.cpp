@@ -221,16 +221,8 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficient_Haynes)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientMacroporeCapacity)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientArrhenius)
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientConstant, 3);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeKnudsen, 3);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacropore, 3);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficient_Haynes, 2);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeCapacity, 2);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientArrhenius, 3);
 
 CEREAL_REGISTER_TYPE(adsim::LinearDrivingForce)
 CEREAL_REGISTER_TYPE(adsim::LinearDrivingForceSecondOrder)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferModel, adsim::LinearDrivingForce)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferModel, adsim::LinearDrivingForceSecondOrder)
-CEREAL_CLASS_VERSION(adsim::LinearDrivingForce, 1);
-CEREAL_CLASS_VERSION(adsim::LinearDrivingForceSecondOrder, 1);

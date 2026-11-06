@@ -153,9 +153,3 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IInternalHeatTransferModel, adsim::I
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ConstantExternalHeatTransferModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ExternalHeatTransferModel_Holman)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IParticleHeatTransferModel, adsim::ConstantParticleHeatTransferModel)
-CEREAL_CLASS_VERSION(adsim::ConstantParticleHeatTransferModel, 1);
-CEREAL_CLASS_VERSION(adsim::ConstantInternalHeatTransferModel, 1);
-CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Dixon, 1);
-CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Leva, 1);
-CEREAL_CLASS_VERSION(adsim::ConstantExternalHeatTransferModel, 1);
-CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_Holman, 1);

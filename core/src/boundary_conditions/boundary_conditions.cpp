@@ -751,6 +751,3 @@ CEREAL_REGISTER_TYPE(adsim::ClosedBoundaryCondition)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryCondition, adsim::PressureBoundaryCondition)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryCondition, adsim::FlowBoundaryCondition)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryCondition, adsim::ClosedBoundaryCondition)
-CEREAL_CLASS_VERSION(adsim::PressureBoundaryCondition, 5);
-CEREAL_CLASS_VERSION(adsim::FlowBoundaryCondition, 1);
-CEREAL_CLASS_VERSION(adsim::ClosedBoundaryCondition, 1);

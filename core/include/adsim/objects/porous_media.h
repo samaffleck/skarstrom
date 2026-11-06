@@ -509,3 +509,10 @@ namespace adsim {
 // In the header (not porous_media.cpp) because Adsorbent::serialize branches
 // on it: every translation unit that saves or loads a deck must see version 5.
 CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
+CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
+CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 3);
+CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);

@@ -758,3 +758,27 @@ namespace adsim {
   }
 
 } // end adsim namespace
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::InertIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::HenryIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::LangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::AntiLangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::FreundlichIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::SipsIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::Sips2Isotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedSips2Isotherm, 2);
+CEREAL_CLASS_VERSION(adsim::DualSiteSipsIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::RedlichPetersonIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::TothIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::Toth2Isotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ArrheniusSipsIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirFreundlichIsotherm, 1);
+CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::LangmuirIsotherm_Concentration, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm_Concentration, 2);
+CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm_Concentration, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm_Concentration, 2);
