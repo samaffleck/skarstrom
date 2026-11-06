@@ -76,8 +76,3 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::LinearBoundar
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::ExponentialBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::LogLinearBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IBoundaryValue, adsim::DoubleExponentialBoundaryValue)
-CEREAL_CLASS_VERSION(adsim::ConstantBoundaryValue, 2);
-CEREAL_CLASS_VERSION(adsim::LinearBoundaryValue, 4);
-CEREAL_CLASS_VERSION(adsim::ExponentialBoundaryValue, 4);
-CEREAL_CLASS_VERSION(adsim::LogLinearBoundaryValue, 2);
-CEREAL_CLASS_VERSION(adsim::DoubleExponentialBoundaryValue, 1);

@@ -37,5 +37,3 @@ CEREAL_REGISTER_TYPE(adsim::WallTemperatureBoundaryConditionFixed)
 CEREAL_REGISTER_TYPE(adsim::WallTemperatureBoundaryConditionZeroFlux)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IWallTemperatureBoundaryCondition, adsim::WallTemperatureBoundaryConditionFixed)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IWallTemperatureBoundaryCondition, adsim::WallTemperatureBoundaryConditionZeroFlux)
-CEREAL_CLASS_VERSION(adsim::WallTemperatureBoundaryConditionFixed, 1);
-CEREAL_CLASS_VERSION(adsim::WallTemperatureBoundaryConditionZeroFlux, 1);

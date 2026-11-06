@@ -415,10 +415,3 @@ namespace adsim {
   }
 
 } // end adsim namespace
-
-CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
-// adsim::Adsorbent's version is in porous_media.h: its serialize branches on
-// it, so every translation unit that saves a deck must see the same number.
-CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
-CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 3);
-CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);

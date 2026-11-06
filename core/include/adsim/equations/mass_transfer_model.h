@@ -379,3 +379,14 @@ namespace adsim {
 	}
 
 } // end adsim namespace
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientConstant, 3);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeKnudsen, 3);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacropore, 3);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficient_Haynes, 2);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeCapacity, 2);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientArrhenius, 3);
+CEREAL_CLASS_VERSION(adsim::LinearDrivingForce, 1);
+CEREAL_CLASS_VERSION(adsim::LinearDrivingForceSecondOrder, 1);

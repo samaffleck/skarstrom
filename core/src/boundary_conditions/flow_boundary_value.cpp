@@ -121,7 +121,3 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IFlowBoundaryValue, adsim::VelocityB
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IFlowBoundaryValue, adsim::VolumetricFlowBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IFlowBoundaryValue, adsim::MolarFlowBoundaryValue)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IFlowBoundaryValue, adsim::MassFlowBoundaryValue)
-CEREAL_CLASS_VERSION(adsim::VelocityBoundaryValue, 2);
-CEREAL_CLASS_VERSION(adsim::VolumetricFlowBoundaryValue, 2);
-CEREAL_CLASS_VERSION(adsim::MolarFlowBoundaryValue, 2);
-CEREAL_CLASS_VERSION(adsim::MassFlowBoundaryValue, 2);
