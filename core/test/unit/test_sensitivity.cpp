@@ -240,6 +240,9 @@ TEST(Sensitivity, Outputs) {
   EXPECT_EQ(o.Name(), "CarbonDioxide.purity");
   EXPECT_THROW(ParseOutput("CarbonDioxide"), std::invalid_argument);
   EXPECT_THROW(ParseOutput("CarbonDioxide.yield"), std::invalid_argument);
+  // The electrical energy is watched under its explicit name or the original one.
+  EXPECT_EQ(ParseOutput("CarbonDioxide.electrical_energy").kpi, "electrical_energy");
+  EXPECT_EQ(ParseOutput("CarbonDioxide.energy_consumption").kpi, "energy_consumption");
 }
 
 // ---- a real deck ------------------------------------------------------------------

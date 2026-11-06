@@ -29,6 +29,10 @@
 
 namespace adsim {
 
+  // ENERGY_CONSUMPTION is the specific electrical energy (compressor and
+  // vacuum-pump work per kg of net product); ELECTRICAL_ENERGY is the same
+  // enumerator under its explicit name, so objectives and constraints that
+  // use either mean the same KPI. New KPIs are appended at the end.
   enum class KPIType {
     PURITY,
     RECOVERY,
@@ -36,7 +40,8 @@ namespace adsim {
     PRODUCTIVITY_VOLUME,
     ENERGY_CONSUMPTION,
     PRODUCTION_RATE,
-    LCOC
+    LCOC,
+    ELECTRICAL_ENERGY = ENERGY_CONSUMPTION
   };
 
   inline constexpr std::string_view kKPITypeList[] = {
@@ -44,7 +49,7 @@ namespace adsim {
     "Recovery",
     "Productivity (mass)",
     "Productivity (volume)",
-    "Energy Consumption",
+    "Electrical Energy",
     "Production Rate",
     "LCOC"
   };

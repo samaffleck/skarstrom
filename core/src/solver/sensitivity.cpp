@@ -208,6 +208,7 @@ double KPIValue(const KPIRecord& k, const std::string& kpi) {
   if (kpi == "productivity_volume") return k.productivity_volume;
   if (kpi == "energy_consumption") return k.energy_consumption;
   if (kpi == "production_rate") return k.production_rate;
+  if (kpi == "electrical_energy") return k.electrical_energy;
   throw std::invalid_argument("unknown KPI '" + kpi + "'");
 }
 
@@ -419,7 +420,8 @@ Plan MonteCarloPlan(const std::vector<Input>& inputs, int runs, std::uint64_t se
 const std::vector<std::string>& KPINames() {
   static const std::vector<std::string> names = {"purity",           "recovery",
                                                  "productivity_mass", "productivity_volume",
-                                                 "energy_consumption", "production_rate"};
+                                                 "energy_consumption", "production_rate",
+                                                 "electrical_energy"};
   return names;
 }
 

@@ -42,7 +42,7 @@ result = sim.run()
 
 print(result.status, result.message)            # e.g. "reached_css", "cyclic steady state reached at cycle 14"
 for k in sim.kpis(cycle=-1):                    # KPIs at the last cycle
-    print(k.component, k.purity, k.recovery, k.energy_consumption)
+    print(k.component, k.purity, k.recovery, k.electrical_energy)
 ```
 
 `run()` blocks until the run finishes. It returns a `RunResult` with:

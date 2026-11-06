@@ -359,6 +359,7 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("productivity_volume", &adsim::KPIRecord::productivity_volume)
       .def_readonly("energy_consumption", &adsim::KPIRecord::energy_consumption)
       .def_readonly("production_rate", &adsim::KPIRecord::production_rate)
+      .def_readonly("electrical_energy", &adsim::KPIRecord::electrical_energy)
       .def("as_dict", [](const adsim::KPIRecord& k) {
         py::dict d;
         d["cycle"] = k.cycle;
@@ -370,6 +371,7 @@ PYBIND11_MODULE(_core, m) {
         d["productivity_volume"] = k.productivity_volume;
         d["energy_consumption"] = k.energy_consumption;
         d["production_rate"] = k.production_rate;
+        d["electrical_energy"] = k.electrical_energy;
         return d;
       })
       .def("__repr__", [](const adsim::KPIRecord& k) {
