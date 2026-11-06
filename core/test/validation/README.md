@@ -78,14 +78,15 @@ This complements the existing coverage rather than duplicating it:
 | `test_competitive_langmuir_fronts.cpp` | Binary competitive (constant separation factor) Langmuir: roll-up plateau and both front times against equilibrium theory |
 | `test_desorption_simple_wave.cpp` | Langmuir desorption: outlet times of the simple wave against the method of characteristics, first-order convergence and extrapolation |
 | `test_ldf_thomas.cpp` | LDF-limited linear-isotherm front: whole outlet curve against the Anzelius/Thomas solution, with the exact upwind error |
+| `test_mixed_layers.cpp` | Mixed (multi-solid) layers: identical-copy and inert-diluent blends equal pure layers, two-adsorbent stoichiometric time, mole and energy balance closure |
 | `psa_cycle_case.h` | The shared PSA cycle (pressurise, feed, blowdown) and its O2 product KPIs |
 | `test_grid_convergence.cpp` | Cycle-KPI grid convergence at CSS: monotone convergence, observed order, GCI, all three schemes |
 | `test_integrator_tolerance.cpp` | Error against reltol (BDF slope, abstol floor) on a breakthrough and a cycle; `max_step` independence |
 | `test_css_convergence.cpp` | Geometric approach to CSS, KPI error left by the stopping rule, Aitken lands on the same KPIs |
 | `test_manufactured_solutions.cpp` | Method of manufactured solutions: observed order of the whole discretisation (all terms, Langmuir, time-dependent) for upwind, WENO, van Leer, isothermal and with the energy balance |
-| `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form |
+| `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form down to y = 1e-5 |
 | `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
-| `test_competitive_sips_trace_loading.cpp` | Competitive Sips kinds (extended_sips_2, arrhenius_sips): trace-component loadings against the published isotherms down to y = 1e-5, the documented continuation below, a trace front's first moment |
+| `test_competitive_sips_trace_loading.cpp` | Competitive Sips kinds (extended_sips_2, arrhenius_sips) and extended_langmuir_freundlich: trace-component loadings against the published isotherms down to y = 1e-5, the documented continuation below, single-component and competitive paths agreeing, a trace front's first moment |
 
 ## `test_energy_balance.cpp`
 
@@ -547,12 +548,15 @@ in the test.
   loading to 0.66 of its single-component value; at 343 K, freezing q_s and
   1/n at their 303 K values (k2 = k6 = 0, the only case extended Sips 2 can
   represent) moves the CO loading by more than 1 %.
-- **`PureEvaluationAndIastMappingMatchClosedForm`**: `EvalIsotherm` within
-  1e-10 (the near-zero step at y = 1) and the IAST Sips term within 4e-16,
-  at 273–373 K and 1 kPa–20 bar.
-- **`TraceComponentKeepsItsLoading`**: the step changes a trace loading by
-  `1e-10 / y^2` (1.0e-4 at y = 1e-3, 1e-6 at y = 1e-2). All four take about
-  0.1 s.
+- **`PureEvaluationAndIastMappingMatchClosedForm`**: `EvalIsotherm` and the
+  IAST Sips term within 1e-12 (measured 9e-16 and 4e-16), at 273–373 K and
+  1 kPa–20 bar.
+- **`TraceComponentKeepsItsLoading`**: the pure-component form of CO at
+  11 bar, 303 K matches the closed form to 1e-12 at y = 1e-2 down to the
+  continuation threshold y_0 = 1e-5, and is exactly 0 at y = 0. Guard: the
+  former step y^2 / (y^2 + 1e-10) moved it by 1e-4 at 1e-3, 1 % at 1e-4 and
+  20 % at 2e-5. The competitive path is in
+  `test_competitive_sips_trace_loading.cpp`. All four take about 0.1 s.
 ## `test_valve_bed_pressure.cpp`
 
 Steady flow through an inert isothermal bed: a set molar flow `F` enters at the
@@ -597,6 +601,64 @@ error is not a nuisance to be tolerated but a second prediction.
   Guard: a Gaussian curve with the same mean and variance misses the
   simulated one by 0.042, 250x the finest residual, so the asymmetric Thomas
   shape is what is being matched. About 1.3 s.
+
+## `test_mixed_layers.cpp`
+
+Solved tests for a layer packed with several solids at set mass fractions
+`w_k`. The model gives solid `k` its own loading at its own bulk density
+`rho_b,k = (1 - eb) rho_mix w_k`, with `rho_mix = 1 / sum_k (w_k / rho_k)`;
+the particle voidage and the conductivity mix on the solid-volume fractions
+`phi_k = (w_k / rho_k) rho_mix`, the heat capacity on `w_k`; all solids in a
+cell share the gas and one solid temperature. The tests re-derive these rules
+and check the solved model against them, with heats of adsorption, wall
+exchange, dispersion and a conductivity-dependent heat dispersion
+(Yagi-Kunii) on. The two metamorphic tests use the tolerance of
+`test_metamorphic_relations.cpp` (2E + one error-test weight, E measured by
+tightening reltol 100x).
+
+- **`IdenticalCopyBlendEqualsPureLayer`**: A blended with an identical copy
+  A' at 50/50 and 25/75 gives the pure-A solution in every field and cell
+  (pressure, gas, solid and wall temperatures, mole fractions, loadings), in
+  LTE and LTNE. Measured: y_O2 within 1.1e-7 (tolerance 3.6e-7), T within
+  4.8e-7 K.
+- **`InertDiluentEqualsPureLayerAtBlendProperties`**: A (60 % by mass)
+  blended with an inert solid of another density, voidage, heat capacity and
+  conductivity gives the solution of pure A set by hand to the blend's
+  properties: density `w_A rho_mix` (A's bulk density unchanged), voidage and
+  conductivity volume-weighted, heat capacity `(w_A cp_A + w_I cp_I) / w_A`
+  (the inert's added per kg of A). The blend's logged loading (per kg of all
+  solid) is divided by `w_A`. Run at reltol 1e-7: at 1e-6 the y_O2
+  discrepancy (1.9e-7) is 0.75 of its bound, and it falls with reltol to the
+  absolute-tolerance floor, so it is the integrator's. Measured: y_O2 within
+  5.3e-8 (tolerance 1.3e-7). Each wrong rule fails it: an arithmetic-mean
+  density (y_O2 off by 0.038), a mass-weighted voidage (0.0014), no inert
+  heat capacity (0.77 K), a mass-weighted conductivity (q_O2 off by 2.6e-6,
+  2.5 to 4.5 times the tolerance; T by 1.8e-4 K).
+- **`LinearIsothermBreakthroughTimeIsMassWeightedCapacity`**: a dilute,
+  isothermal tracer on Henry isotherms in a 30/70 blend of two adsorbents
+  (1000 and 2500 kg/m3). The flux-weighted first moment of the outlet curve
+  is `t_st = V P [et/(R T) + (1 - eb) rho_mix sum_k w_k K_k] / n_dot`.
+  Measured: 130.06 s against 130.04 s (+1.6e-4; tolerance 0.2 %, set by the
+  asserted pressure drop below 0.05 % and the quadrature of the outlet flux).
+  An arithmetic-mean density would give +14 %, a mass-weighted voidage
+  -1.9 %, either pure solid more than 20 %.
+- **`MoleBalanceClosesOnMixedBed`**: a non-isothermal breakthrough on two
+  different adsorbents and an inert (45/35/20). Per component, the moles the
+  boundary streams log equal the change of the gas inventory plus the
+  adsorbed inventory `sum_i V_i (1 - eb) rho_mix q_i` (the logged
+  `q = sum_k w_k q_k`), in LTE and LTNE. Measured residual: 2.6e-7 (N2),
+  6e-8 (O2), tolerance 1e-5.
+- **`EnergyBalanceClosesForHeatDrivenDesorptionFromTwoSolids`**: a closed,
+  adiabatic, heated bed of two Henry adsorbents with different capacities,
+  heats, LDF rates, densities and heat capacities. The bed is uniform, so it
+  reduces to ODEs in `(T, C, q_1, q_2)`, which the test integrates with RK4.
+  Each solid's latent heat is at least 10 % of the heater input (14 % and
+  13 %). Measured: T, P and the loading agree to 6e-10 of their change over
+  the run, tolerance 1e-6.
+
+The whole suite takes about 1 s. No defect was found, at the layer interior
+or in the mixing rules; the cases above use one layer, so layer edges with
+different blends on each side are not covered here.
 
 ## `test_manufactured_solutions.cpp`
 
@@ -673,16 +735,20 @@ re-derived by central finite differences of the fields; the two agree to
   (130 times the correct error) and fails the order checks.
 - **`ThermalOrder`** — non-isothermal (LTE, adiabatic bed, constant gas and
   adsorbed-phase heat capacities, constant conductivity, heat of adsorption
-  20 kJ/mol). The energy balance's convective face temperature is the upwind
-  value under every advection scheme (the scheme reconstructs mole fractions
-  only), so T converges at first order for all three (0.97-1.05), and from
-  80 to 160 cells the first-order temperature error starts to pull the
-  WENO / van Leer mole fractions down too (y order 1.31 / 1.49 on 80 -> 160,
-  about 1 on 640 cells). The high-order schemes' errors stay far below
-  upwind's (T 1.6e-4 against 1.7e-3 K, y 1.2-1.4e-6 against 9.0e-5 at 160
-  cells). This is the documented non-conservative upwind form of the energy
-  convection (see `OpenSystemEnergyBalanceConvergesUnderGridRefinement`),
-  not a defect; a higher-order temperature face would be a separate change.
+  20 kJ/mol). The energy balance's convective face temperature is
+  reconstructed with the same scheme as the mole fractions, so T converges
+  at 0.97-0.99 (upwind), 2.06-2.25 (WENO) and 1.95-2.03 (van Leer) on 20 to
+  160 cells, and at 1.00, 1.99 and 1.99 from 320 to 640 cells. The other
+  fields keep their isothermal orders (WENO y 2.08-2.17, van Leer
+  1.99-2.04). Errors at 160 cells: T 1.6e-5 (WENO) and 2.1e-5 (van Leer)
+  against 1.7e-3 K (upwind), y 7.2e-7 and 9.7e-7 against 9.0e-5. The
+  assertions: every field within the isothermal bounds (outlet and max norm
+  above 1.7), T order 0.9-1.1 (upwind), 1.85-2.5 (WENO), 1.85-2.3 (van
+  Leer), and the high-order T errors below 5e-5 K and 3 % of upwind's.
+  Guard: while the face temperature was the upwind value under every scheme
+  (before the change, see the changelog), T converged at 0.97-1.05 for all
+  three and pulled the WENO / van Leer y order down to 1.31 / 1.49 between
+  80 and 160 cells (about 1 on 640), with T errors of 1.6e-4 K at 160 cells.
 
 What the hook covers: the overall and component balances, the loading rate
 of each component on every adsorbent, the momentum residual as a pressure-
@@ -765,6 +831,9 @@ The competitive Sips kinds continue each term z_i = (b_i P y_i)^{s_i} below
 y_0 = 1e-5 by a quadratic in y (docs/isotherms.md), and use the published
 form unchanged above it (WP19-1: they used to multiply every term by
 y^2 / (y^2 + 1e-6), halving the loading at y = 1e-3).
+extended_langmuir_freundlich continues the power of z_i = b_i (P y_i /
+P_ref)^{n_i} the same way (it used a softplus and the step
+y^2 / (y^2 + 1e-10): -1e-4 at y = 1e-3, -1 % at 1e-4, -20 % at 2e-5).
 
 - **Seeded loadings** of a trace CO2 (Casas 2012 arrhenius_sips at 15 bar with
   y_H2 = 0.5; Streb 2021 extended_sips_2, s = 0.425, at 10 bar with
@@ -774,12 +843,24 @@ y^2 / (y^2 + 1e-6), halving the loading at y = 1e-3).
   the documented continuation to 1e-6, and exactly 0 at y = 0. Guard: the
   former step moved each loading above y_0 by at least 1e-4 (99x the
   tolerance); on main it gave -0.96 % at 1e-2, -49.9 % at 1e-3, -99 % at 1e-4.
+  extended_langmuir_freundlich: trace CO (toPSAil case_study_4.0, n = 0.72)
+  at 11 bar with y_H2 = 0.5, same tolerances, measured below 1e-15; its
+  former step is guarded at y <= 1e-3 (closed form before the fix: -9.9e-5
+  at 1e-3, -0.99 % at 1e-4, -20 % at 2e-5), while 1e-1 and 1e-2 check
+  exactness only.
+- **Single-component agreement** (all three kinds, y = 1e-2, 2e-5, 5e-6):
+  with the competitor absent, `EvalIsotherm` (the Python and fitter path)
+  matches the closed form to 1e-12 and the solver's competitive loading to
+  1e-6; measured equal to the printed digits.
 - **Trace breakthrough** (y_f = 1e-3 CO2 in helium, arrhenius_sips, 1 bar,
   isothermal): the first moment of the outlet curve equals the
   equilibrium-theory time (L/u)(1 + (rho_b/eps) q*(y_f)/c_f) (a mass balance,
   exact however smeared the front), tolerance 2 y_f for the sorption effect;
   measured -1.1e-4. Guard: the former step gives a 49 % earlier front
-  (measured on main: 543 s against 1062 s). About 1 s.
+  (measured on main: 543 s against 1062 s). The same run on
+  extended_langmuir_freundlich (CO, y_f = 1e-4, tolerance 2e-4): measured
+  -1.1e-4; the former step would give a front 0.95 % early (747 s against
+  754 s), 47x the tolerance. About 1 s each.
 
 ## Fixed along the way
 

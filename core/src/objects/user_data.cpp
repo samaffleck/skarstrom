@@ -7,6 +7,7 @@
 #include "../pch.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/math/expression_param.h"
+#include "adsim/objects/reaction.h"
 
 #include <cmath>
 
@@ -217,6 +218,11 @@ namespace adsim {
 
     checks_passed = bed.PerformChecks(adsorbent_directory, err_msg);
     if (!checks_passed) {
+      return false;
+    }
+
+    // Reactions of the solids a layer uses (objects/reaction.h).
+    if (!ReactionChecks(adsorbent_directory, bed, fluid, err_msg)) {
       return false;
     }
 

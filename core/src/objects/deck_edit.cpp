@@ -7,6 +7,7 @@
 #include "adsim/objects/deck_edit.h"
 
 #include <algorithm>
+#include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -67,20 +68,130 @@ bool AddComponentToDeck(UserData& data, const std::string& name, std::string& er
   return true;
 }
 
-void RemoveComponentFromDeck(UserData& data, const std::string& name) {
+std::string ComponentInUseByReactions(const UserData& data, const std::string& name) {
+  std::vector<AdsorbentID> ids;
+  for (const auto& [id, ads] : data.adsorbent_directory.GetAll()) ids.push_back(id);
+  std::sort(ids.begin(), ids.end());
+  std::string where;
+  size_t count = 0;
+  for (AdsorbentID id : ids) {
+    const Adsorbent& ads = data.adsorbent_directory.Get(id);
+    const auto names = ads.reaction_source_.ReactionsUsing(name);
+    if (names.empty()) continue;
+    if (!where.empty()) where += "; ";
+    for (size_t i = 0; i < names.size(); ++i) where += (i ? ", " : "") + names[i];
+    where += " (on " + ads.name_ + ")";
+    count += names.size();
+  }
+  if (count == 0) return "";
+  return name + " is used by " + (count == 1 ? "reaction " : "reactions ") + where + "; remove " +
+         (count == 1 ? "it" : "them") + " first";
+}
+
+bool RemoveComponentFromDeck(UserData& data, const std::string& name, std::string& err) {
+  const std::string in_use = ComponentInUseByReactions(data, name);
+  if (!in_use.empty()) {
+    err = in_use;
+    return false;
+  }
+  for (auto& [id, ads_const] : data.adsorbent_directory.GetAll())
+    const_cast<Adsorbent&>(ads_const).reaction_source_.RemoveComponent(name);
   data.fluid.RemoveComponent(name);
   data.bed.RemoveComponent(name, data.adsorbent_directory);  // strips it from every adsorbent
   ReconcileMoleFractions(data, name, false);
   data.fluid.adsorbed_heat_capacity_.erase(name);
   data.fluid.gas_heat_capacity_.erase(name);
+  return true;
+}
+
+void RemoveComponentFromDeck(UserData& data, const std::string& name) {
+  std::string err;
+  [[maybe_unused]] const bool removed = RemoveComponentFromDeck(data, name, err);
+  assert(removed && "RemoveComponentFromDeck: a reaction uses the component; use the checked form");
 }
 
 void SeedLayerComposition(UserData& data, MixedAdsorbentLayer& layer) {
   const auto& dir = data.adsorbent_directory.GetAll();
-  if (dir.empty()) return;
+  if (dir.empty() || !layer.composition_.empty()) return;
   AdsorbentID lowest = dir.begin()->first;
   for (const auto& [id, a] : dir) lowest = std::min(lowest, id);
   layer.AddAdsorbent(lowest, 1.0);
+}
+
+namespace {
+
+// Scale every fraction except `keep`'s so they sum to `target` (in proportion;
+// equal shares when they are all 0).
+void RescaleOthers(MixedAdsorbentLayer& layer, AdsorbentID keep, double target) {
+  double others = 0.0;
+  size_t n = 0;
+  for (const auto& [id, w] : layer.composition_)
+    if (id != keep) { others += w; ++n; }
+  if (n == 0) return;
+  for (auto& [id, w] : layer.composition_) {
+    if (id == keep) continue;
+    w = others > 0.0 ? w * (target / others) : target / static_cast<double>(n);
+  }
+}
+
+bool ValidFraction(double w, bool allow_zero, std::string& err) {
+  if (w <= 1.0 && (allow_zero ? w >= 0.0 : w > 0.0)) return true;
+  std::ostringstream ss;
+  ss << "a mass fraction must be " << (allow_zero ? "between 0 and 1" : "above 0 and at most 1") << ", not " << w;
+  err = ss.str();
+  return false;
+}
+
+}  // namespace
+
+bool AddSolidToLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, double mass_fraction,
+                     std::string& err) {
+  if (!data.adsorbent_directory.Contains(id)) {
+    err = "no adsorbent with id " + std::to_string(id);
+    return false;
+  }
+  if (layer.composition_.count(id)) return SetLayerMassFraction(data, layer, id, mass_fraction, err);
+  if (layer.composition_.empty()) {
+    layer.composition_[id] = 1.0;
+    return true;
+  }
+  if (!ValidFraction(mass_fraction, false, err)) return false;
+  layer.composition_[id] = mass_fraction;
+  RescaleOthers(layer, id, 1.0 - mass_fraction);
+  return true;
+}
+
+bool SetLayerMassFraction(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, double mass_fraction,
+                          std::string& err) {
+  (void)data;
+  auto it = layer.composition_.find(id);
+  if (it == layer.composition_.end()) {
+    err = "layer \"" + layer.name_ + "\" does not hold adsorbent id " + std::to_string(id);
+    return false;
+  }
+  if (!ValidFraction(mass_fraction, true, err)) return false;
+  if (layer.composition_.size() == 1 && mass_fraction != 1.0) {
+    err = "the only solid of layer \"" + layer.name_ + "\" has mass fraction 1; add another solid first";
+    return false;
+  }
+  it->second = mass_fraction;
+  RescaleOthers(layer, id, 1.0 - mass_fraction);
+  return true;
+}
+
+bool RemoveSolidFromLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, std::string& err) {
+  (void)data;
+  if (!layer.composition_.count(id)) {
+    err = "layer \"" + layer.name_ + "\" does not hold adsorbent id " + std::to_string(id);
+    return false;
+  }
+  if (layer.composition_.size() == 1) {
+    err = "it is the only solid of layer \"" + layer.name_ + "\"; add another solid first";
+    return false;
+  }
+  layer.composition_.erase(id);
+  RescaleOthers(layer, id, 1.0);
+  return true;
 }
 
 void SeedEmptyLayerCompositions(UserData& data) {
@@ -116,6 +227,7 @@ bool AddAdsorbentFromJson(UserData& data, const std::string& label, const std::s
     return false;
   }
   ads.adsorption_source_.Initialise(data.fluid);
+  ads.reaction_source_.Initialise(data.fluid);
   SeedEmptyLayerCompositions(data);
   return true;
 }
@@ -144,9 +256,39 @@ bool AddLibraryAdsorbent(UserData& data, const std::string& library_dir, const s
   }
 }
 
-void RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id) {
+std::string AdsorbentInUseByMixtures(const UserData& data, AdsorbentID id) {
+  if (!data.adsorbent_directory.Contains(id)) return "";
+  std::string where;
+  size_t count = 0;
+  for (const auto& layer : data.bed.layers_.layers_) {
+    auto it = layer.composition_.find(id);
+    if (it == layer.composition_.end() || layer.composition_.size() < 2) continue;
+    std::ostringstream frac;
+    frac << it->second;
+    where += (count ? "; " : "") + ("\"" + layer.name_ + "\" (mass fraction " + frac.str() + ")");
+    ++count;
+  }
+  if (count == 0) return "";
+  return data.adsorbent_directory.Get(id).name_ + " is part of the blend of " +
+         (count == 1 ? "layer " : "layers ") + where + "; remove it from the " +
+         (count == 1 ? "layer's composition" : "layers' compositions") + " first";
+}
+
+bool RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id, std::string& err) {
+  const std::string in_use = AdsorbentInUseByMixtures(data, id);
+  if (!in_use.empty()) {
+    err = in_use;
+    return false;
+  }
   data.RemoveAdsorbent(id);
   SeedEmptyLayerCompositions(data);
+  return true;
+}
+
+void RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id) {
+  std::string err;
+  [[maybe_unused]] const bool removed = RemoveAdsorbentFromDeck(data, id, err);
+  assert(removed && "RemoveAdsorbentFromDeck: the solid is part of a blend; use the checked form");
 }
 
 void DisconnectPair(UserData& data, Connection& conn) {

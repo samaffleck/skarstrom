@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 4,
+        "cereal_class_version": 5,
         "Name": "TIFSIX-3-Ni (Low 2024)",
         "Density": {
             "cereal_class_version": 2,
@@ -138,6 +138,11 @@
             "Value": 0.36,
             "Expression": "0.36",
             "DisplayUnitIndex": 0
+        },
+        "Reaction_Source": {
+            "cereal_class_version": 1,
+            "Reactions": [],
+            "Next_Reaction_ID": 0
         }
     }
 }

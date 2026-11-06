@@ -113,6 +113,3 @@ namespace adsim {
   }
 
 } // end adsim namespace
-
-
-CEREAL_CLASS_VERSION(adsim::Connection, 1);

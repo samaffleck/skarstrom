@@ -112,6 +112,3 @@ static bool parse_double(std::string_view sv, double& out) {
   }
 
 } // end adsim namespace
-
-
-CEREAL_CLASS_VERSION(adsim::ExperimentalData, 1);

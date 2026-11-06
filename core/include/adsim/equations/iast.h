@@ -44,6 +44,7 @@ namespace adsim {
   struct PureIsothermRef {
     IsothermType kind = IsothermType::INERT;
     double p[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    std::string component;  // the GAB kinds look up its saturation pressure
   };
   PureIsothermRef ResolvePureIsotherm(IIsotherm* iso, const std::string& component);
 
@@ -63,7 +64,7 @@ namespace adsim {
 
   // Reduced spreading pressure psi(P) = ∫_0^P q°(p)/p dp [mol/kg]. Closed form
   // for Henry, Langmuir and dual-site Langmuir (both bases), Freundlich, Sips,
-  // dual-site Sips, Sips 2, Arrhenius Sips and anti-Langmuir; Gauss-Legendre
+  // dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir and GAB; Gauss-Legendre
   // quadrature in ln p for Toth, Toth 2 and Redlich-Peterson. 0 for inert.
   double ReducedSpreadingPressure(const PureIsotherm& iso, double P);
 

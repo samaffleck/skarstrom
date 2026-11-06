@@ -416,6 +416,7 @@ def test_the_documented_example_runs():
     assert ns["result"].ok, ns["result"].message
     (kpi,) = ns["sim"].kpis(cycle=-1)
     assert kpi.valid and kpi.energy_consumption > 0  # the vacuum pump counts
+    assert kpi.electrical_energy == kpi.energy_consumption
 
 
 def test_objects_held_in_variables_follow_structural_edits():

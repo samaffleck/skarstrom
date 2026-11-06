@@ -62,6 +62,8 @@ namespace adsim {
     TOTH_2,
     ARRHENIUS_SIPS,
     EXTENDED_LANGMUIR_FREUNDLICH,
+    GAB,
+    GAB_YOUNG,
   };
 
   static const char* isothermModelNames[] = {
@@ -85,14 +87,16 @@ namespace adsim {
     "Toth",
     "Toth 2",
     "Arrhenius Sips (Schell 2012)",
-    "Extended Langmuir-Freundlich"
+    "Extended Langmuir-Freundlich",
+    "GAB",
+    "GAB (Young 2021 energies)"
   };
 
   // The names are indexed by IsothermType, so inserting a value mid-enum
   // without adding the matching name would silently mislabel every isotherm
   // after it in the GUI and the web contract.
   static_assert(std::size(isothermModelNames) ==
-                    static_cast<size_t>(IsothermType::EXTENDED_LANGMUIR_FREUNDLICH) + 1,
+                    static_cast<size_t>(IsothermType::GAB_YOUNG) + 1,
                 "isothermModelNames must have one entry per IsothermType");
 
   class InertIsothermParameters {
@@ -272,6 +276,79 @@ namespace adsim {
          cereal::make_nvp("IP_k3", k3), cereal::make_nvp("IP_k4", k4),
          cereal::make_nvp("IP_k5", k5), cereal::make_nvp("IP_k6", k6),
          cereal::make_nvp("IP_P_ref", P_ref));
+    }
+  };
+
+  // GAB (Guggenheim-Anderson-de Boer) isotherm for a condensable vapour, in
+  // the relative pressure x = p_i / p_sat,i(T), p_i = P y_i:
+  //   q = q_m C K x / ((1 - K x) (1 - K x + C K x))
+  // with
+  //   q_m(T) = q_m0 exp(dH_m / (R T)),  C(T) = C0 exp(dH_C / (R T)),
+  //   K(T)   = K0 exp(dH_K / (R T)).
+  // BET is the special case K = 1 (K0 = 1, dH_K = 0). p_sat is the pure
+  // component's saturation pressure from CoolProp (SaturationPressure). Near
+  // the pole K x -> 1, and for x < 0, the loading is continued as described at
+  // GabLoading.
+  class GabIsothermParameters {
+  public:
+    ExpressionParam q_m0{3.0};     // [mol/kg] monolayer capacity (at dH_m = 0: q_m itself)
+    ExpressionParam dH_m{0.0};     // [J/mol]
+    ExpressionParam C0{1.0};       // [-]
+    ExpressionParam dH_C{5000.0};  // [J/mol]
+    ExpressionParam K0{0.7};       // [-]
+    ExpressionParam dH_K{0.0};     // [J/mol]
+
+    void EvaluateExpressions(const EvalContext& ctx) {
+      q_m0.Evaluate(ctx); dH_m.Evaluate(ctx); C0.Evaluate(ctx);
+      dH_C.Evaluate(ctx); K0.Evaluate(ctx); dH_K.Evaluate(ctx);
+    }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      ar(cereal::make_nvp("IP_q_m0", q_m0), cereal::make_nvp("IP_dH_m", dH_m),
+         cereal::make_nvp("IP_C0", C0), cereal::make_nvp("IP_dH_C", dH_C),
+         cereal::make_nvp("IP_K0", K0), cereal::make_nvp("IP_dH_K", dH_K));
+    }
+  };
+
+  // GAB with the layer energies of Young et al. (2021), "The impact of binary
+  // water-CO2 isotherm models on the optimal performance of sorbent-based
+  // direct air capture processes", Energy Environ. Sci. 14, 5377 (also used by
+  // pyDAC):
+  //   C = exp((E1 - E10) / (R T)),   K = exp((E2_9 - E10) / (R T)),
+  //   E1 = C_E - exp(D T),  E2_9 = F + G T,  E10 = E10_A + E10_B T,
+  // with q_m constant; the loading is GabLoading(q_m, C, K, x) as for GAB. E10
+  // is the heat of condensation of the bulk liquid (57220 - 44.38 T J/mol for
+  // water), E1 the heat of adsorption of the first layer and E2_9 that of
+  // layers 2 to 9. The paper calls C_E "C"; it is renamed so the energy is not
+  // confused with the GAB constant C. Low et al. (2023), J. Chem. Eng. Data 68,
+  // Eqs. 17-22, use the same form. The defaults are Young's Lewatit VP OC 1065
+  // values as reprinted by Low et al. (SI Table S5), the energies in J/mol.
+  class GabYoungIsothermParameters {
+  public:
+    ExpressionParam q_m{3.63};       // [mol/kg]
+    ExpressionParam C_E{47110.0};    // [J/mol]
+    ExpressionParam D{0.023744};     // [1/K]
+    ExpressionParam F{57706.0};      // [J/mol]
+    ExpressionParam G{-47.814};      // [J/(mol K)]
+    ExpressionParam E10_A{57220.0};  // [J/mol]
+    ExpressionParam E10_B{-44.38};   // [J/(mol K)]
+
+    void EvaluateExpressions(const EvalContext& ctx) {
+      q_m.Evaluate(ctx); C_E.Evaluate(ctx); D.Evaluate(ctx); F.Evaluate(ctx);
+      G.Evaluate(ctx); E10_A.Evaluate(ctx); E10_B.Evaluate(ctx);
+    }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      ar(cereal::make_nvp("IP_q_m", q_m), cereal::make_nvp("IP_C_E", C_E),
+         cereal::make_nvp("IP_D", D), cereal::make_nvp("IP_F", F),
+         cereal::make_nvp("IP_G", G), cereal::make_nvp("IP_E10_A", E10_A),
+         cereal::make_nvp("IP_E10_B", E10_B));
     }
   };
 
@@ -474,7 +551,40 @@ namespace adsim {
     void ArrheniusSips(double& qi, double T, double P, double yi, const ArrheniusSipsIsothermParameters& ips);
     // Single-component extended Langmuir-Freundlich loading q = q_s z / (1 + z).
     void ExtendedLangmuirFreundlich(double& qi, double T, double P, double yi, const ExtendedLangmuirFreundlichIsothermParameters& ips);
+    // GAB kinds: p_sat [Pa] is the component's saturation pressure at T
+    // (SaturationPressure(component, T)); the relative pressure is P yi / p_sat.
+    void Gab(double& qi, double T, double P, double yi, double p_sat, const GabIsothermParameters& ips);
+    void GabYoung(double& qi, double T, double P, double yi, double p_sat, const GabYoungIsothermParameters& ips);
   }
+
+  // GAB constants at temperature T: q_m [mol/kg], C [-], K [-].
+  struct GabConstants { double q_m, C, K; };
+  GabConstants GabConstantsAt(double T, const GabIsothermParameters& ips);
+  GabConstants GabConstantsAt(double T, const GabYoungIsothermParameters& ips);
+
+  // The relative pressure above which the GAB loading is continued: the pole
+  // of q is at x = 1/K, and the loading is exact for x <= x_c = min(1, kGabMaxKx / K).
+  inline constexpr double kGabMaxKx = 0.95;
+
+  // GAB loading [mol/kg] at relative pressure x:
+  //   q = q_m C K x / ((1 - K x) (1 - K x + C K x))   for 0 <= x <= x_c,
+  // and, so that q stays finite, smooth (C1) and increasing everywhere,
+  //   q = q_m C K x                                   for x < 0 (the Henry line),
+  //   q = q(x_c) + q'(x_c) (x - x_c)                  for x > x_c,
+  // with x_c = min(1, kGabMaxKx / K). With K <= kGabMaxKx (the usual case for
+  // water) the GAB is therefore exact up to saturation, x = 1; with K near or
+  // above 1 (BET, K = 1) it is exact up to K x = kGabMaxKx. Condensation is not
+  // modelled.
+  double GabLoading(double q_m, double C, double K, double x);
+
+  // Saturation pressure p_sat(T) [Pa] of a pure component (a CoolProp fluid
+  // name), from CoolProp's saturation (vapour) ancillary equation: a closed-form
+  // fit of the full Helmholtz-energy saturation curve, about 0.1 us per call
+  // (water: within 0.02 % of the IAPWS-95 saturation pressure, 273-647 K). T is
+  // clamped to [0.75 T_triple, T_c]; above T_c the result is p_c. NaN if
+  // CoolProp has no such fluid or no ancillary for it. Thread-safe (one
+  // CoolProp state per component and thread).
+  double SaturationPressure(const std::string& component, double T);
 
   struct IsothermUpdateParams {
     IsothermUpdateParams(
@@ -659,6 +769,20 @@ namespace adsim {
     void UpdateAll(IsothermUpdateParams& state, const std::vector<std::string>& components) override;
   };
 
+  // GAB kinds: each component's loading depends on its own relative pressure
+  // only (not competitive). See GabIsothermParameters / GabYoungIsothermParameters.
+  class GabIsotherm : public ParamIsotherm<GabIsothermParameters, IsothermType::GAB> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+  };
+
+  class GabYoungIsotherm : public ParamIsotherm<GabYoungIsothermParameters, IsothermType::GAB_YOUNG> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+  };
+
   class DualSiteSipsIsotherm : public ParamIsotherm<DualSiteSipsIsothermParameters, IsothermType::DUAL_SITE_SIPS> {
   public:
     using ParamIsotherm::ParamIsotherm;
@@ -753,8 +877,36 @@ namespace adsim {
     case IsothermType::TOTH_2: return std::make_unique<Toth2Isotherm>(component);
     case IsothermType::ARRHENIUS_SIPS: return std::make_unique<ArrheniusSipsIsotherm>(component);
     case IsothermType::EXTENDED_LANGMUIR_FREUNDLICH: return std::make_unique<ExtendedLangmuirFreundlichIsotherm>(component);
+    case IsothermType::GAB: return std::make_unique<GabIsotherm>(component);
+    case IsothermType::GAB_YOUNG: return std::make_unique<GabYoungIsotherm>(component);
     default: return nullptr;
     }
   }
 
 } // end adsim namespace
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::InertIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::HenryIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::LangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::AntiLangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::FreundlichIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::SipsIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::Sips2Isotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedSips2Isotherm, 2);
+CEREAL_CLASS_VERSION(adsim::DualSiteSipsIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::RedlichPetersonIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::TothIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::Toth2Isotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ArrheniusSipsIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirFreundlichIsotherm, 1);
+CEREAL_CLASS_VERSION(adsim::GabIsotherm, 1);
+CEREAL_CLASS_VERSION(adsim::GabYoungIsotherm, 1);
+CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm, 2);
+CEREAL_CLASS_VERSION(adsim::LangmuirIsotherm_Concentration, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm_Concentration, 2);
+CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm_Concentration, 2);
+CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm_Concentration, 2);

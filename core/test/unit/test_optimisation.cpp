@@ -113,6 +113,20 @@ TEST(OptimizationCostFunctionTest, UndefinedKPIGetsFinitePenalty) {
   }
 }
 
+// ELECTRICAL_ENERGY names the same KPI as ENERGY_CONSUMPTION, so objectives
+// written with either name read the same value.
+TEST(OptimizationCostFunctionTest, ElectricalEnergyIsEnergyConsumption) {
+  static_assert(KPIType::ELECTRICAL_ENERGY == KPIType::ENERGY_CONSUMPTION);
+  static_assert(KPIVariableType::ELECTRICAL_ENERGY == KPIVariableType::ENERGY_CONSUMPTION);
+  const std::string CO2 = "CarbonDioxide";
+  OptimizationCostFunction fn;
+  fn.AddObjective(CO2, KPIType::ELECTRICAL_ENERGY, 1.0, ObjectiveDirection::MINIMIZE);
+  PerComponentKPIValues kpis;
+  kpis[CO2][KPIType::ENERGY_CONSUMPTION] = 4e5;
+  EXPECT_DOUBLE_EQ(fn.ComputeCost(kpis), 4e5);
+  EXPECT_EQ(kKPITypeList[static_cast<int>(KPIType::ELECTRICAL_ENERGY)], "Electrical Energy");
+}
+
 // GlobalOptimizer must hand dlib only finite values: an objective that returns
 // NaN/Inf over part of the domain is settled as the penalty, and the optimiser
 // still converges on the well-defined region.

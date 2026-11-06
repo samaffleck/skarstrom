@@ -27,6 +27,7 @@ Components are chosen by their [CoolProp](https://coolprop.org/) fluid names in 
 
 - **Molar mass** $M_i$ of each component, from CoolProp.
 - **Heat capacity** $C_{p,i}$ [J kg⁻¹ K⁻¹] of each pure component, evaluated **once**, at the pressure and temperature of the **initial conditions**, and then held constant for the whole run. A TSA cycle that heats the gas by 100 K therefore uses the gas heat capacity of the initial temperature throughout.
+- The heat capacity is always the **gas-phase** value. A component that would be condensed in its pure state at the initial pressure and temperature (water, ethanol, hexane or toluene at 1 bar and 298 K) takes its **ideal-gas** heat capacity $C_{p0,i}(T)$ instead of CoolProp's liquid value: about 1865 J kg⁻¹ K⁻¹ (33.6 J mol⁻¹ K⁻¹) for water vapour at 298 K, not the liquid's 4181. In the bed such a component is a vapour at a partial pressure no higher than its saturation pressure, where it is close to ideal, and $C_{p0}$ depends on temperature only, so it exists at every state. Components in a gas or supercritical state, which includes the permanent gases (N₂, O₂, CH₄, H₂, Ar, He, and CO₂ below its saturation pressure, about 64 bar at 298 K), keep the real-gas $C_{p,i}(P, T)$.
 
 If CoolProp cannot evaluate a property, the error is printed to the console and the value is set to 0.
 
@@ -69,7 +70,7 @@ T_c = \min\negthinspace \big(\max(T,\thinspace 150\ \text{K}),\thinspace 650\ \t
 $$
 
 - The temperature is **clamped to 150–650 K** before evaluation: outside that window the property is held at its value at the nearest end, never extrapolated.
-- The polynomials are least-squares fits of CoolProp's dilute-gas values. For the components CoolProp has no viscosity model for (CarbonMonoxide, Ethylene, Fluorine, Krypton, Neon, NitrousOxide, SulfurDioxide, Xenon), the viscosity fit is to Chapman–Enskog kinetic theory with the component's Lennard-Jones parameters; for the components without a conductivity model, the conductivity fit is to the Eucken relation $k = \mu\thinspace (c_p + 1.25\thinspace R/M)$. The headers state a maximum fit error of 1 % (viscosity) and 1.8 % (conductivity) over the window.
+- The polynomials are least-squares fits of CoolProp's dilute-gas values, sampled at low pressure so that condensable components (water, alcohols, hydrocarbons) get their vapour values, not the liquid's (water at 298 K: 9.7 × 10⁻⁶ Pa s and 0.0184 W m⁻¹ K⁻¹). For the components CoolProp has no viscosity model for (CarbonMonoxide, Ethylene, Fluorine, Krypton, Neon, NitrousOxide, SulfurDioxide, Xenon), the viscosity fit is to Chapman–Enskog kinetic theory with the component's Lennard-Jones parameters; for the components without a conductivity model, the conductivity fit is to the Eucken relation $k = \mu\thinspace (c_p + 1.25\thinspace R/M)$. The headers state a maximum fit error of 1 % (viscosity) and 1.8 % (conductivity) over the window.
 - Pressure dependence is neglected; gas viscosity changes by less than about 1 % over 0.1–10 bar.
 - A floor of 10⁻⁶ Pa s (viscosity) and 10⁻⁴ W m⁻¹ K⁻¹ (conductivity) guards against a fit undershooting at the window edges. A component with no coefficients at all falls back to 1 × 10⁻⁵ Pa s and 0.024 W m⁻¹ K⁻¹.
 

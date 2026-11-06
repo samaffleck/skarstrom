@@ -26,9 +26,10 @@
 //      evaluate_isotherm and the front ends) and the IAST pure-isotherm
 //      mapping (a Sips term with affinity b^{1/n} / P_ref and exponent n)
 //      match the single-component closed form to round-off.
-//   3. The near-zero-mole-fraction regularisation changes the loading by
-//      delta^2 / y^2 (delta = 1e-5): 1e-4 at y = 1e-3, 1e-6 at y = 1e-2, so
-//      trace components keep their loading.
+//   3. Trace components keep their loading: the power is continued below
+//      y0 = 1e-5 as in the competitive Sips kinds (docs/isotherms.md), so the
+//      pure-component form is exact down to y0 and exactly 0 at y = 0. The
+//      competitive path is checked in test_competitive_sips_trace_loading.cpp.
 
 #include "validation_helpers.h"
 
@@ -180,25 +181,26 @@ namespace adsim {
       }
     }
     std::cout << "[ELF] pure: max rel error " << worst << ", IAST mapping " << worst_iast << "\n";
-    // The pure-component form keeps the near-zero step y^2 / (y^2 + 1e-10),
-    // which is 1 - 1e-10 at y = 1; the IAST Sips term has no step.
-    EXPECT_LT(worst, 2e-10);
+    // Both evaluate the published power at y = 1 (round-off only).
+    EXPECT_LT(worst, 1e-12);
     EXPECT_LT(worst_iast, 1e-12);
   }
 
   TEST(ExtendedLangmuirFreundlich, TraceComponentKeepsItsLoading) {
     auto iso = MakeIsotherm();
-    // Pure-component form at y = 1e-3 of 11 bar against the unregularised one.
+    // Pure-component form of 11 bar down to y0 = 1e-5 against the published one.
+    // GUARD: the former step y^2 / (y^2 + 1e-10) moved it by 1e-4 at y = 1e-3,
+    // 1 % at 1e-4 and 20 % at 2e-5, far outside the round-off tolerance.
     const double T = 303.0, P = 11.0e5;
-    for (double y : {1e-3, 1e-2}) {
+    for (double y : {1e-2, 1e-3, 1e-4, 2e-5, 1e-5}) {
       const double q = EvalIsotherm(iso.get(), "CarbonMonoxide", T, P, y);
       const double ref = Pure(kCO, T, P * y);
       std::cout << "[ELF] y_CO = " << y << ": q " << q << " ref " << ref << "\n";
-      // The step changes z by delta^2 / y^2 (delta = 1e-5): 1e-4 at 1e-3.
-      EXPECT_NEAR(q, ref, 1.05e-10 / (y * y) * ref) << "y = " << y;
+      EXPECT_NEAR(q, ref, 1e-12 * ref) << "y = " << y;
     }
-    // ... and zero loading at zero mole fraction (to the softplus floor).
-    EXPECT_LT(EvalIsotherm(iso.get(), "CarbonMonoxide", T, P, 0.0), 1e-4 * Pure(kCO, T, P));
+    // ... exactly zero loading at zero mole fraction, increasing just above it.
+    EXPECT_EQ(EvalIsotherm(iso.get(), "CarbonMonoxide", T, P, 0.0), 0.0);
+    EXPECT_GT(EvalIsotherm(iso.get(), "CarbonMonoxide", T, P, 1e-7), 0.0);
   }
 
 } // end adsim namespace

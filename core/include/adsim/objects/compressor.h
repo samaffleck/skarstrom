@@ -430,3 +430,16 @@ namespace adsim {
 	}
 
 } // end adsim namespace
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::ConstantPumpPowerModel, 2);
+CEREAL_CLASS_VERSION(adsim::PolyPumpPowerModel, 2);
+CEREAL_CLASS_VERSION(adsim::IsothermalCompressorEnergyModel, 1);
+CEREAL_CLASS_VERSION(adsim::AdiabaticCompressorEnergyModel, 1);
+CEREAL_CLASS_VERSION(adsim::ConstantPumpEfficiencyModel, 2);
+CEREAL_CLASS_VERSION(adsim::VacuumPumpEfficiencyModel, 2);
+CEREAL_CLASS_VERSION(adsim::PolyPumpEfficiencyModel, 3);
+CEREAL_CLASS_VERSION(adsim::IPump, 3);
+CEREAL_CLASS_VERSION(adsim::Compressor, 2);
+CEREAL_CLASS_VERSION(adsim::VacuumPump, 2);

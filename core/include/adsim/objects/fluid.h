@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <map>
 #include <unordered_map>
 #include <functional>
 #include <fstream>
@@ -199,6 +200,52 @@ namespace adsim {
       static const ComponentData fallback{};
       auto it = componentData.find(name);
       return it != componentData.end() ? it->second : fallback;
+    }
+
+    // Element formula of each component (element symbol -> atoms per
+    // molecule), used to check the element balance of a reaction
+    // (Reaction::CheckElements). Air is a mixture and has none. std::map so
+    // every listing is in a fixed order.
+    inline const std::map<std::string, std::map<std::string, int>> elementFormulas = {
+      { "Ammonia",            { {"N", 1}, {"H", 3} } },
+      { "Argon",              { {"Ar", 1} } },
+      { "Benzene",            { {"C", 6}, {"H", 6} } },
+      { "Butane",             { {"C", 4}, {"H", 10} } },
+      { "CarbonDioxide",      { {"C", 1}, {"O", 2} } },
+      { "CarbonMonoxide",     { {"C", 1}, {"O", 1} } },
+      { "Cyclohexane",        { {"C", 6}, {"H", 12} } },
+      { "Ethane",             { {"C", 2}, {"H", 6} } },
+      { "Ethanol",            { {"C", 2}, {"H", 6}, {"O", 1} } },
+      { "Ethylene",           { {"C", 2}, {"H", 4} } },
+      { "Fluorine",           { {"F", 2} } },
+      { "Helium",             { {"He", 1} } },
+      { "Hexane",             { {"C", 6}, {"H", 14} } },
+      { "Hydrogen",           { {"H", 2} } },
+      { "HydrogenSulfide",    { {"H", 2}, {"S", 1} } },
+      { "Isobutane",          { {"C", 4}, {"H", 10} } },
+      { "Isopentane",         { {"C", 5}, {"H", 12} } },
+      { "Krypton",            { {"Kr", 1} } },
+      { "Methane",            { {"C", 1}, {"H", 4} } },
+      { "Methanol",           { {"C", 1}, {"H", 4}, {"O", 1} } },
+      { "Neon",               { {"Ne", 1} } },
+      { "Nitrogen",           { {"N", 2} } },
+      { "NitrousOxide",       { {"N", 2}, {"O", 1} } },
+      { "Octane",             { {"C", 8}, {"H", 18} } },
+      { "Oxygen",             { {"O", 2} } },
+      { "Pentane",            { {"C", 5}, {"H", 12} } },
+      { "Propane",            { {"C", 3}, {"H", 8} } },
+      { "Propylene",          { {"C", 3}, {"H", 6} } },
+      { "SulfurDioxide",      { {"S", 1}, {"O", 2} } },
+      { "SulfurHexafluoride", { {"S", 1}, {"F", 6} } },
+      { "Toluene",            { {"C", 7}, {"H", 8} } },
+      { "Water",              { {"H", 2}, {"O", 1} } },
+      { "Xenon",              { {"Xe", 1} } },
+    };
+
+    // The element formula of a component, or nullptr when it has none.
+    inline const std::map<std::string, int>* GetElementFormula(const std::string& name) {
+      auto it = elementFormulas.find(name);
+      return it == elementFormulas.end() ? nullptr : &it->second;
     }
 
   }
@@ -445,7 +492,22 @@ namespace adsim {
 
     return cp;
   }
-  
+
+  // Pure-component gas-phase heat capacity C_p,i [J/(kg-K)] at (P, T), the value
+  // the COOLPROP gas heat capacity mode caches. The gas in the bed is a vapour
+  // mixture, so a component whose pure state at (P, T) would be condensed (e.g.
+  // water, ethanol or toluene at 1 bar and 298 K, where CoolProp returns the
+  // liquid's ~4181 J/(kg-K) for water) takes its ideal-gas heat capacity
+  // C_p0(T) instead (water: ~1865 J/(kg-K)). Its partial pressure in the bed is
+  // at most its saturation pressure, where the vapour is close to ideal, and
+  // C_p0 depends on temperature only, so it is defined at every state (unlike
+  // the saturated-vapour state, which does not exist above T_c). A component in
+  // a gas or supercritical state keeps its real-gas C_p(P, T) unchanged, so
+  // permanent gases (N2, O2, CO2 below its saturation pressure, CH4, H2, Ar,
+  // He, ...) are not affected. Returns 0 if CoolProp fails, like the other
+  // getters.
+  double GetGasHeatCapacity(const std::string& component, double P, double T);
+
   inline static double GetViscosity(const std::string& component, double P, double T) {
     double vis = 0.0;
     try {
@@ -483,3 +545,7 @@ namespace adsim {
   }
 
 } // end adsim namespace
+
+// Here rather than in the .cpp, so that every archive that serialises this
+// class sees the version (a translation unit without it would use 0).
+CEREAL_CLASS_VERSION(adsim::Fluid, 4);

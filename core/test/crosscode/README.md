@@ -35,15 +35,15 @@ D_L = 0.7 D_m + v0 r_p, axial conduction 0.09 W/(m K), Ergun.
 | ID | Case | Reference (cells) | t50 reference [s] | Skarstrom − reference (t05 / t50 / t95 [s], T_ext [K]) |
 |---|---|---|---|---|
 | BT01 | 15 % CO₂ in N₂, isothermal 313 K | PEESE (100) | 3306.3 | −0.45 / −0.48 / −0.51, 0 |
-| BT02 | 15 % CO₂, adiabatic | PEESE (100) | 1702.3 | +10.5 / +10.8 / –, −0.15 |
+| BT02 | 15 % CO₂, adiabatic | PEESE (100) | 1702.3 | +7.8 / +8.0 / –, −0.49 |
 | BT03 | purge of a 15 % bed with N₂, isothermal | PEESE (100) | 1397.0 | −0.14 / +0.15 / –, 0 |
-| BT04 | purge, adiabatic | PEESE (100) | 635.3 | −0.33 / −0.31 / –, −0.43 |
+| BT04 | purge, adiabatic | PEESE (100) | 635.3 | +0.03 / +0.59 / –, −0.43 |
 | BT05 | 50 % CO₂, single-site Langmuir, **pressure** form, isothermal | PEESE (100) | 1795.2 | −0.04 / −0.09 / −0.14, 0 |
-| BT06 | 50 % CO₂, pressure-form Langmuir, adiabatic | PEESE (100) | 962.3 | +14.5 / +14.5 / +15.9, −0.87 |
+| BT06 | 50 % CO₂, pressure-form Langmuir, adiabatic | PEESE (100) | 962.3 | +10.1 / +10.1 / +11.2, −0.98 |
 | BT07 | 1 % CO₂, Henry isotherm (the 13X slope at 393 K), N₂ inert, isothermal 393 K | PEESE (100) | 1292.6 | +3.0 / +0.41 / −3.4, 0 |
 | BT08 | 15 % CO₂, 0.3 mm particles (Ergun drop 25 % of P₀), isothermal | PEESE (85) | 3380.0 | +2.9 / +2.8 / +2.7, 0 |
 | BT09 | 40 % CO₂ in CH₄ on LiX (Ferré et al. 2026 parameters, library entry `lix_ferre2026`), k = 46.7 1/s, isothermal | PEESE (100) | 978.6 | −0.24 / −0.37 / −0.59, 0 |
-| BT10 | as BT09, adiabatic (heats chosen for the comparison: 30 and 15 kJ/mol) | PEESE (100) | 558.9 | +2.0 / +1.8 / +1.8, 0 |
+| BT10 | as BT09, adiabatic (heats chosen for the comparison: 30 and 15 kJ/mol) | PEESE (100) | 558.9 | +1.2 / +1.0 / +0.9, −0.07 |
 | TP01 | BT01 with toPSAil's model choices | toPSAil (100) | 3304.4 | −0.51 / −0.51 / −0.55, 0 |
 | TP02 | BT02 with a 5 mm steel wall, h_in = 20, h_out = 5 W/(m² K), ambient 313 K, toPSAil's choices | toPSAil (40) | 2031.4 | +7.2 / +6.4 / –, −0.25 |
 
@@ -63,10 +63,22 @@ Every difference was attributed in the harness by changing one modelling choice 
 - **Adiabatic cases (BT02, BT04, BT06, BT10).** Skarstrom takes the gas heat capacity from
   CoolProp (about 29.2 J/(mol K) for N₂ and 36 for CH₄ at 313 K) and the heat of adsorption as a
   constant −ΔU + R T₀; the reference uses 30.7 J/(mol K) and the local −(ΔU − R T). Switching
-  Skarstrom to the reference's choices (the fluid switches of skarstrom#45) moves BT02 from
+  Skarstrom to the reference's choices (the fluid switches of skarstrom#45) moved BT02 from
   +10.8 to −0.5 s, BT04's outlet minimum from −0.43 to −0.03 K, BT06 from +14.5 to +2.9 s
   (+1.0 s at 400 cells) and BT10 from +1.8 to +0.2 s. The tests assert the offsets
   measured without the switches, since those are not on `main` yet.
+
+  Those matched-choice numbers, and the offsets they started from, were measured while the
+  energy balance's convective face temperature was always the upwind value. Since it follows
+  the advection scheme (WENO here, as in the reference), the four adiabatic offsets are
+  smaller in the front times and larger in the outlet temperature extreme: t50 +10.8 → +8.0 s
+  (BT02), −0.31 → +0.59 s (BT04), +14.5 → +10.1 s (BT06), +1.8 → +1.0 s (BT10); T_ext
+  −0.15 → −0.49 K (BT02), −0.87 → −0.98 K (BT06), 0 → −0.07 K (BT10); curve RMS lower in
+  BT02, BT06 and BT10. The bounds were re-recorded at these values. The matched-choice
+  numbers above have **not** been re-measured since. These adiabatic cases are not
+  grid-converged at 100 cells: Skarstrom's BT02 t50 offset is +8.0 / +6.6 / +5.1 s and its
+  T_ext offset −0.49 / −0.46 / −0.42 K on 100 / 200 / 400 cells (BT06 t50 +10.1 / +8.1 /
+  +6.2 s), so the same-grid comparison mostly measures the two discretisations.
 - **BT08 (pressure drop).** Skarstrom's viscosity polynomial gives 1.85e-5 Pa s against the
   reference's 1.72e-5. The larger pressure drop raises the mean bed pressure and the capacity:
   +2.8 s. With the reference's viscosity: −0.6 s.

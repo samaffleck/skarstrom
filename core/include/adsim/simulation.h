@@ -41,6 +41,7 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/solver/coupled_solver.h"
+#include "adsim/solver/cycle_state.h"
 #include "adsim/solver/kpi_history.h"  // KPIRecord
 #include "adsim/solver/log.h"
 #include "adsim/solver/operating_limits.h"
@@ -237,6 +238,50 @@ namespace adsim {
     bool IsRunning() const;
     double ProgressPercent() const;
 
+    // ---- cycle state (cycle_state.h) ---------------------------------------
+    // The state at the end of the last completed blocking run (Run or
+    // RunCycle that finished or reached CSS): the DAE vector, the endpoint
+    // histories and the buffer-tank summaries, enough to restart from it.
+    // Kept for the session only; it is never saved in the deck. Cleared by the
+    // next run, Load* and a failed or cancelled run.
+    bool HasFinalState() const { return final_state_ != nullptr; }
+    // Throws std::logic_error when there is none.
+    const CycleState& FinalState() const;
+
+    // Warm start: every later blocking run (Run, RunCycle without a state)
+    // starts from `state` instead of the deck's initial conditions, until
+    // ClearInitialState or Load*. The deck's CSS minimum number of cycles
+    // counts the cycles behind the state (CycleState::cycles), so a run from a
+    // state at CSS can stop as soon as the consecutive-cycles rule holds.
+    // Throws std::invalid_argument with the reason when the state does not fit
+    // the deck (CheckState); the layout is checked again when the run starts.
+    // The chunked run (Start / Advance) always starts from the initial
+    // conditions.
+    void SetInitialState(CycleState state);
+    void ClearInitialState() { initial_state_.reset(); }
+    bool HasInitialState() const { return initial_state_ != nullptr; }
+    const CycleState& InitialState() const;
+    // Why `state` cannot start a run of this deck, or an empty string. Checks
+    // the components, layers and void regions, step and endpoint structure,
+    // and the step times when the deck's connections or buffer tanks read the
+    // state's histories (resampling them is not supported yet). A state on
+    // other cell counts is fine: a run remaps it onto the deck's grid.
+    std::string CheckState(const CycleState& state);
+    // The state transferred onto this deck's cells per layer (RemapCycleState
+    // in cycle_state.h: a conservative per-layer remap that keeps every
+    // component's inventory in every layer). Runs started from a state on
+    // another grid do this themselves. Throws std::invalid_argument when the
+    // state does not fit the deck.
+    CycleState RemapState(const CycleState& state);
+
+    // Runs exactly one cycle, from `from`, without changing the deck's number
+    // of cycles; FinalState() is then the cycle map applied to `from`. Without
+    // a state: from the last run's final state if there is one, else from the
+    // warm-start state if set, else from the initial conditions -- so repeated
+    // RunCycle() calls step the cycle map. options.cycles is ignored.
+    RunResult RunCycle(const RunOptions& options = {});
+    RunResult RunCycle(const CycleState& from, const RunOptions& options = {});
+
     const RunResult& LastResult() const { return result_; }
     const std::vector<SolverMessage>& Messages() const { return messages_; }
     // The solver of the last run: the chunked one when it was chunked, the
@@ -317,6 +362,8 @@ namespace adsim {
 
   private:
     void ResetResults();
+    // Run from `start` (nullptr: initial conditions).
+    RunResult RunFrom(const RunOptions& options, const CycleState* start);
     int ResolveCycle(int cycle) const;
 
     std::unique_ptr<UserData> data_;
@@ -327,6 +374,8 @@ namespace adsim {
     std::vector<SolverMessage> messages_;
     LogLevel chunked_log_level_ = LogLevel::HIGH;
     SolverMessageCallback chunked_on_message_;
+    std::unique_ptr<CycleState> final_state_;
+    std::unique_ptr<CycleState> initial_state_;
   };
 
 }  // namespace adsim

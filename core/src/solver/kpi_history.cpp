@@ -42,6 +42,7 @@ namespace adsim {
         v = CalculateProductivityVolume(p, &ok);                r.productivity_volume = value(v);
         v = CalculateSpecificEnergyConsumption(p, &ok);         r.energy_consumption = value(v);
         v = CalculateProductionRate(p, &ok);                    r.production_rate = value(v);
+        r.electrical_energy = r.energy_consumption;
       }
       out.push_back(std::move(r));
     }

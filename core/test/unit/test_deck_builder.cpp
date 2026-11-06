@@ -350,6 +350,8 @@ TEST(DeckBuilder, PumpStreamsAreDrivenByAPower) {
   const RunResult r = b.sim.Run(options);
   ASSERT_TRUE(r.Ok()) << r.message;
   EXPECT_GT(b.sim.KPIs(-1).at(0).energy_consumption, 0.0);
+  // The electrical energy is the same KPI under its explicit name.
+  EXPECT_EQ(b.sim.KPIs(-1).at(0).electrical_energy, b.sim.KPIs(-1).at(0).energy_consumption);
 
   // A power polynomial of the boundary pressure, and the pump cannot be removed.
   build::SetFlowBoundary(d, b.pressurisation, "bottom", "inlet");

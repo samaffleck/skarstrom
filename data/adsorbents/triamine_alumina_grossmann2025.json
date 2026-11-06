@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 4,
+        "cereal_class_version": 5,
         "Name": "Triamine-Grafted Alumina (Grossmann 2025)",
         "Density": {
             "cereal_class_version": 2,
@@ -102,6 +102,11 @@
             "Value": 0.35,
             "Expression": "0.35",
             "DisplayUnitIndex": 0
+        },
+        "Reaction_Source": {
+            "cereal_class_version": 1,
+            "Reactions": [],
+            "Next_Reaction_ID": 0
         }
     }
 }

@@ -12,6 +12,8 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
+#include <string>
 
 namespace adsim {
 
@@ -33,10 +35,11 @@ namespace adsim {
     //   ANTI_LANGMUIR                          q = a P / (1 - b P)                    c0 = a, c1 = b
     //   REDLICH_PETERSON                       q = a P / (1 + (b P)^v)                c0 = a, c1 = b, c2 = v
     //   TOTH, TOTH_2                           q = qs b P / (1 + (b P)^v)^(1/v)       c0 = qs, c1 = b, c2 = v
+    //   GAB, GAB_YOUNG                         q = GabLoading(qm, C, K, P / p_sat)    c0 = qm, c1 = C, c2 = K, c3 = 1 / p_sat
     //   INERT                                  q = 0
 
     enum class Family { Inert, Henry, Langmuir, DualSiteLangmuir, Freundlich, Sips, DualSiteSips,
-                        AntiLangmuir, RedlichPeterson, Toth };
+                        AntiLangmuir, RedlichPeterson, Toth, Gab };
 
     Family FamilyOf(IsothermType t) {
       using T = IsothermType;
@@ -62,8 +65,29 @@ namespace adsim {
         case T::REDLICH_PETERSON: return Family::RedlichPeterson;
         case T::TOTH:
         case T::TOTH_2: return Family::Toth;
+        case T::GAB:
+        case T::GAB_YOUNG: return Family::Gab;
       }
-      return Family::Inert;
+      // Out-of-range value, or a kind added without its IAST form: fail loudly
+      // rather than treat the component as inert.
+      throw std::logic_error(std::string("IAST has no pure-isotherm form for isotherm kind ") +
+                             IsothermKindString(t));
+    }
+
+    // Spreading pressure of the GAB loading GabLoading(q_m, C, K, x) in x,
+    // psi = ∫_0^x q(x')/x' dx'. Exact branch: q/x = q_m C K / ((1 - K x)(1 + (C - 1) K x)),
+    // whose integral is q_m [ln(1 + (C - 1) K x) - ln(1 - K x)]. Above
+    // x_c the loading is the tangent q_c + s (x - x_c), adding
+    // (q_c - s x_c) ln(x / x_c) + s (x - x_c).
+    double GabSpreadingPressure(double q_m, double C, double K, double x) {
+      auto exact = [&](double xe) { return q_m * (std::log1p((C - 1.0) * K * xe) - std::log1p(-K * xe)); };
+      const double x_c = K > kGabMaxKx ? kGabMaxKx / K : 1.0;
+      if (x <= x_c) return exact(x);
+      // The tangent at x_c, as in GabLoading.
+      const double A = q_m * C * K, u = 1.0 - K * x_c, v = 1.0 + (C - 1.0) * K * x_c;
+      const double q_c = A * x_c / (u * v);
+      const double s = A * (u * v + K * x_c * v - (C - 1.0) * K * x_c * u) / (u * u * v * v);
+      return exact(x_c) + (q_c - s * x_c) * std::log(x / x_c) + s * (x - x_c);
     }
 
     // ---- Gauss-Legendre quadrature for the kinds without a closed-form integral ----
@@ -130,6 +154,7 @@ namespace adsim {
         case Family::DualSiteLangmuir: return iso.c[0] * iso.c[1] + iso.c[2] * iso.c[3];
         case Family::RedlichPeterson: return iso.c[0];
         case Family::Toth: return iso.c[0] * iso.c[1];
+        case Family::Gab: return iso.c[0] * iso.c[1] * iso.c[2] * iso.c[3];
         default: {
           const double p = 1e-3;
           return PureLoading(iso, p) / p;
@@ -181,7 +206,9 @@ namespace adsim {
     if (kind == IsothermType::INERT) return ref;
     const auto fields = IsothermFields(iso, component);
     if (fields.empty()) return ref;  // no parameters for this component: inert
+    (void)FamilyOf(kind);  // throws for a kind without an IAST form
     ref.kind = kind;
+    ref.component = component;
     for (size_t i = 0; i < fields.size() && i < 8; ++i) ref.p[i] = fields[i].second->Get();
     return ref;
   }
@@ -276,6 +303,25 @@ namespace adsim {
         c[2] = p[5] + p[6] * (1.0 - T_0 / T);
         break;
       }
+      case K::GAB:  // q_m0, dH_m, C0, dH_C, K0, dH_K
+        c[0] = p[0] * std::exp(p[1] / RT);
+        c[1] = p[2] * std::exp(p[3] / RT);
+        c[2] = p[4] * std::exp(p[5] / RT);
+        c[3] = 1.0 / SaturationPressure(ref.component, T);
+        break;
+      case K::GAB_YOUNG: {  // q_m, C_E, D, F, G, E10_A, E10_B
+        const double E1 = p[1] - std::exp(p[2] * T);
+        const double E2_9 = p[3] + p[4] * T;
+        const double E10 = p[5] + p[6] * T;
+        c[0] = p[0];
+        c[1] = std::exp((E1 - E10) / RT);
+        c[2] = std::exp((E2_9 - E10) / RT);
+        c[3] = 1.0 / SaturationPressure(ref.component, T);
+        break;
+      }
+      default:
+        (void)FamilyOf(ref.kind);  // throws for a kind without an IAST form
+        break;
     }
     return iso;
   }
@@ -312,6 +358,7 @@ namespace adsim {
         const double bp = c[1] * P;
         return c[0] * bp / std::pow(1.0 + std::pow(bp, c[2]), 1.0 / c[2]);
       }
+      case Family::Gab: return GabLoading(c[0], c[1], c[2], c[3] * P);
     }
     return 0.0;
   }
@@ -339,6 +386,7 @@ namespace adsim {
       case Family::RedlichPeterson:
       case Family::Toth:
         return SpreadingPressureByQuadrature(iso, P);
+      case Family::Gab: return GabSpreadingPressure(c[0], c[1], c[2], c[3] * P);
     }
     return 0.0;
   }
@@ -359,6 +407,7 @@ namespace adsim {
       case Family::DualSiteSips:
       case Family::RedlichPeterson:
       case Family::Toth:
+      case Family::Gab:
         return InvertByNewton(iso, psi, guess);
     }
     return kNaN;
@@ -384,6 +433,7 @@ namespace adsim {
       case Family::AntiLangmuir: return c[0];
       case Family::RedlichPeterson: return c[0];
       case Family::Toth: return c[0] * c[1];
+      case Family::Gab: return c[0] * c[1] * c[2] * c[3];
     }
     return 0.0;
   }

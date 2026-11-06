@@ -38,8 +38,12 @@ namespace adsim {
     double recovery = std::numeric_limits<double>::quiet_NaN();             // [mol/mol]
     double productivity_mass = std::numeric_limits<double>::quiet_NaN();    // [kg/(kg s)]
     double productivity_volume = std::numeric_limits<double>::quiet_NaN();  // [kg/(m3 s)]
+    // Specific electrical energy (compressor and vacuum-pump work per kg of
+    // net product). `energy_consumption` is the original name, kept for
+    // compatibility; `electrical_energy` holds the same value.
     double energy_consumption = std::numeric_limits<double>::quiet_NaN();   // [J/kg]
     double production_rate = std::numeric_limits<double>::quiet_NaN();      // [mol/s]
+    double electrical_energy = std::numeric_limits<double>::quiet_NaN();    // [J/kg], = energy_consumption
   };
 
   // KPIs of every tracked component of `config` at one logged cycle, computed

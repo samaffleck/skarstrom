@@ -42,6 +42,7 @@
 #include "adsim/equations/iast.h"
 #include "adsim/equations/mass_transfer_model.h"
 #include "adsim/objects/reactor_equations.h"
+#include "adsim/objects/reaction.h"
 #include "adsim/objects/domain.h"
 #include "adsim/equations/equation.h"
 #include "adsim/math/expression_param.h"
@@ -204,6 +205,9 @@ namespace adsim {
     ExpressionParam thermal_conductivity_{0.5};     // Thermal conductivity [W/(m-K)]
     ExpressionParam ep_{0.35};                      // Intra-particle void fraction [m3/m3]
     AdsorptionSource adsorption_source_{};
+    // Heterogeneous reactions this solid catalyses (objects/reaction.h); empty
+    // for a plain sorbent. Rates are per kg of this solid.
+    ReactionSource reaction_source_{};
 
     // Defined out-of-line in porous_media.cpp so it can cascade into
     // adsorption_source_ (isotherms + MTC models) once those are migrated.
@@ -212,7 +216,7 @@ namespace adsim {
   private:
     friend class cereal::access;
     template<class Archive>
-    void serialize(Archive& ar, std::uint32_t const /*version*/) {
+    void serialize(Archive& ar, std::uint32_t const version) {
       ar(
         cereal::make_nvp("Name", name_),
         cereal::make_nvp("Density", solid_density_),
@@ -221,6 +225,12 @@ namespace adsim {
         cereal::make_nvp("Adsorption_Source", adsorption_source_),
         cereal::make_nvp("Particle_Void_Fraction", ep_)
       );
+      // Version 5 adds the reactions; older archives have none.
+      if (version >= 5) {
+        ar(cereal::make_nvp("Reaction_Source", reaction_source_));
+      } else if constexpr (Archive::is_loading::value) {
+        reaction_source_ = ReactionSource{};
+      }
     }
   };
 
@@ -328,6 +338,9 @@ namespace adsim {
     // Composition management
     void AddAdsorbent(AdsorbentID id, double mass_fraction = 1.0);
     void RemoveAdsorbent(AdsorbentID id);
+    // True when the composition is usable: not empty, no negative fraction,
+    // and the fractions sum to 1 within kCompositionSumTolerance (the error
+    // rules of CheckLayerComposition that need no adsorbent directory).
     bool ValidateComposition() const;
 
     // Computed properties
@@ -395,6 +408,30 @@ namespace adsim {
       );
     }
   };
+
+  // |sum_k w_k - 1| above which a layer composition is an error.
+  inline constexpr double kCompositionSumTolerance = 1e-6;
+
+  // One finding of CheckLayerComposition. Errors stop a run (Bed::PerformChecks
+  // reports them); warnings do not (LayerCompositionWarnings, deck_warnings.h).
+  struct LayerCompositionIssue {
+    enum class Severity { Error, Warning };
+    Severity severity = Severity::Error;
+    std::string message;  // starts with "Error: " or "Warning: "
+  };
+
+  // The rules for a layer's composition (mass fractions w_k), in one place for
+  // the deck checks, the run-start warnings and front ends:
+  //   Error:   no adsorbent; an id the directory does not hold; a negative
+  //            fraction; fractions that do not sum to 1 (beyond
+  //            kCompositionSumTolerance). Every effective property scales with
+  //            the sum (porous_media.cpp), so a sum of 0.8 would silently mean
+  //            80 % of the solid; the fractions are never renormalised.
+  //   Warning: a fraction of exactly 0 (that solid takes no part in the run).
+  // A solid whose components all use the Inert isotherm is a valid member (an
+  // inert diluent or packing). Issues come in the order of the composition map.
+  std::vector<LayerCompositionIssue> CheckLayerComposition(const MixedAdsorbentLayer& layer,
+                                                           const AdsorbentDirectory& dir);
 
   // Ordered collection of bed layers (replaces old Adsorbents class)
   class AdsorbentLayers {
@@ -473,19 +510,43 @@ namespace adsim {
   // file beside it, which then replaces the target in one rename, so a reader
   // never sees a half-written file (the library files are re-saved by tests
   // that run in parallel with tests reading them).
+  //
+  // Throws std::runtime_error naming the file and the reason when the
+  // temporary file cannot be created or written (missing or read-only
+  // directory, full disk) or the rename keeps failing; the temporary file is
+  // then removed and `file_name` is left as it was. The rename is retried for
+  // about 5 s with a back-off from 5 ms to 50 ms: on Windows it fails while
+  // another process holds the target open (a test reading the file).
   inline void SaveAdsorbentToJSON(const std::string& file_name, const Adsorbent& adsorbent) {
     static std::atomic<unsigned long> counter{0};
     std::ostringstream tmp_name;
     tmp_name << file_name << ".tmp" << std::hash<std::thread::id>{}(std::this_thread::get_id()) << "_" << counter++;
+    const std::string tmp = tmp_name.str();
+    auto fail = [&](const std::string& reason) {
+      std::error_code ignored;
+      std::filesystem::remove(tmp, ignored);
+      throw std::runtime_error("SaveAdsorbentToJSON: could not write " + file_name + ": " + reason);
+    };
     {
-      std::ofstream file(tmp_name.str());
-      if (!file.is_open()) return;
-      cereal::JSONOutputArchive archive(file);
-      archive(adsorbent);
-    }  // the archive's destructor completes the JSON before the file closes
+      std::ofstream file(tmp);
+      if (!file.is_open()) fail("cannot create the temporary file " + tmp);
+      {
+        cereal::JSONOutputArchive archive(file);
+        archive(adsorbent);
+      }  // the archive's destructor completes the JSON before the file closes
+      file.close();
+      if (file.fail()) fail("writing the temporary file " + tmp + " failed");
+    }
     std::error_code ec;
-    std::filesystem::rename(tmp_name.str(), file_name, ec);
-    if (ec) std::filesystem::remove(tmp_name.str(), ec);
+    auto delay = std::chrono::milliseconds(5);
+    const auto give_up = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    for (;;) {
+      std::filesystem::rename(tmp, file_name, ec);
+      if (!ec) return;
+      if (std::chrono::steady_clock::now() >= give_up) fail("cannot replace it (" + ec.message() + ")");
+      std::this_thread::sleep_for(delay);
+      delay = std::min(delay * 2, std::chrono::milliseconds(50));
+    }
   }
 
   inline void LoadAdsorbentFromJSON(const std::string& file_name, Adsorbent& adsorbent) {
@@ -495,3 +556,14 @@ namespace adsim {
   }
 
 } // end adsim namespace
+
+// In the header (not porous_media.cpp) because Adsorbent::serialize branches
+// on it: every translation unit that saves or loads a deck must see version 5.
+CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
+
+// Class versions live next to the inline serialize templates: every
+// translation unit that saves or loads a deck must see the same numbers.
+CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
+CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
+CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 3);
+CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);

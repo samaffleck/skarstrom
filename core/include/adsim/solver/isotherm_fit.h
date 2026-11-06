@@ -98,6 +98,9 @@ struct FitResult {
 struct FitOptions {
   int max_global_evals = 0;  // 0 => automatic (100 + 80 * free parameters)
   int max_local_evals = 4000;
+  // Fluid the isotherm is for (a CoolProp name); only the GAB kinds use it,
+  // for its saturation pressure. Empty: "Water" for the GAB kinds.
+  std::string component;
 };
 
 // ---------------------------------------------------------------------------
@@ -106,9 +109,15 @@ struct FitOptions {
 
 class Model {
  public:
-  explicit Model(IsothermType type) : type_(type) {
-    iso_ = CreateIsotherm(type, kComp);
-    if (iso_) fields_ = IsothermFields(iso_.get(), kComp);
+  // `component` names the fluid; only the GAB kinds use it (for its
+  // saturation pressure). Empty: "Water" for the GAB kinds, a placeholder
+  // otherwise.
+  explicit Model(IsothermType type, std::string component = "") : type_(type) {
+    if (component.empty())
+      component = (type == IsothermType::GAB || type == IsothermType::GAB_YOUNG) ? "Water" : "fit";
+    comp_ = std::move(component);
+    iso_ = CreateIsotherm(type, comp_);
+    if (iso_) fields_ = IsothermFields(iso_.get(), comp_);
   }
 
   bool valid() const { return iso_ != nullptr; }
@@ -138,11 +147,11 @@ class Model {
   }
 
   double Eval(double T, double P, double y) const {
-    return EvalIsotherm(iso_.get(), kComp, T, P, y);
+    return EvalIsotherm(iso_.get(), comp_, T, P, y);
   }
 
  private:
-  static constexpr const char* kComp = "fit";
+  std::string comp_;
   IsothermType type_;
   std::unique_ptr<IIsotherm> iso_;
   std::vector<std::pair<std::string, ExpressionParam*>> fields_;
@@ -196,9 +205,10 @@ FitResult Fit(IsothermType type, const std::vector<Point>& points_in,
 
 // Evaluate a kind at arbitrary points with the given parameter values (any
 // parameter not listed keeps its engine default). Returns false on an unknown
-// parameter name.
+// parameter name. `component` as in FitOptions::component.
 bool Evaluate(IsothermType type, const std::vector<std::pair<std::string, double>>& values,
-              const std::vector<Point>& pts, std::vector<double>& q, std::string& err);
+              const std::vector<Point>& pts, std::vector<double>& q, std::string& err,
+              const std::string& component = "");
 
 }  // namespace isofit
 }  // namespace adsim

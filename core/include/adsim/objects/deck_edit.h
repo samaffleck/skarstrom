@@ -49,13 +49,49 @@ bool AddComponentToDeck(UserData& data, const std::string& name, std::string& er
 // Remove a component from the fluid, from every adsorbent, from every
 // mole-fraction map and from the adsorbed-phase heat capacities. A deck may
 // end up with no components (it then fails the deck checks until one is added).
+// Refused (false + err, nothing changed) when a reaction of any solid uses the
+// component (a nonzero coefficient, order or LHHW adsorption exponent; see
+// Reaction::UsesComponent), e.g. "Water is used by reactions SMR, WGS (on Ni
+// catalyst); remove them first". Exact-zero entries of the component are
+// dropped from the reactions.
+bool RemoveComponentFromDeck(UserData& data, const std::string& name, std::string& err);
+
+// As above for a deck whose reactions do not use the component (asserted;
+// in a release build a refused removal leaves the deck unchanged).
 void RemoveComponentFromDeck(UserData& data, const std::string& name);
+
+// The refusal message of RemoveComponentFromDeck, or "" when no reaction
+// uses `name`.
+std::string ComponentInUseByReactions(const UserData& data, const std::string& name);
 
 // ---- layers and adsorbents -----------------------------------------------------
 
-// Give a layer the lowest-id adsorbent of the directory at mass fraction 1.0
-// (no-op when the directory is empty).
+// Give an empty layer the lowest-id adsorbent of the directory at mass
+// fraction 1.0 (no-op when the directory is empty or the layer already holds
+// a solid).
 void SeedLayerComposition(UserData& data, MixedAdsorbentLayer& layer);
+
+// Blend edits. Each leaves the layer's mass fractions summing to 1, so a
+// front end that edits blends only through them never builds a deck the
+// composition check (CheckLayerComposition) refuses. The other solids are
+// rescaled in proportion to their fractions (equal shares when they are all
+// 0). False + err, with nothing changed, for an unknown solid or a fraction
+// outside the stated range.
+
+// Add solid `id` to the layer at `mass_fraction` (0 < w <= 1), scaling the
+// others by (1 - w). The first solid of an empty layer gets 1. A solid the
+// layer already holds is set as by SetLayerMassFraction.
+bool AddSolidToLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, double mass_fraction,
+                     std::string& err);
+
+// Set the mass fraction of a solid the layer holds (0 <= w <= 1) and rescale
+// the others to 1 - w. A layer whose only solid this is accepts only 1.
+bool SetLayerMassFraction(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, double mass_fraction,
+                          std::string& err);
+
+// Take a solid out of the layer and rescale the rest to sum to 1. Refused for
+// the layer's only solid (a layer needs one: add another first).
+bool RemoveSolidFromLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id, std::string& err);
 
 // SeedLayerComposition for every layer whose composition is empty.
 void SeedEmptyLayerCompositions(UserData& data);
@@ -71,7 +107,9 @@ bool LoadAdsorbentFromString(const std::string& json, Adsorbent& out, std::strin
 
 // Add an adsorbent from a single-adsorbent JSON blob. Components of the deck
 // that the blob does not cover get default physics; parameters for components
-// the deck's fluid lacks are kept but unused. On success `id` is the new
+// the deck's fluid lacks are kept but unused. Its reactions are kept too; one
+// that uses a component the deck lacks is inactive and reported by the deck
+// checks (ReactionChecks) once a layer uses the solid. On success `id` is the new
 // adsorbent; on failure nothing is added and err says why.
 bool AddAdsorbentFromJson(UserData& data, const std::string& label, const std::string& json,
                           AdsorbentID& id, std::string& err);
@@ -84,8 +122,24 @@ bool AddLibraryAdsorbent(UserData& data, const std::string& library_dir, const s
                          AdsorbentID& id, std::string& err);
 
 // Remove an adsorbent from the directory and every layer, then re-seed any
-// layer left empty with another adsorbent (if one remains).
+// layer left empty with another adsorbent (if one remains). Its reactions go
+// with it.
+// Refused (false + err, nothing changed) while the solid is part of a blend,
+// i.e. a layer whose composition also holds another solid, e.g. "Zeolite 13X
+// is part of the blend of layer \"Bottom\" (mass fraction 0.7); remove it
+// from the layer's composition first". Taking one solid out of a blend
+// changes what the layer is (and its fractions would no longer sum to 1), so
+// the user decides the new composition; the engine never renormalises. A
+// layer that holds only this solid has no blend to change: it is re-seeded.
+bool RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id, std::string& err);
+
+// As above for a solid that no blend uses (asserted; in a release build a
+// refused removal leaves the deck unchanged).
 void RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id);
+
+// The refusal message of RemoveAdsorbentFromDeck, or "" when no blend uses
+// the solid (or the id is unknown).
+std::string AdsorbentInUseByMixtures(const UserData& data, AdsorbentID id);
 
 // ---- connections ----------------------------------------------------------------
 

@@ -40,6 +40,15 @@ struct NonFiniteExpressionAudit {
     void Record(const ExpressionParam& p);
 };
 
+// One gas component's local state, for the per-component expression names
+// p_<name> [Pa], c_<name> [mol/m³] and y_<name> [-] (see EvalContext::components).
+struct ComponentStateValue {
+    std::string name;
+    double p = 0.0;  // partial pressure [Pa]
+    double c = 0.0;  // molar concentration [mol/m³]
+    double y = 0.0;  // mole fraction [-]
+};
+
 // Simulation state made available to expression evaluation.
 // Fill whichever fields are meaningful for the parameter being evaluated.
 struct EvalContext {
@@ -54,6 +63,12 @@ struct EvalContext {
     // EvaluateExpressions cascade double as a read-only visitor over every
     // ExpressionParam the deck owns.
     NonFiniteExpressionAudit* audit = nullptr;
+    // Per-component state (reaction rate expressions). When set, Evaluate()
+    // also defines p_<name>, c_<name> and y_<name> for every entry; a user
+    // variable of the same name takes precedence. Only Evaluate() binds them:
+    // CompileForRun / EvaluateAt do not (an expression that uses them stays
+    // uncompiled and EvaluateAt falls back to Evaluate()).
+    const std::vector<ComponentStateValue>* components = nullptr;
 };
 
 // Wraps a double value plus its expression text. The expression text is the
@@ -136,7 +151,8 @@ public:
     double EvaluateAt(const EvalContext& ctx);
 
     // True when the expression references a run-time state variable (T, P, c,
-    // y, v). Such expressions are evaluated per cell during the run, so their
+    // y, v, or a per-component name p_X, c_X, y_X whose X starts with an
+    // upper-case letter, as every component name does). Such expressions are evaluated per cell during the run, so their
     // value outside the run (placeholder state) is not meaningful.
     bool UsesStateVariables() const;
     // True when CompileForRun resolved this parameter to a state-independent

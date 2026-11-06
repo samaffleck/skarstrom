@@ -41,6 +41,7 @@ from .units import Quantity, ureg
 from ._core import (
     AxialProfile,
     CSSRecord,
+    CycleState,
     KPIRecord,
     OperatingLimitsReport,
     OperatingWarning,
@@ -109,6 +110,7 @@ __all__ = [
     "BufferTank",
     "CSS",
     "CSSRecord",
+    "CycleState",
     "OperatingLimitsReport",
     "OperatingWarning",
     "StepOperatingSummary",
@@ -693,6 +695,78 @@ class Simulation:
         """
         return self._sim.run(cycles, progress, log_level, on_message)
 
+    # ---- cycle state: restart, warm start, the cycle map ------------------------------
+    @property
+    def has_final_state(self) -> bool:
+        """True when the last run completed (or reached CSS) and kept its final state."""
+        return self._sim.has_final_state
+
+    def final_state(self) -> CycleState:
+        """The state at the end of the last completed run (a :class:`CycleState`).
+
+        It holds everything the next cycle depends on: the DAE unknowns
+        (``.y``, ``.yp``; ``.differential`` is the part the next cycle reads),
+        every endpoint's logged history (what connected inlets replay) and the
+        buffer-tank summaries, plus the deck structure it belongs to. It lives
+        for the session only and is never saved in the deck. Raises
+        RuntimeError when there is none (no run yet, or the run failed).
+        """
+        return self._sim.final_state()
+
+    def run_cycle(
+        self,
+        state: Optional[CycleState] = None,
+        progress: Optional[Callable[[Dict[str, Any]], Optional[bool]]] = None,
+        log_level: str = "low",
+        on_message: Optional[Callable[[str, str], None]] = None,
+    ) -> RunResult:
+        """Run exactly one cycle from ``state`` (the deck's number of cycles is unchanged).
+
+        Without ``state``: from the last run's final state if there is one,
+        else the warm-start state, else the initial conditions, so repeated
+        calls step the cycle map. Afterwards :meth:`final_state` is the map
+        applied to ``state``.
+        """
+        return self._sim.run_cycle(state, progress, log_level, on_message)
+
+    def set_initial_state(self, state: CycleState) -> None:
+        """Warm start: later runs start from ``state`` instead of the initial conditions.
+
+        Stays set until :meth:`clear_initial_state` or :meth:`load`. The deck's
+        CSS minimum number of cycles counts the cycles behind the state, so a
+        run from a state at CSS stops as soon as the consecutive-cycles rule
+        holds. Raises ValueError with the reason when the state does not fit
+        the deck (see :meth:`check_state`).
+        """
+        self._sim.set_initial_state(state)
+
+    def warm_start(self, state: Optional[CycleState] = None) -> CycleState:
+        """Set the warm-start state to ``state`` or, by default, this run's final state; return it."""
+        state = self.final_state() if state is None else state
+        self.set_initial_state(state)
+        return state
+
+    def clear_initial_state(self) -> None:
+        """Start later runs from the deck's initial conditions again."""
+        self._sim.clear_initial_state()
+
+    @property
+    def initial_state(self) -> Optional[CycleState]:
+        """The warm-start state, or None."""
+        return self._sim.initial_state
+
+    def check_state(self, state: CycleState) -> str:
+        """Why ``state`` cannot start a run of this deck ('' when it can).
+
+        Refused: other components, layers or cell counts (remapping is not
+        supported yet), another step or endpoint structure, and changed step
+        times when the deck's connections or buffer tanks read the state's
+        histories (resampling them is not supported yet). A different DAE
+        layout (e.g. another energy balance) is found when the run starts and
+        fails it with the reason.
+        """
+        return self._sim.check_state(state)
+
     @property
     def last_result(self) -> RunResult:
         return self._sim.last_result
@@ -1006,15 +1080,19 @@ def evaluate_isotherm(
     pressure: Union[float, Sequence[float], np.ndarray],
     temperature: Union[float, Sequence[float], np.ndarray],
     mole_fraction: Union[float, Sequence[float], np.ndarray] = 1.0,
+    component: Optional[str] = None,
 ) -> np.ndarray:
     """Equilibrium loading q [mol/kg] from the engine's isotherm code.
 
     ``pressure`` [Pa] is the total pressure; the component's partial pressure
     is ``mole_fraction * pressure``. Parameters left out keep the engine
-    default.
+    default. ``component`` (a CoolProp name such as ``"Ethanol"``) is the
+    vapour whose saturation pressure the GAB kinds use; default water. Other
+    kinds ignore it.
     """
     p = _as_list(pressure)
-    return _core.evaluate_isotherm(kind, dict(params), p, _as_list(temperature, len(p)), _as_list(mole_fraction, len(p)))
+    return _core.evaluate_isotherm(kind, dict(params), p, _as_list(temperature, len(p)), _as_list(mole_fraction, len(p)),
+                                   component or "")
 
 
 def evaluate_iast(
@@ -1023,6 +1101,7 @@ def evaluate_iast(
     pressure: float,
     temperature: float,
     mole_fraction: Sequence[float],
+    components: Optional[Sequence[Optional[str]]] = None,
 ) -> np.ndarray:
     """Mixture loadings q_i [mol/kg] by Ideal Adsorbed Solution Theory.
 
@@ -1031,9 +1110,14 @@ def evaluate_iast(
     at total ``pressure`` [Pa], ``temperature`` [K] and gas mole fractions
     ``mole_fraction``. An inert kind or a zero mole fraction gives zero loading.
     The engine's ``adsim/equations/iast.h``; see the isotherms page of the docs.
+    ``components`` optionally names each component (CoolProp names); the GAB
+    kinds use it for the saturation pressure (default water).
     """
+    names = [] if components is None else [c or "" for c in components]
+    if names and len(names) != len(kinds):
+        raise ValueError("components must have one entry per kind")
     return _core.evaluate_iast(list(kinds), [dict(p) for p in params], float(pressure), float(temperature),
-                               _as_list(mole_fraction, len(kinds)))
+                               _as_list(mole_fraction, len(kinds)), names)
 
 
 def fit_isotherm(
@@ -1046,6 +1130,7 @@ def fit_isotherm(
     initial: Optional[Mapping[str, float]] = None,
     bounds: Optional[Mapping[str, tuple]] = None,
     max_global_evals: int = 0,
+    component: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Fit an isotherm kind to (pressure [Pa], loading [mol/kg], temperature [K]) data.
 
@@ -1055,7 +1140,9 @@ def fit_isotherm(
     (for a pre-exponential factor paired with an energy, b in b*exp(Q/RT),
     the bounds apply to its value at the reference temperature t_ref).
     Returns a dict with params, std_errors, r2, rmse, sse, n, dof, t_ref,
-    q_fit (model at each point) and any warning.
+    q_fit (model at each point) and any warning. ``component`` (a CoolProp
+    name) is the vapour whose saturation pressure the GAB kinds use; default
+    water.
     """
     p = _as_list(pressure)
     q = _as_list(loading)
@@ -1078,4 +1165,4 @@ def fit_isotherm(
             if fixed and n in fixed:
                 s["value"] = float(fixed[n])  # held: bounds are not used
                 s["fixed"] = True
-    return _core.fit_isotherm(kind, p, q, t, y, specs, 0.0, max_global_evals)
+    return _core.fit_isotherm(kind, p, q, t, y, specs, 0.0, max_global_evals, component or "")

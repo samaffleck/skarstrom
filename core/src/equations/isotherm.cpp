@@ -11,6 +11,10 @@
 #include "adsim/math/constants.h"
 
 #include <cmath>
+#include <limits>
+#include <memory>
+
+#include "AbstractState.h"
 
 
 namespace adsim {
@@ -724,14 +728,11 @@ namespace adsim {
 
   // --- Extended Langmuir-Freundlich (Yang 1987; toPSAil) ----------------------
   // z_i = b_i (P y_i / P_ref)^{n_i}. For n < 1 the power has an infinite slope at
-  // y = 0, so y is made positive with the same softplus as the Sips kinds and
-  // z is multiplied by the smooth step y^2 / (y^2 + delta^2). delta = 1e-5 is
-  // far below the mole fractions of interest (the step changes z by delta^2 /
-  // y^2 = 1e-4 at y = 1e-3, 1e-6 at y = 1e-2) while keeping the slope at
-  // y ~ delta of order delta^{n-1} (about 300 for n = 0.5).
+  // y = 0; it is continued below y = 1e-5 exactly as the competitive Sips kinds
+  // are (SipsTraceTerm with bP = P / P_ref, s = n), so the isotherm is exact for
+  // y >= 1e-5 and has a finite Henry slope below. SipsTraceTerm also covers
+  // n >= 2, so the temperature-dependent n needs no special case.
   namespace {
-    constexpr double kElfDelta = 1e-5;
-
     inline double Elf_qs(double T, const ExtendedLangmuirFreundlichIsothermParameters& p) {
       const double k1 = p.k1, k2 = p.k2;
       return k1 + k2 * T;
@@ -740,9 +741,7 @@ namespace adsim {
       const double k3 = p.k3, k4 = p.k4, k5 = p.k5, k6 = p.k6, P_ref = p.P_ref;
       const double b = k3 * std::exp(k4 / T);
       const double n = 1.0 / (k5 + k6 / T);
-      const double mf_pos = softplus(mf, kSoftplusTau);
-      const double z_raw = b * safe_pow(P * mf_pos / P_ref, n);
-      return z_raw * (mf_pos * mf_pos) / (mf_pos * mf_pos + kElfDelta * kElfDelta);
+      return b * SipsTraceTerm(P / P_ref, mf, n);
     }
   } // namespace
 
@@ -841,6 +840,130 @@ namespace adsim {
     }
   }
 
+  // --- GAB (Guggenheim-Anderson-de Boer) -------------------------------------
+
+  namespace {
+    // One CoolProp state per component, holding the saturation ancillary and
+    // the triple and critical points. Built on first use in each thread.
+    struct SaturationCurve {
+      std::unique_ptr<CoolProp::AbstractState> state;
+      double T_min = 0.0, T_c = 0.0, p_c = 0.0;
+      bool ok = false;
+    };
+
+    SaturationCurve MakeSaturationCurve(const std::string& component) {
+      SaturationCurve curve;
+      try {
+        curve.state.reset(CoolProp::AbstractState::factory("HEOS", component));
+        curve.T_c = curve.state->T_critical();
+        curve.p_c = curve.state->p_critical();
+        curve.T_min = 0.75 * curve.state->Ttriple();
+        // Check the ancillary exists and is finite once, at a valid state.
+        const double T_check = 0.5 * (curve.state->Ttriple() + curve.T_c);
+        curve.ok = std::isfinite(curve.state->saturation_ancillary(CoolProp::iP, 1, CoolProp::iT, T_check));
+      }
+      catch (const std::exception& e) {
+        std::cerr << "CoolProp Error (saturation pressure of " << component << "): " << e.what() << std::endl;
+        curve.ok = false;
+      }
+      return curve;
+    }
+
+    // CoolPropTools.h redefines the keyword thread_local as a macro
+    // (__declspec(thread) on MSVC, __thread on GCC), which cannot hold a
+    // non-trivial type such as std::map: use the language keyword here.
+#pragma push_macro("thread_local")
+#undef thread_local
+    thread_local std::map<std::string, SaturationCurve> t_saturation_curves;
+#pragma pop_macro("thread_local")
+
+    const SaturationCurve& SaturationCurveFor(const std::string& component) {
+      auto& curves = t_saturation_curves;
+      auto it = curves.find(component);
+      if (it == curves.end()) it = curves.emplace(component, MakeSaturationCurve(component)).first;
+      return it->second;
+    }
+
+    double SaturationPressureOn(const SaturationCurve& curve, double T) {
+      if (!curve.ok || !(T > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+      if (T >= curve.T_c) return curve.p_c;
+      const double Tc = std::max(T, curve.T_min);
+      return curve.state->saturation_ancillary(CoolProp::iP, 1, CoolProp::iT, Tc);
+    }
+
+    inline double GabExact(double A, double K, double C, double x) {
+      const double u = 1.0 - K * x;              // pole at K x = 1
+      const double v = 1.0 + (C - 1.0) * K * x;  // = 1 - K x + C K x
+      return A * x / (u * v);
+    }
+  } // namespace
+
+  double SaturationPressure(const std::string& component, double T) {
+    return SaturationPressureOn(SaturationCurveFor(component), T);
+  }
+
+  double GabLoading(double q_m, double C, double K, double x) {
+    const double A = q_m * C * K;  // Henry slope dq/dx at x = 0
+    if (!(x > 0.0)) return A * x;  // x <= 0 (and NaN passes through)
+    const double x_c = K > kGabMaxKx ? kGabMaxKx / K : 1.0;
+    if (x <= x_c) return GabExact(A, K, C, x);
+    // Linear continuation with the slope at x_c:
+    //   dq/dx = A (u v + K x v - (C - 1) K x u) / (u v)^2.
+    const double u = 1.0 - K * x_c;
+    const double v = 1.0 + (C - 1.0) * K * x_c;
+    const double q_c = A * x_c / (u * v);
+    const double slope = A * (u * v + K * x_c * v - (C - 1.0) * K * x_c * u) / (u * u * v * v);
+    return q_c + slope * (x - x_c);
+  }
+
+  GabConstants GabConstantsAt(double T, const GabIsothermParameters& p) {
+    const double RT = constants::kIdealGasConstant * T;
+    const double q_m0 = p.q_m0, dH_m = p.dH_m, C0 = p.C0, dH_C = p.dH_C, K0 = p.K0, dH_K = p.dH_K;
+    return { q_m0 * std::exp(dH_m / RT), C0 * std::exp(dH_C / RT), K0 * std::exp(dH_K / RT) };
+  }
+
+  GabConstants GabConstantsAt(double T, const GabYoungIsothermParameters& p) {
+    const double RT = constants::kIdealGasConstant * T;
+    const double C_E = p.C_E, D = p.D, F = p.F, G = p.G, E10_A = p.E10_A, E10_B = p.E10_B;
+    const double E1 = C_E - std::exp(D * T);
+    const double E2_9 = F + G * T;
+    const double E10 = E10_A + E10_B * T;
+    return { p.q_m, std::exp((E1 - E10) / RT), std::exp((E2_9 - E10) / RT) };
+  }
+
+  void IsothermFunction::Gab(double& qi, double T, double P, double yi, double p_sat, const GabIsothermParameters& ips) {
+    const GabConstants g = GabConstantsAt(T, ips);
+    qi = GabLoading(g.q_m, g.C, g.K, P * yi / p_sat);
+  }
+
+  void IsothermFunction::GabYoung(double& qi, double T, double P, double yi, double p_sat, const GabYoungIsothermParameters& ips) {
+    const GabConstants g = GabConstantsAt(T, ips);
+    qi = GabLoading(g.q_m, g.C, g.K, P * yi / p_sat);
+  }
+
+  namespace {
+    template <class Params>
+    void UpdateGab(IsothermUpdateParams& state, const Params& params) {
+      auto& qi_sat = state.qi_sat_map.at(state.component).var;
+      const auto& yi = state.yi_map.at(state.component).var;
+      const auto& T = state.T;
+      const auto& P = state.P;
+      const SaturationCurve& curve = SaturationCurveFor(state.component);
+      for (int n = state.start_index; n <= state.end_index; ++n) {
+        const GabConstants g = GabConstantsAt(T[n], params);
+        qi_sat[n] = GabLoading(g.q_m, g.C, g.K, P[n] * yi[n] / SaturationPressureOn(curve, T[n]));
+      }
+    }
+  } // namespace
+
+  void GabIsotherm::Update(IsothermUpdateParams& state) {
+    UpdateGab(state, params_[state.component]);
+  }
+
+  void GabYoungIsotherm::Update(IsothermUpdateParams& state) {
+    UpdateGab(state, params_[state.component]);
+  }
+
 } // end adsim namespace
 
 
@@ -859,6 +982,8 @@ CEREAL_REGISTER_TYPE(adsim::TothIsotherm)
 CEREAL_REGISTER_TYPE(adsim::Toth2Isotherm)
 CEREAL_REGISTER_TYPE(adsim::ArrheniusSipsIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedLangmuirFreundlichIsotherm)
+CEREAL_REGISTER_TYPE(adsim::GabIsotherm)
+CEREAL_REGISTER_TYPE(adsim::GabYoungIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::DualSiteLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedDualSiteLangmuirIsotherm)
@@ -880,6 +1005,8 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::TothIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::Toth2Isotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ArrheniusSipsIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedLangmuirFreundlichIsotherm)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::GabIsotherm)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::GabYoungIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::DualSiteLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedDualSiteLangmuirIsotherm)
@@ -887,24 +1014,3 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::LangmuirIsotherm_C
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedLangmuirIsotherm_Concentration)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::DualSiteLangmuirIsotherm_Concentration)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedDualSiteLangmuirIsotherm_Concentration)
-CEREAL_CLASS_VERSION(adsim::InertIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::HenryIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::LangmuirIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::AntiLangmuirIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::FreundlichIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::SipsIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::Sips2Isotherm, 2);
-CEREAL_CLASS_VERSION(adsim::ExtendedSips2Isotherm, 2);
-CEREAL_CLASS_VERSION(adsim::DualSiteSipsIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::RedlichPetersonIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::TothIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::Toth2Isotherm, 2);
-CEREAL_CLASS_VERSION(adsim::ArrheniusSipsIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirFreundlichIsotherm, 1);
-CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm, 2);
-CEREAL_CLASS_VERSION(adsim::LangmuirIsotherm_Concentration, 2);
-CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm_Concentration, 2);
-CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm_Concentration, 2);
-CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm_Concentration, 2);

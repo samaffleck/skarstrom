@@ -96,13 +96,28 @@ def _print_table(rows: List[List[str]], header: List[str], out=None) -> None:
         print("  ".join(c.ljust(w) for c, w in zip(r, widths)), file=out)
 
 
+# The KPI table printed by `run`. The specific energy is the electrical
+# energy (compressor and vacuum-pump work per kg of product): `electrical_energy`
+# and `energy_consumption` hold the same value.
 KPI_FIELDS = [
+    ("purity", "purity [mol/mol]"),
+    ("recovery", "recovery [mol/mol]"),
+    ("productivity_mass", "productivity [kg/(kg s)]"),
+    ("productivity_volume", "productivity [kg/(m3 s)]"),
+    ("electrical_energy", "electrical energy [J/kg]"),
+    ("production_rate", "production [mol/s]"),
+]
+
+# The columns of kpis.csv. The original columns keep their order and headers
+# (scripts read them); new KPIs are appended.
+KPI_CSV_FIELDS = [
     ("purity", "purity [mol/mol]"),
     ("recovery", "recovery [mol/mol]"),
     ("productivity_mass", "productivity [kg/(kg s)]"),
     ("productivity_volume", "productivity [kg/(m3 s)]"),
     ("energy_consumption", "energy [J/kg]"),
     ("production_rate", "production [mol/s]"),
+    ("electrical_energy", "electrical energy [J/kg]"),
 ]
 
 
@@ -195,9 +210,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         os.makedirs(args.csv, exist_ok=True)
         with open(os.path.join(args.csv, "kpis.csv"), "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["cycle", "component", "valid"] + [h for _, h in KPI_FIELDS])
+            w.writerow(["cycle", "component", "valid"] + [h for _, h in KPI_CSV_FIELDS])
             for k in kpis:
-                w.writerow([k.cycle + 1, k.component, k.valid] + [getattr(k, fld) for fld, _ in KPI_FIELDS])
+                w.writerow([k.cycle + 1, k.component, k.valid] + [getattr(k, fld) for fld, _ in KPI_CSV_FIELDS])
         with open(os.path.join(args.csv, "css.csv"), "w", newline="") as f:
             w = csv.writer(f)
             w.writerow(["cycle", "method", "converged", "error", "tolerance"])
@@ -450,7 +465,8 @@ def build_parser() -> argparse.ArgumentParser:
                         "--input, the study saved with the deck is run (the options below override it)")
     s.add_argument("--output", action="append", metavar="COMPONENT.KPI",
                    help="a KPI to watch (repeatable), e.g. CarbonDioxide.purity; default: purity, recovery, "
-                        "productivity_mass and energy_consumption of every tracked component")
+                        "productivity_mass and energy_consumption (the electrical energy; electrical_energy "
+                        "is the same KPI) of every tracked component")
     s.add_argument("--method", choices=["screen", "propagate", "both"], default="both",
                    help="screen, propagate, or both: screen, then propagate the inputs that matter (default)")
     s.add_argument("--trajectories", type=int, help="Morris trajectories (default 10)")

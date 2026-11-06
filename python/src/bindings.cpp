@@ -253,6 +253,72 @@ py::dict IntervalToDict(const sa::Interval& i) {
 }
 }  // namespace
 
+// A blocking run from Python: the GIL is released while the solver works and
+// callbacks re-acquire it. Ctrl-C (or any pending Python signal) cancels the
+// run and is re-raised afterwards. `go` runs the simulation with the options.
+adsim::RunResult RunFromPython(std::optional<int> cycles, py::object progress, const std::string& log_level,
+                               py::object on_message,
+                               const std::function<adsim::RunResult(const adsim::RunOptions&)>& go) {
+  adsim::RunOptions opt;
+  opt.cycles = cycles;
+  opt.log_level = ParseLogLevel(log_level);
+  bool python_error = false;
+  std::optional<py::error_already_set> pending;
+  if (!progress.is_none()) {
+    opt.progress = [&](const adsim::RunProgress& p) {
+      py::gil_scoped_acquire gil;
+      if (pending) return false;
+      try {
+        py::dict d;
+        d["cycle"] = p.cycle;
+        d["step"] = p.step;
+        d["total_cycles"] = p.total_cycles;
+        d["total_steps"] = p.total_steps;
+        d["fraction"] = p.fraction;
+        py::object r = progress(d);
+        return r.is_none() || r.cast<bool>();
+      } catch (py::error_already_set& e) {
+        pending.emplace(std::move(e));
+        python_error = true;
+        return false;
+      }
+    };
+  }
+  if (!on_message.is_none()) {
+    opt.on_message = [&](adsim::LogLevel level, const std::string& msg) {
+      py::gil_scoped_acquire gil;
+      if (pending) return;
+      try {
+        on_message(LogLevelName(level), msg);
+      } catch (py::error_already_set& e) {
+        pending.emplace(std::move(e));
+        python_error = true;
+      }
+    };
+  }
+  auto last_check = std::chrono::steady_clock::now();
+  opt.cancel = [&]() {
+    if (python_error) return true;
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last_check < std::chrono::milliseconds(100)) return false;
+    last_check = now;
+    py::gil_scoped_acquire gil;
+    if (PyErr_CheckSignals() != 0) {
+      pending.emplace();  // fetches the KeyboardInterrupt (or other) error
+      python_error = true;
+      return true;
+    }
+    return false;
+  };
+  adsim::RunResult r;
+  {
+    py::gil_scoped_release release;
+    r = go(opt);
+  }
+  if (pending) throw std::move(*pending);
+  return r;
+}
+
 PYBIND11_MODULE(_core, m) {
   m.doc() = "Skarstrom PSA/TSA simulation engine (compiled core). Use the 'skarstrom' package.";
   m.attr("__version__") = ADSIM_VERSION_STRING;
@@ -293,6 +359,7 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("productivity_volume", &adsim::KPIRecord::productivity_volume)
       .def_readonly("energy_consumption", &adsim::KPIRecord::energy_consumption)
       .def_readonly("production_rate", &adsim::KPIRecord::production_rate)
+      .def_readonly("electrical_energy", &adsim::KPIRecord::electrical_energy)
       .def("as_dict", [](const adsim::KPIRecord& k) {
         py::dict d;
         d["cycle"] = k.cycle;
@@ -304,6 +371,7 @@ PYBIND11_MODULE(_core, m) {
         d["productivity_volume"] = k.productivity_volume;
         d["energy_consumption"] = k.energy_consumption;
         d["production_rate"] = k.production_rate;
+        d["electrical_energy"] = k.electrical_energy;
         return d;
       })
       .def("__repr__", [](const adsim::KPIRecord& k) {
@@ -395,6 +463,86 @@ PYBIND11_MODULE(_core, m) {
                std::to_string(p.rows) + " x " + std::to_string(p.cols) + ">";
       });
 
+  // ---- CycleState (adsim/solver/cycle_state.h) -----------------------------
+  py::class_<adsim::CycleState>(m, "CycleState")
+      .def_readonly("components", &adsim::CycleState::components)
+      .def_readonly("cycles", &adsim::CycleState::cycles)
+      .def_property_readonly("layers", [](const adsim::CycleState& c) {
+        py::list out;
+        for (const auto& l : c.layers) {
+          py::dict d;
+          d["id"] = l.id;
+          d["name"] = l.name;
+          d["cells"] = l.cells;
+          out.append(d);
+        }
+        return out;
+      })
+      .def_property_readonly("steps", [](const adsim::CycleState& c) {
+        py::list out;
+        for (const auto& st : c.steps) {
+          py::dict d;
+          d["id"] = st.id;
+          d["name"] = st.name;
+          d["time"] = st.time;
+          d["endpoint_ids"] = st.endpoint_ids;
+          out.append(d);
+        }
+        return out;
+      })
+      .def_property_readonly("fields", [](const adsim::CycleState& c) {
+        py::list out;
+        for (const auto& f : c.fields) {
+          py::dict d;
+          d["name"] = f.name;
+          d["component"] = f.component;
+          d["adsorbent"] = f.adsorbent;
+          d["differential"] = f.differential;
+          d["index"] = f.index;
+          d["cell"] = f.cell;
+          out.append(d);
+        }
+        return out;
+      })
+      .def_property_readonly("endpoints", [](const adsim::CycleState& c) {
+        py::list out;
+        for (const auto& e : c.endpoints) {
+          py::dict d;
+          d["endpoint_id"] = e.endpoint_id;
+          d["step_id"] = e.step_id;
+          d["name"] = e.name;
+          d["history_points"] = e.history.time_series_.size();
+          d["summary_valid"] = e.summary.is_valid;
+          d["summary_total_moles"] = e.summary.total_moles;
+          out.append(d);
+        }
+        return out;
+      })
+      .def_property("y", [](const adsim::CycleState& c) { return ToArray(c.y); },
+                    [](adsim::CycleState& c, const std::vector<double>& v) {
+                      if (v.size() != c.y.size())
+                        throw std::invalid_argument("y: expected " + std::to_string(c.y.size()) + " values, got "
+                                                    + std::to_string(v.size()));
+                      c.y = v;
+                    })
+      .def_property_readonly("yp", [](const adsim::CycleState& c) { return ToArray(c.yp); })
+      .def_property_readonly("differential_index", [](const adsim::CycleState& c) { return c.differential_index; })
+      .def_property("differential", [](const adsim::CycleState& c) { return ToArray(c.Differential()); },
+                    &adsim::CycleState::SetDifferential)
+      .def_property_readonly("has_history", &adsim::CycleState::HasHistory)
+      .def_property_readonly("size", &adsim::CycleState::Size)
+      .def("field", [](const adsim::CycleState& c, const std::string& name, const std::string& component,
+                       size_t adsorbent) { return ToArray(c.FieldValues(name, component, adsorbent)); },
+           py::arg("name"), py::arg("component") = "", py::arg("adsorbent") = 0)
+      .def("copy", [](const adsim::CycleState& c) { return c; })
+      .def("__copy__", [](const adsim::CycleState& c) { return c; })
+      .def("__deepcopy__", [](const adsim::CycleState& c, py::dict) { return c; }, py::arg("memo"))
+      .def("__len__", &adsim::CycleState::Size)
+      .def("__repr__", [](const adsim::CycleState& c) {
+        return "<CycleState " + std::to_string(c.Size()) + " unknowns, " + std::to_string(c.endpoints.size())
+               + " endpoints, after " + std::to_string(c.cycles) + " cycles>";
+      });
+
   // ---- Simulation ----------------------------------------------------------
   py::class_<adsim::Simulation>(m, "Simulation")
       .def(py::init<>())
@@ -457,66 +605,27 @@ PYBIND11_MODULE(_core, m) {
       // and is re-raised afterwards.
       .def("run", [](adsim::Simulation& s, std::optional<int> cycles, py::object progress,
                      const std::string& log_level, py::object on_message) {
-        adsim::RunOptions opt;
-        opt.cycles = cycles;
-        opt.log_level = ParseLogLevel(log_level);
-        bool python_error = false;
-        std::optional<py::error_already_set> pending;
-        if (!progress.is_none()) {
-          opt.progress = [&](const adsim::RunProgress& p) {
-            py::gil_scoped_acquire gil;
-            if (pending) return false;
-            try {
-              py::dict d;
-              d["cycle"] = p.cycle;
-              d["step"] = p.step;
-              d["total_cycles"] = p.total_cycles;
-              d["total_steps"] = p.total_steps;
-              d["fraction"] = p.fraction;
-              py::object r = progress(d);
-              return r.is_none() || r.cast<bool>();
-            } catch (py::error_already_set& e) {
-              pending.emplace(std::move(e));
-              python_error = true;
-              return false;
-            }
-          };
-        }
-        if (!on_message.is_none()) {
-          opt.on_message = [&](adsim::LogLevel level, const std::string& msg) {
-            py::gil_scoped_acquire gil;
-            if (pending) return;
-            try {
-              on_message(LogLevelName(level), msg);
-            } catch (py::error_already_set& e) {
-              pending.emplace(std::move(e));
-              python_error = true;
-            }
-          };
-        }
-        auto last_check = std::chrono::steady_clock::now();
-        opt.cancel = [&]() {
-          if (python_error) return true;
-          const auto now = std::chrono::steady_clock::now();
-          if (now - last_check < std::chrono::milliseconds(100)) return false;
-          last_check = now;
-          py::gil_scoped_acquire gil;
-          if (PyErr_CheckSignals() != 0) {
-            pending.emplace();  // fetches the KeyboardInterrupt (or other) error
-            python_error = true;
-            return true;
-          }
-          return false;
-        };
-        adsim::RunResult r;
-        {
-          py::gil_scoped_release release;
-          r = s.Run(opt);
-        }
-        if (pending) throw std::move(*pending);
-        return r;
+        return RunFromPython(cycles, progress, log_level, on_message,
+                             [&s](const adsim::RunOptions& o) { return s.Run(o); });
       }, py::arg("cycles") = py::none(), py::arg("progress") = py::none(), py::arg("log_level") = "low",
          py::arg("on_message") = py::none())
+      .def("run_cycle", [](adsim::Simulation& s, const adsim::CycleState* state, py::object progress,
+                           const std::string& log_level, py::object on_message) {
+        return RunFromPython(std::nullopt, progress, log_level, on_message, [&s, state](const adsim::RunOptions& o) {
+          return state ? s.RunCycle(*state, o) : s.RunCycle(o);
+        });
+      }, py::arg("state") = py::none(), py::arg("progress") = py::none(), py::arg("log_level") = "low",
+         py::arg("on_message") = py::none())
+      .def_property_readonly("has_final_state", &adsim::Simulation::HasFinalState)
+      .def("final_state", [](const adsim::Simulation& s) { return s.FinalState(); })
+      .def("set_initial_state", [](adsim::Simulation& s, const adsim::CycleState& state) { s.SetInitialState(state); },
+           py::arg("state"))
+      .def("clear_initial_state", &adsim::Simulation::ClearInitialState)
+      .def_property_readonly("initial_state", [](const adsim::Simulation& s) -> py::object {
+        if (!s.HasInitialState()) return py::none();
+        return py::cast(s.InitialState());
+      })
+      .def("check_state", &adsim::Simulation::CheckState, py::arg("state"))
       .def("request_stop", &adsim::Simulation::RequestStop)
       .def_property_readonly("last_result", &adsim::Simulation::LastResult)
       .def_property_readonly("messages", [](const adsim::Simulation& s) {
@@ -929,30 +1038,40 @@ PYBIND11_MODULE(_core, m) {
     if (!model.valid()) throw py::value_error("cannot build an isotherm of kind '" + kind + "'");
     return model.Names();
   }, py::arg("kind"));
+  // `component`: the fluid (CoolProp name) whose saturation pressure the GAB
+  // kinds use; empty means water. Other kinds ignore it.
   m.def("evaluate_isotherm", [](const std::string& kind, const std::map<std::string, double>& params,
                                 const std::vector<double>& pressure, const std::vector<double>& temperature,
-                                const std::vector<double>& mole_fraction) {
+                                const std::vector<double>& mole_fraction, const std::string& component) {
     const auto pts = MakePoints(pressure, {}, temperature, mole_fraction);
     std::vector<std::pair<std::string, double>> values(params.begin(), params.end());
     std::vector<double> q;
     std::string err;
-    if (!adsim::isofit::Evaluate(ParseIsothermKind(kind), values, pts, q, err)) throw py::value_error(err);
+    if (!adsim::isofit::Evaluate(ParseIsothermKind(kind), values, pts, q, err, component)) throw py::value_error(err);
     return ToArray(q);
   }, py::arg("kind"), py::arg("params"), py::arg("pressure"), py::arg("temperature"),
-     py::arg("mole_fraction") = std::vector<double>{});
+     py::arg("mole_fraction") = std::vector<double>{}, py::arg("component") = std::string());
   // IAST mixture loadings from several pure (kind, params) isotherms at one
   // (T, P, y): the engine's adsim/equations/iast.h.
   m.def("evaluate_iast", [](const std::vector<std::string>& kinds,
                             const std::vector<std::map<std::string, double>>& params,
-                            double pressure, double temperature, const std::vector<double>& mole_fraction) {
+                            double pressure, double temperature, const std::vector<double>& mole_fraction,
+                            const std::vector<std::string>& components) {
     if (kinds.size() != params.size() || kinds.size() != mole_fraction.size())
       throw py::value_error("kinds, params and mole_fraction must have one entry per component");
+    if (!components.empty() && components.size() != kinds.size())
+      throw py::value_error("components must be empty or have one entry per component");
     std::vector<std::unique_ptr<adsim::IIsotherm>> owned;
     std::vector<adsim::IIsotherm*> isos;
     std::vector<std::string> names;
     for (size_t i = 0; i < kinds.size(); ++i) {
-      const std::string name = "component_" + std::to_string(i);
-      auto iso = adsim::CreateIsotherm(ParseIsothermKind(kinds[i]), name);
+      // The isotherm's component name: the GAB kinds look up its saturation
+      // pressure (water unless `components` names the fluid).
+      const auto type = ParseIsothermKind(kinds[i]);
+      const bool gab = type == adsim::IsothermType::GAB || type == adsim::IsothermType::GAB_YOUNG;
+      const std::string name = !components.empty() && !components[i].empty() ? components[i]
+                               : gab ? std::string("Water") : "component_" + std::to_string(i);
+      auto iso = adsim::CreateIsotherm(type, name);
       if (!iso) throw py::value_error("cannot build an isotherm of kind '" + kinds[i] + "'");
       auto fields = adsim::IsothermFields(iso.get(), name);
       for (const auto& [nm, v] : params[i]) {
@@ -968,7 +1087,8 @@ PYBIND11_MODULE(_core, m) {
     const auto r = adsim::EvalIastMixture(isos, names, temperature, pressure, mole_fraction, q);
     if (!r.converged) throw py::value_error("the IAST solve did not converge at this state");
     return ToArray(q);
-  }, py::arg("kinds"), py::arg("params"), py::arg("pressure"), py::arg("temperature"), py::arg("mole_fraction"));
+  }, py::arg("kinds"), py::arg("params"), py::arg("pressure"), py::arg("temperature"), py::arg("mole_fraction"),
+     py::arg("components") = std::vector<std::string>{});
   m.def("default_fit_specs", [](const std::string& kind, const std::vector<double>& pressure,
                                 const std::vector<double>& loading, const std::vector<double>& temperature) {
     const auto pts = MakePoints(pressure, loading, temperature, {});
@@ -984,7 +1104,7 @@ PYBIND11_MODULE(_core, m) {
   m.def("fit_isotherm", [](const std::string& kind, const std::vector<double>& pressure,
                            const std::vector<double>& loading, const std::vector<double>& temperature,
                            const std::vector<double>& mole_fraction, py::object specs_in, double t_ref,
-                           int max_global_evals) {
+                           int max_global_evals, const std::string& component) {
     const auto type = ParseIsothermKind(kind);
     const auto pts = MakePoints(pressure, loading, temperature, mole_fraction);
     std::vector<adsim::isofit::ParamSpec> specs;
@@ -998,6 +1118,7 @@ PYBIND11_MODULE(_core, m) {
     }
     adsim::isofit::FitOptions opt;
     opt.max_global_evals = max_global_evals;
+    opt.component = component;
     adsim::isofit::FitResult r;
     {
       py::gil_scoped_release release;
@@ -1029,7 +1150,7 @@ PYBIND11_MODULE(_core, m) {
     return d;
   }, py::arg("kind"), py::arg("pressure"), py::arg("loading"), py::arg("temperature"),
      py::arg("mole_fraction") = std::vector<double>{}, py::arg("specs") = py::none(), py::arg("t_ref") = 0.0,
-     py::arg("max_global_evals") = 0);
+     py::arg("max_global_evals") = 0, py::arg("component") = std::string());
 
   m.def("sensitivity_morris_plan", [](const py::list& inputs, int trajectories, int levels, std::uint64_t seed) {
     return PlanToDict(sa::MorrisPlan(InputsFromList(inputs), trajectories, levels, seed));

@@ -25,6 +25,7 @@
 #include <filesystem>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -359,6 +360,97 @@ TEST(Iast, AWarmStartConvergesInAStepOrTwo) {
   const auto next = SolveIast(pure, 2, 1.02e5, y2, q, scratch, cold.psi);
   ASSERT_TRUE(next.converged);
   EXPECT_LE(next.iterations, 4);
+}
+
+// ---- GAB (water) ----------------------------------------------------------------------
+//
+// The GAB kinds need a real fluid for p_sat, so they use Water rather than the
+// placeholder component of AllCases. Pressures are given as relative pressures
+// x = P / p_sat, including the continuation above x_c = min(1, 0.95 / K).
+
+namespace {
+const std::string kWater = "Water";
+
+std::vector<std::unique_ptr<IIsotherm>> GabCases() {
+  std::vector<std::unique_ptr<IIsotherm>> out;
+  auto gab = CreateIsotherm(IsothermType::GAB, kWater);       // defaults: C ~ 7.5, K = 0.7
+  out.push_back(std::move(gab));
+  auto bet = CreateIsotherm(IsothermType::GAB, kWater);       // BET: K = 1, x_c = 0.95
+  for (auto& [name, p] : IsothermFields(bet.get(), kWater)) {
+    if (name == "K0") p->Get() = 1.0;
+    if (name == "dH_K") p->Get() = 0.0;
+  }
+  out.push_back(std::move(bet));
+  out.push_back(CreateIsotherm(IsothermType::GAB_YOUNG, kWater));  // Lewatit (Young 2021)
+  return out;
+}
+}  // namespace
+
+TEST(Iast, GabPureLoadingSpreadingPressureAndInversion) {
+  for (const auto& iso : GabCases()) {
+    SCOPED_TRACE(IsothermKindString(iso->GetIsothermType()));
+    for (double T : {288.15, 313.15}) {
+      const double ps = SaturationPressure(kWater, T);
+      const PureIsotherm pure = PreparePureIsotherm(iso.get(), kWater, T);
+      EXPECT_EQ(pure.kind, iso->GetIsothermType());
+      for (double x : {0.05, 0.3, 0.9, 0.97, 1.4}) {
+        const double P = x * ps;
+        const double expected = EvalIsotherm(iso.get(), kWater, T, P, 1.0);
+        EXPECT_NEAR(PureLoading(pure, P), expected, 1e-12 * expected) << "x " << x;
+        const double psi = ReducedSpreadingPressure(pure, P);
+        EXPECT_NEAR(psi, BruteForcePsi(pure, P), 1e-7 * psi) << "x " << x;
+        EXPECT_NEAR(InvertSpreadingPressure(pure, psi), P, 1e-9 * P) << "x " << x;
+        EXPECT_NEAR(InvertSpreadingPressure(pure, psi, 3.0 * P), P, 1e-9 * P) << "x " << x;
+      }
+      EXPECT_NEAR(DiluteSlope(pure), PureLoading(pure, 1e-6 * ps) / (1e-6 * ps), 1e-5 * DiluteSlope(pure));
+    }
+  }
+}
+
+// Water (GAB) with CO2 (Langmuir) under IAST: the solution has one spreading
+// pressure, sum x_i = 1, and with CO2 made inert water gets its pure loading
+// at its partial pressure.
+TEST(Iast, GabInAMixture) {
+  auto water = CreateIsotherm(IsothermType::GAB_YOUNG, kWater);
+  auto co2 = Make(IsothermType::SINGLE_SITE_LANGMUIR_P, {{"m1", 3.0}, {"b1", 2e-9}, {"q1", 2.5e4}});
+  std::vector<IIsotherm*> isos{water.get(), co2.get()};
+  std::vector<std::string> names{kWater, kComp};
+  const double T = 298.15, P = 1.0e5;
+  const double y_w = 0.6 * SaturationPressure(kWater, T) / P;  // RH 0.6
+  std::vector<double> q;
+  const auto r = EvalIastMixture(isos, names, T, P, {y_w, 1.0 - y_w}, q);
+  ASSERT_TRUE(r.converged);
+  const double qT = q[0] + q[1];
+  const double x_w = q[0] / qT, x_c = q[1] / qT;
+  const PureIsotherm pw = PreparePureIsotherm(water.get(), kWater, T);
+  const PureIsotherm pc = PreparePureIsotherm(co2.get(), kComp, T);
+  const double psi_w = ReducedSpreadingPressure(pw, P * y_w / x_w);
+  const double psi_c = ReducedSpreadingPressure(pc, P * (1.0 - y_w) / x_c);
+  EXPECT_NEAR(psi_w, r.psi, 1e-8 * r.psi);
+  EXPECT_NEAR(psi_c, r.psi, 1e-8 * r.psi);
+  EXPECT_LT(q[0], EvalIsotherm(water.get(), kWater, T, P, y_w));  // CO2 takes part of the surface
+
+  auto inert = Make(IsothermType::INERT);
+  std::vector<IIsotherm*> alone{water.get(), inert.get()};
+  ASSERT_TRUE(EvalIastMixture(alone, names, T, P, {y_w, 1.0 - y_w}, q).converged);
+  EXPECT_NEAR(q[0], EvalIsotherm(water.get(), kWater, T, P, y_w), 1e-12 * q[0]);
+}
+
+// Every isotherm kind has an IAST form; a kind without one (here an
+// out-of-range value) is an error, never a silently inert component.
+TEST(Iast, EveryKindHasAnIastFormAndAnUnknownKindThrows) {
+  for (IsothermType t : AllIsothermTypes()) {
+    SCOPED_TRACE(IsothermKindString(t));
+    auto iso = CreateIsotherm(t, kWater);
+    ASSERT_NE(iso, nullptr);
+    PureIsotherm pure;
+    ASSERT_NO_THROW(pure = PreparePureIsotherm(iso.get(), kWater, 300.0));
+    EXPECT_EQ(pure.kind, t);
+    EXPECT_TRUE(std::isfinite(PureLoading(pure, 1.0e3)));
+  }
+  PureIsothermRef ref;
+  ref.kind = static_cast<IsothermType>(999);
+  EXPECT_THROW(PreparePureIsotherm(ref, 300.0), std::logic_error);
 }
 
 // ---- kind classification ---------------------------------------------------------------

@@ -5,6 +5,10 @@
  * Licensed under the terms in the LICENSE file at the repository root.
  */
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/math/constants.h"
+
+#include <cmath>
+#include <limits>
 
 namespace adsim {
 
@@ -32,6 +36,8 @@ const char* IsothermKindString(IsothermType t) {
     case T::TOTH_2: return "toth_2";
     case T::ARRHENIUS_SIPS: return "arrhenius_sips";
     case T::EXTENDED_LANGMUIR_FREUNDLICH: return "extended_langmuir_freundlich";
+    case T::GAB: return "gab";
+    case T::GAB_YOUNG: return "gab_young";
   }
   return "unknown";
 }
@@ -182,6 +188,22 @@ IsothermFields(IIsotherm* iso, const std::string& component) {
         add("P_ref", it->second.P_ref); } }
       break;
     }
+    case T::GAB: {
+      auto* c = dynamic_cast<GabIsotherm*>(iso);
+      if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
+        add("q_m0", it->second.q_m0); add("dH_m", it->second.dH_m);
+        add("C0", it->second.C0); add("dH_C", it->second.dH_C);
+        add("K0", it->second.K0); add("dH_K", it->second.dH_K); } }
+      break;
+    }
+    case T::GAB_YOUNG: {
+      auto* c = dynamic_cast<GabYoungIsotherm*>(iso);
+      if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
+        add("q_m", it->second.q_m); add("C_E", it->second.C_E); add("D", it->second.D);
+        add("F", it->second.F); add("G", it->second.G);
+        add("E10_A", it->second.E10_A); add("E10_B", it->second.E10_B); } }
+      break;
+    }
     // No `default`: -Wswitch flags a new IsothermType missing its param layout.
   }
   return out;
@@ -211,6 +233,8 @@ bool IsSupportedIsothermKind(IsothermType t) {
     case T::TOTH_2:
     case T::ARRHENIUS_SIPS:
     case T::EXTENDED_LANGMUIR_FREUNDLICH:
+    case T::GAB:
+    case T::GAB_YOUNG:
       return true;
   }
   return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
@@ -241,6 +265,8 @@ bool IsCompetitiveIsothermKind(IsothermType t) {
     case T::SIPS_2:
     case T::DUAL_SITE_SIPS:
     case T::TOTH_2:
+    case T::GAB:
+    case T::GAB_YOUNG:
       return false;
   }
   return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
@@ -297,6 +323,8 @@ void EnsureIsothermComponent(IIsotherm* iso, const std::string& c) {
     case T::TOTH_2: if (auto* p = dynamic_cast<Toth2Isotherm*>(iso)) (void)p->params_[c]; break;
     case T::ARRHENIUS_SIPS: if (auto* p = dynamic_cast<ArrheniusSipsIsotherm*>(iso)) (void)p->params_[c]; break;
     case T::EXTENDED_LANGMUIR_FREUNDLICH: if (auto* p = dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso)) (void)p->params_[c]; break;
+    case T::GAB: if (auto* p = dynamic_cast<GabIsotherm*>(iso)) (void)p->params_[c]; break;
+    case T::GAB_YOUNG: if (auto* p = dynamic_cast<GabYoungIsotherm*>(iso)) (void)p->params_[c]; break;
   }
 }
 
@@ -327,8 +355,22 @@ double EvalIsotherm(IIsotherm* iso, const std::string& c, double T, double P, do
     case K::TOTH_2: if (auto* x = dynamic_cast<Toth2Isotherm*>(iso)) IF::Toth2(q, T, P, yi, x->params_[c]); break;
     case K::ARRHENIUS_SIPS: if (auto* x = dynamic_cast<ArrheniusSipsIsotherm*>(iso)) IF::ArrheniusSips(q, T, P, yi, x->params_[c]); break;
     case K::EXTENDED_LANGMUIR_FREUNDLICH: if (auto* x = dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso)) IF::ExtendedLangmuirFreundlich(q, T, P, yi, x->params_[c]); break;
+    case K::GAB: if (auto* x = dynamic_cast<GabIsotherm*>(iso)) IF::Gab(q, T, P, yi, SaturationPressure(c, T), x->params_[c]); break;
+    case K::GAB_YOUNG: if (auto* x = dynamic_cast<GabYoungIsotherm*>(iso)) IF::GabYoung(q, T, P, yi, SaturationPressure(c, T), x->params_[c]); break;
   }
   return q;
+}
+
+double IsostericHeat(IIsotherm* iso, const std::string& c, double T, double P, double yi) {
+  // q_st = R T^2 (d ln p / dT)_q = -R T^2 (dq/dT)_p / (dq/d ln p)_T, both
+  // partials by central differences of EvalIsotherm (relative steps 1e-4).
+  const double p = P * yi;
+  if (!iso || !(p > 0.0) || !(T > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+  const double hT = 1e-4 * T, hl = 1e-4;
+  const double dq_dT = (EvalIsotherm(iso, c, T + hT, p, 1.0) - EvalIsotherm(iso, c, T - hT, p, 1.0)) / (2.0 * hT);
+  const double dq_dlnp = (EvalIsotherm(iso, c, T, p * std::exp(hl), 1.0) -
+                          EvalIsotherm(iso, c, T, p * std::exp(-hl), 1.0)) / (2.0 * hl);
+  return -constants::kIdealGasConstant * T * T * dq_dT / dq_dlnp;
 }
 
 }  // namespace adsim

@@ -14,13 +14,19 @@
 
 namespace adsim {
 
+  // ENERGY_CONSUMPTION is the specific electrical energy: compressor and
+  // vacuum-pump work over the cycle per kg of net product. ELECTRICAL_ENERGY
+  // is the same enumerator under its explicit name; the old name is kept so
+  // existing code and stored indices keep their meaning. New KPIs (such as a
+  // thermal energy) are appended at the end so stored indices do not move.
   enum class KPIVariableType {
     PURITY,
     RECOVERY,
     PRODUCTIVITY_MASS,
     PRODUCTIVITY_VOLUME,
     ENERGY_CONSUMPTION,
-    PRODUCTION_RATE
+    PRODUCTION_RATE,
+    ELECTRICAL_ENERGY = ENERGY_CONSUMPTION
   };
 
   inline constexpr std::string_view kKPIVariableTypeList[] = {
@@ -28,7 +34,7 @@ namespace adsim {
     "Recovery",
     "Productivity (mass)",
     "Productivity (volume)",
-    "Energy Consumption",
+    "Electrical Energy",
     "Production Rate"
   };
 
@@ -571,6 +577,10 @@ namespace adsim {
     return step_energy; // [J] 
   }
 
+  // Specific electrical energy [J/kg]: the time-integrated compressor and
+  // vacuum-pump power of every step over the net product mass. Step energy
+  // sources (heaters, coolers) are not included. This is the
+  // `energy_consumption` KPI, also reported as `electrical_energy`.
   static double CalculateSpecificEnergyConsumption(const KPIParams& params, bool* defined = nullptr) {
     
     // -- Validation --
@@ -602,6 +612,11 @@ namespace adsim {
     double total_specific_energy = KPIRatio(total_energy, product_mass, ok); // [J/kg_gas]
     
     return KPIResult(total_specific_energy, ok, defined);
+  }
+
+  // The specific electrical energy under its explicit name.
+  static double CalculateSpecificElectricalEnergy(const KPIParams& params, bool* defined = nullptr) {
+    return CalculateSpecificEnergyConsumption(params, defined);
   }
 
 }
