@@ -68,6 +68,9 @@ set(ADSIM_SLOW_TESTS
     # long reference run, full state and KPIs, on eight example decks
     # (1-8 min each).
     "*CSSReference.*"
+    # The same decks from a clean, a feed-saturated, a hot and a cold bed and
+    # from a neighbouring deck's CSS: all must reach the same CSS (2-10 min each).
+    "*CSSStartIndependence.*"
     # CSS behaviour on a slow (rate 0.97) cycle: needs 100+ cycles.
     "CSSConvergence.SlowCycleFollowsTheGeometricModel"
     "CSSConvergence.AitkenAccelerationReachesTheSameKpis"
