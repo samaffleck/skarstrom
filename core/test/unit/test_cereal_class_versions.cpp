@@ -15,6 +15,9 @@
 //     same versions (polymorphic classes, their bases, and the plain classes
 //     at fixed places in the deck). An unknown polymorphic class also fails,
 //     so a new class must be added to the table.
+//
+// Not yet pinned (their versions are still declared in a .cpp): adsim::Fluid,
+// adsim::Connection, adsim::AccelerateCyclicSteadyState.
 
 #include <algorithm>
 #include <cstdint>
@@ -33,7 +36,6 @@
 #include "adsim/boundary_conditions/boundary_stream.h"
 #include "adsim/boundary_conditions/boundary_value.h"
 #include "adsim/boundary_conditions/buffer_tank_source.h"
-#include "adsim/boundary_conditions/connection.h"
 #include "adsim/boundary_conditions/cycle_endpoint_summary.h"
 #include "adsim/boundary_conditions/flow_boundary_value.h"
 #include "adsim/boundary_conditions/step.h"
@@ -174,7 +176,6 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::PressureBoundaryCondition, 5),
       ADSIM_PIN(adsim::FlowBoundaryCondition, 1),
       ADSIM_PIN(adsim::ClosedBoundaryCondition, 1),
-      ADSIM_PIN(adsim::Connection, 1),
       ADSIM_PIN(adsim::Step, 5),
       ADSIM_PIN(adsim::BufferTankSource, 3),
       ADSIM_PIN(adsim::CycleEndpointSummary, 1),
