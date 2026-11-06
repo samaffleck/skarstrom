@@ -48,7 +48,7 @@ When gas–solid heat transfer is not fast (for example large particles or fast 
 
 ## Heat of adsorption convention
 
-The value stored as `adsorbent[<id>].heat_of_adsorption[<component>]` is read according to the fluid's **heat of adsorption convention** (`fluid.heat_of_adsorption_convention`). The convention sets the heat released per mole adsorbed, $\Delta H_i^{\mathrm{eff}}$, that multiplies $\rho_b\thinspace \partial q_i / \partial t$ in the source term:
+The stored value is positive for exothermic adsorption; [Matching Another Model](model-conventions.md#heat-of-adsorption-sign) has a worked sign example. The value stored as `adsorbent[<id>].heat_of_adsorption[<component>]` is read according to the fluid's **heat of adsorption convention** (`fluid.heat_of_adsorption_convention`). The convention sets the heat released per mole adsorbed, $\Delta H_i^{\mathrm{eff}}$, that multiplies $\rho_b\thinspace \partial q_i / \partial t$ in the source term:
 
 | Convention | Stored value | $\Delta H_i^{\mathrm{eff}}$ | Used by |
 |---|---|---|---|
