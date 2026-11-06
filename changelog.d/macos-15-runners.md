@@ -1,2 +1,0 @@
-### Fixed — macOS builds in CI and releases
-- The macOS arm64 CI job and the macOS arm64 wheel build ran on GitHub's `macos-14` runner, which GitHub has retired ("The configuration 'macos-14-arm64-us-default' is not supported"), so the job was cancelled before it started and a release could not build the macOS arm64 wheel. Both now run on `macos-15`. The wheels still target macOS 13.3 and later (`MACOSX_DEPLOYMENT_TARGET`).
