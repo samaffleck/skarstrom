@@ -79,6 +79,24 @@ so the medium's heat transfer coefficient $h_m$ replaces every layer's $h_o$, an
 - All three values are registry parameters, so they can be set from the command line (`--set "step[Heat].medium.enabled=true"`), swept, optimised and used in [sensitivity studies](sensitivity.md). In Python, `sim.steps["Heat"].medium.temperature = 393.15`.
 - $h_m = 0$ makes the step adiabatic towards the outside, whatever the layers' $h_o$.
 
+#### Medium duty
+
+The solver logs, for every step, the heat the medium passes into the wall and the heat it takes back out, integrated over the step:
+
+$$
+Q_{m,\text{in}} = \int_{\text{step}} \sum_i \max\left(0,\thinspace q_i\right) dt,
+\qquad
+Q_{m,\text{out}} = \int_{\text{step}} \sum_i \max\left(0,\thinspace -q_i\right) dt,
+\qquad
+q_i = \pi\thinspace d_o\thinspace \Delta z_i\thinspace h_m\left(T_m(t) - T_{w,i}\right)
+$$
+
+$q_i$ is the outer-face flow of cell $i$, the same term the wall balance uses. The integral uses the trapezoidal rule over every logged point of the step, which means every accepted solver step plus any fill-in points. It is accumulated as the log is written, so thinning the stored rows does not change it. Both figures are zero for a step without a medium and in an isothermal run.
+
+- In C++ they are `StepHeatDuty::medium_heat_in` and `medium_heat_out` [J], on each step's log (`EquationLog::GetLog(cycle, step).heat_duty`). They sit next to the energy sources' `heating_power` and `cooling_power`, so the two contributions can be read separately.
+- The thermal-energy and cooling-duty KPIs (total and per step) add $Q_{m,\text{in}}$ to the heat supplied and $Q_{m,\text{out}}$ to the heat removed. `CalculateStepThermalDuty` also returns the medium's share on its own (`medium_heating`, `medium_cooling`).
+- For a closed bed with insulated wall ends, $Q_{m,\text{in}} - Q_{m,\text{out}}$ equals the change in bed and wall internal energy over the step. The test `HeatingMediumDutyTest.LoggedDutyClosesTheEnergyBalance` checks this; the measured mismatch is below $10^{-4}$ of the change.
+
 ### Wall materials
 
 Choosing a preset **Material** fills in the density, heat capacity and thermal conductivity, which are then read-only; *Custom* lets you type all three. The presets are reference values at about 20 °C (the source comments in `wall.h` cite the ASM Handbook, ASME B31.3 and MatWeb):

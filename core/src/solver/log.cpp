@@ -6,6 +6,7 @@
  */
 #include "../pch.h"
 #include "adsim/solver/log.h"
+#include "adsim/boundary_conditions/step.h"
 
 #include <sstream>
 #include "adsim/solver/cycle.h"
@@ -44,6 +45,35 @@ namespace adsim {
       sys_data.step_list_.emplace_back(step.step_name_);
     }
     sys_data.total_cycle_time = cycle.GetCycleTime();
+  }
+
+  MediumHeatFlow HeatingMediumHeatFlow(const Equations& state, double time_in_step) {
+    MediumHeatFlow flow;
+    if (state.IsIsothermal()) return flow;
+    const Step* step = state.CurrentStep();
+    const HeatingMedium* medium = step ? step->ActiveHeatingMedium() : nullptr;
+    if (!medium) return flow;
+
+    // The same outer-face term as the wall residual (UpdateWallTemperature),
+    // per unit time and over the true outer area pi d_o dx of each cell, with
+    // the coefficient the residual uses: h_m in every bed cell, 0 in a void
+    // cell (UpdateExternalHeatTransferCoefficient). Taken from the medium, not
+    // from the state's coefficient, which a log point taken before the step's
+    // first residual evaluation could still hold from the previous step.
+    const double T_m = medium->Temperature(time_in_step);
+    const double h_m = medium->heat_transfer_coefficient_;
+    const auto& Tw = state.wall_temperature.var;
+    const auto& d_o = state.domain_vectors.de;
+    const auto& dx = state.domain_vectors.cell_width;
+    const auto& is_void = state.domain_vectors.is_void_cell;
+    const size_t n = std::min({Tw.size(), d_o.size(), dx.size()});
+    for (size_t i = 1; i + 1 < n; ++i) {  // interior cells only
+      if (i < is_void.size() && is_void[i]) continue;
+      const double q = M_PI * d_o[i] * dx[i] * h_m * (T_m - Tw[i]);
+      if (q > 0.0) flow.in += q;
+      else flow.out -= q;
+    }
+    return flow;
   }
 
   void EquationLog::LogState(const Equations& state, double t, int step_index, int cycle_index) {
@@ -86,6 +116,23 @@ namespace adsim {
         }
       }
       sim_log.heat_duty = duty;
+    }
+
+    // The heating medium's duty: integrate its heat flow into the wall over
+    // the step (trapezoidal rule between consecutive logged points). The first
+    // logged point of a step is the step start.
+    {
+      const double step_start = sim_log.step_data.times.empty() ? t : sim_log.step_data.times.front();
+      const MediumHeatFlow flow = HeatingMediumHeatFlow(state, t - step_start);
+      if (!is_new_step) {
+        const double dt = t - medium_prev_t_;
+        if (dt > 0.0) {
+          sim_log.heat_duty.medium_heat_in += 0.5 * (medium_prev_flow_.in + flow.in) * dt;
+          sim_log.heat_duty.medium_heat_out += 0.5 * (medium_prev_flow_.out + flow.out) * dt;
+        }
+      }
+      medium_prev_t_ = t;
+      medium_prev_flow_ = flow;
     }
 
     // OPTIMIZATION: Store times once per step, not per variable

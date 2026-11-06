@@ -632,10 +632,11 @@ namespace adsim {
   // The thermal energy is the heat supplied to the bed over the cycle; the
   // cooling duty is the heat removed, reported separately (as a positive
   // magnitude) and not subtracted from the thermal energy. Both come from the
-  // heat duty the solver logged for each step (StepHeatDuty: the step energy
-  // sources, zero in an isothermal run) times the step's duration. A
-  // heating-medium duty is added to StepHeatDuty, and so to these sums, when
-  // it is logged. The electrical energy (compressor and pump work) is separate.
+  // heat duty the solver logged for each step (StepHeatDuty, zero in an
+  // isothermal run): the step energy sources' powers times the step's
+  // duration, plus the heat the step's heating medium passed into (thermal
+  // energy) and out of (cooling duty) the wall, integrated over the step. The
+  // electrical energy (compressor and pump work) is separate.
 
   // Duration [s] of a logged step: from its first logged time (the step start)
   // to the next step's start, or to the cycle's end for the last step. 0 when
@@ -663,8 +664,10 @@ namespace adsim {
   }
 
   struct StepThermalDuty {
-    double heating = 0.0;  // [J] heat supplied over the step
-    double cooling = 0.0;  // [J] heat removed over the step (>= 0)
+    double heating = 0.0;  // [J] heat supplied over the step (energy sources + medium)
+    double cooling = 0.0;  // [J] heat removed over the step (>= 0; energy sources + medium)
+    double medium_heating = 0.0;  // [J] the heating medium's share of `heating`
+    double medium_cooling = 0.0;  // [J] the heating medium's share of `cooling`
   };
 
   // Heat supplied and removed over one step of the params' cycle [J]. Needs no
@@ -673,7 +676,8 @@ namespace adsim {
     const auto& eq_log = params.eq_log_;
     const StepHeatDuty& duty = eq_log.GetLog(params.cycle_index_, step_idx).heat_duty;
     const double dt = LoggedStepDuration(eq_log, params.cycle_index_, step_idx);
-    return {duty.heating_power * dt, duty.cooling_power * dt};
+    return {duty.heating_power * dt + duty.medium_heat_in, duty.cooling_power * dt + duty.medium_heat_out,
+            duty.medium_heat_in, duty.medium_heat_out};
   }
 
   // Heat supplied and removed over the whole cycle [J].
@@ -684,6 +688,8 @@ namespace adsim {
       const StepThermalDuty d = CalculateStepThermalDuty(params, s);
       total.heating += d.heating;
       total.cooling += d.cooling;
+      total.medium_heating += d.medium_heating;
+      total.medium_cooling += d.medium_cooling;
     }
     return total;
   }

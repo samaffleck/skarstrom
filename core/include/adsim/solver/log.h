@@ -303,14 +303,35 @@ namespace adsim {
   using VariableLog = std::unordered_map<VariableType, VariableData>;
   using ComponentVariableLog = std::unordered_map<std::string, std::unordered_map<ComponentVariableType, VariableData>>;
 
-  // Heat put into the bed during one step, as the solver applied it. Constant
-  // over the step: the energy sources are set when the step starts. Both
-  // powers are 0 in an isothermal run, where the sources do nothing. A
-  // heating-medium duty, when there is one, belongs here too.
+  // Heat put into the column during one step, as the solver applied it, in two
+  // separate parts. All of it is 0 in an isothermal run, where neither the
+  // energy sources nor the wall balance act.
+  //  * Energy sources (heaters and coolers in the bed): constant powers over
+  //    the step, set when the step starts.
+  //  * The step's heating medium (jacket) on the wall's outer face: the heat
+  //    it passes into and out of the wall, integrated over the step. Per cell
+  //    of outer surface the flow into the wall is pi d_o dx h_m (T_m(t) - T_w);
+  //    cells where it is positive add to medium_heat_in, the others to
+  //    medium_heat_out. Integrated with the trapezoidal rule over every
+  //    logged point (each accepted solver step and any fill-in point), as the
+  //    log is written, so thinning the stored rows does not change it. Both are
+  //    0 for a step without a medium.
   struct StepHeatDuty {
-    double heating_power = 0.0;  // [W] sum of the positive energy-source powers
-    double cooling_power = 0.0;  // [W] magnitude of the negative ones (>= 0)
+    double heating_power = 0.0;    // [W] sum of the positive energy-source powers
+    double cooling_power = 0.0;    // [W] magnitude of the negative ones (>= 0)
+    double medium_heat_in = 0.0;   // [J] heat the medium gave the wall over the step
+    double medium_heat_out = 0.0;  // [J] heat the wall gave the medium over the step (>= 0)
   };
+
+  // Instantaneous heat flow [W] from the running step's heating medium into the
+  // wall, split into its positive (in) and negative (out, as a magnitude)
+  // parts over the cells of outer surface. {0, 0} with no medium or in an
+  // isothermal run. `time_in_step` is seconds since the step started.
+  struct MediumHeatFlow {
+    double in = 0.0;
+    double out = 0.0;
+  };
+  MediumHeatFlow HeatingMediumHeatFlow(const Equations& state, double time_in_step);
 
   struct Log {
     StepData step_data;  // Shared metadata including times
@@ -369,6 +390,9 @@ namespace adsim {
     DomainVectors domain;
     int current_logged_cycle_ = -1;     // Track which cycle we're currently logging
     int current_logged_step_ = -1;      // Track which step we're currently logging
+    // Previous logged point of the current step, for integrating the medium duty.
+    double medium_prev_t_ = 0.0;
+    MediumHeatFlow medium_prev_flow_{};
 
   };
 
