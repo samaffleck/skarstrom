@@ -8,6 +8,7 @@
 
 // STL includes
 #include <atomic>
+#include <limits>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -298,16 +299,83 @@ namespace adsim {
 
   using LayerID = size_t;
 
-  class StructuredLayer {
+  // What a layer is packed with (a geometry option of MixedAdsorbentLayer):
+  //   Packed:   a bed of particles (bed void fraction, particle diameter and
+  //             a momentum model).
+  //   Monolith: straight parallel channels in a honeycomb (cell density, wall
+  //             thickness, channel shape, washcoat).
+  //   Laminate: parallel sheets with a gap between them (sheet thickness,
+  //             gap, washcoat).
+  // Enumerator values are what the deck stores, so never renumber them.
+  enum class LayerKind {
+    Packed = 0,
+    Monolith = 1,
+    Laminate = 2
+  };
+
+  static const char* LayerKindList[] = {
+    "Packed bed",  // 0
+    "Monolith",    // 1
+    "Laminate"     // 2
+  };
+
+  // Cross-section of a monolith channel. Stored; never renumber.
+  enum class ChannelShape {
+    Square = 0,
+    Circular = 1
+  };
+
+  static const char* ChannelShapeList[] = {
+    "Square",    // 0
+    "Circular"   // 1
+  };
+
+  // Geometry of a structured layer. Every field is kept whatever the kind,
+  // so switching kind loses nothing; only the fields of the layer's kind are
+  // used (MixedAdsorbentLayer's geometry getters).
+  class StructuredGeometry {
   public:
-    StructuredLayer() = default;
-    ~StructuredLayer() = default;
+    ChannelShape channel_shape_ = ChannelShape::Square;   // monolith
+    ExpressionParam cell_density_{6.2e5};       // monolith channels per cross-section [1/m2] (400 cpsi)
+    ExpressionParam wall_thickness_{1.65e-4};   // monolith wall between channels [m]
+    ExpressionParam sheet_thickness_{2e-4};     // laminate sheet [m]
+    ExpressionParam gap_{2e-4};                 // laminate gap between sheets [m]
+    ExpressionParam washcoat_thickness_{0.0};   // adsorbent layer on the channel walls [m]; 0 = the wall is the adsorbent
 
-    std::string name_ = "Layer 1";
-    double eb_ = 0.6; // void fraction [m3/m3]: A_void / A total
-    double wall_thickness_ = 0.02; // equivelant to particle diameter [m]
-    int number_of_channels_ = 100;
+    void EvaluateExpressions(const EvalContext& ctx) {
+      cell_density_.Evaluate(ctx);
+      wall_thickness_.Evaluate(ctx);
+      sheet_thickness_.Evaluate(ctx);
+      gap_.Evaluate(ctx);
+      washcoat_thickness_.Evaluate(ctx);
+    }
 
+  private:
+    friend class cereal::access;
+    template<class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      (void)version;
+      ar(
+        cereal::make_nvp("Channel_Shape", channel_shape_),
+        cereal::make_nvp("Cell_Density", cell_density_),
+        cereal::make_nvp("Wall_Thickness", wall_thickness_),
+        cereal::make_nvp("Sheet_Thickness", sheet_thickness_),
+        cereal::make_nvp("Gap", gap_),
+        cereal::make_nvp("Washcoat_Thickness", washcoat_thickness_)
+      );
+    }
+  };
+
+  // Read-only geometry of a layer for front ends (LayerGeometrySummary).
+  struct LayerGeometry {
+    LayerKind kind = LayerKind::Packed;
+    double open_fraction = 0.0;           // gas fraction of the cross-section [-]
+    double hydraulic_diameter = 0.0;      // [m]
+    double specific_surface_area = 0.0;   // gas-solid area per bed volume [1/m]
+    double diffusion_length = 0.0;        // [m]: washcoat thickness, else half the wall/sheet (packed: dp / 2)
+    double channel_count = std::numeric_limits<double>::quiet_NaN();  // monolith channels across the column; NaN otherwise
+    double washcoat_fraction = 0.0;       // washcoat share of the solid cross-section [-]
+    double friction_factor_reynolds = 0.0;  // laminar Fanning f Re of the channel; 0 for packed
   };
 
   class MixedAdsorbentLayer {
@@ -327,12 +395,20 @@ namespace adsim {
     MomentumModel momentum_model_ = MomentumModel::Ergun;
     LayerEquations equations_{};
     std::map<AdsorbentID, double> composition_{};
+    // Packed (default; archives older than v4) or a structured kind, whose
+    // geometry is structured_. For a structured kind momentum_model_ is not
+    // used: the channels give laminar Darcy flow (GetPermeability).
+    LayerKind kind_ = LayerKind::Packed;
+    StructuredGeometry structured_{};
+
+    bool IsStructured() const { return kind_ != LayerKind::Packed; }
 
     void EvaluateExpressions(const EvalContext& ctx) {
       eb_.Evaluate(ctx);
       particle_diameter_.Evaluate(ctx);
       domain_.EvaluateExpressions(ctx);
       equations_.EvaluateExpressions(ctx);
+      structured_.EvaluateExpressions(ctx);
     }
 
     // Composition management
@@ -344,21 +420,48 @@ namespace adsim {
     bool ValidateComposition() const;
 
     // Computed properties
+    // The gas fraction of the bed outside the solid: eb_ for a packed bed,
+    // the open frontal area of the channels for a structured layer. Every use
+    // of the bed void fraction (gas holdup, bulk density, the dispersion area,
+    // the gas/solid split of heat) reads this.
+    double GetVoidFraction() const { return IsStructured() ? GetOpenFraction() : eb_.Get(); }
+
     double GetTotalVoidFraction(const AdsorbentDirectory& dir) const {
-      const double e = eb_.Get();
+      const double e = GetVoidFraction();
       return e + (1 - e) * GetEffectiveParticleVoidFraction(dir);
     }
 
     // Layer bulk density (1 - eb) * rho_s [kg adsorbent / m3 bed]; equals the
     // sum of GetAdsorbentBulkDensities().
     double GetBulkDensity(const AdsorbentDirectory& dir) const {
-      return (1 - eb_.Get()) * GetEffectiveSolidDensity(dir);
+      return (1 - GetVoidFraction()) * GetEffectiveSolidDensity(dir);
     }
 
     // Viscous permeability K [m2] (A = mu / K) and inertial coefficient
-    // beta [1/m] (B = beta * rho) of the layer's momentum model.
+    // beta [1/m] (B = beta * rho) of the layer's momentum model. A structured
+    // layer: K = OFA D_h^2 / (2 fRe) (laminar channel flow on the superficial
+    // velocity) and beta = 0, whatever momentum_model_.
     double GetPermeability() const;
     double GetInertialCoefficient() const;
+
+    // Geometry. Packed: OFA = eb, D_h = (2/3) eb dp / (1 - eb), a_v =
+    // 6 (1 - eb) / dp. Structured, with pitch p = 1 / sqrt(cell density) and
+    // open width a = p - w - 2 t_wc (monolith):
+    //   square:   OFA = a^2 / p^2,          D_h = a,              a_v = 4 a / p^2,  fRe = 14.23
+    //   circular: OFA = pi a^2 / (4 p^2),   D_h = a,              a_v = pi a / p^2, fRe = 16
+    //   laminate: OFA = (g - 2 t_wc)/(g + t), D_h = 2 (g - 2 t_wc), a_v = 2 / (g + t), fRe = 24
+    // Values outside the valid range (a <= 0, ...) are returned as computed;
+    // CheckLayerGeometry reports them.
+    double GetOpenFraction() const;
+    double GetHydraulicDiameter() const;
+    double GetSpecificSurfaceArea() const;
+    // Laminar Fanning friction factor times Re of a channel (0 for packed).
+    double GetFrictionFactorReynolds() const;
+    // Diffusion length into the solid [m]: the washcoat thickness, or half
+    // the wall (monolith) or sheet (laminate) without one; dp / 2 if packed.
+    double GetDiffusionLength() const;
+    // Washcoat share of the solid cross-section [-] (0 for packed or no washcoat).
+    double GetWashcoatFraction() const;
 
     // Effective material properties. composition_ holds mass fractions w_k:
     // rho_s = 1 / sum_k(w_k / rho_k); eps_p and k_s are weighted by the solid
@@ -406,8 +509,28 @@ namespace adsim {
         cereal::make_nvp("Composition", composition_),
         cereal::make_nvp("ID", id_)
       );
+      // v4: the layer kind and its structured geometry (always written).
+      // Older archives are packed beds with the default geometry.
+      if (version >= 4) {
+        ar(
+          cereal::make_nvp("Kind", kind_),
+          cereal::make_nvp("Structured_Geometry", structured_)
+        );
+      } else {
+        kind_ = LayerKind::Packed;
+      }
     }
   };
+
+  // The geometry of a layer for front ends; `cross_section_area` [m2] (the
+  // column's, Bed::GetArea) gives the monolith channel count.
+  LayerGeometry LayerGeometrySummary(const MixedAdsorbentLayer& layer, double cross_section_area);
+
+  // Errors of a layer's geometry (structured kinds; none for packed): open
+  // fraction outside (0, 1), a non-positive hydraulic diameter or diffusion
+  // length (the walls and washcoat leave no channel: w + 2 t_wc >= p, or
+  // 2 t_wc >= gap), or a non-positive input. Each message starts "Error: ".
+  std::vector<std::string> CheckLayerGeometry(const MixedAdsorbentLayer& layer);
 
   // |sum_k w_k - 1| above which a layer composition is an error.
   inline constexpr double kCompositionSumTolerance = 1e-6;
@@ -565,5 +688,6 @@ CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
 // translation unit that saves or loads a deck must see the same numbers.
 CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
 CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
-CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 3);
+CEREAL_CLASS_VERSION(adsim::StructuredGeometry, 1);
+CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 4);
 CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);

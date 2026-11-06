@@ -55,9 +55,22 @@ namespace adsim {
     if (dom.bottom_void_cell_index > 0) column_cells.push_back(dom.bottom_void_cell_index);
     if (dom.top_void_cell_index > 0) column_cells.push_back(dom.top_void_cell_index);
     // Faces between two packed cells (face n lies between cells n and n + 1).
+    // A structured layer (monolith, laminate) is a fixed solid that cannot be
+    // lifted, so faces touching its cells are not checked for fluidisation.
+    std::vector<bool> structured_cell;
+    for (const auto& layer : data.bed.layers_.layers_) {
+      if (!layer.IsStructured()) continue;
+      const int last = layer.domain_.end_index;
+      if (last >= static_cast<int>(structured_cell.size())) structured_cell.resize(last + 1, false);
+      for (int i = std::max(layer.domain_.start_index, 0); i <= last; ++i) structured_cell[i] = true;
+    }
+    auto is_structured = [&](int i) {
+      return i >= 0 && i < static_cast<int>(structured_cell.size()) && structured_cell[i];
+    };
     std::vector<int> bed_faces;
     for (size_t k = 0; k + 1 < bed_cells.size(); ++k)
-      if (bed_cells[k + 1] == bed_cells[k] + 1) bed_faces.push_back(bed_cells[k]);
+      if (bed_cells[k + 1] == bed_cells[k] + 1 && !is_structured(bed_cells[k]) && !is_structured(bed_cells[k + 1]))
+        bed_faces.push_back(bed_cells[k]);
     const double z0 = (dom.bed_face_index_begin < static_cast<int>(dom.positions.size()))
                           ? dom.positions[dom.bed_face_index_begin] : 0.0;
 

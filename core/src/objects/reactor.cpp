@@ -29,6 +29,16 @@ namespace adsim {
     }
     if (!compositions_ok) return false;
 
+    // Structured layers: a geometry that leaves an open channel (porous_media.h).
+    bool geometry_ok = true;
+    for (const auto& layer : layers_.layers_) {
+      for (const auto& e : CheckLayerGeometry(layer)) {
+        errorMsg += e + "\n";
+        geometry_ok = false;
+      }
+    }
+    if (!geometry_ok) return false;
+
     // Check that LTNE mode has a valid particle heat transfer model
     if (equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL) {
       if (!equations_.particle_heat_transfer_model_) {

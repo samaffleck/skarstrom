@@ -177,6 +177,14 @@ const std::vector<std::string>& MomentumKinds() {
   static const std::vector<std::string> k{"kozeny_carman", "ergun", "blake_kozeny"};
   return k;
 }
+const std::vector<std::string>& LayerKinds() {
+  static const std::vector<std::string> k{"packed", "monolith", "laminate"};
+  return k;
+}
+const std::vector<std::string>& ChannelShapeKinds() {
+  static const std::vector<std::string> k{"square", "circular"};
+  return k;
+}
 const std::vector<std::string>& DispersionKinds() {
   static const std::vector<std::string> k{"constant", "ruthven"};
   return k;
@@ -490,6 +498,14 @@ void SetLayerComposition(UserData& data, size_t layer,
 
 void SetMomentum(UserData& data, size_t layer, const std::string& kind) {
   GetLayer(data, layer).momentum_model_ = KindEnum<MomentumModel>(MomentumKinds(), kind, "momentum");
+}
+
+void SetLayerKind(UserData& data, size_t layer, const std::string& kind) {
+  GetLayer(data, layer).kind_ = KindEnum<LayerKind>(LayerKinds(), kind, "layer kind");
+}
+
+void SetChannelShape(UserData& data, size_t layer, const std::string& shape) {
+  GetLayer(data, layer).structured_.channel_shape_ = KindEnum<ChannelShape>(ChannelShapeKinds(), shape, "channel shape");
 }
 
 void SetDispersion(UserData& data, size_t layer, const std::string& kind) {

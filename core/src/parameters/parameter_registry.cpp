@@ -936,9 +936,10 @@ namespace adsim {
         Emplace(lp + ".mass_fraction[" + std::to_string(ads_id) + "]", la + ".mass_fraction[" + an + "]", "layer", ln,
                 an + " mass fraction", "-", fraction, 0.0, 1.0);
       }
-      E("bed_void_fraction", "bed void fraction", "-", layer.eb_, 0.2, 0.8);
-      E("particle_diameter", "particle diameter", "m", layer.particle_diameter_, 1e-5, 0.01);
-      {
+      if (!layer.IsStructured()) {
+        // A packed bed.
+        E("bed_void_fraction", "bed void fraction", "-", layer.eb_, 0.2, 0.8);
+        E("particle_diameter", "particle diameter", "m", layer.particle_diameter_, 1e-5, 0.01);
         // 0 = Darcy (Kozeny-Carman), 1 = Ergun, 2 = Darcy (Blake-Kozeny).
         auto& p = Add(Info(lp + ".momentum_model", la + ".momentum_model", "layer", ln, "momentum model", "-",
                            ParameterKind::Integer, std::numeric_limits<double>::quiet_NaN(),
@@ -947,6 +948,32 @@ namespace adsim {
         MixedAdsorbentLayer* l = &layer;
         p.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->momentum_model_)); };
         p.set_int_ = [l](long long x) { l->momentum_model_ = static_cast<MomentumModel>(static_cast<int>(x)); };
+      } else {
+        // A structured layer: only the fields of its kind. The particle
+        // diameter stays listed while the packed-bed transfer closures (Re,
+        // Ruthven dispersion, Yagi-Kunii, Dixon/Leva, the macropore LDF
+        // radius) still read it; bed void fraction and momentum model are not
+        // used (the open frontal area and laminar channel flow replace them).
+        E("particle_diameter", "particle diameter (used by the packed-bed transfer closures until channel closures exist)",
+          "m", layer.particle_diameter_, 1e-5, 0.01);
+        auto& g = layer.structured_;
+        if (layer.kind_ == LayerKind::Monolith) {
+          // 0 = square, 1 = circular.
+          auto& p = Add(Info(lp + ".channel_shape", la + ".channel_shape", "layer", ln, "channel shape", "-",
+                             ParameterKind::Integer, std::numeric_limits<double>::quiet_NaN(),
+                             std::numeric_limits<double>::quiet_NaN()));
+          p.info_.choices = {"square", "circular"};
+          StructuredGeometry* sg = &g;
+          p.get_int_ = [sg] { return static_cast<long long>(static_cast<int>(sg->channel_shape_)); };
+          p.set_int_ = [sg](long long x) { sg->channel_shape_ = static_cast<ChannelShape>(static_cast<int>(x)); };
+          // 100 to 1300 cells per square inch.
+          E("cell_density", "cell density", "1/m2", g.cell_density_, 1.55e5, 2.0e6);
+          E("wall_thickness", "wall thickness", "m", g.wall_thickness_, 5e-5, 1e-3);
+        } else {
+          E("sheet_thickness", "sheet thickness", "m", g.sheet_thickness_, 5e-5, 2e-3);
+          E("gap", "gap between sheets", "m", g.gap_, 5e-5, 2e-3);
+        }
+        E("washcoat_thickness", "washcoat thickness", "m", g.washcoat_thickness_, 0.0, 2e-4);
       }
 
       auto& eqs = layer.equations_;

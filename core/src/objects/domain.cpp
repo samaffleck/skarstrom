@@ -66,7 +66,7 @@ namespace adsim {
       double c_bulk_density = layer.GetBulkDensity(dir);
       double c_ep = layer.GetEffectiveParticleVoidFraction(dir);
       double c_et = layer.GetTotalVoidFraction(dir);
-      double c_eb = layer.eb_;
+      double c_eb = layer.GetVoidFraction();  // eb_, or the open frontal area of a structured layer
       double c_dp = layer.particle_diameter_;
       double c_ks = layer.GetEffectiveThermalConductivity(dir);
       const auto c_ads_bulk_density = layer.GetAdsorbentBulkDensities(dir);
