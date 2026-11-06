@@ -3,6 +3,7 @@
 
 #include <muParser.h>
 
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -42,6 +43,15 @@ void NonFiniteExpressionAudit::Record(const ExpressionParam& p) {
 namespace {
 // Names Evaluate() binds to the run-time state (EvalContext T, P, c, y, v).
 constexpr const char* kStateVariables[] = {"T", "P", "c", "y", "v"};
+
+// A per-component state name (EvalContext::components): p_, c_ or y_ followed
+// by a component name, which starts with an upper-case letter (CoolProp
+// names: Methane, CarbonDioxide, ...). User variables such as p_feed are not.
+bool IsComponentStateName(const std::string& name) {
+    if (name.size() < 3 || name[1] != '_') return false;
+    if (name[0] != 'p' && name[0] != 'c' && name[0] != 'y') return false;
+    return std::isupper(static_cast<unsigned char>(name[2])) != 0;
+}
 } // namespace
 
 bool ExpressionParam::UsesStateVariables() const {
@@ -59,6 +69,8 @@ bool ExpressionParam::UsesStateVariables() const {
         const auto& used = p.GetUsedVar();
         for (const char* name : kStateVariables)
             if (used.count(name)) return true;
+        for (const auto& [name, unused] : used)
+            if (IsComponentStateName(name)) return true;
     } catch (const mu::Parser::exception_type&) {
         // Unparseable: Evaluate() reports the error; not state-dependent.
     }
@@ -110,6 +122,24 @@ bool ExpressionParam::Evaluate(const EvalContext& ctx) {
         p.DefineVar("c", &c);
         p.DefineVar("y", &y);
         p.DefineVar("v", &v);
+
+        // Per-component state (reaction rate expressions), before the user
+        // variables so a user variable of the same name wins.
+        std::vector<double> comp_vals;
+        if (ctx.components) {
+            comp_vals.reserve(3 * ctx.components->size());
+            for (const auto& cs : *ctx.components) {
+                comp_vals.push_back(cs.p);
+                comp_vals.push_back(cs.c);
+                comp_vals.push_back(cs.y);
+            }
+            for (size_t i = 0; i < ctx.components->size(); ++i) {
+                const std::string& n = (*ctx.components)[i].name;
+                p.DefineVar("p_" + n, &comp_vals[3 * i]);
+                p.DefineVar("c_" + n, &comp_vals[3 * i + 1]);
+                p.DefineVar("y_" + n, &comp_vals[3 * i + 2]);
+            }
+        }
 
         // User-defined variables
         std::unordered_map<std::string, double> user_vars;

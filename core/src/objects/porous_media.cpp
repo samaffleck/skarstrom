@@ -24,6 +24,7 @@ namespace adsim {
 		thermal_conductivity_.Evaluate(ctx);
 		ep_.Evaluate(ctx);
 		adsorption_source_.EvaluateExpressions(ctx);
+		reaction_source_.EvaluateExpressions(ctx);
 	}
 
 	void AdsorptionSource::Initialise(const Fluid& fluid) {
@@ -416,7 +417,8 @@ namespace adsim {
 } // end adsim namespace
 
 CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
-CEREAL_CLASS_VERSION(adsim::Adsorbent, 4);
+// adsim::Adsorbent's version is in porous_media.h: its serialize branches on
+// it, so every translation unit that saves a deck must see the same number.
 CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
 CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 3);
 CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);
