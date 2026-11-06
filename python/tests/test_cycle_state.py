@@ -130,3 +130,39 @@ def test_no_final_state_before_a_run():
     assert not sim.has_final_state
     with pytest.raises(RuntimeError):
         sim.final_state()
+
+
+def test_run_with_initial_state(states):
+    x, reference = states
+    sim = make()
+    assert sim.run(cycles=1, initial_state=x).ok
+    assert sim.final_state().cycles == 3
+    assert difference(sim.final_state(), reference) < 1e-4
+    assert sim.initial_state is None  # for that run only
+    assert sim.run(cycles=1).ok
+    assert sim.final_state().cycles == 1
+    # the run's own final state can be passed back in
+    assert sim.run(cycles=1, initial_state=sim.final_state()).ok
+    assert sim.final_state().cycles == 2
+
+
+def test_prepare_state_after_edits(states):
+    x, _ = states
+    sim = make(cells=30)
+    path = next(p.path for p in sim.parameters(tunable_only=True) if p.path.endswith(".time"))
+    sim[path] = sim.get(path) * 1.25
+    assert sim.check_state(x) == ""
+    y, note = sim.prepare_state(x)
+    assert "stretched" in note and "remapped" in note
+    assert [l["cells"] for l in y.layers] == [30] * len(y.layers)
+    assert y.cycles == x.cycles
+    r = sim.run(cycles=1, initial_state=x)
+    assert r.ok, r.message
+    assert any(text.startswith("Initial state:") for _, text in sim.messages)
+
+    wrong = make()
+    wrong.add_component("Argon")
+    with pytest.raises(ValueError, match="components"):
+        wrong.prepare_state(x)
+    r = wrong.run(cycles=1, initial_state=x)
+    assert r.status == "failed" and "components" in r.message

@@ -109,8 +109,8 @@ sim.run()                              # reaches CSS after 49 cycles
 x = sim.final_state()                  # a skarstrom.CycleState
 
 other = sk.examples.Perez2019_A.load()
-other.set_initial_state(x)             # warm start: later runs start from x
-other.run()                            # reaches CSS again after 4 cycles
+other.run(initial_state=x)             # this run starts from x: CSS again after 4 cycles
+other.set_initial_state(x)             # or: every later run starts from x
 
 other.run_cycle(x)                     # exactly one cycle from x
 gx = other.final_state()               # the cycle map applied to x
@@ -120,18 +120,18 @@ gx.field("Mole Fraction", "CarbonDioxide")
 
 - `run_cycle()` without a state continues from the last run's final state, so repeated calls step through the cycles one by one. It leaves the deck's number of cycles unchanged.
 - A warm-started run counts the cycles behind the state towards the **minimum cycles** floor. The consecutive-cycles rule still applies, and the first cycle has no earlier cycle in the log to compare with. With the defaults (3 consecutive cycles), a run from a state at CSS therefore stops after 4 cycles. On the example decks: Perez2019_A 49 → 4 cycles, Nguyen2023_Exp_VI 80 → 4, Illustrative_TSA_13X 16 → 4, with the same purity and recovery to 1e-5.
-- After a parameter change, a warm start from the previous CSS saves less, because successive cycles still have to carry the bed to the new CSS. In Perez2019_A, warm-starting from the base case after a 5 % longer first step needs 25 cycles instead of 47; after a 20 % change, 34 instead of 42.
-- A state that does not fit the deck is refused with the reason (`check_state`; `set_initial_state` raises `ValueError`). That happens when the components, layers or void regions differ, or the steps or endpoints differ. Different cell counts are not a reason: the run transfers the state onto the deck's grid (see below). Changed step times are refused only when the deck's connections or buffer tanks read the state's histories (resampling the histories is not supported yet). A different state layout, such as another energy-balance mode, fails the run with the reason.
+- After an edit, a warm start from the previous CSS saves less, because successive cycles still have to carry the bed to the new CSS (see [Warm starts after an edit](#warm-starts-after-an-edit)).
+- A state that does not fit the deck is refused with the reason (`check_state`; `set_initial_state` raises `ValueError`). That happens when the components, layers or void regions differ, or the steps or endpoints differ. Different cell counts and step times are not reasons: the run adapts the state (see below). A different state layout, such as another energy-balance mode, fails the run with the reason.
 - The state lives for the session only. It is never written to the deck file. It is cleared by the next run and by loading a deck; the warm-start state stays until `clear_initial_state()` or a deck load.
 
-In C++ the same is `Simulation::FinalState`, `SetInitialState`, `RunCycle` and `CheckState`, with the state in `adsim/solver/cycle_state.h`. The chunked run (`Start` / `Advance`) always starts from the initial conditions.
+In C++ the same is `Simulation::FinalState`, `RunOptions::initial_state`, `SetInitialState`, `RunCycle` and `CheckState`, with the state in `adsim/solver/cycle_state.h`. The chunked run (`Start` / `Advance`) always starts from the initial conditions.
 
 ### Moving a state to another grid
 
 A state taken on one grid can start a run on another grid of the same deck, with different cells per layer. The run transfers the state first:
 
 - Inside each layer, every per-cell field is remapped by overlap-weighted cell averages on the layer's uniform cells. The remap keeps each field's layer average and never creates new extremes.
-- The gas is remapped as component concentrations. The composition and the pressure are then rebuilt from those concentrations and the remapped fluid temperature.
+- The gas is remapped as component concentrations, and the fluid temperature weighted by the gas concentration (which keeps the gas's sensible heat). The composition and the pressure are then rebuilt from them, so the pressure is the plain cell average of the old pressure and has no new extremes.
 - So every component's gas and adsorbed inventory in every layer is kept to rounding: fine to coarse, coarse to fine, and between uneven counts.
 - The velocity is interpolated. It is only a starting guess: the solver's consistent-initial-condition step fixes it and the other algebraic variables, as it does for any warm start.
 - The connection histories and buffer-tank summaries belong to steps, not cells, so they are carried over unchanged.
@@ -148,6 +148,31 @@ So a grid-refinement study can start each level from the previous level's CSS. O
 The purity and recovery agree with the cold run to 5e-5.
 
 In C++ the transfer is `RemapCycleState` in `adsim/solver/cycle_state.h`, also available as `Simulation::RemapState`.
+
+### Changed step times
+
+When a step's time has changed since the state was taken, the run stretches that step's logged histories onto the new duration. The shape stays the same in step-relative time, so a connected inlet replays the same profile over the new step. The total moles in its buffer-tank summaries are scaled with the duration, so the average flow stays the same. A step whose old or new time is zero has its histories cleared, and its consumers use their first-cycle values. The first cycle then corrects whatever the stretch got wrong.
+
+`sim.prepare_state(x)` returns the state as the run would start from it, together with a note of what was done. The run puts the same note in its messages (*Initial state: ...*). In C++ this is `Simulation::PrepareState` / `PrepareCycleState`.
+
+### Warm starts after an edit
+
+A study changes the deck between runs. A warm start from the previous run's CSS reaches the new CSS with the same purity and recovery as a cold start of the edited deck, in fewer cycles. These are the example decks as shipped, each warm-started from the CSS of the unedited deck:
+
+| Deck (cells, base CSS cycles) | Edit | Cold | Warm | Purity / recovery difference |
+|---|---|---|---|---|
+| Illustrative_TSA_13X (30 cells, 16) | Adsorption step +10 % | 15 | 9 | 7e-8 / 4e-7 |
+| Illustrative_TSA_13X | feed CO₂ 0.15 → 0.20 | 15 | 10 | 5e-7 / 3e-6 |
+| Illustrative_TSA_13X | cells × 1.5 (30 → 45) | 16 | 5 | 6e-7 / 4e-6 |
+| Perez2019_A (80 cells, 49) | Feed step +10 % | 46 | 31 | 2e-6 / 6e-5 |
+| Perez2019_A | feed CO₂ 0.15 → 0.20 | 50 | 44 | 4e-11 / 4e-5 |
+| Perez2019_A | cells × 1.5 (80 → 120) | 49 | 6 | 2e-6 / 3e-5 |
+| Nguyen2023_Exp_VI (80 cells, 80) | Feed 2 step +10 % | 68 | 50 | 7e-7 / 1e-5 |
+| Nguyen2023_Exp_VI | connected Feed 1 + Pressurisation 50 → 55 s (histories stretched) | 76 | 45 | 7e-7 / 7e-7 |
+| Nguyen2023_Exp_VI | feed CO₂ 0.15 → 0.20 | 52 | 48 | 4e-6 / 4e-5 |
+| Nguyen2023_Exp_VI | cells × 1.5 (80 → 120) | 81 | 16 | 5e-6 / 1e-5 |
+
+The saving is largest when the edit leaves the bed close to its old CSS, as with a grid refinement. An edit that moves the CSS a long way still leaves many cycles of slow approach. The largest differences come from where the stopping rule halts each run, not from the start.
 
 ## Practical guidance
 
