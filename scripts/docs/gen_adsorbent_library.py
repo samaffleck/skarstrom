@@ -54,7 +54,7 @@ ISOTHERM_KINDS = [
     "extended_single_site_langmuir_c", "extended_dual_site_langmuir_c",
     "anti_langmuir", "freundlich", "sips", "sips_2", "extended_sips_2",
     "dual_site_sips", "redlich_peterson", "toth", "toth_2", "arrhenius_sips",
-    "extended_langmuir_freundlich",
+    "extended_langmuir_freundlich", "gab", "gab_young",
 ]
 # Display labels (mirror isothermModelNames in isotherm.h).
 ISOTHERM_LABELS = {
@@ -79,6 +79,8 @@ ISOTHERM_LABELS = {
     "toth_2": "Toth 2",
     "arrhenius_sips": "Arrhenius Sips (Schell 2012)",
     "extended_langmuir_freundlich": "Extended Langmuir-Freundlich",
+    "gab": "GAB",
+    "gab_young": "GAB (Young 2021 energies)",
 }
 
 FAMILIES = ["zeolite", "carbon", "MOF", "silica", "alumina", "amine", "other"]

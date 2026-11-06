@@ -45,12 +45,13 @@ inline constexpr auto kAllIsothermTypes = std::to_array<IsothermType>({
     IsothermType::EXTENDED_SIPS_2, IsothermType::DUAL_SITE_SIPS,
     IsothermType::REDLICH_PETERSON, IsothermType::TOTH,
     IsothermType::TOTH_2, IsothermType::ARRHENIUS_SIPS,
-    IsothermType::EXTENDED_LANGMUIR_FREUNDLICH});
+    IsothermType::EXTENDED_LANGMUIR_FREUNDLICH,
+    IsothermType::GAB, IsothermType::GAB_YOUNG});
 
 // A kind missing from this list is rejected by KindFromString. Keep the list a permutation of the
 // enum: one entry per IsothermType, each exactly once.
 static_assert(kAllIsothermTypes.size() ==
-                  static_cast<std::size_t>(IsothermType::EXTENDED_LANGMUIR_FREUNDLICH) + 1,
+                  static_cast<std::size_t>(IsothermType::GAB_YOUNG) + 1,
               "kAllIsothermTypes must list every IsothermType");
 static_assert(
     [] {
@@ -105,6 +106,19 @@ void EnsureIsothermComponent(IIsotherm* iso, const std::string& component);
 // pressure P [Pa], mole fraction yi) using the direct IsothermFunction free
 // functions. For a single-component (pure) plot pass yi=1 so partial pressure =
 // P. Extended/competitive variants reuse the base function (pure-component limit).
+// The GAB kinds take the component's saturation pressure from CoolProp.
 double EvalIsotherm(IIsotherm* iso, const std::string& component, double T, double P, double yi);
+
+// Isosteric heat of adsorption q_st [J/mol, positive for exothermic
+// adsorption] implied by the isotherm's temperature dependence, at the loading
+// of the pure component at partial pressure P yi and temperature T:
+//   q_st = R T^2 (d ln p / dT)_q = -R T^2 (dq/dT)_p / (dq/d ln p)_T,
+// both partials by central differences of EvalIsotherm. For Langmuir with
+// b = b0 exp(Q / (R T)) this is Q at every loading; for the GAB kinds it varies
+// with loading and includes the heat of condensation through p_sat(T). The
+// energy balance does not call this: it takes the adsorbent's constant
+// heat_of_adsorption[component]; this gives the value to put there (or checks
+// one). NaN when P yi <= 0.
+double IsostericHeat(IIsotherm* iso, const std::string& component, double T, double P, double yi);
 
 }  // namespace adsim
