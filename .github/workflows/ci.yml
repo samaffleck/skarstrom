@@ -16,7 +16,12 @@
 # (`ctest -LE "paper|slow"`). Pushes to main, the nightly run and manual runs
 # (Actions > CI > Run workflow, on any branch: use it to run the paper suites
 # on a pull request's branch before merging) run all three tiers on every
-# platform. ctest's per-test timings are cached between runs, so the next run
+# platform.
+#
+# Emscripten. Pull requests build the engine with native WebAssembly
+# exceptions (ADSIM_EMSCRIPTEN_EXCEPTIONS=wasm, the default and what the web
+# front end ships). Pushes to main, nightly and manual runs also build it with
+# JavaScript-based exceptions (=js). ctest's per-test timings are cached between runs, so the next run
 # starts the longest tests first.
 #
 # Build caching: every C++ build goes through ccache, Windows included (Ninja
@@ -292,7 +297,10 @@ jobs:
           } >> "$GITHUB_ENV"
       - name: Build the subproject consumer with emcmake and run it under Node.js (native Wasm exceptions, the default)
         run: JOBS=4 bash scripts/test_subproject_consumer.sh --emscripten
+      # The JS-exceptions variant is not what the web front end ships, so pull
+      # requests skip it; pushes to main, nightly and manual runs build it.
       - name: The same with JavaScript-based exceptions (ADSIM_EMSCRIPTEN_EXCEPTIONS=js)
+        if: github.event_name != 'pull_request'
         run: BUILD_DIR=build_subproject_emscripten_js JOBS=4 CMAKE_ARGS="-DADSIM_EMSCRIPTEN_EXCEPTIONS=js" bash scripts/test_subproject_consumer.sh --emscripten
 
   subproject:
