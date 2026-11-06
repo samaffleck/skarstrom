@@ -1,6 +1,6 @@
-// WriteFileAtomically / SaveToJsonAtomically (test/fixtures/atomic_write.h):
-// the helper the suite uses to re-save example decks while other tests may be
-// reading them. A reader must only ever see a complete old or new file, the
+// WriteFileAtomically / SaveToJsonAtomically / SaveAdsorbentToJsonAtomically
+// (test/fixtures/atomic_write.h): the helpers the suite uses to re-save example
+// decks and adsorbent library files while other tests may be reading them. A reader must only ever see a complete old or new file, the
 // temporary file must not be left behind, and failures must throw.
 
 #include <algorithm>
@@ -190,6 +190,34 @@ namespace adsim {
       ASSERT_FALSE(plain.empty());
       EXPECT_EQ(ReadAll(dir_ / "atomic.json"), plain);
       EXPECT_EQ(Listing(dir_), (std::vector<std::string>{"atomic.json", "plain.json"}));
+    }
+
+    TEST_F(AtomicWrite, SaveAdsorbentToJsonAtomicallyMatchesSaveAdsorbentToJSON) {
+      // Same bytes as the engine's SaveAdsorbentToJSON, so re-saved library
+      // files in data/adsorbents/ do not change because of the atomic write.
+      Adsorbent adsorbent;
+      adsorbent.name_ = "Test solid";
+      adsorbent.solid_density_ = 1138.0;
+      adsorbent.heat_capacity_ = 900.0;
+      SaveAdsorbentToJSON((dir_ / "plain.json").string(), adsorbent);
+      test::SaveAdsorbentToJsonAtomically(adsorbent, dir_ / "atomic.json");
+
+      const std::string plain = ReadAll(dir_ / "plain.json");
+      ASSERT_FALSE(plain.empty());
+      EXPECT_EQ(ReadAll(dir_ / "atomic.json"), plain);
+      EXPECT_EQ(Listing(dir_), (std::vector<std::string>{"atomic.json", "plain.json"}));
+
+      Adsorbent reloaded;
+      LoadAdsorbentFromJSON((dir_ / "atomic.json").string(), reloaded);
+      EXPECT_EQ(reloaded.name_, "Test solid");
+    }
+
+    TEST_F(AtomicWrite, SaveAdsorbentToJsonAtomicallyThrowsWhenDirectoryIsMissing) {
+      // The engine function returns silently here; the test helper must not.
+      Adsorbent adsorbent;
+      EXPECT_THROW(test::SaveAdsorbentToJsonAtomically(adsorbent, dir_ / "missing" / "a.json"),
+                   std::runtime_error);
+      EXPECT_TRUE(Listing(dir_).empty());
     }
 
   }  // namespace

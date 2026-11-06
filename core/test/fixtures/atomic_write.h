@@ -2,7 +2,7 @@
 
 // Atomic file replacement for files the test suite rewrites while other tests
 // may be reading them (the example decks in examples/decks/, re-saved by the
-// paper tests). Under `ctest --parallel` a reader that opens a deck while a
+// paper tests, and the adsorbent library files in data/adsorbents/). Under `ctest --parallel` a reader that opens a deck while a
 // plain std::ofstream is rewriting it sees truncated JSON. Writing to a
 // temporary file in the same directory and renaming it over the target means a
 // reader opens either the old or the new complete file, never a partial one.
@@ -23,6 +23,7 @@
 
 #include <cereal/archives/json.hpp>
 
+#include "adsim/objects/porous_media.h"
 #include "adsim/objects/user_data.h"
 
 namespace adsim::test {
@@ -115,6 +116,19 @@ namespace adsim::test {
     WriteFileAtomically(file_name, [&data](std::ostream& out) {
       cereal::JSONOutputArchive archive(out);  // flushes the closing braces on destruction
       archive(data);
+    });
+  }
+
+  // SaveAdsorbentToJSON (adsim/objects/porous_media.h) through
+  // WriteFileAtomically: the same bytes, but the rename is retried while a
+  // reader holds the file open (Windows) and failures throw. The engine
+  // function gives up silently on either, which would let a test reload the
+  // old library file without noticing.
+  inline void SaveAdsorbentToJsonAtomically(const Adsorbent& adsorbent,
+                                            const std::filesystem::path& file_name) {
+    WriteFileAtomically(file_name, [&adsorbent](std::ostream& out) {
+      cereal::JSONOutputArchive archive(out);  // flushes the closing braces on destruction
+      archive(adsorbent);
     });
   }
 

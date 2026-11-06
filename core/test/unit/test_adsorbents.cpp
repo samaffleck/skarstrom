@@ -7,6 +7,7 @@
 #include "adsim/objects/reactor.h"
 #include "adsim/objects/domain.h"
 #include "adsim/objects/fluid.h"
+#include "../fixtures/atomic_write.h"
 
 // Gtest includes
 #include <gtest/gtest.h>
@@ -26,7 +27,8 @@ namespace adsim {
     std::string json_filename = file_stem + ".json";
     std::filesystem::path json_path = db_path / json_filename;
 
-    SaveAdsorbentToJSON(json_path.string(), adsorbent);
+    // Atomic: other tests load these files while this one re-saves them.
+    test::SaveAdsorbentToJsonAtomically(adsorbent, json_path);
   }
 
   void LoadAdsorbent(const std::string& file_stem, Adsorbent& adsorbent) {
