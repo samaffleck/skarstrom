@@ -190,6 +190,89 @@ A study changes the deck between runs. A warm start from the previous run's CSS 
 
 The saving is largest when the edit leaves the bed close to its old CSS, as with a grid refinement. An edit that moves the CSS a long way still leaves many cycles of slow approach. The largest differences come from where the stopping rule halts each run, not from the start.
 
+## Verification against a long reference
+
+`core/test/validation/test_css_reference.cpp` (slow tier) checks, deck by deck, that a run stopped at CSS has reached the cyclic steady state of a much longer run. It compares the end-of-cycle state, not only the KPIs. For each deck it makes:
+
+- **plain**: a run to CSS with the deck's own rule;
+- **Aitken** and **Anderson**: the same run with each acceleration method;
+- **warm**: a warm start from the reference end state with every loading scaled by 0.8 and every temperature raised by 10 K, run to CSS from a cycle count of 0;
+- **reference**: the plain stop continued with the CSS check off, for two segments of max(100, plain stop + 1) cycles each.
+
+A CSS tolerance 100 times tighter than the default (2×10⁻⁷) would sit below the noise of the state change itself, about 10⁻⁶ at the default `settings.reltol`, and would stop only by chance. That is why the reference is a fixed long run instead. The distance between the ends of its two segments (the *drift*) shows how far the reference itself still is from the true CSS.
+
+Each run is compared with the reference in three ways:
+
+- **State**: the largest, over the fields, of the RMS difference divided by the scale of the [state test](#state-test). That is the RMS total loading for the loadings, 1 for the mole fractions, and the RMS value for pressure and the fluid, solid and wall temperatures.
+- **Histories**: each endpoint's logged run, through the moles it passed (relative to the largest endpoint flow) and their average composition.
+- **KPIs**: the purity and recovery of every tracked component, as absolute differences.
+
+Each distance is divided by the stop's state tolerance $\varepsilon$ (2×10⁻⁵ on every deck) to give $c$: a stop at tolerance $\varepsilon$ must be within $c\thinspace\varepsilon$ of the reference. The test holds every deck and method to one bound, $c \le 100$, and requires a reference drift of at most $1\cdot\varepsilon$. It prints the measured $c$ of each:
+
+| Deck | Run | CSS stop | $c$ state | $c$ histories | $c$ KPIs |
+|---|---|---|---|---|---|
+| `Illustrative_TSA_13X` | plain | 26 | 0.27 | 0.03 | 0.05 |
+| | Aitken | 20 | 0.03 | 0.003 | 0.002 |
+| | Anderson | 18 | 0.005 | 0.003 | 0.003 |
+| | warm | 18 | 0.26 | 0.03 | 0.05 |
+| `Perez2019_A` | plain | 48 | 4.0 | 1.3 | 1.2 |
+| | Aitken | 32 | 1.4 | 0.46 | 0.71 |
+| | Anderson | 35 | 4.7 | 1.0 | 1.7 |
+| | warm | 59 | 4.1 | 1.3 | 1.3 |
+| `Perez2019_E` | plain | 205 | 37 | 9.1 | 3.6 |
+| | Aitken | 65 | 21 | 5.0 | 2.0 |
+| | Anderson | 45 | 1.4 | 0.26 | 0.52 |
+| | warm | 273 | 36 | 8.6 | 3.4 |
+| `Nguyen2023_Exp_I` | plain | 36 | 2.1 | 0.38 | 0.25 |
+| | Aitken | 22 | 2.0 | 0.36 | 0.24 |
+| | Anderson | 18 | 1.1 | 0.13 | 0.43 |
+| | warm | 41 | 2.2 | 0.41 | 0.20 |
+| `Nguyen2023_Exp_VI` | plain | 79 | 7.4 | 2.5 | 0.14 |
+| | Aitken | 35 | 3.2 | 1.2 | 0.15 |
+| | Anderson | 33 | 3.3 | 1.1 | 0.08 |
+| | warm | 81 | 7.0 | 2.4 | 0.40 |
+| `Vysyaraju2024_PSA_exp1` (no KPI configured) | plain | 72 | 5.7 | 1.2 | — |
+| | Aitken | 72 | 7.2 | 1.2 | — |
+| | Anderson | 59 | 1.3 | 0.43 | — |
+| | warm | 72 | 5.8 | 1.0 | — |
+| `Ward2024` | plain | 153 | 21 | 1.4 | 0.42 |
+| | Aitken | 125 | 16 | 1.1 | 0.64 |
+| | Anderson | 102 | 14 | 0.77 | 0.56 |
+| | warm | 150 | 21 | 1.4 | 0.41 |
+| `FiveStepProductPurge` (no KPI configured; run with the per-component rule) | plain | 94 | 9.2 | 1.4 | — |
+| | Aitken | 65 | 4.6 | 0.66 | — |
+| | Anderson | 48 | 2.4 | 0.37 | — |
+| | warm | 87 | 9.3 | 1.4 | — |
+
+Reference drifts, as multiples of $\varepsilon$ (state / histories / KPIs):
+
+| Deck | Drift |
+|---|---|
+| `Illustrative_TSA_13X` | 0.004 / 0.005 / 0.004 |
+| `Perez2019_A` | 0.002 / 0.024 / 0.027 |
+| `Perez2019_E` | 0.23 / 0.09 / 0.34 |
+| `Nguyen2023_Exp_I` | 0.02 / 0.006 / 0.001 |
+| `Nguyen2023_Exp_VI` | 0.04 / 0.05 / 0.02 |
+| `Vysyaraju2024_PSA_exp1` | 0.17 / 0.17 / — |
+| `Ward2024` | 0.05 / 0.005 / 0.005 |
+| `FiveStepProductPurge` | 0.009 / 0.18 / — |
+
+A $c$ below the drift is at the reference's resolution. That applies to the smallest TSA figures and to Anderson's KPIs on `Perez2019_E`.
+
+What the table shows:
+
+- **Every stop is at the reference's CSS, within the bound.** None is near $c = 100$. The furthest are the plain and warm stops of the slowly converging decks: `Perez2019_E` ($c$ 37) and `Ward2024` (21). With a geometric approach of rate $\rho$, the error left at a stop is about $\varepsilon\rho/(1-\rho)$ (see [What the defaults deliver](#what-the-defaults-deliver)), so a slow deck stops further away. Lower `css.state_tolerance` for such a deck when the state itself matters.
+- **The bed state is the strictest measure.** The KPIs settle before the loadings do: on `Perez2019_E` the plain stop's loadings are 37 ε from the reference, its KPIs 3.6 ε.
+- **Anderson ends closest on the slow decks.** On `Perez2019_E` it stops at cycle 45 within 1.4 ε, where the plain run needs 205 cycles and ends 37 ε away. Aitken stops sooner than the plain run on most decks and ends as close or closer, except on `Vysyaraju2024_PSA_exp1` (same stop, slightly further).
+- **A warm start from a perturbed state reaches the same CSS as the plain run**, with practically the same $c$.
+
+**Decks left out.** The test runs eight of the example decks. The others are left out:
+
+- The breakthrough decks (Casas 2012, Nguyen 2022, Streb 2021, Ward 2022) run one step once and have no cyclic steady state.
+- `Perez2019_F`, `Nguyen2023_Exp_VII` to `Exp_X` and the two Arora decks stop after 300 to 1550 cycles. A reference of three times that would take 10 to 40 minutes per deck.
+- `Ferre2026_NaYF` takes about 1.2 s per cycle, so 15 minutes.
+- `Perez2019_B` to `D1` and `Nguyen2023_Exp_II` to `V` are the same cycles as the decks above at other operating points.
+
 ## Practical guidance
 
 - Set a generous **Number of Cycles** (an upper bound) and let a CSS method stop the run when converged.

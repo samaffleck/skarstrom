@@ -64,6 +64,10 @@ set(ADSIM_SLOW_TESTS
     "CSSAcceleration.SlowGeometricModeReachesCssSooner"
     # Anderson acceleration on Perez 2019 A and E as shipped (~50 s).
     "CSSAndersonDecks.*"
+    # CSS stops (plain, Aitken, Anderson) and a perturbed warm start against a
+    # long reference run, full state and KPIs, on eight example decks
+    # (1-8 min each).
+    "*CSSReference.*"
     # CSS behaviour on a slow (rate 0.97) cycle: needs 100+ cycles.
     "CSSConvergence.SlowCycleFollowsTheGeometricModel"
     "CSSConvergence.AitkenAccelerationReachesTheSameKpis"
