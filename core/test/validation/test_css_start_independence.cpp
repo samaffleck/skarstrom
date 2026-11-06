@@ -24,7 +24,8 @@
 // deck and start as CSSReference (test_css_reference.cpp): c <= 100. Two stops
 // approaching the CSS from different sides can be up to the sum of their own
 // distances from it apart; CSSReference measured those at most 37 eps (Perez
-// 2019 E), so two stops at most 74 eps apart. The measured c of each start is
+// 2019 E), so two stops at most 74 eps apart; measured here: at most 74
+// (Perez 2019 E, clean and hot against shipped). The measured c of each start is
 // printed and tabulated in docs/cyclic-steady-state.md. A disagreement beyond
 // the bound would mean several steady states or a stop rule that is too
 // loose; it is reported, never hidden by a looser bound.
