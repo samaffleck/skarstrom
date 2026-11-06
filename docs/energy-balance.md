@@ -12,12 +12,13 @@ When the energy balance is solved, the two thermal models are selected with the 
 This is the default. It assumes heat transfer between the gas and solid is fast enough that the two share a single temperature $T$, so one lumped energy equation is solved per cell.
 
 $$
-\left(\epsilon_t C_{p,g} \rho_g + C_{p,s} \rho_b\right) \frac{\partial T}{\partial t} - 
-\lambda \frac{\partial^2 T}{\partial z^2} - 
-\epsilon_t \frac{\partial P}{\partial t} + 
-u C_{p,g} \rho_g \frac{\partial T}{\partial z} + 
-\frac{4 h_i}{d_i} (T - T_w) -
-\frac{RT}{P}\rho_b\sum_{i=1}^{N}(-\Delta H_i)\frac{\partial{q_i}}{\partial{t}}
+\left(\epsilon_t \rho_g C_{p,g} + \rho_b C_{p,s} + \rho_b \sum_{i=1}^{N} C_{pa,i}\thinspace q_i\right) \frac{\partial T}{\partial t}
++ u \rho_g C_{p,g} \frac{\partial T}{\partial z}
+- \lambda \frac{\partial^2 T}{\partial z^2}
++ \frac{4 h_i}{d_i} (T - T_w)
+- \epsilon_t \frac{\partial P}{\partial t}
+- \rho_b\sum_{i=1}^{N}\Delta H_i^{\mathrm{eff}}\thinspace\frac{\partial q_i}{\partial t}
+- Q_e
 = 0
 $$
 
@@ -25,6 +26,7 @@ $$
 |-----------------|-----------------------------------------------------|----------------|
 | $C_{p,g}$       | Gas heat capacity                                   | J kg⁻¹ K⁻¹     |
 | $C_{p,s}$       | Adsorbent heat capacity                             | J kg⁻¹ K⁻¹     |
+| $C_{pa,i}$      | Adsorbed-phase molar heat capacity of component i ([below](#adsorbed-phase-heat-capacity)) | J mol⁻¹ K⁻¹ |
 | $T$             | Gas/Adsorbent temperature                           | K              |
 | $T_w$           | Wall temperature                                    | K              |
 | $P$             | Pressure                                             | Pa             |
@@ -35,10 +37,11 @@ $$
 | $\lambda$       | Effective axial thermal conductivity                | W m⁻¹ K⁻¹      |
 | $h_i$           | Internal heat transfer coefficient (gas–wall)       | W m⁻² K⁻¹      |
 | $d_i$           | Wall internal diameter                              | m              |
-| $q_i$           | Component i mass source                             | mol kg⁻¹ s⁻¹   |
-| $\Delta H_i$    | Component i heat of adsorption                      | J mol⁻¹        |
+| $q_i$           | Adsorbed loading of component i                     | mol kg⁻¹       |
+| $\Delta H_i^{\mathrm{eff}}$ | Heat released per mole of component i adsorbed (positive for exothermic adsorption) | J mol⁻¹ |
+| $Q_e$           | Step [energy source](#energy-source-heating-cooling) power per unit bed volume | W m⁻³ |
 
-The final term is the heat released (or absorbed) by adsorption, using the per-component heat of adsorption $\Delta H_i$ stored per adsorbent and component (parameter `adsorbent[<id>].heat_of_adsorption[<component>]`), read according to the [heat of adsorption convention](#heat-of-adsorption-convention) (by default, the isosteric heat). The wall-coupling term $\tfrac{4 h_i}{d_i}(T - T_w)$ links this equation to the [wall energy balance](wall-energy-balance.md).
+The adsorption term is the heat released by adsorption: $\Delta H_i^{\mathrm{eff}}$ follows from the per-component heat of adsorption stored per adsorbent (parameter `adsorbent[<id>].heat_of_adsorption[<component>]`, entered as a **positive** number for exothermic adsorption) according to the [heat of adsorption convention](#heat-of-adsorption-convention); with the default isosteric convention it is the stored value itself. So a loading bed ($\partial q_i/\partial t > 0$) heats up and a desorbing bed cools. In a layer of several adsorbents, $\rho_b C_{pa,i} q_i$ and $\rho_b \Delta H_i^{\mathrm{eff}} \partial q_i/\partial t$ are summed over the adsorbents, each with its own bulk density and loading. The convective term uses the upwind face temperature ([Numerics](numerics.md#advection-schemes)), and no heat is conducted through the two bed ends. [Matching Another Model](model-conventions.md#heat-of-adsorption-sign) has a worked sign example. The wall-coupling term $\tfrac{4 h_i}{d_i}(T - T_w)$ links this equation to the [wall energy balance](wall-energy-balance.md).
 
 The effective axial thermal conductivity $\lambda$ and the internal coefficient $h_i$ are either constants or computed from the [transport correlations](transport-correlations.md).
 
@@ -48,11 +51,11 @@ When gas–solid heat transfer is not fast (for example large particles or fast 
 
 ## Heat of adsorption convention
 
-The value stored as `adsorbent[<id>].heat_of_adsorption[<component>]` is read according to the fluid's **heat of adsorption convention** (`fluid.heat_of_adsorption_convention`). The convention sets the heat released per mole adsorbed, $\Delta H_i^{\mathrm{eff}}$, that multiplies $\rho_b\thinspace \partial q_i / \partial t$ in the source term:
+The stored value is positive for exothermic adsorption; [Matching Another Model](model-conventions.md#heat-of-adsorption-sign) has a worked sign example. The value stored as `adsorbent[<id>].heat_of_adsorption[<component>]` is read according to the fluid's **heat of adsorption convention** (`fluid.heat_of_adsorption_convention`). The convention sets the heat released per mole adsorbed, $\Delta H_i^{\mathrm{eff}}$, that multiplies $\rho_b\thinspace \partial q_i / \partial t$ in the source term; $\Delta H_i$ below is the stored value, positive for exothermic adsorption:
 
 | Convention | Stored value | $\Delta H_i^{\mathrm{eff}}$ | Used by |
 |---|---|---|---|
-| `isosteric` (default) | isosteric heat $q_{st}$ | $\Delta H_i$ | Casas & Mazzotti, Ruthven |
+| `isosteric` (default) | isosteric heat $q_{st} = -\Delta H_{ads}$ (positive) | $\Delta H_i$ | Casas & Mazzotti, Ruthven |
 | `internal_energy` | internal-energy form | $\Delta H_i - C_{pa,i}\thinspace T$ | Haghpanah 2013, Ward & Pini |
 | `isosteric_rt` | $-\Delta U_i$, the internal energy of adsorption | $\Delta H_i + R\thinspace T$ | Yancy-Caballero 2020 (PEESEgroup PSA) |
 

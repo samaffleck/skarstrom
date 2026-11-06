@@ -1,0 +1,2 @@
+### Fixed — energy-balance docs equation
+- The LTE energy-balance equation in the docs now matches the engine: the adsorption heat term no longer carries a stray $RT/P$ factor, its sign follows the stored heat of adsorption (positive for exothermic adsorption, so adsorption heats the bed), and the equation now shows the adsorbed-phase heat capacity in the accumulation term and the step energy source.
