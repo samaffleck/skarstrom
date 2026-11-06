@@ -1,3 +1,0 @@
-### Added — paper-validation protocol and data provenance
-- `core/test/papers/README.md` now holds the seven-step validation protocol every paper goes through (source, provenance audit, model-form audit, data, metrics, attribution, report) and a provenance-table template with a filled example.
-- `core/data/<paper>/README.md` for every experimental data set (Nguyen et al. 2022, Streb & Mazzotti 2021, Ward & Pini 2022): source figure, points and data range of each file, how it was obtained (all three are digitised figures) and known caveats, with facts the repository does not record marked "not recorded".
