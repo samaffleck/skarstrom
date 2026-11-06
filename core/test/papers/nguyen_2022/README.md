@@ -44,9 +44,10 @@ the figures.
 ## Validation
 
 The tests compare the simulation with the paper using the helpers in
-`../../fixtures/validation_metrics.h`; the published numbers they use are in
-[`reference_values.csv`](reference_values.csv) (each with its table / figure /
-page). Every tolerance is the measured error rounded up, with the measured
+`../../fixtures/validation_metrics.h`, against the digitised outlet curves in
+[`core/data/nguyen_2022/`](../../../data/nguyen_2022/) (Figs. 4 and 5). No
+number printed in the paper is compared, so this suite has no
+`reference_values.csv`. Every tolerance is the measured error rounded up, with the measured
 value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#nguyen-2022)
 (generated from `../validation_summary.json`).
