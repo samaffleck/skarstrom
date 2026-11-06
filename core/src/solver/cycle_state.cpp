@@ -80,16 +80,6 @@ namespace adsim {
         s.steps[h.step_index].endpoint_ids.push_back(h.id);
     }
 
-    // True when the deck has a connection or a buffer tank, i.e. something that
-    // reads another endpoint's history or summary during the cycle.
-    bool DeckReadsHistory(UserData& data) {
-      for (const auto& h : data.cycle.Endpoints()) {
-        if (h.stream && (h.stream->connection_.IsConnected() || h.stream->buffer_tank_.IsActive())) return true;
-        if (h.pressure && (h.pressure->connection_.IsConnected() || h.pressure->buffer_tank_.IsActive())) return true;
-      }
-      return false;
-    }
-
     std::string Join(const std::vector<std::string>& v) {
       std::string out;
       for (size_t i = 0; i < v.size(); ++i) out += (i ? ", " : "") + v[i];
@@ -203,18 +193,6 @@ namespace adsim {
         return "different step structure at step " + std::to_string(i + 1) + " (\"" + deck.steps[i].name + "\")";
     }
 
-    if (state.HasHistory() && DeckReadsHistory(data)) {
-      for (size_t i = 0; i < deck.steps.size(); ++i) {
-        const double a = state.steps[i].time, b = deck.steps[i].time;
-        if (std::abs(a - b) > 1e-12 * std::max(1.0, std::abs(b))) {
-          std::ostringstream ss;
-          ss << "step \"" << deck.steps[i].name << "\" changed its time (state: " << a << " s, deck: " << b
-             << " s) and the deck's connections or buffer tanks read the state's step histories; "
-             << "resampling histories onto new step times is not supported yet";
-          return ss.str();
-        }
-      }
-    }
     return {};
   }
 
@@ -436,9 +414,21 @@ namespace adsim {
       const auto P = CellArray(*p_from, state.y, from_n);
       const auto T = t_from ? CellArray(*t_from, state.y, from_n) : std::vector<double>(from_n, 1.0);
       const auto C = c_from ? CellArray(*c_from, state.y, from_n) : std::vector<double>{};
-      std::vector<double> total(from_n);
-      for (size_t c = 0; c < from_n; ++c) total[c] = c_from ? C[c] : P[c] / (R * T[c]);
-      const auto T2 = RemapCells(T, from, to);
+      std::vector<double> total(from_n), heat(from_n);
+      for (size_t c = 0; c < from_n; ++c) {
+        total[c] = c_from ? C[c] : P[c] / (R * T[c]);
+        heat[c] = total[c] * T[c];  // C T (= P / R when C is derived)
+      }
+      // The fluid temperature, weighted by the gas concentration: keeps the
+      // gas's sensible heat (C T) and makes P = C R T the plain cell average
+      // of P, which is monotone. Remapping C and T separately would not: their
+      // product overshoots where the temperature varies.
+      const auto total2 = RemapCells(total, from, to);
+      const auto heat2 = RemapCells(heat, from, to);
+      std::vector<double> T2(to_n, std::numeric_limits<double>::quiet_NaN());
+      for (size_t c = 0; c < to_n; ++c)
+        if (total2[c] > 0.0) T2[c] = heat2[c] / total2[c];
+      const CycleStateField* t_to = out.FindField("Fluid Temperature");
 
       std::vector<std::vector<double>> conc;  // remapped c_i per component
       std::vector<const CycleStateField*> y_to;
@@ -462,6 +452,10 @@ namespace adsim {
             cell_values[c] = conc[i][c] / sum;
             Write(*y_to[i], cell_values, out.y);
           }
+          if (t_from && t_to) {
+            cell_values[c] = T2[c];
+            Write(*t_to, cell_values, out.y);
+          }
           cell_values[c] = sum * R * T2[c];
           Write(*p_to, cell_values, out.y);
           if (c_to) {
@@ -470,6 +464,89 @@ namespace adsim {
           }
         }
       }
+    }
+    return out;
+  }
+
+
+  // ---- step-time changes and the combined preparation -------------------------
+
+  namespace {
+    bool TimesDiffer(double a, double b) { return std::abs(a - b) > 1e-12 * std::max(1.0, std::abs(b)); }
+
+    std::string FormatSeconds(double t) {
+      std::ostringstream ss;
+      ss << t << " s";
+      return ss.str();
+    }
+  }  // namespace
+
+  bool CycleStateNeedsResample(const CycleState& state, const UserData& data) {
+    const auto& steps = data.cycle.step_list_;
+    if (state.steps.size() != steps.size()) return false;
+    for (size_t i = 0; i < steps.size(); ++i)
+      if (TimesDiffer(state.steps[i].time, steps[i].step_time_.Get())) return true;
+    return false;
+  }
+
+  CycleState ResampleCycleStateHistories(const CycleState& state, const UserData& data, std::string* note) {
+    CycleState out = state;
+    const auto& steps = data.cycle.step_list_;
+    if (state.steps.size() != steps.size())
+      throw std::invalid_argument("ResampleCycleStateHistories: different step structure");
+    std::vector<std::string> changed;
+    for (size_t i = 0; i < steps.size(); ++i) {
+      const double t_old = state.steps[i].time, t_new = steps[i].step_time_.Get();
+      if (!TimesDiffer(t_old, t_new)) continue;
+      changed.push_back("\"" + steps[i].step_name_ + "\" " + FormatSeconds(t_old) + " -> " + FormatSeconds(t_new));
+      out.steps[i].time = t_new;
+      const bool scalable = t_old > 0.0 && t_new > 0.0;
+      const double ratio = scalable ? t_new / t_old : 0.0;
+      for (auto& e : out.endpoints) {
+        if (e.step_id != state.steps[i].id) continue;
+        if (!scalable) {
+          // A zero-length step on either side: nothing to stretch; the
+          // consumers fall back to their first-cycle values.
+          e.history.Clear();
+          e.summary.Clear();
+          continue;
+        }
+        // The step's logged time series, stretched onto the new duration
+        // (same shape, step-relative time), and the moles of its summary
+        // scaled with the duration (same average flow).
+        for (double& t : e.history.time_series_) t *= ratio;
+        e.summary.total_moles *= ratio;
+      }
+    }
+    if (note && !changed.empty()) {
+      std::string list;
+      for (size_t k = 0; k < changed.size(); ++k) list += (k ? ", " : "") + changed[k];
+      *note = "histories stretched onto the new step times (" + list + ")";
+    }
+    return out;
+  }
+
+  CycleState PrepareCycleState(const CycleState& state, UserData& data, std::string* note) {
+    const std::string why = CycleStateIncompatibility(state, data);
+    if (!why.empty()) throw std::invalid_argument("the state does not fit the deck: " + why);
+    std::vector<std::string> notes;
+    CycleState out = state;
+    if (CycleStateNeedsResample(out, data)) {
+      std::string n;
+      out = ResampleCycleStateHistories(out, data, &n);
+      notes.push_back(n);
+    }
+    if (CycleStateNeedsRemap(out, data)) {
+      std::string grid;
+      for (size_t i = 0; i < out.layers.size(); ++i)
+        grid += (i ? ", " : "") + std::to_string(out.layers[i].cells) + " -> "
+                + std::to_string(data.bed.layers_.layers_[i].domain_.n_cells);
+      out = RemapCycleState(out, data);
+      notes.push_back("remapped onto the deck's grid (cells per layer " + grid + ")");
+    }
+    if (note) {
+      note->clear();
+      for (size_t k = 0; k < notes.size(); ++k) *note += (k ? "; " : "") + notes[k];
     }
     return out;
   }

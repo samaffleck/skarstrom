@@ -612,11 +612,17 @@ PYBIND11_MODULE(_core, m) {
       // re-acquire it. Ctrl-C (or any pending Python signal) cancels the run
       // and is re-raised afterwards.
       .def("run", [](adsim::Simulation& s, std::optional<int> cycles, py::object progress,
-                     const std::string& log_level, py::object on_message) {
-        return RunFromPython(cycles, progress, log_level, on_message,
-                             [&s](const adsim::RunOptions& o) { return s.Run(o); });
+                     const std::string& log_level, py::object on_message, const adsim::CycleState* initial_state) {
+        // Copied: the run replaces the final state, which `initial_state` may be.
+        std::optional<adsim::CycleState> start;
+        if (initial_state) start = *initial_state;
+        return RunFromPython(cycles, progress, log_level, on_message, [&s, &start](const adsim::RunOptions& o) {
+          adsim::RunOptions opt = o;
+          if (start) opt.initial_state = &*start;
+          return s.Run(opt);
+        });
       }, py::arg("cycles") = py::none(), py::arg("progress") = py::none(), py::arg("log_level") = "low",
-         py::arg("on_message") = py::none())
+         py::arg("on_message") = py::none(), py::arg("initial_state") = py::none())
       .def("run_cycle", [](adsim::Simulation& s, const adsim::CycleState* state, py::object progress,
                            const std::string& log_level, py::object on_message) {
         return RunFromPython(std::nullopt, progress, log_level, on_message, [&s, state](const adsim::RunOptions& o) {
@@ -634,6 +640,11 @@ PYBIND11_MODULE(_core, m) {
         return py::cast(s.InitialState());
       })
       .def("check_state", &adsim::Simulation::CheckState, py::arg("state"))
+      .def("prepare_state", [](adsim::Simulation& s, const adsim::CycleState& state) {
+        std::string note;
+        adsim::CycleState out = s.PrepareState(state, &note);
+        return py::make_tuple(std::move(out), note);
+      }, py::arg("state"))
       .def("request_stop", &adsim::Simulation::RequestStop)
       .def_property_readonly("last_result", &adsim::Simulation::LastResult)
       .def_property_readonly("messages", [](const adsim::Simulation& s) {

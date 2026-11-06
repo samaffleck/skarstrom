@@ -315,6 +315,13 @@ namespace adsim {
     return CycleStateIncompatibility(state, *data_);
   }
 
+  CycleState Simulation::PrepareState(const CycleState& state, std::string* note) {
+    if (IsRunning()) throw std::logic_error("cannot prepare a state during a chunked run");
+    std::string err;
+    if (!data_->EvaluateAllExpressions(err)) throw std::invalid_argument("expression evaluation failed: " + err);
+    return PrepareCycleState(state, *data_, note);
+  }
+
   CycleState Simulation::RemapState(const CycleState& state) {
     if (IsRunning()) throw std::logic_error("cannot remap a state during a chunked run");
     std::string err;
@@ -329,10 +336,14 @@ namespace adsim {
   }
 
   RunResult Simulation::Run(const RunOptions& options) {
-    return RunFrom(options, initial_state_.get());
+    return RunFrom(options, options.initial_state ? options.initial_state : initial_state_.get());
   }
 
   RunResult Simulation::RunCycle(const RunOptions& options) {
+    if (options.initial_state) {
+      const CycleState from = *options.initial_state;
+      return RunCycle(from, options);
+    }
     if (final_state_) {
       // RunFrom resets the results (and the final state) first.
       const CycleState from = *final_state_;
@@ -365,8 +376,12 @@ namespace adsim {
 
   RunResult Simulation::RunFrom(const RunOptions& options, const CycleState* start) {
     if (IsRunning()) throw std::logic_error("a chunked run is already in progress");
-    // `start` must not be final_state_, which ResetResults clears (RunCycle
-    // passes a copy).
+    // ResetResults clears final_state_: keep it alive when it is the start.
+    std::unique_ptr<CycleState> keep_start;
+    if (start && start == final_state_.get()) {
+      keep_start = std::move(final_state_);
+      start = keep_start.get();
+    }
     ResetResults();
     UserData& data = *data_;
     if (options.cycles) data.cycle.number_of_cycles_ = std::max(1, *options.cycles);
@@ -380,13 +395,20 @@ namespace adsim {
       }
     }
 
-    // A state on another grid is transferred onto the deck's cells first
-    // (RemapCycleState). One that does not fit at all is left for the solver,
-    // which fails the run with the reason.
-    CycleState remapped;
-    if (start && CycleStateNeedsRemap(*start, data) && CycleStateIncompatibility(*start, data).empty()) {
-      remapped = RemapCycleState(*start, data);
-      start = &remapped;
+    // A state on another grid or with other step times is adapted to the deck
+    // first (PrepareCycleState: remap, stretched histories). One that does not
+    // fit at all is left for the solver, which fails the run with the reason.
+    CycleState prepared;
+    if (start && CycleStateIncompatibility(*start, data).empty() &&
+        (CycleStateNeedsRemap(*start, data) || CycleStateNeedsResample(*start, data))) {
+      std::string note;
+      prepared = PrepareCycleState(*start, data, &note);
+      start = &prepared;
+      if (!note.empty()) {
+        const std::string text = "Initial state: " + note;
+        messages_.push_back({LogLevel::LOW, text});
+        if (options.on_message) options.on_message(LogLevel::LOW, text);
+      }
     }
 
     solver_ = std::make_unique<CoupledSolver>(data);
