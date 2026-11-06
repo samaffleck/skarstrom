@@ -16,6 +16,8 @@
 //     KPIs agree with path (a) within c <= 100 times the state tolerance,
 //     the bound of CSSReference and CSSStartIndependence;
 //   * a warm-started fine level needs fewer fine-grid cycles than path (a).
+//     Measured: 17-49 % of the cold cycles (Perez 2019 A/E lowest; the TSA
+//     and PSA decks about half).
 // The cycles per level and the wall time of each path are printed; the table
 // in docs/cyclic-steady-state.md comes from this output.
 //
