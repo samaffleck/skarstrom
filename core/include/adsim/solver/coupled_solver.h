@@ -16,6 +16,7 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpi_history.h"
+#include "adsim/solver/cycle_state.h"
 
 // SUNDIALS includes
 #include <ida/ida.h>
@@ -412,6 +413,16 @@ namespace adsim {
     void RequestStop() { stop_requested_ = true; }
     bool IsStopRequested() const { return stop_requested_; }
 
+    // Starts the next IntegrateCycle from `state` (a CycleState taken at a
+    // cycle boundary) instead of the deck's initial conditions: its DAE vector
+    // replaces the initial conditions before IDA's consistent-IC solve, and its
+    // endpoint histories and buffer-tank summaries replace the ones a run
+    // starts without. A state that does not fit the deck fails the run with the
+    // reason (CycleStateIncompatibility / CycleStateLayoutMismatch). nullptr
+    // (the default) starts from the initial conditions. The pointee must
+    // outlive the IntegrateCycle call.
+    void SetInitialState(const CycleState* state) { initial_state_ = state; }
+
     // CSS outcome of the most recent IntegrateCycle call: the 0-based cycle index
     // at which cyclic steady state was reached (the run stops there, so it may be
     // before number_of_cycles_ - 1), or -1 if the run did not reach CSS.
@@ -444,6 +455,7 @@ namespace adsim {
     LogLevel log_level_ = LogLevel::LOW;
     std::atomic<bool> stop_requested_{false};
     int css_cycle_index_ = -1;
+    const CycleState* initial_state_ = nullptr;
 
   };
 
