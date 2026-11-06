@@ -56,8 +56,9 @@
 // Expected orders (the assertions): the dispersion, pressure and Darcy terms
 // are central differences, the face pressures and temperatures arithmetic
 // means, and the sources and accumulations are sampled at the cell centre,
-// all O(dz^2). The convective face value is upwind (O(dz)), WENO (third-
-// order reconstruction) or van Leer (second order, limited). So the error
+// all O(dz^2). The convective face value (of the mole fractions and of the
+// temperature) is upwind (O(dz)), WENO (third-order reconstruction) or van
+// Leer (second order, limited). So the error
 // norm converges at order 1 for upwind and 2 for WENO and van Leer, which the
 // O(dz^2) central terms cap. The bed-end faces take the upwind value in every
 // scheme, which is first order in general; this solution has dy/dz = 0 at
@@ -567,8 +568,8 @@ namespace adsim {
         // bed, so its terms are compared by the temperature each would move
         // over the run if it were dropped, term * t_end / Cbed: at least
         // 5e-3 K (measured: work 8e-3, conduction 1.7e-2, convection 3.9e-2,
-        // adsorption 0.17), ten times the temperature error ThermalOrder
-        // allows the high-order schemes at 160 cells (5e-4 K).
+        // adsorption 0.17), a hundred times the temperature error ThermalOrder
+        // allows the high-order schemes at 160 cells (5e-5 K).
         for (double term : {peak.E_conv, peak.E_cond, peak.E_work, peak.E_ads})
           EXPECT_GT(term * m.t_end / Cbed_max, 5e-3);
       }
@@ -679,11 +680,15 @@ namespace adsim {
     ExpectOrders(e, 1.75, 2.3, 1.75, "van Leer");
   }
 
-  // Non-isothermal: the energy balance's convective face temperature is the
-  // upwind value under every advection scheme (the scheme reconstructs mole
-  // fractions only), so the temperature converges at first order for all
-  // three, and on fine grids its error drags the high-order schemes' other
-  // fields towards first order too.
+  // Non-isothermal: the energy balance's convective face temperature is
+  // reconstructed with the same scheme as the mole fractions, so the
+  // temperature converges at order 1 with upwind and 2 with WENO and van Leer,
+  // and the other fields keep the orders of the isothermal case.
+  //
+  // GUARD: when the face temperature was always the upwind value (before the
+  // fix), T converged at 0.97-1.05 for all three schemes and its error pulled
+  // the high-order schemes' y order down to 1.3-1.5 between 80 and 160 cells
+  // (about 1 on 640), far below the bounds here.
   TEST(ManufacturedSolutions, ThermalOrder) {
     MmsCase m;
     m.thermal = true;
@@ -691,21 +696,30 @@ namespace adsim {
     MeasureOrders(m, AdvectionScheme::Upwind, up);
     MeasureOrders(m, AdvectionScheme::WENO, weno);
     MeasureOrders(m, AdvectionScheme::VanLeer, vl);
-    // Measured 0.95-1.00 in every field.
+    // Every field: measured upwind 0.95-1.00; WENO L2 2.08-2.69, max
+    // 1.72-2.03, outlet cell 1.46-1.72; van Leer L2 1.86-2.43, max and outlet
+    // cell 1.71-1.90 (the isothermal bounds hold).
     ExpectOrders(up, 0.93, 1.07, 0.93, "upwind, thermal");
-    for (const auto* e : {&up, &weno, &vl}) {
-      for (size_t k = 2; k < e->size(); ++k) {
-        // Measured 0.97-1.05.
-        const double p = Order((*e)[k - 1].T, (*e)[k].T);
-        EXPECT_GT(p, 0.9);
-        EXPECT_LT(p, 1.1);
+    ExpectOrders(weno, 1.7, 2.7, 1.7, "WENO, thermal");
+    ExpectOrders(vl, 1.75, 2.5, 1.7, "van Leer, thermal");
+    // The temperature: measured upwind 0.97-0.99, WENO 2.06-2.25, van Leer
+    // 1.95-2.03 (on 160 -> 320 -> 640 cells: upwind 1.00, WENO 2.19 and
+    // 1.99, van Leer 2.03 and 1.99).
+    auto expect_T_order = [](const std::vector<Errors>& e, double lo, double hi, const char* what) {
+      for (size_t k = 2; k < e.size(); ++k) {
+        const double p = Order(e[k - 1].T, e[k].T);
+        EXPECT_GT(p, lo) << what << ", T, " << (20 << (k - 1)) << " -> " << (20 << k) << " cells";
+        EXPECT_LT(p, hi) << what << ", T, " << (20 << (k - 1)) << " -> " << (20 << k) << " cells";
       }
-    }
+    };
+    expect_T_order(up, 0.9, 1.1, "upwind");
+    expect_T_order(weno, 1.85, 2.5, "WENO");
+    expect_T_order(vl, 1.85, 2.3, "van Leer");
     // The high-order schemes' errors stay far below upwind's (measured at
-    // 160 cells: T 1.6e-4 against 1.7e-3 K, y 1.2-1.4e-6 against 9.0e-5).
+    // 160 cells: T 1.6-2.1e-5 against 1.7e-3 K, y 0.7-1.0e-6 against 9.0e-5).
     for (const auto* e : {&weno, &vl}) {
-      EXPECT_LT(e->back().T, 5e-4);
-      EXPECT_LT(e->back().T, 0.2 * up.back().T);
+      EXPECT_LT(e->back().T, 5e-5);
+      EXPECT_LT(e->back().T, 0.03 * up.back().T);
       EXPECT_LT(e->back().y, 0.05 * up.back().y);
     }
   }

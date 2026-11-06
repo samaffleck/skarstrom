@@ -54,7 +54,11 @@
 //    first-order upwind scheme turns the exponential into a geometric series
 //    (1 + lambda dx)^(-i), so the error is O(lambda^2 dx); the test asserts
 //    first-order convergence of the whole profile toward exp(-lambda z) and
-//    that the series of films (not either film alone) sets lambda.
+//    that the series of films (not either film alone) sets lambda. The run
+//    uses the upwind scheme for that reason: WENO and van Leer reconstruct
+//    the face temperature too, and with WENO the outlet error converges at
+//    second order (checked as well; the profile's max error stays first
+//    order, set by the upwind inlet face where the profile has a slope).
 
 #include "breakthrough_case.h"
 
@@ -164,15 +168,17 @@ namespace adsim {
     const double t_wall = 0.005;       // [m]
 
     struct Grid { int n; double err_profile, err_outlet; };
-    std::vector<Grid> grids;
+    std::vector<Grid> grids, weno;
     double lambda_L = 0.0, theta_out_ref = 0.0;
 
+    for (AdvectionScheme scheme : {AdvectionScheme::Upwind, AdvectionScheme::WENO})
     for (int n : {25, 50, 100}) {
       BreakthroughCase c = InertCase(n, 3000.0);
       c.bed_temperature = T_amb;
       c.feed_temperature = T_in;
       UserData data;
       Build(data, c);
+      data.settings.advection_scheme_ = scheme;
       data.bed.ambient_temperature_ = T_amb;
       data.bed.wall_.thickness_ = t_wall;
       data.bed.wall_.heat_capacity_ = 5.0;          // light wall: fast to reach steady state
@@ -222,8 +228,8 @@ namespace adsim {
       }
       const auto Tface = log.GetFaceVariable(0, 0, VariableType::TEMPERATURE);
       const double theta_out = (Tface.values.back().back() - T_amb) / (T_in - T_amb);
-      grids.push_back({n, err, std::abs(theta_out - theta_out_ref)});
-      std::cout << "[ThermalFronts] n=" << n << " lambda L=" << lambda_L << " theta_out=" << theta_out
+      (scheme == AdvectionScheme::Upwind ? grids : weno).push_back({n, err, std::abs(theta_out - theta_out_ref)});
+      std::cout << "[ThermalFronts] " << (scheme == AdvectionScheme::Upwind ? "upwind" : "WENO") << " n=" << n << " lambda L=" << lambda_L << " theta_out=" << theta_out
                 << " (exp " << theta_out_ref << ") max profile error " << err << "\n";
     }
 
@@ -242,6 +248,13 @@ namespace adsim {
     const double predicted = theta_out_ref * lambda_L * (lambda_L / grids.back().n) / 2.0;
     EXPECT_NEAR(grids.back().err_outlet, predicted, 0.15 * predicted)
       << "Outlet error " << grids.back().err_outlet << " != leading upwind error " << predicted;
+    // WENO's reconstructed face temperature: second-order outlet error
+    // (measured 2.01 and 2.00), far below upwind's on the same grid.
+    for (size_t g = 1; g < weno.size(); ++g) {
+      const double p_out = ObservedOrder(weno[g - 1].err_outlet, weno[g].err_outlet);
+      EXPECT_NEAR(p_out, 2.0, 0.2) << "WENO outlet error order " << p_out << " at n = " << weno[g].n;
+    }
+    EXPECT_LT(weno.back().err_outlet, 0.1 * grids.back().err_outlet);
   }
 
 } // namespace adsim

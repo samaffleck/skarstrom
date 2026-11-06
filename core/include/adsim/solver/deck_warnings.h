@@ -48,6 +48,11 @@ namespace adsim {
   // term is not applied and the plain kind with the same parameters is meant.
   std::vector<std::string> MixingRuleWarnings(const AdsorbentDirectory& adsorbents, const Fluid& fluid);
 
+  // The warnings of CheckLayerComposition (porous_media.h) for every layer, in
+  // layer order: one per solid at mass fraction 0 (it takes no part in the
+  // run). Layer composition errors stop the run in the deck checks instead.
+  std::vector<std::string> LayerCompositionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
+
   // Reactions (objects/reaction.h): one warning per solid with reactions that
   // no layer uses (its reactions take no part, and the deck checks skip
   // them); one per reaction with a nonzero heat of reaction in an isothermal

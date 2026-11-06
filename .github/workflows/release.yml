@@ -132,7 +132,7 @@ jobs:
         include:
           - { name: manylinux x86_64, runner: ubuntu-24.04, archs: x86_64 }
           - { name: manylinux aarch64, runner: ubuntu-24.04-arm, archs: aarch64 }
-          - { name: macOS arm64, runner: macos-14, archs: arm64 }
+          - { name: macOS arm64, runner: macos-15, archs: arm64 }
           - { name: macOS x86_64, runner: macos-15-intel, archs: x86_64 }
           - { name: Windows x64, runner: windows-2022, archs: AMD64 }
     steps:

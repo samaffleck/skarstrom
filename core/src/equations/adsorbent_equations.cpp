@@ -83,6 +83,12 @@ namespace adsim {
       return T[nb];
     }
 
+    // Convective face temperatures of the energy balances, one per face
+    // (face n between cells n and n + 1), reconstructed with the advection
+    // scheme of the mole fractions. Defined after the reconstructions below.
+    void ConvectiveFaceTemperatures(const UserData* udata, const std::vector<double>& T,
+                                    std::vector<double>& T_face);
+
     // Heat released per mole adsorbed, as it enters the energy balances:
     // dH for the ISOSTERIC convention (dH is the isosteric heat q_st);
     // dH - Cpa*T for the INTERNAL_ENERGY convention (Haghpanah/Ward), which
@@ -416,6 +422,10 @@ namespace adsim {
 
     int N = T.size();
 
+    // Convective face temperatures (the advection scheme's reconstruction).
+    thread_local std::vector<double> T_face;
+    ConvectiveFaceTemperatures(udata, T, T_face);
+
     // heat = dH (ISOSTERIC) or dH - Cpa*T (INTERNAL_ENERGY); see AdsorptionHeat.
     const HeatOfAdsorptionConvention hoa_convention = fluid.heat_of_adsorption_convention_;
 
@@ -436,8 +446,8 @@ namespace adsim {
       double u_e = u[i];
       double u_w = u[i - 1];
 
-      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return BoundaryFaceUpstreamT(T, i, +1); });
-      double T_w = UpwindFace(u_w, [&] { return BoundaryFaceUpstreamT(T, i, -1); }, [&] { return T[i]; });
+      double T_e = T_face[i];
+      double T_w = T_face[i - 1];
 
       double u_avr = 0.5 * (u_e + u_w);
 
@@ -533,14 +543,18 @@ namespace adsim {
 
     int N = T.size();
 
+    // Convective face temperatures (the advection scheme's reconstruction).
+    thread_local std::vector<double> T_face;
+    ConvectiveFaceTemperatures(udata, T, T_face);
+
     for (int i = 1; i < N - 1; ++i) {
       // Fluid-only heat capacity (no solid contribution)
       double Cfluid = et[i] * rho[i] * Cpg[i];
 
       double u_e = u[i];
       double u_w = u[i - 1];
-      double T_e = UpwindFace(u_e, [&] { return T[i]; }, [&] { return BoundaryFaceUpstreamT(T, i, +1); });
-      double T_w = UpwindFace(u_w, [&] { return BoundaryFaceUpstreamT(T, i, -1); }, [&] { return T[i]; });
+      double T_e = T_face[i];
+      double T_w = T_face[i - 1];
       double u_avr = 0.5 * (u_e + u_w);
 
       double F_e = rho[i] * Cpg[i] * u_avr * T_e;
@@ -1113,6 +1127,71 @@ namespace adsim {
       const double r = a * b / (b * b + delta);
       const double phi = (r + std::abs(r)) / (1.0 + std::abs(r));
       return y_c + 0.5 * phi * b;
+    }
+
+    // The convective face temperature of the energy balances, reconstructed
+    // with the scheme the mole fractions use, so that T has the scheme's order
+    // of accuracy too. Same stencils and the same faces left upwind: a face of
+    // a lumped cell (a ghost or a void cell) takes the upwind value, and so
+    // does every face under Upwind. Two differences from the mole fractions:
+    //   * the temperature ghost cell does not hold the face value (it is set
+    //     so that the mean of the ghost and the first cell is the boundary
+    //     temperature), so the upstream value of a bed-end face, and the value
+    //     a ghost contributes as the far cell of a reconstruction, is that
+    //     mean (see BoundaryFaceUpstreamT);
+    //   * the face value is not bounded: a temperature has no [0, 1] range,
+    //     and the van Leer face lies between its two cells anyway;
+    //   * the reconstruction acts on T / T_c, T_c the upwind cell's
+    //     temperature, and the face value is scaled back. WENO's epsilon and
+    //     van Leer's delta are absolute and sized for mole fractions of order
+    //     one; on kelvin they put the noise-level differences of a nearly
+    //     flat profile in the range where the weights switch, which made the
+    //     residual noisy (more steps, run-to-run scatter). Relative to T_c a
+    //     temperature has the scale of a mole fraction, and both
+    //     reconstructions are otherwise homogeneous of degree one.
+    // T_face[i] and T_face[i - 1] are the east and west faces of cell i, so
+    // both cells of a face see the same value. The stencil reaches two cells
+    // on either side, as the mole fractions' do, which the Jacobian band of
+    // the high-order schemes already covers (BandReach in coupled_solver.cpp).
+    void ConvectiveFaceTemperatures(const UserData* udata, const std::vector<double>& T,
+                                    std::vector<double>& T_face) {
+      const auto& u = udata->state.velocity.var;
+      const auto& dv = udata->state.domain_vectors;
+      const auto& dx = dv.cell_width;
+      const AdvectionScheme scheme = udata->settings.advection_scheme_;
+      const int last = static_cast<int>(T.size()) - 1;  // the second ghost; faces 0 .. last - 1
+      T_face.resize(static_cast<size_t>(std::max(last, 0)));
+      // Value of a lumped far cell at the face it shares with its bed neighbour.
+      auto lumped_value = [&](int cell, int neighbour) {
+        return (cell == 0 || cell == last) ? 0.5 * (T[cell] + T[neighbour]) : T[cell];
+      };
+      for (int n = 0; n < last; ++n) {
+        // Positive velocity: from the left (cells n - 1, n, n + 1).
+        auto left_biased = [&]() {
+          const double upwind = (n == 0) ? 0.5 * (T[0] + T[1]) : T[n];
+          if (scheme == AdvectionScheme::Upwind || IsLumpedCell(dv, n, last) || IsLumpedCell(dv, n + 1, last))
+            return upwind;
+          const bool cu_lumped = IsLumpedCell(dv, n - 1, last);
+          const double T_cu = cu_lumped ? lumped_value(n - 1, n) : T[n - 1];
+          const double s = T[n];
+          return s * (scheme == AdvectionScheme::WENO
+                          ? WenoFace(T_cu / s, 1.0, T[n + 1] / s, dx[n - 1], dx[n], dx[n + 1], cu_lumped)
+                          : VanLeerFace(T_cu / s, 1.0, T[n + 1] / s, cu_lumped));
+        };
+        // Negative velocity: mirror image (cells n + 2, n + 1, n).
+        auto right_biased = [&]() {
+          const double upwind = (n + 1 == last) ? 0.5 * (T[n] + T[last]) : T[n + 1];
+          if (scheme == AdvectionScheme::Upwind || IsLumpedCell(dv, n + 1, last) || IsLumpedCell(dv, n, last))
+            return upwind;
+          const bool cu_lumped = IsLumpedCell(dv, n + 2, last);
+          const double T_cu = cu_lumped ? lumped_value(n + 2, n + 1) : T[n + 2];
+          const double s = T[n + 1];
+          return s * (scheme == AdvectionScheme::WENO
+                          ? WenoFace(T_cu / s, 1.0, T[n] / s, dx[n + 2], dx[n + 1], dx[n], cu_lumped)
+                          : VanLeerFace(T_cu / s, 1.0, T[n] / s, cu_lumped));
+        };
+        T_face[static_cast<size_t>(n)] = UpwindFace(u[static_cast<size_t>(n)], left_biased, right_biased);
+      }
     }
 
     // The species fluxes add up to the total-mass flux only if the face mole

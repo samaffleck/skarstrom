@@ -185,6 +185,14 @@ namespace adsim {
     return warnings;
   }
 
+  std::vector<std::string> LayerCompositionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed) {
+    std::vector<std::string> warnings;
+    for (const auto& layer : bed.layers_.layers_)
+      for (const auto& issue : CheckLayerComposition(layer, adsorbents))
+        if (issue.severity == LayerCompositionIssue::Severity::Warning) warnings.push_back(issue.message);
+    return warnings;
+  }
+
   std::vector<std::string> ReactionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
                                             bool order_notes) {
     std::vector<std::string> warnings;

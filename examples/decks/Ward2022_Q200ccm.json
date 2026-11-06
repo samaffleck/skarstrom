@@ -712,16 +712,16 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.316553518736841,
-                                    "Average_Temperature": 292.4293774970377,
+                                    "Total_Moles": 0.3165535428092429,
+                                    "Average_Temperature": 292.43269875283309,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.00477059370443742
+                                            "value": 0.004770565927518282
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.9952294062955626
+                                            "value": 0.9952294340724818
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -796,8 +796,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.4104961632202814,
-                                                        "Average_Temperature": 293.0,
+                                                        "Total_Moles": 0.41049616322731638,
+                                                        "Average_Temperature": 293.0000000000005,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
