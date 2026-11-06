@@ -55,6 +55,7 @@ namespace adsim {
     std::string component;       // mole fraction / adsorbed concentration; else empty
     size_t adsorbent = 0;        // adsorbed concentration: the adsorbent ID; else 0
     bool differential = false;   // the equation type (its ghost cells are algebraic)
+    bool face = false;           // a face field: `cell` holds the face index (face c lies between cells c and c + 1)
     std::vector<size_t> index;   // entries of y, in cell order
     std::vector<size_t> cell;    // the cell (or face) of each entry
   };
@@ -88,6 +89,9 @@ namespace adsim {
     std::vector<std::string> components;
     std::vector<CycleStateLayer> layers;
     std::vector<CycleStateStep> steps;
+    // Void regions at the bottom / top of the column (one cell each).
+    bool bottom_void = false;
+    bool top_void = false;
     // Cycles behind the state: the run it came from had completed this many
     // cycles (including those of any warm start it began from).
     int cycles = 0;
@@ -132,10 +136,36 @@ namespace adsim {
   CycleState CaptureCycleState(UserData& data, int cycles);
 
   // Why `state` cannot start a run of `data`, or an empty string when it can.
-  // Checks what the deck alone determines: the components, the layers and their
-  // cell counts, the step and endpoint structure, and the step times when the
-  // state carries history that a connection or buffer tank reads.
+  // Checks what the deck alone determines: the components, the layers and the
+  // void regions, the step and endpoint structure, and the step times when the
+  // state carries history that a connection or buffer tank reads. Different
+  // cell counts are not a reason: such a state is remapped (RemapCycleState).
   std::string CycleStateIncompatibility(const CycleState& state, UserData& data);
+
+  // True when the state's cells per layer differ from the deck's, i.e. the
+  // state must be remapped (RemapCycleState) before it can start a run.
+  bool CycleStateNeedsRemap(const CycleState& state, const UserData& data);
+
+  // The state transferred onto the deck's grid (its cells per layer), for a
+  // state that passes CycleStateIncompatibility. Initialises data.state (as a
+  // run does) to obtain the deck's DAE layout; entries the state cannot supply
+  // keep the deck's initial conditions.
+  //
+  // Within each layer every per-cell field is remapped by the overlap-weighted
+  // piecewise-constant remap on the layer's uniform cells, which keeps each
+  // field's layer average (sum of value x cell width) and is monotone. The gas
+  // is remapped as component concentrations c_i = C y_i (C the total gas
+  // concentration, or P / (R T)); the remapped composition is y_i = c_i / sum c
+  // and the pressure P = (sum c) R T with the remapped fluid temperature. So
+  // each component's gas and adsorbed inventory in each layer is kept to
+  // rounding. Face fields (velocity: algebraic, only a guess for the
+  // consistent-IC solve) are interpolated linearly in the layer coordinate.
+  // Ghost and void cells (one each on both grids) are copied, and so are the
+  // endpoint histories and summaries (they belong to steps, not cells).
+  // Refinement by an integer ratio followed by the reverse coarsening gives
+  // the original state back. Throws std::invalid_argument for an incompatible
+  // state.
+  CycleState RemapCycleState(const CycleState& state, UserData& data);
 
   // Why the DAE layout of `state` does not match `data.state` (which must be
   // initialised, as in the solver after UserData::Initialise), or empty.

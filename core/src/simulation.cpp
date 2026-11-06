@@ -315,6 +315,13 @@ namespace adsim {
     return CycleStateIncompatibility(state, *data_);
   }
 
+  CycleState Simulation::RemapState(const CycleState& state) {
+    if (IsRunning()) throw std::logic_error("cannot remap a state during a chunked run");
+    std::string err;
+    if (!data_->EvaluateAllExpressions(err)) throw std::invalid_argument("expression evaluation failed: " + err);
+    return RemapCycleState(state, *data_);
+  }
+
   void Simulation::SetInitialState(CycleState state) {
     const std::string why = CheckState(state);
     if (!why.empty()) throw std::invalid_argument("the state does not fit the deck: " + why);
@@ -371,6 +378,15 @@ namespace adsim {
         result_.message = "Expression evaluation failed: " + err;
         return result_;
       }
+    }
+
+    // A state on another grid is transferred onto the deck's cells first
+    // (RemapCycleState). One that does not fit at all is left for the solver,
+    // which fails the run with the reason.
+    CycleState remapped;
+    if (start && CycleStateNeedsRemap(*start, data) && CycleStateIncompatibility(*start, data).empty()) {
+      remapped = RemapCycleState(*start, data);
+      start = &remapped;
     }
 
     solver_ = std::make_unique<CoupledSolver>(data);

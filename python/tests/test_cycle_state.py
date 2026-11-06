@@ -114,12 +114,15 @@ def test_state_contents(states):
 
 def test_incompatible_state_is_refused(states):
     x, _ = states
-    sim = make(cells=24)
+    sim = make()
+    sim.add_component("Argon")
     why = sim.check_state(x)
-    assert "cell counts" in why
-    with pytest.raises(ValueError, match="cell counts"):
+    assert "components" in why
+    with pytest.raises(ValueError, match="components"):
         sim.set_initial_state(x)
     assert make().check_state(x) == ""
+    # A different cell count is not a refusal: the run remaps the state onto the deck's grid.
+    assert make(cells=24).check_state(x) == ""
 
 
 def test_no_final_state_before_a_run():

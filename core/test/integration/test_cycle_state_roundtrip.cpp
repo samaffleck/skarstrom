@@ -306,12 +306,11 @@ TEST(CycleStateRoundTrip, IncompatibleStatesAreRefusedWithAReason) {
   const CycleState x = sim.FinalState();
   EXPECT_EQ(sim.CheckState(x), "");
 
-  {  // a different grid
+  {  // a different grid is not a refusal: the run remaps the state
     Simulation other = BufferTankSimulation();
     other.Data().bed.layers_.layers_[0].domain_.n_cells = 12;
-    const std::string why = other.CheckState(x);
-    EXPECT_NE(why.find("cell counts"), std::string::npos) << why;
-    EXPECT_THROW(other.SetInitialState(x), std::invalid_argument);
+    EXPECT_EQ(other.CheckState(x), "");
+    EXPECT_NO_THROW(other.SetInitialState(x));
   }
   {  // a different component list
     Simulation other = BufferTankSimulation();
