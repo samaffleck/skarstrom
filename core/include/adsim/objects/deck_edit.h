@@ -101,7 +101,22 @@ bool AddLibraryAdsorbent(UserData& data, const std::string& library_dir, const s
 // Remove an adsorbent from the directory and every layer, then re-seed any
 // layer left empty with another adsorbent (if one remains). Its reactions go
 // with it.
+// Refused (false + err, nothing changed) while the solid is part of a blend,
+// i.e. a layer whose composition also holds another solid, e.g. "Zeolite 13X
+// is part of the blend of layer \"Bottom\" (mass fraction 0.7); remove it
+// from the layer's composition first". Taking one solid out of a blend
+// changes what the layer is (and its fractions would no longer sum to 1), so
+// the user decides the new composition; the engine never renormalises. A
+// layer that holds only this solid has no blend to change: it is re-seeded.
+bool RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id, std::string& err);
+
+// As above for a solid that no blend uses (asserted; in a release build a
+// refused removal leaves the deck unchanged).
 void RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id);
+
+// The refusal message of RemoveAdsorbentFromDeck, or "" when no blend uses
+// the solid (or the id is unknown).
+std::string AdsorbentInUseByMixtures(const UserData& data, AdsorbentID id);
 
 // ---- connections ----------------------------------------------------------------
 

@@ -180,9 +180,39 @@ bool AddLibraryAdsorbent(UserData& data, const std::string& library_dir, const s
   }
 }
 
-void RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id) {
+std::string AdsorbentInUseByMixtures(const UserData& data, AdsorbentID id) {
+  if (!data.adsorbent_directory.Contains(id)) return "";
+  std::string where;
+  size_t count = 0;
+  for (const auto& layer : data.bed.layers_.layers_) {
+    auto it = layer.composition_.find(id);
+    if (it == layer.composition_.end() || layer.composition_.size() < 2) continue;
+    std::ostringstream frac;
+    frac << it->second;
+    where += (count ? "; " : "") + ("\"" + layer.name_ + "\" (mass fraction " + frac.str() + ")");
+    ++count;
+  }
+  if (count == 0) return "";
+  return data.adsorbent_directory.Get(id).name_ + " is part of the blend of " +
+         (count == 1 ? "layer " : "layers ") + where + "; remove it from the " +
+         (count == 1 ? "layer's composition" : "layers' compositions") + " first";
+}
+
+bool RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id, std::string& err) {
+  const std::string in_use = AdsorbentInUseByMixtures(data, id);
+  if (!in_use.empty()) {
+    err = in_use;
+    return false;
+  }
   data.RemoveAdsorbent(id);
   SeedEmptyLayerCompositions(data);
+  return true;
+}
+
+void RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id) {
+  std::string err;
+  [[maybe_unused]] const bool removed = RemoveAdsorbentFromDeck(data, id, err);
+  assert(removed && "RemoveAdsorbentFromDeck: the solid is part of a blend; use the checked form");
 }
 
 void DisconnectPair(UserData& data, Connection& conn) {

@@ -33,6 +33,8 @@ sim.adsorbents["13X"].solid_density = 660 / (1 - 0.41)    # 1118.6 kg/m3 of part
 
 A layer of several adsorbents (`composition` mass fractions $w_k$) uses the mixture particle density $\rho_s = 1 / \sum_k (w_k / \rho_{s,k})$, and each adsorbent's own bulk density is $\rho_{b,k} = (1-\epsilon_b)\thinspace \rho_s\thinspace w_k$.
 
+The mass fractions of a layer must sum to 1 (within $10^{-6}$) and none may be negative; otherwise the deck checks refuse the deck (`CheckLayerComposition` in `porous_media.h`, which `sim.check()` and every run use). The fractions are never renormalised. A solid at mass fraction 0 is allowed but takes no part in the run, and the run-start warnings say so. A solid whose components all use the Inert isotherm is a valid member of a blend (an inert diluent or packing). A solid that is part of a blend (a layer that also holds another solid) cannot be removed from the deck until it has been taken out of that layer's composition.
+
 ### Total voidage
 
 The gas held in the bed (the accumulation terms of the mass and energy balances) uses the **total voidage**

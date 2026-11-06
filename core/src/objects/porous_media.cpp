@@ -11,6 +11,7 @@
 #include "adsim/equations/isotherm.h"
 #include "adsim/equations/isotherm_kinds.h"
 #include <algorithm>
+#include <iomanip>
 #include "adsim/math/constants.h"
 
 
@@ -231,10 +232,53 @@ namespace adsim {
 		if (composition_.empty()) return false;
 		double total = 0.0;
 		for (const auto& [id, frac] : composition_) {
-			if (frac < 0.0 || frac > 1.0) return false;
+			if (!(frac >= 0.0)) return false;  // also rejects NaN
 			total += frac;
 		}
-		return std::abs(total - 1.0) < 1e-6;
+		return std::abs(total - 1.0) <= kCompositionSumTolerance;
+	}
+
+	std::vector<LayerCompositionIssue> CheckLayerComposition(const MixedAdsorbentLayer& layer,
+	                                                         const AdsorbentDirectory& dir) {
+		using Severity = LayerCompositionIssue::Severity;
+		std::vector<LayerCompositionIssue> issues;
+		const std::string ln = "\"" + layer.name_ + "\"";
+		auto number = [](double v) {
+			std::ostringstream ss;
+			ss << std::setprecision(8) << v;
+			return ss.str();
+		};
+		if (layer.composition_.empty()) {
+			issues.push_back({Severity::Error, "Error: Layer " + ln +
+				" has no adsorbent selected. Each layer must have at least one adsorbent."});
+			return issues;
+		}
+		double total = 0.0;
+		bool negative = false;
+		for (const auto& [id, frac] : layer.composition_) {
+			total += frac;
+			// A missing id would make every directory lookup during
+			// initialisation throw.
+			if (!dir.Contains(id)) {
+				issues.push_back({Severity::Error, "Error: Layer " + ln + " references adsorbent id " + std::to_string(id) +
+					", which does not exist in the adsorbent library. Remove it from the layer composition or select another adsorbent."});
+				continue;
+			}
+			const std::string an = "\"" + dir.Get(id).name_ + "\"";
+			if (!(frac >= 0.0)) {
+				negative = true;
+				issues.push_back({Severity::Error, "Error: Layer " + ln + " gives adsorbent " + an + " the mass fraction " +
+					number(frac) + ". Mass fractions must be between 0 and 1."});
+			} else if (frac == 0.0) {
+				issues.push_back({Severity::Warning, "Warning: adsorbent " + an + " has mass fraction 0 in layer " + ln +
+					", so it takes no part in the run. Remove it from the layer's composition."});
+			}
+		}
+		if (!negative && !(std::abs(total - 1.0) <= kCompositionSumTolerance)) {
+			issues.push_back({Severity::Error, "Error: The mass fractions of layer " + ln + " sum to " + number(total) +
+				", not 1. Every property of the layer's solid scales with this sum, so set the fractions to sum to 1."});
+		}
+		return issues;
 	}
 
 	double MixedAdsorbentLayer::GetPermeability() const {

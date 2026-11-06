@@ -662,9 +662,31 @@ tightening reltol 100x).
   13 %). Measured: T, P and the loading agree to 6e-10 of their change over
   the run, tolerance 1e-6.
 
-The whole suite takes about 1 s. No defect was found, at the layer interior
-or in the mixing rules; the cases above use one layer, so layer edges with
-different blends on each side are not covered here.
+- **`SolidAtZeroMassFractionTakesNoPart`**: pure A against A with a
+  strongly adsorbing B at `w = 0` in the composition (it has no bulk density,
+  no solid-volume fraction and no heat capacity share). Same solution in
+  every field; the deck checks accept the layer and the run-start warnings
+  name B. Measured: y_O2 within 1.2e-7 (tolerance 3.6e-7).
+- **`AllInertLayerHoldsNothingAndBalances`**: a layer of an inert solid alone
+  (no isotherm, so every component gets the Inert one) is a valid deck with
+  no warnings. O2 breaks through, every loading stays at round-off
+  (below 1e-12 mol/kg, about 1e-24 measured) and the mole balance closes on
+  the gas alone. Measured residual: 1.0e-6 (N2), 5.8e-6 (O2), tolerance 1e-5.
+- **`SplittingALayerIntoTwoOfTheSameBlendChangesNothing`**: a 70/30 blend of
+  A and an inert in one 30-cell layer against the same blend split into two
+  15-cell layers (separate adsorbent objects). The interface face poses the
+  same equations as an interior face, so the solutions agree; measured: bit
+  for bit in every field.
+- **`MoleBalanceClosesAcrossAnInterfaceBetweenBlends`**: a weak bottom layer
+  (40 % A, 60 % inert) under a strong top layer (70 % B, 30 % A), so density,
+  voidage, capacity, heats and conductivity all jump at the interface. Per
+  component, the streams equal the gas and adsorbed inventories of both
+  layers, each with its own blend, in LTE and LTNE. Guard: the O2 front has
+  crossed into the top layer. Measured residual: 1.2e-7 (N2), 1.1e-7 (O2),
+  tolerance 1e-5.
+
+The whole suite takes about 2 s. No defect was found, at the layer interior,
+at the interface between layers or in the mixing rules.
 
 ### `test_manufactured_solutions.cpp`
 
