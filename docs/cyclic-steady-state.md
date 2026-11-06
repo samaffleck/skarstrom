@@ -273,6 +273,68 @@ What the table shows:
 - `Ferre2026_NaYF` takes about 1.2 s per cycle, so 15 minutes.
 - `Perez2019_B` to `D1` and `Nguyen2023_Exp_II` to `V` are the same cycles as the decks above at other operating points.
 
+## Independence from the starting state
+
+`core/test/validation/test_css_start_independence.cpp` (slow tier) checks that the cyclic steady state does not depend on where a run starts. It uses the decks of the [reference check](#verification-against-a-long-reference). Each is run to CSS with its own rule from several starts:
+
+- **shipped**: the deck as shipped.
+- **clean**: a gas of the weakly adsorbed component alone. Loadings always start in equilibrium with the initial gas, so only that component is adsorbed. This is N₂ for the CO₂/N₂ decks and He for `Vysyaraju2024_PSA_exp1`.
+- **feed**: the feed gas, so the bed starts saturated with the feed.
+- **hot** and **cold**: the shipped deck's state after one cycle, with every temperature (fluid, solid, wall) raised or lowered by 40 K, given through the warm-start API.
+- **neighbour**: the CSS of a deck with the same cycle at another operating point, also given through the warm-start API. The pairs are `Perez2019_A` from `Perez2019_B`, `Perez2019_E` from `Perez2019_D1`, `Nguyen2023_Exp_I` from `Exp_II` and `Exp_VI` from `Exp_VII`. The other decks have no such neighbour.
+
+A start that coincides with the shipped initial conditions is not run again. That is the feed start of the Perez and Nguyen decks and the clean start of the others.
+
+The hot and cold starts go through the warm-start API, not through the deck's initial temperature. With the default CoolProp gas heat capacities (`fluid.gas_heat_capacity_mode`), the initial-condition pressure and temperature also set the heat capacities for the whole run (see [model conventions](model-conventions.md)). So editing the initial temperature changes the model, not just the start. `Ward2024` started 40 K colder that way converges to a different CSS: purity 0.96097 against 0.96091, recovery 0.91746 against 0.91770 (issue [#145](https://github.com/samaffleck/skarstrom/issues/145)). The initial composition sets no model parameter, so the clean and feed starts edit it directly.
+
+Every start is compared with the shipped start's CSS, using the [same distances](#verification-against-a-long-reference) and the same bound, $c \le 100$. Two stops that approach the CSS from different sides can be up to the sum of their own distances from it apart.
+
+| Deck | Start | CSS stop | $c$ state | $c$ histories | $c$ KPIs |
+|---|---|---|---|---|---|
+| `Illustrative_TSA_13X` | shipped (clean) | 26 | | | |
+| | feed | 17 | 0.50 | 0.05 | 0.09 |
+| | hot | 24 | 0.06 | 0.005 | 0.02 |
+| | cold | 25 | 0.09 | 0.009 | 0.02 |
+| `Perez2019_A` | shipped (feed) | 48 | | | |
+| | clean | 68 | 8.0 | 2.6 | 2.4 |
+| | hot | 62 | 8.5 | 2.7 | 2.5 |
+| | cold | 64 | 0.25 | 0.10 | 0.03 |
+| | neighbour (B) | 34 | 8.9 | 2.8 | 2.7 |
+| `Perez2019_E` | shipped (feed) | 205 | | | |
+| | clean | 689 | 73 | 18 | 7.0 |
+| | hot | 209 | 74 | 18 | 7.1 |
+| | cold | 213 | 0.41 | 0.14 | 0.31 |
+| | neighbour (D1) | 174 | 0.14 | 0.10 | 0.01 |
+| `Nguyen2023_Exp_I` | shipped (feed) | 36 | | | |
+| | clean | 44 | 4.4 | 0.81 | 0.45 |
+| | hot | 45 | 4.5 | 0.82 | 0.46 |
+| | cold | 45 | 0.41 | 0.07 | 0.07 |
+| | neighbour (II) | 29 | 4.3 | 0.78 | 0.44 |
+| `Nguyen2023_Exp_VI` | shipped (feed) | 79 | | | |
+| | clean | 103 | 14 | 4.8 | 0.46 |
+| | hot | 86 | 15 | 5.0 | 0.55 |
+| | cold | 86 | 0.05 | 0.03 | 0.03 |
+| | neighbour (VII) | 78 | 15 | 5.0 | 0.56 |
+| `Vysyaraju2024_PSA_exp1` (no KPI configured) | shipped (clean) | 72 | | | |
+| | feed | 76 | 12 | 2.6 | — |
+| | hot | 84 | 1.5 | 0.80 | — |
+| | cold | 82 | 11 | 2.3 | — |
+| `Ward2024` | shipped (clean) | 153 | | | |
+| | feed | 115 | 43 | 2.8 | 0.74 |
+| | hot | 184 | 0.17 | 0.09 | 0.53 |
+| | cold | 167 | 42 | 2.7 | 0.74 |
+| `FiveStepProductPurge` (no KPI configured; per-component rule) | shipped (clean) | 94 | | | |
+| | feed | 76 | 0.20 | 0.24 | — |
+| | hot | 105 | 0.15 | 0.22 | — |
+| | cold | 90 | 18 | 2.6 | — |
+
+What the table shows:
+
+- **Every start reaches the same steady state.** No deck has a second CSS.
+- **The starts fall into two groups, each about as far from the shipped start as the plain stop is from the [long reference](#verification-against-a-long-reference).** Stops that approach the CSS from the same side as the shipped start end close to it. Stops from the other side end about twice the reference distance away. On `Perez2019_E` the clean, hot and shipped starts are 73–74 ε apart; the plain stop is 37 ε from the reference. The cold and neighbour starts are within 0.4 ε. On `Ward2024` the feed and cold starts are 42–43 ε away; the plain stop is 21 ε from the reference.
+- **In the KPIs the largest difference between starts is 7 ε** (`Perez2019_E`), about 1.4×10⁻⁴ in purity or recovery.
+- **The neighbour start helps most on the slow deck.** `Perez2019_E` from `Perez2019_D1`'s CSS stops at cycle 174 instead of 205, within 0.14 ε of the shipped start's CSS.
+
 ## Practical guidance
 
 - Set a generous **Number of Cycles** (an upper bound) and let a CSS method stop the run when converged.
