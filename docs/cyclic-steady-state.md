@@ -273,6 +273,62 @@ What the table shows:
 - `Ferre2026_NaYF` takes about 1.2 s per cycle, so 15 minutes.
 - `Perez2019_B` to `D1` and `Nguyen2023_Exp_II` to `V` are the same cycles as the decks above at other operating points.
 
+## Independence from the starting state
+
+`core/test/validation/test_css_start_independence.cpp` (slow tier) checks that the cyclic steady state does not depend on where a run starts. It uses the decks of the [reference check](#verification-against-a-long-reference). Each is run to CSS with its own rule from several starts:
+
+- **shipped**: the deck as shipped;
+- **clean**: a gas of the weakly adsorbed component alone. Loadings always start in equilibrium with the initial gas, so only that component is adsorbed. This is N₂ for the CO₂/N₂ decks and He for `Vysyaraju2024_PSA_exp1`;
+- **feed**: the feed gas, so the bed starts saturated with the feed;
+- **hot** and **cold**: the shipped bed and wall temperatures raised and lowered by 40 K;
+- **neighbour**: the CSS of a deck with the same cycle at another operating point, given through the warm-start API. The pairs are `Perez2019_A` from `Perez2019_B`, `Perez2019_E` from `Perez2019_D1`, `Nguyen2023_Exp_I` from `Exp_II` and `Exp_VI` from `Exp_VII`. The other decks have no such neighbour.
+
+A start that coincides with the shipped initial conditions is not run again. That is the feed start of the Perez and Nguyen decks and the clean start of the others.
+
+Every start is compared with the shipped start's CSS, using the [same distances](#verification-against-a-long-reference) and the same bound, $c \le 100$. Two stops that approach the CSS from different sides can be up to the sum of their own distances from it apart.
+
+| Deck | Start | CSS stop | $c$ state | $c$ histories | $c$ KPIs |
+|---|---|---|---|---|---|
+| `Illustrative_TSA_13X` | shipped (clean) | 26 | | | |
+| | feed | 17 | 0.50 | 0.05 | 0.09 |
+| | hot | 26 | 8.8 | 2.2 | 2.5 |
+| | cold | 26 | 8.9 | 2.6 | 2.6 |
+| `Perez2019_A` | shipped (feed) | 48 | | | |
+| | clean | 68 | 8.0 | 2.6 | 2.4 |
+| | hot | 65 | 14 | 3.2 | 0.79 |
+| | cold | 68 | 6.9 | 0.55 | 1.6 |
+| | neighbour (B) | 34 | 8.9 | 2.8 | 2.7 |
+| `Perez2019_E` | shipped (feed) | 205 | | | |
+| | clean | 689 | 73 | 18 | 7.0 |
+| | hot | 291 | 74 | 18 | 7.1 |
+| | cold | 219 | 2.4 | 0.34 | 0.76 |
+| | neighbour (D1) | 174 | 0.14 | 0.10 | 0.01 |
+| `Nguyen2023_Exp_I` | shipped (feed) | 36 | | | |
+| | clean | 44 | 4.4 | 0.81 | 0.45 |
+| | hot | 46 | 6.8 | 1.4 | 1.0 |
+| | cold | 47 | 2.9 | 0.54 | 1.3 |
+| | neighbour (II) | 29 | 4.3 | 0.78 | 0.44 |
+| `Nguyen2023_Exp_VI` | shipped (feed) | 79 | | | |
+| | clean | 103 | 14 | 4.8 | 0.46 |
+| | hot | 91 | 16 | 5.2 | 0.34 |
+| | cold | 88 | 3.0 | 0.29 | 0.27 |
+| | neighbour (VII) | 78 | 15 | 5.0 | 0.56 |
+| `Vysyaraju2024_PSA_exp1` (no KPI configured) | shipped (clean) | 72 | | | |
+| | feed | 76 | 12 | 2.6 | — |
+| | hot | 85 | 7.2 | 0.31 | — |
+| | cold | 83 | 7.8 | 1.6 | — |
+| `FiveStepProductPurge` (no KPI configured; per-component rule) | shipped (clean) | 94 | | | |
+| | feed | 76 | 0.20 | 0.24 | — |
+| | hot | 105 | 3.5 | 0.83 | — |
+| | cold | 88 | 16 | 2.6 | — |
+WARD_ROWS
+What the table shows:
+
+- **Every start reaches the same steady state.** No deck has a second CSS.
+- **The distances between starts follow the approach rate, as in the reference check.** The decks that converge slowly end further apart. The furthest are on `Perez2019_E`: the clean start (stopped at cycle 689) and the hot start are 73 to 74 ε from the shipped start in the bed state. Their KPIs are 7 ε apart, about 1.4×10⁻⁴ in purity or recovery.
+- **The neighbour start helps most on the slow deck.** `Perez2019_E` from `Perez2019_D1`'s CSS stops at cycle 174 instead of 205, within 0.14 ε of the shipped start's CSS.
+
+WARD_TEXT
 ## Practical guidance
 
 - Set a generous **Number of Cycles** (an upper bound) and let a CSS method stop the run when converged.
