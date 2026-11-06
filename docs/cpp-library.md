@@ -10,6 +10,7 @@ The engine is the static library `adsim` (CMake target `Adsim::adsim`), written 
 | `adsim/objects/deck_edit.h` | Structural edits that keep a deck consistent: add/remove a component (with every mole-fraction map and adsorbent), add/remove adsorbents, add a library adsorbent, disconnect connection pairs. |
 | `adsim/parameters/parameter_registry.h` | The parameter registry: every settable deck value by stable path (`step[2].time`, `adsorbent[1].isotherm[CarbonDioxide].b1`, ...). |
 | `adsim/objects/adsorbent_library.h` | Read the curated adsorbent catalogue (`data/adsorbents/library.json`). |
+| `adsim/objects/porous_media.h` | `adsim::Adsorbent` and `SaveAdsorbentToJSON` / `LoadAdsorbentFromJSON`, one adsorbent per file (the library entry format). The save is atomic (a temporary file renamed over the target) and throws `std::runtime_error` naming the file and the reason when it cannot write it. |
 | `adsim/equations/isotherm_kinds.h` | Isotherm kind tags (`"sips"`, `"dual_site_langmuir_p"`, ...), generic parameter access and single-component evaluation. |
 | `adsim/solver/isotherm_fit.h` | The isotherm fitter (global MaxLIPO search plus bounded Levenberg–Marquardt). |
 | `adsim/solver/coupled_solver.h` | `CoupledSolver` (blocking cycle loop) and `CoupledSolverChuncked` (time-sliced, for single-threaded hosts). |
