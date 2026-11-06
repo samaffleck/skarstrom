@@ -1,5 +1,6 @@
 // STL includes
 #define _USE_MATH_DEFINES
+#include <cstdio>
 #include <cmath>
 #include <filesystem>
 
@@ -640,9 +641,10 @@ namespace adsim {
 
   // The Aitken-accelerated run reaches CSS and conserves mass. A smoke test,
   // isothermal so that both runs reach the molar-profile CSS in about ten
-  // cycles (with the energy balance this cycle's slow thermal mode takes 84,
-  // which made this test 14 s). Whether acceleration reduces the cycles to CSS
-  // is CSSAcceleration.ReducesCyclesToCSS* (slow tier).
+  // cycles (with the energy balance this cycle's slow thermal mode takes 87).
+  // Whether acceleration reduces the cycles to CSS is
+  // CSSAcceleration.ReducesCyclesToCSS* and, on this deck with the energy
+  // balance, FourStepLPP_ThermalCSS_AccelerationReducesCycles (slow tier).
   TEST_F(FourStepLPPTest, FourStepLPP_CSS_Acceleration) {
     constexpr int kCycles = 200;
     auto configure = [this](bool accelerate) {
@@ -681,6 +683,58 @@ namespace adsim {
     std::cout << "Number of cycles without acceleration: " << cycles_no_acc << "\n";
 
     EXPECT_TRUE(IsMassConserved(solver_acc.GetLog())) << "Mass is not conserved with acceleration.";
+  }
+
+  // With the energy balance on, the bed's slow thermal mode (cycle-to-cycle
+  // rate about 0.95-0.97) sets the approach to CSS. Aitken acceleration must
+  // shorten it: measured 87 cycles without acceleration and 39 with it. Before
+  // the jump limit replaced the |mu| <= 5 cap, every window on this mode was
+  // rejected and both runs took the same number of cycles.
+  // The two stops are at the same CSS: a 400-cycle plain run gives CO2 purity
+  // 0.242014 and recovery 0.231978; the plain stop is 8.8e-4 and 1.2e-3 from
+  // them, the accelerated stop 8.9e-5 and 1.3e-4.
+  // Slow tier (~10 s: two runs of 40-90 cycles).
+  TEST_F(FourStepLPPTest, FourStepLPP_ThermalCSS_AccelerationReducesCycles) {
+    constexpr int kCycles = 200;
+    struct Outcome { bool css; int cycles; double purity; double recovery; };
+    auto run = [this](bool accelerate) {
+      data = UserData{};
+      BuildFourStepLPP();
+      // KPI: Feed(0)@Bottom, Product: Evacuation(2)@Bottom, Product component: CO2(0)
+      ConfigureKPI(0, {0}, {BoundaryLocation::BOTTOM}, {2}, {BoundaryLocation::BOTTOM});
+      data.cycle.number_of_cycles_ = kCycles;
+      data.settings.css.method_ = CSSMethod::MOLAR_PROFILE;
+      data.settings.css.molar_absolute_tolerance = 1e-4;
+      data.settings.css.molar_relative_tolerance = 1e-4;
+      if (accelerate) data.settings.acc_css.method_ = AccelerationMethod::AITKEN;
+      CoupledSolver solver{data};
+      std::string error{};
+      EXPECT_TRUE(data.PerformChecks(error)) << "System checks failed: " << error;
+      EXPECT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "accelerate=" << accelerate;
+      EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "accelerate=" << accelerate;
+      Outcome o{solver.ReachedCSS(), *solver.GetLog().sys_data.cycle_index_set_.rbegin() + 1, NAN, NAN};
+      const auto& records = solver.GetKPIHistory().Cycle(o.cycles - 1);
+      if (!records.empty()) { o.purity = records[0].purity; o.recovery = records[0].recovery; }
+      return o;
+    };
+
+    const Outcome plain = run(false);
+    const Outcome acc = run(true);
+    std::printf("  cycles to CSS: %d plain, %d accelerated\n", plain.cycles, acc.cycles);
+    std::printf("  CO2 purity %.6f / %.6f, recovery %.6f / %.6f\n",
+                plain.purity, acc.purity, plain.recovery, acc.recovery);
+
+    ASSERT_TRUE(plain.css) << "no CSS without acceleration in " << kCycles << " cycles";
+    ASSERT_TRUE(acc.css) << "no CSS with acceleration in " << kCycles << " cycles";
+    // GUARD: the thermal mode is slow, so the plain run needs many cycles.
+    EXPECT_GT(plain.cycles, 60);
+    // Measured 39 of 87 (0.45); fail if the reduction drops below a third.
+    EXPECT_LE(acc.cycles, 2 * plain.cycles / 3)
+        << "Aitken acceleration no longer shortens the thermal approach to CSS";
+    // Measured differences 7.9e-4 (purity) and 1.1e-3 (recovery), mostly the
+    // plain run's own stopping error.
+    EXPECT_NEAR(acc.purity, plain.purity, 2e-3);
+    EXPECT_NEAR(acc.recovery, plain.recovery, 2e-3);
   }
 
   TEST_F(FourStepLPPTest, FourStepLPP_MassBalanceCSS) {

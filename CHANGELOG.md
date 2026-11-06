@@ -8,6 +8,252 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-06
+
+### Added — regression test for CSS acceleration on a thermal cycle
+- A slow-tier test checks that Aitken acceleration shortens the approach to
+  cyclic steady state on the thermal four-step LPP cycle (87 cycles without
+  it, 39 with it) and that both runs stop at the same KPIs. The jump limit
+  that replaced the `|mu| <= 5` cap already gives the reduction; earlier,
+  both runs took the same number of cycles.
+
+### Fixed — library re-saves under `ctest --parallel`
+- The tests that re-save `data/adsorbents/*.json` now write through the
+  suite's atomic-write helper (`test::SaveAdsorbentToJsonAtomically`): the
+  rename over the target is retried while a reader holds the file open
+  (Windows), and a failed write throws instead of leaving the old file in
+  place unnoticed. The library files are unchanged.
+
+### Fixed — flaky tests reading example decks under `ctest --parallel`
+- The tests that re-save `examples/decks/*.json` now write each deck to a
+  temporary file in the same directory and rename it over the deck, so a test
+  loading the deck at the same time always reads a complete file instead of
+  truncated JSON (`rapidjson internal assertion failure: IsObject()`). On
+  Windows, where the replace fails while a reader holds the file open, the
+  rename is retried for up to about 5 s. The deck contents are unchanged.
+
+### Fixed — class versions visible wherever a deck is saved or loaded
+- Every serialised engine class now declares its `CEREAL_CLASS_VERSION` in the
+  header that holds its inline `serialize` template, not in its `.cpp`. A
+  translation unit that saved or loaded a deck without seeing the declaration
+  used version 0, so which version a save wrote (and which branch a load took)
+  depended on which instantiation the linker kept. Saved decks do not change.
+  A new unit test (`CerealClassVersions.*`) pins the version each class writes.
+
+### Fixed — class versions of the fluid, connections and CSS acceleration
+- `adsim::Fluid`, `adsim::Connection` and `adsim::AccelerateCyclicSteadyState`
+  now declare their `CEREAL_CLASS_VERSION` in their headers too, so every
+  serialised engine class does. Saved decks do not change; the
+  `CerealClassVersions.*` test now pins these three classes.
+
+### Changed — changelog entries are fragments in `changelog.d/`
+- A pull request adds its changelog entry as a new file
+  `changelog.d/<topic>.md` instead of editing `CHANGELOG.md`, so pull
+  requests in flight together no longer conflict on the top of *Unreleased*
+  (GitHub ignores the union merge driver). `scripts/release.py` reads the
+  fragments as part of *Unreleased*; the release pull request moves them into
+  `CHANGELOG.md` and deletes them. New commands: `release.py fragments`
+  (check) and `release.py collect`. CONTRIBUTING.md, RELEASING.md and the pull
+  request template describe it.
+
+### Added — cycle state: restart, warm start and one-cycle runs
+- New public header `adsim/solver/cycle_state.h`: `CycleState`, the full state
+  at a cycle boundary. It holds the DAE unknowns and their derivatives in the
+  solver's order, a field map, and the differential entries as a flat vector
+  (`Differential` / `SetDifferential`). It also holds every endpoint's logged
+  history, which connected inlets replay, and the buffer-tank summaries. It
+  records the deck structure it belongs to: components, layers with cell
+  counts, steps, endpoints, step times and the number of cycles behind it.
+- `Simulation::FinalState()` is the state at the end of the last completed
+  run. `RunCycle(state)` runs exactly one cycle from a state, so `FinalState()`
+  then gives the cycle map applied to it; `RunCycle()` with no state steps on
+  from the last final state. `SetInitialState(state)` sets a warm start that
+  later runs start from instead of the initial conditions. `CheckState(state)`
+  gives the reason a state cannot start the deck: other components, layers or
+  cell counts, another step structure, a changed state layout, or changed step
+  times when connections or buffer tanks read the histories. A warm-started
+  run counts the state's cycles towards the CSS minimum number of cycles.
+- Python: `skarstrom.CycleState`; `Simulation.final_state()`, `run_cycle()`,
+  `set_initial_state()`, `warm_start()`, `clear_initial_state()`,
+  `initial_state` and `check_state()`.
+- The state is kept for the session only and is never written to the deck
+  file. Runs without a state are unchanged.
+
+### Added — moving a cycle state to another grid
+- `RemapCycleState` (`adsim/solver/cycle_state.h`) and
+  `Simulation::RemapState` transfer a `CycleState` onto a deck with other
+  cells per layer. Inside each layer, every per-cell field is remapped by
+  overlap-weighted cell averages. The gas is remapped as component
+  concentrations, so every component's gas and adsorbed inventory in every
+  layer is kept to rounding. Connection histories and buffer-tank summaries
+  are carried over unchanged. Refining by a whole-number ratio and coarsening
+  back gives the original state.
+- A warm start or `RunCycle` from a state on another grid now remaps it,
+  where it was refused before. Different components, layers, void regions or
+  step structure are still refused with the reason.
+
+### Added — electrical energy KPI
+- The specific energy KPI is now also reported under its explicit name,
+  `electrical_energy` (compressor and vacuum-pump work over the cycle per kg
+  of net product, J/kg): a `KPIRecord` field and Python attribute, a key of
+  `KPIRecord.as_dict()` / `kpi_table()` / the CLI's `--json` KPIs, a
+  sensitivity output (`Component.electrical_energy`), an appended
+  `electrical energy [J/kg]` column of the CLI's `kpis.csv`, and the
+  `ELECTRICAL_ENERGY` enumerator of `KPIType` and `KPIVariableType` (the
+  same enumerator as `ENERGY_CONSUMPTION`). The KPI's display label is now
+  "Electrical Energy", and `skarstrom run` prints it as
+  `electrical energy [J/kg]`.
+
+### Changed — `energy_consumption` is documented as the electrical energy
+- `energy_consumption` keeps its name, value and meaning in KPI records,
+  sensitivity outputs (still the default), optimiser objectives, the cost
+  estimate and the existing `kpis.csv` columns; it is documented as the
+  specific electrical energy. Step energy sources (heaters, coolers) are
+  still not included. Results do not change.
+
+### Fixed — extended Langmuir–Freundlich trace loadings
+- `extended_langmuir_freundlich` no longer multiplies each competitive term by
+  the smooth step y² / (y² + 1e-10) (with a softplus on y). That step biased
+  trace loadings by about 1e-10 / y²: 1e-4 at y = 1e-3, 1 % at 1e-4, about
+  50 % at 1e-5. The power (P y / P_ref)^n is now continued below y = 1e-5 by
+  the same C1 quadratic the competitive Sips kinds use, so the isotherm is
+  exact for y ≥ 1e-5 in both the solver and the single-component evaluation,
+  with a finite Henry slope below and exactly zero loading at y = 0. Results
+  of runs with trace components on this kind move; no bundled deck uses it.
+
+### Fixed — energy-balance docs equation
+- The LTE energy-balance equation in the docs now matches the engine: the adsorption heat term no longer carries a stray $RT/P$ factor, its sign follows the stored heat of adsorption (positive for exothermic adsorption, so adsorption heats the bed), and the equation now shows the adsorbed-phase heat capacity in the accumulation term and the step energy source.
+
+### Added — GAB and BET water isotherms
+- Two isotherm kinds for water and other condensable vapours, in the relative
+  pressure x = p_i / p_sat(T): `gab` (Guggenheim-Anderson-de Boer with
+  C = C0 exp(dH_C/RT), K = K0 exp(dH_K/RT), q_m = q_m0 exp(dH_m/RT); BET is
+  K0 = 1, dH_K = 0) and `gab_young` (the layer-energy form of Young et al.
+  2021 and Low et al. 2023, with the papers' own parameters). The saturation
+  pressure comes from CoolProp's saturation ancillary (water: within 0.02 % of
+  IAPWS-95). The loading is exact for 0 <= x <= min(1, 0.95/K) and continued
+  smoothly beyond (the Henry line for x < 0, the tangent above), so it stays
+  finite at and above saturation. Not competitive: water adsorbs on its own.
+- `adsim::IsostericHeat(isotherm, component, T, P, y)`: the isosteric heat
+  implied by any isotherm's temperature dependence, to help choose the
+  constant heat of adsorption the energy balance uses.
+- The GAB kinds work under the IAST mixing rule (closed-form spreading
+  pressure).
+
+### Fixed — IAST with an isotherm kind it does not know
+- An isotherm kind without an IAST form now raises an error instead of being
+  treated as inert (which silently gave that component zero loading).
+
+### Added — grid convergence analysis in the engine
+- New public header `adsim/solver/grid_convergence.h`: observed order of
+  accuracy, Richardson extrapolation, Roache's grid convergence index and the
+  cell count for a target error, for a result (a cycle KPI, say) on three or
+  more grids at any constant refinement ratio. It reports whether the grids
+  are in the asymptotic range: monotone, oscillatory (no order reported),
+  divergent, grid independent or too few levels. The cycle-KPI grid
+  convergence test now uses it (same numbers).
+
+### Added — dense finite-difference check of the solver Jacobian
+- New integration test `JacobianDenseCheck`: at states in the middle of each
+  step of real decks, the Jacobian IDA receives (coloured, and the band
+  evaluations that learn and audit its pattern) is compared entry by entry
+  with a dense forward difference over the whole matrix, with no colouring
+  and no band assumption. It covers upwind, WENO and van Leer, thermal and
+  isothermal runs, Kozeny-Carman and Ergun momentum, a wall energy balance,
+  a breakthrough, a PSA and a TSA cycle, and each deck's grid as well as 10
+  and 20 cells. Every entry agrees to rounding (relative error about 2e-16);
+  a guard case shows that the comparison detects an incomplete pattern.
+- `BandedJacobian::SetEvaluationObserverForTesting`: a read-only test hook
+  that sees every assembled Jacobian and its column increments.
+
+### Fixed — macOS builds in CI and releases
+- The macOS arm64 CI job and the macOS arm64 wheel build ran on GitHub's `macos-14` runner, which GitHub has retired ("The configuration 'macos-14-arm64-us-default' is not supported"), so the job was cancelled before it started and a release could not build the macOS arm64 wheel. Both now run on `macos-15`. The wheels still target macOS 13.3 and later (`MACOSX_DEPLOYMENT_TARGET`).
+
+### Added — verification of mixed adsorbent layers
+- `core/test/validation/test_mixed_layers.cpp` (`MixedLayers.*`): solved tests for
+  layers packed with several solids at set mass fractions. A blend of an adsorbent
+  and an identical copy equals the pure layer, and a blend with an inert solid
+  equals the pure adsorbent at the blend's density, voidage, conductivity and heat
+  capacity, field by field in LTE and LTNE. The stoichiometric breakthrough time of
+  a two-adsorbent layer on linear isotherms matches its mass-weighted capacity, and
+  the mole and energy balances close on mixed beds. No defect was found.
+
+### Added — documentation for matching another model
+- New docs page *Matching Another Model* (`docs/model-conventions.md`): what `solid_density` is and how the bulk density follows from it, the total voidage and how to set it equal to the bed voidage, the heat-of-adsorption sign with a worked example, which composition the capacity-factor rate uses, the formula of every boundary-value profile (including the pressure-ramp start value, ramp time and exponential factor), how velocity feeds are converted to moles, where profile values sit, and a checklist of the settings that most often differ between codes. Linked from the mass- and energy-balance pages.
+
+### Added — GAB isotherms from Python for any vapour
+- `skarstrom.evaluate_isotherm`, `fit_isotherm` (`component=`) and
+  `evaluate_iast` (`components=`) name the vapour whose saturation pressure
+  the GAB kinds use (a CoolProp name; default water). `isotherm_kinds()` now
+  lists `gab` and `gab_young`, and the fitter has default set-ups for both
+  (`gab`: q_m0, C0, K0, with dH_C and dH_K at several temperatures;
+  `gab_young`: q_m, C_E, F, with G at several temperatures). In C++,
+  `isofit::FitOptions::component` and `isofit::Evaluate(..., component)`.
+
+### Added — reactions on a catalyst solid (data model and API)
+- A solid (adsorbent) can carry heterogeneous reactions
+  (`Adsorbent::reaction_source_`, `adsim/objects/reaction.h`): stoichiometry,
+  a rate law per kg of the solid, a rate basis (partial pressure in bar, or
+  concentration), a heat of reaction (constant, or Kirchhoff with the gas
+  heat capacities the energy balance uses) and an effectiveness factor.
+  A catalyst mixed into a layer with a sorbent makes a sorption-enhanced
+  reactor. The reactions do not enter the balances of a run yet.
+- Rate kinds (`adsim/equations/reaction_kinds.h`): `power_law`,
+  `reversible_power_law`, `lhhw` (Langmuir-Hinshelwood-Hougen-Watson with any
+  number of adsorption terms; reproduces the Xu and Froment steam-reforming
+  rates) and `expression` (a formula of T, P and each component's `p_<C>`,
+  `c_<C>`, `y_<C>`, which expressions can now use).
+- Element formulas for the built-in components and an element-balance check
+  of every reaction.
+- Builder: `AddReaction`, `SetReactionKind`, `SetReactionStoichiometry`,
+  `SetReactionBasis`, `SetEffectiveness`, `AddAdsorptionTerm`,
+  `RemoveAdsorptionTerm`, `RemoveReaction`, `ReactionRateKinds`. Registry
+  paths `adsorbent[ID].reaction[ID].*` (category `reaction`).
+- Deck checks (`ReactionChecks`) and warnings (`ReactionWarnings`).
+- `RemoveComponentFromDeck(data, name, err)` refuses to remove a component a
+  reaction uses.
+
+### Changed — adsorbent archive version 5
+- `Adsorbent` is saved at cereal version 5 with a `Reaction_Source` node.
+  Decks and library files at version 4 load unchanged, with no reactions.
+- The library files in `data/adsorbents/` and `examples/decks/Illustrative_TSA_13X.json`
+  are re-saved by the test suite at version 5 (version stamp and an empty
+  `Reaction_Source` only).
+
+### Fixed — saving an adsorbent file fails silently
+- `SaveAdsorbentToJSON` now throws `std::runtime_error` naming the file and
+  the reason when it cannot write it (missing or read-only directory, full
+  disk, a rename that keeps failing), instead of returning without a file.
+  The temporary file is removed and the target is left as it was. The
+  rename is retried for about 5 s, as on Windows it fails while another
+  process has the target open.
+
+### Changed — shorter energy-balance option labels
+- The energy-balance and thermal-equilibrium option labels (`EnergyBalanceModeList`, `ThermalEquilibriumModeList`) drop their bracketed notes: **Non-isothermal**, **Isothermal**, **Local thermal equilibrium** and **Local thermal non-equilibrium**. Only the displayed text changes; the stored values are the same.
+
+### Added — Skarstrom-cycle equilibrium-theory verification
+- `test_skarstrom_cycle_equilibrium_theory.cpp` checks a full four-step
+  Skarstrom cycle (pressurisation with light product, feed, blowdown, purge)
+  on linear isotherms against the Knaebel-Hill equilibrium theory: light-product
+  purity 1, the closed-form recovery at two purge-to-feed ratios and the
+  heavy-product composition. A slow-tier test refines the grid and the LDF
+  rate and shows the gap falling at first order and extrapolating to the theory.
+
+### Added — paper-validation protocol and data provenance
+- `core/test/papers/README.md` now holds the seven-step validation protocol every paper goes through (source, provenance audit, model-form audit, data, metrics, attribution, report) and a provenance-table template with a filled example.
+- `core/data/<paper>/README.md` for every experimental data set (Nguyen et al. 2022, Streb & Mazzotti 2021, Ward & Pini 2022): source figure, points and data range of each file, how it was obtained (all three are digitised figures) and known caveats, with facts the repository does not record marked "not recorded".
+
+### Fixed — gas heat capacity of condensable components
+- In the CoolProp gas heat capacity mode, a component that is condensed in its
+  pure state at the initial pressure and temperature (water, ethanol, hexane,
+  toluene, ... at 1 bar and 298 K) now takes its ideal-gas heat capacity
+  instead of CoolProp's liquid value: water vapour is about 1865 J/(kg·K),
+  where the liquid's 4181 J/(kg·K) was used before. Components in a gas or
+  supercritical state, including the permanent gases, are unchanged, as is
+  the user-defined heat capacity mode. Viscosity and thermal conductivity
+  already used vapour-phase fits. No bundled example deck has a condensable
+  component, so their results do not change.
+
 ## [0.5.0] — 2026-11-05
 
 ### Changed — WENO is the default advection scheme; example decks on grid-converged cell counts
