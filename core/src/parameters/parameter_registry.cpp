@@ -14,7 +14,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "adsim/equations/reaction_kinds.h"
 #include "adsim/math/unit_parser.h"
+#include "adsim/objects/reaction.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/cyclic_steady_state.h"
 
@@ -1027,6 +1029,105 @@ namespace adsim {
       }
 
       AddIsotherms(source, ap, aa, an);
+      AddReactions(ads.reaction_source_, ap, aa, an);
+    }
+
+    // Reactions on a solid: adsorbent[A].reaction[R].*, category "reaction",
+    // subcategory "<layer>, <solid>, <reaction>". The rate constants' units
+    // depend on the orders and the basis, so they carry their literature unit
+    // text unchecked (unit_checked = false). Pre-exponential factors,
+    // activation energies, orders and the effectiveness factor are tunable.
+    void AddReactions(ReactionSource& source, const std::string& ap, const std::string& aa, const std::string& an) {
+      const double nan = std::numeric_limits<double>::quiet_NaN();
+      for (auto& r : source.reactions_) {
+        const std::string rp = ap + ".reaction[" + std::to_string(r.id_) + "].";
+        const std::string ra = aa + ".reaction[" + r.name_ + "].";
+        const std::string sub = an + ", " + r.name_;
+        const bool pp = r.basis_ == RateBasis::PartialPressure;
+        const std::string act = pp ? "bar" : "(mol/m3)";
+        auto power = [&](double n) { return act + "^" + ExpressionParam::FormatScalar(n); };
+        // Emplace an expression and set its tunable flag and unit check.
+        auto E = [&](const std::string& leaf, const std::string& name, const std::string& unit,
+                     ExpressionParam& value, double lo, double hi, bool tunable, bool checked = true) {
+          Emplace(rp + leaf, ra + leaf, "reaction", sub, name, unit, value, lo, hi);
+          out.back().info_.tunable = tunable && !value.HasExpression();
+          out.back().info_.unit_checked = checked;
+        };
+
+        for (auto& entry : r.nu_) {
+          const std::string leaf = "nu[" + entry.first + "]";
+          Emplace(rp + leaf, ra + leaf, "reaction", sub, entry.first + " stoichiometric coefficient", "-",
+                  entry.second, nan, nan);
+          out.back().info_.tunable = false;
+        }
+        EmplaceEnum(rp + "basis", ra + "basis", "reaction", sub, "rate basis", r.basis_,
+                    "partial_pressure,concentration");
+
+        if (r.rate_) {
+          IReactionRate* rate = r.rate_.get();
+          // Sum of the orders (the rate constant's activity power) and of the
+          // stoichiometric coefficients (the equilibrium constant's).
+          double order_sum = 0.0, nu_sum = 0.0;
+          for (auto& [leaf, param] : ReactionRateFields(rate))
+            if (leaf.rfind("order[", 0) == 0) order_sum += param->Get();
+          for (const auto& [c, v] : r.nu_) nu_sum += v;
+          const std::string k_unit = order_sum == 0.0 ? "mol/(kg-s)" : "mol/(kg-s-" + power(order_sum) + ")";
+          if (auto* l = dynamic_cast<LhhwRate*>(rate)) {
+            EmplaceBool(rp + "rate.reversible", ra + "rate.reversible", "reaction", sub, "reversible",
+                        l->reversible_);
+          }
+          for (auto& [leaf, param] : ReactionRateFields(rate)) {
+            const std::string path_leaf = "rate." + leaf;
+            if (leaf == "pre_exp_factor") {
+              E(path_leaf, "pre-exponential factor", k_unit, *param, 0.0, 1e16, true, false);
+            } else if (leaf == "activation_energy") {
+              E(path_leaf, "activation energy", "J/mol", *param, 0.0, 3e5, true);
+            } else if (leaf.rfind("order[", 0) == 0) {
+              E(path_leaf, leaf.substr(6, leaf.size() - 7) + " order", "-", *param, -3.0, 3.0, true);
+            } else if (leaf == "equilibrium_pre_exp_factor") {
+              E(path_leaf, "equilibrium pre-exponential factor", nu_sum == 0.0 ? "-" : power(nu_sum), *param,
+                1e-30, 1e30, true, false);
+            } else if (leaf == "equilibrium_energy") {
+              E(path_leaf, "equilibrium energy", "J/mol", *param, -5e5, 5e5, false);
+            } else if (leaf == "denominator_exponent") {
+              E(path_leaf, "denominator exponent", "-", *param, 0.0, 4.0, false);
+            } else if (leaf == "expression") {
+              E(path_leaf, "rate expression", "mol/(kg-s)", *param, nan, nan, false, false);
+            } else if (leaf.rfind("adsorption[", 0) == 0) {
+              const size_t dot = leaf.find("].") + 2;
+              const std::string term = leaf.substr(0, dot - 1);   // adsorption[j]
+              const std::string field = leaf.substr(dot);
+              if (field == "pre_exp_factor") {
+                // The term's activity power is the sum of its exponents.
+                double e_sum = 0.0;
+                const size_t j = std::stoul(term.substr(11, term.size() - 12));
+                if (auto* l = dynamic_cast<LhhwRate*>(rate); l && j >= 1 && j <= l->adsorption_.size())
+                  for (const auto& [c, e] : l->adsorption_[j - 1].exponent_) e_sum += e.Get();
+                E(path_leaf, term + " pre-exponential factor", e_sum == 0.0 ? "-" : "1/" + power(e_sum), *param,
+                  0.0, 1e10, true, false);
+              } else if (field == "energy") {
+                E(path_leaf, term + " energy", "J/mol", *param, -3e5, 3e5, false);
+              } else {
+                const std::string c = field.substr(9, field.size() - 10);  // exponent[C]
+                E(path_leaf, term + " " + c + " exponent", "-", *param, -3.0, 3.0, false);
+              }
+            } else {
+              E(path_leaf, leaf, "-", *param, nan, nan, false, false);
+            }
+          }
+        }
+
+        E("heat_of_reaction", "heat of reaction", "J/mol", r.heat_of_reaction_, -1e6, 1e6, false);
+        EmplaceEnum(rp + "heat_mode", ra + "heat_mode", "reaction", sub, "heat of reaction mode", r.heat_mode_,
+                    "constant,kirchhoff");
+        E("heat_reference_temperature", "heat of reaction reference temperature", "K",
+          r.heat_reference_temperature_, 200.0, 1500.0, false);
+        if (r.effectiveness_.mode_ == EffectivenessMode::Constant) {
+          E("effectiveness", "effectiveness factor", "-", r.effectiveness_.effectiveness_, 0.0, 1.0, true);
+        } else {
+          E("tortuosity", "tortuosity", "-", r.effectiveness_.tortuosity_, 1.0, 10.0, false);
+        }
+      }
     }
 
     void AddIsotherms(AdsorptionSource& source, const std::string& ap, const std::string& aa, const std::string& an) {

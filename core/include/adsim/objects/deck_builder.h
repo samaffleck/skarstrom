@@ -23,6 +23,10 @@
 //                        "extended_dual_site_langmuir_c", "sips", "inert"
 //   rate model           "ldf", "ldf2"
 //   rate coefficient     "constant", "macropore", "macropore_knudsen", "haynes", "arrhenius"
+//   reaction rate        "power_law", "reversible_power_law", "lhhw", "expression"
+//                        (ReactionRateKindString, equations/reaction_kinds.h)
+//   reaction basis       "partial_pressure", "concentration"
+//   effectiveness        "constant", "thiele"
 //   momentum             "kozeny_carman", "ergun", "blake_kozeny"
 //   dispersion           "constant", "ruthven"
 //   heat dispersion      "constant", "ruthven", "yagi_kunii"
@@ -50,6 +54,7 @@
 // in creation order, as Cycle::EnsureIds does. The functions do not evaluate
 // expressions: refresh the parameter registry after a batch of edits.
 
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -108,6 +113,33 @@ void SetMixingRule(UserData& data, AdsorbentID adsorbent, const std::string& kin
 // The rate model of one component: `model` with a `coefficient` model.
 void SetRateModel(UserData& data, AdsorbentID adsorbent, const std::string& component,
                   const std::string& model, const std::string& coefficient);
+
+// ---- reactions (objects/reaction.h) -------------------------------------------------
+// A reaction on a solid `solid` (an adsorbent ID) with stoichiometry `nu`
+// (component -> coefficient, < 0 reactant, > 0 product; exact zeros are
+// dropped) and a rate law of `kind`. Every component must be in the deck.
+// Orders default to -nu for reactants and 0 for products. Returns its ID.
+// Kind, stoichiometry and the LHHW adsorption terms are structure (these
+// functions); every value goes through the registry
+// (adsorbent[ID].reaction[ID].*).
+ReactionID AddReaction(UserData& data, AdsorbentID solid, const std::string& name,
+                       const std::map<std::string, double>& nu, const std::string& kind = "power_law");
+// A new rate law of `kind`; parameters the new layout shares keep their values.
+void SetReactionKind(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& kind);
+void SetReactionStoichiometry(UserData& data, AdsorbentID solid, ReactionID reaction,
+                              const std::map<std::string, double>& nu);
+void SetReactionBasis(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& basis);
+// The effectiveness model: "constant" (eta through the registry) or "thiele"
+// with its key reactant.
+void SetEffectiveness(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& mode,
+                      const std::string& key_component = "");
+// A new LHHW denominator term (lhhw only); returns its index j (from 1).
+size_t AddAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction);
+void RemoveAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t j);
+void RemoveReaction(UserData& data, AdsorbentID solid, ReactionID reaction);
+std::vector<std::string> ReactionRateKinds();
+const std::vector<std::string>& ReactionBasisKinds();
+const std::vector<std::string>& EffectivenessKinds();
 
 // ---- column ---------------------------------------------------------------------
 void SetBedShape(UserData& data, const std::string& kind);

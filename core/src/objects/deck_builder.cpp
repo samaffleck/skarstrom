@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <stdexcept>
 
 #include "adsim/boundary_conditions/boundary_conditions.h"
@@ -20,6 +21,7 @@
 #include "adsim/equations/isotherm.h"
 #include "adsim/equations/isotherm_kinds.h"
 #include "adsim/equations/mass_transfer_model.h"
+#include "adsim/equations/reaction_kinds.h"
 #include "adsim/equations/wall_temperature_boundary_condition.h"
 #include "adsim/objects/compressor.h"
 #include "adsim/objects/deck_edit.h"
@@ -329,6 +331,115 @@ void SetRateModel(UserData& data, AdsorbentID adsorbent, const std::string& comp
   m->mtc_model_ = CreateMassTransferCoefficientModel(
       KindEnum<MassTransferCoefficientType>(RateCoefficientKinds(), coefficient, "rate coefficient"));
   GetAdsorbent(data, adsorbent).adsorption_source_.mass_transfer_models_[component] = std::move(m);
+}
+
+// ---- reactions ---------------------------------------------------------------------------
+
+namespace {
+Reaction& GetReaction(UserData& data, AdsorbentID solid, ReactionID reaction) {
+  Adsorbent& ads = GetAdsorbent(data, solid);
+  Reaction* r = ads.reaction_source_.Find(reaction);
+  if (!r)
+    throw std::invalid_argument("no reaction with ID " + std::to_string(reaction) + " on adsorbent '" +
+                                ads.name_ + "'");
+  return *r;
+}
+
+ReactionRateType RateKind(const std::string& kind) {
+  ReactionRateType t{};
+  if (!ReactionRateKindFromString(kind, t)) KindIndex(ReactionRateKinds(), kind, "reaction rate");  // throws
+  return t;
+}
+
+void CheckStoichiometry(const UserData& data, const std::map<std::string, double>& nu) {
+  for (const auto& [c, v] : nu) {
+    CheckComponent(data, c);
+    if (!std::isfinite(v)) throw std::invalid_argument("the coefficient of " + c + " is not finite");
+  }
+}
+
+LhhwRate& Lhhw(Reaction& r) {
+  auto* l = dynamic_cast<LhhwRate*>(r.rate_.get());
+  if (!l) throw std::invalid_argument("reaction '" + r.name_ + "' does not use the lhhw rate kind");
+  return *l;
+}
+}  // namespace
+
+std::vector<std::string> ReactionRateKinds() {
+  std::vector<std::string> out;
+  for (auto t : kAllReactionRateKinds) out.emplace_back(ReactionRateKindString(t));
+  return out;
+}
+const std::vector<std::string>& ReactionBasisKinds() {
+  static const std::vector<std::string> k{"partial_pressure", "concentration"};
+  return k;
+}
+const std::vector<std::string>& EffectivenessKinds() {
+  static const std::vector<std::string> k{"constant", "thiele"};
+  return k;
+}
+
+ReactionID AddReaction(UserData& data, AdsorbentID solid, const std::string& name,
+                       const std::map<std::string, double>& nu, const std::string& kind) {
+  Adsorbent& ads = GetAdsorbent(data, solid);
+  const ReactionRateType type = RateKind(kind);
+  CheckStoichiometry(data, nu);
+  return ads.reaction_source_.Add(name, nu, type);
+}
+
+void SetReactionKind(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& kind) {
+  const ReactionRateType type = RateKind(kind);
+  GetReaction(data, solid, reaction).SetRateType(type);
+}
+
+void SetReactionStoichiometry(UserData& data, AdsorbentID solid, ReactionID reaction,
+                              const std::map<std::string, double>& nu) {
+  Reaction& r = GetReaction(data, solid, reaction);
+  CheckStoichiometry(data, nu);
+  r.SetStoichiometry(nu);
+}
+
+void SetReactionBasis(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& basis) {
+  GetReaction(data, solid, reaction).basis_ = KindEnum<RateBasis>(ReactionBasisKinds(), basis, "reaction basis");
+}
+
+void SetEffectiveness(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& mode,
+                      const std::string& key_component) {
+  Reaction& r = GetReaction(data, solid, reaction);
+  const auto m = KindEnum<EffectivenessMode>(EffectivenessKinds(), mode, "effectiveness");
+  if (m == EffectivenessMode::Thiele) {
+    auto it = r.nu_.find(key_component);
+    if (it == r.nu_.end() || !(it->second < 0.0))
+      throw std::invalid_argument("the Thiele effectiveness needs a key reactant of reaction '" + r.name_ +
+                                  "'; '" + key_component + "' is not one");
+  }
+  r.effectiveness_.mode_ = m;
+  r.effectiveness_.key_component_ = m == EffectivenessMode::Thiele ? key_component : std::string{};
+}
+
+size_t AddAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction) {
+  Reaction& r = GetReaction(data, solid, reaction);
+  LhhwRate& l = Lhhw(r);
+  LhhwAdsorptionTerm term;
+  // An exponent entry (0) for every component of the deck, so each can be set
+  // through the registry (adsorption[j].exponent[C]); zeros do not count as use.
+  for (const auto& c : data.fluid.components_) term.exponent_.emplace(c, 0.0);
+  for (const auto& [c, v] : r.nu_) term.exponent_.emplace(c, 0.0);
+  l.adsorption_.push_back(std::move(term));
+  return l.adsorption_.size();
+}
+
+void RemoveAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t j) {
+  Reaction& r = GetReaction(data, solid, reaction);
+  LhhwRate& l = Lhhw(r);
+  if (j < 1 || j > l.adsorption_.size())
+    throw std::invalid_argument("reaction '" + r.name_ + "' has no adsorption term " + std::to_string(j));
+  l.adsorption_.erase(l.adsorption_.begin() + static_cast<std::ptrdiff_t>(j - 1));
+}
+
+void RemoveReaction(UserData& data, AdsorbentID solid, ReactionID reaction) {
+  GetReaction(data, solid, reaction);  // throws when absent
+  GetAdsorbent(data, solid).reaction_source_.Remove(reaction);
 }
 
 // ---- column -------------------------------------------------------------------------------

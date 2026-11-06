@@ -81,6 +81,7 @@ nav:
       - Kinetic Models: kinetic-models.md
       - Transport Correlations: transport-correlations.md
       - Equation of State: equation-of-state.md
+      - Matching Another Model: model-conventions.md
   - Simulating a process:
       - Cycles and Initial Conditions: cycles.md
       - Boundary Conditions: boundary-conditions.md

@@ -201,7 +201,7 @@ Below a mole fraction of $10^{-5}$ each term is continued as described in the ne
 
 ## Competitive Sips kinds near zero mole fraction
 
-In Extended Sips 2 and Arrhenius Sips each component's term $z_i = (b_i P y_i)^{s_i}$ has an infinite slope at $y_i = 0$ when $s_i < 1$. The integrator's Newton iteration cannot linearise that, and a component absent from part of the bed (ahead of its front, or after a purge) sits right on it. Below the mole fraction $y_0 = 10^{-5}$ the power is therefore replaced by the quadratic in $y_i$ that is zero at $y_i = 0$ and has the power's value and slope at $y_0$:
+In Extended Sips 2 and Arrhenius Sips each component's term $z_i = (b_i P y_i)^{s_i}$ (and in [Extended Langmuir–Freundlich](#extended-langmuirfreundlich-temperature-dependent) the power $(P y_i / P_{ref})^{n_i}$ of $z_i = b_i (P y_i / P_{ref})^{n_i}$) has an infinite slope at $y_i = 0$ when $s_i < 1$. The integrator's Newton iteration cannot linearise that, and a component absent from part of the bed (ahead of its front, or after a purge) sits right on it. Below the mole fraction $y_0 = 10^{-5}$ the power is therefore replaced by the quadratic in $y_i$ that is zero at $y_i = 0$ and has the power's value and slope at $y_0$:
 
 $$
 z_i = \left(b_i P y_0\right)^{s_i}\thinspace t\left[(2 - s_i) - (1 - s_i)\thinspace t\right], \qquad t = \frac{y_i}{y_0}, \qquad 0 \le y_i < y_0
@@ -212,9 +212,9 @@ $$
 - $y_0$ is 1000 times the integrator's absolute tolerance on mole fractions ($10^{-8}$), so a Newton correction near $y_i = 0$ sees an almost linear term.
 - For $s_i \ge 2$, where the quadratic would not be monotone (no published fit is near it), the power is used down to $y_i = 0$ and $z_i = 0$ below it.
 
-The single-component evaluation of these two kinds (`skarstrom.evaluate_isotherm`, whose `mole_fraction` defaults to 1, and the [isotherm fitter](isotherm-fitting.md)) uses the same function, so what is plotted or fitted is what the solver uses. Under the [IAST mixing rule](#mixture-loadings-the-mixing-rule-and-iast) the pure isotherms are evaluated in partial pressure and absent components take the infinite-dilution limit, so the continuation does not enter.
+The single-component evaluation of these kinds (`skarstrom.evaluate_isotherm`, whose `mole_fraction` defaults to 1, and the [isotherm fitter](isotherm-fitting.md)) uses the same function, so what is plotted or fitted is what the solver uses. Under the [IAST mixing rule](#mixture-loadings-the-mixing-rule-and-iast) the pure isotherms are evaluated in partial pressure and absent components take the infinite-dilution limit, so the continuation does not enter.
 
-> Before this was introduced (see the changelog), the two kinds multiplied every term by $y_i^2 / (y_i^2 + 10^{-6})$, in the solver only. That halved a component's loading at $y_i = 10^{-3}$, cut it by 1 % at $10^{-2}$ and by 99 % at $10^{-4}$.
+> Before this was introduced (see the changelog), the two Sips kinds multiplied every term by $y_i^2 / (y_i^2 + 10^{-6})$, in the solver only. That halved a component's loading at $y_i = 10^{-3}$, cut it by 1 % at $10^{-2}$ and by 99 % at $10^{-4}$. Extended Langmuir–Freundlich used $y_i^2 / (y_i^2 + 10^{-10})$ in both paths: $10^{-4}$ at $y_i = 10^{-3}$, 1 % at $10^{-4}$, about 50 % at $10^{-5}$.
 
 ---
 
@@ -316,7 +316,7 @@ $$
 | $k_6$ | Inverse exponent temperature | K |
 | $P_{ref}$ | Pressure unit of the fit (default $10^5$ Pa) | Pa |
 
-The affinity multiplies the power, $b P^n$, where Sips 2 raises the affinity with the pressure, $(b P)^n$; the two coincide only when $k_2 = k_6 = 0$ (then Extended Sips 2 with $A_1 = k_1$, $A_2 = 0$, $C_1 = 1/k_5$, $C_2 = 0$, $B_1 = k_3^{k_5} / P_{ref}$, $B_2 = R k_4 k_5$). Near zero mole fraction each term is multiplied by $y_i^2 / (y_i^2 + 10^{-10})$, which keeps the slope of $P_i^{n}$ finite for $n < 1$ and changes the loading by $10^{-10}/y_i^2$ (relative): $10^{-4}$ at $y_i = 10^{-3}$, $10^{-6}$ at $y_i = 10^{-2}$. Under the IAST mixing rule each component's term is a pure Sips isotherm with affinity $b_i^{1/n_i} / P_{ref}$ and exponent $n_i$.
+The affinity multiplies the power, $b P^n$, where Sips 2 raises the affinity with the pressure, $(b P)^n$; the two coincide only when $k_2 = k_6 = 0$ (then Extended Sips 2 with $A_1 = k_1$, $A_2 = 0$, $C_1 = 1/k_5$, $C_2 = 0$, $B_1 = k_3^{k_5} / P_{ref}$, $B_2 = R k_4 k_5$). Below a mole fraction of $10^{-5}$ the power $(P y_i / P_{ref})^{n_i}$ is continued exactly as in the competitive Sips kinds (with $b_i P$ there read as $P / P_{ref}$ and $s_i$ as $n_i$; see [Competitive Sips kinds near zero mole fraction](#competitive-sips-kinds-near-zero-mole-fraction)), so the isotherm is exact for $y_i \ge 10^{-5}$ at every temperature, whatever $n_i(T)$, and has a finite Henry slope below. Under the IAST mixing rule each component's term is a pure Sips isotherm with affinity $b_i^{1/n_i} / P_{ref}$ and exponent $n_i$.
 
 ---
 

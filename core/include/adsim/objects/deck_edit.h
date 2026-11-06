@@ -49,7 +49,20 @@ bool AddComponentToDeck(UserData& data, const std::string& name, std::string& er
 // Remove a component from the fluid, from every adsorbent, from every
 // mole-fraction map and from the adsorbed-phase heat capacities. A deck may
 // end up with no components (it then fails the deck checks until one is added).
+// Refused (false + err, nothing changed) when a reaction of any solid uses the
+// component (a nonzero coefficient, order or LHHW adsorption exponent; see
+// Reaction::UsesComponent), e.g. "Water is used by reactions SMR, WGS (on Ni
+// catalyst); remove them first". Exact-zero entries of the component are
+// dropped from the reactions.
+bool RemoveComponentFromDeck(UserData& data, const std::string& name, std::string& err);
+
+// As above for a deck whose reactions do not use the component (asserted;
+// in a release build a refused removal leaves the deck unchanged).
 void RemoveComponentFromDeck(UserData& data, const std::string& name);
+
+// The refusal message of RemoveComponentFromDeck, or "" when no reaction
+// uses `name`.
+std::string ComponentInUseByReactions(const UserData& data, const std::string& name);
 
 // ---- layers and adsorbents -----------------------------------------------------
 
@@ -71,7 +84,9 @@ bool LoadAdsorbentFromString(const std::string& json, Adsorbent& out, std::strin
 
 // Add an adsorbent from a single-adsorbent JSON blob. Components of the deck
 // that the blob does not cover get default physics; parameters for components
-// the deck's fluid lacks are kept but unused. On success `id` is the new
+// the deck's fluid lacks are kept but unused. Its reactions are kept too; one
+// that uses a component the deck lacks is inactive and reported by the deck
+// checks (ReactionChecks) once a layer uses the solid. On success `id` is the new
 // adsorbent; on failure nothing is added and err says why.
 bool AddAdsorbentFromJson(UserData& data, const std::string& label, const std::string& json,
                           AdsorbentID& id, std::string& err);
@@ -84,7 +99,8 @@ bool AddLibraryAdsorbent(UserData& data, const std::string& library_dir, const s
                          AdsorbentID& id, std::string& err);
 
 // Remove an adsorbent from the directory and every layer, then re-seed any
-// layer left empty with another adsorbent (if one remains).
+// layer left empty with another adsorbent (if one remains). Its reactions go
+// with it.
 void RemoveAdsorbentFromDeck(UserData& data, AdsorbentID id);
 
 // ---- connections ----------------------------------------------------------------

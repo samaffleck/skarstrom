@@ -20,6 +20,7 @@
 #include <map>
 #include <iomanip>
 #include <optional>
+#include <set>
 #include <sstream>
 
 namespace adsim {
@@ -179,6 +180,59 @@ namespace adsim {
         else
           ss << "; give these components a pure-component isotherm.";
         warnings.push_back(ss.str());
+      }
+    }
+    return warnings;
+  }
+
+  std::vector<std::string> ReactionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
+                                            bool order_notes) {
+    std::vector<std::string> warnings;
+    std::set<AdsorbentID> in_layer;
+    for (const auto& layer : bed.layers_.layers_)
+      for (const auto& [id, frac] : layer.composition_) in_layer.insert(id);
+    std::vector<AdsorbentID> ids;
+    for (const auto& [id, ads] : adsorbents.GetAll()) ids.push_back(id);
+    std::sort(ids.begin(), ids.end());
+    const bool isothermal = bed.equations_.IsIsothermal();
+    for (AdsorbentID id : ids) {
+      const Adsorbent& ads = adsorbents.Get(id);
+      const auto& reactions = ads.reaction_source_.reactions_;
+      if (reactions.empty()) continue;
+      if (!in_layer.count(id)) {
+        warnings.push_back("Warning: solid '" + ads.name_ + "' has " + std::to_string(reactions.size()) +
+                           (reactions.size() == 1 ? " reaction" : " reactions") +
+                           " but no layer uses it, so they take no part in the run.");
+        continue;
+      }
+      for (const auto& r : reactions) {
+        const std::string who = "reaction '" + r.name_ + "' (on " + ads.name_ + ")";
+        if (isothermal && r.heat_of_reaction_.Get() != 0.0)
+          warnings.push_back("Warning: " + who + " has a nonzero heat of reaction, but the run is isothermal,"
+                             " so the heat is not applied.");
+        const ElementBalance eb = r.CheckElements();
+        if (!eb.checked) {
+          std::string list;
+          for (size_t i = 0; i < eb.unknown.size(); ++i) list += (i ? ", " : "") + eb.unknown[i];
+          warnings.push_back("Note: the element balance of " + who + " is not checked: no element formula for " +
+                             list + ".");
+        }
+        if (!order_notes || !r.rate_) continue;
+        std::vector<std::string> differing;
+        for (auto& [leaf, param] : ReactionRateFields(r.rate_.get())) {
+          if (leaf.rfind("order[", 0) != 0) continue;
+          const std::string c = leaf.substr(6, leaf.size() - 7);
+          auto it = r.nu_.find(c);
+          const double nu = it == r.nu_.end() ? 0.0 : it->second;
+          const double elementary = nu < 0.0 ? -nu : 0.0;
+          if (param->Get() != elementary) differing.push_back(c);
+        }
+        if (!differing.empty()) {
+          std::string list;
+          for (size_t i = 0; i < differing.size(); ++i) list += (i ? ", " : "") + differing[i];
+          warnings.push_back("Note: " + who + " is not elementary: the orders of " + list +
+                             " differ from -nu (reactants) or 0 (products).");
+        }
       }
     }
     return warnings;

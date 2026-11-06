@@ -48,4 +48,15 @@ namespace adsim {
   // term is not applied and the plain kind with the same parameters is meant.
   std::vector<std::string> MixingRuleWarnings(const AdsorbentDirectory& adsorbents, const Fluid& fluid);
 
+  // Reactions (objects/reaction.h): one warning per solid with reactions that
+  // no layer uses (its reactions take no part, and the deck checks skip
+  // them); one per reaction with a nonzero heat of reaction in an isothermal
+  // run (the heat is not applied); one per reaction whose element balance
+  // could not be checked (a component without an element formula, e.g. Air).
+  // With `order_notes`, also an informational note per reaction whose orders
+  // differ from -nu (reactants) and 0 (products), i.e. a non-elementary rate.
+  // Expressions must already be evaluated.
+  std::vector<std::string> ReactionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
+                                            bool order_notes = false);
+
 } // namespace adsim

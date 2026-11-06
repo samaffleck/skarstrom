@@ -724,14 +724,11 @@ namespace adsim {
 
   // --- Extended Langmuir-Freundlich (Yang 1987; toPSAil) ----------------------
   // z_i = b_i (P y_i / P_ref)^{n_i}. For n < 1 the power has an infinite slope at
-  // y = 0, so y is made positive with the same softplus as the Sips kinds and
-  // z is multiplied by the smooth step y^2 / (y^2 + delta^2). delta = 1e-5 is
-  // far below the mole fractions of interest (the step changes z by delta^2 /
-  // y^2 = 1e-4 at y = 1e-3, 1e-6 at y = 1e-2) while keeping the slope at
-  // y ~ delta of order delta^{n-1} (about 300 for n = 0.5).
+  // y = 0; it is continued below y = 1e-5 exactly as the competitive Sips kinds
+  // are (SipsTraceTerm with bP = P / P_ref, s = n), so the isotherm is exact for
+  // y >= 1e-5 and has a finite Henry slope below. SipsTraceTerm also covers
+  // n >= 2, so the temperature-dependent n needs no special case.
   namespace {
-    constexpr double kElfDelta = 1e-5;
-
     inline double Elf_qs(double T, const ExtendedLangmuirFreundlichIsothermParameters& p) {
       const double k1 = p.k1, k2 = p.k2;
       return k1 + k2 * T;
@@ -740,9 +737,7 @@ namespace adsim {
       const double k3 = p.k3, k4 = p.k4, k5 = p.k5, k6 = p.k6, P_ref = p.P_ref;
       const double b = k3 * std::exp(k4 / T);
       const double n = 1.0 / (k5 + k6 / T);
-      const double mf_pos = softplus(mf, kSoftplusTau);
-      const double z_raw = b * safe_pow(P * mf_pos / P_ref, n);
-      return z_raw * (mf_pos * mf_pos) / (mf_pos * mf_pos + kElfDelta * kElfDelta);
+      return b * SipsTraceTerm(P / P_ref, mf, n);
     }
   } // namespace
 
