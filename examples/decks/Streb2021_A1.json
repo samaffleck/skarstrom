@@ -7,7 +7,7 @@
                 {
                     "key": 1,
                     "value": {
-                        "cereal_class_version": 4,
+                        "cereal_class_version": 5,
                         "Name": "13X",
                         "Density": {
                             "cereal_class_version": 2,
@@ -281,6 +281,11 @@
                             "Value": 0.5400593471810089,
                             "Expression": "0.5400593471810089",
                             "DisplayUnitIndex": 0
+                        },
+                        "Reaction_Source": {
+                            "cereal_class_version": 1,
+                            "Reactions": [],
+                            "Next_Reaction_ID": 0
                         }
                     }
                 }
@@ -797,20 +802,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 1.665387412274797,
-                                    "Average_Temperature": 302.5000399454217,
+                                    "Total_Moles": 1.665387765447127,
+                                    "Average_Temperature": 302.500027595193,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.010674720836808866
+                                            "value": 0.010674720940206183
                                         },
                                         {
                                             "key": "Methane",
-                                            "value": 0.9656612099575151
+                                            "value": 0.9656609867353292
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.023664069205676088
+                                            "value": 0.02366429232446455
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -893,8 +898,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 3.3123834565781085,
-                                                        "Average_Temperature": 298.0000000000016,
+                                                        "Total_Moles": 3.312383456607188,
+                                                        "Average_Temperature": 297.9999999999993,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",

@@ -7,7 +7,7 @@
                 {
                     "key": 1,
                     "value": {
-                        "cereal_class_version": 4,
+                        "cereal_class_version": 5,
                         "Name": "CALF-20",
                         "Density": {
                             "cereal_class_version": 2,
@@ -293,6 +293,11 @@
                             "Value": 0.35,
                             "Expression": "0.35",
                             "DisplayUnitIndex": 0
+                        },
+                        "Reaction_Source": {
+                            "cereal_class_version": 1,
+                            "Reactions": [],
+                            "Next_Reaction_ID": 0
                         }
                     }
                 }
@@ -814,20 +819,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.15095998472723089,
-                                    "Average_Temperature": 303.0252497990992,
+                                    "Total_Moles": 0.15096002809770849,
+                                    "Average_Temperature": 303.0250925143604,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.3984192495703868
+                                            "value": 0.3984191275851413
                                         },
                                         {
                                             "key": "Nitrogen",
-                                            "value": 1.2309159179700148e-29
+                                            "value": 2.606292007981105e-29
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.6015807504296132
+                                            "value": 0.6015808724148586
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -910,12 +915,12 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.19773737281421245,
-                                                        "Average_Temperature": 294.9999999999999,
+                                                        "Total_Moles": 0.19773737281377033,
+                                                        "Average_Temperature": 294.9999999999998,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.6999999999999998
+                                                                "value": 0.7000000000000002
                                                             },
                                                             {
                                                                 "key": "Nitrogen",
@@ -923,7 +928,7 @@
                                                             },
                                                             {
                                                                 "key": "Helium",
-                                                                "value": 0.30000000000000018
+                                                                "value": 0.2999999999999998
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 0

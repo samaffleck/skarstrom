@@ -7,7 +7,7 @@
                 {
                     "key": 1,
                     "value": {
-                        "cereal_class_version": 4,
+                        "cereal_class_version": 5,
                         "Name": "Activated Carbon",
                         "Density": {
                             "cereal_class_version": 2,
@@ -204,6 +204,11 @@
                             "Value": 0.0,
                             "Expression": "0",
                             "DisplayUnitIndex": 0
+                        },
+                        "Reaction_Source": {
+                            "cereal_class_version": 1,
+                            "Reactions": [],
+                            "Next_Reaction_ID": 0
                         }
                     }
                 }
@@ -707,16 +712,16 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.00883714266057162,
-                                    "Average_Temperature": 293.6047244815362,
+                                    "Total_Moles": 0.00883724015379043,
+                                    "Average_Temperature": 293.604489452045,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.1708860183254061
+                                            "value": 0.17088401410668115
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.8291139816745938
+                                            "value": 0.8291159858933188
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -791,8 +796,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.10262183922903268,
-                                                        "Average_Temperature": 293.00000000000019,
+                                                        "Total_Moles": 0.10262183922903817,
+                                                        "Average_Temperature": 293.00000000000008,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
