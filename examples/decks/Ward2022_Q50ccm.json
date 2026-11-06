@@ -1117,7 +1117,7 @@
                         8.32323e-7
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "Outlet volumetric Flowrate [ccm]"
+                    "y_label": "Outlet volumetric flowrate [m3/s]"
                 },
                 {
                     "Name": "temperature[K]_z=0.0715[m]_Qin=50[ccm]",
