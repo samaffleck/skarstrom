@@ -24,6 +24,7 @@
 #include "adsim/equations/isotherm.h"
 #include "adsim/math/constants.h"
 #include "adsim/objects/porous_media.h"
+#include "../fixtures/atomic_write.h"
 
 namespace adsim {
 namespace {
@@ -37,7 +38,7 @@ namespace {
   void SaveAndReload(const Adsorbent& a, const std::string& key, Adsorbent& out) {
     std::filesystem::create_directories(kLibDir);
     const auto path = kLibDir / (key + ".json");
-    SaveAdsorbentToJSON(path.string(), a);
+    test::SaveAdsorbentToJsonAtomically(a, path);  // other tests read these files concurrently
     LoadAdsorbentFromJSON(path.string(), out);
   }
 
