@@ -276,7 +276,9 @@ namespace adsim {
 		}
 		if (!negative && !(std::abs(total - 1.0) <= kCompositionSumTolerance)) {
 			issues.push_back({Severity::Error, "Error: Layer " + ln + ": mass fractions sum to " + number(total) +
-				"; they must sum to 1. Change the fractions so they add up to 1 (they are not rescaled automatically)."});
+				"; they must sum to 1. Change the fractions so they add up to 1 (they are not rescaled automatically)."
+				" To vary one solid's fraction in a study, change the others with it: for two solids, set them to x and"
+				" 1 - x together at each point (a mass fraction is a number, not an expression)."});
 		}
 		return issues;
 	}
