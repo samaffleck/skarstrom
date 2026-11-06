@@ -215,7 +215,7 @@ add_subdirectory(external/muparser)
 
 # -- dlib (global optimisation, used by adsim/solver/optimisation.h and the
 # isotherm fitter) --
-# Only find_min_global is used, so build just the five dlib sources it needs
+# Only find_min_global is used, so build just the six dlib sources it needs
 # (see cmake/dlib_minimal.cmake) rather than all of dlib.
 include(${ADSIM_SOURCE_DIR}/cmake/dlib_minimal.cmake)
 

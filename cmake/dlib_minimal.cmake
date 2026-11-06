@@ -7,7 +7,10 @@
 #   threads/threads_kernel_shared.cpp                (thread pool support)
 #   threads/threads_kernel_1.cpp                     (Windows threads; empty elsewhere)
 #   threads/threads_kernel_2.cpp                     (POSIX threads; empty elsewhere)
-# so this file builds a static `dlib` target from those five files instead of
+#   test_for_odr_violations.cpp                      (the symbols dlib's headers reference
+#                                                     to catch mismatched build settings;
+#                                                     MSVC keeps those references, GCC drops them)
+# so this file builds a static `dlib` target from those six files instead of
 # add_subdirectory(external/dlib/dlib), which compiles all ~50 dlib sources.
 # The target matches what dlib's own in-project build gave adsim: the
 # DLIB_NO_GUI_SUPPORT switch is public, the include root is external/dlib, and
@@ -31,7 +34,8 @@ add_library(dlib STATIC
     ${_adsim_dlib_dir}/threads/thread_pool_extension.cpp
     ${_adsim_dlib_dir}/threads/threads_kernel_shared.cpp
     ${_adsim_dlib_dir}/threads/threads_kernel_1.cpp
-    ${_adsim_dlib_dir}/threads/threads_kernel_2.cpp)
+    ${_adsim_dlib_dir}/threads/threads_kernel_2.cpp
+    ${_adsim_dlib_dir}/test_for_odr_violations.cpp)
 add_library(dlib::dlib ALIAS dlib)
 
 target_include_directories(dlib
