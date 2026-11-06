@@ -310,15 +310,59 @@ TEST(IsothermFit, GabMultiTemperatureRecoversEnergies) {
 }
 
 TEST(IsothermFit, GabYoungSingleTemperatureFitsFirstLayerAndMultilayerEnergies) {
-  // Low et al. (2023) Lewatit values (energies in J/mol).
-  const Values truth = {{"q_m", 3.23}, {"C_E", 46830.0}, {"D", 0.023744}, {"F", 53310.0}, {"G", -47.814}};
+  // Young et al. (2021) Lewatit VP OC 1065 values, as reprinted by Low et al.
+  // (2023, SI Table S5): C = 1.6, K = 0.82 at 298 K. D and G are the values
+  // the default set-up holds, so the truth is reachable. (Mixing other
+  // papers' C_E and F with these D and G gives K = 0.14, outside the physical
+  // range, where the GAB is nearly linear and q_m, C and K are not
+  // identifiable: that fit ended in a different corner on each platform.)
+  const Values truth = {{"q_m", 3.63}, {"C_E", 47110.0}, {"D", 0.023744}, {"F", 57706.0}, {"G", -47.814}};
   const auto pts = Synthesise(IsothermType::GAB_YOUNG, truth, HumidityGrid({298.15}));
   const auto r = FitDefault(IsothermType::GAB_YOUNG, pts);
   ASSERT_TRUE(r.ok) << r.error;
   for (const char* held : {"D", "G", "E10_A", "E10_B"}) EXPECT_TRUE(FixedOf(r, held)) << held;
-  ExpectRel(ValueOf(r, "q_m"), 3.23, 1e-4, "q_m");
-  ExpectRel(ValueOf(r, "C_E"), 46830.0, 1e-5, "C_E");
-  ExpectRel(ValueOf(r, "F"), 53310.0, 1e-5, "F");
+  ExpectRel(ValueOf(r, "q_m"), 3.63, 1e-4, "q_m");
+  ExpectRel(ValueOf(r, "C_E"), 47110.0, 1e-5, "C_E");
+  ExpectRel(ValueOf(r, "F"), 57706.0, 1e-5, "F");
+}
+
+// The fit must not depend on the search path: the global stage (dlib MaxLIPO)
+// is deterministic, but a last-digit difference in the arithmetic (FMA
+// contraction, another platform's p_sat) can send it to another basin. Every
+// global budget and a last-digit perturbation of the data must recover the
+// same parameters. The truths are physical (water K 0.57-0.87), and the
+// set-up's bounds keep K >= 0.3, out of the near-linear corner (K -> 0, q_m
+// in the hundreds) where the parameters stop being identifiable.
+TEST(IsothermFit, GabFitsDoNotDependOnTheSearchPath) {
+  struct Case { IsothermType kind; Values truth; std::vector<std::pair<std::string, double>> check; };
+  const std::vector<Case> cases = {
+      {IsothermType::GAB, {{"q_m0", 3.51}, {"dH_m", 0.0}, {"C0", 2.73}, {"dH_C", 0.0}, {"K0", 0.867}, {"dH_K", 0.0}},
+       {{"q_m0", 3.51}, {"C0", 2.73}, {"K0", 0.867}}},
+      {IsothermType::GAB, {{"q_m0", 36.48}, {"dH_m", 0.0}, {"C0", 0.1489}, {"dH_C", 0.0}, {"K0", 0.5751}, {"dH_K", 0.0}},
+       {{"q_m0", 36.48}, {"C0", 0.1489}, {"K0", 0.5751}}},  // Stampi-Bombelli et al. (2020): C < 1
+      {IsothermType::GAB_YOUNG, {{"q_m", 3.63}, {"C_E", 47110.0}, {"D", 0.023744}, {"F", 57706.0}, {"G", -47.814}},
+       {{"q_m", 3.63}, {"C_E", 47110.0}, {"F", 57706.0}}},
+  };
+  for (const auto& c : cases) {
+    const auto clean = Synthesise(c.kind, c.truth, HumidityGrid({298.15}));
+    for (double eps : {0.0, 1e-12, -3e-12}) {
+      auto pts = clean;
+      for (size_t i = 0; i < pts.size(); ++i) pts[i].q *= 1.0 + eps * ((i % 3) - 1.0);
+      for (int evals : {0, 150, 230, 310, 420}) {
+        SCOPED_TRACE(std::string(adsim::IsothermKindString(c.kind)) + " eps=" + std::to_string(eps) +
+                     " evals=" + std::to_string(evals));
+        std::vector<ParamSpec> specs;
+        double t_ref = 0.0;
+        std::string err;
+        ASSERT_TRUE(adsim::isofit::DefaultSpecs(c.kind, pts, specs, t_ref, err)) << err;
+        adsim::isofit::FitOptions opt;
+        opt.max_global_evals = evals;
+        const auto r = adsim::isofit::Fit(c.kind, pts, specs, t_ref, opt);
+        ASSERT_TRUE(r.ok) << r.error;
+        for (const auto& [name, want] : c.check) ExpectRel(ValueOf(r, name), want, 1e-4, name);
+      }
+    }
+  }
 }
 
 // Another vapour by name: fitted against ethanol's saturation pressure, the
