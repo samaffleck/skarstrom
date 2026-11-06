@@ -44,8 +44,19 @@ namespace adsim {
 	// EvaluateInletTemperatureProfile). A disabled medium (the default) leaves
 	// the step on the deck's ambient exchange. One medium covers the whole bed.
 	//
-	// The class has its own cereal version so later options for the same medium
-	// (an internal exchanger, say) extend it without changing Step again.
+	// The same medium can also run through an internal heat exchanger (tubes
+	// or plates inside the packing) that heats or cools the bed directly:
+	//
+	//   q_x = a_x h_x (T_m(t) - T_bed)  [W/m3 of bed]
+	//
+	// with a_x the exchanger's heat-transfer area per bed volume and h_x its
+	// coefficient. It acts in every bed cell (not in void regions), alongside
+	// the jacket; a_x = 0 (the default) turns it off, and h_m = 0 leaves an
+	// exchanger without a jacket. Under LTNE the exchanger's heat is shared
+	// between the gas (eb) and the solid (1 - eb), as the wall's is.
+	//
+	// The class has its own cereal version, so options for the medium extend
+	// it without changing Step.
 	class HeatingMedium {
 	public:
 		HeatingMedium() = default;
@@ -55,6 +66,8 @@ namespace adsim {
 			enabled_ = other.enabled_;
 			temperature_ = other.temperature_;
 			heat_transfer_coefficient_ = other.heat_transfer_coefficient_;
+			exchanger_area_per_volume_ = other.exchanger_area_per_volume_;
+			exchanger_heat_transfer_coefficient_ = other.exchanger_heat_transfer_coefficient_;
 			temperature_profile_ = CloneProfile(other.temperature_profile_.get());
 			return *this;
 		}
@@ -67,6 +80,14 @@ namespace adsim {
 		// means the constant temperature_.
 		std::unique_ptr<IBoundaryValue> temperature_profile_{};
 		ExpressionParam heat_transfer_coefficient_{100.0}; // [W/(m2 K)] h_m, outer wall surface
+		// Internal heat exchanger (off while a_x = 0).
+		ExpressionParam exchanger_area_per_volume_{0.0};             // [m2/m3] a_x, per bed volume
+		ExpressionParam exchanger_heat_transfer_coefficient_{100.0}; // [W/(m2 K)] h_x
+
+		// a_x h_x [W/(m3 K)]: the exchanger's volumetric conductance (0 when off).
+		double ExchangerConductance() const {
+			return exchanger_area_per_volume_.Get() * exchanger_heat_transfer_coefficient_.Get();
+		}
 
 		// T_m [K] at `time` seconds after the step start.
 		double Temperature(double time) const {
@@ -74,13 +95,16 @@ namespace adsim {
 		}
 
 		// An enabled medium needs a positive temperature (at the profile's start
-		// and end), a finite non-negative h_m and a valid exponential factor.
+		// and end), finite non-negative h_m, a_x and h_x, and a valid
+		// exponential factor.
 		// A disabled one is not checked. Appends to error_message on failure.
 		bool PerformChecks(const std::string& step_name, std::string& error_message) const;
 
 		void EvaluateExpressions(const EvalContext& ctx) {
 			temperature_.Evaluate(ctx);
 			heat_transfer_coefficient_.Evaluate(ctx);
+			exchanger_area_per_volume_.Evaluate(ctx);
+			exchanger_heat_transfer_coefficient_.Evaluate(ctx);
 			if (temperature_profile_) temperature_profile_->EvaluateExpressions(ctx);
 		}
 
@@ -97,13 +121,20 @@ namespace adsim {
 
 		friend class cereal::access;
 		template<class Archive>
-		void serialize(Archive& ar, std::uint32_t const /*version*/) {
+		void serialize(Archive& ar, std::uint32_t const version) {
 			ar(
 				cereal::make_nvp("Enabled", enabled_),
 				cereal::make_nvp("Temperature", temperature_),
 				cereal::make_nvp("Temperature_Profile", temperature_profile_),
 				cereal::make_nvp("Heat_Transfer_Coefficient", heat_transfer_coefficient_)
 			);
+			if (version >= 1) {
+				ar(
+					cereal::make_nvp("Exchanger_Area_Per_Volume", exchanger_area_per_volume_),
+					cereal::make_nvp("Exchanger_Heat_Transfer_Coefficient", exchanger_heat_transfer_coefficient_)
+				);
+			}
+			// version 0: no internal exchanger (a_x = 0).
 		}
 	};
 
@@ -216,5 +247,5 @@ namespace adsim {
 
 // Class versions live next to the inline serialize templates: every
 // translation unit that saves or loads a deck must see the same numbers.
-CEREAL_CLASS_VERSION(adsim::HeatingMedium, 0);
+CEREAL_CLASS_VERSION(adsim::HeatingMedium, 1);
 CEREAL_CLASS_VERSION(adsim::Step, 6);

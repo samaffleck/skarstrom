@@ -62,14 +62,14 @@ where $E_{\text{total}}$ is the sum over all steps of the time-integrated compre
 **Thermal Energy** (`thermal_energy`) — the specific thermal energy: heat supplied to the bed over the cycle per unit mass of net product:
 
 $$
-\text{Thermal Energy} = \frac{\sum_{s} Q^{+}_{s}\thinspace t_s}{n_{\text{product}}\thinspace M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
+\text{Thermal Energy} = \frac{\sum_{s} \left(Q^{+}_{s}\thinspace t_s + Q_{m,\text{in},s}\right)}{n_{\text{product}}\thinspace M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
 $$
 
-where $Q^{+}_{s}$ is the total power of the step's heating [energy sources](energy-balance.md#energy-source-heating-cooling) (those with a positive power) and $t_s$ the step time. Today it counts the energy sources only: the heat a step's [heating medium](wall-energy-balance.md#heating-medium-jacket) (jacket) passes through the wall is not logged yet, so it is **not** in the thermal energy or the cooling duty. It will be added to both once it is.
+where $Q^{+}_{s}$ is the total power of the step's heating [energy sources](energy-balance.md#energy-source-heating-cooling) (those with a positive power) and $t_s$ the step time. $Q_{m,\text{in},s}$ is the heat the step's [heating medium](wall-energy-balance.md#heating-medium-jacket) passed into the column, through the jacket and any internal heat exchanger, integrated over the step (the [medium duty](wall-energy-balance.md#medium-duty)). It is 0 for a step without a medium.
 
-**Cooling Duty** (`cooling_duty`) — the heat removed by the cooling energy sources (negative power) over the cycle per unit mass of net product, reported as a **positive** magnitude with the same formula using $|Q^{-}_{s}|$. It is for information: it is not subtracted from the thermal energy.
+**Cooling Duty** (`cooling_duty`) — the heat removed by the cooling energy sources (negative power) and taken out by a heating medium over the cycle, per unit mass of net product. It is reported as a **positive** magnitude, with the same formula using $|Q^{-}_{s}|$ and $Q_{m,\text{out},s}$. It is for information: it is not subtracted from the thermal energy.
 
-Both use the source powers the solver applied, so a disabled source counts nothing, and both are 0 in an isothermal run, where the sources do nothing. They are defined and undefined exactly as the electrical energy (`nan` when no net product is drawn). Each record also has `step_thermal_energy` and `step_cooling_duty`, the share of every step in the deck's step order (they sum to the cycle values). The electrical energy, thermal energy and cooling duty are separate figures; none includes another.
+Both use the source powers and medium heat flows the solver applied, so a disabled source or medium counts nothing. Both are 0 in an isothermal run, where neither acts. They are defined and undefined exactly as the electrical energy (`nan` when no net product is drawn). Each record also has `step_thermal_energy` and `step_cooling_duty`, the share of every step in the deck's step order (they sum to the cycle values). The electrical energy, thermal energy and cooling duty are separate figures; none includes another.
 
 **Production Rate** — the net molar rate of product:
 
@@ -86,8 +86,8 @@ where $n_{\text{product}} = n_{\text{product, out}} - n_{\text{product, recycled
 | KPI | What it counts | Field |
 |---|---|---|
 | Electrical energy | compressor and vacuum-pump work | `electrical_energy` (also `energy_consumption`) |
-| Thermal energy | heat supplied by the heating energy sources (a heating medium's duty: not yet) | `thermal_energy` |
-| Cooling duty | heat removed by the cooling energy sources, positive (a cooling medium: not yet) | `cooling_duty` |
+| Thermal energy | heat supplied by the heating energy sources and the heating medium | `thermal_energy` |
+| Cooling duty | heat removed by the cooling energy sources and the heating medium, positive | `cooling_duty` |
 
 All three are in **J per kg of net product**. They are separate: add them only if your comparison means to (electricity and heat are not worth the same, so a plant study usually weighs them, for example by converting heat to primary energy or cost). To convert:
 

@@ -20,6 +20,7 @@
 #include "adsim/equations/adsorbent_equations.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/parameters/parameter_registry.h"
+#include "adsim/solver/log.h"
 
 #include "../fixtures/user_data_test.h"
 
@@ -240,6 +241,114 @@ namespace adsim {
     ASSERT_LT(dup, loaded2.cycle.step_list_.size());
     EXPECT_TRUE(loaded2.cycle.step_list_[dup].heating_medium_.enabled_);
     EXPECT_DOUBLE_EQ(loaded2.cycle.step_list_[dup].heating_medium_.Temperature(60.0), 420.0);
+  }
+
+  // ---- internal heat exchanger ---------------------------------------------
+
+  namespace {
+    // Bed residuals (gas, and solid under LTNE) at the initial state with a
+    // non-uniform temperature profile, `t_rel` seconds into the step.
+    struct BedResiduals {
+      std::vector<double> gas, solid, T, Ts;
+    };
+    BedResiduals EvaluateBedResiduals(UserData& data, Step& step, double t_rel) {
+      data.Initialise();
+      step.Initialise(data.state);
+      auto& T = data.state.fluid_temperature.var;
+      auto& Ts = data.state.solid_temperature.var;
+      for (size_t i = 0; i < T.size(); ++i) {
+        T[i] = 300.0 + 3.0 * static_cast<double>(i);
+        Ts[i] = 305.0 + 2.0 * static_cast<double>(i);
+      }
+      data.step_start_time_ = 10.0;
+      data.residual_time_ = 10.0 + t_rel;
+      data.state.UpdateIndependentEquations(&data);
+      UpdateTemperature(&data);
+      UpdateSolidTemperature(&data);
+      return {data.state.fluid_temperature.res_var, data.state.solid_temperature.res_var, T, Ts};
+    }
+  } // namespace
+
+  TEST_F(HeatingMediumTest, ExchangerAddsAVolumetricTermToTheBedBalance) {
+    const auto base = EvaluateBedResiduals(data, HeatStep(), 25.0);
+
+    auto& medium = HeatStep().heating_medium_;
+    medium.enabled_ = true;
+    medium.heat_transfer_coefficient_ = 0.0;  // exchanger only
+    medium.exchanger_area_per_volume_ = 50.0;
+    medium.exchanger_heat_transfer_coefficient_ = 40.0;
+    medium.temperature_profile_ = CreateInletTemperatureProfile(BoundaryValueType::LINEAR, 300.0, 100.0);
+    static_cast<LinearBoundaryValue*>(medium.temperature_profile_.get())->end_value_ = 400.0;
+    const auto with = EvaluateBedResiduals(data, HeatStep(), 25.0);  // T_m = 325 K
+
+    const auto& dV = data.state.domain_vectors.volume;
+    for (int i = 1; i <= 10; ++i) {
+      const double expected = -50.0 * 40.0 * dV[i] * (325.0 - with.T[i]);
+      EXPECT_NEAR(with.gas[i] - base.gas[i], expected, 1e-9 * std::abs(expected) + 1e-12) << i;
+    }
+    // A zero area turns it off exactly.
+    medium.exchanger_area_per_volume_ = 0.0;
+    const auto off = EvaluateBedResiduals(data, HeatStep(), 25.0);
+    for (int i = 1; i <= 10; ++i) EXPECT_EQ(off.gas[i], base.gas[i]) << i;
+  }
+
+  TEST_F(HeatingMediumTest, ExchangerSharesItsHeatBetweenGasAndSolidUnderLTNE) {
+    data.bed.equations_.thermal_equilibrium_mode_ = ThermalEquilibriumMode::NON_LOCAL;
+    const auto base = EvaluateBedResiduals(data, HeatStep(), 0.0);
+    auto& medium = HeatStep().heating_medium_;
+    medium.enabled_ = true;
+    medium.heat_transfer_coefficient_ = 0.0;
+    medium.temperature_ = 350.0;
+    medium.exchanger_area_per_volume_ = 50.0;
+    medium.exchanger_heat_transfer_coefficient_ = 40.0;
+    const auto with = EvaluateBedResiduals(data, HeatStep(), 0.0);
+
+    const auto& dV = data.state.domain_vectors.volume;
+    const auto& eb = data.state.domain_vectors.eb;
+    for (int i = 1; i <= 10; ++i) {
+      const double gas = -eb[i] * 2000.0 * dV[i] * (350.0 - with.T[i]);
+      const double solid = -(1.0 - eb[i]) * 2000.0 * dV[i] * (350.0 - with.Ts[i]);
+      EXPECT_NEAR(with.gas[i] - base.gas[i], gas, 1e-9 * std::abs(gas)) << i;
+      EXPECT_NEAR(with.solid[i] - base.solid[i], solid, 1e-9 * std::abs(solid)) << i;
+    }
+    // The logged flow uses the same split.
+    double net = 0.0;
+    for (int i = 1; i <= 10; ++i)
+      net += 2000.0 * dV[i] * (eb[i] * (350.0 - with.T[i]) + (1.0 - eb[i]) * (350.0 - with.Ts[i]));
+    const MediumHeatFlow flow = HeatingMediumHeatFlow(data.state, 0.0, true);
+    EXPECT_NEAR(flow.exchanger_in - flow.exchanger_out, net, 1e-9 * std::abs(net));
+  }
+
+  TEST_F(HeatingMediumTest, ExchangerParametersAndChecks) {
+    data.cycle.EnsureIds();
+    const std::string sp = "step[" + std::to_string(HeatStep().id_) + "].medium";
+    {
+      ParameterRegistry reg(data);
+      ASSERT_NE(reg.Find(sp + ".exchanger_area_per_volume"), nullptr);
+      ASSERT_NE(reg.Find(sp + ".exchanger_heat_transfer_coefficient"), nullptr);
+      EXPECT_EQ(reg.Find("step[Heat].medium.exchanger_area_per_volume"), reg.Find(sp + ".exchanger_area_per_volume"));
+      EXPECT_TRUE(reg.Get(sp + ".exchanger_area_per_volume").Info().tunable);
+      reg.Get(sp + ".exchanger_area_per_volume").SetValue(75.0);
+      reg.Get(sp + ".exchanger_heat_transfer_coefficient").SetValue(55.0);
+    }
+    std::string json;
+    SaveToString(data, json);
+    UserData loaded;
+    LoadFromString(loaded, json);
+    loaded.EvaluateAllExpressions();
+    const auto& m = loaded.cycle.GetStep("Heat").heating_medium_;
+    EXPECT_DOUBLE_EQ(m.exchanger_area_per_volume_, 75.0);
+    EXPECT_DOUBLE_EQ(m.exchanger_heat_transfer_coefficient_, 55.0);
+    EXPECT_DOUBLE_EQ(m.ExchangerConductance(), 75.0 * 55.0);
+    HeatingMedium copy = m;
+    EXPECT_DOUBLE_EQ(copy.ExchangerConductance(), 75.0 * 55.0);
+
+    auto& medium = HeatStep().heating_medium_;
+    medium.enabled_ = true;
+    medium.exchanger_area_per_volume_ = -1.0;
+    std::string error;
+    EXPECT_FALSE(data.PerformChecks(error));
+    EXPECT_NE(error.find("internal exchanger area per volume"), std::string::npos) << error;
   }
 
 } // namespace adsim

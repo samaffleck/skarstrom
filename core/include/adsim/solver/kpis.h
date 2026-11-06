@@ -635,7 +635,8 @@ namespace adsim {
   // heat duty the solver logged for each step (StepHeatDuty, zero in an
   // isothermal run): the step energy sources' powers times the step's
   // duration, plus the heat the step's heating medium passed into (thermal
-  // energy) and out of (cooling duty) the wall, integrated over the step. The
+  // energy) and out of (cooling duty) the column, through the jacket and any
+  // internal heat exchanger, integrated over the step. The
   // electrical energy (compressor and pump work) is separate.
 
   // Duration [s] of a logged step: from its first logged time (the step start)

@@ -179,7 +179,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::PressureBoundaryCondition, 5),
       ADSIM_PIN(adsim::FlowBoundaryCondition, 1),
       ADSIM_PIN(adsim::ClosedBoundaryCondition, 1),
-      ADSIM_PIN(adsim::HeatingMedium, 0),
+      ADSIM_PIN(adsim::HeatingMedium, 1),
       ADSIM_PIN(adsim::Step, 6),
       ADSIM_PIN(adsim::BufferTankSource, 3),
       ADSIM_PIN(adsim::CycleEndpointSummary, 1),

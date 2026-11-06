@@ -51,6 +51,25 @@ namespace adsim {
     return step ? step->ActiveHeatingMedium() : nullptr;
   }
 
+  // The running step's internal heat exchanger: its volumetric conductance
+  // a_x h_x [W/(m3 K)] and the medium temperature at the residual time. ua is
+  // 0 (and the bed balances take no exchanger term at all) without a medium
+  // or with a_x h_x = 0.
+  struct InternalExchanger {
+    double ua = 0.0;
+    double T_m = 0.0;
+  };
+  static inline InternalExchanger ActiveInternalExchanger(const UserData* udata) {
+    InternalExchanger x;
+    const HeatingMedium* medium = ActiveHeatingMedium(udata->state);
+    if (!medium) return x;
+    const double ua = medium->ExchangerConductance();
+    if (!(ua > 0.0)) return x;
+    x.ua = ua;
+    x.T_m = medium->Temperature(udata->residual_time_ - udata->step_start_time_);
+    return x;
+  }
+
 
 
   namespace {
@@ -432,6 +451,10 @@ namespace adsim {
     // Manufactured energy source [W/m3] (verification hook).
     const auto& mms_energy = udata->manufactured_sources_.energy;
 
+    // The step's internal heat exchanger (medium -> bed), in bed cells only.
+    const InternalExchanger exchanger = ActiveInternalExchanger(udata);
+    const auto& is_void = state.domain_vectors.is_void_cell;
+
     for (int i = 1; i < N - 1; ++i) {
       // Adsorbed-phase heat capacity contribution, per adsorbent:
       // sum_k rho_b,k * sum_comp Cpa_comp * q_{k,comp}.
@@ -495,6 +518,10 @@ namespace adsim {
       // A volumetric source, as the heater's power.
       if (mms_energy)
         res_T[i] -= dV[i] * mms_energy(CellCentre(state.domain_vectors, i), udata->residual_time_);
+
+      // Internal exchanger: a_x h_x (T_m - T) per bed volume.
+      if (exchanger.ua > 0.0 && !(i < (int)is_void.size() && is_void[i]))
+        res_T[i] -= exchanger.ua * dV[i] * (exchanger.T_m - T[i]);
     }
   }
 
@@ -547,6 +574,12 @@ namespace adsim {
     thread_local std::vector<double> T_face;
     ConvectiveFaceTemperatures(udata, T, T_face);
 
+    // The step's internal heat exchanger: the gas takes the eb share of its
+    // heat, the solid the (1 - eb) share (UpdateSolidTemperature), as for the
+    // wall. Bed cells only.
+    const InternalExchanger exchanger = ActiveInternalExchanger(udata);
+    const auto& is_void = state.domain_vectors.is_void_cell;
+
     for (int i = 1; i < N - 1; ++i) {
       // Fluid-only heat capacity (no solid contribution)
       double Cfluid = et[i] * rho[i] * Cpg[i];
@@ -589,6 +622,9 @@ namespace adsim {
         + Hp
         - work
         - Qe[i] * dV[i];
+
+      if (exchanger.ua > 0.0 && !(i < (int)is_void.size() && is_void[i]))
+        res_T[i] -= eb[i] * exchanger.ua * dV[i] * (exchanger.T_m - T[i]);
     }
   }
 
@@ -638,6 +674,10 @@ namespace adsim {
     // In LTNE the adsorbed phase is at the solid temperature Ts.
     const HeatOfAdsorptionConvention hoa_convention = fluid.heat_of_adsorption_convention_;
 
+    // Solid share (1 - eb) of the step's internal heat exchanger; the gas
+    // takes the eb share in UpdateFluidTemperature.
+    const InternalExchanger exchanger = ActiveInternalExchanger(udata);
+
     const auto& is_void = state.domain_vectors.is_void_cell;
     for (int i = 1; i < N - 1; ++i) {
       if (i < (int)is_void.size() && is_void[i]) continue;  // void cells: Ts is not part of the state vector
@@ -671,6 +711,9 @@ namespace adsim {
         - Hp
         + Hw
         - Se;
+
+      if (exchanger.ua > 0.0)
+        res_Ts[i] -= (1.0 - eb[i]) * exchanger.ua * dV[i] * (exchanger.T_m - Ts[i]);
     }
 
     // Ghost cells mirror the first/last *bed* cell. When voids are disabled

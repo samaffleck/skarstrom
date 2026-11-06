@@ -31,6 +31,7 @@ namespace adsim {
     Clear();
 
     domain = state.domain_vectors;
+    non_local_ = bed.equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL;
     // Keep at least the cycles the CSS check reads (it is a function of the log).
     // When a cycle is checked the log holds it plus max_cycles_to_keep_ earlier
     // cycles (eviction happens when the next cycle starts), hence the - 1.
@@ -47,7 +48,7 @@ namespace adsim {
     sys_data.total_cycle_time = cycle.GetCycleTime();
   }
 
-  MediumHeatFlow HeatingMediumHeatFlow(const Equations& state, double time_in_step) {
+  MediumHeatFlow HeatingMediumHeatFlow(const Equations& state, double time_in_step, bool non_local) {
     MediumHeatFlow flow;
     if (state.IsIsothermal()) return flow;
     const Step* step = state.CurrentStep();
@@ -72,6 +73,25 @@ namespace adsim {
       const double q = M_PI * d_o[i] * dx[i] * h_m * (T_m - Tw[i]);
       if (q > 0.0) flow.in += q;
       else flow.out -= q;
+    }
+
+    // The internal exchanger: the same term as the bed balances
+    // (UpdateTemperature, and under LTNE UpdateFluidTemperature with the eb
+    // share and UpdateSolidTemperature with the 1 - eb share), bed cells only.
+    const double ua = medium->ExchangerConductance();
+    if (ua > 0.0) {
+      const auto& T = state.fluid_temperature.var;
+      const auto& Ts = state.solid_temperature.var;
+      const auto& dV = state.domain_vectors.volume;
+      const auto& eb = state.domain_vectors.eb;
+      const size_t m = std::min({T.size(), dV.size(), eb.size(), non_local ? Ts.size() : T.size()});
+      for (size_t i = 1; i + 1 < m; ++i) {
+        if (i < is_void.size() && is_void[i]) continue;
+        const double dT = non_local ? eb[i] * (T_m - T[i]) + (1.0 - eb[i]) * (T_m - Ts[i]) : T_m - T[i];
+        const double q = ua * dV[i] * dT;
+        if (q > 0.0) { flow.in += q; flow.exchanger_in += q; }
+        else { flow.out -= q; flow.exchanger_out -= q; }
+      }
     }
     return flow;
   }
@@ -123,12 +143,14 @@ namespace adsim {
     // logged point of a step is the step start.
     {
       const double step_start = sim_log.step_data.times.empty() ? t : sim_log.step_data.times.front();
-      const MediumHeatFlow flow = HeatingMediumHeatFlow(state, t - step_start);
+      const MediumHeatFlow flow = HeatingMediumHeatFlow(state, t - step_start, non_local_);
       if (!is_new_step) {
         const double dt = t - medium_prev_t_;
         if (dt > 0.0) {
           sim_log.heat_duty.medium_heat_in += 0.5 * (medium_prev_flow_.in + flow.in) * dt;
           sim_log.heat_duty.medium_heat_out += 0.5 * (medium_prev_flow_.out + flow.out) * dt;
+          sim_log.heat_duty.exchanger_heat_in += 0.5 * (medium_prev_flow_.exchanger_in + flow.exchanger_in) * dt;
+          sim_log.heat_duty.exchanger_heat_out += 0.5 * (medium_prev_flow_.exchanger_out + flow.exchanger_out) * dt;
         }
       }
       medium_prev_t_ = t;
