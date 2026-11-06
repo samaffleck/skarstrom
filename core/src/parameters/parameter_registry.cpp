@@ -183,7 +183,7 @@ namespace adsim {
       IntField("settings", "acceleration_method", "CSS acceleration method",
                [](const UserData& u) { return (long long)static_cast<int>(u.settings.acc_css.method_); },
                [](UserData& u, long long x) { u.settings.acc_css.method_ = static_cast<AccelerationMethod>((int)x); },
-               "none,aitken"),
+               "none,aitken,anderson"),
       // Advisory warnings a run reports (warning_settings.h).
       BoolField("settings", "warn_pressure_step_change", "warn on a constant pressure boundary far from the bed pressure",
                 [](const UserData& u) { return u.settings.warnings_.pressure_step_change; },

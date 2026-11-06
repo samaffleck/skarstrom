@@ -25,6 +25,7 @@
 #include <gtest/gtest.h>
 
 #include "adsim/objects/user_data.h"
+#include "adsim/parameters/parameter_registry.h"
 #include "adsim/solver/cyclic_steady_state.h"
 
 namespace adsim {
@@ -204,6 +205,20 @@ namespace adsim {
     EXPECT_EQ(rejected, anderson.jumps + 2);
     EXPECT_GE(anderson.first_exact, 0);
     EXPECT_LT(anderson.error.back(), 1e-10);
+  }
+
+  // Decks, Python and the CLI select the method by name through the registry.
+  TEST(AndersonAcceleration, SelectableByName) {
+    UserData data;
+    LoadFromJson(data, "../examples/decks/Perez2019_A.json");
+    ParameterRegistry reg(data);
+    Parameter& method = reg.Get("settings.acceleration_method");
+    ASSERT_EQ(method.Info().choices.size(), 3u);
+    EXPECT_EQ(method.Info().choices[2], "anderson");
+    method.SetText("anderson");
+    EXPECT_EQ(data.settings.acc_css.method_, AccelerationMethod::ANDERSON);
+    method.SetText("aitken");
+    EXPECT_EQ(data.settings.acc_css.method_, AccelerationMethod::AITKEN);
   }
 
 }  // namespace adsim
