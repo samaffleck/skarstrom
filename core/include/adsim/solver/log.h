@@ -316,22 +316,35 @@ namespace adsim {
   //    logged point (each accepted solver step and any fill-in point), as the
   //    log is written, so thinning the stored rows does not change it. Both are
   //    0 for a step without a medium.
+  //    The medium's internal heat exchanger, when it has one, adds its heat
+  //    to the same two totals: per bed cell a_x h_x dV (T_m(t) - T_bed), with
+  //    T_bed the gas temperature (LTE) or the eb / (1 - eb) mix of gas and
+  //    solid (LTNE), signed and integrated the same way. Its share is also
+  //    kept on its own (exchanger_heat_in / exchanger_heat_out).
   struct StepHeatDuty {
     double heating_power = 0.0;    // [W] sum of the positive energy-source powers
     double cooling_power = 0.0;    // [W] magnitude of the negative ones (>= 0)
-    double medium_heat_in = 0.0;   // [J] heat the medium gave the wall over the step
-    double medium_heat_out = 0.0;  // [J] heat the wall gave the medium over the step (>= 0)
+    double medium_heat_in = 0.0;   // [J] heat the medium gave the column (jacket + exchanger) over the step
+    double medium_heat_out = 0.0;  // [J] heat the column gave the medium over the step (>= 0)
+    double exchanger_heat_in = 0.0;   // [J] the internal exchanger's share of medium_heat_in
+    double exchanger_heat_out = 0.0;  // [J] the internal exchanger's share of medium_heat_out
   };
 
   // Instantaneous heat flow [W] from the running step's heating medium into the
-  // wall, split into its positive (in) and negative (out, as a magnitude)
-  // parts over the cells of outer surface. {0, 0} with no medium or in an
-  // isothermal run. `time_in_step` is seconds since the step started.
+  // column, split into its positive (in) and negative (out, as a magnitude)
+  // parts: over the cells of outer wall surface (jacket) and over the bed
+  // cells (internal exchanger). in / out are the totals, exchanger_in /
+  // exchanger_out the exchanger's share. All 0 with no medium or in an
+  // isothermal run. `time_in_step` is seconds since the step started;
+  // `non_local` is true under LTNE (the exchanger's heat is split between gas
+  // and solid).
   struct MediumHeatFlow {
     double in = 0.0;
     double out = 0.0;
+    double exchanger_in = 0.0;
+    double exchanger_out = 0.0;
   };
-  MediumHeatFlow HeatingMediumHeatFlow(const Equations& state, double time_in_step);
+  MediumHeatFlow HeatingMediumHeatFlow(const Equations& state, double time_in_step, bool non_local);
 
   struct Log {
     StepData step_data;  // Shared metadata including times
@@ -393,6 +406,7 @@ namespace adsim {
     // Previous logged point of the current step, for integrating the medium duty.
     double medium_prev_t_ = 0.0;
     MediumHeatFlow medium_prev_flow_{};
+    bool non_local_ = false;  // LTNE run (set in Initialise)
 
   };
 

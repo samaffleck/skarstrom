@@ -876,7 +876,7 @@
                     },
                     "ID": 1,
                     "Heating_Medium": {
-                        "cereal_class_version": 0,
+                        "cereal_class_version": 1,
                         "Enabled": false,
                         "Temperature": {
                             "Value": 293.0,
@@ -887,6 +887,16 @@
                             "polymorphic_id": 0
                         },
                         "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Exchanger_Area_Per_Volume": {
+                            "Value": 0.0,
+                            "Expression": "0",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Exchanger_Heat_Transfer_Coefficient": {
                             "Value": 100.0,
                             "Expression": "1e+02",
                             "DisplayUnitIndex": 0
@@ -1068,6 +1078,16 @@
                             "Value": 100.0,
                             "Expression": "1e+02",
                             "DisplayUnitIndex": 0
+                        },
+                        "Exchanger_Area_Per_Volume": {
+                            "Value": 0.0,
+                            "Expression": "0",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Exchanger_Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
                         }
                     }
                 },
@@ -1132,6 +1152,16 @@
                             "polymorphic_id": 0
                         },
                         "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Exchanger_Area_Per_Volume": {
+                            "Value": 0.0,
+                            "Expression": "0",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Exchanger_Heat_Transfer_Coefficient": {
                             "Value": 100.0,
                             "Expression": "1e+02",
                             "DisplayUnitIndex": 0
@@ -1308,6 +1338,16 @@
                             "polymorphic_id": 0
                         },
                         "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Exchanger_Area_Per_Volume": {
+                            "Value": 0.0,
+                            "Expression": "0",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Exchanger_Heat_Transfer_Coefficient": {
                             "Value": 100.0,
                             "Expression": "1e+02",
                             "DisplayUnitIndex": 0

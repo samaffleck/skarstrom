@@ -580,9 +580,10 @@ namespace adsim {
     }
 
     // The heating medium (jacket) on the wall's outer face during a step:
-    // step[ID].medium.enabled, .heat_transfer_coefficient and the medium
+    // step[ID].medium.enabled, .heat_transfer_coefficient, the medium
     // temperature, a constant (.temperature) or a ramp (.temperature_linear_*,
-    // ...) like an inlet temperature. Listed for every step, enabled or not,
+    // ...) like an inlet temperature, and the internal heat exchanger's
+    // .exchanger_area_per_volume and .exchanger_heat_transfer_coefficient. Listed for every step, enabled or not,
     // so a sweep or the CLI can switch a medium on.
     void AddHeatingMedium(HeatingMedium& medium, const std::string& sp, const std::string& sa,
                           const std::string& step_name) {
@@ -599,6 +600,13 @@ namespace adsim {
       Emplace(ms.path + ".heat_transfer_coefficient", ms.alias + ".heat_transfer_coefficient", "cycle",
               ms.subcategory, "heating medium heat transfer coefficient (wall outer face)", "W/m2-K",
               medium.heat_transfer_coefficient_, 0.0, 5000.0);
+      // Internal heat exchanger (medium -> bed), off while the area is 0.
+      Emplace(ms.path + ".exchanger_area_per_volume", ms.alias + ".exchanger_area_per_volume", "cycle",
+              ms.subcategory, "internal heat exchanger area per bed volume", "1/m",
+              medium.exchanger_area_per_volume_, 0.0, 500.0);
+      Emplace(ms.path + ".exchanger_heat_transfer_coefficient", ms.alias + ".exchanger_heat_transfer_coefficient",
+              "cycle", ms.subcategory, "internal heat exchanger heat transfer coefficient", "W/m2-K",
+              medium.exchanger_heat_transfer_coefficient_, 0.0, 5000.0);
     }
 
     void AddBoundary(IBoundaryCondition* boundary, const std::string& step_name, const std::string& side_alias) {

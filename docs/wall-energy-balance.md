@@ -79,9 +79,27 @@ so the medium's heat transfer coefficient $h_m$ replaces every layer's $h_o$, an
 - All three values are registry parameters, so they can be set from the command line (`--set "step[Heat].medium.enabled=true"`), swept, optimised and used in [sensitivity studies](sensitivity.md). In Python, `sim.steps["Heat"].medium.temperature = 393.15`.
 - $h_m = 0$ makes the step adiabatic towards the outside, whatever the layers' $h_o$.
 
+#### Internal heat exchanger
+
+The same medium can also run through an internal heat exchanger: tubes or plates inside the packing that heat or cool the bed directly instead of through the wall. In every bed cell it adds a volumetric source to the bed's [energy balance](energy-balance.md):
+
+$$
+q_x = a_x\thinspace h_x\left(T_m(t) - T\right) \quad \left[\text{W m}^{-3}\right]
+$$
+
+$a_x$ is the exchanger's heat-transfer area per unit bed volume and $h_x$ its heat transfer coefficient. $T_m$ is the medium temperature, the same as the jacket's. Under local thermal non-equilibrium the gas takes the $\varepsilon_b$ share, $\varepsilon_b\thinspace a_x h_x (T_m - T)$, and the solid the $(1 - \varepsilon_b)$ share, $(1-\varepsilon_b)\thinspace a_x h_x (T_m - T_s)$, as for the wall exchange. There is no exchanger in a void region.
+
+| Symbol  | Description | Unit | Parameter path |
+|---------|-------------|------|----------------|
+| $a_x$   | Exchanger heat-transfer area per bed volume (0, the default, turns it off) | m² m⁻³ | `step[ID].medium.exchanger_area_per_volume` |
+| $h_x$   | Exchanger heat transfer coefficient | W m⁻² K⁻¹ | `step[ID].medium.exchanger_heat_transfer_coefficient` |
+
+- The exchanger needs the step's medium to be enabled. It works alongside the jacket. For an exchanger without a jacket, set $h_m = 0$; the wall is then adiabatic on the outside during the step.
+- The exchanger only models the heat transfer, not the volume its tubes take up. Reduce the bed voidage or the bed volume yourself if that matters.
+
 #### Medium duty
 
-The solver logs, for every step, the heat the medium passes into the wall and the heat it takes back out, integrated over the step:
+The solver logs, for every step, the heat the medium passes into the column and the heat it takes back out, integrated over the step. For the jacket:
 
 $$
 Q_{m,\text{in}} = \int_{\text{step}} \sum_i \max\left(0,\thinspace q_i\right) dt,
@@ -91,11 +109,11 @@ Q_{m,\text{out}} = \int_{\text{step}} \sum_i \max\left(0,\thinspace -q_i\right) 
 q_i = \pi\thinspace d_o\thinspace \Delta z_i\thinspace h_m\left(T_m(t) - T_{w,i}\right)
 $$
 
-$q_i$ is the outer-face flow of cell $i$, the same term the wall balance uses. The integral uses the trapezoidal rule over every logged point of the step, which means every accepted solver step plus any fill-in points. It is accumulated as the log is written, so thinning the stored rows does not change it. Both figures are zero for a step without a medium and in an isothermal run.
+$q_i$ is the outer-face flow of cell $i$, the same term the wall balance uses. An internal exchanger adds its flow per bed cell, $a_x h_x \Delta V_i (T_m - T_i)$ (under LTNE the $\varepsilon_b$ / $1-\varepsilon_b$ mix of gas and solid temperatures), to the same two totals, split by sign in the same way. The integral uses the trapezoidal rule over every logged point of the step, which means every accepted solver step plus any fill-in points. It is accumulated as the log is written, so thinning the stored rows does not change it. Both figures are zero for a step without a medium and in an isothermal run.
 
-- In C++ they are `StepHeatDuty::medium_heat_in` and `medium_heat_out` [J], on each step's log (`EquationLog::GetLog(cycle, step).heat_duty`). They sit next to the energy sources' `heating_power` and `cooling_power`, so the two contributions can be read separately.
+- In C++ they are `StepHeatDuty::medium_heat_in` and `medium_heat_out` [J], on each step's log (`EquationLog::GetLog(cycle, step).heat_duty`). They sit next to the energy sources' `heating_power` and `cooling_power`, so the two contributions can be read separately. `exchanger_heat_in` and `exchanger_heat_out` hold the internal exchanger's share.
 - The thermal-energy and cooling-duty KPIs (total and per step) add $Q_{m,\text{in}}$ to the heat supplied and $Q_{m,\text{out}}$ to the heat removed. `CalculateStepThermalDuty` also returns the medium's share on its own (`medium_heating`, `medium_cooling`).
-- For a closed bed with insulated wall ends, $Q_{m,\text{in}} - Q_{m,\text{out}}$ equals the change in bed and wall internal energy over the step. The test `HeatingMediumDutyTest.LoggedDutyClosesTheEnergyBalance` checks this; the measured mismatch is below $10^{-4}$ of the change.
+- For a closed bed with insulated wall ends, $Q_{m,\text{in}} - Q_{m,\text{out}}$ equals the change in bed and wall internal energy over the step. The tests `HeatingMediumDutyTest.LoggedDutyClosesTheEnergyBalance` (jacket) and `ExchangerDutyClosesTheEnergyBalance` (exchanger alone, and with the jacket) check this; the measured mismatch is below $10^{-4}$ of the change.
 
 ### Wall materials
 

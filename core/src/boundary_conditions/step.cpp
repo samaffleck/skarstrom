@@ -20,6 +20,16 @@ namespace adsim {
                        + " W/(m2 K); it must be zero or positive. ";
       return false;
     }
+    const std::pair<const char*, double> exchanger[] = {
+        {"internal exchanger area per volume", exchanger_area_per_volume_.Get()},
+        {"internal exchanger heat transfer coefficient", exchanger_heat_transfer_coefficient_.Get()}};
+    for (const auto& item : exchanger) {
+      if (!std::isfinite(item.second) || item.second < 0.0) {
+        error_message += std::string("The ") + item.first + " of " + where + " is " + std::to_string(item.second)
+                         + "; it must be zero or positive. ";
+        return false;
+      }
+    }
     if (!CheckProfileFactor(temperature_profile_.get(), "temperature profile of " + where, error_message))
       return false;
     // A ramp's start and end bound every temperature it takes (all the
