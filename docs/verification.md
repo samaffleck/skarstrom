@@ -662,9 +662,31 @@ tightening reltol 100x).
   13 %). Measured: T, P and the loading agree to 6e-10 of their change over
   the run, tolerance 1e-6.
 
-The whole suite takes about 1 s. No defect was found, at the layer interior
-or in the mixing rules; the cases above use one layer, so layer edges with
-different blends on each side are not covered here.
+- **`SolidAtZeroMassFractionTakesNoPart`**: pure A against A with a
+  strongly adsorbing B at `w = 0` in the composition (it has no bulk density,
+  no solid-volume fraction and no heat capacity share). Same solution in
+  every field; the deck checks accept the layer and the run-start warnings
+  name B. Measured: y_O2 within 1.2e-7 (tolerance 3.6e-7).
+- **`AllInertLayerHoldsNothingAndBalances`**: a layer of an inert solid alone
+  (no isotherm, so every component gets the Inert one) is a valid deck with
+  no warnings. O2 breaks through, every loading stays at round-off
+  (below 1e-12 mol/kg, about 1e-24 measured) and the mole balance closes on
+  the gas alone. Measured residual: 1.0e-6 (N2), 5.8e-6 (O2), tolerance 1e-5.
+- **`SplittingALayerIntoTwoOfTheSameBlendChangesNothing`**: a 70/30 blend of
+  A and an inert in one 30-cell layer against the same blend split into two
+  15-cell layers (separate adsorbent objects). The interface face poses the
+  same equations as an interior face, so the solutions agree; measured: bit
+  for bit in every field.
+- **`MoleBalanceClosesAcrossAnInterfaceBetweenBlends`**: a weak bottom layer
+  (40 % A, 60 % inert) under a strong top layer (70 % B, 30 % A), so density,
+  voidage, capacity, heats and conductivity all jump at the interface. Per
+  component, the streams equal the gas and adsorbed inventories of both
+  layers, each with its own blend, in LTE and LTNE. Guard: the O2 front has
+  crossed into the top layer. Measured residual: 1.2e-7 (N2), 1.1e-7 (O2),
+  tolerance 1e-5.
+
+The whole suite takes about 2 s. No defect was found, at the layer interior,
+at the interface between layers or in the mixing rules.
 
 ### `test_manufactured_solutions.cpp`
 
@@ -741,16 +763,20 @@ re-derived by central finite differences of the fields; the two agree to
   (130 times the correct error) and fails the order checks.
 - **`ThermalOrder`** — non-isothermal (LTE, adiabatic bed, constant gas and
   adsorbed-phase heat capacities, constant conductivity, heat of adsorption
-  20 kJ/mol). The energy balance's convective face temperature is the upwind
-  value under every advection scheme (the scheme reconstructs mole fractions
-  only), so T converges at first order for all three (0.97-1.05), and from
-  80 to 160 cells the first-order temperature error starts to pull the
-  WENO / van Leer mole fractions down too (y order 1.31 / 1.49 on 80 -> 160,
-  about 1 on 640 cells). The high-order schemes' errors stay far below
-  upwind's (T 1.6e-4 against 1.7e-3 K, y 1.2-1.4e-6 against 9.0e-5 at 160
-  cells). This is the documented non-conservative upwind form of the energy
-  convection (see `OpenSystemEnergyBalanceConvergesUnderGridRefinement`),
-  not a defect; a higher-order temperature face would be a separate change.
+  20 kJ/mol). The energy balance's convective face temperature is
+  reconstructed with the same scheme as the mole fractions, so T converges
+  at 0.97-0.99 (upwind), 2.06-2.25 (WENO) and 1.95-2.03 (van Leer) on 20 to
+  160 cells, and at 1.00, 1.99 and 1.99 from 320 to 640 cells. The other
+  fields keep their isothermal orders (WENO y 2.08-2.17, van Leer
+  1.99-2.04). Errors at 160 cells: T 1.6e-5 (WENO) and 2.1e-5 (van Leer)
+  against 1.7e-3 K (upwind), y 7.2e-7 and 9.7e-7 against 9.0e-5. The
+  assertions: every field within the isothermal bounds (outlet and max norm
+  above 1.7), T order 0.9-1.1 (upwind), 1.85-2.5 (WENO), 1.85-2.3 (van
+  Leer), and the high-order T errors below 5e-5 K and 3 % of upwind's.
+  Guard: while the face temperature was the upwind value under every scheme
+  (before the change, see the changelog), T converged at 0.97-1.05 for all
+  three and pulled the WENO / van Leer y order down to 1.31 / 1.49 between
+  80 and 160 cells (about 1 on 640), with T errors of 1.6e-4 K at 160 cells.
 
 What the hook covers: the overall and component balances, the loading rate
 of each component on every adsorbent, the momentum residual as a pressure-

@@ -34,12 +34,17 @@
 //     layer is the column's mass-weighted capacity over the feed rate.
 //  4. Mole balance (open, non-isothermal breakthrough) and energy balance
 //     (closed bed heated to desorb from two different adsorbents) close.
+//  5. Edges: a solid at mass fraction 0 changes nothing; a layer of an inert
+//     solid alone holds nothing and balances; splitting a layer into two of
+//     the same blend changes nothing; the mole balance closes across the
+//     interface between two layers of different blends.
 //
 // None of this code shares anything with core/src: the mixing rules are
 // re-derived here from the definitions above.
 
 #include "validation_helpers.h"
 #include "adsim/equations/heat_transfer_model.h"
+#include "adsim/solver/deck_warnings.h"
 
 #include <algorithm>
 #include <array>
@@ -78,6 +83,12 @@ namespace adsim {
     // (Yagi-Kunii, which reads the layer's mixed ks).
     struct MixedDeck {
       std::vector<Solid> solids{Solid{}};
+      // Optional second layer above the first (n_cells_top > 0), packed with
+      // its own solids (separate adsorbents, even when their properties match
+      // the first layer's).
+      std::vector<Solid> solids_top{};
+      int n_cells_top = 0;
+      double length_top = 0.0;    // [m]
       bool ltne = false;
       int n_cells = 30;
       double length = 0.5;        // [m]
@@ -104,56 +115,60 @@ namespace adsim {
       data.fluid.AddComponent(kN2);
       data.fluid.AddComponent(kO2);
 
-      const auto lid = data.bed.layers_.Add("Blend");
-      auto& layer = data.bed.layers_.Get(lid);
-      layer.momentum_model_ = MomentumModel::KarmenCozeny;
-      layer.domain_.length = d.length;
-      layer.domain_.n_cells = d.n_cells;
-      layer.eb_ = d.eb;
-      layer.particle_diameter_ = 0.002;
+      auto add_layer = [&](const std::string& name, const std::vector<Solid>& solids, double length, int cells) {
+        const auto lid = data.bed.layers_.Add(name);
+        auto& layer = data.bed.layers_.Get(lid);
+        layer.momentum_model_ = MomentumModel::KarmenCozeny;
+        layer.domain_.length = length;
+        layer.domain_.n_cells = cells;
+        layer.eb_ = d.eb;
+        layer.particle_diameter_ = 0.002;
 
-      for (size_t n = 0; n < d.solids.size(); ++n) {
-        const Solid& s = d.solids[n];
-        const auto id = data.adsorbent_directory.Add("Solid " + std::to_string(n + 1));
-        auto& ads = data.adsorbent_directory.Get(id);
-        ads.solid_density_ = s.rho;
-        ads.heat_capacity_ = s.cp;
-        ads.thermal_conductivity_ = s.k;
-        ads.ep_ = s.ep;
-        if (s.adsorbs) {
-          auto lang = std::make_unique<LangmuirIsotherm>();
-          lang->params_[kO2].m1 = s.m_O2;
-          lang->params_[kO2].b1 = s.b_O2;
-          lang->params_[kO2].q1 = s.Q_O2;
-          ads.adsorption_source_.AddIsotherm({kO2}, std::move(lang));
-          auto henry = std::make_unique<HenryIsotherm>();
-          henry->params_[kN2].k = s.k_N2;
-          henry->params_[kN2].Q = s.Q_N2;
-          ads.adsorption_source_.AddIsotherm({kN2}, std::move(henry));
-          for (const auto& [c, kldf] : {std::pair{kO2, s.kldf_O2}, std::pair{kN2, s.kldf_N2}}) {
-            auto ldf = std::make_unique<LinearDrivingForce>();
-            auto mtc = std::make_unique<MassTransferCoefficientConstant>();
-            mtc->constant_mtc_ = kldf;
-            ldf->mtc_model_ = std::move(mtc);
-            ads.adsorption_source_.mass_transfer_models_[c] = std::move(ldf);
+        for (size_t n = 0; n < solids.size(); ++n) {
+          const Solid& s = solids[n];
+          const auto id = data.adsorbent_directory.Add(name + " solid " + std::to_string(n + 1));
+          auto& ads = data.adsorbent_directory.Get(id);
+          ads.solid_density_ = s.rho;
+          ads.heat_capacity_ = s.cp;
+          ads.thermal_conductivity_ = s.k;
+          ads.ep_ = s.ep;
+          if (s.adsorbs) {
+            auto lang = std::make_unique<LangmuirIsotherm>();
+            lang->params_[kO2].m1 = s.m_O2;
+            lang->params_[kO2].b1 = s.b_O2;
+            lang->params_[kO2].q1 = s.Q_O2;
+            ads.adsorption_source_.AddIsotherm({kO2}, std::move(lang));
+            auto henry = std::make_unique<HenryIsotherm>();
+            henry->params_[kN2].k = s.k_N2;
+            henry->params_[kN2].Q = s.Q_N2;
+            ads.adsorption_source_.AddIsotherm({kN2}, std::move(henry));
+            for (const auto& [c, kldf] : {std::pair{kO2, s.kldf_O2}, std::pair{kN2, s.kldf_N2}}) {
+              auto ldf = std::make_unique<LinearDrivingForce>();
+              auto mtc = std::make_unique<MassTransferCoefficientConstant>();
+              mtc->constant_mtc_ = kldf;
+              ldf->mtc_model_ = std::move(mtc);
+              ads.adsorption_source_.mass_transfer_models_[c] = std::move(ldf);
+            }
+            ads.adsorption_source_.heat_of_adsorption_[kO2] = s.dH_O2;
+            ads.adsorption_source_.heat_of_adsorption_[kN2] = s.dH_N2;
           }
-          ads.adsorption_source_.heat_of_adsorption_[kO2] = s.dH_O2;
-          ads.adsorption_source_.heat_of_adsorption_[kN2] = s.dH_N2;
+          layer.composition_[id] = s.w;
         }
-        layer.composition_[id] = s.w;
-      }
 
-      auto disp = std::make_unique<DispersionModelConstant>();
-      disp->dispersion_coefficient_ = 1e-4;
-      layer.equations_.dispersion_model_ = std::move(disp);
-      layer.equations_.heat_dispersion_model_ =
-        CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
-      auto ihtc = std::make_unique<ConstantInternalHeatTransferModel>();
-      ihtc->heat_transfer_coefficient_ = 20.0;
-      layer.equations_.internal_heat_transfer_model_ = std::move(ihtc);
-      auto ehtc = std::make_unique<ConstantExternalHeatTransferModel>();
-      ehtc->heat_transfer_coefficient_ = 5.0;
-      layer.equations_.external_heat_transfer_model_ = std::move(ehtc);
+        auto disp = std::make_unique<DispersionModelConstant>();
+        disp->dispersion_coefficient_ = 1e-4;
+        layer.equations_.dispersion_model_ = std::move(disp);
+        layer.equations_.heat_dispersion_model_ =
+          CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
+        auto ihtc = std::make_unique<ConstantInternalHeatTransferModel>();
+        ihtc->heat_transfer_coefficient_ = 20.0;
+        layer.equations_.internal_heat_transfer_model_ = std::move(ihtc);
+        auto ehtc = std::make_unique<ConstantExternalHeatTransferModel>();
+        ehtc->heat_transfer_coefficient_ = 5.0;
+        layer.equations_.external_heat_transfer_model_ = std::move(ehtc);
+      };
+      add_layer("Blend", d.solids, d.length, d.n_cells);
+      if (d.n_cells_top > 0) add_layer("Top blend", d.solids_top, d.length_top, d.n_cells_top);
 
       if (d.ltne) {
         data.bed.equations_.thermal_equilibrium_mode_ = ThermalEquilibriumMode::NON_LOCAL;
@@ -908,6 +923,202 @@ namespace adsim {
     EXPECT_NEAR(T_sim, T_ref, 1e-6 * (T_ref - T0)) << "Temperature disagrees with the lumped energy balance";
     EXPECT_NEAR(P_sim, P_ref, 1e-6 * std::abs(P_ref - kP0)) << "Pressure disagrees with the lumped model";
     EXPECT_NEAR(q_sim, qlog_ref, 1e-6 * std::abs(qlog0 - qlog_ref)) << "Loading disagrees with the lumped model";
+  }
+
+  // ===========================================================================
+  // 5. Edges: a solid at mass fraction 0, an all-inert layer, and the
+  //    interface between two layers
+  // ===========================================================================
+
+  namespace {
+
+    // Total voidage and bulk density of every interior cell (cell 0 and the
+    // last cell are the boundary cells), from the blend of the cell's layer.
+    struct CellProperties {
+      std::vector<double> et, rho_b;  // [-], [kg/m3]
+    };
+
+    CellProperties CellPropertiesOf(const MixedDeck& d) {
+      CellProperties c;
+      const size_t n = static_cast<size_t>(d.n_cells + d.n_cells_top) + 2;
+      c.et.assign(n, 0.0);
+      c.rho_b.assign(n, 0.0);
+      auto fill = [&](const std::vector<Solid>& solids, size_t first, size_t count) {
+        const Blend b = BlendOf(solids);
+        for (size_t i = first; i < first + count; ++i) {
+          c.et[i] = d.eb + (1 - d.eb) * b.ep;
+          c.rho_b[i] = (1 - d.eb) * b.rho_mix;
+        }
+      };
+      fill(d.solids, 1, static_cast<size_t>(d.n_cells));
+      if (d.n_cells_top > 0) fill(d.solids_top, 1 + static_cast<size_t>(d.n_cells), static_cast<size_t>(d.n_cells_top));
+      return c;
+    }
+
+    struct ComponentBalance {
+      double residual = 0.0;                 // (in - out - accumulated) / scale
+      double gas = 0.0, adsorbed = 0.0;      // inventory changes over the run [mol]
+      std::vector<double> q_end;             // end loading per cell [mol/kg]
+    };
+
+    // Moles of each component fed, vented and accumulated (gas between and in
+    // the particles, and the adsorbed phase of each cell's blend).
+    std::map<std::string, ComponentBalance> MoleBalances(const MixedDeck& deck, const CoupledSolver& solver,
+                                                         const char* label) {
+      const auto& log = solver.GetLog();
+      const auto& blog = solver.GetBoundaryLog();
+      const auto& dom = log.GetDomain();
+      const CellProperties cells = CellPropertiesOf(deck);
+      const auto P = log.GetVariable(0, 0, VariableType::PRESSURE);
+      const auto T = log.GetVariable(0, 0, VariableType::TEMPERATURE);
+      EXPECT_EQ(P.values.back().size(), cells.et.size()) << "unexpected number of cells";
+      std::map<std::string, ComponentBalance> out;
+      for (const auto& c : {kN2, kO2}) {
+        const auto y = log.GetComponentVariable(0, 0, ComponentVariableType::MOLE_FRACTION, c);
+        const auto q = log.GetComponentVariable(0, 0, ComponentVariableType::ADSORBED_CONCENTRATION, c);
+        auto inventory = [&](size_t n, double& gas, double& ads) {
+          gas = ads = 0.0;
+          for (size_t i = 1; i + 1 < P.values[n].size(); ++i) {
+            gas += dom.volume[i] * cells.et[i] * P.values[n][i] * y.values[n][i] / (kR * T.values[n][i]);
+            ads += dom.volume[i] * cells.rho_b[i] * q.values[n][i];
+          }
+        };
+        double gas0, ads0, gas1, ads1;
+        inventory(0, gas0, ads0);
+        inventory(P.values.size() - 1, gas1, ads1);
+        const double accumulated = (gas1 - gas0) + (ads1 - ads0);
+        const double in = StreamMolesIn(blog, "Feed inlet", c, +1.0);
+        const double vented = -StreamMolesIn(blog, "Feed Pressure Boundary " +
+                                             std::string(BoundaryLocationList[(int)BoundaryLocation::TOP]), c, -1.0);
+        const double scale = std::max({std::abs(in), std::abs(vented), std::abs(accumulated)});
+        ComponentBalance b;
+        b.residual = (in - vented - accumulated) / scale;
+        b.gas = gas1 - gas0;
+        b.adsorbed = ads1 - ads0;
+        b.q_end = q.values.back();
+        std::cout << "[" << label << "] " << c << ": in " << in << ", out " << vented << ", gas " << b.gas
+                  << ", adsorbed " << b.adsorbed << ", relative residual " << b.residual << "\n";
+        out[c] = b;
+      }
+      return out;
+    }
+
+  } // namespace
+
+  // A solid at mass fraction 0 is in the layer's composition but holds no
+  // mass: rho_b,B = (1 - eb) rho_mix * 0 = 0, phi_B = 0, and it adds nothing
+  // to cp. So pure A with a strongly adsorbing B at w = 0 is pure A. The deck
+  // checks accept it and the run-start warnings name it.
+  TEST(MixedLayers, SolidAtZeroMassFractionTakesNoPart) {
+    MixedDeck pure;
+    MixedDeck with_zero = pure;
+    Solid B = TwoAdsorbentsAndInert().solids[1];
+    B.w = 0.0;
+    with_zero.solids = {Solid{}, B};
+    {
+      UserData data;
+      BuildMixedDeck(data, with_zero);
+      std::string error;
+      ASSERT_TRUE(data.EvaluateAllExpressions(error) && data.PerformChecks(error)) << error;
+      const auto warnings = LayerCompositionWarnings(data.adsorbent_directory, data.bed);
+      ASSERT_EQ(warnings.size(), 1u);
+      EXPECT_NE(warnings[0].find("mass fraction 0"), std::string::npos) << warnings[0];
+    }
+    ExpectSameSolution("solid at mass fraction 0", pure, 1.0, with_zero, 1.0);
+  }
+
+  // A layer packed only with an inert solid (no isotherm: the defaults give
+  // every component the Inert isotherm) is a valid deck: nothing adsorbs, the
+  // O2 front passes through at the speed of the gas, and the mole balance
+  // closes on the gas inventory alone.
+  TEST(MixedLayers, AllInertLayerHoldsNothingAndBalances) {
+    MixedDeck deck;
+    Solid I = TwoAdsorbentsAndInert().solids[2];
+    I.w = 1.0;
+    deck.solids = {I};
+    deck.reltol = 1e-8;
+    deck.max_step = 0.1;
+    deck.run_time = 10.0;
+    UserData data;
+    BuildMixedDeck(data, deck);
+    std::string error;
+    ASSERT_TRUE(data.EvaluateAllExpressions(error) && data.PerformChecks(error)) << error;
+    EXPECT_TRUE(LayerCompositionWarnings(data.adsorbent_directory, data.bed).empty());
+    CoupledSolver solver{data};
+    ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+
+    const auto y = solver.GetLog().GetComponentVariable(0, 0, ComponentVariableType::MOLE_FRACTION, kO2);
+    ASSERT_GT(y.values.back()[y.values.back().size() - 2], 0.9 * deck.y_feed) << "O2 has not broken through";
+    for (const auto& [c, b] : MoleBalances(deck, solver, "all-inert layer")) {
+      EXPECT_LT(std::abs(b.residual), 1e-5) << c << ": streams and inventory disagree";
+      // Zero up to round-off: the loading's absolute tolerance is 1e-8 mol/kg.
+      for (double q : b.q_end) EXPECT_LT(std::abs(q), 1e-12) << c << " adsorbed on an inert solid";
+    }
+  }
+
+  // The interface between two layers is a face like any other: splitting a
+  // layer into two layers of the same blend (separate adsorbent objects, same
+  // properties, same cell size) poses the same semi-discrete system, so it
+  // gives the same solution. A spurious source, a lost face flux or a mixing
+  // rule evaluated with the wrong layer's blend at the interface would show.
+  TEST(MixedLayers, SplittingALayerIntoTwoOfTheSameBlendChangesNothing) {
+    MixedDeck one;
+    Solid A;
+    A.w = 0.7;
+    Solid I = TwoAdsorbentsAndInert().solids[2];
+    I.w = 0.3;
+    one.solids = {A, I};
+    one.run_time = 28.0;  // 70 % of the pure layer's capacity: the front stays inside
+    MixedDeck two = one;
+    two.n_cells = one.n_cells / 2;
+    two.length = one.length / 2;
+    two.solids_top = one.solids;
+    two.n_cells_top = one.n_cells - two.n_cells;
+    two.length_top = one.length - two.length;
+    ExpectSameSolution("one layer split in two", one, 1.0, two, 1.0);
+  }
+
+  // Two layers packed with different blends (different particle densities,
+  // voidages, capacities, heats and conductivities on either side of the
+  // interface). Every component's moles fed equal those vented plus the gas
+  // and adsorbed inventories of both layers, each with its own blend: no
+  // source or sink at the interface. Guard: the O2 front has crossed the
+  // interface, so the face between the blends carries a changing composition
+  // and temperature. Same tolerance as MoleBalanceClosesOnMixedBed.
+  TEST(MixedLayers, MoleBalanceClosesAcrossAnInterfaceBetweenBlends) {
+    for (bool ltne : {false, true}) {
+      MixedDeck deck;
+      const MixedDeck three = TwoAdsorbentsAndInert();
+      Solid A = three.solids[0], B = three.solids[1], I = three.solids[2];
+      A.w = 0.4;
+      I.w = 0.6;
+      deck.solids = {A, I};  // a weak, diluted bottom layer
+      B.w = 0.7;
+      Solid A2 = three.solids[0];
+      A2.w = 0.3;
+      deck.solids_top = {B, A2};  // a strong top layer
+      deck.n_cells = 15;
+      deck.length = 0.25;
+      deck.n_cells_top = 15;
+      deck.length_top = 0.25;
+      deck.ltne = ltne;
+      deck.reltol = 1e-8;
+      deck.max_step = 0.1;
+      UserData data;
+      BuildMixedDeck(data, deck);
+      std::string error;
+      ASSERT_TRUE(data.EvaluateAllExpressions(error) && data.PerformChecks(error)) << error;
+      CoupledSolver solver{data};
+      ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+
+      const auto balances = MoleBalances(deck, solver, ltne ? "two blends, LTNE" : "two blends, LTE");
+      for (const auto& [c, b] : balances)
+        EXPECT_LT(std::abs(b.residual), 1e-5) << c << ": streams and inventory disagree";
+      const auto& q = balances.at(kO2).q_end;
+      const size_t first_top = 1 + static_cast<size_t>(deck.n_cells);
+      ASSERT_GT(q[first_top], 0.1 * *std::max_element(q.begin(), q.end()))
+        << "The O2 front has not crossed the interface";
+    }
   }
 
 } // namespace adsim

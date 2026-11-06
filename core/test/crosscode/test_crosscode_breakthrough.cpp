@@ -229,26 +229,26 @@ const CrossCase kCases[] = {
   //   measured: t05 -0.45 s, t50 -0.48 s, t95 -0.51 s, T_ext -0.00 K, rms 0.0057
   {"BT01", "BT01_peese_N100.csv", 0.0, 0.15, true,
    {0.0, 0.9}, {0.0, 0.9}, {0.0, 0.9}, {0.0, 0.06}, 0.010},
-  // BT02: adiabatic 15 % CO2: t50 +10.8 s = CoolProp gas cp (-6.8 s when set to 30.7) + constant heat -dU + R T0 (-4.3 s when local); both matched (skarstrom#45): -0.5 s.
-  //   measured: t05 +10.49 s, t50 +10.80 s, T_ext -0.15 K, rms 0.0227
+  // BT02: adiabatic 15 % CO2: the offset is mostly CoolProp gas cp (-6.8 s when set to 30.7) + constant heat -dU + R T0 (-4.3 s when local); both matched (skarstrom#45): -0.5 s, measured before the face temperature followed the advection scheme (not re-measured).
+  //   measured: t05 +7.77 s, t50 +7.96 s, T_ext -0.49 K, rms 0.0169 (with the upwind face temperature: +10.49, +10.80, -0.15, 0.0227)
   {"BT02", "BT02_peese_N100.csv", 0.0, 0.15, true,
-   {+10.49, 2.9}, {+10.80, 3.0}, {kNaN, kNaN}, {-0.15, 0.09}, 0.031},
+   {+7.77, 2.2}, {+7.96, 2.3}, {kNaN, kNaN}, {-0.49, 0.18}, 0.024},
   // BT03: isothermal purge of a 15 % bed with N2 (desorption simple wave).
   //   measured: t05 -0.14 s, t50 +0.15 s, T_ext +0.00 K, rms 0.0000
   {"BT03", "BT03_peese_N100.csv", 0.15, 0.0, false,
    {0.0, 0.5}, {0.0, 0.5}, {kNaN, kNaN}, {0.0, 0.06}, 0.003},
-  // BT04: adiabatic purge: outlet T_min -0.43 K = CoolProp gas cp (matched: -0.03 K).
-  //   measured: t05 -0.33 s, t50 -0.31 s, T_ext -0.43 K, rms 0.0026
+  // BT04: adiabatic purge: outlet T_min -0.43 K = CoolProp gas cp (matched: -0.03 K, measured with the upwind face temperature; not re-measured).
+  //   measured: t05 +0.03 s, t50 +0.59 s, T_ext -0.43 K, rms 0.0029 (with the upwind face temperature: -0.33, -0.31, -0.43, 0.0026)
   {"BT04", "BT04_peese_N100.csv", 0.15, 0.0, false,
-   {-0.33, 0.4}, {-0.31, 0.4}, {kNaN, kNaN}, {-0.43, 0.16}, 0.006},
+   {+0.03, 0.3}, {+0.59, 0.4}, {kNaN, kNaN}, {-0.43, 0.16}, 0.006},
   // BT05: isothermal 50 % CO2, pressure-form Langmuir (bulk feed: the velocity falls across the front).
   //   measured: t05 -0.04 s, t50 -0.09 s, t95 -0.14 s, T_ext -0.00 K, rms 0.0028
   {"BT05", "BT05_peese_N100.csv", 0.0, 0.5, true,
    {0.0, 0.4}, {0.0, 0.4}, {0.0, 0.5}, {0.0, 0.06}, 0.006},
-  // BT06: adiabatic 50 % CO2: t50 +14.5 s = gas cp (-6.5 s) + heat form (-4.9 s); both matched: +2.9 s at 100 cells (+1.0 s at 400).
-  //   measured: t05 +14.45 s, t50 +14.46 s, t95 +15.93 s, T_ext -0.87 K, rms 0.0524
+  // BT06: adiabatic 50 % CO2: the offset is mostly gas cp (-6.5 s) + heat form (-4.9 s); both matched: +2.9 s at 100 cells (+1.0 s at 400), measured with the upwind face temperature (not re-measured).
+  //   measured: t05 +10.11 s, t50 +10.08 s, t95 +11.18 s, T_ext -0.98 K, rms 0.0393 (with the upwind face temperature: +14.45, +14.46, +15.93, -0.87, 0.0524)
   {"BT06", "BT06_peese_N100.csv", 0.0, 0.5, true,
-   {+14.45, 3.9}, {+14.46, 3.9}, {+15.93, 4.3}, {-0.87, 0.27}, 0.068},
+   {+10.11, 2.8}, {+10.08, 2.8}, {+11.18, 3.1}, {-0.98, 0.30}, 0.052},
   // BT07: Henry isotherm, 1 % CO2 at 393 K: t05 / t95 differ by 3 s, the size of either code's change from 100 to 400 cells.
   //   measured: t05 +3.02 s, t50 +0.41 s, t95 -3.35 s, T_ext +0.00 K, rms 0.0021
   {"BT07", "BT07_peese_N100.csv", 0.0, 0.01, true,
@@ -261,10 +261,10 @@ const CrossCase kCases[] = {
   //   measured: t05 -0.24 s, t50 -0.37 s, t95 -0.59 s, T_ext -0.00 K, rms 0.0301
   {"BT09", "BT09_peese_N100.csv", 0.0, 0.4, true,
    {0.0, 0.6}, {0.0, 0.8}, {0.0, 1.0}, {0.0, 0.06}, 0.040},
-  // BT10: LiX biogas, adiabatic: t50 +1.8 s = gas cp (-0.6 s) + heat form (-1.1 s); both matched: +0.2 s.
-  //   measured: t05 +2.04 s, t50 +1.83 s, t95 +1.75 s, T_ext +0.00 K, rms 0.0147
+  // BT10: LiX biogas, adiabatic: gas cp (-0.6 s) + heat form (-1.1 s); both matched: +0.2 s, measured with the upwind face temperature (not re-measured).
+  //   measured: t05 +1.20 s, t50 +0.99 s, t95 +0.89 s, T_ext -0.07 K, rms 0.0093 (with the upwind face temperature: +2.04, +1.83, +1.75, +0.00, 0.0147)
   {"BT10", "BT10_peese_N100.csv", 0.0, 0.4, true,
-   {+2.04, 0.8}, {+1.83, 0.8}, {+1.75, 0.7}, {+0.00, 0.06}, 0.021},
+   {+1.20, 0.6}, {+0.99, 0.5}, {+0.89, 0.5}, {-0.07, 0.07}, 0.014},
   // TP01: toPSAil's model choices (no dispersion; CSTRs in series = first-order upwind), 100 cells in both.
   //   measured: t05 -0.51 s, t50 -0.51 s, t95 -0.55 s, T_ext +0.00 K, rms 0.0058
   {"TP01", "TP01_topsail_N100.csv", 0.0, 0.15, true,

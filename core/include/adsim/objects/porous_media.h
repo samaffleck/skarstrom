@@ -338,6 +338,9 @@ namespace adsim {
     // Composition management
     void AddAdsorbent(AdsorbentID id, double mass_fraction = 1.0);
     void RemoveAdsorbent(AdsorbentID id);
+    // True when the composition is usable: not empty, no negative fraction,
+    // and the fractions sum to 1 within kCompositionSumTolerance (the error
+    // rules of CheckLayerComposition that need no adsorbent directory).
     bool ValidateComposition() const;
 
     // Computed properties
@@ -405,6 +408,30 @@ namespace adsim {
       );
     }
   };
+
+  // |sum_k w_k - 1| above which a layer composition is an error.
+  inline constexpr double kCompositionSumTolerance = 1e-6;
+
+  // One finding of CheckLayerComposition. Errors stop a run (Bed::PerformChecks
+  // reports them); warnings do not (LayerCompositionWarnings, deck_warnings.h).
+  struct LayerCompositionIssue {
+    enum class Severity { Error, Warning };
+    Severity severity = Severity::Error;
+    std::string message;  // starts with "Error: " or "Warning: "
+  };
+
+  // The rules for a layer's composition (mass fractions w_k), in one place for
+  // the deck checks, the run-start warnings and front ends:
+  //   Error:   no adsorbent; an id the directory does not hold; a negative
+  //            fraction; fractions that do not sum to 1 (beyond
+  //            kCompositionSumTolerance). Every effective property scales with
+  //            the sum (porous_media.cpp), so a sum of 0.8 would silently mean
+  //            80 % of the solid; the fractions are never renormalised.
+  //   Warning: a fraction of exactly 0 (that solid takes no part in the run).
+  // A solid whose components all use the Inert isotherm is a valid member (an
+  // inert diluent or packing). Issues come in the order of the composition map.
+  std::vector<LayerCompositionIssue> CheckLayerComposition(const MixedAdsorbentLayer& layer,
+                                                           const AdsorbentDirectory& dir);
 
   // Ordered collection of bed layers (replaces old Adsorbents class)
   class AdsorbentLayers {

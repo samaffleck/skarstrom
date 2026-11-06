@@ -519,9 +519,14 @@ namespace adsim {
   // upwind's 241 / 246 steps with none (WP20-4; 25 to 70 times the run time
   // in two tests with an absent component). With the face bounded to [0, 1]
   // widened to its two cells' values (BoundFace in adsorbent_equations.cpp)
-  // both take exactly upwind's steps and no convergence failure. The bounds
-  // below allow 20 % more steps than upwind and convergence failures on 2 %
-  // of its steps: between a factor 1.7 and 17 below the old counts.
+  // both took exactly upwind's steps and no convergence failure. Since the
+  // energy balance's face temperature follows the scheme too, the thermal
+  // front is sharper under WENO and van Leer and takes a few more steps to
+  // resolve (measured on 40 / 80 cells: WENO 245 / 286, van Leer 237 / 304,
+  // upwind 241 / 246, still no convergence failure in any run). The bounds
+  // below allow 30 % more steps than upwind (the old van Leer counts were
+  // 1.3 and 1.6 times over it) and convergence failures on 2 % of its steps
+  // (20 to 400 times below the old counts), which is the failure mode.
   namespace {
     struct AbsentComponentRun {
       IntegrationStats stats;
@@ -575,7 +580,7 @@ namespace adsim {
         const auto r = RunAbsentComponent(scheme, n_cells);
         const std::string label = "scheme " + std::to_string(static_cast<int>(scheme))
                                 + ", " + std::to_string(n_cells) + " cells";
-        EXPECT_LE(r.stats.num_steps, 1.2 * up.stats.num_steps)
+        EXPECT_LE(r.stats.num_steps, 1.3 * up.stats.num_steps)
           << label << ": " << r.stats.num_steps << " steps against upwind's " << up.stats.num_steps;
         EXPECT_LE(r.stats.num_conv_fails, up.stats.num_conv_fails + 0.02 * up.stats.num_steps)
           << label << ": " << r.stats.num_conv_fails << " Newton convergence failures against upwind's "

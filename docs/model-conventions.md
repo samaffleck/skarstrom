@@ -33,6 +33,8 @@ sim.adsorbents["13X"].solid_density = 660 / (1 - 0.41)    # 1118.6 kg/m3 of part
 
 A layer of several adsorbents (`composition` mass fractions $w_k$) uses the mixture particle density $\rho_s = 1 / \sum_k (w_k / \rho_{s,k})$, and each adsorbent's own bulk density is $\rho_{b,k} = (1-\epsilon_b)\thinspace \rho_s\thinspace w_k$.
 
+The mass fractions of a layer must sum to 1 (within $10^{-6}$) and none may be negative; otherwise the deck checks refuse the deck (`CheckLayerComposition` in `porous_media.h`, which `sim.check()` and every run use). The fractions are never renormalised. A solid at mass fraction 0 is allowed but takes no part in the run, and the run-start warnings say so. A solid whose components all use the Inert isotherm is a valid member of a blend (an inert diluent or packing). A solid that is part of a blend (a layer that also holds another solid) cannot be removed from the deck until it has been taken out of that layer's composition. The blend edits of `deck_edit.h` (`AddSolidToLayer`, `SetLayerMassFraction`, `RemoveSolidFromLayer`) keep the fractions summing to 1 by rescaling the other solids in proportion.
+
 ### Total voidage
 
 The gas held in the bed (the accumulation terms of the mass and energy balances) uses the **total voidage**
@@ -199,7 +201,7 @@ Go through these before concluding that two models disagree.
 
 Notes on the rows:
 
-- **Advection scheme and cells.** Upwind smears fronts and needs several hundred cells for a recovery within 0.1 percentage point; WENO reaches the same on tens of cells ([Numerics](numerics.md#advection-schemes)). A reference code with first-order upwinding on 10-30 cells differs from Skarstrom's WENO default by its numerical dispersion: set `"upwind"` and the same cell count to reproduce it, or refine both. The convective face temperature is always the upwind value, whatever the scheme.
+- **Advection scheme and cells.** Upwind smears fronts and needs several hundred cells for a recovery within 0.1 percentage point; WENO reaches the same on tens of cells ([Numerics](numerics.md#advection-schemes)). A reference code with first-order upwinding on 10-30 cells differs from Skarstrom's WENO default by its numerical dispersion: set `"upwind"` and the same cell count to reproduce it, or refine both. The scheme sets the convective face temperature of the energy balance as well as the face mole fractions.
 - **Gas heat capacity.** The mixture value is mixed on a molar basis, $C_{p,g} = \sum_i y_i M_i C_{p,i} / \sum_i y_i M_i$ (J kg⁻¹ K⁻¹), in every cell. Many papers use a constant molar value (e.g. 30.7 J mol⁻¹ K⁻¹ for every component): set `"constant"` and that value for each component.
 - **Viscosity.** A constant `fluid.viscosity` is used in every cell at every temperature and composition.
 - **Dispersion.** The dispersive flux is $\epsilon_b D_{ax}\thinspace C\thinspace \partial y/\partial z$; a model that multiplies $D_{ax}$ by $\epsilon_t$, or not at all, needs its $D_{ax}$ rescaled. No dispersive flux crosses the bed-end faces (Danckwerts inlet; [Mass Balance](mass-balance.md#inlet-and-outlet-conditions)).
