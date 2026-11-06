@@ -576,6 +576,29 @@ namespace adsim {
         EmplaceBool(ep + ".enabled", ea + ".enabled", "cycle", sub, "energy source enabled", source.enabled_);
         Emplace(ep + ".power", ea + ".power", "cycle", sub, "energy source power", "W", source.power_, -1e4, 1e4);
       }
+      AddHeatingMedium(step.heating_medium_, sp, sa, step.step_name_);
+    }
+
+    // The heating medium (jacket) on the wall's outer face during a step:
+    // step[ID].medium.enabled, .heat_transfer_coefficient and the medium
+    // temperature, a constant (.temperature) or a ramp (.temperature_linear_*,
+    // ...) like an inlet temperature. Listed for every step, enabled or not,
+    // so a sweep or the CLI can switch a medium on.
+    void AddHeatingMedium(HeatingMedium& medium, const std::string& sp, const std::string& sa,
+                          const std::string& step_name) {
+      const EndpointScope ms{sp + ".medium", sa + ".medium", step_name + ", heating medium"};
+      EmplaceBool(ms.path + ".enabled", ms.alias + ".enabled", "cycle", ms.subcategory, "heating medium enabled",
+                  medium.enabled_);
+      const std::string name = "heating medium temperature";
+      if (medium.temperature_profile_ && !dynamic_cast<ConstantBoundaryValue*>(medium.temperature_profile_.get())) {
+        AddProfile(medium.temperature_profile_.get(), ms, "temperature", name, "K", 200.0, 773.0);
+      } else {
+        Emplace(ms.path + ".temperature", ms.alias + ".temperature", "cycle", ms.subcategory, name, "K",
+                medium.temperature_, 200.0, 773.0);
+      }
+      Emplace(ms.path + ".heat_transfer_coefficient", ms.alias + ".heat_transfer_coefficient", "cycle",
+              ms.subcategory, "heating medium heat transfer coefficient (wall outer face)", "W/m2-K",
+              medium.heat_transfer_coefficient_, 0.0, 5000.0);
     }
 
     void AddBoundary(IBoundaryCondition* boundary, const std::string& step_name, const std::string& side_alias) {

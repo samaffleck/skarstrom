@@ -590,7 +590,7 @@
             "Number_Of_Cycles": 250,
             "Step_List": [
                 {
-                    "cereal_class_version": 5,
+                    "cereal_class_version": 6,
                     "Step_Time": {
                         "Value": 176.0,
                         "Expression": "176",
@@ -909,7 +909,24 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 1
+                    "ID": 1,
+                    "Heating_Medium": {
+                        "cereal_class_version": 0,
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 },
                 {
                     "Step_Time": {
@@ -1086,7 +1103,23 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 2
+                    "ID": 2,
+                    "Heating_Medium": {
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 },
                 {
                     "Step_Time": {
@@ -1259,7 +1292,23 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 3
+                    "ID": 3,
+                    "Heating_Medium": {
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 },
                 {
                     "Step_Time": {
@@ -1428,7 +1477,23 @@
                         "Expression": "0",
                         "DisplayUnitIndex": 0
                     },
-                    "ID": 4
+                    "ID": 4,
+                    "Heating_Medium": {
+                        "Enabled": false,
+                        "Temperature": {
+                            "Value": 293.0,
+                            "Expression": "293",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Temperature_Profile": {
+                            "polymorphic_id": 0
+                        },
+                        "Heat_Transfer_Coefficient": {
+                            "Value": 100.0,
+                            "Expression": "1e+02",
+                            "DisplayUnitIndex": 0
+                        }
+                    }
                 }
             ],
             "Step_Time_Mode": 0,

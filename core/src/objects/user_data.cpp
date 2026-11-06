@@ -121,6 +121,7 @@ namespace adsim {
         auto& src = entry.second;
         visit(s + " energy source", [&] { src.EvaluateExpressions(ctx); });
       }
+      visit(s + " heating medium", [&] { step.heating_medium_.EvaluateExpressions(ctx); });
       const std::pair<const char*, IBoundaryCondition*> sides[] = {
         {"top", step.top_boundary_condition_.get()},
         {"bottom", step.bottom_boundary_condition_.get()}};
