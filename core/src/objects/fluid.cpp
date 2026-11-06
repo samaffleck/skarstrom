@@ -27,6 +27,20 @@ namespace adsim {
 		return k ? EvalThermalConductivity(*k, T) : 0.024;
 	}
 
+	double GetGasHeatCapacity(const std::string& component, double P, double T) {
+		try {
+			const auto phase = static_cast<CoolProp::phases>(
+				static_cast<int>(CoolProp::PropsSI("Phase", "P", P, "T", T, component)));
+			if (phase == CoolProp::iphase_liquid || phase == CoolProp::iphase_twophase)
+				return CoolProp::PropsSI("CP0MASS", "P", P, "T", T, component); // ideal-gas [J/(kg-K)]
+		}
+		catch (const CoolProp::CoolPropBaseError& e) {
+			// No phase (or C_p0) for this state: fall back to the state value below.
+			std::cerr << "CoolProp Error: " << e.what() << std::endl;
+		}
+		return GetHeatCapacity(component, P, T);
+	}
+
 	void Fluid::AddComponent(const std::string& component_name) {
 		assert(IsComponentValid(component_name));
 
@@ -51,7 +65,7 @@ namespace adsim {
 			auto cp_it = gas_heat_capacity_.try_emplace(component, kDefaultGasHeatCapacity).first;
 			heat_capacity_[component] = gas_heat_capacity_mode_ == GasHeatCapacityMode::CONSTANT
 				? cp_it->second.Get() / molar_mass_[component]   // [J/(mol-K)] -> [J/(kg-K)]
-				: GetHeatCapacity(component, ic.pressure, ic.temperature);
+				: GetGasHeatCapacity(component, ic.pressure, ic.temperature);
 			// Viscosity mu_i(T) uses hard-coded polynomial coefficients
 			// (viscosity_coefficients.h) — no CoolProp fitting needed here.
 

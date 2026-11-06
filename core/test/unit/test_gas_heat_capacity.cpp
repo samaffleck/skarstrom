@@ -154,4 +154,108 @@ namespace adsim {
     for (double cp : data.state.heat_capacity.var) EXPECT_DOUBLE_EQ(cp, cp_pure);
   }
 
+  // ---------------------------------------------------------------------------
+  // Pure-component C_p,i of the COOLPROP mode is the gas-phase value. CoolProp at
+  // (P, T) gives the LIQUID heat capacity for a component that is condensed in
+  // its pure state there (water at 1 bar and 298 K: about 4181 J/(kg.K)); the
+  // gas in the bed is a vapour, so those components take the ideal-gas C_p0(T).
+
+  namespace {
+    const std::vector<std::string> kCondensables = {"Water", "Ethanol", "Hexane", "Toluene"};
+    const std::vector<std::string> kPermanentGases = {
+      "Nitrogen", "Oxygen", "CarbonDioxide", "Methane", "Hydrogen", "Argon", "Helium"};
+  }
+
+  // Water vapour at 298.15 K: C_p0 = 33.59 J/(mol.K) / 18.015 g/mol = 1864.6
+  // J/(kg.K) (NIST-JANAF; IAPWS-95 ideal-gas part). Not the liquid's ~4181.
+  TEST(GasHeatCapacityTest, WaterAtOneBarIsVapourValue) {
+    const double cp_liquid = GetHeatCapacity("Water", 1.0e5, 298.15);
+    EXPECT_NEAR(cp_liquid, 4181.0, 5.0);  // what the COOLPROP mode cached before
+    const double cp = GetGasHeatCapacity("Water", 1.0e5, 298.15);
+    EXPECT_NEAR(cp, 1865.0, 3.0);
+  }
+
+  // Every condensable that is liquid in its pure state at 1 bar and 298 K takes
+  // its ideal-gas C_p0, which is well below the liquid value.
+  TEST(GasHeatCapacityTest, CondensablesUseIdealGasHeatCapacity) {
+    for (const auto& c : kCondensables) {
+      const double cp0 = CoolProp::PropsSI("CP0MASS", "P", 1.0e5, "T", 298.15, c);
+      const double cp = GetGasHeatCapacity(c, 1.0e5, 298.15);
+      EXPECT_DOUBLE_EQ(cp, cp0) << c;
+      EXPECT_LT(cp, 0.8 * GetHeatCapacity(c, 1.0e5, 298.15)) << c << " (liquid C_p)";
+    }
+    // Molar values a reader can check: ethanol 65.6, n-hexane 143, toluene 104 J/(mol.K)
+    // at 298 K (ideal gas).
+    EXPECT_NEAR(GetGasHeatCapacity("Ethanol", 1.0e5, 298.15) * GetMolarMass("Ethanol"), 65.6, 1.5);
+    EXPECT_NEAR(GetGasHeatCapacity("Hexane", 1.0e5, 298.15) * GetMolarMass("Hexane"), 143.0, 3.0);
+    EXPECT_NEAR(GetGasHeatCapacity("Toluene", 1.0e5, 298.15) * GetMolarMass("Toluene"), 104.0, 2.5);
+  }
+
+  // A condensable already in its gas state (water at 1 bar and 400 K) keeps
+  // the real-gas C_p(P, T): only condensed states are replaced.
+  TEST(GasHeatCapacityTest, SuperheatedVapourKeepsRealGasValue) {
+    EXPECT_DOUBLE_EQ(GetGasHeatCapacity("Water", 1.0e5, 400.0), GetHeatCapacity("Water", 1.0e5, 400.0));
+    EXPECT_DOUBLE_EQ(GetGasHeatCapacity("Water", 2.0e3, 298.15), GetHeatCapacity("Water", 2.0e3, 298.15));
+  }
+
+  // Permanent gases are unchanged, bit for bit, over the pressures and
+  // temperatures of the bundled decks (up to 15 bar), and pinned to their
+  // known values at 1 bar and 298.15 K [J/(kg.K)].
+  TEST(GasHeatCapacityTest, PermanentGasesAreUnchanged) {
+    for (const auto& c : kPermanentGases) {
+      for (double P : {0.1e5, 1.0e5, 10.0e5, 15.0e5, 50.0e5}) {
+        for (double T : {250.0, 298.15, 350.0, 450.0}) {
+          EXPECT_DOUBLE_EQ(GetGasHeatCapacity(c, P, T), GetHeatCapacity(c, P, T))
+            << c << " at " << P << " Pa, " << T << " K";
+        }
+      }
+    }
+    const std::unordered_map<std::string, double> pinned = {
+      {"Nitrogen", 1041.3}, {"Oxygen", 919.4}, {"CarbonDioxide", 849.0}, {"Methane", 2232.0},
+      {"Hydrogen", 14310.0}, {"Argon", 521.6}, {"Helium", 5193.0}};
+    for (const auto& [c, cp] : pinned)
+      EXPECT_NEAR(GetGasHeatCapacity(c, 1.0e5, 298.15), cp, 2e-3 * cp) << c;
+  }
+
+  // Fluid::Initialise caches the vapour value in the COOLPROP mode, and leaves
+  // the user-defined (CONSTANT) mode exactly as it was.
+  TEST(GasHeatCapacityTest, InitialiseCachesVapourValueAndKeepsConstantMode) {
+    InitialConditions ic;
+    ic.pressure = 1.0e5;
+    ic.temperature = 298.15;
+
+    Fluid f;
+    f.AddComponent("Water");
+    f.AddComponent(N2);
+    f.Initialise(ic);
+    EXPECT_NEAR(f.heat_capacity_.at("Water"), 1865.0, 3.0);
+    EXPECT_NEAR(f.MolarHeatCapacity("Water"), 33.59, 0.05);
+    EXPECT_DOUBLE_EQ(f.heat_capacity_.at(N2), GetHeatCapacity(N2, 1.0e5, 298.15));
+
+    f.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+    f.gas_heat_capacity_["Water"] = 75.3;  // a user's value (here the liquid's) is kept as given
+    f.Initialise(ic);
+    EXPECT_DOUBLE_EQ(f.heat_capacity_.at("Water"), 75.3 / f.molar_mass_.at("Water"));
+    EXPECT_DOUBLE_EQ(f.heat_capacity_.at(N2), Fluid::kDefaultGasHeatCapacity / f.molar_mass_.at(N2));
+  }
+
+  // Viscosity and conductivity come from polynomial fits of CoolProp's
+  // DILUTE-GAS values, so condensables already get their vapour values (water
+  // vapour at 298 K: about 9.9e-6 Pa.s and 0.0186 W/(m.K); the liquid has
+  // 8.9e-4 Pa.s and 0.61 W/(m.K)).
+  TEST(GasHeatCapacityTest, CondensableViscosityAndConductivityAreVapourValues) {
+    EXPECT_NEAR(Fluid::GetComponentViscosity("Water", 298.15), 9.9e-6, 0.5e-6);
+    EXPECT_NEAR(Fluid::GetComponentThermalConductivity("Water", 298.15), 0.0186, 0.001);
+    for (const auto& c : kCondensables) {
+      ASSERT_NE(Fluid::ViscosityCoeffs(c), nullptr) << c;
+      ASSERT_NE(Fluid::ThermalConductivityCoeffs(c), nullptr) << c;
+      const double mu = Fluid::GetComponentViscosity(c, 298.15);
+      const double k = Fluid::GetComponentThermalConductivity(c, 298.15);
+      EXPECT_GT(mu, 4e-6) << c;
+      EXPECT_LT(mu, 1.5e-5) << c;  // liquids: 3e-4 to 1e-3 Pa.s
+      EXPECT_GT(k, 0.005) << c;
+      EXPECT_LT(k, 0.03) << c;     // liquids: 0.1 to 0.6 W/(m.K)
+    }
+  }
+
 } // end adsim namespace

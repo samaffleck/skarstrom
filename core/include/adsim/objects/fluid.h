@@ -492,7 +492,22 @@ namespace adsim {
 
     return cp;
   }
-  
+
+  // Pure-component gas-phase heat capacity C_p,i [J/(kg-K)] at (P, T), the value
+  // the COOLPROP gas heat capacity mode caches. The gas in the bed is a vapour
+  // mixture, so a component whose pure state at (P, T) would be condensed (e.g.
+  // water, ethanol or toluene at 1 bar and 298 K, where CoolProp returns the
+  // liquid's ~4181 J/(kg-K) for water) takes its ideal-gas heat capacity
+  // C_p0(T) instead (water: ~1865 J/(kg-K)). Its partial pressure in the bed is
+  // at most its saturation pressure, where the vapour is close to ideal, and
+  // C_p0 depends on temperature only, so it is defined at every state (unlike
+  // the saturated-vapour state, which does not exist above T_c). A component in
+  // a gas or supercritical state keeps its real-gas C_p(P, T) unchanged, so
+  // permanent gases (N2, O2, CO2 below its saturation pressure, CH4, H2, Ar,
+  // He, ...) are not affected. Returns 0 if CoolProp fails, like the other
+  // getters.
+  double GetGasHeatCapacity(const std::string& component, double P, double T);
+
   inline static double GetViscosity(const std::string& component, double P, double T) {
     double vis = 0.0;
     try {
