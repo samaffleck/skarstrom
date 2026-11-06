@@ -43,6 +43,20 @@ namespace adsim {
         v = CalculateSpecificEnergyConsumption(p, &ok);         r.energy_consumption = value(v);
         v = CalculateProductionRate(p, &ok);                    r.production_rate = value(v);
         r.electrical_energy = r.energy_consumption;
+        v = CalculateSpecificThermalEnergy(p, &ok);             r.thermal_energy = value(v);
+        v = CalculateSpecificCoolingDuty(p, &ok);               r.cooling_duty = value(v);
+        // Per step: the step's heat over the same net product mass.
+        ok = true;
+        const double mass = NetProductMass(p, ok);
+        const int n_steps = static_cast<int>(eq_log.sys_data.step_list_.size());
+        for (int s = 0; s < n_steps; ++s) {
+          const StepThermalDuty d = CalculateStepThermalDuty(p, s);
+          bool ok_h = ok, ok_c = ok;
+          const double h = KPIRatio(d.heating, mass, ok_h);
+          const double c = KPIRatio(d.cooling, mass, ok_c);
+          r.step_thermal_energy.push_back(ok_h ? h : nan);
+          r.step_cooling_duty.push_back(ok_c ? c : nan);
+        }
       }
       out.push_back(std::move(r));
     }

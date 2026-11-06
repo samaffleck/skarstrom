@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <set>
 #include <string>
@@ -125,6 +126,18 @@ TEST(OptimizationCostFunctionTest, ElectricalEnergyIsEnergyConsumption) {
   kpis[CO2][KPIType::ENERGY_CONSUMPTION] = 4e5;
   EXPECT_DOUBLE_EQ(fn.ComputeCost(kpis), 4e5);
   EXPECT_EQ(kKPITypeList[static_cast<int>(KPIType::ELECTRICAL_ENERGY)], "Electrical Energy");
+}
+
+// New KPIs are appended: stored indices of the existing ones never move.
+TEST(OptimizationCostFunctionTest, KPIIndicesAreStable) {
+  static_assert(static_cast<int>(KPIType::PRODUCTION_RATE) == 5 && static_cast<int>(KPIType::LCOC) == 6);
+  static_assert(static_cast<int>(KPIType::THERMAL_ENERGY) == 7 && static_cast<int>(KPIType::COOLING_DUTY) == 8);
+  static_assert(static_cast<int>(KPIVariableType::PRODUCTION_RATE) == 5);
+  static_assert(static_cast<int>(KPIVariableType::THERMAL_ENERGY) == 6 &&
+                static_cast<int>(KPIVariableType::COOLING_DUTY) == 7);
+  static_assert(std::size(kKPITypeList) == 9 && std::size(kKPIVariableTypeList) == 8);
+  EXPECT_EQ(kKPITypeList[static_cast<int>(KPIType::THERMAL_ENERGY)], "Thermal Energy");
+  EXPECT_EQ(GetKPIUnits(KPIVariableType::COOLING_DUTY), "[J/kg]");
 }
 
 // GlobalOptimizer must hand dlib only finite values: an objective that returns

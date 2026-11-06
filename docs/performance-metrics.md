@@ -55,9 +55,21 @@ $$
 \text{Electrical Energy} = \frac{E_{\text{total}}}{n_{\text{product}}\thinspace M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
 $$
 
-where $E_{\text{total}}$ is the sum over all steps of the time-integrated compressor/pump power. Step [energy sources](energy-balance.md#energy-source-heating-cooling) (heaters and coolers, as in a TSA cycle) are **not** included; compute their duty per kilogram of product yourself, as in the [TSA tutorial](tsa-regeneration.md).
+where $E_{\text{total}}$ is the sum over all steps of the time-integrated compressor/pump power. Step [energy sources](energy-balance.md#energy-source-heating-cooling) (heaters and coolers, as in a TSA cycle) are **not** included: their heat is the thermal energy and cooling duty below.
 
 `energy_consumption` is the original name of this KPI and keeps its meaning: it is the electrical energy, the same value as `electrical_energy`, in KPI records, sensitivity outputs (`Component.energy_consumption` or `Component.electrical_energy`), optimiser objectives and the cost estimate's electricity cost. Decks and scripts that use it are unchanged. It is undefined (`nan`) exactly when no net product is drawn.
+
+**Thermal Energy** (`thermal_energy`) — the specific thermal energy: heat supplied to the bed over the cycle per unit mass of net product:
+
+$$
+\text{Thermal Energy} = \frac{\sum_{s} Q^{+}_{s}\thinspace t_s}{n_{\text{product}}\thinspace M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
+$$
+
+where $Q^{+}_{s}$ is the total power of the step's heating [energy sources](energy-balance.md#energy-source-heating-cooling) (those with a positive power) and $t_s$ the step time. A heating medium's duty will be added to it once the engine has one.
+
+**Cooling Duty** (`cooling_duty`) — the heat removed by the cooling energy sources (negative power) over the cycle per unit mass of net product, reported as a **positive** magnitude with the same formula using $|Q^{-}_{s}|$. It is for information: it is not subtracted from the thermal energy.
+
+Both use the source powers the solver applied, so a disabled source counts nothing, and both are 0 in an isothermal run, where the sources do nothing. They are defined and undefined exactly as the electrical energy (`nan` when no net product is drawn). Each record also has `step_thermal_energy` and `step_cooling_duty`, the share of every step in the deck's step order (they sum to the cycle values). The electrical energy, thermal energy and cooling duty are separate figures; none includes another.
 
 **Production Rate** — the net molar rate of product:
 
@@ -71,7 +83,7 @@ where $n_{\text{product}} = n_{\text{product, out}} - n_{\text{product, recycled
 
 ## Reading the results
 
-After a run, `sim.kpis()` returns one record per tracked component per cycle of the run (every cycle, not only the logged ones: the solver records the KPIs when each cycle completes) with **purity**, **recovery**, **productivity_mass**, **productivity_volume**, **energy_consumption**, **production_rate** and **electrical_energy** (the same value as energy_consumption); `sim.kpis(cycle=-1)` keeps the last cycle and `sim.kpi_table()` returns a pandas DataFrame. `skarstrom run deck.json` prints the KPIs of the last cycle, and `--csv DIR` writes every cycle to `kpis.csv` (its `energy [J/kg]` column is the electrical energy; an `electrical energy [J/kg]` column with the same values is appended). Cycles are numbered from 0, so cycle 49 is the 50th, while the solver log counts from 1 (*CSS reached at cycle 50*). A KPI that is undefined for the run, for example a purity with no product drawn, is `nan` (`null` in JSON output).
+After a run, `sim.kpis()` returns one record per tracked component per cycle of the run (every cycle, not only the logged ones: the solver records the KPIs when each cycle completes) with **purity**, **recovery**, **productivity_mass**, **productivity_volume**, **energy_consumption**, **production_rate**, **electrical_energy** (the same value as energy_consumption), **thermal_energy**, **cooling_duty**, **step_thermal_energy** and **step_cooling_duty**; `sim.kpis(cycle=-1)` keeps the last cycle and `sim.kpi_table()` returns a pandas DataFrame. `skarstrom run deck.json` prints the KPIs of the last cycle, and `--csv DIR` writes every cycle to `kpis.csv` (its `energy [J/kg]` column is the electrical energy; `electrical energy [J/kg]`, `thermal energy [J/kg]` and `cooling duty [J/kg]` columns are appended). Cycles are numbered from 0, so cycle 49 is the 50th, while the solver log counts from 1 (*CSS reached at cycle 50*). A KPI that is undefined for the run, for example a purity with no product drawn, is `nan` (`null` in JSON output).
 
 To see how a KPI evolves as the process approaches cyclic steady state, plot it against the cycle number:
 
