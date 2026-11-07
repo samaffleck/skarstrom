@@ -88,6 +88,12 @@ def test_run_json(capsys):
     assert code == 0
     payload = json.loads(out)
     assert payload["cycles_run"] == 1 and payload["kpis"][0]["component"] == "CarbonDioxide"
+    # The CSS check with its state test and remaining-distance diagnostic;
+    # undefined numbers are null.
+    css = payload["css"][0]
+    assert css["state_change"] is None and css["state_tolerance"] == pytest.approx(2e-5)
+    assert css["distance_estimated"] is False and css["distance_note"] == "history too short"
+    assert css["distance"] is None and css["distance_ratio"] is None and css["convergence_rate"] is None
     # No wall design, so only fluidisation can be reported.
     assert all("fluidisation" in w for w in payload["warnings"])
     code, out, _ = run_cli(capsys, "run", PEREZ, "--cycles", "1", "--set", "wall.design_pressure=1e5", "--json", "-q")

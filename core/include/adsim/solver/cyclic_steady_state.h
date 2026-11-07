@@ -8,6 +8,7 @@
 
 // STL includes
 #include <functional>
+#include <limits>
 #include <vector>
 #include <string>
 
@@ -77,6 +78,27 @@ namespace adsim {
     // passed (capped at required_cycles), and how many the rule needs.
     int passing_cycles = 0;
     int required_cycles = 1;
+    // Diagnostic only (it never changes the stopping rule): the estimated
+    // remaining distance to the cyclic steady state, from the decay of the
+    // end-of-cycle state change (see CyclicSteadyState::EstimateDistance).
+    // distance is in the norm of state_change; distance_ratio is distance /
+    // state_tolerance (NaN when the state test is off). When not estimated,
+    // the three numbers are NaN and distance_note says why.
+    bool distance_estimated = false;
+    double convergence_rate = std::numeric_limits<double>::quiet_NaN();
+    double distance = std::numeric_limits<double>::quiet_NaN();
+    double distance_ratio = std::numeric_limits<double>::quiet_NaN();
+    std::string distance_note;
+  };
+
+  // The remaining-distance estimate on its own (CyclicSteadyState::EstimateDistance).
+  struct CSSDistanceEstimate {
+    bool estimated = false;
+    double rate = std::numeric_limits<double>::quiet_NaN();      // rho, in [0, kMaxRate]
+    double distance = std::numeric_limits<double>::quiet_NaN();  // last change * rho / (1 - rho)
+    double ratio = std::numeric_limits<double>::quiet_NaN();     // distance / tolerance
+    int changes_used = 0;   // length of the window rho was fitted on
+    std::string note;       // why it was not estimated (empty when estimated)
   };
 
   // Cyclic-steady-state detection: the stopping rule applied after every cycle.
@@ -133,9 +155,18 @@ namespace adsim {
       state_tolerance_.Evaluate(ctx);
     }
 
+    // Predicate on a cycle index: true when that cycle started from a state
+    // moved by CSS acceleration (a committed jump), so its change from the
+    // previous cycle is not a step of the natural cycle-to-cycle map.
+    using JumpPredicate = std::function<bool(int)>;
+
     bool IsAtCSS(const EquationLog& logger, int cycle_index);
-    // The stopping rule at cycle_index (0-based): see the class comment.
-    CSSResult CheckCSS(const EquationLog& logger, int cycle_index);
+    // The stopping rule at cycle_index (0-based): see the class comment. Also
+    // fills the remaining-distance diagnostic (EstimateDistance), which does
+    // not affect `converged`; started_from_jump marks the cycles to leave out
+    // of its window (none when empty).
+    CSSResult CheckCSS(const EquationLog& logger, int cycle_index,
+                       const JumpPredicate& started_from_jump = {});
     // The method's single-cycle test at cycle_index, without the
     // consecutive-cycles and minimum-cycles rules (converged = the test passed).
     CSSResult CheckCycle(const EquationLog& logger, int cycle_index);
@@ -154,6 +185,38 @@ namespace adsim {
     // Number of consecutive cycles ending at cycle_index (counting back to cycle
     // 0 at most) for which passes(c) is true, capped at `required`.
     static int TrailingPasses(int cycle_index, int required, const std::function<bool(int)>& passes);
+
+    // Remaining-distance diagnostic. With a geometric approach at rate rho, a
+    // run whose last cycle-to-cycle change is D is still about
+    // D * rho / (1 - rho) from the cyclic steady state: the stopping rule
+    // bounds the last step, not the distance still to go, so slow decks
+    // (rho near 1) stop further from their CSS. The estimate:
+    //  * changes: the end-of-cycle state changes (EndOfCycleStateChange) of
+    //    consecutive cycles, oldest first, ending at the cycle checked;
+    //  * window: the longest trailing run of strictly decreasing, positive,
+    //    finite changes, at most kDistanceMaxChanges long. Fewer than
+    //    kDistanceMinChanges changes: not estimated ("history too short" when
+    //    there were not enough changes, "not a monotone decay" otherwise);
+    //  * rho: the geometric mean of the window's ratios,
+    //    (D_last / D_first)^(1 / (n - 1)), clipped to [0, kDistanceMaxRate];
+    //  * distance = D_last * rho / (1 - rho), ratio = distance / tolerance
+    //    (NaN unless tolerance > 0).
+    // The log-reading overload collects the changes back from cycle_index
+    // while the cycles are logged, and stops before a change whose cycle
+    // started from an accelerated state (a jump is not a step of the natural
+    // map, and the cycle after it is not either). It uses state_tolerance_ as
+    // the tolerance. Near the integrator's noise floor (about 1e-6 at the
+    // default reltol) the changes stop decaying, so the window breaks up and
+    // the estimate is usually "not estimated" there.
+    static constexpr int kDistanceMinChanges = 3;
+    static constexpr int kDistanceMaxChanges = 5;
+    static constexpr double kDistanceMaxRate = 0.999;
+    // At the CSS stop, the solver logs a warning when distance / tolerance
+    // exceeds this (a stop more than this many tolerances from the CSS).
+    static constexpr double kDistanceWarningRatio = 100.0;
+    static CSSDistanceEstimate EstimateDistance(const std::vector<double>& changes, double tolerance);
+    CSSDistanceEstimate EstimateDistance(const EquationLog& logger, int cycle_index,
+                                         const JumpPredicate& started_from_jump = {}) const;
 
     // Relative change of the bed state at the end of the cycle (the end of its
     // last step) since the previous cycle: the largest, over the slow fields, of
