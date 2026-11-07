@@ -952,12 +952,13 @@ namespace adsim {
         p.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->momentum_model_)); };
         p.set_int_ = [l](long long x) { l->momentum_model_ = static_cast<MomentumModel>(static_cast<int>(x)); };
       } else {
-        // A structured layer: only the fields of its kind. The particle
-        // diameter stays listed while the packed-bed transfer closures (Re,
-        // Ruthven dispersion, Yagi-Kunii, Dixon/Leva, the macropore LDF
-        // radius) still read it; bed void fraction and momentum model are not
-        // used (the open frontal area and laminar channel flow replace them).
-        E("particle_diameter", "particle diameter (used by the packed-bed transfer closures until channel closures exist)",
+        // A structured layer: only the fields of its kind. Bed void fraction
+        // and momentum model are not used (the open frontal area and laminar
+        // channel flow replace them). The particle diameter stays listed (its
+        // path is kept for existing sweeps and front ends), although no
+        // closure a structured layer accepts reads it: the deck checks refuse
+        // the packed-bed correlations that did.
+        E("particle_diameter", "particle diameter (not used by a structured layer; kept for switching back to packed)",
           "m", layer.particle_diameter_, 1e-5, 0.01);
         auto& g = layer.structured_;
         if (layer.kind_ == LayerKind::Monolith) {

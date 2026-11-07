@@ -98,6 +98,18 @@ namespace adsim {
     std::vector<double> taylor_aris_kappa;
     std::vector<double> entrance_length;
     std::vector<double> ks; // Thermal conductivity of the adsorbent [W/(m-K)]
+    // Axial conductivity of the solid of a structured layer per bed cross-
+    // section, lambda_s = (1 - OFA) k_s [W/(m-K)]; 0 in packed and void cells,
+    // whose particles touch only at points (solid axial conduction is then
+    // left to the heat-dispersion model). Read by the solid energy balance
+    // (LTNE) and by the channel heat-dispersion model (LTE).
+    std::vector<double> solid_conductivity;
+    // Share of the bed-to-wall heat flux that the gas takes under LTNE (the
+    // solid takes the rest): eb in packed and void cells, 0 in a structured
+    // layer, whose gas touches the column wall only across the channel walls.
+    std::vector<double> wall_gas_share;
+    // The bed's thermal mode: true for local thermal equilibrium (LTE).
+    bool local_thermal_equilibrium = true;
     std::vector<double> kw; // Thermal conductivity of the wall [W/(m-K)]
     std::vector<double> Cpw; // Specific heat capacity of the wall
     std::vector<double> rho_w; // Density of the wall

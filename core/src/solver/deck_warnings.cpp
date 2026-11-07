@@ -197,31 +197,13 @@ namespace adsim {
   }
 
   std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed) {
+    (void)adsorbents;
     std::vector<std::string> warnings;
+    // The packed-bed heat closures (Ruthven and Yagi-Kunii heat dispersion,
+    // Dixon and Leva wall coefficients) are deck-check errors on a structured
+    // layer (Bed::PerformChecks), so only the thermal mode is left to note.
     bool any_structured = false;
-    for (const auto& layer : bed.layers_.layers_) {
-      if (!layer.IsStructured()) continue;
-      any_structured = true;
-      const std::string what = std::string(LayerKindList[static_cast<int>(layer.kind_)]);
-      std::vector<std::string> uses;
-      const auto& eqs = layer.equations_;
-      if (dynamic_cast<const HeatDispersionModelRuthven*>(eqs.heat_dispersion_model_.get()))
-        uses.push_back("Ruthven heat dispersion");
-      if (dynamic_cast<const HeatDispersionModelYagiandKunii*>(eqs.heat_dispersion_model_.get()))
-        uses.push_back("Yagi-Kunii heat dispersion");
-      if (dynamic_cast<const InternalHeatTransferModel_Dixon*>(eqs.internal_heat_transfer_model_.get()))
-        uses.push_back("Dixon wall heat transfer");
-      if (dynamic_cast<const InternalHeatTransferModel_Leva*>(eqs.internal_heat_transfer_model_.get()))
-        uses.push_back("Leva wall heat transfer");
-      if (uses.empty()) continue;
-      std::ostringstream ss;
-      ss << "Warning: layer '" << layer.name_ << "' is a " << what << " but uses packed-bed closures that read the"
-         << " particle diameter (" << std::setprecision(4) << layer.particle_diameter_.Get() << " m): ";
-      for (size_t i = 0; i < uses.size(); ++i) ss << (i ? "; " : "") << uses[i];
-      ss << ". Closures for channels are not available yet; set the particle diameter to the length these"
-            " correlations should use, or choose constant coefficients.";
-      warnings.push_back(ss.str());
-    }
+    for (const auto& layer : bed.layers_.layers_) any_structured = any_structured || layer.IsStructured();
     if (any_structured && bed.equations_.thermal_equilibrium_mode_ != ThermalEquilibriumMode::NON_LOCAL)
       warnings.push_back("Warning: the bed has a structured layer (monolith or laminate) and uses local thermal"
                          " equilibrium (LTE), which takes heat exchange between the gas and the thin channel walls"

@@ -41,15 +41,18 @@ namespace adsim {
 	};
 
 	static const char* AxialHeatDispersionModeList[] = {
-		"Constant", 
-		"Ruthven (1984)",	
-		"Yagi and Kunii (1957)"	
+		"Constant",                 // 0
+		"Ruthven (1984)",           // 1
+		"Yagi and Kunii (1957)",    // 2
+		"Channel conduction"        // 3
 	};
-	
+
+	// Stored values; never renumber.
 	enum class AxialHeatDispersionType {
-		CONSTANT,
-		RUTHVEN,
-		YAGI_AND_KUNII
+		CONSTANT = 0,
+		RUTHVEN = 1,
+		YAGI_AND_KUNII = 2,
+		CHANNEL = 3
 	};
 
 	class IDispersionModel {
@@ -222,6 +225,34 @@ namespace adsim {
 		}
 	};
 
+	// Axial conduction in a structured layer (monolith, laminate), on the
+	// cross-sections the gas and the solid occupy in parallel (the parallel
+	// bound of the effective conductivity of a two-phase medium; for straight
+	// channels with walls continuous along the flow it is exact, see e.g.
+	// Kaviany, Principles of Heat Transfer in Porous Media, 2nd ed., 1995):
+	//   LTNE: lambda = OFA k_g, the gas's alone; the solid conducts in its own
+	//         energy balance (DomainVectors::solid_conductivity, (1 - OFA) k_s).
+	//   LTE:  lambda = OFA k_g + (1 - OFA) k_s, one temperature for both.
+	// k_s is the layer's effective solid conductivity (the composition-weighted
+	// value, MixedAdsorbentLayer::GetEffectiveThermalConductivity). Thermal
+	// Taylor dispersion in the channels is neglected, as it is small at the
+	// channel Peclet numbers of adsorption contactors. A packed layer cannot use
+	// it (deck checks).
+	class HeatDispersionModelChannel : public IHeatDispersionModel {
+	public:
+		void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
+		AxialHeatDispersionType GetModelType() override { return AxialHeatDispersionType::CHANNEL; }
+		unsigned ReadsTransportProperties() const override { return kGasThermalConductivity; }
+
+	private:
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const version) {
+			(void)version;
+			ar(cereal::virtual_base_class<IHeatDispersionModel>(this));
+		}
+	};
+
 	// Factory Functions
 	inline std::unique_ptr<IDispersionModel> CreateAxialDispersionModel(AxialDispersionType type) {
 		switch (type) {
@@ -238,6 +269,7 @@ namespace adsim {
 		case AxialHeatDispersionType::CONSTANT: return std::make_unique<HeatDispersionModelConstant>();
 		case AxialHeatDispersionType::RUTHVEN: return std::make_unique<HeatDispersionModelRuthven>();
 		case AxialHeatDispersionType::YAGI_AND_KUNII: return std::make_unique<HeatDispersionModelYagiandKunii>();
+		case AxialHeatDispersionType::CHANNEL: return std::make_unique<HeatDispersionModelChannel>();
 		default: return nullptr;
 		}
 	}
@@ -252,3 +284,4 @@ CEREAL_CLASS_VERSION(adsim::DispersionModelRuthven, 1);
 CEREAL_CLASS_VERSION(adsim::DispersionModelTaylorAris, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelRuthven, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelYagiandKunii, 1);
+CEREAL_CLASS_VERSION(adsim::HeatDispersionModelChannel, 1);

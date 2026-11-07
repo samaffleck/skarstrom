@@ -1601,7 +1601,8 @@ class Layer(_Node):
         return self._set_model("set_dispersion", kind, values)
 
     def set_heat_dispersion(self, kind: str, **values: Value) -> "Layer":
-        """Axial heat dispersion: ``"constant"`` (heat_dispersion_coefficient), ``"ruthven"`` or ``"yagi_kunii"``."""
+        """Axial heat dispersion: ``"constant"`` (heat_dispersion_coefficient), ``"ruthven"`` or
+        ``"yagi_kunii"`` (packed beds), or ``"channel"`` (monoliths and laminates)."""
         return self._set_model("set_heat_dispersion", kind, values)
 
     def set_internal_heat_transfer(self, kind: str, **values: Value) -> "Layer":

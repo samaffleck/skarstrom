@@ -38,6 +38,9 @@ namespace adsim {
     taylor_aris_kappa.assign(N, 0.0);
     entrance_length.assign(N, 0.0);
     ks.resize(N);
+    solid_conductivity.assign(N, 0.0);
+    wall_gas_share.assign(N, 1.0);
+    local_thermal_equilibrium = bed.equations_.thermal_equilibrium_mode_ != ThermalEquilibriumMode::NON_LOCAL;
     kw.resize(N);
     Cpw.resize(N);
     rho_w.resize(N);
@@ -84,6 +87,12 @@ namespace adsim {
       const double c_kappa = layer.GetTaylorArisKappa();
       const double c_entrance = (structured && layer.structured_.entrance_effects_) ? layer.domain_.length.Get() : 0.0;
       double c_ks = layer.GetEffectiveThermalConductivity(dir);
+      // Structured: the channel walls are continuous along the layer, so the
+      // solid conducts axially over its (1 - OFA) share of the cross-section
+      // and takes the whole column-wall flux. Packed: no solid conduction
+      // path, and the gas takes the eb share of the wall flux (as before).
+      const double c_lambda_s = structured ? (1.0 - c_eb) * c_ks : 0.0;
+      const double c_wall_gas_share = structured ? 0.0 : c_eb;
       const auto c_ads_bulk_density = layer.GetAdsorbentBulkDensities(dir);
       double c_di = bed.GetHydraulicDiameter();
       double c_de = c_di + 2 * bed.wall_.thickness_;
@@ -107,6 +116,8 @@ namespace adsim {
         taylor_aris_kappa[i] = c_kappa;
         entrance_length[i] = c_entrance;
         ks[i] = c_ks;
+        solid_conductivity[i] = c_lambda_s;
+        wall_gas_share[i] = c_wall_gas_share;
         kw[i] = c_kw;
         Cpw[i] = c_cpw;
         rho_w[i] = c_rhow;
@@ -157,6 +168,8 @@ namespace adsim {
       taylor_aris_kappa[dst] = taylor_aris_kappa[src];
       entrance_length[dst] = entrance_length[src];
       ks[dst] = ks[src];
+      solid_conductivity[dst] = solid_conductivity[src];
+      wall_gas_share[dst] = wall_gas_share[src];
       kw[dst] = kw[src];
       Cpw[dst] = Cpw[src];
       rho_w[dst] = rho_w[src];
@@ -198,6 +211,8 @@ namespace adsim {
       taylor_aris_kappa[idx] = 0.0;
       entrance_length[idx] = 0.0;
       ks[idx] = 0.0;
+      solid_conductivity[idx] = 0.0;
+      wall_gas_share[idx] = 1.0;  // eb = 1
       kw[idx] = c_kw;
       Cpw[idx] = c_cpw;
       rho_w[idx] = c_rhow;
