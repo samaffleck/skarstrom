@@ -561,7 +561,8 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
         v = _var("layer_" + l["name"], taken)
         layer_var[l["id"]] = v
         names = {i: sim.adsorbents.by_id(i).name for i, _ in l["composition"]}
-        comp = "{" + ", ".join(f"{names[i]!r}: {fr!r}" for i, fr in l["composition"]) + "}"
+        exprs = l.get("composition_expressions", {})
+        comp = "{" + ", ".join(f"{names[i]!r}: {exprs.get(i, fr)!r}" for i, fr in l["composition"]) + "}"
         kw = _kwargs(sim, node, skip=model_owned)
         w(f"{v} = {name}.add_layer({l['name']!r}, composition={comp}, momentum={l['momentum']!r}, {kw})")
         for model, fs in model_fields.items():

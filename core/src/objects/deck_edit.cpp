@@ -126,11 +126,11 @@ void RescaleOthers(MixedAdsorbentLayer& layer, AdsorbentID keep, double target) 
   double others = 0.0;
   size_t n = 0;
   for (const auto& [id, w] : layer.composition_)
-    if (id != keep) { others += w; ++n; }
+    if (id != keep) { others += w.Get(); ++n; }
   if (n == 0) return;
   for (auto& [id, w] : layer.composition_) {
     if (id == keep) continue;
-    w = others > 0.0 ? w * (target / others) : target / static_cast<double>(n);
+    w = others > 0.0 ? w.Get() * (target / others) : target / static_cast<double>(n);
   }
 }
 
@@ -140,6 +140,17 @@ bool ValidFraction(double w, bool allow_zero, std::string& err) {
   ss << "a mass fraction must be " << (allow_zero ? "between 0 and 1" : "above 0 and at most 1") << ", not " << w;
   err = ss.str();
   return false;
+}
+
+// The refusal of the rescaling edits for a layer whose fractions include a
+// formula (deck_edit.h).
+bool RefuseFormulaBlend(const MixedAdsorbentLayer& layer, std::string& err) {
+  if (!layer.HasCompositionExpression()) return false;
+  std::string terms;
+  for (const auto& [id, w] : layer.composition_) terms += (terms.empty() ? "" : ", ") + w.GetExpr();
+  err = "the mass fractions of layer \"" + layer.name_ + "\" include expressions (" + terms +
+        "), which cannot be rescaled; set each fraction directly, or make them numbers first";
+  return true;
 }
 
 }  // namespace
@@ -155,6 +166,7 @@ bool AddSolidToLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentID id,
     layer.composition_[id] = 1.0;
     return true;
   }
+  if (RefuseFormulaBlend(layer, err)) return false;
   if (!ValidFraction(mass_fraction, false, err)) return false;
   layer.composition_[id] = mass_fraction;
   RescaleOthers(layer, id, 1.0 - mass_fraction);
@@ -169,6 +181,7 @@ bool SetLayerMassFraction(UserData& data, MixedAdsorbentLayer& layer, AdsorbentI
     err = "layer \"" + layer.name_ + "\" does not hold adsorbent id " + std::to_string(id);
     return false;
   }
+  if (RefuseFormulaBlend(layer, err)) return false;
   if (!ValidFraction(mass_fraction, true, err)) return false;
   if (layer.composition_.size() == 1 && mass_fraction != 1.0) {
     err = "the only solid of layer \"" + layer.name_ + "\" has mass fraction 1; add another solid first";
@@ -189,6 +202,7 @@ bool RemoveSolidFromLayer(UserData& data, MixedAdsorbentLayer& layer, AdsorbentI
     err = "it is the only solid of layer \"" + layer.name_ + "\"; add another solid first";
     return false;
   }
+  if (RefuseFormulaBlend(layer, err)) return false;
   layer.composition_.erase(id);
   RescaleOthers(layer, id, 1.0);
   return true;
@@ -264,7 +278,8 @@ std::string AdsorbentInUseByMixtures(const UserData& data, AdsorbentID id) {
     auto it = layer.composition_.find(id);
     if (it == layer.composition_.end() || layer.composition_.size() < 2) continue;
     std::ostringstream frac;
-    frac << it->second;
+    if (it->second.HasExpression()) frac << it->second.GetExpr() << " = ";
+    frac << it->second.Get();
     where += (count ? "; " : "") + ("\"" + layer.name_ + "\" (mass fraction " + frac.str() + ")");
     ++count;
   }

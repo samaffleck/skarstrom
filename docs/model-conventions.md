@@ -33,28 +33,31 @@ sim.adsorbents["13X"].solid_density = 660 / (1 - 0.41)    # 1118.6 kg/m3 of part
 
 A layer of several adsorbents (`composition` mass fractions $w_k$) uses the mixture particle density $\rho_s = 1 / \sum_k (w_k / \rho_{s,k})$, and each adsorbent's own bulk density is $\rho_{b,k} = (1-\epsilon_b)\thinspace \rho_s\thinspace w_k$.
 
-The mass fractions of a layer must sum to 1 (within $10^{-6}$) and none may be negative; otherwise the deck checks refuse the deck (`CheckLayerComposition` in `porous_media.h`, which `sim.check()` and every run use). The fractions are never renormalised. A solid at mass fraction 0 is allowed but takes no part in the run, and the run-start warnings say so. A solid whose components all use the Inert isotherm is a valid member of a blend (an inert diluent or packing). A solid that is part of a blend (a layer that also holds another solid) cannot be removed from the deck until it has been taken out of that layer's composition. The blend edits of `deck_edit.h` (`AddSolidToLayer`, `SetLayerMassFraction`, `RemoveSolidFromLayer`) keep the fractions summing to 1 by rescaling the other solids in proportion.
+The mass fractions of a layer must sum to 1 (within $10^{-6}$) and none may be negative; otherwise the deck checks refuse the deck (`CheckLayerComposition` in `porous_media.h`, which `sim.check()` and every run use). The fractions are never renormalised. A solid at mass fraction 0 is allowed but takes no part in the run, and the run-start warnings say so. A solid whose components all use the Inert isotherm is a valid member of a blend (an inert diluent or packing). A solid that is part of a blend (a layer that also holds another solid) cannot be removed from the deck until it has been taken out of that layer's composition. The blend edits of `deck_edit.h` (`AddSolidToLayer`, `SetLayerMassFraction`, `RemoveSolidFromLayer`) keep the fractions summing to 1 by rescaling the other solids in proportion (for numeric fractions; see below).
 
-**Varying a fraction in a study.** A mass fraction is a number, not an expression, and changing one solid's fraction on its own breaks the sum. So the deck checks refuse it, and the error says how to proceed: set all of the layer's fractions together at each point. For two solids that means $x$ and $1 - x$. In Python:
+**Varying a fraction in a study.** Each mass fraction is an expression: a number, or a formula over the deck variables. Changing one solid's fraction on its own breaks the sum, so the deck checks refuse it; instead, write the fractions in terms of one variable. For two solids, define a deck variable $x$ and set the fractions to `x` and `1 - x`. The sum is checked after evaluation, so it holds for every $x$ in $[0, 1]$, and a sweep or a sensitivity study varies `variable[x]`. In Python:
 
 ```python
 import skarstrom as sk
 
-base = sk.Simulation("blend.json")          # one layer of "13X" and "Glass beads"
+sim = sk.Simulation("blend.json")           # one layer of "13X" and "Glass beads"
+sim.add_variable("x", 0.7)
+sim.layers[0].set_composition({"13X": "x", "Glass beads": "1 - x"})
+sim.save("blend_x.json")
 for x in (0.6, 0.7, 0.8, 0.9):
-    sim = base.copy()
-    sim.layers[0].set_composition({"13X": x, "Glass beads": 1 - x})
+    sim["variable[x]"] = x
     result = sim.run()
     print(x, result.status, sim.kpis(cycle=-1))
 ```
 
-From the command line, give both paths in the same run (the IDs are those of `skarstrom params blend.json --search mass_fraction`):
+The same through the parameter paths: `sim["layer[1].mass_fraction[2]"] = "1 - x"` (the IDs are those of `skarstrom params blend.json --search mass_fraction`). From the command line, once the deck has the variable and the expressions:
 
 ```bash
-skarstrom run blend.json --set "layer[1].mass_fraction[1]=0.7" --set "layer[1].mass_fraction[2]=0.3" --json -q
+skarstrom run blend_x.json --set "variable[x]=0.8" --json -q
+skarstrom sensitivity blend_x.json --input "variable[x]=0.6:0.9" --json
 ```
 
-A sensitivity study (`skarstrom.sensitivity`) varies each path on its own, so it cannot vary a blend's fraction. Use a loop like the one above.
+A fraction that is a formula is not tunable itself (like any other expression field); the study varies the variable. The blend edits of `deck_edit.h` refuse a layer whose fractions include a formula, since rescaling cannot keep a formula's meaning: set each fraction directly, or make them numbers first. Plain numbers still work everywhere, and `--set "layer[1].mass_fraction[1]=0.7" --set "layer[1].mass_fraction[2]=0.3"` sets a blend for one run.
 
 For a structured layer (monolith or laminate), the open frontal area of its channels takes the bed void fraction's place in these formulas ([Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)).
 

@@ -314,7 +314,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 4,
+                        "cereal_class_version": 5,
                         "Name": "13X",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -418,7 +418,11 @@
                         "Composition": [
                             {
                                 "key": 1,
-                                "value": 1.0
+                                "value": {
+                                    "Value": 1.0,
+                                    "Expression": "1",
+                                    "DisplayUnitIndex": 0
+                                }
                             }
                         ],
                         "ID": 1,

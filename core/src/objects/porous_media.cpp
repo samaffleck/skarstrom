@@ -228,10 +228,24 @@ namespace adsim {
 		composition_.erase(id);
 	}
 
+	std::map<AdsorbentID, double> MixedAdsorbentLayer::GetMassFractions() const {
+		std::map<AdsorbentID, double> w;
+		for (const auto& [id, frac] : composition_) w[id] = frac.Get();
+		return w;
+	}
+
+	bool MixedAdsorbentLayer::HasCompositionExpression() const {
+		for (const auto& [id, frac] : composition_)
+			if (frac.HasExpression()) return true;
+		return false;
+	}
+
 	bool MixedAdsorbentLayer::ValidateComposition() const {
 		if (composition_.empty()) return false;
 		double total = 0.0;
-		for (const auto& [id, frac] : composition_) {
+		for (const auto& [id, w] : composition_) {
+			const double frac = w.Get();
+			if (!w.LastError().empty()) return false;
 			if (!(frac >= 0.0)) return false;  // also rejects NaN
 			total += frac;
 		}
@@ -254,9 +268,18 @@ namespace adsim {
 			return issues;
 		}
 		double total = 0.0;
-		bool negative = false;
-		for (const auto& [id, frac] : layer.composition_) {
+		bool skip_sum = false;
+		for (const auto& [id, w] : layer.composition_) {
+			const double frac = w.Get();
 			total += frac;
+			// A fraction whose expression did not evaluate (an unknown
+			// variable, a syntax error) keeps a stale value; report it.
+			if (!w.LastError().empty()) {
+				issues.push_back({Severity::Error, "Error: Layer " + ln + ": the mass fraction '" + w.GetExpr() +
+					"' of adsorbent id " + std::to_string(id) + " cannot be evaluated: " + w.LastError()});
+				skip_sum = true;
+				continue;
+			}
 			// A missing id would make every directory lookup during
 			// initialisation throw.
 			if (!dir.Contains(id)) {
@@ -266,7 +289,7 @@ namespace adsim {
 			}
 			const std::string an = "\"" + dir.Get(id).name_ + "\"";
 			if (!(frac >= 0.0)) {
-				negative = true;
+				skip_sum = true;
 				issues.push_back({Severity::Error, "Error: Layer " + ln + " gives adsorbent " + an + " the mass fraction " +
 					number(frac) + ". Mass fractions must be between 0 and 1."});
 			} else if (frac == 0.0) {
@@ -274,11 +297,21 @@ namespace adsim {
 					", so it takes no part in the run. Remove it from the layer's composition."});
 			}
 		}
-		if (!negative && !(std::abs(total - 1.0) <= kCompositionSumTolerance)) {
-			issues.push_back({Severity::Error, "Error: Layer " + ln + ": mass fractions sum to " + number(total) +
+		if (!skip_sum && !(std::abs(total - 1.0) <= kCompositionSumTolerance)) {
+			// Formulas are shown with their values, so the user sees which
+			// variable value broke the sum.
+			std::string terms;
+			if (layer.HasCompositionExpression()) {
+				for (const auto& [id, w] : layer.composition_) {
+					terms += terms.empty() ? " (" : ", ";
+					terms += w.HasExpression() ? w.GetExpr() + " = " + number(w.Get()) : number(w.Get());
+				}
+				terms += ")";
+			}
+			issues.push_back({Severity::Error, "Error: Layer " + ln + ": mass fractions" + terms + " sum to " + number(total) +
 				"; they must sum to 1. Change the fractions so they add up to 1 (they are not rescaled automatically)."
-				" To vary one solid's fraction in a study, change the others with it: for two solids, set them to x and"
-				" 1 - x together at each point (a mass fraction is a number, not an expression)."});
+				" To vary one solid's share in a study, write the fractions as expressions of a deck variable: for two"
+				" solids, set them to x and 1 - x with a deck variable x, and vary x."});
 		}
 		return issues;
 	}

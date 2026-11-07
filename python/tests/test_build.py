@@ -281,6 +281,36 @@ def test_blake_kozeny_momentum_builds_and_round_trips():
     assert sim.run(cycles=1).ok
 
 
+def test_layer_fractions_as_expressions_build_and_round_trip():
+    """Mass fractions written as x and 1 - x over a deck variable: the builder,
+    the registry, describe(), the generated script and a sweep over x."""
+    sim, parts = build_vsa()
+    sim.add_variable("x", 0.9)
+    layer = parts["layer"].set_composition({"13X": "x", "Beads": "1 - x"})
+    assert sim.get_text("layer[13X].mass_fraction[Beads]") == "1 - x"
+    assert sim.get("layer[13X].mass_fraction[13X]") == 0.9
+    described = sim.describe()["layers"][0]
+    assert described["composition"] == [(1, 0.9), (2, 1 - 0.9)]
+    assert described["composition_expressions"] == {1: "x", 2: "1 - x"}
+    ok, message = sim.check()
+    assert ok, message
+    copy = sk.Simulation.from_json(sim.to_json())
+    assert_same_deck(sim, copy)
+    script = sk.to_script(sim)
+    assert "composition={'13X': 'x', 'Beads': '1 - x'}" in script
+    ns = {}
+    exec(compile(script, "<blend_x>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    # A sweep over x moves both fractions; numbers still work.
+    sim["variable[x]"] = 0.7
+    assert layer.composition["Beads"] == pytest.approx(0.3)
+    sim["layer[13X].mass_fraction[Beads]"] = "2 * x"
+    ok, message = sim.check()
+    assert not ok and "(x = 0.7, 2 * x = 1.4) sum to 2.1" in message, message
+    parts["layer"].set_composition({"13X": 0.8, "Beads": 0.2})
+    assert sim.get_text("layer[13X].mass_fraction[Beads]") == "0.2"
+
+
 def test_constant_gas_properties_and_isosteric_rt_build_and_round_trip():
     sim, _ = build_vsa()
     fl = sim.fluid

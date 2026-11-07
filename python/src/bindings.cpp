@@ -865,8 +865,15 @@ PYBIND11_MODULE(_core, m) {
           l["external_heat_transfer"] =
               kind(b::ExternalHeatTransferKinds(), static_cast<int>(le.external_heat_transfer_model_->GetModelType()));
           py::list comp;
-          for (const auto& [id, f] : layer.composition_) comp.append(py::make_tuple(id, f));
+          // The evaluated fractions; a fraction that is a formula also has its
+          // text in composition_expressions (by adsorbent id).
+          py::dict comp_expr;
+          for (const auto& [id, f] : layer.composition_) {
+            comp.append(py::make_tuple(id, f.Get()));
+            if (f.HasExpression()) comp_expr[py::int_(id)] = f.GetExpr();
+          }
           l["composition"] = comp;
+          l["composition_expressions"] = comp_expr;
           layers.append(l);
         }
         out["layers"] = layers;
