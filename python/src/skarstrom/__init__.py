@@ -847,12 +847,13 @@ class Simulation:
         _model._apply(ads, values)
         return ads
 
-    def add_layer(self, name: str, composition: Optional[Mapping[Any, float]] = None, momentum: str = "ergun",
+    def add_layer(self, name: str, composition: Optional[Mapping[Any, Any]] = None, momentum: str = "ergun",
                   **values: Any) -> Layer:
         """A new layer at the product end of the bed.
 
         ``composition`` maps adsorbents (names, IDs or Adsorbent objects) to
-        mass fractions; ``momentum`` is ``"ergun"``, ``"kozeny_carman"`` or
+        mass fractions (numbers, or expressions over the deck variables such as
+        ``"x"`` and ``"1 - x"``); ``momentum`` is ``"ergun"``, ``"kozeny_carman"`` or
         ``"blake_kozeny"`` (see ``Layer.set_momentum``);
         ``values`` set its fields (length, cells, bed_void_fraction,
         particle_diameter...). The transport models start as constant
@@ -861,8 +862,7 @@ class Simulation:
         """
         layer_id = self._build("add_layer", name)
         if composition:
-            pairs = [[self._adsorbent_id(a), float(f)] for a, f in composition.items()]
-            self._build("set_layer_composition", layer_id, pairs)
+            _model._set_layer_composition(self, layer_id, composition)
         self._build("set_momentum", layer_id, momentum)
         layer = self.layers.by_id(layer_id)
         _model._apply(layer, values)

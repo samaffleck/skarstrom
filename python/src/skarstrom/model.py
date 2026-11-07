@@ -44,6 +44,7 @@ from typing import (
     Generic,
     Iterator,
     List,
+    Mapping,
     Optional,
     Tuple,
     TypeVar,
@@ -1508,6 +1509,16 @@ class Fluid(_Node):
                         f"{self._label}.gas_heat_capacity")
 
 
+def _set_layer_composition(sim: Any, layer_id: int, composition: Mapping[Any, Any]) -> None:
+    """Replace a layer's composition; text fractions become expressions."""
+    ids = [(sim._adsorbent_id(a), f) for a, f in composition.items()]
+    pairs = [[i, 0.0 if isinstance(f, str) else float(f)] for i, f in ids]
+    sim._build("set_layer_composition", layer_id, pairs)
+    for i, f in ids:
+        if isinstance(f, str):
+            sim[f"layer[{layer_id}].mass_fraction[{i}]"] = f
+
+
 class Layer(_Node):
     """An adsorbent layer of the bed (feed end first)."""
 
@@ -1571,10 +1582,14 @@ class Layer(_Node):
 
     _refetch = _fresh
 
-    def set_composition(self, composition: Dict[Any, float]) -> "Layer":
-        """The layer's adsorbents (names, IDs or Adsorbent objects) and their mass fractions."""
-        pairs = [[self._sim._adsorbent_id(a), float(f)] for a, f in composition.items()]
-        self._sim._build("set_layer_composition", self._id, pairs)
+    def set_composition(self, composition: Dict[Any, Any]) -> "Layer":
+        """The layer's adsorbents (names, IDs or Adsorbent objects) and their mass fractions.
+
+        A fraction is a number or an expression over the deck variables, such as
+        ``{"13X": "x", "5A": "1 - x"}`` with a variable ``x``: the fractions must
+        sum to 1 once evaluated (checked at run start).
+        """
+        _set_layer_composition(self._sim, self._id, composition)
         return self._fresh()
 
     def set_momentum(self, kind: str) -> "Layer":

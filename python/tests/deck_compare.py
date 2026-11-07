@@ -115,7 +115,10 @@ def normalise(text: str, ignore_info: bool = False) -> Dict[str, Any]:
         n.layer_names[layer.get("ID")] = layer.get("Name")
     used = set()
     for layer in root.get("Bed", {}).get("Layers", {}).get("Layers", []):
-        used |= {str(x["key"]) for x in layer.get("Composition", []) if x["value"] > 0}
+        for x in layer.get("Composition", []):
+            w = x["value"]["Value"] if isinstance(x["value"], dict) else x["value"]  # an expression (v5) or a number
+            if w > 0:
+                used.add(str(x["key"]))
     out = n.value(root)
     ads = out.get("Adsorbent_Directory", {}).get("Adsorbents", {})
     if isinstance(ads, dict):  # key adsorbents by name, not ID

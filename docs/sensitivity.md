@@ -25,7 +25,7 @@ Each input is a parameter path (see [Python and the Command Line](python.md#para
 | triangular | `sa.triangular(path, lo, mode, hi)` | `triangular:LO:MODE:HI` | a range with a most likely value |
 | normal | `sa.normal(path, mean, sd, lower=None, upper=None)` | `normal:MEAN:SD[:LO:HI]` | a measured or fitted value and its standard error |
 
-The parameter must be tunable (`skarstrom params deck.json` lists those). A value written as a formula of user variables is not: vary the variable instead. Inputs are independent. Isotherm constants fitted together are correlated, so giving each its own standard error overstates the spread a little; a joint treatment is planned.
+The parameter must be tunable (`skarstrom params deck.json` lists those). A value written as a formula of user variables is not: vary the variable instead. This is how a study varies the blend of a mixed layer: with the layer's mass fractions written as `x` and `1 - x` over a deck variable `x`, the input is `sa.uniform("variable[x]", 0.6, 0.9)` (CLI `--input "variable[x]=0.6:0.9"`) and the fractions keep summing to 1 ([Matching Another Model](model-conventions.md#densities-and-voidages)). Inputs are independent. Isotherm constants fitted together are correlated, so giving each its own standard error overstates the spread a little; a joint treatment is planned.
 
 The ranges decide the answer. Record where each came from, and remember that the error bars cover uncertain inputs only, not model error (see [Validation](validation.md)).
 

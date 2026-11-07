@@ -156,6 +156,9 @@ namespace adsim {
       visit(l + " particle diameter", [&] { layer.particle_diameter_.Evaluate(ctx); });
       visit(l + " length", [&] { layer.domain_.EvaluateExpressions(ctx); });
       visit(l + " structured geometry", [&] { layer.structured_.EvaluateExpressions(ctx); });
+      visit(l + " mass fractions", [&] {
+        for (auto& [id, w] : layer.composition_) w.Evaluate(ctx);
+      });
       visit(l + " transport model", [&] { layer.EvaluateExpressions(ctx); });
     }
     visit("Bed heat-transfer model", [&] { bed.EvaluateExpressions(ctx); });

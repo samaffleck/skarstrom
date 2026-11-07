@@ -400,7 +400,10 @@ namespace adsim {
     // MixedAdsorbentLayer v3 load as KarmenCozeny (see serialize).
     MomentumModel momentum_model_ = MomentumModel::Ergun;
     LayerEquations equations_{};
-    std::map<AdsorbentID, double> composition_{};
+    // Mass fraction w_k of each solid. Each is an expression (a number, or a
+    // formula over the deck variables such as "x" and "1 - x" for a two-solid
+    // blend), evaluated by EvaluateExpressions; every reader uses the value.
+    std::map<AdsorbentID, ExpressionParam> composition_{};
     // Packed (default; archives older than v4) or a structured kind, whose
     // geometry is structured_. For a structured kind momentum_model_ is not
     // used: the channels give laminar Darcy flow (GetPermeability).
@@ -415,6 +418,7 @@ namespace adsim {
       domain_.EvaluateExpressions(ctx);
       equations_.EvaluateExpressions(ctx);
       structured_.EvaluateExpressions(ctx);
+      for (auto& [id, w] : composition_) w.Evaluate(ctx);
     }
 
     // Composition management
@@ -424,6 +428,11 @@ namespace adsim {
     // and the fractions sum to 1 within kCompositionSumTolerance (the error
     // rules of CheckLayerComposition that need no adsorbent directory).
     bool ValidateComposition() const;
+    // The evaluated mass fractions (w_k by adsorbent id).
+    std::map<AdsorbentID, double> GetMassFractions() const;
+    // True when a fraction is a formula rather than a plain number (the deck
+    // edits that rescale the others refuse such a layer: deck_edit.h).
+    bool HasCompositionExpression() const;
 
     // Computed properties
     // The gas fraction of the bed outside the solid: eb_ for a packed bed,
@@ -534,11 +543,18 @@ namespace adsim {
         ar(cereal::make_nvp("Permeability_Model", legacy));
         momentum_model_ = MomentumModel::KarmenCozeny;
       }
-      ar(
-        cereal::make_nvp("Layer_Equations", equations_),
-        cereal::make_nvp("Composition", composition_),
-        cereal::make_nvp("ID", id_)
-      );
+      ar(cereal::make_nvp("Layer_Equations", equations_));
+      // v5: each mass fraction is an expression. Older archives hold plain
+      // numbers, which load as constant expressions with the same value.
+      if (version >= 5) {
+        ar(cereal::make_nvp("Composition", composition_));
+      } else {
+        std::map<AdsorbentID, double> numbers;
+        ar(cereal::make_nvp("Composition", numbers));
+        composition_.clear();
+        for (const auto& [id, w] : numbers) composition_[id] = w;
+      }
+      ar(cereal::make_nvp("ID", id_));
       // v4: the layer kind and its structured geometry (always written).
       // Older archives are packed beds with the default geometry.
       if (version >= 4) {
@@ -729,5 +745,5 @@ CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
 CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
 CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
 CEREAL_CLASS_VERSION(adsim::StructuredGeometry, 2);
-CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 4);
+CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 5);
 CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);

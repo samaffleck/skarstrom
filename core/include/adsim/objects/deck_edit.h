@@ -77,6 +77,13 @@ void SeedLayerComposition(UserData& data, MixedAdsorbentLayer& layer);
 // rescaled in proportion to their fractions (equal shares when they are all
 // 0). False + err, with nothing changed, for an unknown solid or a fraction
 // outside the stated range.
+//
+// A layer whose fractions include a formula (for example "x" and "1 - x" over
+// a deck variable) is refused by all three with nothing changed: rescaling
+// cannot keep a formula's meaning, and rescaling only the numbers would not
+// keep the sum at 1 for every value of the variable. Edit such fractions
+// directly (the registry path layer[ID].mass_fraction[ID], or
+// MixedAdsorbentLayer::composition_) or make them numbers first.
 
 // Add solid `id` to the layer at `mass_fraction` (0 < w <= 1), scaling the
 // others by (1 - w). The first solid of an empty layer gets 1. A solid the
