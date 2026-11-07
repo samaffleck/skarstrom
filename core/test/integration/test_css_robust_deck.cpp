@@ -17,8 +17,10 @@
 namespace adsim {
 
   namespace {
-    constexpr double kConvergedPurity = 0.9948428;    // CO2, cycle 1000 (Danckwerts inlets, #37)
-    constexpr double kConvergedRecovery = 0.5904760;  // CO2, cycle 1000 (Danckwerts inlets, #37)
+    // CO2, cycle 1000 (0-based 999), re-measured with the gas held in the bed
+    // voids only (particle_void_fraction 0, as the paper's balances).
+    constexpr double kConvergedPurity = 0.9953381;
+    constexpr double kConvergedRecovery = 0.5959616;
 
     // The converged values above, and the cycle counts the tests expect, are
     // those of the deck's earlier form: upwind on 30 cells from a clean N2 bed.
