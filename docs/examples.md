@@ -1,6 +1,6 @@
 # Examples
 
-Skarstrom ships 33 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
+Skarstrom ships 40 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
 
 Every paper-based deck is also an automated validation test; the [Validation](validation.md) page lists the simulated and published values and the error metric for each case, including where Skarstrom and the paper disagree, and why.
 
@@ -22,6 +22,7 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 | [`arora_2021.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/arora_2021.py) | `Arora2021_LiLSX_PSA`, `_PVSA` | O₂ PSA and PVSA on LiLSX (50 cycles) | paper-model O₂ purity and net recovery (Table 4) | 2 min |
 | [`ferre_2026.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/ferre_2026.py) | `Ferre2026_NaYF` | Biogas CO₂/CH₄ PVSA on NaY, to CSS | paper-model purity and recovery of both products (Table 5) | 4 min |
 | [`nguyen_2023.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/nguyen_2023.py) | `Nguyen2023_Exp_I` … `_X` (10) | CO₂/N₂ VPSA on CALF-20, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 2) | 22 min |
+| [`haghpanah_2013.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/haghpanah_2013.py) | `Haghpanah2013_Sec61`, `_PL002` … `_PL010`, `_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on 13X with compression and vacuum energy, to CSS | paper-model CO₂ purity/recovery (Haghpanah 2013 Sect. 6.1; Glover 2026 Table 4) | 4 min |
 | [`perez_2019.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/perez_2019.py) | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on 13X, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 3) | 6 min |
 | [`vysyaraju_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/vysyaraju_2024.py) | `Vysyaraju2024_PSA_exp1` | He/N₂ 5-step PSA on binderless 5A, to CSS | measured and paper-model He purity/recovery (Table 3) | 30 s |
 | [`ward_pini_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 80 s |
@@ -46,6 +47,7 @@ Three executed notebooks are in `examples/notebooks/`: a parametric study of the
 | **Arora (2021)** | `Arora2021_LiLSX_PSA`, `Arora2021_LiLSX_PVSA` | O₂ from air on LiLSX zeolite, 4-step PSA and vacuum PSA (Table 4) |
 | **Casas (2012)** | `Casas2012_Fig4_50_50_15bar_25C`, `Casas2012_Fig6_25_75_15bar_25C`, `Casas2012_Fig6_75_25_15bar_25C` | CO₂/H₂ breakthrough on activated carbon AP3-60 at 15 bar and 25 °C, three feed compositions (Figs. 4 and 6) |
 | **Ferré (2026)** | `Ferre2026_NaYF` | CO₂/CH₄ biogas upgrading, 4-step PVSA on zeolite NaY (Table 5) |
+| **Haghpanah (2013)** | `Haghpanah2013_Sec61`, `Haghpanah2013_PL002` … `_PL010`, `Haghpanah2013_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on zeolite 13X (pressurisation, adsorption, forward blowdown, reverse evacuation) with compressor and vacuum-pump energy: the Sect. 6.1 reference design, the five minimum-energy designs of Table 6, and the CSS benchmark design of Glover et al. (2026) |
 | **Nguyen (2022)** | `Nguyen2022_Fig4`, `Nguyen2022_Fig5` | CO₂/He breakthrough (70 % and 15 % CO₂) into a helium-filled bed of CALF-20 (Figs. 4 and 5) |
 | **Nguyen (2023)** | `Nguyen2023_Exp_I` … `Nguyen2023_Exp_X` | CO₂/N₂ VPSA on structured CALF-20: experiments I–V use the basic 4-step cycle, VI–X the 4-step cycle with light-product pressurisation (Table 2) |
 | **Perez (2019)** | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on zeolite 13X: A, B and C1 are the basic 4-step cycle, D1, E and F add light-product pressurisation (Table 3) |

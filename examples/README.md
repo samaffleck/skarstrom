@@ -38,6 +38,7 @@ configuration).
 | [`arora_2021.py`](arora_2021.py) | `Arora2021_LiLSX_PSA`, `_PVSA` | O₂ PSA and PVSA on LiLSX (50 cycles) | paper-model O₂ purity and net recovery (Table 4) | 2 min |
 | [`ferre_2026.py`](ferre_2026.py) | `Ferre2026_NaYF` | Biogas CO₂/CH₄ PVSA on NaY, to CSS | paper-model purity and recovery of both products (Table 5) | 4 min |
 | [`nguyen_2023.py`](nguyen_2023.py) | `Nguyen2023_Exp_I` … `_X` (10) | CO₂/N₂ VPSA on CALF-20, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 2) | 22 min |
+| [`haghpanah_2013.py`](haghpanah_2013.py) | `Haghpanah2013_Sec61`, `_PL002` … `_PL010`, `_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on 13X with compression and vacuum energy, to CSS | paper-model CO₂ purity/recovery (Haghpanah 2013 Sect. 6.1; Glover 2026 Table 4) | 4 min |
 | [`perez_2019.py`](perez_2019.py) | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on 13X, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 3) | 6 min |
 | [`vysyaraju_2024.py`](vysyaraju_2024.py) | `Vysyaraju2024_PSA_exp1` | He/N₂ 5-step PSA on binderless 5A, to CSS | measured and paper-model He purity/recovery (Table 3) | 30 s |
 | [`ward_pini_2024.py`](ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 80 s |
@@ -74,7 +75,7 @@ To turn any deck (yours, or one written by a front end) into builder code
 like these scripts, use `skarstrom.to_script(sim)` (see
 [Building a simulation in Python](../docs/python.md#building-a-simulation-in-python)).
 
-`decks/` holds the 33 example decks (also bundled in the Python package:
+`decks/` holds the 40 example decks (also bundled in the Python package:
 `skarstrom examples`). Their file names must stay shell-safe (checked by the
 `DataFileNamesAreShellSafe` test). The test suite re-saves several of them; small
 changes to the embedded numbers are expected and should be committed with the

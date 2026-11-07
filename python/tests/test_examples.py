@@ -22,6 +22,7 @@ FAST = {
     "arora_2021": ["--case", "LiLSX_PSA", "--cycles", "2"],
     "ferre_2026": ["--cycles", "2"],
     "nguyen_2023": ["--case", "I", "--cycles", "2"],
+    "haghpanah_2013": ["--case", "PL002", "--cycles", "2"],
     "perez_2019": ["--case", "A", "--cycles", "2"],
     "vysyaraju_2024": ["--cycles", "2"],
     "ward_pini_2024": ["--cycles", "2"],

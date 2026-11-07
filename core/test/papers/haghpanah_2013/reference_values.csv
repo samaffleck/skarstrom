@@ -1,0 +1,37 @@
+case,quantity,value,unit,source,note
+Sec61,CO2_purity,88.74,%,"Haghpanah et al. 2013, Sect. 6.1, p. 4257","paper model, WENO on 1000 cells, 500 cycles; design of Table 4"
+Sec61,CO2_recovery,35.83,%,"Haghpanah et al. 2013, Sect. 6.1, p. 4257","paper model, WENO on 1000 cells, 500 cycles; design of Table 4"
+PL002,energy_H,148.96,kWh/t,"Haghpanah et al. 2013, Table 6, P_L = 0.02 bar",minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells
+PL003,energy_H,201.50,kWh/t,"Haghpanah et al. 2013, Table 6, P_L = 0.03 bar",minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells
+PL005,energy_H,298.92,kWh/t,"Haghpanah et al. 2013, Table 6, P_L = 0.05 bar",minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells
+PL007,energy_H,388.68,kWh/t,"Haghpanah et al. 2013, Table 6, P_L = 0.07 bar",minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells
+PL010,energy_H,499.65,kWh/t,"Haghpanah et al. 2013, Table 6, P_L = 0.1 bar",minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells
+PL002,productivity_H,0.49,mol/(m3 adsorbent s),"Haghpanah et al. 2013, Conclusions, p. 4262","per volume of adsorbent; at 149 kWh/t, P_L = 0.02 bar"
+PL002,purity_G,90.6,%,"Glover et al. 2026, Table 4, this work","Glover's model (constant LDF 26.25 1/s, 10 cells) on Haghpanah's design; printed as the fraction 0.906"
+PL002,recovery_G,89.4,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.894
+PL002,productivity_G,0.297,mol/(m3 s),"Glover et al. 2026, Table 4, this work",per column volume
+PL002,productivity_G_ref,0.312,mol/(m3 s),"Glover et al. 2026, Table 4, Ref.",per column volume; not printed in Haghpanah et al. 2013
+PL002,energy_G,143.6,kWh/t,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design
+PL003,purity_G,90.6,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.906
+PL003,recovery_G,90.7,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.907
+PL003,productivity_G,0.508,mol/(m3 s),"Glover et al. 2026, Table 4, this work",per column volume
+PL003,productivity_G_ref,0.512,mol/(m3 s),"Glover et al. 2026, Table 4, Ref.",per column volume; not printed in Haghpanah et al. 2013
+PL003,energy_G,194.5,kWh/t,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design
+PL005,purity_G,90.3,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.903
+PL005,recovery_G,90.9,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.909
+PL005,productivity_G,0.333,mol/(m3 s),"Glover et al. 2026, Table 4, this work",per column volume
+PL005,productivity_G_ref,0.348,mol/(m3 s),"Glover et al. 2026, Table 4, Ref.",per column volume; not printed in Haghpanah et al. 2013
+PL005,energy_G,289.3,kWh/t,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design
+PL007,purity_G,91.0,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.910
+PL007,recovery_G,91.4,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.914
+PL007,productivity_G,0.704,mol/(m3 s),"Glover et al. 2026, Table 4, this work",per column volume
+PL007,productivity_G_ref,0.688,mol/(m3 s),"Glover et al. 2026, Table 4, Ref.",per column volume; not printed in Haghpanah et al. 2013
+PL007,energy_G,373.2,kWh/t,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design
+PL010,purity_G,91.8,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.918
+PL010,recovery_G,91.1,%,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design; printed as the fraction 0.911
+PL010,productivity_G,0.721,mol/(m3 s),"Glover et al. 2026, Table 4, this work",per column volume
+PL010,productivity_G_ref,0.694,mol/(m3 s),"Glover et al. 2026, Table 4, Ref.",per column volume; not printed in Haghpanah et al. 2013
+PL010,energy_G,486.8,kWh/t,"Glover et al. 2026, Table 4, this work",Glover's model on Haghpanah's design
+Fig5Benchmark,css_multiplier,0.9509,-,"Glover et al. 2026, p. 27","dominant Floquet multiplier of the cycle map at the Figure 5 design, Glover's model on 10 cells"
+Fig5Benchmark,cycles_to_css_feed_start,82,cycles,"Glover et al. 2026, pp. 23-24","successive substitution to a 1e-5 relative state change, bed saturated with feed gas"
+Fig5Benchmark,cycles_to_css_n2_start,115,cycles,"Glover et al. 2026, pp. 23-24","successive substitution to a 1e-5 relative state change, bed saturated with N2"

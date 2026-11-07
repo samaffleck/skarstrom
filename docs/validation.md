@@ -16,13 +16,14 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 
 ## Summary
 
-48 cases from 10 publications; 194 asserted comparisons (0 outside their recorded tolerance) and 15 informational ones. Summary generated on 2026-11-07.
+55 cases from 11 publications; 217 asserted comparisons (0 outside their recorded tolerance) and 29 informational ones. Summary generated on 2026-11-07.
 
 | Publication | Cases | Against | Comparisons | Median error | Worst error |
 |---|---|---|---|---|---|
 | [Arora & Hasan (2021)](#arora-hasan-2021) | 2 | paper model | 4 | 5.35 pp (abs. error) | 46.6 pp (abs. error) |
 | [Casas et al. (2012) / Schell et al. (2012)](#casas-2012) | 4 | paper model, isotherm fit | 8 | 3.35 % (rel. error)<br/>0.595 % (max rel. error) | 16.8 % (rel. error)<br/>6.99 % (max rel. error) |
 | [Ferré et al. (2026)](#ferre-2026) | 4 | paper model | 20 | 0.787 pp (abs. error)<br/>6.74 % (rel. error) | 11.5 pp (abs. error)<br/>59.4 % (rel. error) |
+| [Haghpanah et al. (2013) / Glover et al. (2026)](#haghpanah-2013) | 7 | reference | 23 | 4.10e-4 (abs. error)<br/>0.611 pp (abs. error)<br/>2.76 % (rel. error) | 4.10e-4 (abs. error)<br/>1.59 pp (abs. error)<br/>4.11 % (rel. error) |
 | [Nguyen et al. (2022)](#nguyen-2022) | 6 | experiment | 12 | 9.71 % (NRMSE)<br/>0.751 % (rel. error) | 13.7 % (NRMSE)<br/>4.81 % (rel. error) |
 | [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.05 pp (abs. error)<br/>8.42 % (rel. error) | 8.39 pp (abs. error)<br/>15.9 % (rel. error) |
 | [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 2.31 pp (abs. error) | 5.97 pp (abs. error) |
@@ -133,6 +134,83 @@ A. Ferré, C. Wedler, A. Ward, J. Burger, R. Pini, C. Petit, Co-production of hi
     - CH4 produced per bed volume per total cycle time (Sect. 4.2)
 
 Input decks, assumptions and known discrepancies: [`core/test/papers/ferre_2026/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/ferre_2026/README.md).
+
+## Haghpanah et al. (2013) / Glover et al. (2026) {#haghpanah-2013}
+
+R. Haghpanah, A. Majumder, R. Nilam, A. Rajendran, S. Farooq, I.A. Karimi, M. Amanullah, Multiobjective optimization of a four-step adsorption process for postcombustion CO2 capture via finite volume simulation, Industrial & Engineering Chemistry Research 52 (2013) 4249-4265; T. Glover, T. Papathanasiou, R. Pini, Accelerating simulation and optimisation of cyclic adsorption processes with differentiable programming, arXiv:2606.21523 (2026). [doi:10.1021/ie302658y](https://doi.org/10.1021/ie302658y)
+
+*System:* CO2/N2 4-step PVSA on zeolite 13X (pressurisation, adsorption, forward blowdown, reverse evacuation). *Compared against:* paper's own model results (Sect. 6.1, Table 6); Glover et al.'s re-implementation of the same model (Table 4) and its CSS multiplier.
+
+**Findings.**
+
+- On the five minimum-energy designs of Table 6, CO2 purity and recovery agree with Glover et al.'s verification runs within 1.6 percentage points and the productivity within 3.4 %. The specific energy is 0.7-6 % above Haghpanah's Table 6 for evacuation pressures of 0.05-0.1 bar but 12 % above at 0.02-0.03 bar, where nearly all of it is vacuum work.
+- The energy gap and the Sect. 6.1 purity (79.7 % against 88.74 %; recovery matches within 1.6 pp) are open. Grid, heat-of-adsorption value and convention, wall heat transfer and dispersion closure move them by under 0.3 pp or 1 %; the unit basis of q* in the paper's loading-dependent LDF coefficient (Eq. 40) moves the energy into agreement only at the cost of the Sect. 6.1 recovery (README).
+- The dominant multiplier of the cycle map at Glover et al.'s benchmark design, fitted from the decay of the end-of-cycle state change on 10 cells, is 0.9513 against Glover's 0.9509.
+
+| Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
+|---|---|---|---|---|---|---|---|
+| Fig5Benchmark | Dominant CSS multiplier (fitted decay) | reference | 0.9513 | 0.9509 | 4.10e-4 abs. error | 0.0015 | Glover et al. 2026, p. 27 |
+| Fig5Benchmark | Dominant CSS multiplier (engine rate, median) | reference | 0.9513 | 0.9509 | 4.45e-4 abs. error | info | Glover et al. 2026, p. 27 |
+| Fig5Benchmark | Cycles to a 1e-5 state change, N2 start | reference | 99 cycles | 115 cycles | 13.9 % rel. error | info | Glover et al. 2026, pp. 23-24 |
+| Fig5Benchmark | Cycles to a 1e-5 state change, feed start | reference | 72 cycles | 82 cycles | 12.2 % rel. error | info | Glover et al. 2026, pp. 23-24 |
+| PL002 | Energy vs Haghpanah Table 6 | reference | 167.5 kWh/t | 149 kWh/t | 12.4 % rel. error | info | Haghpanah et al. 2013, Table 6, P_L = 0.02 bar |
+| PL002 | CO2 purity vs Glover | reference | 90.86 % | 90.6 % | 0.256 pp abs. error | 0.35 pp | Glover et al. 2026, Table 4, this work |
+| PL002 | CO2 recovery vs Glover | reference | 87.86 % | 89.4 % | 1.54 pp abs. error | 1.8 pp | Glover et al. 2026, Table 4, this work |
+| PL002 | Productivity vs Glover | reference | 0.2888 mol/(m3 s) | 0.297 mol/(m3 s) | 2.76 % rel. error | 3.3 % | Glover et al. 2026, Table 4, this work |
+| PL002 | Productivity vs Glover Ref. | reference | 0.2888 mol/(m3 s) | 0.312 mol/(m3 s) | 7.44 % rel. error | info | Glover et al. 2026, Table 4, Ref. |
+| PL002 | Energy vs Glover | reference | 167.5 kWh/t | 143.6 kWh/t | 16.6 % rel. error | info | Glover et al. 2026, Table 4, this work |
+| PL002 | Productivity vs Haghpanah | reference | 0.4584 mol/(m3 adsorbent s) | 0.49 mol/(m3 adsorbent s) | 6.45 % rel. error | info | Haghpanah et al. 2013, Conclusions, p. 4262 |
+| PL003 | Energy vs Haghpanah Table 6 | reference | 225.3 kWh/t | 201.5 kWh/t | 11.8 % rel. error | info | Haghpanah et al. 2013, Table 6, P_L = 0.03 bar |
+| PL003 | CO2 purity vs Glover | reference | 90.94 % | 90.6 % | 0.342 pp abs. error | 0.45 pp | Glover et al. 2026, Table 4, this work |
+| PL003 | CO2 recovery vs Glover | reference | 89.17 % | 90.7 % | 1.53 pp abs. error | 1.8 pp | Glover et al. 2026, Table 4, this work |
+| PL003 | Productivity vs Glover | reference | 0.491 mol/(m3 s) | 0.508 mol/(m3 s) | 3.35 % rel. error | 4 % | Glover et al. 2026, Table 4, this work |
+| PL003 | Productivity vs Glover Ref. | reference | 0.491 mol/(m3 s) | 0.512 mol/(m3 s) | 4.11 % rel. error | 4.8 % | Glover et al. 2026, Table 4, Ref. |
+| PL003 | Energy vs Glover | reference | 225.3 kWh/t | 194.5 kWh/t | 15.8 % rel. error | info | Glover et al. 2026, Table 4, this work |
+| PL005 | Energy vs Haghpanah Table 6 | reference | 317.8 kWh/t | 298.9 kWh/t | 6.33 % rel. error | info | Haghpanah et al. 2013, Table 6, P_L = 0.05 bar |
+| PL005 | CO2 purity vs Glover | reference | 89.69 % | 90.3 % | 0.611 pp abs. error | 0.75 pp | Glover et al. 2026, Table 4, this work |
+| PL005 | CO2 recovery vs Glover | reference | 90.73 % | 90.9 % | 0.17 pp abs. error | 0.25 pp | Glover et al. 2026, Table 4, this work |
+| PL005 | Productivity vs Glover | reference | 0.3305 mol/(m3 s) | 0.333 mol/(m3 s) | 0.744 % rel. error | 1.2 % | Glover et al. 2026, Table 4, this work |
+| PL005 | Productivity vs Glover Ref. | reference | 0.3305 mol/(m3 s) | 0.348 mol/(m3 s) | 5.02 % rel. error | info | Glover et al. 2026, Table 4, Ref. |
+| PL005 | Energy vs Glover | reference | 317.8 kWh/t | 289.3 kWh/t | 9.87 % rel. error | info | Glover et al. 2026, Table 4, this work |
+| PL007 | Energy vs Haghpanah Table 6 | reference | 402.6 kWh/t | 388.7 kWh/t | 3.57 % rel. error | 4.2 % | Haghpanah et al. 2013, Table 6, P_L = 0.07 bar |
+| PL007 | CO2 purity vs Glover | reference | 90.57 % | 91 % | 0.432 pp abs. error | 0.55 pp | Glover et al. 2026, Table 4, this work |
+| PL007 | CO2 recovery vs Glover | reference | 90.79 % | 91.4 % | 0.615 pp abs. error | 0.75 pp | Glover et al. 2026, Table 4, this work |
+| PL007 | Productivity vs Glover | reference | 0.691 mol/(m3 s) | 0.704 mol/(m3 s) | 1.84 % rel. error | 2.3 % | Glover et al. 2026, Table 4, this work |
+| PL007 | Productivity vs Glover Ref. | reference | 0.691 mol/(m3 s) | 0.688 mol/(m3 s) | 0.443 % rel. error | 1 % | Glover et al. 2026, Table 4, Ref. |
+| PL007 | Energy vs Glover | reference | 402.6 kWh/t | 373.2 kWh/t | 7.86 % rel. error | info | Glover et al. 2026, Table 4, this work |
+| PL010 | Energy vs Haghpanah Table 6 | reference | 503.2 kWh/t | 499.6 kWh/t | 0.715 % rel. error | 1.2 % | Haghpanah et al. 2013, Table 6, P_L = 0.1 bar |
+| PL010 | CO2 purity vs Glover | reference | 90.65 % | 91.8 % | 1.15 pp abs. error | 1.35 pp | Glover et al. 2026, Table 4, this work |
+| PL010 | CO2 recovery vs Glover | reference | 91.57 % | 91.1 % | 0.471 pp abs. error | 0.6 pp | Glover et al. 2026, Table 4, this work |
+| PL010 | Productivity vs Glover | reference | 0.7213 mol/(m3 s) | 0.721 mol/(m3 s) | 0.037 % rel. error | 0.5 % | Glover et al. 2026, Table 4, this work |
+| PL010 | Productivity vs Glover Ref. | reference | 0.7213 mol/(m3 s) | 0.694 mol/(m3 s) | 3.93 % rel. error | 4.6 % | Glover et al. 2026, Table 4, Ref. |
+| PL010 | Energy vs Glover | reference | 503.2 kWh/t | 486.8 kWh/t | 3.37 % rel. error | 4 % | Glover et al. 2026, Table 4, this work |
+| Sec61 | CO2 purity | reference | 79.68 % | 88.74 % | 9.06 pp abs. error | info | Haghpanah et al. 2013, Sect. 6.1, p. 4257 |
+| Sec61 | CO2 recovery | reference | 37.42 % | 35.83 % | 1.59 pp abs. error | 1.9 pp | Haghpanah et al. 2013, Sect. 6.1, p. 4257 |
+
+??? note "Notes on these comparisons"
+
+    - dominant Floquet multiplier of the cycle map at the Figure 5 design, Glover's model on 10 cells; least-squares slope of ln(state change) over the geometric window, N2-saturated start
+    - dominant Floquet multiplier of the cycle map at the Figure 5 design, Glover's model on 10 cells; median of the CSS check's fitted convergence rate over the window; spread 0.001225
+    - successive substitution to a 1e-5 relative state change, bed saturated with N2; engine state-change norm, not Glover's max norm
+    - successive substitution to a 1e-5 relative state change, bed saturated with feed gas; engine state-change norm, not Glover's max norm
+    - minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells
+    - Glover's model (constant LDF 26.25 1/s, 10 cells) on Haghpanah's design; printed as the fraction 0.906
+    - Glover's model on Haghpanah's design; printed as the fraction 0.894
+    - per column volume; per column volume
+    - per column volume; not printed in Haghpanah et al. 2013; per column volume; Glover's reference value, not printed by Haghpanah
+    - Glover's model on Haghpanah's design
+    - per volume of adsorbent; at 149 kWh/t, P_L = 0.02 bar; per adsorbent volume (1 - eps) A L
+    - Glover's model on Haghpanah's design; printed as the fraction 0.906
+    - Glover's model on Haghpanah's design; printed as the fraction 0.907
+    - Glover's model on Haghpanah's design; printed as the fraction 0.903
+    - Glover's model on Haghpanah's design; printed as the fraction 0.909
+    - Glover's model on Haghpanah's design; printed as the fraction 0.910
+    - Glover's model on Haghpanah's design; printed as the fraction 0.914
+    - Glover's model on Haghpanah's design; printed as the fraction 0.918
+    - Glover's model on Haghpanah's design; printed as the fraction 0.911
+    - paper model, WENO on 1000 cells, 500 cycles; design of Table 4
+
+Input decks, assumptions and known discrepancies: [`core/test/papers/haghpanah_2013/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/haghpanah_2013/README.md).
 
 ## Nguyen et al. (2022) {#nguyen-2022}
 

@@ -42,6 +42,19 @@
       ]
     },
     {
+      "id": "haghpanah_2013",
+      "label": "Haghpanah et al. (2013) / Glover et al. (2026)",
+      "citation": "R. Haghpanah, A. Majumder, R. Nilam, A. Rajendran, S. Farooq, I.A. Karimi, M. Amanullah, Multiobjective optimization of a four-step adsorption process for postcombustion CO2 capture via finite volume simulation, Industrial & Engineering Chemistry Research 52 (2013) 4249-4265; T. Glover, T. Papathanasiou, R. Pini, Accelerating simulation and optimisation of cyclic adsorption processes with differentiable programming, arXiv:2606.21523 (2026).",
+      "doi": "10.1021/ie302658y",
+      "system": "CO2/N2 4-step PVSA on zeolite 13X (pressurisation, adsorption, forward blowdown, reverse evacuation)",
+      "reference_kind": "paper's own model results (Sect. 6.1, Table 6); Glover et al.'s re-implementation of the same model (Table 4) and its CSS multiplier",
+      "findings": [
+        "On the five minimum-energy designs of Table 6, CO2 purity and recovery agree with Glover et al.'s verification runs within 1.6 percentage points and the productivity within 3.4 %. The specific energy is 0.7-6 % above Haghpanah's Table 6 for evacuation pressures of 0.05-0.1 bar but 12 % above at 0.02-0.03 bar, where nearly all of it is vacuum work.",
+        "The energy gap and the Sect. 6.1 purity (79.7 % against 88.74 %; recovery matches within 1.6 pp) are open. Grid, heat-of-adsorption value and convention, wall heat transfer and dispersion closure move them by under 0.3 pp or 1 %; the unit basis of q* in the paper's loading-dependent LDF coefficient (Eq. 40) moves the energy into agreement only at the cost of the Sect. 6.1 recovery (README).",
+        "The dominant multiplier of the cycle map at Glover et al.'s benchmark design, fitted from the decay of the end-of-cycle state change on 10 cells, is 0.9513 against Glover's 0.9509."
+      ]
+    },
+    {
       "id": "nguyen_2022",
       "label": "Nguyen et al. (2022)",
       "citation": "T.T.T. Nguyen, J.-B. Lin, G.K.H. Shimizu, A. Rajendran, Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20, Chemical Engineering Journal 442 (2022) 136263.",
