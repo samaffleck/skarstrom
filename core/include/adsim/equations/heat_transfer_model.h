@@ -240,8 +240,10 @@ namespace adsim {
   };
 
   // Gas-solid film coefficient from correlations, h_p = h a_v [W/(m3 K)]:
-  //   packed bed:  Nu = h d_p / k_g = 2 + 1.1 Pr^(1/3) Re^0.6 (Wakao and
-  //                Funazkri 1978; Re on the superficial velocity and d_p);
+  //   packed bed:  Nu = h d_p / k_g by the layer's film correlation
+  //                (MixedAdsorbentLayer::film_correlation_, film_correlation.h;
+  //                default Wakao-Kaguei-Funazkri, 2 + 1.1 Pr^(1/3) Re^0.6;
+  //                Re on the superficial velocity and d_p);
   //   structured:  Nu = h D_h / k_g, the channel's fully developed Nu_T
   //                (Shah and London 1978), or Hawthorn's (1974) developing
   //                form when the layer's entrance effects are on

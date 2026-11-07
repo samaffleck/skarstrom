@@ -28,11 +28,12 @@
 //   reaction basis       "partial_pressure", "concentration"
 //   effectiveness        "constant", "thiele"
 //   momentum             "kozeny_carman", "ergun", "blake_kozeny"
+//   film correlation     "wakao_funazkri", "gunn", "ranz_marshall"
 //   dispersion           "constant", "ruthven"
 //   heat dispersion      "constant", "ruthven", "yagi_kunii"
 //   internal heat transfer "constant", "dixon", "leva"
 //   external heat transfer "constant", "holman"
-//   particle heat transfer "constant"
+//   particle heat transfer "constant", "film"
 //   thermal equilibrium  "lte", "ltne"
 //   bed shape            "cylinder", "square", "rectangle"
 //   wall material        "custom", "ss316l", "ss304", "ss304l", "carbon_steel_a106",
@@ -70,6 +71,7 @@ const std::vector<std::string>& RateModelKinds();
 const std::vector<std::string>& RateCoefficientKinds();
 const std::vector<std::string>& MixingRuleKinds();
 const std::vector<std::string>& MomentumKinds();
+const std::vector<std::string>& FilmCorrelationKinds(); // wakao_funazkri, gunn, ranz_marshall
 const std::vector<std::string>& LayerKinds();          // packed, monolith, laminate
 const std::vector<std::string>& ChannelShapeKinds();   // square, circular
 const std::vector<std::string>& DispersionKinds();
@@ -158,6 +160,10 @@ size_t AddLayer(UserData& data, const std::string& name);
 void SetLayerComposition(UserData& data, size_t layer,
                          const std::vector<std::pair<AdsorbentID, double>>& composition);
 void SetMomentum(UserData& data, size_t layer, const std::string& kind);
+// The packed layer's gas-particle film correlation (FilmCorrelationKinds;
+// film_correlation.h): the Nu of the film particle heat transfer and the Sh
+// of the Haynes rate coefficient. Kept, unused, on a structured layer.
+void SetFilmCorrelation(UserData& data, size_t layer, const std::string& kind);
 // What the layer is packed with (LayerKinds: "packed", "monolith",
 // "laminate"). The composition, domain, name and every other field are kept,
 // including the structured geometry and the packed-bed fields, so switching

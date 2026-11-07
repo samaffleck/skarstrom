@@ -1659,8 +1659,17 @@ namespace adsim {
                                   dv.hydraulic_diameter[n], dv.entrance_length[n]);
         continue;
       }
-      // Packed bed: Wakao and Funazkri (1978), Sh = 2 + 1.1 Sc^(1/3) Re^0.6.
-      Sh[n] = 2 + 1.1 * std::pow(Sc[n], 0.3333333) * std::pow(Re[n], 0.6);
+      // Packed bed (and the cells outside the layers): the default film
+      // correlation, Wakao and Funazkri (1978), Sh = 2 + 1.1 Sc^(1/3) Re^0.6.
+      Sh[n] = WakaoFunazkriNumber(Re[n], Sc[n]);
+    }
+    // Packed layers that select another film correlation (film_correlation.h).
+    for (const auto& layer : udata->bed.layers_.layers_) {
+      if (layer.IsStructured() || layer.film_correlation_ == FilmCorrelation::WakaoFunazkri) continue;
+      const double eps = layer.GetVoidFraction();
+      const size_t end = std::min(static_cast<size_t>(layer.domain_.end_index) + 1, N);
+      for (size_t n = static_cast<size_t>(std::max(layer.domain_.start_index, 0)); n < end; ++n)
+        Sh[n] = PackedFilmNumber(layer.film_correlation_, std::max(Re[n], 0.0), std::max(Sc[n], 0.0), eps);
     }
   }
 
