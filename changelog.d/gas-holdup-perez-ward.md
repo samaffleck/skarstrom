@@ -1,0 +1,2 @@
+### Changed — paper decks hold gas in the bed voids only
+- The Perez 2019 and Ward & Pini 2024 decks hold the gas in the bed voids only, as the papers do (Perez et al. 2019, SI Eqs. S1, S2, S6; Ward & Pini 2022, Eqs. A1, A2, A4): the adsorbent's `particle_void_fraction` is 0, and the particle voidage stays in the Perez decks' macropore LDF coefficient, so the rate is unchanged. Results move by up to 1.1 pp (Perez F purity 75.65 → 76.78 %); five Perez bounds are loosened to the new measured errors.

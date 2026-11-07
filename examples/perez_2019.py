@@ -70,7 +70,9 @@ def add_zeolite_13x(sim: sk.Simulation) -> sk.Adsorbent:
         solid_density=1138.0252816422599 * u.kg / u.m**3,      # particle density
         heat_capacity=900 * u.J / (u.kg * u.K),
         thermal_conductivity=0.63 * u.W / (u.m * u.K),
-        particle_void_fraction=0.35,
+        # SI Eqs. S1, S2, S6 hold gas in the bed voids only: no macropore holdup, so
+        # particle_void_fraction is 0; the particle voidage 0.35 enters the rate (below).
+        particle_void_fraction=0.0,
     )
     # Extended dual-site Langmuir in concentration form: b_i(T) = b0_i exp(q_i / RT).
     ads.set_isotherm("extended_dual_site_langmuir_c", {
