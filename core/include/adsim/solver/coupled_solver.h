@@ -333,6 +333,30 @@ namespace adsim {
     sunindextype BandUpper() const { return band_mu_; }
     sunindextype BandLower() const { return band_ml_; }
 
+    // Observer of every IDAReInit, for the forward-sensitivity prototype
+    // (cycle_sensitivity.h): Before runs ahead of IDAReInit (IDA's history,
+    // and so the sensitivities at t, are still available), After right
+    // after it (where IDASensReInit must go, ahead of the IDACalcIC that
+    // follows a step switch). A non-zero return from After fails the
+    // re-initialisation. Null (the default) leaves every run untouched.
+    struct ReInitObserver {
+      virtual ~ReInitObserver() = default;
+      virtual void BeforeReInit(void* ida_mem, double t) = 0;
+      virtual int AfterReInit(void* ida_mem, double t) = 0;
+    };
+    void SetReInitObserver(ReInitObserver* observer) { reinit_observer_ = observer; }
+    // Re-initialises IDA at its current (last accepted) point with fresh
+    // history: algebraic derivatives zeroed, then IDACalcIC (IDA_YA_YDP_INIT)
+    // and IDAGetConsistentIC into y_ / yp_ and the state. Returns false (the
+    // integrator is then unusable) if any of these fail.
+    bool RestartFromConsistentIC();
+    // Raw integrator handles, for the same prototype only.
+    void* IdaMemory() const { return ida_mem_; }
+    N_Vector StateVector() const { return y_; }
+    N_Vector DerivativeVector() const { return yp_; }
+    N_Vector IdVector() const { return id_; }
+    N_Vector AbsTolVector() const { return abstol_vec_; }
+
   private:
     // Releases the IDA memory, N_Vectors, band matrix and linear solver and
     // nulls every handle. Idempotent. Does not touch the SUNContext.
@@ -341,11 +365,6 @@ namespace adsim {
     // Called before every IDAReInit so a retry's reduced hin cannot leak into a
     // later re-initialisation.
     void ResetInitStep(const IDASettings& settings);
-    // Re-initialises IDA at its current (last accepted) point with fresh
-    // history: algebraic derivatives zeroed, then IDACalcIC (IDA_YA_YDP_INIT)
-    // and IDAGetConsistentIC into y_ / yp_ and the state. Returns false (the
-    // integrator is then unusable) if any of these fail.
-    bool RestartFromConsistentIC();
     // The configured initial step (0 = IDA's own estimate).
     double GetInitStepSetting() const;
     // IDAReInit at time t from y_ / yp_, first adding IDA's counters (which
@@ -387,6 +406,7 @@ namespace adsim {
     bool fail_next_reseed_commit_for_testing_ = false;
     // IDA's counters accumulated over the re-initialisations of this run.
     IntegrationStats stats_carry_{};
+    ReInitObserver* reinit_observer_ = nullptr;
 
   };
 
