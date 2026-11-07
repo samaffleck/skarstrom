@@ -161,7 +161,8 @@ namespace adsim {
         }
       } else {
         IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id),
-                                    state.solid_temperature.var, state.pressure.var, component, start, end, registry);
+                                    state.solid_temperature.var, state.pressure.var, component, start, end, registry,
+                                    &state.ads_concentration.at(ads_id));
         isotherm_->Update(params);
         std::swap(q_scratch_, qi_sat);   // q_scratch_ = q* at the floored state; qi_sat = the original, restored
       }

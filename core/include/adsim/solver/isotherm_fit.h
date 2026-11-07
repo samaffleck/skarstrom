@@ -55,6 +55,9 @@ struct Point {
   double q = 0.0;   // loading [mol/kg]
   double T = 298.15;  // temperature [K]
   double y = 1.0;   // mole fraction (1 for pure-component data)
+  // Adsorbed water loading [mol/kg] at which q was measured; only the
+  // water-coupled kinds (toth_wadst, toth_humid) read it. 0: dry.
+  double q_w = 0.0;
 };
 
 enum class Scale { Linear, Log };
@@ -146,8 +149,8 @@ class Model {
     return p ? p->Get() : std::numeric_limits<double>::quiet_NaN();
   }
 
-  double Eval(double T, double P, double y) const {
-    return EvalIsotherm(iso_.get(), comp_, T, P, y);
+  double Eval(double T, double P, double y, double q_w = 0.0) const {
+    return EvalIsotherm(iso_.get(), comp_, T, P, y, q_w);
   }
 
  private:
@@ -194,6 +197,11 @@ double ReferenceTemperature(const DataSummary& s);
 // Default parameter specs (initial guesses + search bounds) from the data.
 // These are search-space heuristics (decades around what the data can
 // resolve), not material properties.
+// For the water-coupled kinds (toth_wadst, toth_humid) points at q_w = 0
+// identify the dry Toth block and points at q_w > 0 the water terms (A and the
+// wet site; gamma and beta); a block without such points is held at the
+// engine default, which the caller replaces with known values (with humid
+// data only: the dry fit's).
 // ---------------------------------------------------------------------------
 
 bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,

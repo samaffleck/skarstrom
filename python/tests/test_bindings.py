@@ -338,5 +338,31 @@ def test_gab_isotherm_component_evaluate_fit_and_iast():
     qe = skarstrom.evaluate_iast(["gab", "inert"], [truth, {}], pressure=1e5, temperature=298.15,
                                  mole_fraction=[0.5 * pe / 1e5, 1 - 0.5 * pe / 1e5], components=["Ethanol", None])
     assert qe[0] == pytest.approx(qi[0], rel=2e-2)
+
+
+def test_coadsorption_isotherms_take_the_water_loading():
+    """toth_wadst / toth_humid: the CO2 loading at a given adsorbed water loading (default 0, dry)."""
+    assert {"toth_wadst", "toth_humid"} <= set(skarstrom.isotherm_kinds())
+    assert skarstrom.isotherm_parameters("toth_humid") == [
+        "q_sat", "x", "T_0", "b0", "dH0", "w0", "alpha", "gamma", "beta"]
+    assert skarstrom.isotherm_parameters("toth_wadst")[-1] == "A"
+    # Hand values with the defaults (Young et al. 2021 Lewatit; Stampi-Bombelli et al. 2020 APDES-NFC).
+    q = skarstrom.evaluate_isotherm("toth_wadst", {}, [40.0, 40.0, 1000.0], [298.15, 298.15, 313.15],
+                                    water_loading=[0.0, 1.0, 2.0])
+    np.testing.assert_allclose(q, [0.8420245338722876, 1.0185996655819423, 1.719685426802942], rtol=1e-10)
+    q = skarstrom.evaluate_isotherm("toth_humid", {}, 40.0, 296.0, water_loading=[0.0, 0.5])
+    np.testing.assert_allclose(q, [0.7119412653033451, 1.6748044208814166], rtol=1e-10)
+    np.testing.assert_allclose(skarstrom.evaluate_isotherm("toth_humid", {}, 40.0, 296.0),
+                               0.7119412653033451, rtol=1e-10)
+
+    # Humid data at fixed water loadings fit gamma and beta, the dry Toth held at its defaults.
+    p = np.tile([10.0, 40.0, 100.0, 400.0], 3)
+    qw = np.repeat([0.5, 1.0, 2.0], 4)
+    truth = {"gamma": 0.01, "beta": 20.0}
+    data = skarstrom.evaluate_isotherm("toth_humid", truth, p, 296.0, water_loading=qw)
+    fit = skarstrom.fit_isotherm("toth_humid", p, data, 296.0, water_loading=qw)
+    assert "q_sat" in fit["fixed"] and "gamma" not in fit["fixed"]
+    assert fit["params"]["gamma"] == pytest.approx(0.01, rel=1e-3, abs=1e-5)
+    assert fit["params"]["beta"] == pytest.approx(20.0, rel=1e-3)
     with pytest.raises(ValueError):
         skarstrom.evaluate_iast(["gab", "inert"], [truth, {}], 1e5, 298.15, [0.01, 0.99], components=["Water"])

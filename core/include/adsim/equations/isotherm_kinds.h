@@ -46,12 +46,13 @@ inline constexpr auto kAllIsothermTypes = std::to_array<IsothermType>({
     IsothermType::REDLICH_PETERSON, IsothermType::TOTH,
     IsothermType::TOTH_2, IsothermType::ARRHENIUS_SIPS,
     IsothermType::EXTENDED_LANGMUIR_FREUNDLICH,
-    IsothermType::GAB, IsothermType::GAB_YOUNG});
+    IsothermType::GAB, IsothermType::GAB_YOUNG,
+    IsothermType::TOTH_WADST, IsothermType::TOTH_HUMID});
 
 // A kind missing from this list is rejected by KindFromString. Keep the list a permutation of the
 // enum: one entry per IsothermType, each exactly once.
 static_assert(kAllIsothermTypes.size() ==
-                  static_cast<std::size_t>(IsothermType::GAB_YOUNG) + 1,
+                  static_cast<std::size_t>(IsothermType::TOTH_HUMID) + 1,
               "kAllIsothermTypes must list every IsothermType");
 static_assert(
     [] {
@@ -84,6 +85,12 @@ bool IsSupportedIsothermKind(IsothermType t);
 // end offers the non-competitive kinds there instead.
 bool IsCompetitiveIsothermKind(IsothermType t);
 
+// True for the kinds whose loading depends on the adsorbed loading of water on
+// the same adsorbent (component kCoadsorbedWaterComponent): toth_wadst and
+// toth_humid. They have no IAST form (water changes the CO2 sites, not a
+// competitive denominator), so the IAST mixing rule rejects them.
+bool IsWaterCoupledIsothermKind(IsothermType t);
+
 // The kind with the same parameter layout in the other family: a competitive
 // kind's pure-component counterpart, or a pure kind's competitive form
 // (single_site_langmuir_p <-> extended_single_site_langmuir_p, and likewise for
@@ -106,8 +113,11 @@ void EnsureIsothermComponent(IIsotherm* iso, const std::string& component);
 // pressure P [Pa], mole fraction yi) using the direct IsothermFunction free
 // functions. For a single-component (pure) plot pass yi=1 so partial pressure =
 // P. Extended/competitive variants reuse the base function (pure-component limit).
-// The GAB kinds take the component's saturation pressure from CoolProp.
-double EvalIsotherm(IIsotherm* iso, const std::string& component, double T, double P, double yi);
+// The GAB kinds take the component's saturation pressure from CoolProp. The
+// water-coupled kinds (IsWaterCoupledIsothermKind) take the adsorbed water
+// loading q_water [mol/kg]; 0 gives their dry isotherm. Other kinds ignore it.
+double EvalIsotherm(IIsotherm* iso, const std::string& component, double T, double P, double yi,
+                    double q_water = 0.0);
 
 // Isosteric heat of adsorption q_st [J/mol, positive for exothermic
 // adsorption] implied by the isotherm's temperature dependence, at the loading
@@ -118,7 +128,8 @@ double EvalIsotherm(IIsotherm* iso, const std::string& component, double T, doub
 // with loading and includes the heat of condensation through p_sat(T). The
 // energy balance does not call this: it takes the adsorbent's constant
 // heat_of_adsorption[component]; this gives the value to put there (or checks
-// one). NaN when P yi <= 0.
-double IsostericHeat(IIsotherm* iso, const std::string& component, double T, double P, double yi);
+// one). NaN when P yi <= 0. q_water as for EvalIsotherm (held fixed).
+double IsostericHeat(IIsotherm* iso, const std::string& component, double T, double P, double yi,
+                     double q_water = 0.0);
 
 }  // namespace adsim

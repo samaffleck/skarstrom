@@ -82,18 +82,22 @@ adsim::IsothermType ParseIsothermKind(const std::string& kind) {
 }
 
 std::vector<adsim::isofit::Point> MakePoints(const std::vector<double>& P, const std::vector<double>& q,
-                                                  const std::vector<double>& T, const std::vector<double>& y) {
+                                                  const std::vector<double>& T, const std::vector<double>& y,
+                                                  const std::vector<double>& q_w = {}) {
   const size_t n = P.size();
   if (!q.empty() && q.size() != n) throw py::value_error("pressure and loading must have the same length");
   if (T.size() != n && T.size() != 1) throw py::value_error("temperature must be a scalar or match pressure");
   if (!y.empty() && y.size() != n && y.size() != 1)
     throw py::value_error("mole_fraction must be a scalar or match pressure");
+  if (!q_w.empty() && q_w.size() != n && q_w.size() != 1)
+    throw py::value_error("water_loading must be a scalar or match pressure");
   std::vector<adsim::isofit::Point> pts(n);
   for (size_t i = 0; i < n; ++i) {
     pts[i].P = P[i];
     pts[i].q = q.empty() ? 0.0 : q[i];
     pts[i].T = T.size() == 1 ? T[0] : T[i];
     pts[i].y = y.empty() ? 1.0 : (y.size() == 1 ? y[0] : y[i]);
+    pts[i].q_w = q_w.empty() ? 0.0 : (q_w.size() == 1 ? q_w[0] : q_w[i]);
   }
   return pts;
 }
@@ -1161,18 +1165,22 @@ PYBIND11_MODULE(_core, m) {
     return model.Names();
   }, py::arg("kind"));
   // `component`: the fluid (CoolProp name) whose saturation pressure the GAB
-  // kinds use; empty means water. Other kinds ignore it.
+  // kinds use; empty means water. Other kinds ignore it. `water_loading`
+  // [mol/kg]: the adsorbed water loading the water-coupled kinds read
+  // (empty: 0, dry).
   m.def("evaluate_isotherm", [](const std::string& kind, const std::map<std::string, double>& params,
                                 const std::vector<double>& pressure, const std::vector<double>& temperature,
-                                const std::vector<double>& mole_fraction, const std::string& component) {
-    const auto pts = MakePoints(pressure, {}, temperature, mole_fraction);
+                                const std::vector<double>& mole_fraction, const std::string& component,
+                                const std::vector<double>& water_loading) {
+    const auto pts = MakePoints(pressure, {}, temperature, mole_fraction, water_loading);
     std::vector<std::pair<std::string, double>> values(params.begin(), params.end());
     std::vector<double> q;
     std::string err;
     if (!adsim::isofit::Evaluate(ParseIsothermKind(kind), values, pts, q, err, component)) throw py::value_error(err);
     return ToArray(q);
   }, py::arg("kind"), py::arg("params"), py::arg("pressure"), py::arg("temperature"),
-     py::arg("mole_fraction") = std::vector<double>{}, py::arg("component") = std::string());
+     py::arg("mole_fraction") = std::vector<double>{}, py::arg("component") = std::string(),
+     py::arg("water_loading") = std::vector<double>{});
   // IAST mixture loadings from several pure (kind, params) isotherms at one
   // (T, P, y): the engine's adsim/equations/iast.h.
   m.def("evaluate_iast", [](const std::vector<std::string>& kinds,
@@ -1212,8 +1220,9 @@ PYBIND11_MODULE(_core, m) {
   }, py::arg("kinds"), py::arg("params"), py::arg("pressure"), py::arg("temperature"), py::arg("mole_fraction"),
      py::arg("components") = std::vector<std::string>{});
   m.def("default_fit_specs", [](const std::string& kind, const std::vector<double>& pressure,
-                                const std::vector<double>& loading, const std::vector<double>& temperature) {
-    const auto pts = MakePoints(pressure, loading, temperature, {});
+                                const std::vector<double>& loading, const std::vector<double>& temperature,
+                                const std::vector<double>& water_loading) {
+    const auto pts = MakePoints(pressure, loading, temperature, {}, water_loading);
     std::vector<adsim::isofit::ParamSpec> specs;
     double t_ref = 0.0;
     std::string err;
@@ -1222,13 +1231,15 @@ PYBIND11_MODULE(_core, m) {
     py::list out;
     for (const auto& s : specs) out.append(SpecToDict(s));
     return py::make_tuple(out, t_ref);
-  }, py::arg("kind"), py::arg("pressure"), py::arg("loading"), py::arg("temperature"));
+  }, py::arg("kind"), py::arg("pressure"), py::arg("loading"), py::arg("temperature"),
+     py::arg("water_loading") = std::vector<double>{});
   m.def("fit_isotherm", [](const std::string& kind, const std::vector<double>& pressure,
                            const std::vector<double>& loading, const std::vector<double>& temperature,
                            const std::vector<double>& mole_fraction, py::object specs_in, double t_ref,
-                           int max_global_evals, const std::string& component) {
+                           int max_global_evals, const std::string& component,
+                           const std::vector<double>& water_loading) {
     const auto type = ParseIsothermKind(kind);
-    const auto pts = MakePoints(pressure, loading, temperature, mole_fraction);
+    const auto pts = MakePoints(pressure, loading, temperature, mole_fraction, water_loading);
     std::vector<adsim::isofit::ParamSpec> specs;
     if (specs_in.is_none()) {
       std::string err;
@@ -1272,7 +1283,8 @@ PYBIND11_MODULE(_core, m) {
     return d;
   }, py::arg("kind"), py::arg("pressure"), py::arg("loading"), py::arg("temperature"),
      py::arg("mole_fraction") = std::vector<double>{}, py::arg("specs") = py::none(), py::arg("t_ref") = 0.0,
-     py::arg("max_global_evals") = 0, py::arg("component") = std::string());
+     py::arg("max_global_evals") = 0, py::arg("component") = std::string(),
+     py::arg("water_loading") = std::vector<double>{});
 
   m.def("sensitivity_morris_plan", [](const py::list& inputs, int trajectories, int levels, std::uint64_t seed) {
     return PlanToDict(sa::MorrisPlan(InputsFromList(inputs), trajectories, levels, seed));

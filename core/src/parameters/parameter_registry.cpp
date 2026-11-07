@@ -1405,6 +1405,37 @@ namespace adsim {
               E("E10_B", "J/(mol-K)", p->E10_B, -500.0, 500.0);
             }
             break;
+          case IsothermType::TOTH_WADST:
+            if (auto* p = params(dynamic_cast<TothWadstIsotherm*>(iso))) {
+              E("T_0", "K", p->T_0, 273.0, 473.0);
+              E("q_inf_dry", "mol/kg", p->q_inf_dry, 0.01, 50.0);
+              E("chi_dry", "-", p->chi_dry, -5.0, 5.0);
+              E("b0_dry", "1/Pa", p->b0_dry, 1e-30, 1.0);
+              E("dH_dry", "J/mol", p->dH_dry, 0.0, 3e5);
+              E("tau0_dry", "-", p->tau0_dry, 0.01, 5.0);
+              E("alpha_dry", "-", p->alpha_dry, -5.0, 5.0);
+              E("q_inf_wet", "mol/kg", p->q_inf_wet, 0.01, 50.0);
+              E("chi_wet", "-", p->chi_wet, -5.0, 5.0);
+              E("b0_wet", "1/Pa", p->b0_wet, 1e-30, 1.0);
+              E("dH_wet", "J/mol", p->dH_wet, 0.0, 3e5);
+              E("tau0_wet", "-", p->tau0_wet, 0.01, 5.0);
+              E("alpha_wet", "-", p->alpha_wet, -5.0, 5.0);
+              E("A", "mol/kg", p->A, 0.0, 50.0);
+            }
+            break;
+          case IsothermType::TOTH_HUMID:
+            if (auto* p = params(dynamic_cast<TothHumidIsotherm*>(iso))) {
+              E("q_sat", "mol/kg", p->q_sat, 0.01, 50.0);
+              E("x", "-", p->x, -5.0, 5.0);
+              E("T_0", "K", p->T_0, 273.0, 473.0);
+              E("b0", "1/Pa", p->b0, 1e-12, 10.0);
+              E("dH0", "J/mol", p->dH0, 0.0, 3e5);
+              E("w0", "-", p->w0, 0.01, 5.0);
+              E("alpha", "-", p->alpha, -5.0, 5.0);
+              E("gamma", "kg/mol", p->gamma, -5.0, 5.0);
+              E("beta", "kg/mol", p->beta, -10.0, 200.0);
+            }
+            break;
           case IsothermType::INERT:
           default:
             break;

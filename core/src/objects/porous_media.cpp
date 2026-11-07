@@ -123,12 +123,21 @@ namespace adsim {
 		isotherms_[isotherm_type] = std::move(isotherm);
 	}
 
+  namespace {
+    // The adsorbent's actual loadings, for the isotherm kinds that read
+    // another component's loading (IsothermUpdateParams::q_map).
+    const ComponentEquation* AdsorbedLoadings(const Equations& state, AdsorbentID ads_id) {
+      auto it = state.ads_concentration.find(ads_id);
+      return it == state.ads_concentration.end() ? nullptr : &it->second;
+    }
+  }  // namespace
+
   void AdsorptionSource::UpdateIsotherm(Equations& state, AdsorbentID ads_id, const std::string& component, int start_index, int end_index, const UserVariableRegistry* registry) {
     auto& isotherm = GetIsotherm(component);
     auto& T_for_isotherm = state.solid_temperature.var;
     // Route the isotherm's qi_sat writes to this adsorbent's own equilibrium-loading
     // map (the inner per-component map), so each adsorbent keeps a separate isotherm.
-    IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id), T_for_isotherm, state.pressure.var, component, start_index, end_index, registry);
+    IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id), T_for_isotherm, state.pressure.var, component, start_index, end_index, registry, AdsorbedLoadings(state, ads_id));
     isotherm->Update(params);
 	}
 
@@ -154,8 +163,9 @@ namespace adsim {
 
     // Route qi_sat writes to this adsorbent's own equilibrium-loading map.
     auto& T_for_isotherm = state.solid_temperature.var;
+    const ComponentEquation* q_map = AdsorbedLoadings(state, ads_id);
     for (auto& [isotherm, comps] : groups) {
-      IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id), T_for_isotherm, state.pressure.var, comps.front(), start_index, end_index, registry);
+      IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id), T_for_isotherm, state.pressure.var, comps.front(), start_index, end_index, registry, q_map);
       isotherm->UpdateAll(params, comps);
     }
   }
@@ -288,6 +298,26 @@ namespace adsim {
 				continue;
 			}
 			const std::string an = "\"" + dir.Get(id).name_ + "\"";
+			// Isotherm kinds that read the adsorbed water loading
+			// (IsWaterCoupledIsothermKind): no IAST form, and without a water
+			// component they are only their dry isotherm.
+			{
+				const auto& source = dir.Get(id).adsorption_source_;
+				for (const auto& [component, type] : source.IsothermMap()) {
+					if (!IsWaterCoupledIsothermKind(type)) continue;
+					const std::string kind = std::string("'") + isothermModelNames[static_cast<int>(type)] + "' (" +
+						IsothermKindString(type) + ")";
+					if (source.mixing_rule_ == MixingRule::IAST)
+						issues.push_back({Severity::Error, "Error: adsorbent " + an + " uses the IAST mixing rule, but " +
+							component + " has the isotherm " + kind + ", whose loading depends on the adsorbed water loading"
+							" and which IAST cannot mix. Set the adsorbent's mixing rule to none."});
+					if (source.IsothermMap().find(kCoadsorbedWaterComponent) == source.IsothermMap().end())
+						issues.push_back({Severity::Warning, "Warning: adsorbent " + an + " gives " + component +
+							" the isotherm " + kind + ", which depends on the loading of the component named " +
+							kCoadsorbedWaterComponent + ", but the deck has no such component: the isotherm is"
+							" its dry form. Add the component " + kCoadsorbedWaterComponent + " with its own isotherm."});
+				}
+			}
 			if (!(frac >= 0.0)) {
 				skip_sum = true;
 				issues.push_back({Severity::Error, "Error: Layer " + ln + " gives adsorbent " + an + " the mass fraction " +

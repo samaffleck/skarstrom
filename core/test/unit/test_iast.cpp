@@ -436,13 +436,18 @@ TEST(Iast, GabInAMixture) {
   EXPECT_NEAR(q[0], EvalIsotherm(water.get(), kWater, T, P, y_w), 1e-12 * q[0]);
 }
 
-// Every isotherm kind has an IAST form; a kind without one (here an
+// Every isotherm kind has an IAST form, except the CO2 kinds that depend on
+// the adsorbed water loading, which are refused; a kind without one (here an
 // out-of-range value) is an error, never a silently inert component.
 TEST(Iast, EveryKindHasAnIastFormAndAnUnknownKindThrows) {
   for (IsothermType t : AllIsothermTypes()) {
     SCOPED_TRACE(IsothermKindString(t));
     auto iso = CreateIsotherm(t, kWater);
     ASSERT_NE(iso, nullptr);
+    if (IsWaterCoupledIsothermKind(t)) {
+      EXPECT_THROW(PreparePureIsotherm(iso.get(), kWater, 300.0), std::invalid_argument);
+      continue;
+    }
     PureIsotherm pure;
     ASSERT_NO_THROW(pure = PreparePureIsotherm(iso.get(), kWater, 300.0));
     EXPECT_EQ(pure.kind, t);

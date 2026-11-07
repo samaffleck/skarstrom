@@ -36,6 +36,8 @@ const std::vector<IsothermType>& FittableKinds() {
       T::TOTH_2,
       T::GAB,
       T::GAB_YOUNG,
+      T::TOTH_WADST,
+      T::TOTH_HUMID,
   };
   return kinds;
 }
@@ -54,6 +56,8 @@ bool IsTemperatureDependent(IsothermType t) {
     case T::TOTH_2:
     case T::GAB:
     case T::GAB_YOUNG:
+    case T::TOTH_WADST:
+    case T::TOTH_HUMID:
       return true;
     default:
       return false;
@@ -61,6 +65,7 @@ bool IsTemperatureDependent(IsothermType t) {
 }
 bool PointUsable(const Point& p) {
   return std::isfinite(p.P) && std::isfinite(p.q) && std::isfinite(p.T) && std::isfinite(p.y) &&
+         std::isfinite(p.q_w) &&
          p.P >= 0.0 && p.T > 0.0 && p.y > 0.0;
 }
 DataSummary Summarise(const std::vector<Point>& pts) {
@@ -379,6 +384,90 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
       }
       break;
     }
+    case T::TOTH_WADST:
+    case T::TOTH_HUMID: {
+      // Fitted as the papers do: the dry Toth from data at q_w = 0, the water
+      // terms (A and the wet site; gamma and beta) from data at fixed q_w > 0.
+      // A block with no data to identify it is held at the values the caller
+      // gives (the engine defaults, the papers' values, unless replaced): with
+      // only humid data, pass the dry fit's values for the dry block. With
+      // both kinds of data, everything is fitted together.
+      bool has_dry = false, has_wet = false;
+      double qw_max = 0.0;
+      for (const auto& p : pts) {
+        if (!PointUsable(p)) continue;
+        if (p.q_w > 0.0) { has_wet = true; qw_max = std::max(qw_max, p.q_w); }
+        else has_dry = true;
+      }
+      const Model defaults(type);
+      const std::string dry_note =
+          "no dry data (q_w = 0): held; set it to the dry fit's value";
+      const std::string wet_note =
+          "no humid data (q_w > 0): held; fit it from data at a known adsorbed water loading";
+      auto hold = [&](size_t from, const std::string& note) {
+        for (size_t i = from; i < out.size(); ++i) {
+          ParamSpec& p = out[i];
+          p.value = defaults.Get(p.name);
+          p.fixed = true;
+          p.note = note;
+          p.pair_energy.clear();
+          p.lower = std::min(p.lower, p.value);
+          p.upper = std::max(p.upper, p.value);
+        }
+      };
+      auto big_energy = [&](const char* name) {
+        energy(name);
+        out.back().upper = 3.0e5;  // chemisorption on amines: up to ~2e5 J/mol
+        if (multi_t) out.back().value = 6.0e4;
+      };
+      if (type == T::TOTH_WADST) {
+        reference_t("T_0");
+        const size_t dry_from = out.size() - 1;  // T_0 goes with the dry site
+        capacity("q_inf_dry", 0.5);
+        tdep("chi_dry", -20.0, 20.0);
+        affinity("b0_dry", "dH_dry", false);
+        big_energy("dH_dry");
+        exponent("tau0_dry", 0.01, 2.0, 0.5);
+        tdep("alpha_dry", -5.0, 5.0);
+        if (!has_dry) hold(dry_from, dry_note);
+        const size_t wet_from = out.size();
+        capacity("q_inf_wet", 0.5);
+        tdep("chi_wet", -20.0, 20.0);
+        affinity("b0_wet", "dH_wet", false);
+        big_energy("dH_wet");
+        exponent("tau0_wet", 0.01, 2.0, 0.5);
+        tdep("alpha_wet", -5.0, 5.0);
+        ParamSpec a;
+        a.name = "A";
+        a.scale = Scale::Log;
+        a.lower = std::max(qw_max, 1e-3) * 1e-3;
+        a.upper = std::max(qw_max, 1e-3) * 1e2;
+        a.value = std::max(qw_max, 1e-3);
+        a.note = "water loading scale of the wet-site weight exp(-A / q_w)";
+        out.push_back(a);
+        if (!has_wet) hold(wet_from, wet_note);
+      } else {
+        capacity("q_sat", 0.5);
+        const size_t dry_from = out.size() - 1;
+        tdep("x", -20.0, 20.0);
+        reference_t("T_0");
+        affinity("b0", nullptr, false);  // b0 is already the affinity at T_0
+        out.back().note = "affinity at T_0";
+        energy("dH0");
+        exponent("w0", 0.05, 2.0, 1.0);
+        tdep("alpha", -5.0, 5.0);
+        if (!has_dry) hold(dry_from, dry_note);
+        const size_t wet_from = out.size();
+        // 1 - gamma q_w > 0 and 1 + beta q_w > 0 over the data.
+        const double inv = has_wet ? 0.9 / qw_max : 10.0;
+        exponent("gamma", std::max(-10.0, -10.0 * inv), std::min(10.0, inv), 0.0);
+        out.back().note = "n_s = n_s(T) / (1 - gamma q_w)";
+        exponent("beta", std::max(-10.0, -inv), 200.0, 1.0);
+        out.back().note = "b = b(T) (1 + beta q_w)";
+        if (!has_wet) hold(wet_from, wet_note);
+      }
+      break;
+    }
     default:
       err = std::string("no default fit set-up for isotherm kind '") + IsothermKindString(type) +
             "'; supply every parameter with bounds";
@@ -558,8 +647,8 @@ FitResult Fit(IsothermType type, const std::vector<Point>& points_in,
     map.Apply(z);
     double sse = 0.0;
     for (int i = 0; i < n; ++i) {
-      r(i) = model.Eval(pts[static_cast<size_t>(i)].T, pts[static_cast<size_t>(i)].P, pts[static_cast<size_t>(i)].y) -
-             pts[static_cast<size_t>(i)].q;
+      const Point& pt = pts[static_cast<size_t>(i)];
+      r(i) = model.Eval(pt.T, pt.P, pt.y, pt.q_w) - pt.q;
       sse += r(i) * r(i);
     }
     sse = std::isfinite(sse) ? std::min(sse, bad) : bad;
@@ -659,7 +748,7 @@ FitResult Fit(IsothermType type, const std::vector<Point>& points_in,
   res.q_fit.resize(pts.size());
   double sse = 0.0;
   for (size_t i = 0; i < pts.size(); ++i) {
-    res.q_fit[i] = model.Eval(pts[i].T, pts[i].P, pts[i].y);
+    res.q_fit[i] = model.Eval(pts[i].T, pts[i].P, pts[i].y, pts[i].q_w);
     const double r = res.q_fit[i] - pts[i].q;
     sse += r * r;
   }
@@ -682,10 +771,10 @@ FitResult Fit(IsothermType type, const std::vector<Point>& points_in,
       const double h = std::max(std::abs(t0) * 1e-6, 1e-12);
       model.Set(nm, t0 + h);
       std::vector<double> up(pts.size());
-      for (size_t i = 0; i < pts.size(); ++i) up[i] = model.Eval(pts[i].T, pts[i].P, pts[i].y);
+      for (size_t i = 0; i < pts.size(); ++i) up[i] = model.Eval(pts[i].T, pts[i].P, pts[i].y, pts[i].q_w);
       model.Set(nm, t0 - h);
       for (size_t i = 0; i < pts.size(); ++i) {
-        const double d = (up[i] - model.Eval(pts[i].T, pts[i].P, pts[i].y)) / (2.0 * h);
+        const double d = (up[i] - model.Eval(pts[i].T, pts[i].P, pts[i].y, pts[i].q_w)) / (2.0 * h);
         J(static_cast<long>(i), k) = d;
         if (!std::isfinite(d)) finite = false;
       }
@@ -749,7 +838,7 @@ bool Evaluate(IsothermType type, const std::vector<std::pair<std::string, double
     if (!m.Set(nm, v)) { err = "unknown parameter '" + nm + "' for this isotherm kind"; return false; }
   }
   q.resize(pts.size());
-  for (size_t i = 0; i < pts.size(); ++i) q[i] = m.Eval(pts[i].T, pts[i].P, pts[i].y);
+  for (size_t i = 0; i < pts.size(); ++i) q[i] = m.Eval(pts[i].T, pts[i].P, pts[i].y, pts[i].q_w);
   return true;
 }
 
