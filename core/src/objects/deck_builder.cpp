@@ -120,7 +120,7 @@ std::shared_ptr<IBoundaryCondition>& EndOf(Step& step, BoundaryLocation location
   return location == BoundaryLocation::TOP ? step.top_boundary_condition_ : step.bottom_boundary_condition_;
 }
 
-void SeedMoleFractions(const UserData& data, ExpressionMap& y) {
+void SeedZeroMoleFractions(const UserData& data, ExpressionMap& y) {
   for (const auto& c : data.fluid.components_) y.emplace(c, 0.0);
 }
 
@@ -137,7 +137,7 @@ size_t AddStreamTo(UserData& data, FlowBoundaryCondition& fbc, std::unique_ptr<I
                    const std::string& name) {
   stream->name_ = name;
   stream->SetDirection(fbc.direction_);
-  SeedMoleFractions(data, stream->mole_fraction);
+  SeedZeroMoleFractions(data, stream->mole_fraction);
   IBoundaryStream* raw = stream.get();
   fbc.streams_.push_back(std::move(stream));
   data.cycle.EnsureIds();
@@ -594,7 +594,7 @@ size_t SetPressureBoundary(UserData& data, size_t step, const std::string& locat
   auto bc = std::make_shared<PressureBoundaryCondition>();
   bc->direction_ = Direction(direction);
   bc->pressure_ = MakeProfile(profile);
-  SeedMoleFractions(data, bc->mole_fraction_);
+  SeedZeroMoleFractions(data, bc->mole_fraction_);
   PressureBoundaryCondition* raw = bc.get();
   ReplaceEnd(data, s, Location(location), std::move(bc));
   data.cycle.EnsureIds();
@@ -698,16 +698,11 @@ void SetPump(UserData& data, size_t endpoint, const std::string& kind, const std
 }
 
 void Connect(UserData& data, size_t endpoint_a, size_t endpoint_b) {
-  auto a = FindEndpoint(data, endpoint_a);
-  auto b = FindEndpoint(data, endpoint_b);
-  auto make = [](Cycle::EndpointHandle& h) {
-    return h.stream ? MakeEndpoint(*h.step, *h.stream) : MakeEndpoint(*h.step, *h.pressure);
-  };
-  ConnectionEndpoint ea = make(a), eb = make(b);
-  if (!MakeMutualConnection(ea, eb))
+  // Under a pair id no other connection uses (ConnectEndpoints).
+  std::string err;
+  if (!ConnectEndpoints(data, endpoint_a, endpoint_b, err))
     throw std::invalid_argument("cannot connect endpoints " + std::to_string(endpoint_a) + " and " +
-                                std::to_string(endpoint_b) +
-                                ": one is already connected, or both are pressure boundaries");
+                                std::to_string(endpoint_b) + ": " + err);
 }
 
 void SetEnergySource(UserData& data, size_t step, size_t layer, bool enabled) {

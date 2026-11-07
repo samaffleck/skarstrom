@@ -101,11 +101,14 @@ from .model import (
 )
 from . import build
 from . import model as _model
+from .edit import Editor, model_kinds
 
 __version__: str = _core.__version__
 
 __all__ = [
     "Adsorbent",
+    "Editor",
+    "model_kinds",
     "AxialProfile",
     "Bed",
     "BufferTank",
@@ -493,6 +496,12 @@ class Simulation:
     def _invalidate(self) -> None:
         self._index_cache = None
         self._epoch += 1
+
+    @property
+    def edit(self) -> Editor:
+        """Structural edits with the engine's cascades: ``sim.edit.add_step()``,
+        ``sim.edit.set_stream_kind("Feed", "bottom", 0, "valve")`` (see :mod:`skarstrom.edit`)."""
+        return Editor(self)
 
     @property
     def steps(self) -> Collection[Step]:
