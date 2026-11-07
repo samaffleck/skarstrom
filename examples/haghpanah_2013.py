@@ -95,8 +95,10 @@ def build(case: str) -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "internal_energy"
 
     # ---- adsorbent: zeolite 13X ----------------------------------------------------------
+    # The paper's balances hold gas in the bed voidage only (Eqs. A.2-A.3): no macropore
+    # holdup, so particle_void_fraction is 0; the particle voidage 0.35 enters the rate (below).
     ads = sim.add_adsorbent("13X", solid_density=1130 * u.kg / u.m**3, heat_capacity=1070 * u.J / (u.kg * u.K),
-                            thermal_conductivity=0.63 * u.W / (u.m * u.K), particle_void_fraction=0.35)
+                            thermal_conductivity=0.63 * u.W / (u.m * u.K), particle_void_fraction=0.0)
     # Table 2 (Krishnamurthy et al. 2012 fit): competitive dual-site Langmuir in concentration
     # form, b(T) = b0 exp(-dU / RT); CO2 on two sites, N2 on one.
     ads.set_isotherm("extended_dual_site_langmuir_c", {

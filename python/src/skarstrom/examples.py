@@ -31,6 +31,13 @@ __all__ = [
     "Casas2012_Fig6_75_25_15bar_25C",
     "Ferre2026_NaYF",
     "FiveStepProductPurge",
+    "Haghpanah2013_Fig5Benchmark",
+    "Haghpanah2013_PL002",
+    "Haghpanah2013_PL003",
+    "Haghpanah2013_PL005",
+    "Haghpanah2013_PL007",
+    "Haghpanah2013_PL010",
+    "Haghpanah2013_Sec61",
     "Illustrative_TSA_13X",
     "Nguyen2022_Fig4",
     "Nguyen2022_Fig5",
@@ -104,6 +111,48 @@ adsorbent with five steps: feed, blowdown, evacuation, pressurisation and produc
 The feed is split into two sub-steps (Feed1, Feed2) so that each light-product
 connection draws from its own part of it: Feed1's light product pressurises the bed and
 Feed2's purges it. Six steps in the deck, five in the cycle."""
+
+Haghpanah2013_Fig5Benchmark = Example('Haghpanah2013_Fig5Benchmark', 'Haghpanah 2013 - Glover 2026 benchmark design', 'Four-step CO2/N2 PVSA on zeolite 13X (Haghpanah et al. 2013 model) at the CSS benchmark design of Glover et al. (2026), Fig. 5, on 10 cells.')
+"""Haghpanah 2013 - Glover 2026 benchmark design
+
+Four-step CO2/N2 PVSA on zeolite 13X (Haghpanah et al. 2013 model) at the CSS benchmark
+design of Glover et al. (2026), Fig. 5, on 10 cells."""
+
+Haghpanah2013_PL002 = Example('Haghpanah2013_PL002', 'Haghpanah 2013 - P_L = 0.02 bar', 'Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013), Table 6, at an evacuation pressure of 0.02 bar (Glover et al. 2026, Table S2).')
+"""Haghpanah 2013 - P_L = 0.02 bar
+
+Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013),
+Table 6, at an evacuation pressure of 0.02 bar (Glover et al. 2026, Table S2)."""
+
+Haghpanah2013_PL003 = Example('Haghpanah2013_PL003', 'Haghpanah 2013 - P_L = 0.03 bar', 'Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013), Table 6, at an evacuation pressure of 0.03 bar (Glover et al. 2026, Table S2).')
+"""Haghpanah 2013 - P_L = 0.03 bar
+
+Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013),
+Table 6, at an evacuation pressure of 0.03 bar (Glover et al. 2026, Table S2)."""
+
+Haghpanah2013_PL005 = Example('Haghpanah2013_PL005', 'Haghpanah 2013 - P_L = 0.05 bar', 'Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013), Table 6, at an evacuation pressure of 0.05 bar (Glover et al. 2026, Table S2).')
+"""Haghpanah 2013 - P_L = 0.05 bar
+
+Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013),
+Table 6, at an evacuation pressure of 0.05 bar (Glover et al. 2026, Table S2)."""
+
+Haghpanah2013_PL007 = Example('Haghpanah2013_PL007', 'Haghpanah 2013 - P_L = 0.07 bar', 'Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013), Table 6, at an evacuation pressure of 0.07 bar (Glover et al. 2026, Table S2).')
+"""Haghpanah 2013 - P_L = 0.07 bar
+
+Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013),
+Table 6, at an evacuation pressure of 0.07 bar (Glover et al. 2026, Table S2)."""
+
+Haghpanah2013_PL010 = Example('Haghpanah2013_PL010', 'Haghpanah 2013 - P_L = 0.10 bar', 'Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013), Table 6, at an evacuation pressure of 0.10 bar (Glover et al. 2026, Table S2).')
+"""Haghpanah 2013 - P_L = 0.10 bar
+
+Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design of Haghpanah et al. (2013),
+Table 6, at an evacuation pressure of 0.10 bar (Glover et al. 2026, Table S2)."""
+
+Haghpanah2013_Sec61 = Example('Haghpanah2013_Sec61', 'Haghpanah 2013 - Sect. 6.1 reference design', 'Four-step CO2/N2 PVSA on zeolite 13X, reference design of Haghpanah et al. (2013), Sect. 6.1 / Table 4: pressurisation, adsorption, forward blowdown, reverse evacuation.')
+"""Haghpanah 2013 - Sect. 6.1 reference design
+
+Four-step CO2/N2 PVSA on zeolite 13X, reference design of Haghpanah et al. (2013), Sect.
+6.1 / Table 4: pressurisation, adsorption, forward blowdown, reverse evacuation."""
 
 Illustrative_TSA_13X = Example('Illustrative_TSA_13X', 'Illustrative TSA - CO2/N2 on 13X', "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.")
 """Illustrative TSA - CO2/N2 on 13X
@@ -331,6 +380,13 @@ ALL: Tuple[Example, ...] = (
     Casas2012_Fig6_75_25_15bar_25C,
     Ferre2026_NaYF,
     FiveStepProductPurge,
+    Haghpanah2013_Fig5Benchmark,
+    Haghpanah2013_PL002,
+    Haghpanah2013_PL003,
+    Haghpanah2013_PL005,
+    Haghpanah2013_PL007,
+    Haghpanah2013_PL010,
+    Haghpanah2013_Sec61,
     Illustrative_TSA_13X,
     Nguyen2022_Fig4,
     Nguyen2022_Fig5,

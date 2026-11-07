@@ -133,7 +133,9 @@ namespace adsim {
       auto& ads = GetAdsorbent(ads_id);
       ads.solid_density_ = kParticleDensity;
       ads.heat_capacity_ = kSolidCp;
-      ads.ep_ = kParticleVoid;
+      // The balances (Eqs. A.2-A.3) hold gas in the bed voidage only: no
+      // macropore holdup (eps_t = eps_b). eps_p = 0.35 stays in the rate (Eq. 40).
+      ads.ep_ = 0.0;
       ads.thermal_conductivity_ = 0.63;  // not used: gas and solid share one temperature
 
       // Table 2: competitive dual-site Langmuir in concentration form, b(T) =

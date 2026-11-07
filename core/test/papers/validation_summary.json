@@ -492,6 +492,529 @@
       ]
     },
     {
+      "paper": "haghpanah_2013",
+      "case": "Fig5Benchmark",
+      "metrics": [
+        {
+          "quantity": "Dominant CSS multiplier (fitted decay)",
+          "simulated": 0.9513104975,
+          "reference": 0.9509,
+          "error": 0.0004104975038,
+          "metric": "abs_error",
+          "tolerance": 0.0015,
+          "pass": true,
+          "units": "-",
+          "error_units": "-",
+          "source": "Glover et al. 2026, p. 27",
+          "note": "dominant Floquet multiplier of the cycle map at the Figure 5 design, Glover's model on 10 cells; least-squares slope of ln(state change) over the geometric window, N2-saturated start"
+        },
+        {
+          "quantity": "Dominant CSS multiplier (engine rate, median)",
+          "simulated": 0.9513446352,
+          "reference": 0.9509,
+          "error": 0.0004446351545,
+          "metric": "abs_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "-",
+          "error_units": "-",
+          "source": "Glover et al. 2026, p. 27",
+          "note": "dominant Floquet multiplier of the cycle map at the Figure 5 design, Glover's model on 10 cells; median of the CSS check's fitted convergence rate over the window; spread 0.001225"
+        },
+        {
+          "quantity": "Cycles to a 1e-5 state change, N2 start",
+          "simulated": 99,
+          "reference": 115,
+          "error": 0.1391304348,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "cycles",
+          "error_units": "-",
+          "source": "Glover et al. 2026, pp. 23-24",
+          "note": "successive substitution to a 1e-5 relative state change, bed saturated with N2; engine state-change norm, not Glover's max norm"
+        },
+        {
+          "quantity": "Cycles to a 1e-5 state change, feed start",
+          "simulated": 72,
+          "reference": 82,
+          "error": 0.1219512195,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "cycles",
+          "error_units": "-",
+          "source": "Glover et al. 2026, pp. 23-24",
+          "note": "successive substitution to a 1e-5 relative state change, bed saturated with feed gas; engine state-change norm, not Glover's max norm"
+        }
+      ]
+    },
+    {
+      "paper": "haghpanah_2013",
+      "case": "PL002",
+      "metrics": [
+        {
+          "quantity": "Energy vs Haghpanah Table 6",
+          "simulated": 167.4610893,
+          "reference": 148.96,
+          "error": 0.1242017272,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Haghpanah et al. 2013, Table 6, P_L = 0.02 bar",
+          "note": "minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells"
+        },
+        {
+          "quantity": "CO2 purity vs Glover",
+          "simulated": 90.85555847,
+          "reference": 90.6,
+          "error": 0.255558469,
+          "metric": "abs_error",
+          "tolerance": 0.35,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model (constant LDF 26.25 1/s, 10 cells) on Haghpanah's design; printed as the fraction 0.906"
+        },
+        {
+          "quantity": "CO2 recovery vs Glover",
+          "simulated": 87.86376156,
+          "reference": 89.4,
+          "error": 1.536238438,
+          "metric": "abs_error",
+          "tolerance": 1.8,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.894"
+        },
+        {
+          "quantity": "Productivity vs Glover",
+          "simulated": 0.2887881009,
+          "reference": 0.297,
+          "error": 0.02764949207,
+          "metric": "rel_error",
+          "tolerance": 0.033,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "per column volume; per column volume"
+        },
+        {
+          "quantity": "Productivity vs Glover Ref.",
+          "simulated": 0.2887881009,
+          "reference": 0.312,
+          "error": 0.07439711264,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, Ref.",
+          "note": "per column volume; not printed in Haghpanah et al. 2013; per column volume; Glover's reference value, not printed by Haghpanah"
+        },
+        {
+          "quantity": "Energy vs Glover",
+          "simulated": 167.4610893,
+          "reference": 143.6,
+          "error": 0.1661635744,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design"
+        },
+        {
+          "quantity": "Productivity vs Haghpanah",
+          "simulated": 0.4583938109,
+          "reference": 0.49,
+          "error": 0.06450242677,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "mol/(m3 adsorbent s)",
+          "error_units": "-",
+          "source": "Haghpanah et al. 2013, Conclusions, p. 4262",
+          "note": "per volume of adsorbent; at 149 kWh/t, P_L = 0.02 bar; per adsorbent volume (1 - eps) A L"
+        }
+      ]
+    },
+    {
+      "paper": "haghpanah_2013",
+      "case": "PL003",
+      "metrics": [
+        {
+          "quantity": "Energy vs Haghpanah Table 6",
+          "simulated": 225.3101601,
+          "reference": 201.5,
+          "error": 0.1181645661,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Haghpanah et al. 2013, Table 6, P_L = 0.03 bar",
+          "note": "minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells"
+        },
+        {
+          "quantity": "CO2 purity vs Glover",
+          "simulated": 90.94198602,
+          "reference": 90.6,
+          "error": 0.3419860183,
+          "metric": "abs_error",
+          "tolerance": 0.45,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.906"
+        },
+        {
+          "quantity": "CO2 recovery vs Glover",
+          "simulated": 89.16802534,
+          "reference": 90.7,
+          "error": 1.531974662,
+          "metric": "abs_error",
+          "tolerance": 1.8,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.907"
+        },
+        {
+          "quantity": "Productivity vs Glover",
+          "simulated": 0.4909590075,
+          "reference": 0.508,
+          "error": 0.03354526085,
+          "metric": "rel_error",
+          "tolerance": 0.04,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "per column volume; per column volume"
+        },
+        {
+          "quantity": "Productivity vs Glover Ref.",
+          "simulated": 0.4909590075,
+          "reference": 0.512,
+          "error": 0.0410956885,
+          "metric": "rel_error",
+          "tolerance": 0.048,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, Ref.",
+          "note": "per column volume; not printed in Haghpanah et al. 2013; per column volume; Glover's reference value, not printed by Haghpanah"
+        },
+        {
+          "quantity": "Energy vs Glover",
+          "simulated": 225.3101601,
+          "reference": 194.5,
+          "error": 0.1584069927,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design"
+        }
+      ]
+    },
+    {
+      "paper": "haghpanah_2013",
+      "case": "PL005",
+      "metrics": [
+        {
+          "quantity": "Energy vs Haghpanah Table 6",
+          "simulated": 317.846364,
+          "reference": 298.92,
+          "error": 0.0633158168,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Haghpanah et al. 2013, Table 6, P_L = 0.05 bar",
+          "note": "minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells"
+        },
+        {
+          "quantity": "CO2 purity vs Glover",
+          "simulated": 89.68882399,
+          "reference": 90.3,
+          "error": 0.611176007,
+          "metric": "abs_error",
+          "tolerance": 0.75,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.903"
+        },
+        {
+          "quantity": "CO2 recovery vs Glover",
+          "simulated": 90.72963691,
+          "reference": 90.9,
+          "error": 0.1703630875,
+          "metric": "abs_error",
+          "tolerance": 0.25,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.909"
+        },
+        {
+          "quantity": "Productivity vs Glover",
+          "simulated": 0.3305213792,
+          "reference": 0.333,
+          "error": 0.007443305703,
+          "metric": "rel_error",
+          "tolerance": 0.012,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "per column volume; per column volume"
+        },
+        {
+          "quantity": "Productivity vs Glover Ref.",
+          "simulated": 0.3305213792,
+          "reference": 0.348,
+          "error": 0.05022592184,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, Ref.",
+          "note": "per column volume; not printed in Haghpanah et al. 2013; per column volume; Glover's reference value, not printed by Haghpanah"
+        },
+        {
+          "quantity": "Energy vs Glover",
+          "simulated": 317.846364,
+          "reference": 289.3,
+          "error": 0.0986739162,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design"
+        }
+      ]
+    },
+    {
+      "paper": "haghpanah_2013",
+      "case": "PL007",
+      "metrics": [
+        {
+          "quantity": "Energy vs Haghpanah Table 6",
+          "simulated": 402.5502194,
+          "reference": 388.68,
+          "error": 0.03568544654,
+          "metric": "rel_error",
+          "tolerance": 0.042,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Haghpanah et al. 2013, Table 6, P_L = 0.07 bar",
+          "note": "minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells"
+        },
+        {
+          "quantity": "CO2 purity vs Glover",
+          "simulated": 90.56833457,
+          "reference": 91,
+          "error": 0.431665434,
+          "metric": "abs_error",
+          "tolerance": 0.55,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.910"
+        },
+        {
+          "quantity": "CO2 recovery vs Glover",
+          "simulated": 90.78503987,
+          "reference": 91.4,
+          "error": 0.6149601297,
+          "metric": "abs_error",
+          "tolerance": 0.75,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.914"
+        },
+        {
+          "quantity": "Productivity vs Glover",
+          "simulated": 0.6910477754,
+          "reference": 0.704,
+          "error": 0.01839804634,
+          "metric": "rel_error",
+          "tolerance": 0.023,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "per column volume; per column volume"
+        },
+        {
+          "quantity": "Productivity vs Glover Ref.",
+          "simulated": 0.6910477754,
+          "reference": 0.688,
+          "error": 0.004429906066,
+          "metric": "rel_error",
+          "tolerance": 0.01,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, Ref.",
+          "note": "per column volume; not printed in Haghpanah et al. 2013; per column volume; Glover's reference value, not printed by Haghpanah"
+        },
+        {
+          "quantity": "Energy vs Glover",
+          "simulated": 402.5502194,
+          "reference": 373.2,
+          "error": 0.07864474641,
+          "metric": "rel_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design"
+        }
+      ]
+    },
+    {
+      "paper": "haghpanah_2013",
+      "case": "PL010",
+      "metrics": [
+        {
+          "quantity": "Energy vs Haghpanah Table 6",
+          "simulated": 503.2217395,
+          "reference": 499.65,
+          "error": 0.007148483012,
+          "metric": "rel_error",
+          "tolerance": 0.012,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Haghpanah et al. 2013, Table 6, P_L = 0.1 bar",
+          "note": "minimum-energy point of the fixed-P_L Pareto front; paper model on 30 cells"
+        },
+        {
+          "quantity": "CO2 purity vs Glover",
+          "simulated": 90.65116309,
+          "reference": 91.8,
+          "error": 1.148836915,
+          "metric": "abs_error",
+          "tolerance": 1.35,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.918"
+        },
+        {
+          "quantity": "CO2 recovery vs Glover",
+          "simulated": 91.57133404,
+          "reference": 91.1,
+          "error": 0.4713340431,
+          "metric": "abs_error",
+          "tolerance": 0.6,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design; printed as the fraction 0.911"
+        },
+        {
+          "quantity": "Productivity vs Glover",
+          "simulated": 0.7212668326,
+          "reference": 0.721,
+          "error": 0.0003700868259,
+          "metric": "rel_error",
+          "tolerance": 0.005,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "per column volume; per column volume"
+        },
+        {
+          "quantity": "Productivity vs Glover Ref.",
+          "simulated": 0.7212668326,
+          "reference": 0.694,
+          "error": 0.03928938415,
+          "metric": "rel_error",
+          "tolerance": 0.046,
+          "pass": true,
+          "units": "mol/(m3 s)",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, Ref.",
+          "note": "per column volume; not printed in Haghpanah et al. 2013; per column volume; Glover's reference value, not printed by Haghpanah"
+        },
+        {
+          "quantity": "Energy vs Glover",
+          "simulated": 503.2217395,
+          "reference": 486.8,
+          "error": 0.03373405821,
+          "metric": "rel_error",
+          "tolerance": 0.04,
+          "pass": true,
+          "units": "kWh/t",
+          "error_units": "-",
+          "source": "Glover et al. 2026, Table 4, this work",
+          "note": "Glover's model on Haghpanah's design"
+        }
+      ]
+    },
+    {
+      "paper": "haghpanah_2013",
+      "case": "Sec61",
+      "metrics": [
+        {
+          "quantity": "CO2 purity",
+          "simulated": 79.67706086,
+          "reference": 88.74,
+          "error": 9.062939143,
+          "metric": "abs_error",
+          "tolerance": null,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Haghpanah et al. 2013, Sect. 6.1, p. 4257",
+          "note": "paper model, WENO on 1000 cells, 500 cycles; design of Table 4"
+        },
+        {
+          "quantity": "CO2 recovery",
+          "simulated": 37.41784484,
+          "reference": 35.83,
+          "error": 1.587844843,
+          "metric": "abs_error",
+          "tolerance": 1.9,
+          "pass": true,
+          "units": "%",
+          "error_units": "%",
+          "source": "Haghpanah et al. 2013, Sect. 6.1, p. 4257",
+          "note": "paper model, WENO on 1000 cells, 500 cycles; design of Table 4"
+        }
+      ]
+    },
+    {
       "paper": "nguyen_2022",
       "case": "Fig4_BinaryBreakthrough",
       "metrics": [

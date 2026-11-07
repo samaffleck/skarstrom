@@ -89,19 +89,31 @@ namespace adsim {
     // values (p. 21).
     const HaghpanahDesign kFig5{ 20, 50, 100, 100, 8.0 * kBar, 1.5 * kBar, 0.05 * kBar, 0.8 };
 
-    // Bounds (regression bounds from the measured errors; README.md "Measured errors").
+    // Bounds: regression bounds from the measured errors (README.md "Measured
+    // errors"), asserted where the error is within the 5 % target; kInf records
+    // the comparison without asserting (the mismatches and their attribution
+    // are in the README). Purity / recovery in percentage points, the rest
+    // relative.
     struct Table6Tol { double energy_H, purity_G, recovery_G, productivity_G, productivity_G_ref, energy_G; };
     const std::map<std::string, Table6Tol> kTable6Tol = {
-      { "PL002", { kInf, kInf, kInf, kInf, kInf, kInf } },
-      { "PL003", { kInf, kInf, kInf, kInf, kInf, kInf } },
-      { "PL005", { kInf, kInf, kInf, kInf, kInf, kInf } },
-      { "PL007", { kInf, kInf, kInf, kInf, kInf, kInf } },
-      { "PL010", { kInf, kInf, kInf, kInf, kInf, kInf } },
+      // measured: energy_H 0.1242, purity 0.256, recovery 1.536, productivity 0.0276, ref 0.0744, energy_G 0.1662
+      { "PL002", { kInf, 0.35, 1.8, 0.033, kInf, kInf } },
+      // measured: 0.1182, 0.342, 1.532, 0.0335, 0.0411, 0.1584
+      { "PL003", { kInf, 0.45, 1.8, 0.04, 0.048, kInf } },
+      // measured: 0.0633, 0.611, 0.170, 0.0074, 0.0502, 0.0987
+      { "PL005", { kInf, 0.75, 0.25, 0.012, kInf, kInf } },
+      // measured: 0.0357, 0.432, 0.615, 0.0184, 0.0044, 0.0786
+      { "PL007", { 0.042, 0.55, 0.75, 0.023, 0.01, kInf } },
+      // measured: 0.0071, 1.149, 0.471, 0.0004, 0.0393, 0.0337
+      { "PL010", { 0.012, 1.35, 0.6, 0.005, 0.046, 0.04 } },
     };
-    constexpr double kTolSec61Purity = kInf;    // pp
-    constexpr double kTolSec61Recovery = kInf;  // pp
-    constexpr double kTolProductivityH = kInf;  // relative
-    constexpr double kTolMultiplier = kInf;     // absolute
+    constexpr double kTolSec61Purity = kInf;    // measured 9.06 pp: not matched (README "Sect. 6.1")
+    constexpr double kTolSec61Recovery = 1.9;   // measured 1.588 pp
+    constexpr double kTolProductivityH = kInf;  // measured 0.0645 relative (README)
+    // Fitted multiplier: measured |0.95131 - 0.9509| = 0.00041. The engine's own
+    // per-cycle rate estimate spans 0.95043-0.95166 (0.0012) over the same
+    // window, so a difference below 0.0015 is within the diagnostic's scatter.
+    constexpr double kTolMultiplier = 0.0015;
 
     void Check(validation::CaseReport& report, const std::string& quantity, double sim,
                const validation::RefValue& ref, double tol, bool relative, const std::string& note = "") {
@@ -246,7 +258,7 @@ namespace adsim {
   }  // namespace
 
   TEST_F(Haghpanah2013Test, Fig5Benchmark) {
-    constexpr int kCycles = 300;
+    constexpr int kCycles = 200;  // the N2-start window ends near cycle 150
     const std::string deck = "Haghpanah2013_Fig5Benchmark";
     BuildHaghpanah("Haghpanah 2013 - Glover 2026 benchmark design",
                    "Four-step CO2/N2 PVSA on zeolite 13X (Haghpanah et al. 2013 model) at the CSS benchmark "
@@ -265,11 +277,55 @@ namespace adsim {
     feed_sim.Data().ic.mole_fraction[kCO2] = 0.15;
     feed_sim.Data().ic.mole_fraction[kN2] = 0.85;
     const CssTrace feed = TraceCss(feed_sim, kCycles);
-    for (int c = 0; c < kCycles; ++c)
-      std::printf("  cycle %3d | N2 start change %.4e rate %.5f | feed start change %.4e rate %.5f\n", c,
-                  n2.change[c], n2.rate[c], feed.change[c], feed.rate[c]);
-    std::printf("  CSS stop (default rule): N2 start %d, feed start %d; first change < 1e-5: N2 %d, feed %d\n",
-                n2.css_cycle, feed.css_cycle, FirstBelow(n2.change, 1e-5), FirstBelow(feed.change, 1e-5));
+    // The geometric window: from the first cycle whose change is below 1e-4
+    // (the start-up transient is over) to the last above 1e-6 (the noise floor
+    // of the state change at reltol 1e-6 is a few 1e-7).
+    auto window = [](const std::vector<double>& v) {
+      const int a = FirstBelow(v, 1e-4);
+      int b = a;
+      for (int i = a; i < static_cast<int>(v.size()) && v[i] > 1e-6; ++i) b = i;
+      return std::make_pair(a, b);
+    };
+    const auto [a, b] = window(n2.change);
+    ASSERT_GT(b - a, 20) << "GUARD: no geometric window";
+    const double rho_fit = FitMultiplier(n2.change, a, b);
+    std::vector<double> rates;
+    for (int i = a; i <= b; ++i)
+      if (std::isfinite(n2.rate[i])) rates.push_back(n2.rate[i]);
+    ASSERT_GT(rates.size(), 10u);
+    std::sort(rates.begin(), rates.end());
+    const double rho_med = rates[rates.size() / 2];
+    const double spread = rates.back() - rates.front();
+    const auto [fa, fb] = window(feed.change);
+    const double rho_feed = FitMultiplier(feed.change, fa, fb);
+    std::printf("\n[CSS] Haghpanah 2013 Fig5Benchmark | window cycles %d-%d: fitted rho %.5f, engine rate median %.5f "
+                "(range %.5f-%.5f) | feed start window %d-%d: fitted rho %.5f | first change < 1e-5: N2 start "
+                "cycle %d, feed start cycle %d | CSS stop (default rule): N2 %d, feed %d\n\n",
+                a, b, rho_fit, rho_med, rates.front(), rates.back(), fa, fb, rho_feed,
+                FirstBelow(n2.change, 1e-5), FirstBelow(feed.change, 1e-5), n2.css_cycle, feed.css_cycle);
+
+    using validation::Reference;
+    validation::CaseReport report("haghpanah_2013", "Fig5Benchmark");
+    Check(report, "Dominant CSS multiplier (fitted decay)", rho_fit,
+          Reference("haghpanah_2013", "Fig5Benchmark", "css_multiplier"), kTolMultiplier, false,
+          "least-squares slope of ln(state change) over the geometric window, N2-saturated start");
+    report.Info("Dominant CSS multiplier (engine rate, median)", rho_med,
+                Reference("haghpanah_2013", "Fig5Benchmark", "css_multiplier"), "abs_error",
+                "median of the CSS check's fitted convergence rate over the window; spread " + std::to_string(spread));
+    // Different criteria (Glover: max relative state change < 1e-5; here the
+    // engine's norm of the end-of-cycle state change): order of magnitude only.
+    const int n2_cycles = FirstBelow(n2.change, 1e-5) + 1, feed_cycles = FirstBelow(feed.change, 1e-5) + 1;
+    report.Info("Cycles to a 1e-5 state change, N2 start", n2_cycles,
+                Reference("haghpanah_2013", "Fig5Benchmark", "cycles_to_css_n2_start"), "rel_error",
+                "engine state-change norm, not Glover's max norm");
+    report.Info("Cycles to a 1e-5 state change, feed start", feed_cycles,
+                Reference("haghpanah_2013", "Fig5Benchmark", "cycles_to_css_feed_start"), "rel_error",
+                "engine state-change norm, not Glover's max norm");
+    EXPECT_GT(n2_cycles, 115 / 3);
+    EXPECT_LT(n2_cycles, 115 * 3);
+    EXPECT_GT(feed_cycles, 82 / 3);
+    EXPECT_LT(feed_cycles, 82 * 3);
+    EXPECT_LT(feed_cycles, n2_cycles);  // as in Glover: the feed-saturated bed is closer
   }
 
 } // namespace adsim

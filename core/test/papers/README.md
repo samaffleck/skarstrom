@@ -192,7 +192,7 @@ report.CheckCurve("outlet y_CO2", validation::FaceMoleFraction(solver, "CarbonDi
 Regenerate the summary and the docs page after a run:
 
 ```bash
-ctest --preset linux-release -R "(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)" -j2
+ctest --preset linux-release -R "(Arora2021|Casas2012|Ferre2026|Haghpanah2013|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)" -j2
 python scripts/docs/gen_validation_page.py --merge build/linux-release/validation
 ```
 
