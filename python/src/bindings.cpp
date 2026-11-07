@@ -31,7 +31,9 @@
 #include "adsim/objects/deck_edit.h"
 #include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/isotherm_fit.h"
+#include "adsim/solver/optimisation.h"
 #include "adsim/solver/sensitivity.h"
+#include "adsim/solver/state_cache.h"
 
 namespace py = pybind11;
 
@@ -252,6 +254,74 @@ py::dict IntervalToDict(const sa::Interval& i) {
   d["high"] = i.high;
   return d;
 }
+
+// ---- optimisation (adsim/solver/optimisation.h) ------------------------------
+
+adsim::KPIType KPITypeFromName(const std::string& name) {
+  if (name == "purity") return adsim::KPIType::PURITY;
+  if (name == "recovery") return adsim::KPIType::RECOVERY;
+  if (name == "productivity_mass") return adsim::KPIType::PRODUCTIVITY_MASS;
+  if (name == "productivity_volume") return adsim::KPIType::PRODUCTIVITY_VOLUME;
+  if (name == "energy_consumption" || name == "electrical_energy") return adsim::KPIType::ENERGY_CONSUMPTION;
+  if (name == "production_rate") return adsim::KPIType::PRODUCTION_RATE;
+  if (name == "thermal_energy") return adsim::KPIType::THERMAL_ENERGY;
+  if (name == "cooling_duty") return adsim::KPIType::COOLING_DUTY;
+  throw std::invalid_argument("unknown KPI '" + name +
+                              "' (purity, recovery, productivity_mass, productivity_volume, energy_consumption, "
+                              "production_rate, thermal_energy, cooling_duty)");
+}
+
+const char* KPITypeKey(adsim::KPIType t) {
+  switch (t) {
+    case adsim::KPIType::PURITY: return "purity";
+    case adsim::KPIType::RECOVERY: return "recovery";
+    case adsim::KPIType::PRODUCTIVITY_MASS: return "productivity_mass";
+    case adsim::KPIType::PRODUCTIVITY_VOLUME: return "productivity_volume";
+    case adsim::KPIType::ENERGY_CONSUMPTION: return "energy_consumption";
+    case adsim::KPIType::PRODUCTION_RATE: return "production_rate";
+    case adsim::KPIType::THERMAL_ENERGY: return "thermal_energy";
+    case adsim::KPIType::COOLING_DUTY: return "cooling_duty";
+    case adsim::KPIType::LCOC: return "lcoc";
+  }
+  return "unknown";
+}
+
+py::dict CachedRunInfoToDict(const adsim::CachedRunInfo& i) {
+  py::dict d;
+  d["warm"] = i.warm;
+  d["distance"] = i.distance;
+  d["start_cycles"] = i.start_cycles;
+  d["skipped"] = i.skipped;
+  d["retried_cold"] = i.retried_cold;
+  d["cached"] = i.cached;
+  d["note"] = i.note;
+  return d;
+}
+
+py::dict EvaluationToDict(const adsim::OptimizationEvaluation& e) {
+  py::dict d;
+  d["index"] = e.index;
+  d["x"] = e.x;
+  d["cost"] = e.cost;
+  py::dict kpis;
+  for (const auto& [component, values] : e.kpis) {
+    py::dict v;
+    for (const auto& [type, value] : values) v[KPITypeKey(type)] = value;
+    kpis[py::str(component)] = v;
+  }
+  d["kpis"] = kpis;
+  d["status"] = adsim::RunStatusName(e.status);
+  d["message"] = e.message;
+  d["accepted"] = e.accepted;
+  d["warm"] = e.warm;
+  d["distance"] = e.distance;
+  d["note"] = e.note;
+  d["css_reached"] = e.css_reached;
+  d["cycles_run"] = e.cycles_run;
+  d["wall_time_s"] = e.wall_time_s;
+  return d;
+}
+
 }  // namespace
 
 // A blocking run from Python: the GIL is released while the solver works and
@@ -1215,6 +1285,129 @@ PYBIND11_MODULE(_core, m) {
     return ToArray(out);
   }, py::arg("input"), py::arg("u"));
   m.def("sensitivity_kpi_names", &sa::KPINames);
+  // ---- warm-start cache and optimisation (state_cache.h, optimisation.h) ----
+  py::class_<adsim::CycleStateCache>(m, "StateCache")
+      .def(py::init<size_t>(), py::arg("capacity") = adsim::CycleStateCache::kDefaultCapacity)
+      .def(py::init<std::vector<double>, std::vector<double>, size_t>(), py::arg("lower"), py::arg("upper"),
+           py::arg("capacity") = adsim::CycleStateCache::kDefaultCapacity)
+      .def("normalise", &adsim::CycleStateCache::Normalise, py::arg("x"))
+      .def("add", [](adsim::CycleStateCache& c, const std::vector<double>& x, const adsim::CycleState& state) {
+        c.Add(x, state);
+      }, py::arg("x"), py::arg("state"))
+      .def("nearest", [](const adsim::CycleStateCache& c, const std::vector<double>& x) -> py::object {
+        double d = 0.0;
+        const adsim::CycleState* s = c.Nearest(x, &d);
+        if (!s) return py::none();
+        return py::make_tuple(*s, d);
+      }, py::arg("x"))
+      .def("clear", &adsim::CycleStateCache::Clear)
+      .def("__len__", &adsim::CycleStateCache::Size)
+      .def_property_readonly("size", &adsim::CycleStateCache::Size)
+      .def_property_readonly("capacity", &adsim::CycleStateCache::Capacity)
+      .def_property_readonly("dimension", &adsim::CycleStateCache::Dimension)
+      .def_property_readonly("lower", &adsim::CycleStateCache::Lower)
+      .def_property_readonly("upper", &adsim::CycleStateCache::Upper);
+
+  m.def("run_with_state_cache", [](adsim::Simulation& s, adsim::CycleStateCache* cache, const std::vector<double>& x,
+                                   std::optional<int> cycles, py::object progress, const std::string& log_level,
+                                   py::object on_message) {
+    adsim::CachedRunInfo info;
+    adsim::RunResult r = RunFromPython(cycles, progress, log_level, on_message,
+                                       [&](const adsim::RunOptions& o) {
+                                         return adsim::RunWithStateCache(s, cache, x, o, &info);
+                                       });
+    return py::make_tuple(r, CachedRunInfoToDict(info));
+  }, py::arg("sim"), py::arg("cache"), py::arg("x"), py::arg("cycles") = py::none(),
+     py::arg("progress") = py::none(), py::arg("log_level") = "low", py::arg("on_message") = py::none());
+
+  m.def("optimise", [](const std::string& deck_json, const py::list& variables, const py::list& objectives,
+                       const py::list& constraints, const py::dict& options, py::object on_evaluation) {
+    std::vector<adsim::OptimizationVariable> vars;
+    for (auto item : variables) {
+      auto t = item.cast<py::tuple>();
+      vars.push_back({t[0].cast<std::string>(), t[1].cast<double>(), t[2].cast<double>()});
+    }
+    adsim::OptimizationCostFunction cost;
+    for (auto item : objectives) {
+      auto d = item.cast<py::dict>();
+      const std::string dir = d["direction"].cast<std::string>();
+      if (dir != "min" && dir != "max") throw std::invalid_argument("an objective's direction is 'min' or 'max'");
+      cost.AddObjective(d["component"].cast<std::string>(), KPITypeFromName(d["kpi"].cast<std::string>()),
+                        d["weight"].cast<double>(),
+                        dir == "min" ? adsim::ObjectiveDirection::MINIMIZE : adsim::ObjectiveDirection::MAXIMIZE);
+    }
+    for (auto item : constraints) {
+      auto d = item.cast<py::dict>();
+      const std::string sense = d["sense"].cast<std::string>();
+      if (sense != ">=" && sense != "<=") throw std::invalid_argument("a constraint's sense is '>=' or '<='");
+      cost.AddConstraint(d["component"].cast<std::string>(), KPITypeFromName(d["kpi"].cast<std::string>()),
+                         d["target"].cast<double>(), d["penalty"].cast<double>(),
+                         sense == ">=" ? adsim::ConstraintSense::GREATER_OR_EQUAL
+                                       : adsim::ConstraintSense::LESS_OR_EQUAL);
+    }
+    adsim::SimulationOptimizerSettings st;
+    if (options.contains("evaluations")) {
+      const int total = options["evaluations"].cast<int>();
+      st.n_init_samples = options.contains("init_samples") ? options["init_samples"].cast<int>() : 5;
+      st.n_init_samples = std::max(1, std::min(st.n_init_samples, total));
+      st.n_iterations = std::max(0, total - st.n_init_samples);
+    }
+    if (options.contains("warm_start")) st.warm_start = options["warm_start"].cast<bool>();
+    if (options.contains("rerun_cold")) st.rerun_cold = options["rerun_cold"].cast<bool>();
+    if (options.contains("require_css")) st.require_css = options["require_css"].cast<bool>();
+    if (options.contains("cycles") && !options["cycles"].is_none()) st.cycles = options["cycles"].cast<int>();
+    if (options.contains("cache_capacity")) st.cache_capacity = options["cache_capacity"].cast<size_t>();
+    if (options.contains("settings")) {
+      for (auto item : options["settings"].cast<py::dict>())
+        st.settings.emplace_back(item.first.cast<std::string>(), py::str(item.second).cast<std::string>());
+    }
+    std::optional<py::error_already_set> pending;
+    auto last_check = std::chrono::steady_clock::now();
+    st.cancel = [&]() {
+      if (pending) return true;
+      const auto now = std::chrono::steady_clock::now();
+      if (now - last_check < std::chrono::milliseconds(100)) return false;
+      last_check = now;
+      py::gil_scoped_acquire gil;
+      if (PyErr_CheckSignals() != 0) {
+        pending.emplace();
+        return true;
+      }
+      return false;
+    };
+    if (!on_evaluation.is_none()) {
+      st.on_evaluation = [&](const adsim::OptimizationEvaluation& e) {
+        py::gil_scoped_acquire gil;
+        if (pending) return;
+        try {
+          on_evaluation(EvaluationToDict(e));
+        } catch (py::error_already_set& err) {
+          pending.emplace(std::move(err));
+        }
+      };
+    }
+    adsim::CheckOptimization(deck_json, vars, cost, st);
+    adsim::SimulationOptimizationResult r;
+    {
+      py::gil_scoped_release release;
+      r = adsim::OptimizeSimulation(deck_json, vars, cost, st);
+    }
+    if (pending) throw std::move(*pending);
+    py::dict d;
+    d["x"] = r.x;
+    d["cost"] = r.cost;
+    d["search_cost"] = r.search_cost;
+    d["best_index"] = r.best_index;
+    d["rerun_cold"] = r.rerun_cold;
+    d["cold"] = r.rerun_cold ? py::object(EvaluationToDict(r.cold)) : py::object(py::none());
+    py::list evs;
+    for (const auto& e : r.evaluations) evs.append(EvaluationToDict(e));
+    d["evaluations"] = evs;
+    d["cancelled"] = r.cancelled;
+    return d;
+  }, py::arg("deck_json"), py::arg("variables"), py::arg("objectives"), py::arg("constraints"),
+     py::arg("options"), py::arg("on_evaluation") = py::none());
+
   m.def("sensitivity_default_outputs", [](const std::string& deck_json) {
     adsim::Simulation sim = adsim::Simulation::FromJson(deck_json);
     std::vector<std::string> out;
@@ -1228,7 +1421,8 @@ PYBIND11_MODULE(_core, m) {
   // One sample, GIL released; Ctrl-C cancels the run and is re-raised.
   m.def("sensitivity_evaluate", [](const std::string& deck_json, const py::list& inputs,
                                    const std::vector<double>& values, const std::vector<std::string>& outputs,
-                                   const py::dict& policy) {
+                                   const py::dict& policy, adsim::CycleStateCache* cache,
+                                   const std::vector<double>& key) {
     const auto in = InputsFromList(inputs);
     const auto out = OutputsFromList(outputs);
     const auto pol = PolicyFromDict(policy);
@@ -1249,7 +1443,7 @@ PYBIND11_MODULE(_core, m) {
     sa::SampleOutcome r;
     {
       py::gil_scoped_release release;
-      r = sa::EvaluateSample(deck_json, in, values, out, pol, cancel);
+      r = sa::EvaluateSample(deck_json, in, values, out, pol, cancel, cache, key);
     }
     if (pending) throw std::move(*pending);
     py::dict d;
@@ -1258,8 +1452,14 @@ PYBIND11_MODULE(_core, m) {
     d["accepted"] = r.accepted;
     d["outputs"] = r.outputs;
     d["wall_time_s"] = r.wall_time_s;
+    d["css_reached"] = r.css_reached;
+    d["cycles_run"] = r.cycles_run;
+    d["warm"] = r.warm;
+    d["distance"] = r.distance;
+    d["note"] = r.note;
     return d;
-  }, py::arg("deck_json"), py::arg("inputs"), py::arg("values"), py::arg("outputs"), py::arg("policy"));
+  }, py::arg("deck_json"), py::arg("inputs"), py::arg("values"), py::arg("outputs"), py::arg("policy"),
+     py::arg("cache") = nullptr, py::arg("key") = std::vector<double>{});
   m.def("sensitivity_analyse_morris", [](const py::list& inputs, const py::dict& plan_in,
                                          const std::vector<std::string>& names,
                                          const std::vector<std::vector<double>>& y, int bootstrap) {

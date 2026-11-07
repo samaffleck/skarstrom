@@ -381,6 +381,43 @@ for s in sim.streams():                                              # every end
 
 The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles, stream series and CSS history cover those. KPIs are recorded at the end of every cycle, so `sim.kpis()` covers the whole run.
 
+## Optimisation
+
+`skarstrom.optimisation` searches registry paths within bounds for the lowest cost, built from the KPIs of each candidate's last cycle. The search is the engine's derivative-free global optimiser (dlib's MaxLIPO with a trust region, `adsim/solver/optimisation.h`):
+
+```python
+from skarstrom import optimisation as opt
+
+result = opt.optimise(
+    sim,
+    {"step[Feed].time": (60, 150), "step[Evacuation].time": (100, 200)},   # path: (lower, upper)
+    objectives=[opt.maximise("CarbonDioxide", "recovery")],                # opt.minimise(...), weight=
+    constraints=[opt.at_least("CarbonDioxide", "purity", 0.9, penalty=10)],  # opt.at_most(...)
+    evaluations=20,              # runs of the search (5 spread over the box first: init_samples)
+    settings={"css.state_tolerance": 5e-6},   # applied to the deck before any run
+)
+result.x                         # the optimum: {path: value}
+result.cost, result.kpis         # its cost and KPIs from a cold re-run
+result.search_cost               # its cost as the warm-started search saw it
+result.table()                   # every evaluation: values, cost, KPIs, warm, cycles_run, wall_time_s
+result.apply(sim)                # set the optimum in sim (optimise never changes sim)
+```
+
+The cost is minimised: `+weight × KPI` for each `minimise` term, `-weight × KPI` for each `maximise` term, plus `penalty × violation` for each constraint. A candidate whose run fails or whose KPI is undefined (no product) costs 10¹⁰. `require_css=True` gives the same to a candidate that stops at the cycle limit. Ctrl-C stops the search.
+
+**Warm starts.** Each candidate starts from the cyclic steady state of the nearest candidate evaluated so far (Euclidean distance in the variables scaled to [0, 1] by their bounds), not from the deck's initial conditions. The nearest, not the previous: early on the search jumps across the whole box. The start goes through the ordinary warm-start path, so step-time and cell-count variables are fine; a cached state that does not fit at all (another structure) is skipped and the candidate runs cold, with the reason in the evaluation's `note`. The optimum is then re-run cold (`rerun_cold=True`), and that cold value is the one reported. `warm_start=False` runs every candidate cold. The savings and the agreement with cold runs are measured in [Cyclic Steady State](cyclic-steady-state.md#warm-started-optimisation-and-studies).
+
+For a loop of your own (SciPy, Optuna, a front end that proposes one candidate at a time), keep a `StateCache` and run each candidate through `run_warm`:
+
+```python
+cache = opt.StateCache([60, 100], [150, 200])     # the variables' bounds
+cand = sim.copy(); cand.set("step[Feed].time", 90); cand.set("step[Evacuation].time", 150)
+run, info = opt.run_warm(cand, cache, [90, 150])   # from the nearest cached state; caches this one
+info["warm"], info["distance"], info["note"]
+```
+
+In C++ the same pieces are `CycleStateCache` and `RunWithStateCache` (`adsim/solver/state_cache.h`) and `OptimizeSimulation` (`adsim/solver/optimisation.h`).
+
 ## Isotherms
 
 The isotherm functions use the engine's own isotherm code and the fitter behind the [Isotherm Fitting](isotherm-fitting.md) tool:
