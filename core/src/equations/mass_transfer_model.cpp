@@ -160,8 +160,12 @@ namespace adsim {
           std::copy(q_all_scratch_[i].begin(), q_all_scratch_[i].end(), q.begin());
         }
       } else {
+        // The adsorbent's loadings, for the kinds that read another
+        // component's loading (null when the state has none: their dry form).
+        const auto q_it = state.ads_concentration.find(ads_id);
         IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id),
-                                    state.solid_temperature.var, state.pressure.var, component, start, end, registry);
+                                    state.solid_temperature.var, state.pressure.var, component, start, end, registry,
+                                    q_it == state.ads_concentration.end() ? nullptr : &q_it->second);
         isotherm_->Update(params);
         std::swap(q_scratch_, qi_sat);   // q_scratch_ = q* at the floored state; qi_sat = the original, restored
       }

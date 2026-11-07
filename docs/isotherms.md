@@ -378,7 +378,7 @@ The papers print $C_E$, $F$ and $G$ in kJ: enter them in J ($C_E = 46.83$ kJ mol
 
 With $K \le 0.95$, the usual case for water on amine sorbents, the GAB is therefore exact up to saturation. With $K$ near 1 (BET) it is exact up to $K x = 0.95$. GAB parameters are usually fitted to data up to $x \approx 0.9$, so loadings above that are extrapolations in any case.
 
-**Mixtures.** A GAB component's loading depends only on its own relative pressure: the kinds are not competitive. Under the default mixing rule, water adsorbs independently of the other components, which keep their own isotherms. Under the IAST mixing rule a GAB kind takes part like any pure isotherm: its spreading pressure has the closed form $\psi = q_m \left[\ln(1 + (C - 1) K x) - \ln(1 - K x)\right]$ (and the matching integral of the tangent above $x_c$). Coupled CO₂–H₂O models, where water changes the CO₂ loading, are separate kinds.
+**Mixtures.** A GAB component's loading depends only on its own relative pressure: the kinds are not competitive. Under the default mixing rule, water adsorbs independently of the other components, which keep their own isotherms. Under the IAST mixing rule a GAB kind takes part like any pure isotherm: its spreading pressure has the closed form $\psi = q_m \left[\ln(1 + (C - 1) K x) - \ln(1 - K x)\right]$ (and the matching integral of the tangent above $x_c$). Coupled CO₂–H₂O models, where water changes the CO₂ loading, are separate kinds: see [CO₂ with adsorbed water](#co2-with-adsorbed-water-toth-wadst-and-humid-toth).
 
 **From Python.** `skarstrom.evaluate_isotherm`, `fit_isotherm` and `evaluate_iast` evaluate the GAB kinds for water unless `component=` (`components=` for IAST) names another vapour; see [Isotherm Fitting](isotherm-fitting.md). In a deck, each component uses its own saturation pressure.
 
@@ -390,6 +390,63 @@ q_{st} = R T^2 \left(\frac{\partial \ln P_i}{\partial T}\right)_{q} = \Delta H_{
 $$
 
 At low loading, $q \approx q_m C K x$, so for kind `gab` $q_{st} \to \Delta H_{vap} + \Delta H_m + \Delta H_C + \Delta H_K$ (water at 25 °C: $\Delta H_{vap} \approx 44.0$ kJ mol⁻¹). At high loading it tends towards $\Delta H_{vap} + \Delta H_m + \Delta H_K$, as the multilayer approaches liquid. The energy balance, as for every kind, takes the adsorbent's constant `heat_of_adsorption[<component>]` and does not derive it from the isotherm (under the default isosteric convention it is $q_{st}$; see [Model Conventions](model-conventions.md)). The C++ function `adsim::IsostericHeat(isotherm, component, T, P, y)` (`adsim/equations/isotherm_kinds.h`) evaluates the expression above for any kind at a given state, which helps choose that constant for the loadings of the process. For water, a value near the heat of condensation plus a few kJ mol⁻¹ is typical.
+
+## CO2 with adsorbed water (Toth WADST and humid Toth)
+
+On amine sorbents for direct air capture, adsorbed water raises the CO₂ capacity. Two kinds describe this for the CO₂ component. Its equilibrium loading depends on the **adsorbed water loading** $q_w$ on the same adsorbent in the same cell. That is the actual loading of the component named `Water`, which follows its own isotherm (for example `gab` or `gab_young`) and its own rate model. Water's isotherm does not depend on CO₂ in either model.
+
+Both source papers use the water on the sorbent, not the equilibrium loading at the gas humidity. The difference matters when water uptake is slow, as it usually is in direct air capture: there the CO₂ capacity follows the water actually adsorbed, which lags the gas humidity. A deck without a `Water` component, or a cell with no water adsorbed, gives the dry isotherm. The deck checks warn when a deck uses one of these kinds without a `Water` component. A negative $q_w$ (a transient solver iterate) is taken as 0. At the start of a run the loadings are put in equilibrium in two passes, water first, so the CO₂ starts in equilibrium with the initial water loading.
+
+**Kind `toth_wadst`**: the weighted-average dual-site Toth of Young et al., *Energy Environ. Sci.* 14 (2021) 5377, Eq. 14. A dry and a wet Toth site, weighted by the water loading:
+
+$$
+q_i^* = \left(1 - e^{-A/q_w}\right) q_{dry}(P_i, T) + e^{-A/q_w}\thinspace q_{wet}(P_i, T)
+$$
+
+with each site the temperature-dependent Toth of that paper (Eqs. 1–4):
+
+$$
+q_{site} = \frac{q_\infty\thinspace b\thinspace P_i}{\left[1 + (b P_i)^{\tau}\right]^{1/\tau}}, \qquad
+q_\infty = q_{\infty,0} \exp\negthinspace\left[\chi\left(1 - \frac{T}{T_0}\right)\right], \qquad
+b = b_0 \exp\negthinspace\left(\frac{\Delta H}{R T}\right), \qquad
+\tau = \tau_0 + \alpha\left(1 - \frac{T_0}{T}\right)
+$$
+
+The affinity has no reference temperature, as in the paper, so $b_0$ is the affinity at infinite temperature. [Toth 2](#toth-2-temperature-dependent) writes the same site as $b_0' \exp[\Delta H/(R T_0)(T_0/T - 1)]$ with $b_0' = b_0 \exp[\Delta H/(R T_0)]$. At $q_w = 0$ the loading is exactly the dry site, and the weight stays negligible up to $q_w \approx A/30$. The parameter names are `T_0`, then `q_inf_dry`, `chi_dry`, `b0_dry`, `dH_dry`, `tau0_dry`, `alpha_dry`, the same six with `_wet`, and `A`.
+
+| Symbol | Name | Description | Unit | Default (Lewatit VP OC 1065) |
+|--------|------|-------------|------|------|
+| $T_0$ | `T_0` | Reference temperature of $\chi$ and $\tau$ | K | 298.15 |
+| $q_{\infty,0}$ | `q_inf_dry`, `q_inf_wet` | Site capacity at $T_0$ | mol kg⁻¹ | 4.86, 9.035 |
+| $\chi$ | `chi_dry`, `chi_wet` | Capacity temperature coefficient | - | 0, 0 |
+| $b_0$ | `b0_dry`, `b0_wet` | Affinity pre-exponential | Pa⁻¹ | 2.85×10⁻²¹, 1.230×10⁻¹⁸ |
+| $\Delta H$ | `dH_dry`, `dH_wet` | Affinity energy ($-\Delta H_{ads}$, positive) | J mol⁻¹ | 117 798, 203 687 |
+| $\tau_0$ | `tau0_dry`, `tau0_wet` | Exponent at $T_0$ | - | 0.209, 0.053 |
+| $\alpha$ | `alpha_dry`, `alpha_wet` | Exponent temperature coefficient | - | 0.523, 0.053 |
+| $A$ | `A` | Water loading scale of the wet-site weight | mol kg⁻¹ | 1.532 |
+
+**Kind `toth_humid`**: the humid Toth of Stampi-Bombelli, Storione and Mazzotti, *Adsorption* 26 (2020) 1183–1197 (corrected 2022), Eqs. 11–14. This is [Toth 2](#toth-2-temperature-dependent), with the same parameter names, plus two water terms:
+
+$$
+q_s = \frac{q_{sat}\exp\negthinspace\left[x\left(1 - \frac{T}{T_0}\right)\right]}{1 - \gamma\thinspace q_w}, \qquad
+b = b_0 \exp\negthinspace\left[\frac{\Delta H_0}{R T_0}\left(\frac{T_0}{T} - 1\right)\right]\left(1 + \beta\thinspace q_w\right), \qquad
+w = w_0 + \alpha\left(1 - \frac{T_0}{T}\right)
+$$
+
+$$
+q_i^* = \frac{q_s\thinspace b\thinspace P_i}{\left[1 + (b P_i)^{w}\right]^{1/w}}
+$$
+
+At $q_w = 0$ this is Toth 2 exactly. $\Delta H_0 > 0$ makes the affinity fall with temperature. The defaults are the paper's corrected APDES-NFC values: $q_{sat} = 2.38$ mol kg⁻¹, $x = 0$, $T_0 = 296$ K, $b_0 = 70.7$ kPa⁻¹ (0.0707 Pa⁻¹), $\Delta H_0 = 57\,047$ J mol⁻¹, $w_0 = 0.4148$, $\alpha = -1.606$, $\gamma = 0.0016$ kg mol⁻¹ and $\beta = 59.1$ kg mol⁻¹. Young et al. (2021) refit this form to Lewatit VP OC 1065 with $\gamma = -0.137$ and $\beta = 5.612$ kg mol⁻¹ on their dry Toth.
+
+| Symbol | Name | Description | Unit |
+|--------|------|-------------|------|
+| $\gamma$ | `gamma` | Capacity enhancement by adsorbed water | kg mol⁻¹ |
+| $\beta$ | `beta` | Affinity enhancement by adsorbed water | kg mol⁻¹ |
+
+**Mixtures.** Water changes the CO₂ sites themselves; it does not compete through a shared denominator. Neither kind has a pure-component form, so the [IAST mixing rule](#mixture-loadings-the-mixing-rule-and-iast) rejects them with a deck-check error. Use the mixing rule `none`, the default. Give the other components (N₂, …) their own kinds as usual. These kinds read the water loading but do not change it.
+
+**From Python and the fitter.** `skarstrom.evaluate_isotherm(..., water_loading=q_w)` evaluates either kind at a given water loading (default 0, the dry isotherm). `skarstrom.fit_isotherm(..., water_loading=...)` takes the water loading of each point and fits the way the papers do. Points at $q_w = 0$ fit the dry Toth block. Points at fixed $q_w > 0$ fit the water terms: $A$ and the wet site for WADST, $\gamma$ and $\beta$ for the humid Toth. A block that the data cannot identify is held. So with humid data only, pass the dry fit's values in `fixed=`; with both kinds of data, everything is fitted together. In C++ these are the `q_w` member of `isofit::Point` and the `q_water` argument of `adsim::EvalIsotherm`.
 
 ---
 
@@ -420,7 +477,7 @@ $$
 | $x_i$ | Mole fraction of $i$ in the adsorbed phase | - |
 | $q_T$ | Total mixture loading | mol kg⁻¹ |
 
-**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir and the GAB kinds. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, Langmuir, Freundlich, Sips and anti-Langmuir, and a Newton iteration otherwise. A kind without an IAST form is an error, never treated as inert.
+**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir and the GAB kinds. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, Langmuir, Freundlich, Sips and anti-Langmuir, and a Newton iteration otherwise. A kind without an IAST form is an error, never treated as inert; the CO₂-with-water kinds (`toth_wadst`, `toth_humid`) are rejected by the deck checks.
 
 **Limits that hold exactly.** A single adsorbing component gives its pure isotherm at its partial pressure. Langmuir isotherms with **equal saturation capacities** give the extended Langmuir model. With unequal capacities, extended Langmuir is thermodynamically inconsistent and IAST is not.
 

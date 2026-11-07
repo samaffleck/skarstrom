@@ -64,6 +64,8 @@ namespace adsim {
     EXTENDED_LANGMUIR_FREUNDLICH,
     GAB,
     GAB_YOUNG,
+    TOTH_WADST,
+    TOTH_HUMID,
   };
 
   static const char* isothermModelNames[] = {
@@ -89,14 +91,16 @@ namespace adsim {
     "Arrhenius Sips (Schell 2012)",
     "Extended Langmuir-Freundlich",
     "GAB",
-    "GAB (Young 2021 energies)"
+    "GAB (Young 2021 energies)",
+    "Toth WADST (CO2 with water, Young 2021)",
+    "Toth humid (CO2 with water, Stampi-Bombelli 2020)"
   };
 
   // The names are indexed by IsothermType, so inserting a value mid-enum
   // without adding the matching name would silently mislabel every isotherm
   // after it in the GUI and the web contract.
   static_assert(std::size(isothermModelNames) ==
-                    static_cast<size_t>(IsothermType::GAB_YOUNG) + 1,
+                    static_cast<size_t>(IsothermType::TOTH_HUMID) + 1,
                 "isothermModelNames must have one entry per IsothermType");
 
   class InertIsothermParameters {
@@ -441,6 +445,115 @@ namespace adsim {
     }
   };
 
+  // ---- CO2 isotherms that depend on the adsorbed water loading ----------------
+  //
+  // The CO2 loading of these two kinds depends on the loading q_w [mol/kg] of
+  // water adsorbed on the same adsorbent in the same cell: the actual
+  // (rate-equation) loading of the component named kCoadsorbedWaterComponent,
+  // which has its own isotherm (gab, gab_young, ...) and its own mass-transfer
+  // model. Both papers use the adsorbed water loading, not its equilibrium
+  // value, so with slow water uptake the CO2 capacity follows the water on the
+  // sorbent rather than the gas humidity. Without a water component (or with
+  // no water adsorbed) both kinds are their dry Toth isotherm. A negative q_w
+  // (a Newton iterate) is taken as 0. They are not IAST-mixable.
+  inline constexpr char kCoadsorbedWaterComponent[] = "Water";
+
+  // Weighted-average dual-site Toth (WADST) of Young et al. (2021), "The impact
+  // of binary water-CO2 isotherm models on the optimal performance of
+  // sorbent-based direct air capture processes", Energy Environ. Sci. 14,
+  // 5377, Eq. 14:
+  //   q = (1 - exp(-A / q_w)) q_dry(p, T) + exp(-A / q_w) q_wet(p, T),
+  // each site a temperature-dependent Toth (Eqs. 1-4),
+  //   q_site = q_inf(T) b(T) p / (1 + (b(T) p)^tau(T))^(1 / tau(T)),
+  //   q_inf = q_inf0 exp(chi (1 - T / T_0)),  b = b0 exp(dH / (R T)),
+  //   tau = tau0 + alpha (1 - T_0 / T),
+  // with p = P y the CO2 partial pressure [Pa] and dH = -dH_ads > 0 for
+  // exothermic adsorption. The affinity has no reference temperature (the
+  // paper's form), so b0 is b at infinite temperature; toth_2 writes the same
+  // site as b0' exp(dH / (R T_0) (T_0 / T - 1)) with b0' = b0 exp(dH / (R T_0)).
+  // At q_w = 0 the loading is exactly the dry site. The defaults are the
+  // paper's Lewatit VP OC 1065 values.
+  class TothWadstIsothermParameters {
+  public:
+    ExpressionParam T_0{298.15};         // [K]
+    ExpressionParam q_inf_dry{4.86};     // [mol/kg]
+    ExpressionParam chi_dry{0.0};        // [-]
+    ExpressionParam b0_dry{2.85e-21};    // [1/Pa]
+    ExpressionParam dH_dry{117798.0};    // [J/mol]
+    ExpressionParam tau0_dry{0.209};     // [-]
+    ExpressionParam alpha_dry{0.523};    // [-]
+    ExpressionParam q_inf_wet{9.035};    // [mol/kg]
+    ExpressionParam chi_wet{0.0};        // [-]
+    ExpressionParam b0_wet{1.230e-18};   // [1/Pa]
+    ExpressionParam dH_wet{203687.0};    // [J/mol]
+    ExpressionParam tau0_wet{0.053};     // [-]
+    ExpressionParam alpha_wet{0.053};    // [-]
+    ExpressionParam A{1.532};            // [mol/kg]
+
+    void EvaluateExpressions(const EvalContext& ctx) {
+      T_0.Evaluate(ctx);
+      q_inf_dry.Evaluate(ctx); chi_dry.Evaluate(ctx); b0_dry.Evaluate(ctx);
+      dH_dry.Evaluate(ctx); tau0_dry.Evaluate(ctx); alpha_dry.Evaluate(ctx);
+      q_inf_wet.Evaluate(ctx); chi_wet.Evaluate(ctx); b0_wet.Evaluate(ctx);
+      dH_wet.Evaluate(ctx); tau0_wet.Evaluate(ctx); alpha_wet.Evaluate(ctx);
+      A.Evaluate(ctx);
+    }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      ar(cereal::make_nvp("IP_T_0", T_0),
+         cereal::make_nvp("IP_q_inf_dry", q_inf_dry), cereal::make_nvp("IP_chi_dry", chi_dry),
+         cereal::make_nvp("IP_b0_dry", b0_dry), cereal::make_nvp("IP_dH_dry", dH_dry),
+         cereal::make_nvp("IP_tau0_dry", tau0_dry), cereal::make_nvp("IP_alpha_dry", alpha_dry),
+         cereal::make_nvp("IP_q_inf_wet", q_inf_wet), cereal::make_nvp("IP_chi_wet", chi_wet),
+         cereal::make_nvp("IP_b0_wet", b0_wet), cereal::make_nvp("IP_dH_wet", dH_wet),
+         cereal::make_nvp("IP_tau0_wet", tau0_wet), cereal::make_nvp("IP_alpha_wet", alpha_wet),
+         cereal::make_nvp("IP_A", A));
+    }
+  };
+
+  // Humid Toth of Stampi-Bombelli, Storione and Mazzotti (2020), "On
+  // comparing packed beds and monoliths for CO2 capture from air through
+  // experiments, theory, and modeling", Adsorption 26, 1183-1197 (corrected
+  // 2022), Eqs. 11-14: the temperature-dependent Toth of toth_2 (same names)
+  //   q = n_s b p / (1 + (b p)^t)^(1 / t),
+  //   n_s = q_sat exp(x (1 - T / T_0)) / (1 - gamma q_w),
+  //   b   = b0 exp(dH0 / (R T_0) (T_0 / T - 1)) (1 + beta q_w),
+  //   t   = w0 + alpha (1 - T_0 / T),
+  // with dH0 > 0 for exothermic adsorption (b falls with T). At q_w = 0 this is
+  // toth_2 exactly. The defaults are the paper's corrected APDES-NFC values.
+  class TothHumidIsothermParameters {
+  public:
+    ExpressionParam q_sat{2.38};    // [mol/kg]
+    ExpressionParam x{0.0};         // [-]
+    ExpressionParam T_0{296.0};     // [K]
+    ExpressionParam b0{0.0707};     // [1/Pa]
+    ExpressionParam dH0{57047.0};   // [J/mol]
+    ExpressionParam w0{0.4148};     // [-]
+    ExpressionParam alpha{-1.606};  // [-]
+    ExpressionParam gamma{0.0016};  // [kg/mol]
+    ExpressionParam beta{59.1};     // [kg/mol]
+
+    void EvaluateExpressions(const EvalContext& ctx) {
+      q_sat.Evaluate(ctx); x.Evaluate(ctx); T_0.Evaluate(ctx);
+      b0.Evaluate(ctx); dH0.Evaluate(ctx); w0.Evaluate(ctx);
+      alpha.Evaluate(ctx); gamma.Evaluate(ctx); beta.Evaluate(ctx);
+    }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      ar(cereal::make_nvp("IP_q_sat", q_sat), cereal::make_nvp("IP_x", x),
+         cereal::make_nvp("IP_T_0", T_0), cereal::make_nvp("IP_b0", b0),
+         cereal::make_nvp("IP_dH0", dH0), cereal::make_nvp("IP_w0", w0),
+         cereal::make_nvp("IP_alpha", alpha), cereal::make_nvp("IP_gamma", gamma),
+         cereal::make_nvp("IP_beta", beta));
+    }
+  };
+
   class LangmuirIsothermParameters {
   public:
     ExpressionParam m1{3.0};
@@ -555,6 +668,10 @@ namespace adsim {
     // (SaturationPressure(component, T)); the relative pressure is P yi / p_sat.
     void Gab(double& qi, double T, double P, double yi, double p_sat, const GabIsothermParameters& ips);
     void GabYoung(double& qi, double T, double P, double yi, double p_sat, const GabYoungIsothermParameters& ips);
+    // CO2-with-water kinds: q_w [mol/kg] is the adsorbed water loading
+    // (negative values are taken as 0; 0 gives the dry isotherm).
+    void TothWadst(double& qi, double T, double P, double yi, double q_w, const TothWadstIsothermParameters& ips);
+    void TothHumid(double& qi, double T, double P, double yi, double q_w, const TothHumidIsothermParameters& ips);
   }
 
   // GAB constants at temperature T: q_m [mol/kg], C [-], K [-].
@@ -595,8 +712,9 @@ namespace adsim {
       const std::string& component_,
       int start_index_,
       int end_index_,
-      const UserVariableRegistry* registry_ = nullptr
-    ) : yi_map(yi_), qi_sat_map(qi_sat_), T(T_), P(P_), component(component_), start_index(start_index_), end_index(end_index_), registry(registry_) {}
+      const UserVariableRegistry* registry_ = nullptr,
+      const ComponentEquation* q_map_ = nullptr
+    ) : yi_map(yi_), qi_sat_map(qi_sat_), T(T_), P(P_), component(component_), start_index(start_index_), end_index(end_index_), registry(registry_), q_map(q_map_) {}
     ~IsothermUpdateParams() = default;
 
     ComponentEquation& yi_map;
@@ -607,6 +725,11 @@ namespace adsim {
     int start_index;
     int end_index;
     const UserVariableRegistry* registry = nullptr;
+    // The adsorbent's actual (rate-equation) loadings, component -> q
+    // [mol/kg]. Only the kinds that depend on another component's loading
+    // read it (toth_wadst, toth_humid: the water loading); null leaves them
+    // at their dry limit.
+    const ComponentEquation* q_map = nullptr;
   };
 
   // Per-component isotherm parameters, keyed by component name.
@@ -644,7 +767,7 @@ namespace adsim {
     virtual void UpdateAll(IsothermUpdateParams& params, const std::vector<std::string>& components) {
       for (const auto& comp : components) {
         IsothermUpdateParams p(params.yi_map, params.qi_sat_map, params.T, params.P,
-                               comp, params.start_index, params.end_index, params.registry);
+                               comp, params.start_index, params.end_index, params.registry, params.q_map);
         Update(p);
       }
     }
@@ -783,6 +906,21 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
   };
 
+  // CO2 kinds that read the adsorbed water loading (IsothermUpdateParams::
+  // q_map, component kCoadsorbedWaterComponent); see TothWadstIsothermParameters
+  // and TothHumidIsothermParameters.
+  class TothWadstIsotherm : public ParamIsotherm<TothWadstIsothermParameters, IsothermType::TOTH_WADST> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+  };
+
+  class TothHumidIsotherm : public ParamIsotherm<TothHumidIsothermParameters, IsothermType::TOTH_HUMID> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+  };
+
   class DualSiteSipsIsotherm : public ParamIsotherm<DualSiteSipsIsothermParameters, IsothermType::DUAL_SITE_SIPS> {
   public:
     using ParamIsotherm::ParamIsotherm;
@@ -879,6 +1017,8 @@ namespace adsim {
     case IsothermType::EXTENDED_LANGMUIR_FREUNDLICH: return std::make_unique<ExtendedLangmuirFreundlichIsotherm>(component);
     case IsothermType::GAB: return std::make_unique<GabIsotherm>(component);
     case IsothermType::GAB_YOUNG: return std::make_unique<GabYoungIsotherm>(component);
+    case IsothermType::TOTH_WADST: return std::make_unique<TothWadstIsotherm>(component);
+    case IsothermType::TOTH_HUMID: return std::make_unique<TothHumidIsotherm>(component);
     default: return nullptr;
     }
   }
@@ -903,6 +1043,8 @@ CEREAL_CLASS_VERSION(adsim::ArrheniusSipsIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirFreundlichIsotherm, 1);
 CEREAL_CLASS_VERSION(adsim::GabIsotherm, 1);
 CEREAL_CLASS_VERSION(adsim::GabYoungIsotherm, 1);
+CEREAL_CLASS_VERSION(adsim::TothWadstIsotherm, 1);
+CEREAL_CLASS_VERSION(adsim::TothHumidIsotherm, 1);
 CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm, 2);

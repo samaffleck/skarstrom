@@ -67,6 +67,15 @@ namespace adsim {
         case T::TOTH_2: return Family::Toth;
         case T::GAB:
         case T::GAB_YOUNG: return Family::Gab;
+        case T::TOTH_WADST:
+        case T::TOTH_HUMID:
+          // The CO2 loading depends on the adsorbed water loading through
+          // the sites themselves, not a competitive denominator: no pure
+          // isotherm IAST could mix. The deck checks reject this first
+          // (CheckLayerComposition); this guards direct callers.
+          throw std::invalid_argument(std::string("the isotherm kind ") + IsothermKindString(t) +
+                                      " depends on the adsorbed water loading and cannot be used with the IAST"
+                                      " mixing rule; use the mixing rule none");
       }
       // Out-of-range value, or a kind added without its IAST form: fail loudly
       // rather than treat the component as inert.

@@ -964,6 +964,81 @@ namespace adsim {
     UpdateGab(state, params_[state.component]);
   }
 
+  // ---- CO2 kinds that read the adsorbed water loading --------------------------
+
+  namespace {
+    // One temperature-dependent Toth site of Young et al. (2021), Eqs. 1-4:
+    // b = b0 exp(dH / (R T)) with no reference temperature. The partial
+    // pressure is floored like toth_2's (softplus of y).
+    inline double WadstSite(double T, double p, double T_0, double q_inf0, double chi, double b0,
+                            double dH, double tau0, double alpha) {
+      const double q_inf = q_inf0 * std::exp(chi * (1.0 - T / T_0));
+      const double b = b0 * std::exp(dH / (constants::kIdealGasConstant * T));
+      const double tau = tau0 + alpha * (1.0 - T_0 / T);
+      const double bp = b * p;
+      return q_inf * bp / safe_pow(1.0 + safe_pow(bp, tau), 1.0 / tau);
+    }
+
+    inline double TothWadstQ(double T, double P, double yi, double q_w, const TothWadstIsothermParameters& ips) {
+      const double p = P * softplus(yi, kSoftplusTau);
+      const double T_0 = ips.T_0;
+      const double q_dry = WadstSite(T, p, T_0, ips.q_inf_dry, ips.chi_dry, ips.b0_dry, ips.dH_dry,
+                                     ips.tau0_dry, ips.alpha_dry);
+      // exp(-A / q_w) -> 0 as q_w -> 0+ with every derivative, so the weight
+      // is smooth at q_w = 0 and exactly 0 below.
+      if (!(q_w > 0.0)) return q_dry;
+      const double w_wet = std::exp(-ips.A / q_w);
+      if (w_wet == 0.0) return q_dry;
+      const double q_wet = WadstSite(T, p, T_0, ips.q_inf_wet, ips.chi_wet, ips.b0_wet, ips.dH_wet,
+                                     ips.tau0_wet, ips.alpha_wet);
+      return (1.0 - w_wet) * q_dry + w_wet * q_wet;
+    }
+
+    inline double TothHumidQ(double T, double P, double yi, double q_w, const TothHumidIsothermParameters& ips) {
+      const double R = constants::kIdealGasConstant;
+      const double qw = q_w > 0.0 ? q_w : 0.0;
+      const double T_0 = ips.T_0;
+      const double qs = ips.q_sat * std::exp(ips.x * (1 - T / T_0)) / (1.0 - ips.gamma * qw);
+      const double b = ips.b0 * std::exp(ips.dH0 / (R * T_0) * (T_0 / T - 1)) * (1.0 + ips.beta * qw);
+      const double t = ips.w0 + ips.alpha * (1 - T_0 / T);
+      const double bp = b * P * softplus(yi, kSoftplusTau);
+      return qs * bp / safe_pow(1 + safe_pow(bp, t), 1 / t);
+    }
+
+    // The water loading vector of the adsorbent, or null when the deck has no
+    // water component (or the caller passed no loadings): the dry limit.
+    const vec* WaterLoading(const IsothermUpdateParams& state) {
+      if (!state.q_map) return nullptr;
+      auto it = state.q_map->find(kCoadsorbedWaterComponent);
+      return it == state.q_map->end() ? nullptr : &it->second.var;
+    }
+
+    template <class Params, class Fn>
+    void UpdateWithWater(IsothermUpdateParams& state, const Params& params, Fn fn) {
+      auto& qi_sat = state.qi_sat_map.at(state.component).var;
+      const auto& yi = state.yi_map.at(state.component).var;
+      const vec* q_w = WaterLoading(state);
+      for (int n = state.start_index; n <= state.end_index; ++n)
+        qi_sat[n] = fn(state.T[n], state.P[n], yi[n], q_w ? (*q_w)[n] : 0.0, params);
+    }
+  } // namespace
+
+  void IsothermFunction::TothWadst(double& qi, double T, double P, double yi, double q_w, const TothWadstIsothermParameters& ips) {
+    qi = TothWadstQ(T, P, yi, q_w, ips);
+  }
+
+  void IsothermFunction::TothHumid(double& qi, double T, double P, double yi, double q_w, const TothHumidIsothermParameters& ips) {
+    qi = TothHumidQ(T, P, yi, q_w, ips);
+  }
+
+  void TothWadstIsotherm::Update(IsothermUpdateParams& state) {
+    UpdateWithWater(state, params_[state.component], TothWadstQ);
+  }
+
+  void TothHumidIsotherm::Update(IsothermUpdateParams& state) {
+    UpdateWithWater(state, params_[state.component], TothHumidQ);
+  }
+
 } // end adsim namespace
 
 
@@ -984,6 +1059,8 @@ CEREAL_REGISTER_TYPE(adsim::ArrheniusSipsIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedLangmuirFreundlichIsotherm)
 CEREAL_REGISTER_TYPE(adsim::GabIsotherm)
 CEREAL_REGISTER_TYPE(adsim::GabYoungIsotherm)
+CEREAL_REGISTER_TYPE(adsim::TothWadstIsotherm)
+CEREAL_REGISTER_TYPE(adsim::TothHumidIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::DualSiteLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedDualSiteLangmuirIsotherm)
@@ -1007,6 +1084,8 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ArrheniusSipsIsoth
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedLangmuirFreundlichIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::GabIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::GabYoungIsotherm)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::TothWadstIsotherm)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::TothHumidIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::DualSiteLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedDualSiteLangmuirIsotherm)

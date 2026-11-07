@@ -8,6 +8,7 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/math/expression_param.h"
 #include "adsim/objects/reaction.h"
+#include "adsim/equations/isotherm_kinds.h"
 
 #include <cmath>
 
@@ -270,6 +271,21 @@ namespace adsim {
 
     // Set qi = qi_sat 
     state.SetAdsorbedPhaseInitialConditions();
+
+    // The water-coupled isotherm kinds (toth_wadst, toth_humid) read the
+    // adsorbed water loading, which the first pass evaluated at the initial
+    // loading from the initial conditions. Water's own isotherm does not
+    // depend on them, so one more pass starts them in equilibrium with the
+    // water now on the sorbent. Decks without these kinds skip it.
+    bool water_coupled = false;
+    for (const auto& [id, ads] : adsorbent_directory.GetAll())
+      for (const auto& [component, type] : ads.adsorption_source_.IsothermMap())
+        water_coupled = water_coupled || IsWaterCoupledIsothermKind(type);
+    if (water_coupled) {
+      state.UpdateIndependentEquations(this);
+      state.UpdateDiagnosticEquations(this);
+      state.SetAdsorbedPhaseInitialConditions();
+    }
 
     // Initialize step start time to 0 for first step
     step_start_time_ = 0.0;
