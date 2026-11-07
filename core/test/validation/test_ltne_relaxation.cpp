@@ -201,10 +201,23 @@ namespace adsim {
       << "Gas-solid temperature split at start of relaxation is only " << dT0
       << " K; there is no disequilibrium to relax";
 
-    // The equilibrium temperature is the heat-capacity-weighted mean, and is a
-    // constant of the relaxation (no energy leaves the sealed adiabatic bed).
-    const double T_eq_expected =
-      (c_gas * Tf_mean.front() + c_solid * Ts_mean.front()) / (c_gas + c_solid);
+    // The equilibrium temperature is fixed by conservation (no energy leaves
+    // the sealed adiabatic bed): et C0 [u(T_eq) - u(Tf0)] + c_solid (T_eq - Ts0)
+    // = 0, with the gas's u(T) = h(T) - R T from its ideal-gas C_p0(T)
+    // (MixtureMolarEnthalpyChange). With a constant Cv this is the
+    // heat-capacity-weighted mean (c_gas Tf0 + c_solid Ts0) / (c_gas + c_solid),
+    // the starting guess of the Newton iteration.
+    const std::unordered_map<std::string, double> pure_n2{{"Nitrogen", 1.0}, {"Oxygen", 0.0}};
+    const double Tf0 = Tf_mean.front(), Ts0 = Ts_mean.front();
+    auto energy = [&](double T) {
+      return et * C0 * (MixtureMolarEnthalpyChange(data.fluid, pure_n2, Tf0, T) - kR * (T - Tf0)) +
+             c_solid * (T - Ts0);
+    };
+    double T_eq_expected = (c_gas * Tf0 + c_solid * Ts0) / (c_gas + c_solid);
+    for (int it = 0; it < 20; ++it) {
+      const double slope = et * C0 * (MixtureMolarCp(data.fluid, pure_n2, T_eq_expected) - kR) + c_solid;
+      T_eq_expected -= energy(T_eq_expected) / slope;
+    }
 
     // GUARD 2: the relaxation must actually resolve.
     const double dT_end = Tf_mean.back() - Ts_mean.back();

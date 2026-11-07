@@ -41,7 +41,8 @@
 //    the tolerance; the rest, 1e-3, covers the pressure drop (C varies by
 //    < 0.1 % of a 7 % term) and the moment quadrature.
 //
-// 2. Steady flow with wall losses. At steady state, with the wall's axial
+// 2. Steady flow with wall losses (constant gas Cp: the CONSTANT mode). At
+//    steady state, with the wall's axial
 //    conduction off, the gas loses heat through the bed -> wall film (h_i, on
 //    the inner surface pi d_i) and the wall -> ambient film (h_o, on pi d_o) in
 //    series, so with an overall U, 1/(U pi d_i) = 1/(h_i pi d_i) + 1/(h_o pi d_o),
@@ -178,6 +179,14 @@ namespace adsim {
       c.feed_temperature = T_in;
       UserData data;
       Build(data, c);
+      // The exponential profile solves a linear ODE: it needs a constant gas
+      // Cp. With the default ideal-gas C_p0(T) (Fluid) the profile is not
+      // exactly exponential (N2's C_p0 changes by 0.3 % from 298 to 348 K), so
+      // the gas uses the CONSTANT mode at N2's C_p0 of the mean temperature.
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      for (const char* gas : {"Nitrogen", "Oxygen"})
+        data.fluid.gas_heat_capacity_[gas] =
+          Fluid::EvalIdealGasHeatCapacity(*Fluid::IdealGasCoeffs(gas), 0.5 * (T_amb + T_in));
       data.settings.advection_scheme_ = scheme;
       data.bed.ambient_temperature_ = T_amb;
       data.bed.wall_.thickness_ = t_wall;

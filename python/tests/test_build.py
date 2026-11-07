@@ -314,7 +314,9 @@ def test_layer_fractions_as_expressions_build_and_round_trip():
 def test_constant_gas_properties_and_isosteric_rt_build_and_round_trip():
     sim, _ = build_vsa()
     fl = sim.fluid
-    assert fl.gas_heat_capacity_mode == "coolprop" and fl.viscosity_mode == "polynomial"
+    assert fl.gas_heat_capacity_mode == "ideal_gas" and fl.viscosity_mode == "polynomial"
+    fl.gas_heat_capacity_mode = "coolprop"  # the former name of ideal_gas is still accepted
+    assert fl.gas_heat_capacity_mode == "ideal_gas"
     assert fl.gas_heat_capacity["N2"] == pytest.approx(29.1)  # seeded, unused until "constant"
     fl.gas_heat_capacity_mode = "constant"
     fl.gas_heat_capacity["CO2"] = "30.7 J/(mol*K)"

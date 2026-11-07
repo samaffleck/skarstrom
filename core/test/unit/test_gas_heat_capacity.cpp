@@ -17,6 +17,9 @@ namespace adsim {
     const std::string CO2 = "CarbonDioxide";
     const std::string N2 = "Nitrogen";
     const std::string O2 = "Oxygen";
+    // Temperature of the hand fluids (whose held values do not depend on it)
+    // and of the solver tests' initial state [K].
+    constexpr double kT = 298.15;
 
     // A fluid with fixed, round property values so the expected numbers can be
     // worked by hand (independent of CoolProp).
@@ -38,11 +41,11 @@ namespace adsim {
   TEST(GasHeatCapacityTest, HydrogenCarbonDioxideFiftyFiftyByHand) {
     const Fluid f = HandFluid();
     const std::unordered_map<std::string, double> y{{H2, 0.5}, {CO2, 0.5}};
-    const double cp = f.MixtureHeatCapacity(y);
+    const double cp = f.MixtureHeatCapacity(y, kT);
     EXPECT_NEAR(cp, 1439.0969, 1e-3);
     EXPECT_NEAR(cp * 23.01284e-3, 33.117707, 1e-6);  // molar mixture Cp [J/(mol.K)]
-    EXPECT_NEAR(f.MolarHeatCapacity(H2), 28.827084, 1e-6);
-    EXPECT_NEAR(f.MolarHeatCapacity(CO2), 37.40833, 1e-6);
+    EXPECT_NEAR(f.MolarHeatCapacity(H2, kT), 28.827084, 1e-6);
+    EXPECT_NEAR(f.MolarHeatCapacity(CO2, kT), 37.40833, 1e-6);
   }
 
   // 15/85 CO2/N2, worked by hand:
@@ -53,7 +56,7 @@ namespace adsim {
   // (the old rule gave 0.15 * 850 + 0.85 * 1040 = 1011.5, 1.3 % high).
   TEST(GasHeatCapacityTest, CarbonDioxideNitrogenByHand) {
     const Fluid f = HandFluid();
-    const double cp = f.MixtureHeatCapacity({{CO2, 0.15}, {N2, 0.85}});
+    const double cp = f.MixtureHeatCapacity({{CO2, 0.15}, {N2, 0.85}}, kT);
     EXPECT_NEAR(cp, 998.7583, 1e-3);
   }
 
@@ -61,11 +64,11 @@ namespace adsim {
   // the pure-component per-kg heat capacity.
   TEST(GasHeatCapacityTest, SingleComponentIsPureComponentValue) {
     const Fluid f = HandFluid();
-    EXPECT_DOUBLE_EQ(f.MixtureHeatCapacity({{N2, 1.0}}), 1040.0);
-    EXPECT_DOUBLE_EQ(f.MixtureHeatCapacity({{N2, 1.0}, {CO2, 0.0}, {H2, 0.0}}), 1040.0);
-    EXPECT_DOUBLE_EQ(f.MixtureHeatCapacity({{H2, 1.0}}), 14300.0);
+    EXPECT_DOUBLE_EQ(f.MixtureHeatCapacity({{N2, 1.0}}, kT), 1040.0);
+    EXPECT_DOUBLE_EQ(f.MixtureHeatCapacity({{N2, 1.0}, {CO2, 0.0}, {H2, 0.0}}, kT), 1040.0);
+    EXPECT_DOUBLE_EQ(f.MixtureHeatCapacity({{H2, 1.0}}, kT), 14300.0);
     // No gas at all: 0, not NaN.
-    EXPECT_EQ(f.MixtureHeatCapacity({{N2, 0.0}}), 0.0);
+    EXPECT_EQ(f.MixtureHeatCapacity({{N2, 0.0}}, kT), 0.0);
   }
 
   // The GAS_PHASE adsorbed-phase heat capacity is the component's own molar
@@ -74,9 +77,9 @@ namespace adsim {
     Fluid f = HandFluid();
     f.adsorbed_heat_capacity_[CO2] = 12.0;
     f.adsorbed_heat_capacity_mode_ = AdsorbedHeatCapacityMode::CONSTANT;
-    EXPECT_DOUBLE_EQ(f.AdsorbedPhaseHeatCapacity(CO2), 12.0);
+    EXPECT_DOUBLE_EQ(f.AdsorbedPhaseHeatCapacity(CO2, kT), 12.0);
     f.adsorbed_heat_capacity_mode_ = AdsorbedHeatCapacityMode::GAS_PHASE;
-    EXPECT_DOUBLE_EQ(f.AdsorbedPhaseHeatCapacity(CO2), 44.0098e-3 * 850.0);
+    EXPECT_DOUBLE_EQ(f.AdsorbedPhaseHeatCapacity(CO2, kT), 44.0098e-3 * 850.0);
   }
 
   // The solver's per-cell C_p,g (UpdateHeatCapacity, used by the energy
@@ -116,7 +119,7 @@ namespace adsim {
   TEST_F(GasHeatCapacitySolverTest, HydrogenCarbonDioxideCellsUseMolarMixing) {
     BuildInertBed({H2, CO2}, {{H2, 0.5}, {CO2, 0.5}});
     const auto& fluid = data.fluid;
-    const double expected = fluid.MixtureHeatCapacity({{H2, 0.5}, {CO2, 0.5}});
+    const double expected = fluid.MixtureHeatCapacity({{H2, 0.5}, {CO2, 0.5}}, kT);
     const double M = 0.5 * fluid.molar_mass_.at(H2) + 0.5 * fluid.molar_mass_.at(CO2);
 
     // CoolProp at 298.15 K, 1 bar: H2 about 28.8 and CO2 about 37.2 J/(mol.K),
@@ -130,7 +133,7 @@ namespace adsim {
     for (size_t n = 0; n < Cp.size(); ++n) {
       EXPECT_NEAR(Cp[n], expected, 1e-9 * expected) << "cell " << n;
       // rho_g C_p,g is the molar density times the molar mixture Cp.
-      const double molar = 0.5 * fluid.MolarHeatCapacity(H2) + 0.5 * fluid.MolarHeatCapacity(CO2);
+      const double molar = 0.5 * fluid.MolarHeatCapacity(H2, kT) + 0.5 * fluid.MolarHeatCapacity(CO2, kT);
       EXPECT_NEAR(rho[n] * Cp[n], C[n] * molar, 1e-9 * C[n] * molar) << "cell " << n;
     }
 
@@ -138,7 +141,7 @@ namespace adsim {
     data.state.mole_fraction.at(H2).var[2] = 0.9;
     data.state.mole_fraction.at(CO2).var[2] = 0.1;
     UpdateHeatCapacity(&data);
-    EXPECT_NEAR(Cp[2], fluid.MixtureHeatCapacity({{H2, 0.9}, {CO2, 0.1}}), 1e-9 * Cp[2]);
+    EXPECT_NEAR(Cp[2], fluid.MixtureHeatCapacity({{H2, 0.9}, {CO2, 0.1}}, kT), 1e-9 * Cp[2]);
   }
 
   TEST_F(GasHeatCapacitySolverTest, SingleComponentCellsArePureComponentValue) {
@@ -155,7 +158,8 @@ namespace adsim {
   }
 
   // ---------------------------------------------------------------------------
-  // Pure-component C_p,i of the COOLPROP mode is the gas-phase value. CoolProp at
+  // GetGasHeatCapacity (the held value of a component without an ideal-gas
+  // polynomial, e.g. Hexane) is the gas-phase value. CoolProp at
   // (P, T) gives the LIQUID heat capacity for a component that is condensed in
   // its pure state there (water at 1 bar and 298 K: about 4181 J/(kg.K)); the
   // gas in the bed is a vapour, so those components take the ideal-gas C_p0(T).
@@ -170,7 +174,7 @@ namespace adsim {
   // J/(kg.K) (NIST-JANAF; IAPWS-95 ideal-gas part). Not the liquid's ~4181.
   TEST(GasHeatCapacityTest, WaterAtOneBarIsVapourValue) {
     const double cp_liquid = GetHeatCapacity("Water", 1.0e5, 298.15);
-    EXPECT_NEAR(cp_liquid, 4181.0, 5.0);  // what the COOLPROP mode cached before
+    EXPECT_NEAR(cp_liquid, 4181.0, 5.0);  // what the held CoolProp value was before vapour states were handled
     const double cp = GetGasHeatCapacity("Water", 1.0e5, 298.15);
     EXPECT_NEAR(cp, 1865.0, 3.0);
   }
@@ -219,7 +223,7 @@ namespace adsim {
       EXPECT_NEAR(GetGasHeatCapacity(c, 1.0e5, 298.15), cp, 2e-3 * cp) << c;
   }
 
-  // Fluid::Initialise caches the vapour value in the COOLPROP mode, and leaves
+  // Fluid::Initialise caches the vapour value in the IDEAL_GAS mode, and leaves
   // the user-defined (CONSTANT) mode exactly as it was.
   TEST(GasHeatCapacityTest, InitialiseCachesVapourValueAndKeepsConstantMode) {
     InitialConditions ic;
@@ -231,8 +235,10 @@ namespace adsim {
     f.AddComponent(N2);
     f.Initialise(ic);
     EXPECT_NEAR(f.heat_capacity_.at("Water"), 1865.0, 3.0);
-    EXPECT_NEAR(f.MolarHeatCapacity("Water"), 33.59, 0.05);
-    EXPECT_DOUBLE_EQ(f.heat_capacity_.at(N2), GetHeatCapacity(N2, 1.0e5, 298.15));
+    EXPECT_NEAR(f.MolarHeatCapacity("Water", kT), 33.59, 0.05);
+    // The ideal-gas polynomial, within 0.2 % of CoolProp's real-gas value at 1 bar.
+    EXPECT_NE(f.HeatCapacityPolynomial(N2), nullptr);
+    EXPECT_NEAR(f.heat_capacity_.at(N2), GetHeatCapacity(N2, 1.0e5, 298.15), 2e-3 * f.heat_capacity_.at(N2));
 
     f.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
     f.gas_heat_capacity_["Water"] = 75.3;  // a user's value (here the liquid's) is kept as given

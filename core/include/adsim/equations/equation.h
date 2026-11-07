@@ -22,6 +22,7 @@
 #include "adsim/equations/adsorbent_equations.h"
 #include "adsim/objects/domain.h"
 #include "adsim/objects/reactor_equations.h"
+#include "adsim/objects/fluid.h"
 
 
 namespace adsim {
@@ -129,10 +130,17 @@ namespace adsim {
   using AdsorbentComponentIndependentEquation = std::unordered_map<AdsorbentID, ComponentIndependentEquation>;
 
   struct AdsorbentEnergyTerm {
-    double heat_capacity;
+    double heat_capacity;  // adsorbed-phase Cpa [J/(mol.K)] when it is a fixed number
     const vec* loading;
     const vec* loading_rate;
     const vec* heat_of_adsorption;
+    // The ideal-gas polynomial of a GAS_PHASE Cpa (Fluid::
+    // AdsorbedPhaseHeatCapacityPolynomial), or null for a fixed heat_capacity.
+    const NasaPolynomial* heat_capacity_polynomial = nullptr;
+    // Cpa at the adsorbed-phase temperature T [J/(mol.K)].
+    double HeatCapacity(double T) const {
+      return heat_capacity_polynomial ? Fluid::EvalIdealGasHeatCapacity(*heat_capacity_polynomial, T) : heat_capacity;
+    }
   };
 
   class Equations {
