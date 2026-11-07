@@ -52,7 +52,7 @@ CO₂/N₂ separation reported by Perez et al. (2019).
 | Adsorbent mass | 0.162 kg per column | abstract, Sect. 2 | particle density derived: m / (V (1 − ε)) = 1138 kg/m³ |
 | Heats of adsorption | 30.85 (CO₂), 15.93 (N₂) kJ/mol | Table 1 ("measured", Clausius–Clapeyron average) | |
 | Adsorbent C_p, wall ρ / C_p / k | 900 J/(kg K); 7800 kg/m³, 502 J/(kg K), 16 W/(m K) | Table 1 | |
-| Gas and adsorbed-phase C_p | 30.7 J/(mol K), constant | Table 1 | the engine takes the gas C_p from CoolProp; the adsorbed-phase value is set to 30.7 |
+| Gas and adsorbed-phase C_p | 30.7 J/(mol K), constant | Table 1 | `fluid.gas_heat_capacity_mode` = constant, `fluid.gas_heat_capacity[*]` = 30.7 and `fluid.adsorbed_heat_capacity[*]` = 30.7 J/(mol K) |
 | Viscosity, D_m | 1.72 × 10⁻⁵ Pa s, 1.60 × 10⁻⁵ m²/s, constant | Table 1 | the engine computes both per cell |
 | K_z | 0.0903 W/(m K) | Table 1 | |
 | h_in, h_out | 8.6 (fitted to the DCB temperature curves, Sect. 4.2), 10 ("assumed") W/(m² K) | Table 1 | |
@@ -140,6 +140,10 @@ value in a comment next to it. Results of the last run:
 - 2026-11-04, grid and advection scheme: see the subsection below; the decks now run WENO on 80 cells, and every recovery rose by 0.6-2.6 pp.
 - 2026-11-02, CSS rule: the balance-only test used before stopped 26 to 166 cycles short of CSS (A to F after 44, 55, 71, 155, 352 and 674 cycles), while purity and recovery were still moving by up to 0.17 pp (F). Every number on the validation page moved by that much; the only bound crossed was A's recovery against the experiment (0.294 → 0.417 pp, bound 0.4 → 0.5). The bound follows the measured error at CSS; nothing in the model changed.
 - adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K).
+
+### Gas heat capacity as in the paper (2026-11)
+
+The paper uses a constant gas heat capacity of 30.7 J/(mol K). The deck now uses the constant gas heat capacity mode with 30.7 J/(mol K) for CO₂ and N₂ (before: the default ideal-gas C_p0 at the local temperature). Every error moves by at most 0.005 pp: Config A recovery vs paper model 0.351 → 0.356 pp (bound 0.43), Config B purity vs experiment 0.691 → 0.693 pp (bound 0.7). No bound changed. All papers' settings: [../README.md](../README.md#gas-heat-capacity-per-paper).
 
 ### Grid and advection scheme (2026-11-04)
 

@@ -44,6 +44,10 @@ value in a comment next to it. Results of the last run:
 - CO2 purity within 2.5 pp, recovery within 2.9 pp and productivity within 2.3 % of Table 4 (WENO, 100 cells; see below).
 - The deck now uses the extended (competitive) DSL the paper states (Sect. 2.1). Energy is not compared (no pump model in the deck).
 
+### Gas heat capacity as in the paper (2026-11)
+
+Table 2 gives a constant 30.7 J/(mol K) for the gas and the adsorbed phase. The deck now uses the constant gas heat capacity mode with 30.7 J/(mol K) for CO₂ and N₂ (before: the default ideal-gas C_p0 at the local temperature). CO₂ purity error 2.406 → 2.391 pp (bound 2.7), productivity error 2.13 → 2.12 %. No bound changed. All papers' settings: [../README.md](../README.md#gas-heat-capacity-per-paper).
+
 ### Grid and advection scheme (2026-11-04)
 
 The deck ran first-order upwind advection on 30 cells. A grid study (10-160

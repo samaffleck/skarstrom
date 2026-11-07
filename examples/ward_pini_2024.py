@@ -83,6 +83,9 @@ def build(case: str = "FourStepPSA") -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "internal_energy"
     sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 30.7 * u.J / (u.mol * u.K)
     sim.fluid.adsorbed_heat_capacity["Nitrogen"] = 30.7 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity_mode = "constant"  # Table 2: Cp,g = 30.7 J/(mol K)
+    sim.fluid.gas_heat_capacity["CarbonDioxide"] = 30.7 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity["Nitrogen"] = 30.7 * u.J / (u.mol * u.K)
 
     # ---- adsorbents ------------------------------------------------------------------
     add_mg_mof_74(sim)

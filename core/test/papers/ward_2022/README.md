@@ -43,7 +43,7 @@ own 1D model used (Sect. 3, Appendix A); the experiment is that of their ref. [5
 | Ambient temperature | 291.4 K | Table 1, T_a | |
 | Feed temperature, pressure | 293 K, 1 bar | Table 1, T_F, p_F | |
 | Feed | pure CO₂ at 50 / 100 / 200 cm³/min | Sect. 2 | |
-| Initial gas / carrier | **air in the deck; helium in the experiment** | Sect. 2: "the CO₂/He system" | the paper's model uses constant CO₂ gas properties (C_p,g 840 J/(kg K), μ 1.72 × 10⁻⁵ Pa s, k_g 0.0162 W/(m K), D_m 0.605 × 10⁻⁵ m²/s; Table 1); the engine takes mixture properties from CoolProp |
+| Initial gas / carrier | **air in the deck; helium in the experiment** | Sect. 2: "the CO₂/He system" | the paper's model uses constant CO₂ gas properties (C_p,g 840 J/(kg K), μ 1.72 × 10⁻⁵ Pa s, k_g 0.0162 W/(m K), D_m 0.605 × 10⁻⁵ m²/s; Table 1); the engine takes the other mixture properties from CoolProp; the gas heat capacity is the paper's: constant 840 J/(kg K) per component, i.e. 840 J/(kg K) for every CO₂/He mixture (see below) |
 | Isotherm | DSL, concentration form | Table 2, Eqs. 1–3 | q_s,1 0.418, q_s,2 6.04 mol/kg; b_0,1 2.05 × 10⁻⁶, b_0,2 3.32 × 10⁻⁶ m³/mol; ΔU_1 −29 980, ΔU_2 −20 367 J/mol |
 | Heat of adsorption | 29 980 J/mol | Table 2 (−ΔU_1) | the paper's energy balance (A4) releases −ΔU_1 + RT ≈ 32.4 kJ/mol per mole adsorbed, for all loading |
 | LDF coefficient | Haynes (film + macropore), τ_p 3, ε_p 0.59 | Eqs. 6–7, Table 1 | the engine evaluates D_m per cell from the mixture; the paper uses the constant 0.605 × 10⁻⁵ m²/s |
@@ -131,6 +131,10 @@ and curve fits get worse: part of the previous agreement came from the
 unaccounted CO₂. The front-time and NRMSE tolerances were re-measured
 accordingly (see `ward_2022.cpp`). At 100 ccm ΔT_ads is now 12.89 K, just
 below the paper model's 95 % interval [12.9, 17.2] K (informational metric).
+
+### Gas heat capacity as in the paper (2026-11)
+
+Table 1 gives one constant heat capacity, 840 J/(kg K), for the CO₂/He gas and the adsorbed phase. The deck now uses the constant gas heat capacity mode with 840 J/(kg K) for each component, converted with its own molar mass (CO₂ 36.97, He 3.362 J/(mol K)). The two differ by a factor of 11 per mole, but the engine forms the mixture's heat capacity per kilogram as Σ y_i C_p,i / Σ y_i M_i, so every CO₂/He mixture has exactly the paper's 840 J/(kg K). Before, the default ideal-gas C_p0(T) (He 20.8 J/(mol K), i.e. 5193 J/(kg K)). Changes: Q200 front-time error 1.724 → 1.735 % (bound 1.8 %), outlet NRMSE 0.1402 → 0.1410 (bound 0.17), thermocouple RMSE 2.58 → 2.56 K; Q50 and Q100 move by less than 0.002 K and 0.0001 in NRMSE. No bound changed. All papers' settings: [../README.md](../README.md#gas-heat-capacity-per-paper).
 
 ### Grid and advection scheme (2026-11-04)
 

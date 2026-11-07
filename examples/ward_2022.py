@@ -93,6 +93,11 @@ def build(case: str) -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "isosteric"
     sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 36.96 * u.J / (u.mol * u.K)
     sim.fluid.adsorbed_heat_capacity["Helium"] = 0 * u.J / (u.mol * u.K)
+    # Table 1: one constant 840 J/(kg K) for the gas, given to each component per mole with its
+    # own molar mass, so that every CO2/He mixture has 840 J/(kg K).
+    sim.fluid.gas_heat_capacity_mode = "constant"
+    sim.fluid.gas_heat_capacity["CarbonDioxide"] = 840.0 * 44.0098e-3 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity["Helium"] = 840.0 * 4.002602e-3 * u.J / (u.mol * u.K)
 
     # ---- adsorbent -------------------------------------------------------------------
     add_activated_carbon(sim)

@@ -89,6 +89,17 @@ namespace adsim {
       AddComponents({ CO2, H2, He });
       auto [layer_id, ads_id] = AddLayer(carbon);
 
+      // --- Gas heat capacity (constant per species) ---
+      // Casas et al. (2012) use a constant heat capacity per species, averaged
+      // over 298-373 K at 15 bar and mixed by concentration, and print no
+      // value. Ours: the mean of each component's ideal-gas C_p0(T) (NASA
+      // TM-4513, the engine's default polynomials) over 298-373 K, i.e.
+      // (H0(373 K) - H0(298 K)) / 75 K, to 4 significant figures [J/(mol-K)].
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      data.fluid.gas_heat_capacity_[CO2] = 38.73;
+      data.fluid.gas_heat_capacity_[H2] = 29.06;
+      data.fluid.gas_heat_capacity_[He] = 20.79;
+
       // --- Column geometry & packing (Casas 2012, Table 2) ---
       const double length = 1.20;              // [m]
       const double inner_diameter = 0.025;     // [m] (2.5 cm)

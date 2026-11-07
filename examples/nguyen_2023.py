@@ -87,6 +87,12 @@ def build(case: str) -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "isosteric"
     sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 37.435 * u.J / (u.mol * u.K)
     sim.fluid.adsorbed_heat_capacity["Nitrogen"] = 29.171 * u.J / (u.mol * u.K)
+    # The paper's constant NIST gas heat capacities, N2 1040 and CO2 841 J/(kg K), per mole;
+    # the adsorbed phase takes the gas's.
+    sim.fluid.gas_heat_capacity_mode = "constant"
+    sim.fluid.gas_heat_capacity["CarbonDioxide"] = 841.0 * 44.0098e-3 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity["Nitrogen"] = 1040.0 * 28.01348e-3 * u.J / (u.mol * u.K)
+    sim.fluid.adsorbed_heat_capacity_mode = "gas_phase"
 
     # ---- adsorbent: structured CALF-20, competitive dual-site Langmuir (SI Table S1) ----
     calf20 = sim.add_adsorbent("CALF-20", solid_density=PARTICLE_DENSITY * u.kg / u.m**3,

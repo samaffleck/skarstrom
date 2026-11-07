@@ -632,29 +632,29 @@
             ],
             "Adsorbed_Heat_Capacity_Mode": 0,
             "Heat_Of_Adsorption_Convention": 0,
-            "Gas_Heat_Capacity_Mode": 0,
+            "Gas_Heat_Capacity_Mode": 1,
             "Gas_Heat_Capacity": [
                 {
                     "key": "Helium",
                     "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
+                        "Value": 20.79,
+                        "Expression": "20.79",
                         "DisplayUnitIndex": 0
                     }
                 },
                 {
                     "key": "Hydrogen",
                     "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
+                        "Value": 29.06,
+                        "Expression": "29.06",
                         "DisplayUnitIndex": 0
                     }
                 },
                 {
                     "key": "CarbonDioxide",
                     "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
+                        "Value": 38.73,
+                        "Expression": "38.73",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -862,20 +862,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 9.249362812549564,
-                                    "Average_Temperature": 307.1640834161086,
+                                    "Total_Moles": 9.248808456282847,
+                                    "Average_Temperature": 307.16033530935996,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.028609217339609875
+                                            "value": 0.02861093671048483
                                         },
                                         {
                                             "key": "Hydrogen",
-                                            "value": 0.2855576577492591
+                                            "value": 0.28557360330240508
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.685833124911131
+                                            "value": 0.68581545998711
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -958,16 +958,16 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 10.891929751013594,
-                                                        "Average_Temperature": 298.14999999999989,
+                                                        "Total_Moles": 10.891929709757742,
+                                                        "Average_Temperature": 298.1499999999998,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.7500000000000002
+                                                                "value": 0.7499999999999998
                                                             },
                                                             {
                                                                 "key": "Hydrogen",
-                                                                "value": 0.24999999999999968
+                                                                "value": 0.2500000000000002
                                                             },
                                                             {
                                                                 "key": "Helium",
