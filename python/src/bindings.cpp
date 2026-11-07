@@ -1152,6 +1152,23 @@ PYBIND11_MODULE(_core, m) {
     if (!p) throw py::value_error("no ideal-gas heat capacity polynomial for '" + component + "'");
     return adsim::Fluid::EvalIdealGasHeatCapacity(*p, temperature);
   }, py::arg("component"), py::arg("temperature"));
+  // Provenance of the polynomials: the table's reference and, per component, the
+  // TM-4513 species label and data-source code (or Air's mixing note).
+  m.def("ideal_gas_heat_capacity_reference", []() { return std::string(adsim::kIdealGasHeatCapacityReference); });
+  m.def("ideal_gas_heat_capacity_source", [](const std::string& component) {
+    const adsim::NasaPolynomial* p = adsim::Fluid::IdealGasCoeffs(component);
+    if (!p) throw py::value_error("no ideal-gas heat capacity polynomial for '" + component + "'");
+    py::dict d;
+    d["species"] = std::string(p->species);
+    d["source"] = std::string(p->source);
+    return d;
+  }, py::arg("component"));
+  m.def("components_with_held_heat_capacity", []() {
+    std::vector<std::string> out;
+    for (const auto& c : adsim::Components::componentNames)
+      if (!adsim::Fluid::IdealGasCoeffs(c)) out.push_back(c);
+    return out;
+  });
 
   // ---- isotherms -------------------------------------------------------------
   m.def("isotherm_kinds", []() {
