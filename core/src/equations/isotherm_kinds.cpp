@@ -38,6 +38,8 @@ const char* IsothermKindString(IsothermType t) {
     case T::EXTENDED_LANGMUIR_FREUNDLICH: return "extended_langmuir_freundlich";
     case T::GAB: return "gab";
     case T::GAB_YOUNG: return "gab_young";
+    case T::TOTH_WADST: return "toth_wadst";
+    case T::TOTH_HUMID: return "toth_humid";
   }
   return "unknown";
 }
@@ -204,6 +206,27 @@ IsothermFields(IIsotherm* iso, const std::string& component) {
         add("E10_A", it->second.E10_A); add("E10_B", it->second.E10_B); } }
       break;
     }
+    case T::TOTH_WADST: {
+      auto* c = dynamic_cast<TothWadstIsotherm*>(iso);
+      if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
+        auto& p = it->second;
+        add("T_0", p.T_0);
+        add("q_inf_dry", p.q_inf_dry); add("chi_dry", p.chi_dry); add("b0_dry", p.b0_dry);
+        add("dH_dry", p.dH_dry); add("tau0_dry", p.tau0_dry); add("alpha_dry", p.alpha_dry);
+        add("q_inf_wet", p.q_inf_wet); add("chi_wet", p.chi_wet); add("b0_wet", p.b0_wet);
+        add("dH_wet", p.dH_wet); add("tau0_wet", p.tau0_wet); add("alpha_wet", p.alpha_wet);
+        add("A", p.A); } }
+      break;
+    }
+    case T::TOTH_HUMID: {
+      auto* c = dynamic_cast<TothHumidIsotherm*>(iso);
+      if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
+        auto& p = it->second;
+        add("q_sat", p.q_sat); add("x", p.x); add("T_0", p.T_0);
+        add("b0", p.b0); add("dH0", p.dH0); add("w0", p.w0);
+        add("alpha", p.alpha); add("gamma", p.gamma); add("beta", p.beta); } }
+      break;
+    }
     // No `default`: -Wswitch flags a new IsothermType missing its param layout.
   }
   return out;
@@ -235,6 +258,8 @@ bool IsSupportedIsothermKind(IsothermType t) {
     case T::EXTENDED_LANGMUIR_FREUNDLICH:
     case T::GAB:
     case T::GAB_YOUNG:
+    case T::TOTH_WADST:
+    case T::TOTH_HUMID:
       return true;
   }
   return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
@@ -267,9 +292,15 @@ bool IsCompetitiveIsothermKind(IsothermType t) {
     case T::TOTH_2:
     case T::GAB:
     case T::GAB_YOUNG:
+    case T::TOTH_WADST:
+    case T::TOTH_HUMID:
       return false;
   }
   return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
+}
+
+bool IsWaterCoupledIsothermKind(IsothermType t) {
+  return t == IsothermType::TOTH_WADST || t == IsothermType::TOTH_HUMID;
 }
 
 bool PairedIsothermKind(IsothermType t, IsothermType& out) {
@@ -325,10 +356,12 @@ void EnsureIsothermComponent(IIsotherm* iso, const std::string& c) {
     case T::EXTENDED_LANGMUIR_FREUNDLICH: if (auto* p = dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso)) (void)p->params_[c]; break;
     case T::GAB: if (auto* p = dynamic_cast<GabIsotherm*>(iso)) (void)p->params_[c]; break;
     case T::GAB_YOUNG: if (auto* p = dynamic_cast<GabYoungIsotherm*>(iso)) (void)p->params_[c]; break;
+    case T::TOTH_WADST: if (auto* p = dynamic_cast<TothWadstIsotherm*>(iso)) (void)p->params_[c]; break;
+    case T::TOTH_HUMID: if (auto* p = dynamic_cast<TothHumidIsotherm*>(iso)) (void)p->params_[c]; break;
   }
 }
 
-double EvalIsotherm(IIsotherm* iso, const std::string& c, double T, double P, double yi) {
+double EvalIsotherm(IIsotherm* iso, const std::string& c, double T, double P, double yi, double q_water) {
   using K = IsothermType;
   double q = 0.0;
   if (!iso) return 0.0;
@@ -357,19 +390,22 @@ double EvalIsotherm(IIsotherm* iso, const std::string& c, double T, double P, do
     case K::EXTENDED_LANGMUIR_FREUNDLICH: if (auto* x = dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso)) IF::ExtendedLangmuirFreundlich(q, T, P, yi, x->params_[c]); break;
     case K::GAB: if (auto* x = dynamic_cast<GabIsotherm*>(iso)) IF::Gab(q, T, P, yi, SaturationPressure(c, T), x->params_[c]); break;
     case K::GAB_YOUNG: if (auto* x = dynamic_cast<GabYoungIsotherm*>(iso)) IF::GabYoung(q, T, P, yi, SaturationPressure(c, T), x->params_[c]); break;
+    case K::TOTH_WADST: if (auto* x = dynamic_cast<TothWadstIsotherm*>(iso)) IF::TothWadst(q, T, P, yi, q_water, x->params_[c]); break;
+    case K::TOTH_HUMID: if (auto* x = dynamic_cast<TothHumidIsotherm*>(iso)) IF::TothHumid(q, T, P, yi, q_water, x->params_[c]); break;
   }
   return q;
 }
 
-double IsostericHeat(IIsotherm* iso, const std::string& c, double T, double P, double yi) {
+double IsostericHeat(IIsotherm* iso, const std::string& c, double T, double P, double yi, double q_water) {
   // q_st = R T^2 (d ln p / dT)_q = -R T^2 (dq/dT)_p / (dq/d ln p)_T, both
   // partials by central differences of EvalIsotherm (relative steps 1e-4).
   const double p = P * yi;
   if (!iso || !(p > 0.0) || !(T > 0.0)) return std::numeric_limits<double>::quiet_NaN();
   const double hT = 1e-4 * T, hl = 1e-4;
-  const double dq_dT = (EvalIsotherm(iso, c, T + hT, p, 1.0) - EvalIsotherm(iso, c, T - hT, p, 1.0)) / (2.0 * hT);
-  const double dq_dlnp = (EvalIsotherm(iso, c, T, p * std::exp(hl), 1.0) -
-                          EvalIsotherm(iso, c, T, p * std::exp(-hl), 1.0)) / (2.0 * hl);
+  const double qw = q_water;
+  const double dq_dT = (EvalIsotherm(iso, c, T + hT, p, 1.0, qw) - EvalIsotherm(iso, c, T - hT, p, 1.0, qw)) / (2.0 * hT);
+  const double dq_dlnp = (EvalIsotherm(iso, c, T, p * std::exp(hl), 1.0, qw) -
+                          EvalIsotherm(iso, c, T, p * std::exp(-hl), 1.0, qw)) / (2.0 * hl);
   return -constants::kIdealGasConstant * T * T * dq_dT / dq_dlnp;
 }
 
