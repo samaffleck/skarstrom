@@ -1650,7 +1650,11 @@ namespace adsim {
     stats_carry_.num_lin_res_evals += c.num_lin_res_evals;
     stats_carry_.num_jac_evals += c.num_jac_evals;
     stats_carry_.num_lin_setups += c.num_lin_setups;
-    return IDAReInit(ida_mem_, t, y_, yp_);
+    if (!reinit_observer_) return IDAReInit(ida_mem_, t, y_, yp_);
+    reinit_observer_->BeforeReInit(ida_mem_, t);
+    int flag = IDAReInit(ida_mem_, t, y_, yp_);
+    if (flag == IDA_SUCCESS) flag = reinit_observer_->AfterReInit(ida_mem_, t);
+    return flag;
   }
 
   double SolverData::GetLastStep() const {
