@@ -127,7 +127,7 @@ def _print_table(rows: List[List[str]], header: List[str], out=None) -> None:
 # (scripts read them) and new KPIs are appended.
 def _kpi_columns(display_only: bool) -> List[Tuple[str, str]]:
     return [(k["key"], f"{k['short_label']} [{k['unit']}]") for k in manifests.kpi_manifest()
-            if not k["per_step"] and (k["display"] or not display_only)]
+            if not k["per_step"] and not k["diagnostic"] and (k["display"] or not display_only)]
 
 
 KPI_FIELDS = _kpi_columns(display_only=True)

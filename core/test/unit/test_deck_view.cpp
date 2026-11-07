@@ -239,9 +239,17 @@ TEST(Manifests, KpisFollowTheEngineKpiList) {
     EXPECT_FALSE(k.label.empty()) << k.key;
     EXPECT_FALSE(k.description.empty()) << k.key;
     EXPECT_TRUE(CheckUnit(k.unit).ok) << k.key << " unit " << k.unit;
-    if (!k.per_step) scalars.push_back(k.key);
+    if (!k.per_step && !k.diagnostic) scalars.push_back(k.key);
   }
   EXPECT_EQ(scalars, names);
+  // Reported KPIs first, then the diagnostics.
+  const auto& defs = KpiDefinitions();
+  bool seen_diagnostic = false;
+  for (const auto& k : defs) {
+    if (k.diagnostic) seen_diagnostic = true;
+    else EXPECT_FALSE(seen_diagnostic) << k.key << " follows a diagnostic";
+  }
+  EXPECT_TRUE(seen_diagnostic);
   rapidjson::Document doc;
   Parse(doc, KpiManifest());
   EXPECT_EQ(doc.Size(), KpiDefinitions().size());
@@ -345,11 +353,15 @@ TEST(Manifests, ExampleDeckManifestListsEveryDeck) {
 }
 
 TEST(Manifests, ComponentsHaveFormulaAndMolarMass) {
-  rapidjson::Document doc;
-  Parse(doc, ComponentManifest());
+  rapidjson::Document root;
+  Parse(root, ComponentManifest());
+  EXPECT_FALSE(std::string(root["cp_reference"].GetString()).empty());
+  const auto& doc = root["components"];
   EXPECT_EQ(doc.Size(), Components::componentNames.size());
   for (const auto& c : doc.GetArray()) {
     const std::string name = c["name"].GetString();
+    // A component with a Cp polynomial names its species; a held one has none.
+    EXPECT_EQ(std::string(c["cp_species"].GetString()).empty(), !c["ideal_gas_heat_capacity"].GetBool()) << name;
     EXPECT_TRUE(c["molar_mass"].IsNumber()) << name;
     if (name != "Air") EXPECT_FALSE(std::string(c["cas"].GetString()).empty()) << name;
   }

@@ -59,6 +59,27 @@ namespace adsim {
        "Each step's share of the thermal energy, in the deck's step order.", true, true},
       {"step_cooling_duty", "Cooling duty by step", "step cooling duty", "J/kg", "thermal",
        "Each step's share of the cooling duty, in the deck's step order.", true, true},
+      // Diagnostics: the same KPIs from the quadratures, and the cycle mole balance.
+      {"quadrature_purity", "Purity (quadrature)", "purity (quad.)", "mol/mol", "purity",
+       "Purity from the KPI quadratures instead of the trapezoid over the logged samples; NaN when the quadratures "
+       "were off.", false, false, true},
+      {"quadrature_recovery", "Recovery (quadrature)", "recovery (quad.)", "mol/mol", "recovery",
+       "Recovery from the KPI quadratures; NaN when the quadratures were off.", false, false, true},
+      {"quadrature_productivity_mass", "Productivity per adsorbent mass (quadrature)", "productivity mass (quad.)",
+       "kg/(kg s)", "productivity", "Productivity per kilogram of adsorbent from the KPI quadratures.", false, false,
+       true},
+      {"quadrature_productivity_volume", "Productivity per bed volume (quadrature)", "productivity volume (quad.)",
+       "kg/(m3 s)", "productivity", "Productivity per cubic metre of bed from the KPI quadratures.", false, false,
+       true},
+      {"quadrature_energy_consumption", "Specific energy (quadrature)", "energy (quad.)", "J/kg", "energy",
+       "Compressor and vacuum-pump work per kilogram of net product from the KPI quadratures.", false, false, true},
+      {"quadrature_production_rate", "Production rate (quadrature)", "production rate (quad.)", "mol/s",
+       "productivity", "Production rate from the KPI quadratures.", false, false, true},
+      {"mass_balance_error", "Mole balance error", "mass balance error", "mol/mol", "balance",
+       "Cycle mole balance of the component as a fraction of the moles that entered (zero for exact conservation), "
+       "with the endpoint flows from the trapezoid; NaN without the quadratures.", false, false, true},
+      {"quadrature_mass_balance_error", "Mole balance error (quadrature)", "mass balance error (quad.)", "mol/mol",
+       "balance", "Cycle mole balance error with the endpoint flows from the KPI quadratures.", false, false, true},
     };
     return kpis;
   }
@@ -77,6 +98,7 @@ namespace adsim {
       Set(v, "description", k.description, a);
       Set(v, "display", k.display, a);
       Set(v, "per_step", k.per_step, a);
+      Set(v, "diagnostic", k.diagnostic, a);
       list.PushBack(v, a);
     }
     return Write(list, options.pretty);
@@ -430,7 +452,11 @@ namespace adsim {
       info.molar_mass = 0.0;
     }
     if (!std::isfinite(info.molar_mass) || info.molar_mass <= 0.0 || info.molar_mass > 1e3) info.molar_mass = 0.0;
-    info.ideal_gas_heat_capacity = Fluid::IdealGasCoeffs(name) != nullptr;
+    if (const NasaPolynomial* p = Fluid::IdealGasCoeffs(name)) {
+      info.ideal_gas_heat_capacity = true;
+      info.cp_species = std::string(p->species);
+      info.cp_source = std::string(p->source);
+    }
     return info;
   }
 
@@ -450,9 +476,14 @@ namespace adsim {
       Set(v, "aliases", StrList(c.aliases, a), a);
       Set(v, "ideal_gas_heat_capacity", c.ideal_gas_heat_capacity, a);
       Set(v, "heat_capacity_held", !c.ideal_gas_heat_capacity, a);
+      Set(v, "cp_species", c.cp_species, a);
+      Set(v, "cp_source", c.cp_source, a);
       list.PushBack(v, a);
     }
-    return Write(list, options.pretty);
+    Value out(rapidjson::kObjectType);
+    Set(out, "cp_reference", std::string(kIdealGasHeatCapacityReference), a);
+    out.AddMember("components", list, a);
+    return Write(out, options.pretty);
   }
 
 }  // namespace adsim

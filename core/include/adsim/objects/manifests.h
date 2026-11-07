@@ -50,10 +50,12 @@ namespace adsim {
     std::string description;
     bool display = true;      // shown in summary tables (false for a duplicate kept for compatibility)
     bool per_step = false;    // one value per step (a list), not one per cycle
+    bool diagnostic = false;  // not a reported KPI: a cross-check (quadrature value, mole balance error)
   };
 
   // Every KPI, the per-cycle scalars first, in sensitivity::KPINames() order,
-  // then the per-step lists.
+  // then the per-step lists, then the diagnostics (diagnostic = true; the
+  // quadrature values and mole balance errors of KPIRecord).
   const std::vector<KpiDefinition>& KpiDefinitions();
   std::string KpiManifest(const ManifestOptions& options = {});
 
@@ -110,12 +112,17 @@ namespace adsim {
     // heat capacity follows the temperature; without one it is held at the
     // initial conditions (Fluid::ComponentsWithHeldHeatCapacity).
     bool ideal_gas_heat_capacity = false;
+    // Provenance of that polynomial (NasaPolynomial::species / source); both
+    // empty when the heat capacity is held.
+    std::string cp_species;
+    std::string cp_source;
   };
 
   // Formula, CAS and molar mass come from CoolProp; empty / 0 for a name
   // CoolProp does not know.
   ComponentInfo DescribeComponent(const std::string& name);
-  // Every component a deck can add (Components::componentNames).
+  // Every component a deck can add (Components::componentNames): an object
+  // with `cp_reference` (the source table of the polynomials) and `components`.
   std::string ComponentManifest(const ManifestOptions& options = {});
 
 }  // namespace adsim
