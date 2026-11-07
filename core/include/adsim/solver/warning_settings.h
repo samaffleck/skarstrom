@@ -27,11 +27,12 @@ namespace adsim {
     bool vacuum = true;                // below atmospheric without vacuum service
     bool design_temperature = true;    // wall temperature above the design temperature
     bool fluidisation = true;          // approach to fluidisation above 1
+    bool channel_reynolds = true;      // channel Re above 2000 in a structured layer (laminar closures)
 
   private:
     friend class ::cereal::access;
     template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const /*version*/) {
+    void serialize(Archive& ar, std::uint32_t const version) {
       ar(
         cereal::make_nvp("Pressure_Step_Change", pressure_step_change),
         cereal::make_nvp("Wall_Thickness", wall_thickness),
@@ -40,9 +41,12 @@ namespace adsim {
         cereal::make_nvp("Design_Temperature", design_temperature),
         cereal::make_nvp("Fluidisation", fluidisation)
       );
+      // v1: the channel Reynolds number warning (on for older decks).
+      if (version >= 1) ar(cereal::make_nvp("Channel_Reynolds", channel_reynolds));
+      else channel_reynolds = true;
     }
   };
 
 } // namespace adsim
 
-CEREAL_CLASS_VERSION(adsim::WarningSettings, 0);
+CEREAL_CLASS_VERSION(adsim::WarningSettings, 1);

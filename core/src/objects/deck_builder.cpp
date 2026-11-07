@@ -186,7 +186,7 @@ const std::vector<std::string>& ChannelShapeKinds() {
   return k;
 }
 const std::vector<std::string>& DispersionKinds() {
-  static const std::vector<std::string> k{"constant", "ruthven"};
+  static const std::vector<std::string> k{"constant", "ruthven", "taylor_aris"};
   return k;
 }
 const std::vector<std::string>& HeatDispersionKinds() {
@@ -202,7 +202,7 @@ const std::vector<std::string>& ExternalHeatTransferKinds() {
   return k;
 }
 const std::vector<std::string>& ParticleHeatTransferKinds() {
-  static const std::vector<std::string> k{"constant"};
+  static const std::vector<std::string> k{"constant", "film"};
   return k;
 }
 const std::vector<std::string>& ThermalEquilibriumKinds() {
@@ -501,7 +501,32 @@ void SetMomentum(UserData& data, size_t layer, const std::string& kind) {
 }
 
 void SetLayerKind(UserData& data, size_t layer, const std::string& kind) {
-  GetLayer(data, layer).kind_ = KindEnum<LayerKind>(LayerKinds(), kind, "layer kind");
+  auto& l = GetLayer(data, layer);
+  const LayerKind before = l.kind_;
+  l.kind_ = KindEnum<LayerKind>(LayerKinds(), kind, "layer kind");
+  if (l.kind_ == before) return;
+  auto& bed_eqs = data.bed.equations_;
+  auto particle_type = [&]() -> int {
+    return bed_eqs.particle_heat_transfer_model_ ? static_cast<int>(bed_eqs.particle_heat_transfer_model_->GetModelType()) : -1;
+  };
+  if (l.IsStructured() && before == LayerKind::Packed) {
+    // Channel closures: Taylor-Aris dispersion (keeping the layer's molecular
+    // diffusion coefficient if it had one) and the film gas-solid model.
+    auto ta = std::make_unique<DispersionModelTaylorAris>();
+    if (auto* r = dynamic_cast<DispersionModelRuthven*>(l.equations_.dispersion_model_.get())) ta->Dm = r->Dm;
+    l.equations_.dispersion_model_ = std::move(ta);
+    if (particle_type() != static_cast<int>(ParticleHeatTransferType::FILM))
+      bed_eqs.particle_heat_transfer_model_ = CreateParticleHeatTransferModel(ParticleHeatTransferType::FILM);
+  } else if (!l.IsStructured()) {
+    // Back to a packed bed: the packed defaults (a new layer's dispersion
+    // model; the constant gas-solid model once no structured layer remains).
+    if (dynamic_cast<DispersionModelTaylorAris*>(l.equations_.dispersion_model_.get()))
+      l.equations_.dispersion_model_ = std::make_unique<DispersionModelConstant>();
+    bool any_structured = false;
+    for (const auto& other : data.bed.layers_.layers_) any_structured = any_structured || other.IsStructured();
+    if (!any_structured && particle_type() == static_cast<int>(ParticleHeatTransferType::FILM))
+      bed_eqs.particle_heat_transfer_model_ = CreateParticleHeatTransferModel(ParticleHeatTransferType::CONSTANT);
+  }
 }
 
 void SetChannelShape(UserData& data, size_t layer, const std::string& shape) {

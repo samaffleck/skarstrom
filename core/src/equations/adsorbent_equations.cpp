@@ -1606,9 +1606,20 @@ namespace adsim {
     auto& Sh = state.sherwood_number.var;
     auto& Sc = state.schmidt_number.var;
     auto& Re = state.reynolds_number.var;
-    
+    const auto& dv = state.domain_vectors;
+
     size_t N = Sh.size();
     for (size_t n = 0; n < N; ++n) {
+      if (n < dv.channel_nu.size() && dv.channel_nu[n] > 0.0) {
+        // A structured channel: the fully developed laminar Sh (= Nu_T by the
+        // heat-mass analogy; Shah and London 1978), or with entrance effects
+        // Hawthorn's (1974) length-averaged developing-flow form
+        //   Sh = Sh_inf (1 + 0.095 Re Sc D_h / L)^0.45.
+        Sh[n] = ChannelFilmNumber(dv.channel_nu[n], std::max(Re[n], 0.0), std::max(Sc[n], 0.0),
+                                  dv.hydraulic_diameter[n], dv.entrance_length[n]);
+        continue;
+      }
+      // Packed bed: Wakao and Funazkri (1978), Sh = 2 + 1.1 Sc^(1/3) Re^0.6.
       Sh[n] = 2 + 1.1 * std::pow(Sc[n], 0.3333333) * std::pow(Re[n], 0.6);
     }
   }
@@ -1616,7 +1627,9 @@ namespace adsim {
   void UpdateReynoldsNumber(UserData* udata) {
     auto& state = udata->state;
     auto& domain = state.domain_vectors;
-    auto& dp = domain.dp;
+    // dp for a packed bed (particle Re on the superficial velocity); D_h / OFA
+    // for a structured layer (channel Re on the channel velocity u / OFA).
+    auto& dp = domain.re_length;
 
     auto& Re = state.reynolds_number.var;
     auto& rho = state.fluid_density.var;

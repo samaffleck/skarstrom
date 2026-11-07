@@ -58,10 +58,10 @@ namespace adsim {
   //   thin walls exchange heat with the gas through the channel film, which
   //   LTE takes as infinitely fast; LTNE is recommended.
   // - per structured layer, the packed-bed closures it still uses, which read
-  //   the particle diameter (channel closures replace them later): Ruthven
-  //   dispersion, Ruthven or Yagi-Kunii heat dispersion, Dixon or Leva
-  //   internal heat transfer, the LTNE particle heat-transfer area, and the
-  //   macropore / Haynes rate coefficients of the layer's adsorbents.
+  //   the particle diameter and have no channel form yet: Ruthven or
+  //   Yagi-Kunii heat dispersion, Dixon or Leva internal heat transfer.
+  //   (Ruthven axial dispersion on a structured layer is a deck error; the
+  //   rate coefficients and gas-solid heat transfer use the channel geometry.)
   std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
 
   // Reactions (objects/reaction.h): one warning per solid with reactions that

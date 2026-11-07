@@ -127,14 +127,37 @@ namespace adsim {
 
   void ConstantParticleHeatTransferModel::Update(Equations& state, const MixedAdsorbentLayer& layer) {
     auto& hp = state.particle_heat_transfer_coefficient.var;
-    const auto& eb = state.domain_vectors.eb;
-    const auto& dp = state.domain_vectors.dp;
+    // Specific surface area [1/m]: 6 (1 - eb) / dp for a packed bed, the
+    // channel wall area per bed volume for a structured layer.
+    const auto& av = state.domain_vectors.av;
 
     auto start = layer.domain_.start_index;
     auto end = layer.domain_.end_index;
     for (int n = start; n <= end; ++n) {
-      double av = 6.0 * (1.0 - eb[n]) / dp[n]; // Specific surface area [1/m]
-      hp[n] = heat_transfer_coefficient_ * av;   // Volumetric HTC [W/(m3.K)]
+      hp[n] = heat_transfer_coefficient_ * av[n];   // Volumetric HTC [W/(m3.K)]
+    }
+  }
+
+  void FilmParticleHeatTransferModel::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+    auto& hp = state.particle_heat_transfer_coefficient.var;
+    const auto& dv = state.domain_vectors;
+    const auto& Re = state.reynolds_number.var;
+    const auto& k_g = state.fluid_thermal_conductivity.var;
+    const auto& cp = state.heat_capacity.var;   // [J/(kg K)]
+    const auto& mu = state.viscosity.var;
+    const int start = layer.domain_.start_index, end = layer.domain_.end_index;
+    for (int n = start; n <= end; ++n) {
+      const double re = std::max(Re[n], 0.0);
+      const double pr = k_g[n] > 0.0 ? std::max(cp[n] * mu[n] / k_g[n], 0.0) : 0.0;
+      double h = 0.0;
+      if (dv.channel_nu[n] > 0.0) {
+        const double nu = ChannelFilmNumber(dv.channel_nu[n], re, pr, dv.hydraulic_diameter[n], dv.entrance_length[n]);
+        h = nu * k_g[n] / dv.hydraulic_diameter[n];
+      } else {
+        const double nu = 2.0 + 1.1 * std::cbrt(pr) * std::pow(re, 0.6);
+        h = nu * k_g[n] / dv.dp[n];
+      }
+      hp[n] = h * dv.av[n];
     }
   }
 
@@ -142,6 +165,7 @@ namespace adsim {
 
 
 CEREAL_REGISTER_TYPE(adsim::ConstantParticleHeatTransferModel)
+CEREAL_REGISTER_TYPE(adsim::FilmParticleHeatTransferModel)
 CEREAL_REGISTER_TYPE(adsim::ConstantInternalHeatTransferModel)
 CEREAL_REGISTER_TYPE(adsim::InternalHeatTransferModel_Dixon)
 CEREAL_REGISTER_TYPE(adsim::InternalHeatTransferModel_Leva)
@@ -153,3 +177,4 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IInternalHeatTransferModel, adsim::I
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ConstantExternalHeatTransferModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ExternalHeatTransferModel_Holman)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IParticleHeatTransferModel, adsim::ConstantParticleHeatTransferModel)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IParticleHeatTransferModel, adsim::FilmParticleHeatTransferModel)

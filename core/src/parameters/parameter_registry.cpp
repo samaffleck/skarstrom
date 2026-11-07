@@ -203,6 +203,9 @@ namespace adsim {
       BoolField("settings", "warn_fluidisation", "warn when the approach to fluidisation passes 1",
                 [](const UserData& u) { return u.settings.warnings_.fluidisation; },
                 [](UserData& u, bool b) { u.settings.warnings_.fluidisation = b; }),
+      BoolField("settings", "warn_channel_reynolds", "warn when the channel Reynolds number of a structured layer passes 2000",
+                [](const UserData& u) { return u.settings.warnings_.channel_reynolds; },
+                [](UserData& u, bool b) { u.settings.warnings_.channel_reynolds = b; }),
 
       // css (cyclic steady state)
       IntField("css", "method", "CSS method",
@@ -974,12 +977,17 @@ namespace adsim {
           E("gap", "gap between sheets", "m", g.gap_, 5e-5, 2e-3);
         }
         E("washcoat_thickness", "washcoat thickness", "m", g.washcoat_thickness_, 0.0, 2e-4);
+        // Hawthorn's developing-flow film coefficients over the layer length.
+        EmplaceBool(lp + ".entrance_effects", la + ".entrance_effects", "layer", ln,
+                    "entrance effects on the film coefficients", g.entrance_effects_);
       }
 
       auto& eqs = layer.equations_;
       if (auto* d = dynamic_cast<DispersionModelConstant*>(eqs.dispersion_model_.get())) {
         E("dispersion_coefficient", "dispersion coefficient", "m2/s", d->dispersion_coefficient_, 1e-8, 1e-2);
       } else if (auto* d = dynamic_cast<DispersionModelRuthven*>(eqs.dispersion_model_.get())) {
+        E("molecular_diffusion_coefficient", "molecular diffusion coefficient", "m2/s", d->Dm, 1e-8, 1e-4);
+      } else if (auto* d = dynamic_cast<DispersionModelTaylorAris*>(eqs.dispersion_model_.get())) {
         E("molecular_diffusion_coefficient", "molecular diffusion coefficient", "m2/s", d->Dm, 1e-8, 1e-4);
       }
       if (auto* d = dynamic_cast<HeatDispersionModelConstant*>(eqs.heat_dispersion_model_.get())) {

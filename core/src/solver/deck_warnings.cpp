@@ -205,8 +205,6 @@ namespace adsim {
       const std::string what = std::string(LayerKindList[static_cast<int>(layer.kind_)]);
       std::vector<std::string> uses;
       const auto& eqs = layer.equations_;
-      if (dynamic_cast<const DispersionModelRuthven*>(eqs.dispersion_model_.get()))
-        uses.push_back("Ruthven axial dispersion");
       if (dynamic_cast<const HeatDispersionModelRuthven*>(eqs.heat_dispersion_model_.get()))
         uses.push_back("Ruthven heat dispersion");
       if (dynamic_cast<const HeatDispersionModelYagiandKunii*>(eqs.heat_dispersion_model_.get()))
@@ -215,30 +213,6 @@ namespace adsim {
         uses.push_back("Dixon wall heat transfer");
       if (dynamic_cast<const InternalHeatTransferModel_Leva*>(eqs.internal_heat_transfer_model_.get()))
         uses.push_back("Leva wall heat transfer");
-      if (bed.equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL &&
-          dynamic_cast<const ConstantParticleHeatTransferModel*>(bed.equations_.particle_heat_transfer_model_.get()))
-        uses.push_back("the gas-solid heat transfer area 6 (1 - eb) / dp");
-      for (const auto& [id, frac] : layer.composition_) {
-        if (!adsorbents.Contains(id)) continue;
-        const Adsorbent& ads = adsorbents.Get(id);
-        std::vector<std::string> comps;
-        std::vector<std::string> names;
-        for (const auto& [c, model] : ads.adsorption_source_.mass_transfer_models_) names.push_back(c);
-        std::sort(names.begin(), names.end());
-        for (const auto& c : names) {
-          const auto& model = ads.adsorption_source_.mass_transfer_models_.at(c);
-          const auto* k = model ? model->mtc_model_.get() : nullptr;
-          if (dynamic_cast<const MassTransferCoefficientMacropore*>(k) ||
-              dynamic_cast<const MassTransferCoefficientMacroporeKnudsen*>(k) ||
-              dynamic_cast<const MassTransferCoefficientMacroporeCapacity*>(k) ||
-              dynamic_cast<const MassTransferCoefficient_Haynes*>(k))
-            comps.push_back(c);
-        }
-        if (comps.empty()) continue;
-        std::string list;
-        for (size_t i = 0; i < comps.size(); ++i) list += (i ? ", " : "") + comps[i];
-        uses.push_back("the particle-radius rate coefficient of '" + ads.name_ + "' for " + list);
-      }
       if (uses.empty()) continue;
       std::ostringstream ss;
       ss << "Warning: layer '" << layer.name_ << "' is a " << what << " but uses packed-bed closures that read the"

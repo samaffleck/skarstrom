@@ -40,6 +40,23 @@ namespace adsim {
     }
 	}
 
+	void DispersionModelTaylorAris::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+		auto& Dx = state.axial_dispersion_coefficient.var;
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;   // the open frontal area of a structured layer
+		const auto& dh = state.domain_vectors.hydraulic_diameter;
+		const auto& kappa = state.domain_vectors.taylor_aris_kappa;
+		const double dm = Dm;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
+			if (!(kappa[n] > 0.0) || !(dm > 0.0)) {  // not a channel: molecular diffusion only
+				Dx[n] = dm;
+				continue;
+			}
+			const double u_ch = std::abs(u[n]) / eb[n];
+			Dx[n] = dm + u_ch * u_ch * dh[n] * dh[n] / (kappa[n] * dm);
+		}
+	}
+
 	// void DispersionModelWakaoAndFunazkri::Update(Equations& state, const std::string& component, const MixedAdsorbentLayer& layer) {
 	// 	auto& Dxi = state.dispersion_coefficient.at(component).var;
 	// 	auto& Dmi = state.molecular_diffusion.at(component).var;
@@ -115,12 +132,14 @@ CEREAL_REGISTER_TYPE(adsim::DispersionModelConstant)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelConstant)
 // CEREAL_REGISTER_TYPE(adsim::DispersionModelWakaoAndFunazkri)
 CEREAL_REGISTER_TYPE(adsim::DispersionModelRuthven)
+CEREAL_REGISTER_TYPE(adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelYagiandKunii)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelConstant)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelConstant)
 // CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelWakaoAndFunazkri)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelRuthven)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelYagiandKunii)
 // CEREAL_CLASS_VERSION(adsim::DispersionModelWakaoAndFunazkri, 1);

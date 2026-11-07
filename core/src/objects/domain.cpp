@@ -31,6 +31,12 @@ namespace adsim {
     eb.resize(N);
     ep.resize(N);
     dp.resize(N);
+    av.assign(N, 0.0);
+    re_length.assign(N, 0.0);
+    hydraulic_diameter.assign(N, 0.0);
+    channel_nu.assign(N, 0.0);
+    taylor_aris_kappa.assign(N, 0.0);
+    entrance_length.assign(N, 0.0);
     ks.resize(N);
     kw.resize(N);
     Cpw.resize(N);
@@ -68,6 +74,15 @@ namespace adsim {
       double c_et = layer.GetTotalVoidFraction(dir);
       double c_eb = layer.GetVoidFraction();  // eb_, or the open frontal area of a structured layer
       double c_dp = layer.particle_diameter_;
+      // Packed: the expressions the closures used to form themselves, so
+      // packed results are unchanged bit for bit.
+      const bool structured = layer.IsStructured();
+      const double c_av = structured ? layer.GetSpecificSurfaceArea() : 6.0 * (1.0 - c_eb) / c_dp;
+      const double c_re_length = structured ? layer.GetHydraulicDiameter() / layer.GetOpenFraction() : c_dp;
+      const double c_dh = structured ? layer.GetHydraulicDiameter() : 0.0;
+      const double c_nu = layer.GetChannelNusselt();
+      const double c_kappa = layer.GetTaylorArisKappa();
+      const double c_entrance = (structured && layer.structured_.entrance_effects_) ? layer.domain_.length.Get() : 0.0;
       double c_ks = layer.GetEffectiveThermalConductivity(dir);
       const auto c_ads_bulk_density = layer.GetAdsorbentBulkDensities(dir);
       double c_di = bed.GetHydraulicDiameter();
@@ -85,6 +100,12 @@ namespace adsim {
         eb[i] = c_eb;
         ep[i] = c_ep;
         dp[i] = c_dp;
+        av[i] = c_av;
+        re_length[i] = c_re_length;
+        hydraulic_diameter[i] = c_dh;
+        channel_nu[i] = c_nu;
+        taylor_aris_kappa[i] = c_kappa;
+        entrance_length[i] = c_entrance;
         ks[i] = c_ks;
         kw[i] = c_kw;
         Cpw[i] = c_cpw;
@@ -129,6 +150,12 @@ namespace adsim {
       eb[dst] = eb[src];
       ep[dst] = ep[src];
       dp[dst] = dp[src];
+      av[dst] = av[src];
+      re_length[dst] = re_length[src];
+      hydraulic_diameter[dst] = hydraulic_diameter[src];
+      channel_nu[dst] = channel_nu[src];
+      taylor_aris_kappa[dst] = taylor_aris_kappa[src];
+      entrance_length[dst] = entrance_length[src];
       ks[dst] = ks[src];
       kw[dst] = kw[src];
       Cpw[dst] = Cpw[src];
@@ -164,6 +191,12 @@ namespace adsim {
       eb[idx] = 1.0;
       ep[idx] = 0.0;
       dp[idx] = dx_void;  // placeholder; not used by physics in void cells
+      av[idx] = 0.0;
+      re_length[idx] = dx_void;  // as dp
+      hydraulic_diameter[idx] = 0.0;
+      channel_nu[idx] = 0.0;
+      taylor_aris_kappa[idx] = 0.0;
+      entrance_length[idx] = 0.0;
       ks[idx] = 0.0;
       kw[idx] = c_kw;
       Cpw[idx] = c_cpw;

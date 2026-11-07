@@ -194,12 +194,15 @@ namespace adsim {
 
   // ---- Particle Heat Transfer (gas-to-solid) ----
 
+  // Stored values; never renumber.
   enum class ParticleHeatTransferType {
-    CONSTANT
+    CONSTANT = 0,
+    FILM = 1
   };
 
   static const char* ParticleHeatTransferModeList[] = {
-    "Constant"
+    "Constant",
+    "Film"
   };
 
   class IParticleHeatTransferModel {
@@ -236,10 +239,33 @@ namespace adsim {
     }
   };
 
+  // Gas-solid film coefficient from correlations, h_p = h a_v [W/(m3 K)]:
+  //   packed bed:  Nu = h d_p / k_g = 2 + 1.1 Pr^(1/3) Re^0.6 (Wakao and
+  //                Funazkri 1978; Re on the superficial velocity and d_p);
+  //   structured:  Nu = h D_h / k_g, the channel's fully developed Nu_T
+  //                (Shah and London 1978), or Hawthorn's (1974) developing
+  //                form when the layer's entrance effects are on
+  //                (ChannelFilmNumber; Re on the channel velocity and D_h).
+  // a_v is the layer's specific surface (domain vector av).
+  class FilmParticleHeatTransferModel : public IParticleHeatTransferModel {
+  public:
+    void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
+    ParticleHeatTransferType GetModelType() override { return ParticleHeatTransferType::FILM; }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      (void)version;
+      ar(cereal::virtual_base_class<IParticleHeatTransferModel>(this));
+    }
+  };
+
   // Factory Functions
   inline std::unique_ptr<IParticleHeatTransferModel> CreateParticleHeatTransferModel(ParticleHeatTransferType type) {
     switch (type) {
     case ParticleHeatTransferType::CONSTANT: return std::make_unique<ConstantParticleHeatTransferModel>();
+    case ParticleHeatTransferType::FILM: return std::make_unique<FilmParticleHeatTransferModel>();
     default: return nullptr;
     }
   }
@@ -271,3 +297,4 @@ CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Dixon, 1);
 CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Leva, 1);
 CEREAL_CLASS_VERSION(adsim::ConstantExternalHeatTransferModel, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_Holman, 1);
+CEREAL_CLASS_VERSION(adsim::FilmParticleHeatTransferModel, 1);

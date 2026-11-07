@@ -6,6 +6,7 @@
  */
 #include "../pch.h"
 #include "adsim/objects/reactor.h"
+#include "adsim/equations/dispersion_model.h"
 
 
 namespace adsim {
@@ -38,6 +39,23 @@ namespace adsim {
       }
     }
     if (!geometry_ok) return false;
+
+    // Dispersion closures that belong to one kind of layer: Ruthven's packed-
+    // bed correlation on a structured layer (Taylor-Aris replaces it), and
+    // Taylor-Aris on a packed bed (it needs channels).
+    for (const auto& layer : layers_.layers_) {
+      const auto* disp = layer.equations_.dispersion_model_.get();
+      if (layer.IsStructured() && dynamic_cast<const DispersionModelRuthven*>(disp)) {
+        errorMsg += "Error: Layer \"" + layer.name_ + "\" is a " + LayerKindList[static_cast<int>(layer.kind_)] +
+                    " but uses Ruthven's packed-bed dispersion; use Taylor-Aris dispersion (taylor_aris) or a constant coefficient.\n";
+        return false;
+      }
+      if (!layer.IsStructured() && dynamic_cast<const DispersionModelTaylorAris*>(disp)) {
+        errorMsg += "Error: Layer \"" + layer.name_ + "\" is a packed bed but uses Taylor-Aris dispersion, which is for"
+                    " channels; use Ruthven dispersion or a constant coefficient.\n";
+        return false;
+      }
+    }
 
     // Check that LTNE mode has a valid particle heat transfer model
     if (equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL) {
