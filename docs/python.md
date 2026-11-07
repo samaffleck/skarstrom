@@ -220,7 +220,26 @@ ads = sim.add_library_adsorbent("zeolite_13x_streb2021")   # or one entry (a var
 
 A library adsorbent is added to the deck's adsorbent directory; it is used (and its values appear in `sim.parameters()`) once a layer contains it — automatically for a layer that had no adsorbent yet.
 
-Every other structural change (models, steps, boundary types, layers, connections) is made with the builder methods of the next section, which work on a loaded deck as well as on a new one.
+`sim.edit` holds the rest of the engine's cascades: the edits a front end makes, each keeping connections, KPI references, buffer tanks and mole fractions consistent. A kind switch keeps every parameter the old and new kinds share (the same name and unit, from the kind descriptors `skarstrom.model_kinds()` lists) and gives the rest the new kind's defaults. Objects are given by ID or as objects; a refused edit raises `ValueError` and changes nothing.
+
+```python
+layer = sim.edit.add_layer()                   # "Layer 2" (a taken name is made unique), composition seeded
+sim.edit.move_layer(layer, -1)                 # one place towards the feed end
+step = sim.edit.add_step()                     # a one-stream flow inlet at the bottom, a pressure outlet at the top
+copy = sim.edit.duplicate_step(step); sim.edit.move_step(copy, -1); sim.edit.remove_step(copy)
+valve = sim.edit.add_stream(step, "bottom", "valve")     # returns the endpoint ID
+sim.edit.set_stream_kind(step, "bottom", 0, "pump")      # keeps the endpoint ID, name, temperature, composition
+sim.edit.set_boundary_kind(step, "top", "flow")          # pressure / flow / closed
+sim.edit.set_profile_kind(valve, "pressure", "exponential")   # a constant's value becomes the ramp's end
+sim.edit.set_isotherm_kind("13X", "CarbonDioxide", "extended_dual_site_langmuir_p")  # keeps m1, b1, q1, ...
+sim.edit.set_mass_transfer_kind("13X", "CarbonDioxide", "ldf", "macropore_knudsen")  # keeps the tortuosity, ...
+sim.edit.set_dispersion_kind(layer, "ruthven"); sim.edit.set_pump_kind(valve, "none")
+sim.edit.connect(a, b); sim.edit.ensure_ids(); sim.edit.repair_connections(); sim.edit.fill_gaps()
+```
+
+`ensure_ids()` numbers steps, endpoints and layers by first appearance and renumbers the connection pair ids 1..N, so two decks of the same structure save the same IDs. `fill_gaps()` fills every entry the run would otherwise fill in (a mole fraction per component everywhere, heat capacities, default physics on every adsorbent, empty layer compositions, KPI entries); a deck edited only through these methods already has them.
+
+The builder methods of the next section also work on a loaded deck as well as on a new one.
 
 ## Building a simulation in Python
 

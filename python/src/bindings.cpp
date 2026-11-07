@@ -892,6 +892,96 @@ PYBIND11_MODULE(_core, m) {
         s.RefreshParameters();
         return out;
       }, py::arg("op"), py::arg("args"))
+      // ---- structural cascades (adsim/objects/deck_edit.h) -------------------
+      // Kinds are named by their tags (adsim/objects/model_kinds.h), sides
+      // "bottom" / "top". Refused edits raise ValueError with the engine's
+      // message and leave the deck unchanged.
+      .def("edit", [](adsim::Simulation& s, const std::string& op, const py::list& args) -> py::object {
+        using namespace adsim;
+        auto& d = s.Data();
+        auto str = [&](size_t i) { return args[i].cast<std::string>(); };
+        auto id = [&](size_t i) { return args[i].cast<size_t>(); };
+        auto side = [&](size_t i) {
+          const std::string v = str(i);
+          if (v == "bottom") return BoundaryLocation::BOTTOM;
+          if (v == "top") return BoundaryLocation::TOP;
+          throw py::value_error("unknown side '" + v + "'; one of: bottom, top");
+        };
+        auto kind = [&](ModelFamily family, size_t i) {
+          const std::string tag = str(i);
+          const auto& tags = KindTags(family);
+          for (size_t k = 0; k < tags.size(); ++k)
+            if (tags[k] == tag) return k;
+          std::string valid;
+          for (const auto& t : tags) valid += (valid.empty() ? "" : ", ") + t;
+          throw py::value_error(std::string("unknown ") + ModelFamilyName(family) + " kind '" + tag + "'; one of: " + valid);
+        };
+        std::string err;
+        bool ok = true;
+        py::object out = py::none();
+        size_t new_id = 0;  // set by the call, read after it (not as a second argument)
+        auto ret_id = [&](bool good) { ok = good; if (good) out = py::int_(new_id); };
+        if (op == "add_layer") out = py::int_(AddLayer(d, str(0)));
+        else if (op == "remove_layer") ok = RemoveLayer(d, id(0), err);
+        else if (op == "move_layer") ok = MoveLayer(d, id(0), args[1].cast<int>(), err);
+        else if (op == "add_step") out = py::int_(AddStep(d, str(0)));
+        else if (op == "remove_step") ok = RemoveStep(d, id(0), err);
+        else if (op == "duplicate_step") ret_id(DuplicateStep(d, id(0), new_id, err));
+        else if (op == "move_step") ok = MoveStep(d, id(0), args[1].cast<int>(), err);
+        else if (op == "add_stream")
+          ret_id(AddStream(d, id(0), side(1), static_cast<BoundaryStreamType>(kind(ModelFamily::Stream, 2)), new_id, err));
+        else if (op == "remove_stream") ok = RemoveStream(d, id(0), side(1), id(2), err);
+        else if (op == "connect") ok = ConnectEndpoints(d, id(0), id(1), err);
+        else if (op == "ensure_ids") EnsureIds(d);
+        else if (op == "repair_connections") out = py::int_(RepairConnections(d));
+        else if (op == "prune_buffer_tanks") out = py::int_(PruneBufferTanks(d));
+        else if (op == "sync_kpi_config") { SyncKpiConfigToComponents(d); PruneKpiConfig(d); }
+        else if (op == "fill_gaps") FillDeckGaps(d);
+        else if (op == "set_isotherm_kind") {
+          IsothermType t{};
+          if (!KindFromString(str(2), t)) throw py::value_error("unknown isotherm kind '" + str(2) + "'");
+          ok = SetIsothermKind(d, id(0), str(1), t, err);
+        }
+        else if (op == "set_mass_transfer_kind")
+          ok = SetMassTransferKind(d, id(0), str(1), static_cast<MassTransferModelType>(kind(ModelFamily::RateModel, 2)),
+                                   static_cast<MassTransferCoefficientType>(kind(ModelFamily::RateCoefficient, 3)), err);
+        else if (op == "set_dispersion_kind")
+          ok = SetDispersionKind(d, id(0), static_cast<AxialDispersionType>(kind(ModelFamily::Dispersion, 1)), err);
+        else if (op == "set_heat_dispersion_kind")
+          ok = SetHeatDispersionKind(d, id(0), static_cast<AxialHeatDispersionType>(kind(ModelFamily::HeatDispersion, 1)), err);
+        else if (op == "set_internal_heat_transfer_kind")
+          ok = SetInternalHeatTransferKind(d, id(0),
+                                           static_cast<InternalHeatTransferType>(kind(ModelFamily::InternalHeatTransfer, 1)), err);
+        else if (op == "set_external_heat_transfer_kind")
+          ok = SetExternalHeatTransferKind(d, id(0),
+                                           static_cast<ExternalHeatTransferType>(kind(ModelFamily::ExternalHeatTransfer, 1)), err);
+        else if (op == "set_particle_heat_transfer_kind")
+          ok = SetParticleHeatTransferKind(d, static_cast<ParticleHeatTransferType>(kind(ModelFamily::ParticleHeatTransfer, 0)), err);
+        else if (op == "set_boundary_kind")
+          ok = SetBoundaryConditionKind(d, id(0), side(1), static_cast<BoundaryType>(kind(ModelFamily::Boundary, 2)), err);
+        else if (op == "set_stream_kind")
+          ok = SetStreamKind(d, id(0), side(1), id(2), static_cast<BoundaryStreamType>(kind(ModelFamily::Stream, 3)), err);
+        else if (op == "set_flow_kind")
+          ok = SetFlowKind(d, id(0), static_cast<FlowType>(kind(ModelFamily::Flow, 1)), err);
+        else if (op == "set_profile_kind") {
+          const std::string t = str(1);
+          ProfileTarget target;
+          if (t == "pressure") target = ProfileTarget::Pressure;
+          else if (t == "flow") target = ProfileTarget::Flow;
+          else if (t == "temperature") target = ProfileTarget::Temperature;
+          else throw py::value_error("unknown profile target '" + t + "'; one of: pressure, flow, temperature");
+          ok = SetProfileKind(d, id(0), target, static_cast<BoundaryValueType>(kind(ModelFamily::Profile, 2)), err);
+        }
+        else if (op == "set_pump_kind") ok = SetPumpKind(d, id(0), kind(ModelFamily::Pump, 1), err);
+        else if (op == "set_pump_efficiency_kind")
+          ok = SetPumpEfficiencyKind(d, id(0), static_cast<PumpEfficiencyType>(kind(ModelFamily::PumpEfficiency, 1)), err);
+        else if (op == "set_pump_power_kind")
+          ok = SetPumpPowerKind(d, id(0), static_cast<PumpPowerType>(kind(ModelFamily::PumpPower, 1)), err);
+        else throw py::value_error("unknown edit operation '" + op + "'");
+        s.RefreshParameters();
+        if (!ok) throw py::value_error(err);
+        return out;
+      }, py::arg("op"), py::arg("args"))
       // The deck's structure in builder vocabulary: which model kind each
       // object uses, how the steps' ends are set up, the connections and the
       // KPI configuration. Values are read from the parameter registry.
@@ -1112,6 +1202,54 @@ PYBIND11_MODULE(_core, m) {
         out["variables"] = variables;
         return out;
       });
+
+  // Every model kind's descriptor (adsim/objects/model_kinds.h): family ->
+  // [{tag, label, parameters: [{name, unit, default, lower, upper, tunable,
+  // label}]}], isotherms under "isotherm" with their extra flags.
+  m.def("model_kinds", []() {
+    auto params = [](const adsim::KindDescriptor& k) {
+      py::list ps;
+      for (const auto& p : k.parameters) {
+        py::dict d;
+        d["name"] = p.name;
+        d["unit"] = p.unit;
+        d["default"] = p.default_value;
+        d["lower"] = p.lower;
+        d["upper"] = p.upper;
+        d["tunable"] = p.tunable;
+        d["label"] = p.Label();
+        ps.append(d);
+      }
+      return ps;
+    };
+    py::dict out;
+    for (adsim::ModelFamily f : adsim::AllModelFamilies()) {
+      py::list kinds;
+      for (const auto& k : adsim::KindDescriptors(f)) {
+        py::dict d;
+        d["tag"] = k.tag;
+        d["label"] = k.label;
+        d["parameters"] = params(k);
+        kinds.append(d);
+      }
+      out[adsim::ModelFamilyName(f)] = kinds;
+    }
+    py::list isotherms;
+    for (const auto& k : adsim::IsothermKindDescriptors()) {
+      py::dict d;
+      d["tag"] = k.tag;
+      d["label"] = k.label;
+      d["parameters"] = params(k);
+      d["competitive"] = k.competitive;
+      d["water_coupled"] = k.water_coupled;
+      d["fittable"] = k.fittable;
+      d["iast"] = k.iast != adsim::IastFamily::None;
+      d["paired"] = k.has_pair ? py::object(py::str(adsim::IsothermKindString(k.pair))) : py::object(py::none());
+      isotherms.append(d);
+    }
+    out["isotherm"] = isotherms;
+    return out;
+  });
 
   m.def("build_kinds", []() {
     namespace b = adsim::build;

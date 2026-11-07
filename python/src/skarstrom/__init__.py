@@ -110,11 +110,14 @@ from .model import (
 )
 from . import build
 from . import model as _model
+from .edit import Editor, model_kinds
 
 __version__: str = _core.__version__
 
 __all__ = [
     "Adsorbent",
+    "Editor",
+    "model_kinds",
     "AxialProfile",
     "Bed",
     "BufferTank",
@@ -514,6 +517,12 @@ class Simulation:
         self._epoch += 1
 
     @property
+    def edit(self) -> Editor:
+        """Structural edits with the engine's cascades: ``sim.edit.add_step()``,
+        ``sim.edit.set_stream_kind("Feed", "bottom", 0, "valve")`` (see :mod:`skarstrom.edit`)."""
+        return Editor(self)
+
+    @property
     def steps(self) -> Collection[Step]:
         """The cycle's steps in order: ``sim.steps["Feed"]``, ``sim.steps[0]``."""
         return _model._steps(self)
@@ -582,6 +591,21 @@ class Simulation:
     def kpi(self) -> KPIConfig:
         """KPI configuration: ``sim.kpi.track("CO2", feed=[...], product=[...])``."""
         return KPIConfig(self)
+
+    @property
+    def cost(self) -> "_model.CostData":
+        """The cost estimate's values (``cost.*``)."""
+        return _model._group(self, _model.CostData, "cost")
+
+    @property
+    def study_settings(self) -> "_model.StudySettings":
+        """Settings of the deck's sensitivity study (``sensitivity.*``)."""
+        return _model._group(self, _model.StudySettings, "sensitivity")
+
+    @property
+    def kpi_tracked(self) -> "_model.ValueMap":
+        """Whether each component's KPIs are computed: ``sim.kpi_tracked["CO2"] = True`` (``kpi[C].tracked``)."""
+        return _model._kpi_tracked(self)
 
     @property
     def info(self) -> Info:

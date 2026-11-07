@@ -13,55 +13,28 @@
 #include <dlib/global_optimization.h>
 
 #include "adsim/math/constants.h"
+#include "adsim/objects/model_kinds.h"
 
 namespace adsim {
 namespace isofit {
 
+// The fitter's kinds, their order and which have a fitted temperature
+// dependence come from the kind descriptors (objects/model_kinds.h).
 const std::vector<IsothermType>& FittableKinds() {
-  using T = IsothermType;
-  static const std::vector<T> kinds = {
-      T::HENRY,
-      T::SINGLE_SITE_LANGMUIR_P,
-      T::DUAL_SITE_LANGMUIR_P,
-      T::SINGLE_SITE_LANGMUIR_C,
-      T::DUAL_SITE_LANGMUIR_C,
-      T::EXTENDED_SINGLE_SITE_LANGMUIR_P,
-      T::EXTENDED_DUAL_SITE_LANGMUIR_P,
-      T::FREUNDLICH,
-      T::SIPS,
-      T::DUAL_SITE_SIPS,
-      T::TOTH,
-      T::SIPS_2,
-      T::EXTENDED_SIPS_2,
-      T::TOTH_2,
-      T::GAB,
-      T::GAB_YOUNG,
-      T::TOTH_WADST,
-      T::TOTH_HUMID,
-  };
+  static const std::vector<IsothermType> kinds = [] {
+    std::vector<const IsothermKindDescriptor*> fit;
+    for (const auto& d : IsothermKindDescriptors())
+      if (d.fittable) fit.push_back(&d);
+    std::sort(fit.begin(), fit.end(), [](auto* a, auto* b) { return a->fit_order < b->fit_order; });
+    std::vector<IsothermType> out;
+    for (auto* d : fit) out.push_back(d->type);
+    return out;
+  }();
   return kinds;
 }
 bool IsTemperatureDependent(IsothermType t) {
-  using T = IsothermType;
-  switch (t) {
-    case T::HENRY:
-    case T::SINGLE_SITE_LANGMUIR_P:
-    case T::DUAL_SITE_LANGMUIR_P:
-    case T::SINGLE_SITE_LANGMUIR_C:
-    case T::DUAL_SITE_LANGMUIR_C:
-    case T::EXTENDED_SINGLE_SITE_LANGMUIR_P:
-    case T::EXTENDED_DUAL_SITE_LANGMUIR_P:
-    case T::SIPS_2:
-    case T::EXTENDED_SIPS_2:
-    case T::TOTH_2:
-    case T::GAB:
-    case T::GAB_YOUNG:
-    case T::TOTH_WADST:
-    case T::TOTH_HUMID:
-      return true;
-    default:
-      return false;
-  }
+  const auto i = static_cast<std::size_t>(t);
+  return i < IsothermKindDescriptors().size() && IsothermKindDescriptors()[i].temperature_dependent;
 }
 bool PointUsable(const Point& p) {
   return std::isfinite(p.P) && std::isfinite(p.q) && std::isfinite(p.T) && std::isfinite(p.y) &&

@@ -22,7 +22,9 @@ The view has the deck's structure: components (name, formula, molar mass), adsor
 component's isotherm kind and rate-model kinds, reactions), layers (kind, transport models,
 composition), the bed and its wall, steps (time mode, the bottom and top ends with their streams,
 profiles, pumps and buffer tanks, energy sources, the heating medium), connections, the KPI
-configuration, user variables and the `info`, `settings`, `css` and `energy_balance` sections.
+configuration (each component's entry also lists its `kpi[C].tracked` value), user variables, the
+`cost` (cost estimate) and `sensitivity` (the stored study's settings) sections and the `info`,
+`settings`, `css` and `energy_balance` sections.
 Every node has its stable id (step, endpoint, layer, adsorbent and reaction id). Model kinds are
 given by the builder's kind names (`skarstrom.build_kinds()`).
 

@@ -8,6 +8,7 @@
 #include "adsim/equations/iast.h"
 #include "adsim/equations/isotherm_kinds.h"
 #include "adsim/math/constants.h"
+#include "adsim/objects/model_kinds.h"
 
 #include <array>
 #include <cmath>
@@ -38,37 +39,16 @@ namespace adsim {
     //   GAB, GAB_YOUNG                         q = GabLoading(qm, C, K, P / p_sat)    c0 = qm, c1 = C, c2 = K, c3 = 1 / p_sat
     //   INERT                                  q = 0
 
-    enum class Family { Inert, Henry, Langmuir, DualSiteLangmuir, Freundlich, Sips, DualSiteSips,
-                        AntiLangmuir, RedlichPeterson, Toth, Gab };
+    // The pure-component form of each kind is its descriptor's IAST family
+    // (objects/model_kinds.h).
+    using Family = IastFamily;
 
     Family FamilyOf(IsothermType t) {
-      using T = IsothermType;
-      switch (t) {
-        case T::INERT: return Family::Inert;
-        case T::HENRY: return Family::Henry;
-        case T::SINGLE_SITE_LANGMUIR_P:
-        case T::SINGLE_SITE_LANGMUIR_C:
-        case T::EXTENDED_SINGLE_SITE_LANGMUIR_P:
-        case T::EXTENDED_SINGLE_SITE_LANGMUIR_C: return Family::Langmuir;
-        case T::DUAL_SITE_LANGMUIR_P:
-        case T::DUAL_SITE_LANGMUIR_C:
-        case T::EXTENDED_DUAL_SITE_LANGMUIR_P:
-        case T::EXTENDED_DUAL_SITE_LANGMUIR_C: return Family::DualSiteLangmuir;
-        case T::FREUNDLICH: return Family::Freundlich;
-        case T::SIPS:
-        case T::SIPS_2:
-        case T::EXTENDED_SIPS_2:
-        case T::ARRHENIUS_SIPS:
-        case T::EXTENDED_LANGMUIR_FREUNDLICH: return Family::Sips;
-        case T::DUAL_SITE_SIPS: return Family::DualSiteSips;
-        case T::ANTI_LANGMUIR: return Family::AntiLangmuir;
-        case T::REDLICH_PETERSON: return Family::RedlichPeterson;
-        case T::TOTH:
-        case T::TOTH_2: return Family::Toth;
-        case T::GAB:
-        case T::GAB_YOUNG: return Family::Gab;
-        case T::TOTH_WADST:
-        case T::TOTH_HUMID:
+      const auto i = static_cast<std::size_t>(t);
+      if (i < IsothermKindDescriptors().size()) {
+        const IsothermKindDescriptor& d = IsothermKindDescriptors()[i];
+        if (d.iast != Family::None) return d.iast;
+        if (d.water_coupled)
           // The CO2 loading depends on the adsorbed water loading through
           // the sites themselves, not a competitive denominator: no pure
           // isotherm IAST could mix. The deck checks reject this first
@@ -342,6 +322,7 @@ namespace adsim {
   double PureLoading(const PureIsotherm& iso, double P) {
     const double* c = iso.c;
     switch (FamilyOf(iso.kind)) {
+      case Family::None:  // FamilyOf never returns it
       case Family::Inert: return 0.0;
       case Family::Henry: return c[0] * P;
       case Family::Langmuir: {
@@ -377,6 +358,7 @@ namespace adsim {
     if (!(P > 0.0)) return 0.0;
     const double* c = iso.c;
     switch (FamilyOf(iso.kind)) {
+      case Family::None:  // FamilyOf never returns it
       case Family::Inert: return 0.0;
       case Family::Henry: return c[0] * P;
       case Family::Langmuir: return c[0] * std::log1p(c[1] * P);
@@ -405,6 +387,7 @@ namespace adsim {
     if (!(psi > 0.0)) return 0.0;
     const double* c = iso.c;
     switch (FamilyOf(iso.kind)) {
+      case Family::None:  // FamilyOf never returns it
       case Family::Inert: return kInf;  // never reached at any pressure
       case Family::Henry: return psi / c[0];
       case Family::Langmuir: return std::expm1(psi / c[0]) / c[1];
@@ -432,6 +415,7 @@ namespace adsim {
     // infinite for n < 1, reported as 0 (no linear extension below y = 0).
     auto power_law = [](double scale, double n) { return n == 1.0 ? scale : 0.0; };
     switch (FamilyOf(iso.kind)) {
+      case Family::None:  // FamilyOf never returns it
       case Family::Inert: return 0.0;
       case Family::Henry: return c[0];
       case Family::Langmuir: return c[0] * c[1];

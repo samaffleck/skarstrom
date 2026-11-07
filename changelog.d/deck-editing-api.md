@@ -1,0 +1,7 @@
+### Added — complete deck-editing API
+- `adsim/objects/deck_edit.h` covers every structural edit a front end makes, each with its cascade: `AddLayer` / `RemoveLayer` / `MoveLayer`, `AddStep` / `RemoveStep` / `DuplicateStep` / `MoveStep`, `AddStream` / `RemoveStream`, `ConnectEndpoints`, and kind switches that keep every parameter the old and new kinds share (same name and unit): `SetIsothermKind`, `SetMassTransferKind`, `SetDispersionKind`, `SetHeatDispersionKind`, `SetInternalHeatTransferKind`, `SetExternalHeatTransferKind`, `SetParticleHeatTransferKind`, `SetBoundaryConditionKind`, `SetStreamKind`, `SetFlowKind`, `SetProfileKind`, `SetPumpKind`, `SetPumpEfficiencyKind`, `SetPumpPowerKind`. Also `EnsureIds` (stable IDs by first appearance, connection pair ids 1..N), `RepairConnections`, `PruneBufferTanks`, `SyncKpiConfigToComponents` / `PruneKpiConfig` and `FillDeckGaps`.
+- `adsim/objects/model_kinds.h`: one descriptor per model kind (tag, label, ordered parameters with unit, default, bounds and tunable flag; isotherms also carry their IAST family and fitter flags) and `ModelFields`, which binds a live model's parameters to the descriptor names.
+- Python: `sim.edit` (`skarstrom.Editor`) exposes the cascades by kind tag, and `skarstrom.model_kinds()` lists the descriptors.
+
+### Changed
+- The builder's `Connect` gives a new connection a pair id no other connection of the deck uses.

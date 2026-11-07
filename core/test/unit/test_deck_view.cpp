@@ -169,6 +169,11 @@ TEST_F(DeckViewTest, ExampleDecksValidateAndRoundTrip) {
     Parse(view, DeckView(data));
     EXPECT_EQ(Validate(view), "");
     EXPECT_EQ(view["other"]["values"].Size(), 0u) << Write(view["other"]);
+    // The cost estimate and the study settings have their nodes; each KPI
+    // entry claims its tracked flag.
+    EXPECT_GT(view["cost"]["values"].Size(), 0u);
+    EXPECT_GT(view["sensitivity"]["values"].Size(), 0u);
+    for (const auto& k : view["kpis"].GetArray()) EXPECT_EQ(k["values"].Size(), 1u) << Write(k);
 
     std::vector<const rapidjson::Value*> values;
     CollectValues(view, values);

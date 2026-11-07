@@ -25,6 +25,7 @@
 #include "adsim/equations/wall_temperature_boundary_condition.h"
 #include "adsim/objects/compressor.h"
 #include "adsim/objects/deck_edit.h"
+#include "adsim/objects/model_kinds.h"
 #include "adsim/objects/wall.h"
 
 namespace adsim::build {
@@ -120,7 +121,7 @@ std::shared_ptr<IBoundaryCondition>& EndOf(Step& step, BoundaryLocation location
   return location == BoundaryLocation::TOP ? step.top_boundary_condition_ : step.bottom_boundary_condition_;
 }
 
-void SeedMoleFractions(const UserData& data, ExpressionMap& y) {
+void SeedZeroMoleFractions(const UserData& data, ExpressionMap& y) {
   for (const auto& c : data.fluid.components_) y.emplace(c, 0.0);
 }
 
@@ -137,7 +138,7 @@ size_t AddStreamTo(UserData& data, FlowBoundaryCondition& fbc, std::unique_ptr<I
                    const std::string& name) {
   stream->name_ = name;
   stream->SetDirection(fbc.direction_);
-  SeedMoleFractions(data, stream->mole_fraction);
+  SeedZeroMoleFractions(data, stream->mole_fraction);
   IBoundaryStream* raw = stream.get();
   fbc.streams_.push_back(std::move(stream));
   data.cycle.EnsureIds();
@@ -153,30 +154,22 @@ Cycle::EndpointHandle FindEndpoint(UserData& data, size_t endpoint) {
 }  // namespace
 
 // ---- kind names -------------------------------------------------------------------
+// The model families' lists are their descriptors' tags (objects/model_kinds.h).
 
 std::vector<std::string> IsothermKinds() {
   std::vector<std::string> out;
   for (auto t : AllIsothermTypes())
-    if (IsSupportedIsothermKind(t)) out.emplace_back(IsothermKindString(t));
+    if (IsSupportedIsothermKind(t)) out.push_back(IsothermKind(t).tag);
   return out;
 }
 
-const std::vector<std::string>& RateModelKinds() {
-  static const std::vector<std::string> k{"ldf", "ldf2"};
-  return k;
-}
-const std::vector<std::string>& RateCoefficientKinds() {
-  static const std::vector<std::string> k{"constant", "macropore", "macropore_knudsen", "haynes", "arrhenius", "macropore_capacity"};
-  return k;
-}
+const std::vector<std::string>& RateModelKinds() { return KindTags(ModelFamily::RateModel); }
+const std::vector<std::string>& RateCoefficientKinds() { return KindTags(ModelFamily::RateCoefficient); }
 const std::vector<std::string>& MixingRuleKinds() {
   static const std::vector<std::string> k{"none", "iast"};
   return k;
 }
-const std::vector<std::string>& MomentumKinds() {
-  static const std::vector<std::string> k{"kozeny_carman", "ergun", "blake_kozeny"};
-  return k;
-}
+const std::vector<std::string>& MomentumKinds() { return KindTags(ModelFamily::Momentum); }
 const std::vector<std::string>& FilmCorrelationKinds() { return adsim::FilmCorrelationKinds(); }
 const std::vector<std::string>& LayerKinds() {
   static const std::vector<std::string> k{"packed", "monolith", "laminate"};
@@ -186,26 +179,11 @@ const std::vector<std::string>& ChannelShapeKinds() {
   static const std::vector<std::string> k{"square", "circular"};
   return k;
 }
-const std::vector<std::string>& DispersionKinds() {
-  static const std::vector<std::string> k{"constant", "ruthven", "taylor_aris"};
-  return k;
-}
-const std::vector<std::string>& HeatDispersionKinds() {
-  static const std::vector<std::string> k{"constant", "ruthven", "yagi_kunii", "channel"};
-  return k;
-}
-const std::vector<std::string>& InternalHeatTransferKinds() {
-  static const std::vector<std::string> k{"constant", "dixon", "leva"};
-  return k;
-}
-const std::vector<std::string>& ExternalHeatTransferKinds() {
-  static const std::vector<std::string> k{"constant", "holman"};
-  return k;
-}
-const std::vector<std::string>& ParticleHeatTransferKinds() {
-  static const std::vector<std::string> k{"constant", "film"};
-  return k;
-}
+const std::vector<std::string>& DispersionKinds() { return KindTags(ModelFamily::Dispersion); }
+const std::vector<std::string>& HeatDispersionKinds() { return KindTags(ModelFamily::HeatDispersion); }
+const std::vector<std::string>& InternalHeatTransferKinds() { return KindTags(ModelFamily::InternalHeatTransfer); }
+const std::vector<std::string>& ExternalHeatTransferKinds() { return KindTags(ModelFamily::ExternalHeatTransfer); }
+const std::vector<std::string>& ParticleHeatTransferKinds() { return KindTags(ModelFamily::ParticleHeatTransfer); }
 const std::vector<std::string>& ThermalEquilibriumKinds() {
   static const std::vector<std::string> k{"lte", "ltne"};
   return k;
@@ -224,30 +202,12 @@ const std::vector<std::string>& WallBoundaryKinds() {
   static const std::vector<std::string> k{"zero_flux", "fixed"};
   return k;
 }
-const std::vector<std::string>& ProfileKinds() {
-  static const std::vector<std::string> k{"constant", "linear", "exponential", "log_linear", "double_exponential"};
-  return k;
-}
-const std::vector<std::string>& FlowKinds() {
-  static const std::vector<std::string> k{"velocity", "volumetric_flow", "molar_flow", "mass_flow"};
-  return k;
-}
-const std::vector<std::string>& PumpKinds() {
-  static const std::vector<std::string> k{"none", "compressor", "vacuum_pump"};
-  return k;
-}
-const std::vector<std::string>& PumpEnergyKinds() {
-  static const std::vector<std::string> k{"isothermal", "adiabatic"};
-  return k;
-}
-const std::vector<std::string>& PumpEfficiencyKinds() {
-  static const std::vector<std::string> k{"constant", "vacuum_pump", "polynomial"};
-  return k;
-}
-const std::vector<std::string>& PumpPowerKinds() {
-  static const std::vector<std::string> k{"constant", "polynomial"};
-  return k;
-}
+const std::vector<std::string>& ProfileKinds() { return KindTags(ModelFamily::Profile); }
+const std::vector<std::string>& FlowKinds() { return KindTags(ModelFamily::Flow); }
+const std::vector<std::string>& PumpKinds() { return KindTags(ModelFamily::Pump); }
+const std::vector<std::string>& PumpEnergyKinds() { return KindTags(ModelFamily::PumpEnergy); }
+const std::vector<std::string>& PumpEfficiencyKinds() { return KindTags(ModelFamily::PumpEfficiency); }
+const std::vector<std::string>& PumpPowerKinds() { return KindTags(ModelFamily::PumpPower); }
 
 namespace {
 // UnitCategory values are not contiguous (Custom = 8 sits in the middle).
@@ -594,7 +554,7 @@ size_t SetPressureBoundary(UserData& data, size_t step, const std::string& locat
   auto bc = std::make_shared<PressureBoundaryCondition>();
   bc->direction_ = Direction(direction);
   bc->pressure_ = MakeProfile(profile);
-  SeedMoleFractions(data, bc->mole_fraction_);
+  SeedZeroMoleFractions(data, bc->mole_fraction_);
   PressureBoundaryCondition* raw = bc.get();
   ReplaceEnd(data, s, Location(location), std::move(bc));
   data.cycle.EnsureIds();
@@ -698,16 +658,11 @@ void SetPump(UserData& data, size_t endpoint, const std::string& kind, const std
 }
 
 void Connect(UserData& data, size_t endpoint_a, size_t endpoint_b) {
-  auto a = FindEndpoint(data, endpoint_a);
-  auto b = FindEndpoint(data, endpoint_b);
-  auto make = [](Cycle::EndpointHandle& h) {
-    return h.stream ? MakeEndpoint(*h.step, *h.stream) : MakeEndpoint(*h.step, *h.pressure);
-  };
-  ConnectionEndpoint ea = make(a), eb = make(b);
-  if (!MakeMutualConnection(ea, eb))
+  // Under a pair id no other connection uses (ConnectEndpoints).
+  std::string err;
+  if (!ConnectEndpoints(data, endpoint_a, endpoint_b, err))
     throw std::invalid_argument("cannot connect endpoints " + std::to_string(endpoint_a) + " and " +
-                                std::to_string(endpoint_b) +
-                                ": one is already connected, or both are pressure boundaries");
+                                std::to_string(endpoint_b) + ": " + err);
 }
 
 void SetEnergySource(UserData& data, size_t step, size_t layer, bool enabled) {

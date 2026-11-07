@@ -16,6 +16,8 @@
 
 #include "adsim/equations/reaction_kinds.h"
 #include "adsim/math/unit_parser.h"
+#include "adsim/equations/isotherm_kinds.h"
+#include "adsim/objects/model_kinds.h"
 #include "adsim/objects/reaction.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/cyclic_steady_state.h"
@@ -499,6 +501,23 @@ namespace adsim {
       p.set_bool_ = [ptr](bool b) { *ptr = b; };
     }
 
+    // One entry per parameter of a live model, as its kind's descriptor
+    // (objects/model_kinds.h) gives it: <path_head><name> and
+    // <alias_head><name>, with the descriptor's label, unit, bounds and
+    // tunable flag (`adjust` may rewrite the descriptor parameter first).
+    void EmplaceKind(const KindDescriptor* kind, const ModelFieldList& fields, const std::string& path_head,
+                     const std::string& alias_head, const std::string& category, const std::string& sub,
+                     KindParameter (*adjust)(const KindParameter&) = nullptr) {
+      if (!kind) return;
+      for (const auto& [name, param] : fields) {
+        const KindParameter* d = kind->Find(name);
+        if (!d || !param) continue;
+        const KindParameter p = adjust ? adjust(*d) : *d;
+        Emplace(path_head + name, alias_head + name, category, sub, p.Label(), p.unit, *param, p.lower, p.upper);
+        if (!p.tunable) out.back().info_.tunable = false;
+      }
+    }
+
     // ---- static fields ---------------------------------------------------
     void AddStatic(UserData& data) {
       for (const auto& f : StaticFields()) {
@@ -647,10 +666,8 @@ namespace adsim {
         AddPump(s->pump_.get(), ep);
       } else if (auto* v = dynamic_cast<ValveBoundaryStream*>(stream)) {
         AddPressureProfile(v->boundary_value_.get(), ep);
-        Emplace(ep.path + ".valve.cv", ep.alias + ".valve.cv", "cycle", ep.subcategory,
-                "valve flow coefficient (Cv, US gpm/psi^0.5)", "-", v->valve_.cv_, 1e-3, 1e3);
-        Emplace(ep.path + ".valve.xt", ep.alias + ".valve.xt", "cycle", ep.subcategory,
-                "valve pressure-drop ratio factor (xT)", "-", v->valve_.xt_, 0.1, 1.0);
+        EmplaceKind(FindKind(ModelFamily::Stream, "valve"), {{"cv", &v->valve_.cv_}, {"xt", &v->valve_.xt_}},
+                    ep.path + ".valve.", ep.alias + ".valve.", "cycle", ep.subcategory);
       } else if (auto* p = dynamic_cast<PumpBoundaryStream*>(stream)) {
         AddPumpPower(p->power_.get(), ep);
         AddPump(p->pump_.get(), ep);
@@ -661,20 +678,9 @@ namespace adsim {
     // The shaft power that drives a pump stream: a constant, or a polynomial
     // of the boundary pressure P [Pa], a + b P + ... + f P^5.
     void AddPumpPower(IPumpPowerModel* power, const EndpointScope& ep) {
-      auto E = [&](const std::string& leaf, const std::string& name, const std::string& unit, ExpressionParam& v,
-                   double lo, double hi) {
-        Emplace(ep.path + "." + leaf, ep.alias + "." + leaf, "cycle", ep.subcategory, name, unit, v, lo, hi);
-      };
-      if (auto* c = dynamic_cast<ConstantPumpPowerModel*>(power)) {
-        E("power", "pump shaft power", "W", c->power_, 0.0, 1e6);
-      } else if (auto* poly = dynamic_cast<PolyPumpPowerModel*>(power)) {
-        E("power_poly_a", "pump power polynomial a", "W", poly->poly_.a, -1e6, 1e6);
-        E("power_poly_b", "pump power polynomial b (x P)", "W/Pa", poly->poly_.b, -1e3, 1e3);
-        E("power_poly_c", "pump power polynomial c (x P^2)", "W/Pa^2", poly->poly_.c, -1.0, 1.0);
-        E("power_poly_d", "pump power polynomial d (x P^3)", "W/Pa^3", poly->poly_.d, -1e-3, 1e-3);
-        E("power_poly_e", "pump power polynomial e (x P^4)", "W/Pa^4", poly->poly_.e, -1e-6, 1e-6);
-        E("power_poly_f", "pump power polynomial f (x P^5)", "W/Pa^5", poly->poly_.f, -1e-9, 1e-9);
-      }
+      if (!power) return;
+      EmplaceKind(KindAt(ModelFamily::PumpPower, static_cast<size_t>(power->GetType())), ModelFields(power),
+                  ep.path + ".", ep.alias + ".", "cycle", ep.subcategory);
     }
 
     // The share of its source's moles an inlet draws from a buffer tank.
@@ -696,31 +702,18 @@ namespace adsim {
     // constant one as <head>.
     void AddProfile(IBoundaryValue* value, const EndpointScope& ep, const std::string& head,
                     const std::string& name, const std::string& unit, double lo, double hi) {
-      auto E = [&](const std::string& leaf, const std::string& label, const std::string& u, ExpressionParam& v,
-                   double l, double h) {
-        Emplace(ep.path + "." + leaf, ep.alias + "." + leaf, "cycle", ep.subcategory, label, u, v, l, h);
-      };
-      if (auto* c = dynamic_cast<ConstantBoundaryValue*>(value)) {
-        E(head, name, unit, c->constant_value_, lo, hi);
-      } else if (auto* lin = dynamic_cast<LinearBoundaryValue*>(value)) {
-        E(head + "_linear_start", name + " (linear start)", unit, lin->start_value_, lo, hi);
-        E(head + "_linear_end", name + " (linear end)", unit, lin->end_value_, lo, hi);
-        E(head + "_linear_time", name + " (linear ramp time)", "s", lin->ramp_time_, 0.0, 1e4);
-      } else if (auto* ex = dynamic_cast<ExponentialBoundaryValue*>(value)) {
-        E(head + "_exponential_start", name + " (exponential start)", unit, ex->start_value_, lo, hi);
-        E(head + "_exponential_end", name + " (exponential end)", unit, ex->end_value_, lo, hi);
-        E(head + "_exponential_time", name + " (exponential time)", "s", ex->step_time_, 0.0, 1e4);
-        E(head + "_exponential_factor", name + " (exponential factor)", "-", ex->factor_, 1.01, 1e6);
-      } else if (auto* lg = dynamic_cast<LogLinearBoundaryValue*>(value)) {
-        E(head + "_log_linear_start", name + " (log-linear start)", unit, lg->start_value_, lo, hi);
-        E(head + "_log_linear_end", name + " (log-linear end)", unit, lg->end_value_, lo, hi);
-        E(head + "_log_linear_time", name + " (log-linear ramp time)", "s", lg->ramp_time_, 0.0, 1e4);
-      } else if (auto* de = dynamic_cast<DoubleExponentialBoundaryValue*>(value)) {
-        E(head + "_double_exponential_start", name + " (double-exponential start)", unit, de->start_value_, lo, hi);
-        E(head + "_double_exponential_end", name + " (double-exponential end)", unit, de->end_value_, lo, hi);
-        E(head + "_double_exponential_rate_1", name + " (double-exponential rate 1)", "1/s", de->rate_1_, 0.0, 10.0);
-        E(head + "_double_exponential_rate_2", name + " (double-exponential rate 2)", "1/s", de->rate_2_, 0.0, 10.0);
-        E(head + "_double_exponential_weight", name + " (double-exponential weight of term 1)", "-", de->weight_, 0.0, 1.0);
+      if (!value) return;
+      const KindDescriptor* kind = KindAt(ModelFamily::Profile, static_cast<size_t>(value->GetType()));
+      if (!kind) return;
+      const bool constant = value->GetType() == BoundaryValueType::CONSTANT;
+      for (const auto& [pname, param] : ModelFields(value)) {
+        const KindParameter* d = kind->Find(pname);
+        if (!d) continue;
+        const bool quantity = d->unit == kProfileQuantityUnit;  // the profiled value: the caller's unit and bounds
+        const std::string leaf = constant ? head : head + "_" + kind->tag + "_" + pname;
+        Emplace(ep.path + "." + leaf, ep.alias + "." + leaf, "cycle", ep.subcategory,
+                constant ? name : name + " (" + d->Label() + ")", quantity ? unit : d->unit, *param,
+                quantity ? lo : d->lower, quantity ? hi : d->upper);
       }
     }
 
@@ -739,13 +732,10 @@ namespace adsim {
 
     void AddFlow(IFlowBoundaryValue* flow, const EndpointScope& ep) {
       if (!flow) return;
-      IBoundaryValue* profile = flow->profile_.get();
-      switch (flow->GetType()) {
-        case FlowType::VELOCITY: AddProfile(profile, ep, "velocity", "velocity", "m/s", 0.0, 10.0); break;
-        case FlowType::MOLAR:    AddProfile(profile, ep, "molar_flow", "molar flow", "mol/s", 0.0, 100.0); break;
-        case FlowType::VOLUME:   AddProfile(profile, ep, "volumetric_flow", "volumetric flow", "m3/s", 0.0, 1.0); break;
-        case FlowType::MASS:     AddProfile(profile, ep, "mass_flow", "mass flow", "kg/s", 0.0, 10.0); break;
-      }
+      const KindDescriptor* kind = KindAt(ModelFamily::Flow, static_cast<size_t>(flow->GetType()));
+      if (!kind || kind->parameters.empty()) return;
+      const KindParameter& q = kind->parameters.front();  // the flow quantity
+      AddProfile(flow->profile_.get(), ep, q.name, q.Label(), q.unit, q.lower, q.upper);
     }
 
     void AddPump(IPump* pump, const EndpointScope& ep) {
@@ -755,26 +745,12 @@ namespace adsim {
         Emplace(ep.path + ".pump." + leaf, ep.alias + ".pump." + leaf, "cycle", ep.subcategory, name, unit, v, lo, hi);
       };
       E("polytropic_index", "pump polytropic index", "-", pump->poly_index_, 1.0, 1.7);
-      if (auto* eff = dynamic_cast<ConstantPumpEfficiencyModel*>(pump->efficiency_model_.get())) {
-        E("efficiency", "pump efficiency", "-", eff->efficiency_, 0.01, 1.0);
-      } else if (auto* eff = dynamic_cast<VacuumPumpEfficiencyModel*>(pump->efficiency_model_.get())) {
-        E("eta_max", "vacuum pump peak efficiency", "-", eff->eta_max_, 0.01, 1.0);
-        E("alpha", "vacuum pump efficiency decay", "-", eff->alpha_, 0.0, 100.0);
-      } else if (auto* eff = dynamic_cast<PolyPumpEfficiencyModel*>(pump->efficiency_model_.get())) {
-        E("poly_a", "pump efficiency polynomial a", "-", eff->a_, -1e3, 1e3);
-        E("poly_b", "pump efficiency polynomial b (x P)", "1/Pa", eff->b_, -1e3, 1e3);
-        E("poly_c", "pump efficiency polynomial c (x P^2)", "1/Pa^2", eff->c_, -1e3, 1e3);
-        E("poly_d", "pump efficiency polynomial d (x P^3)", "1/Pa^3", eff->d_, -1e3, 1e3);
-        E("poly_e", "pump efficiency polynomial e (x P^4)", "1/Pa^4", eff->e_, -1e3, 1e3);
-        E("poly_f", "pump efficiency polynomial f (x P^5)", "1/Pa^5", eff->f_, -1e3, 1e3);
-      }
-      if (auto* c = dynamic_cast<Compressor*>(pump)) {
-        Emplace(ep.path + ".pump.suction_pressure", ep.alias + ".pump.suction_pressure", "cycle",
-                ep.subcategory, "compressor suction pressure", "Pa", c->suction_pressure_, 1e3, 1e7);
-      } else if (auto* v = dynamic_cast<VacuumPump*>(pump)) {
-        Emplace(ep.path + ".pump.discharge_pressure", ep.alias + ".pump.discharge_pressure", "cycle",
-                ep.subcategory, "vacuum pump discharge pressure", "Pa", v->discharge_pressure_, 1e3, 1e7);
-      }
+      if (IPumpEfficiencyModel* eff = pump->efficiency_model_.get())
+        EmplaceKind(KindAt(ModelFamily::PumpEfficiency, static_cast<size_t>(eff->GetType())), ModelFields(eff),
+                    ep.path + ".pump.", ep.alias + ".pump.", "cycle", ep.subcategory);
+      // Pump kinds: index 0 is "none", PumpType k is k + 1.
+      EmplaceKind(KindAt(ModelFamily::Pump, static_cast<size_t>(pump->GetType()) + 1), ModelFields(pump),
+                  ep.path + ".pump.", ep.alias + ".pump.", "cycle", ep.subcategory);
     }
 
     // A pressure (pressure boundary or valve) profile starts from the bed
@@ -782,40 +758,35 @@ namespace adsim {
     // <kind>_use_step_time is off, when <kind>_time is listed too (it must not
     // exceed the step time; Cycle::PerformChecks).
     void AddPressureProfile(IBoundaryValue* value, const EndpointScope& ep) {
-      auto Ramp = [&](const std::string& kind, const std::string& label, bool& use_step_time,
-                      ExpressionParam& time) {
-        EmplaceBool(ep.path + ".pressure_" + kind + "_use_step_time", ep.alias + ".pressure_" + kind + "_use_step_time",
-                    "cycle", ep.subcategory, "pressure (" + label + " ramp over the step time)", use_step_time);
-        if (!use_step_time)
-          Emplace(ep.path + ".pressure_" + kind + "_time", ep.alias + ".pressure_" + kind + "_time", "cycle",
-                  ep.subcategory, "pressure (" + label + " ramp time)", "s", time, 0.0, 1e4);
-      };
+      if (!value) return;
       if (auto* bv = dynamic_cast<ConstantBoundaryValue*>(value)) {
         Emplace(ep.path + ".pressure", ep.alias + ".pressure", "cycle", ep.subcategory,
                 "pressure (constant)", "Pa", bv->constant_value_, 1e4, 1e6);
-      } else if (auto* bv = dynamic_cast<LinearBoundaryValue*>(value)) {
-        Emplace(ep.path + ".pressure_linear_end", ep.alias + ".pressure_linear_end", "cycle",
-                ep.subcategory, "pressure (linear end)", "Pa", bv->end_value_, 1e4, 1e6);
-        Ramp("linear", "linear", bv->use_step_time_, bv->ramp_time_);
-      } else if (auto* bv = dynamic_cast<ExponentialBoundaryValue*>(value)) {
-        Emplace(ep.path + ".pressure_exponential_end", ep.alias + ".pressure_exponential_end", "cycle",
-                ep.subcategory, "pressure (exponential end)", "Pa", bv->end_value_, 1e4, 1e6);
-        Ramp("exponential", "exponential", bv->use_step_time_, bv->step_time_);
-        Emplace(ep.path + ".pressure_exponential_factor", ep.alias + ".pressure_exponential_factor", "cycle",
-                ep.subcategory, "pressure (exponential factor)", "-", bv->factor_, 1.01, 1e6);
-      } else if (auto* bv = dynamic_cast<LogLinearBoundaryValue*>(value)) {
-        Emplace(ep.path + ".pressure_log_linear_end", ep.alias + ".pressure_log_linear_end", "cycle",
-                ep.subcategory, "pressure (log-linear end)", "Pa", bv->end_value_, 1e4, 1e6);
-        Ramp("log_linear", "log-linear", bv->use_step_time_, bv->ramp_time_);
-      } else if (auto* bv = dynamic_cast<DoubleExponentialBoundaryValue*>(value)) {
-        Emplace(ep.path + ".pressure_double_exponential_end", ep.alias + ".pressure_double_exponential_end", "cycle",
-                ep.subcategory, "pressure (double-exponential end)", "Pa", bv->end_value_, 1e4, 1e6);
-        Emplace(ep.path + ".pressure_double_exponential_rate_1", ep.alias + ".pressure_double_exponential_rate_1", "cycle",
-                ep.subcategory, "pressure (double-exponential rate 1)", "1/s", bv->rate_1_, 0.0, 10.0);
-        Emplace(ep.path + ".pressure_double_exponential_rate_2", ep.alias + ".pressure_double_exponential_rate_2", "cycle",
-                ep.subcategory, "pressure (double-exponential rate 2)", "1/s", bv->rate_2_, 0.0, 10.0);
-        Emplace(ep.path + ".pressure_double_exponential_weight", ep.alias + ".pressure_double_exponential_weight", "cycle",
-                ep.subcategory, "pressure (double-exponential weight of term 1)", "-", bv->weight_, 0.0, 1.0);
+        return;
+      }
+      const KindDescriptor* kind = KindAt(ModelFamily::Profile, static_cast<size_t>(value->GetType()));
+      if (!kind) return;
+      bool* use_step_time = nullptr;
+      if (auto* v = dynamic_cast<LinearBoundaryValue*>(value)) use_step_time = &v->use_step_time_;
+      if (auto* v = dynamic_cast<ExponentialBoundaryValue*>(value)) use_step_time = &v->use_step_time_;
+      if (auto* v = dynamic_cast<LogLinearBoundaryValue*>(value)) use_step_time = &v->use_step_time_;
+      std::string short_label = kind->label;
+      for (auto& c : short_label) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      for (const auto& [pname, param] : ModelFields(value)) {
+        if (pname == "start") continue;  // a pressure ramp starts from the bed pressure
+        const KindParameter* d = kind->Find(pname);
+        if (!d) continue;
+        const std::string head = ep.path + ".pressure_" + kind->tag + "_";
+        const std::string ahead = ep.alias + ".pressure_" + kind->tag + "_";
+        if (pname == "time") {
+          if (!use_step_time) continue;
+          EmplaceBool(head + "use_step_time", ahead + "use_step_time", "cycle", ep.subcategory,
+                      "pressure (" + short_label + " ramp over the step time)", *use_step_time);
+          if (*use_step_time) continue;
+        }
+        const bool quantity = d->unit == kProfileQuantityUnit;
+        Emplace(head + pname, ahead + pname, "cycle", ep.subcategory, "pressure (" + d->Label() + ")",
+                quantity ? "Pa" : d->unit, *param, quantity ? 1e4 : d->lower, quantity ? 1e6 : d->upper);
       }
     }
 
@@ -876,9 +847,9 @@ namespace adsim {
       // 0 = local thermal equilibrium (LTE), 1 = non-equilibrium (LTNE).
       EmplaceEnum("bed.thermal_equilibrium_mode", "", "bed", "thermal", "thermal equilibrium mode",
                   bed.equations_.thermal_equilibrium_mode_, "lte,ltne");
-      if (auto* h = dynamic_cast<ConstantParticleHeatTransferModel*>(bed.equations_.particle_heat_transfer_model_.get()))
-        Emplace("bed.particle_htc", "", "bed", "thermal", "gas-to-particle heat transfer coefficient", "W/m2-K",
-                h->heat_transfer_coefficient_, 1.0, 1e5);
+      if (IParticleHeatTransferModel* h = bed.equations_.particle_heat_transfer_model_.get())
+        EmplaceKind(KindAt(ModelFamily::ParticleHeatTransfer, static_cast<size_t>(h->GetModelType())),
+                    ModelFields(h), "bed.", "bed.", "bed", "thermal");
       auto void_region = [&](const std::string& head, VoidRegion& v, const std::string& where) {
         EmplaceBool(head + ".enabled", "", "bed", where, where + " enabled", v.enabled_);
         Emplace(head + ".volume", "", "bed", where, where + " volume", "m3", v.volume_, 1e-7, 1.0);
@@ -956,7 +927,7 @@ namespace adsim {
         auto& p = Add(Info(lp + ".momentum_model", la + ".momentum_model", "layer", ln, "momentum model", "-",
                            ParameterKind::Integer, std::numeric_limits<double>::quiet_NaN(),
                            std::numeric_limits<double>::quiet_NaN()));
-        p.info_.choices = {"kozeny_carman", "ergun", "blake_kozeny"};
+        p.info_.choices = KindTags(ModelFamily::Momentum);
         MixedAdsorbentLayer* l = &layer;
         p.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->momentum_model_)); };
         p.set_int_ = [l](long long x) { l->momentum_model_ = static_cast<MomentumModel>(static_cast<int>(x)); };
@@ -1001,36 +972,15 @@ namespace adsim {
       }
 
       auto& eqs = layer.equations_;
-      if (auto* d = dynamic_cast<DispersionModelConstant*>(eqs.dispersion_model_.get())) {
-        E("dispersion_coefficient", "dispersion coefficient", "m2/s", d->dispersion_coefficient_, 1e-8, 1e-2);
-      } else if (auto* d = dynamic_cast<DispersionModelRuthven*>(eqs.dispersion_model_.get())) {
-        E("molecular_diffusion_coefficient", "molecular diffusion coefficient", "m2/s", d->Dm, 1e-8, 1e-4);
-      } else if (auto* d = dynamic_cast<DispersionModelTaylorAris*>(eqs.dispersion_model_.get())) {
-        E("molecular_diffusion_coefficient", "molecular diffusion coefficient", "m2/s", d->Dm, 1e-8, 1e-4);
-      }
-      if (auto* d = dynamic_cast<HeatDispersionModelConstant*>(eqs.heat_dispersion_model_.get())) {
-        // The effective axial thermal conductivity lambda of the energy balance
-        // (HeatDispersionModelConstant::Update), so W/(m K), not a diffusivity.
-        E("heat_dispersion_coefficient", "axial thermal conductivity", "W/(m-K)", d->dispersion_coefficient_,
-          1e-3, 100.0);
-      }
-      if (auto* h = dynamic_cast<ConstantInternalHeatTransferModel*>(eqs.internal_heat_transfer_model_.get())) {
-        E("internal_htc", "internal heat transfer coefficient", "W/m2-K", h->heat_transfer_coefficient_, 1.0, 1e4);
-      } else if (auto* h = dynamic_cast<InternalHeatTransferModel_Leva*>(eqs.internal_heat_transfer_model_.get())) {
-        // Nu = eta1 * Re^eta2 * exp(-exp_coeff * dp / D_t). Bounds span Leva's
-        // canonical (0.813, 0.90) and Casas 2012's fitted (41.13, 0.32) values.
-        E("leva_eta1", "Leva Re coefficient (eta1)", "-", h->eta1, 0.01, 100.0);
-        E("leva_eta2", "Leva Re exponent (eta2)", "-", h->eta2, 0.1, 1.5);
-        E("leva_exp_coeff", "Leva wall-decay coefficient (exp_coeff)", "-", h->exp_coeff, 0.0, 20.0);
-      }
-      if (auto* h = dynamic_cast<ConstantExternalHeatTransferModel*>(eqs.external_heat_transfer_model_.get())) {
-        E("external_htc", "external heat transfer coefficient", "W/m2-K", h->heat_transfer_coefficient_, 1.0, 1e4);
-      } else if (auto* h = dynamic_cast<ExternalHeatTransferModel_Holman*>(eqs.external_heat_transfer_model_.get())) {
-        E("holman_c", "Holman coefficient (c)", "-", h->c, 0.001, 1.0);
-        E("holman_m", "Holman Re exponent (m)", "-", h->m, 0.1, 1.0);
-        E("holman_n", "Holman Pr exponent (n)", "-", h->n, 0.1, 1.0);
-        E("external_velocity", "external velocity", "m/s", h->external_velocity, 0.0, 10.0);
-      }
+      auto models = [&](ModelFamily family, auto* model) {
+        if (model)
+          EmplaceKind(KindAt(family, static_cast<size_t>(model->GetModelType())), ModelFields(model), lp + ".",
+                      la + ".", "layer", ln);
+      };
+      models(ModelFamily::Dispersion, eqs.dispersion_model_.get());
+      models(ModelFamily::HeatDispersion, eqs.heat_dispersion_model_.get());
+      models(ModelFamily::InternalHeatTransfer, eqs.internal_heat_transfer_model_.get());
+      models(ModelFamily::ExternalHeatTransfer, eqs.external_heat_transfer_model_.get());
 
       // Adsorbents are listed once, after the first layer that uses them; the
       // display subcategory names that layer too ("<layer>, <adsorbent>").
@@ -1075,41 +1025,9 @@ namespace adsim {
         // with |q* - q| typically 0.1-10 mol/kg, so its bounds are a decade
         // wider than the LDF ones on each side.
         const bool ldf2 = mtm->GetModelType() == MassTransferModelType::LDF2;
-        const char* k_units = ldf2 ? "kg/(mol-s)" : "1/s";
-        if (auto* m = dynamic_cast<MassTransferCoefficientConstant*>(mtc)) {
-          E(kp + "k", "adsorbent", sub, "mass transfer coefficient", k_units, m->constant_mtc_,
-            ldf2 ? 1e-5 : 1e-4, ldf2 ? 1e3 : 100.0);
-        } else if (auto* m = dynamic_cast<MassTransferCoefficientArrhenius*>(mtc)) {
-          E(kp + "pre_exp_factor", "adsorbent", sub, "MTC pre-exponential factor", k_units, m->pre_exp_factor_,
-            ldf2 ? 1e-3 : 0.01, ldf2 ? 1e5 : 1e4);
-          E(kp + "activation_energy", "adsorbent", sub, "MTC activation energy", "J/mol",
-            m->activation_energy_, 0.0, 1e5);
-        } else if (auto* m = dynamic_cast<MassTransferCoefficientMacropore*>(mtc)) {
-          E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
-          E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
-            m->macropore_void_fraction_, 0.01, 0.8);
-          E(kp + "molecular_diffusion_coefficient", "adsorbent", sub,
-            "constant molecular diffusivity", "m2/s", m->molecular_diffusion_coefficient_, 0.0, 1e-3);
-        } else if (auto* m = dynamic_cast<MassTransferCoefficientMacroporeKnudsen*>(mtc)) {
-          E(kp + "pore_radius", "adsorbent", sub, "pore radius", "m", m->pore_radius_, 1e-10, 1e-6);
-          E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
-          E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
-            m->macropore_void_fraction_, 0.01, 0.8);
-          E(kp + "molecular_diffusion_coefficient", "adsorbent", sub,
-            "constant molecular diffusivity", "m2/s", m->molecular_diffusion_coefficient_, 0.0, 1e-3);
-        } else if (auto* m = dynamic_cast<MassTransferCoefficient_Haynes*>(mtc)) {
-          E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
-          E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
-            m->macropore_void_fraction_, 0.01, 0.8);
-        } else if (auto* m = dynamic_cast<MassTransferCoefficientMacroporeCapacity*>(mtc)) {
-          E(kp + "tortuosity", "adsorbent", sub, "tortuosity", "-", m->tortuosity_, 1.0, 10.0);
-          E(kp + "macropore_void_fraction", "adsorbent", sub, "macropore void fraction", "-",
-            m->macropore_void_fraction_, 0.01, 0.8);
-          E(kp + "concentration_floor", "adsorbent", sub, "capacity-factor concentration floor", "mol/m3",
-            m->concentration_floor_, 0.0, 10.0);
-          E(kp + "molecular_diffusion_coefficient", "adsorbent", sub,
-            "constant molecular diffusivity", "m2/s", m->molecular_diffusion_coefficient_, 0.0, 1e-3);
-        }
+        EmplaceKind(KindAt(ModelFamily::RateCoefficient, static_cast<size_t>(mtc->GetModelType())),
+                    ModelFields(mtc), ap + "." + kp, aa + "." + kp, "adsorbent", sub,
+                    ldf2 ? &Ldf2RateConstant : nullptr);
       }
 
       AddIsotherms(source, ap, aa, an);
@@ -1216,231 +1134,118 @@ namespace adsim {
 
     void AddIsotherms(AdsorptionSource& source, const std::string& ap, const std::string& aa, const std::string& an) {
       for (const auto& entry : source.mass_transfer_models_) {
-        // A named reference, not a structured binding: the lambdas below capture
-        // it, and Apple clang before 16 rejects lambdas that capture a binding.
         const std::string& component = entry.first;
         auto& isotherm = source.GetIsotherm(component);
         if (!isotherm) continue;
-        const std::string sub = an + ", " + component;
-        const std::string leaf_head = ".isotherm[" + component + "].";
-        auto E = [&](const char* leaf, const char* unit, ExpressionParam& value, double lo, double hi) {
-          Emplace(ap + leaf_head + leaf, aa + leaf_head + leaf, "isotherm", sub, leaf, unit, value, lo, hi);
-        };
-        // Finds this component's parameter block in an isotherm of type T.
-        auto params = [&](auto* typed) -> decltype(&typed->params_.begin()->second) {
-          if (!typed) return nullptr;
-          auto it = typed->params_.find(component);
-          return it == typed->params_.end() ? nullptr : &it->second;
-        };
-        auto langmuir_p = [&](auto* p) {
-          if (!p) return;
-          E("m1", "mol/kg", p->m1, 0.01, 50.0);
-          E("b1", "1/Pa", p->b1, 1e-15, 1e-3);
-          E("q1", "J/mol", p->q1, 0.0, 1e5);
-        };
-        auto langmuir_c = [&](auto* p) {
-          if (!p) return;
-          E("m1", "mol/kg", p->m1, 0.01, 50.0);
-          E("b1", "m3/mol", p->b1, 1e-10, 1e-3);
-          E("q1", "J/mol", p->q1, 0.0, 1e5);
-        };
-        auto dual_p = [&](auto* p) {
-          if (!p) return;
-          langmuir_p(p);
-          E("m2", "mol/kg", p->m2, 0.01, 50.0);
-          E("b2", "1/Pa", p->b2, 1e-15, 1e-3);
-          E("q2", "J/mol", p->q2, 0.0, 1e5);
-        };
-        auto dual_c = [&](auto* p) {
-          if (!p) return;
-          langmuir_c(p);
-          E("m2", "mol/kg", p->m2, 0.01, 50.0);
-          E("b2", "m3/mol", p->b2, 1e-10, 1e-3);
-          E("q2", "J/mol", p->q2, 0.0, 1e5);
-        };
-        auto sips2 = [&](auto* p) {
-          if (!p) return;
-          E("A1", "mol/kg", p->A1, 0.01, 50.0);
-          E("A2", "-", p->A2, -5.0, 5.0);
-          // b_i = B1 exp(B2/RT) multiplies the partial pressure in Pa (IsothermFunction::Sips2).
-          E("B1", "1/Pa", p->B1, 1e-13, 1e-5);
-          E("B2", "J/mol", p->B2, 0.0, 1e5);
-          E("C1", "-", p->C1, 0.1, 5.0);
-          E("C2", "-", p->C2, -5.0, 5.0);
-          E("T_ref", "K", p->T_ref, 273.0, 473.0);
-        };
-        auto* iso = isotherm.get();
-        switch (iso->GetIsothermType()) {
-          case IsothermType::HENRY:
-            if (auto* p = params(dynamic_cast<HenryIsotherm*>(iso))) {
-              E("k", "-", p->k, 1e-15, 1e-3);
-              E("Q", "J/mol", p->Q, 0.0, 1e5);
-            }
-            break;
-          case IsothermType::SINGLE_SITE_LANGMUIR_P:
-            langmuir_p(params(dynamic_cast<LangmuirIsotherm*>(iso)));
-            break;
-          case IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_P:
-            langmuir_p(params(dynamic_cast<ExtendedLangmuirIsotherm*>(iso)));
-            break;
-          case IsothermType::SINGLE_SITE_LANGMUIR_C:
-            langmuir_c(params(dynamic_cast<LangmuirIsotherm_Concentration*>(iso)));
-            break;
-          case IsothermType::EXTENDED_SINGLE_SITE_LANGMUIR_C:
-            langmuir_c(params(dynamic_cast<ExtendedLangmuirIsotherm_Concentration*>(iso)));
-            break;
-          case IsothermType::DUAL_SITE_LANGMUIR_P:
-            dual_p(params(dynamic_cast<DualSiteLangmuirIsotherm*>(iso)));
-            break;
-          case IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_P:
-            dual_p(params(dynamic_cast<ExtendedDualSiteLangmuirIsotherm*>(iso)));
-            break;
-          case IsothermType::DUAL_SITE_LANGMUIR_C:
-            dual_c(params(dynamic_cast<DualSiteLangmuirIsotherm_Concentration*>(iso)));
-            break;
-          case IsothermType::EXTENDED_DUAL_SITE_LANGMUIR_C:
-            dual_c(params(dynamic_cast<ExtendedDualSiteLangmuirIsotherm_Concentration*>(iso)));
-            break;
-          case IsothermType::ANTI_LANGMUIR:
-            if (auto* p = params(dynamic_cast<AntiLangmuirIsotherm*>(iso))) {
-              E("a", "-", p->a, 1e-10, 1.0);
-              E("b", "-", p->b, 1e-10, 1.0);
-            }
-            break;
-          case IsothermType::FREUNDLICH:
-            if (auto* p = params(dynamic_cast<FreundlichIsotherm*>(iso))) {
-              E("a", "-", p->a, 0.01, 100.0);
-              E("v", "-", p->v, 0.1, 10.0);
-            }
-            break;
-          case IsothermType::SIPS:
-            if (auto* p = params(dynamic_cast<SipsIsotherm*>(iso))) {
-              E("q_sat", "mol/kg", p->q_sat, 0.01, 50.0);
-              E("b", "1/Pa", p->b, 1e-10, 1.0);
-              E("v", "-", p->v, 0.1, 5.0);
-            }
-            break;
-          case IsothermType::SIPS_2:
-            sips2(params(dynamic_cast<Sips2Isotherm*>(iso)));
-            break;
-          case IsothermType::EXTENDED_SIPS_2:
-            sips2(params(dynamic_cast<ExtendedSips2Isotherm*>(iso)));
-            break;
-          case IsothermType::DUAL_SITE_SIPS:
-            if (auto* p = params(dynamic_cast<DualSiteSipsIsotherm*>(iso))) {
-              E("q_sat1", "mol/kg", p->q_sat1, 0.01, 50.0);
-              E("b1", "1/Pa", p->b1, 1e-10, 1.0);
-              E("v1", "-", p->v1, 0.1, 5.0);
-              E("q_sat2", "mol/kg", p->q_sat2, 0.01, 50.0);
-              E("b2", "1/Pa", p->b2, 1e-10, 1.0);
-              E("v2", "-", p->v2, 0.1, 5.0);
-            }
-            break;
-          case IsothermType::REDLICH_PETERSON:
-            if (auto* p = params(dynamic_cast<RedlichPetersonIsotherm*>(iso))) {
-              E("a", "-", p->a, 0.01, 100.0);
-              E("b", "1/Pa", p->b, 1e-10, 1.0);
-              E("v", "-", p->v, 0.1, 5.0);
-            }
-            break;
-          case IsothermType::TOTH:
-            if (auto* p = params(dynamic_cast<TothIsotherm*>(iso))) {
-              E("q_sat", "mol/kg", p->q_sat, 0.01, 50.0);
-              E("b", "1/Pa", p->b, 1e-10, 1.0);
-              E("v", "-", p->v, 0.1, 5.0);
-            }
-            break;
-          case IsothermType::TOTH_2:
-            if (auto* p = params(dynamic_cast<Toth2Isotherm*>(iso))) {
-              E("q_sat", "mol/kg", p->q_sat, 0.01, 50.0);
-              E("x", "-", p->x, -1.0, 1.0);
-              E("T_0", "K", p->T_0, 273.0, 473.0);
-              E("b0", "1/Pa", p->b0, 1e-6, 1.0);
-              E("dH0", "J/mol", p->dH0, 0.0, 1e6);
-              E("w0", "-", p->w0, 0.01, 5.0);
-              E("alpha", "-", p->alpha, 0.0, 2.0);
-            }
-            break;
-          case IsothermType::ARRHENIUS_SIPS:
-            if (auto* p = params(dynamic_cast<ArrheniusSipsIsotherm*>(iso))) {
-              E("n_inf_a", "mol/kg", p->n_inf_a, 0.01, 50.0);
-              E("n_inf_b", "J/mol", p->n_inf_b, 0.0, 1e5);
-              E("k_A", "1/Pa", p->k_A, 1e-15, 1e-3);
-              E("k_B", "J/mol", p->k_B, 0.0, 1e5);
-              E("c_ref", "-", p->c_ref, 0.1, 5.0);
-              E("c_amp", "-", p->c_amp, -1.0, 1.0);
-              E("c_beta", "1/K", p->c_beta, 0.0, 1.0);
-              E("c_Tref", "K", p->c_Tref, 273.0, 473.0);
-            }
-            break;
-          case IsothermType::EXTENDED_LANGMUIR_FREUNDLICH:
-            if (auto* p = params(dynamic_cast<ExtendedLangmuirFreundlichIsotherm*>(iso))) {
-              E("k1", "mol/kg", p->k1, 0.01, 50.0);
-              E("k2", "mol/(kg-K)", p->k2, -0.1, 0.1);
-              E("k3", "-", p->k3, 1e-8, 1e3);
-              E("k4", "K", p->k4, 0.0, 1e4);
-              E("k5", "-", p->k5, 0.05, 5.0);
-              E("k6", "K", p->k6, -1e3, 1e3);
-              E("P_ref", "Pa", p->P_ref, 1.0, 1e7);
-            }
-            break;
-          case IsothermType::GAB:
-            if (auto* p = params(dynamic_cast<GabIsotherm*>(iso))) {
-              E("q_m0", "mol/kg", p->q_m0, 0.01, 50.0);
-              E("dH_m", "J/mol", p->dH_m, -1e5, 1e5);
-              E("C0", "-", p->C0, 1e-6, 1e6);
-              E("dH_C", "J/mol", p->dH_C, -1e5, 1e5);
-              E("K0", "-", p->K0, 0.01, 2.0);
-              E("dH_K", "J/mol", p->dH_K, -1e5, 1e5);
-            }
-            break;
-          case IsothermType::GAB_YOUNG:
-            if (auto* p = params(dynamic_cast<GabYoungIsotherm*>(iso))) {
-              E("q_m", "mol/kg", p->q_m, 0.01, 50.0);
-              E("C_E", "J/mol", p->C_E, 0.0, 2e5);
-              E("D", "1/K", p->D, 0.0, 0.1);
-              E("F", "J/mol", p->F, 0.0, 2e5);
-              E("G", "J/(mol-K)", p->G, -500.0, 500.0);
-              E("E10_A", "J/mol", p->E10_A, 0.0, 2e5);
-              E("E10_B", "J/(mol-K)", p->E10_B, -500.0, 500.0);
-            }
-            break;
-          case IsothermType::TOTH_WADST:
-            if (auto* p = params(dynamic_cast<TothWadstIsotherm*>(iso))) {
-              E("T_0", "K", p->T_0, 273.0, 473.0);
-              E("q_inf_dry", "mol/kg", p->q_inf_dry, 0.01, 50.0);
-              E("chi_dry", "-", p->chi_dry, -5.0, 5.0);
-              E("b0_dry", "1/Pa", p->b0_dry, 1e-30, 1.0);
-              E("dH_dry", "J/mol", p->dH_dry, 0.0, 3e5);
-              E("tau0_dry", "-", p->tau0_dry, 0.01, 5.0);
-              E("alpha_dry", "-", p->alpha_dry, -5.0, 5.0);
-              E("q_inf_wet", "mol/kg", p->q_inf_wet, 0.01, 50.0);
-              E("chi_wet", "-", p->chi_wet, -5.0, 5.0);
-              E("b0_wet", "1/Pa", p->b0_wet, 1e-30, 1.0);
-              E("dH_wet", "J/mol", p->dH_wet, 0.0, 3e5);
-              E("tau0_wet", "-", p->tau0_wet, 0.01, 5.0);
-              E("alpha_wet", "-", p->alpha_wet, -5.0, 5.0);
-              E("A", "mol/kg", p->A, 0.0, 50.0);
-            }
-            break;
-          case IsothermType::TOTH_HUMID:
-            if (auto* p = params(dynamic_cast<TothHumidIsotherm*>(iso))) {
-              E("q_sat", "mol/kg", p->q_sat, 0.01, 50.0);
-              E("x", "-", p->x, -5.0, 5.0);
-              E("T_0", "K", p->T_0, 273.0, 473.0);
-              E("b0", "1/Pa", p->b0, 1e-12, 10.0);
-              E("dH0", "J/mol", p->dH0, 0.0, 3e5);
-              E("w0", "-", p->w0, 0.01, 5.0);
-              E("alpha", "-", p->alpha, -5.0, 5.0);
-              E("gamma", "kg/mol", p->gamma, -5.0, 5.0);
-              E("beta", "kg/mol", p->beta, -10.0, 200.0);
-            }
-            break;
-          case IsothermType::INERT:
-          default:
-            break;
-        }
+        const std::string head = ".isotherm[" + component + "].";
+        EmplaceKind(&IsothermKind(isotherm->GetIsothermType()), IsothermFields(isotherm.get(), component),
+                    ap + head, aa + head, "isotherm", an + ", " + component);
       }
+    }
+
+    // ---- KPI configuration, cost data, the sensitivity study ----------------
+    // Settings, not model values: none is tunable.
+    void EmplaceSetting(const std::string& path, const std::string& category, const std::string& sub,
+                        const std::string& name, const std::string& unit, double& value, double lo, double hi) {
+      Emplace(path, "", category, sub, name, unit, value, lo, hi);
+      out.back().info_.tunable = false;
+    }
+
+    // Which components' KPIs are computed: kpi[Component].tracked. The
+    // feed / product / recycle endpoints are structure (build::SetKPI).
+    void AddKpi(KPIConfig& kpi) {
+      for (auto& c : kpi.per_component) {
+        if (c.product_component.empty()) continue;
+        EmplaceBool("kpi[" + c.product_component + "].tracked", "", "kpi", c.product_component,
+                    c.product_component + " KPIs tracked", c.tracked);
+      }
+    }
+
+    // The cost estimate (solver/cost_estimator.h): cost.*. Money in the
+    // deck's currency (unit "GBP", not checked).
+    void AddCost(CostEstimator& cost, AdsorbentDirectory& dir) {
+      auto money = [&](const std::string& path, const std::string& sub, const std::string& name, double& v,
+                       double lo, double hi) {
+        EmplaceSetting(path, "cost", sub, name, "GBP", v, lo, hi);
+        out.back().info_.unit_checked = false;
+      };
+      auto count = [&](const std::string& path, const std::string& sub, const std::string& name, int& v) {
+        EmplaceInt(path, "cost", sub, name, v);
+      };
+      count("cost.vessel_count", "plant", "vessels per train", cost.vessel_count);
+      count("cost.train_count", "plant", "trains", cost.train_count);
+      count("cost.operating_days_per_year", "plant", "operating days per year", cost.operating_days_per_year);
+      EmplaceSetting("cost.plant_life_years", "cost", "finance", "plant life (years)", "-", cost.plant_life_years, 1.0,
+                     50.0);
+      EmplaceSetting("cost.discount_rate", "cost", "finance", "discount rate", "-", cost.discount_rate, 0.0, 0.3);
+      money("cost.electricity_cost_per_kWh", "operating", "electricity cost per kWh", cost.electricity_cost_per_kWh,
+            0.0, 1.0);
+      EmplaceSetting("cost.maintenance_fraction", "cost", "operating", "maintenance (fraction of CAPEX per year)", "-",
+                     cost.maintenance_fraction, 0.0, 0.2);
+      EmplaceSetting("cost.overhead_fraction", "cost", "operating", "overhead (fraction of CAPEX per year)", "-",
+                     cost.overhead_fraction, 0.0, 0.2);
+      money("cost.labour_cost_per_year", "operating", "labour cost per year", cost.labour_cost_per_year, 0.0, 1e7);
+      EmplaceSetting("cost.adsorbent_replacement_years", "cost", "adsorbent", "adsorbent replacement interval (years)",
+                     "-", cost.adsorbent_replacement_years, 0.5, 50.0);
+      std::vector<AdsorbentID> ids;
+      for (const auto& [id, ads] : dir.GetAll()) ids.push_back(id);
+      std::sort(ids.begin(), ids.end());
+      for (AdsorbentID id : ids) {
+        auto it = cost.adsorbent_cost_per_kg.find(id);
+        if (it == cost.adsorbent_cost_per_kg.end()) continue;
+        money("cost.adsorbent[" + std::to_string(id) + "].cost_per_kg", "adsorbent",
+              dir.Get(id).name_ + " cost per kg", it->second, 0.0, 1e4);
+      }
+      EmplaceSetting("cost.vessel.installation_factor", "cost", "vessel", "vessel installation factor", "-",
+                     cost.vessel_cost_.installation_factor, 1.0, 10.0);
+      EmplaceBool("cost.heat_exchanger.include", "", "cost", "heat exchanger", "include a heat exchanger",
+                  cost.heat_exchanger_cost_.include);
+      money("cost.heat_exchanger.cost", "heat exchanger", "heat exchanger cost", cost.heat_exchanger_cost_.cost, 0.0,
+            1e7);
+      auto units = [&](auto& bank, const std::string& head, const std::string& what) {
+        for (size_t i = 0; i < bank.units.size(); ++i) {
+          auto& u = bank.units[i];
+          const std::string up = "cost." + head + "[" + std::to_string(i + 1) + "]";
+          const std::string sub = what + " " + std::to_string(i + 1);
+          auto& lbl = Add(Info(up + ".label", "", "cost", sub, what + " label", "", ParameterKind::String,
+                               std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+          std::string* text = &u.label;
+          lbl.get_str_ = [text] { return *text; };
+          lbl.set_str_ = [text](const std::string& t) { *text = t; };
+          EmplaceSetting(up + ".rated_power", "cost", sub, what + " rated shaft power", "kW", u.rated_power_kW, 0.0,
+                         1e5);
+          money(up + ".reference_cost", sub, what + " reference purchase cost", u.reference_cost, 0.0, 1e8);
+          EmplaceSetting(up + ".reference_power", "cost", sub, what + " reference power", "kW", u.reference_power_kW,
+                         0.0, 1e5);
+          EmplaceSetting(up + ".cost_exponent", "cost", sub, what + " cost exponent", "-", u.cost_exponent, 0.0, 1.5);
+          count(up + ".count", sub, what + " count", u.count);
+        }
+      };
+      units(cost.compressors_, "compressor", "compressor");
+      units(cost.vacuum_pumps_, "vacuum_pump", "vacuum pump");
+    }
+
+    // The settings of the deck's sensitivity study (solver/sensitivity_study.h):
+    // sensitivity.*. Its inputs and outputs are lists edited as a whole.
+    void AddSensitivity(sensitivity::Study& study) {
+      const std::string c = "sensitivity";
+      auto& seed = Add(Info("sensitivity.seed", "", c, c, "random seed", "-", ParameterKind::Integer,
+                            std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+      std::uint64_t* sp = &study.seed;
+      seed.get_int_ = [sp] { return static_cast<long long>(*sp); };
+      seed.set_int_ = [sp](long long x) { *sp = static_cast<std::uint64_t>(x); };
+      EmplaceInt("sensitivity.trajectories", c, c, "Morris trajectories", study.trajectories);
+      EmplaceInt("sensitivity.levels", c, c, "Morris grid levels", study.levels);
+      EmplaceSetting("sensitivity.threshold", c, c, "screening threshold (fraction of the largest mu*)", "-",
+                     study.threshold, 0.0, 1.0);
+      EmplaceInt("sensitivity.runs", c, c, "Monte Carlo first batch", study.runs);
+      EmplaceInt("sensitivity.batch", c, c, "Monte Carlo runs per added batch", study.batch);
+      EmplaceInt("sensitivity.max_runs", c, c, "Monte Carlo run limit", study.max_runs);
+      EmplaceSetting("sensitivity.rel_tol", c, c, "percentile tolerance (fraction of the 5-95 % band)", "-",
+                     study.rel_tol, 0.0, 1.0);
+      EmplaceInt("sensitivity.bootstrap", c, c, "bootstrap resamples", study.bootstrap);
+      EmplaceBool("sensitivity.require_css", "", c, c, "runs must reach cyclic steady state", study.policy.require_css);
+      EmplaceInt("sensitivity.cycles", c, c, "cycles per run (0: the deck's)", study.policy.cycles);
     }
 
     // ---- user variables --------------------------------------------------
@@ -1477,6 +1282,9 @@ namespace adsim {
     b.AddInitialConditions(data_.ic);
     b.AddFluid(data_.fluid);
     b.AddUserVariables(data_.variable_registry);
+    b.AddKpi(data_.kpi_config);
+    b.AddCost(data_.cost_estimator, data_.adsorbent_directory);
+    b.AddSensitivity(data_.sensitivity_study);
 
     // Paths are unique by construction once every owner has an ID; this guard
     // keeps Find well defined regardless (a repeat gets a " #n" suffix).

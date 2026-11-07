@@ -1463,6 +1463,60 @@ class Wall(_Node):
         return wall
 
 
+class CostData(_Node):
+    """The deck's cost estimate (levelised cost of the product): plant, finance and operating
+    values; ``.vessel``, ``.heat_exchanger``, ``.compressor[1]``, ``.vacuum_pump[1]`` and
+    ``.adsorbent[ID]`` hold the equipment's. Money is in the deck's currency (GBP)."""
+
+    vessel_count = Integer()
+    """Vessels per train."""
+    train_count = Integer()
+    """Trains."""
+    operating_days_per_year = Integer()
+    """Operating days per year."""
+    plant_life_years = Real()
+    """Plant life in years [-]."""
+    discount_rate = Real()
+    """Discount rate [-]."""
+    electricity_cost_per_kWh = Real()
+    """Electricity cost per kWh [GBP]."""
+    maintenance_fraction = Real()
+    """Maintenance cost per year as a fraction of the CAPEX [-]."""
+    overhead_fraction = Real()
+    """Overhead cost per year as a fraction of the CAPEX [-]."""
+    labour_cost_per_year = Real()
+    """Labour cost per year [GBP]."""
+    adsorbent_replacement_years = Real()
+    """Years between full adsorbent replacements [-]."""
+
+
+class StudySettings(_Node):
+    """Settings of the deck's sensitivity study (its inputs and outputs: :mod:`skarstrom.sensitivity`)."""
+
+    seed = Integer()
+    """Random seed."""
+    trajectories = Integer()
+    """Morris trajectories."""
+    levels = Integer()
+    """Morris grid levels (even, at least 2)."""
+    threshold = Real()
+    """Inputs propagated after screening: mu* at least this fraction of the largest [-]."""
+    runs = Integer()
+    """Monte Carlo runs of the first batch."""
+    batch = Integer()
+    """Monte Carlo runs added per batch."""
+    max_runs = Integer()
+    """Monte Carlo run limit."""
+    rel_tol = Real()
+    """Percentile tolerance as a fraction of each output's 5-95 % band [-]."""
+    bootstrap = Integer()
+    """Bootstrap resamples."""
+    require_css = Boolean()
+    """Runs must reach cyclic steady state to count."""
+    cycles = Integer()
+    """Cycles per run (0: the deck's number of cycles)."""
+
+
 class InitialConditions(_Node):
     """The state of the bed at the start of the first cycle."""
 
@@ -1781,7 +1835,13 @@ class Adsorbent(_Node):
 # ---------------------------------------------------------------------------
 
 # The deck-wide groups (sim.bed, sim.cycle...), read again by name when stale.
-_TOP_LEVEL = (Info, Settings, CSS, EnergyBalance, Cycle, Bed, Wall, InitialConditions, Fluid)
+_TOP_LEVEL = (Info, Settings, CSS, EnergyBalance, Cycle, Bed, Wall, InitialConditions, Fluid, CostData,
+              StudySettings)
+
+
+def _kpi_tracked(sim: "Simulation") -> ValueMap:
+    trees = sim._index().root.keyed.get("kpi", {})
+    return ValueMap(sim, {c: t.leaves["tracked"] for c, t in trees.items() if "tracked" in t.leaves}, "kpi_tracked")
 
 
 def _group(sim: "Simulation", cls: Callable[..., N], name: str) -> N:
