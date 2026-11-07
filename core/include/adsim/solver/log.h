@@ -4,6 +4,7 @@
 // Adsim includes
 #include "adsim/equations/equation.h"
 #include "adsim/boundary_conditions/boundary_stream.h"
+#include "adsim/solver/kpi_quadrature.h"
 
 // STL includes
 #include <string>
@@ -212,6 +213,10 @@ namespace adsim {
     // The logged data of one endpoint over one step (time from the step
     // start), or nullptr when the cycle, step or endpoint was not logged.
     const StreamData* GetStreamData(int cycle_idx, int step_idx, const std::string& stream_name) const;
+    // The mole balance of one step (KPI quadratures and column inventory),
+    // kept for the same cycles as the stream logs; nullptr when not logged.
+    void LogStepBalance(int cycle_idx, int step_idx, StepBalance balance);
+    const StepBalance* GetStepBalance(int cycle_idx, int step_idx) const;
     
     int max_cycles_to_keep_ = 10;
     SystemData sys_data;
@@ -220,6 +225,8 @@ namespace adsim {
   private:
     // log_[cycle_idx][step_idx]["Flow_Boundary_Name"]
     std::map<int, std::map<int, std::map<std::string, BoundaryLogEntry>>> log_;
+    // step_balances_[cycle_idx][step_idx]
+    std::map<int, std::map<int, StepBalance>> step_balances_;
     
     int current_logged_cycle_ = -1;     // Track which cycle we're currently logging
     void LogStep(const StreamData& state, const std::string& stream_name, int cycle_idx, int step_idx);

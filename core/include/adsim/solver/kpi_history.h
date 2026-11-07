@@ -56,7 +56,37 @@ namespace adsim {
     // order (they sum to the cycle values); empty when `valid` is false.
     std::vector<double> step_thermal_energy;                                // [J/kg]
     std::vector<double> step_cooling_duty;                                  // [J/kg]
+
+    // The same KPIs from the KPI quadratures (endpoint flows and pump power
+    // integrated by IDAS alongside the solution, kpi_quadrature.h) instead of
+    // the trapezoid over the logged samples. Reported beside the KPIs above,
+    // which stay the reported values; NaN when the quadratures were off.
+    double quadrature_purity = std::numeric_limits<double>::quiet_NaN();
+    double quadrature_recovery = std::numeric_limits<double>::quiet_NaN();
+    double quadrature_productivity_mass = std::numeric_limits<double>::quiet_NaN();
+    double quadrature_productivity_volume = std::numeric_limits<double>::quiet_NaN();
+    double quadrature_energy_consumption = std::numeric_limits<double>::quiet_NaN();
+    double quadrature_production_rate = std::numeric_limits<double>::quiet_NaN();
+
+    // Cycle mole balance of the component [-]: (moles that entered through
+    // every endpoint of every step, net, minus the change of the column's gas
+    // and adsorbed inventory over the cycle) over the moles that entered,
+    // with the endpoint flows from the trapezoid (mass_balance_error) or the
+    // quadratures. Zero for exact conservation; NaN without the quadratures
+    // (the inventory is recorded with them).
+    double mass_balance_error = std::numeric_limits<double>::quiet_NaN();
+    double quadrature_mass_balance_error = std::numeric_limits<double>::quiet_NaN();
   };
+
+  enum class KPIIntegration;
+  // Cycle mole balance of one component at one logged cycle [-]
+  // (KPIRecord::mass_balance_error): the net moles that entered through every
+  // endpoint of every step, minus the change of the column inventory over the
+  // cycle, over the moles that entered. NaN when the cycle's step balances
+  // (recorded with the KPI quadratures) or a stream log are missing, or when
+  // the component's inflow is round-off (below 1e-12 of the column inventory).
+  double CycleMassBalanceError(const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
+                               const std::string& component, KPIIntegration integration);
 
   // KPIs of every tracked component of `config` at one logged cycle, computed
   // from the logs. The endpoint references are re-bound by ID against `steps`
