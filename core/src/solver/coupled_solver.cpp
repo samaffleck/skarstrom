@@ -35,6 +35,7 @@ namespace adsim {
 
     // One line describing a CSS check for the solver log, e.g.
     // "Mass Balance (Component), error 3.4e-03 / 5.0e-03, state change 8.9e-03 / 5.0e-05, 0 of 3 cycles".
+    std::string DescribeCSSDistance(const CSSResult& r);
     std::string DescribeCSSResult(const CSSResult& r) {
       std::ostringstream ss;
       ss << r.method_name << std::scientific << std::setprecision(2)
@@ -43,7 +44,38 @@ namespace adsim {
         ss << ", state change " << r.state_change << " / " << r.state_tolerance;
       ss << ", " << r.passing_cycles << " of " << r.required_cycles
          << (r.required_cycles == 1 ? " cycle" : " cycles");
+      ss << ", " << DescribeCSSDistance(r);
       return ss.str();
+    }
+
+    // The remaining-distance diagnostic, e.g. "est. distance to CSS 3.10e-04
+    // (15.5 x tolerance, rate 0.95)" or "est. distance to CSS: not estimated
+    // (not a monotone decay)".
+    std::string DescribeCSSDistance(const CSSResult& r) {
+      std::ostringstream ss;
+      if (!r.distance_estimated) {
+        ss << "est. distance to CSS: not estimated (" << r.distance_note << ")";
+        return ss.str();
+      }
+      ss << "est. distance to CSS " << std::scientific << std::setprecision(2) << r.distance;
+      ss << std::defaultfloat << std::setprecision(3) << " (";
+      if (std::isfinite(r.distance_ratio)) ss << r.distance_ratio << " x tolerance, ";
+      ss << "rate " << r.convergence_rate << ")";
+      return ss.str();
+    }
+
+    // At the CSS stop: a warning when the estimated remaining distance is more
+    // than CyclicSteadyState::kDistanceWarningRatio state tolerances. The stop
+    // rule bounds the last cycle-to-cycle change, not the distance still to go,
+    // so a slowly converging deck can stop well short of its CSS.
+    template <class Log>
+    void WarnIfFarFromCSS(const CSSResult& r, Log log) {
+      if (!r.distance_estimated || !(r.distance_ratio > CyclicSteadyState::kDistanceWarningRatio)) return;
+      std::ostringstream ss;
+      ss << std::setprecision(3) << "Warning: the run stopped at CSS about " << r.distance_ratio
+         << " state tolerances from the cyclic steady state (estimated from the convergence rate "
+         << r.convergence_rate << "). The approach is slow; a smaller css.state_tolerance stops closer to it.";
+      log(LogLevel::LOW, ss.str());
     }
 
     // The CSS accelerator's report for one cycle: the fit of a full window at
@@ -108,6 +140,7 @@ namespace adsim {
     equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
     boundary_log_.Initialise(user_data_);
     kpi_history_.Clear();
+    jump_cycles_.clear();
     
     // Set current step for initial conditions
     state.SetCurrentStep(&first_step);
@@ -491,11 +524,13 @@ namespace adsim {
       css_timer.emplace(user_data_.profile_.enabled, user_data_.profile_.css_ns);
 
       auto& css = user_data_.settings.css;
-      CSSResult css_result = css.CheckCSS(equation_log_, cycle_index);
+      CSSResult css_result = css.CheckCSS(equation_log_, cycle_index,
+                                          [this](int c) { return jump_cycles_.count(c) > 0; });
 
       if (css_result.converged) {
         LogMessage(LogLevel::LOW, "CSS reached at cycle " + std::to_string(i)
                    + " (" + DescribeCSSResult(css_result) + ")");
+        WarnIfFarFromCSS(css_result, [this](LogLevel level, const std::string& msg) { LogMessage(level, msg); });
         css_cycle_index_ = cycle_index;
         break;
       } else if (css.method_ != CSSMethod::NONE) {
@@ -529,6 +564,7 @@ namespace adsim {
         const double probe_dt = std::min(2.0, 0.1 * first_step.step_time_);
         std::string why;
         if (solver_data_.ValidateAndCommitReseed(user_data_, probe_dt, &why)) {
+          jump_cycles_.insert(cycle_index + 1);
           LogMessage(LogLevel::MEDIUM, "  CSS acceleration applied");
         } else {
           LogMessage(LogLevel::MEDIUM, "  CSS acceleration skipped (" + why + ")");
@@ -610,6 +646,7 @@ namespace adsim {
       equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
       boundary_log_.Initialise(user_data_);
       kpi_history_.Clear();
+      jump_cycles_.clear();
 
       // Clear stream_data_ for every step so connected boundary streams don't
       // read stale data from a previous simulation's last cycle, and invalidate
@@ -688,11 +725,13 @@ namespace adsim {
                             status_.GetCycleIndex());
 
         // Check for cyclic steady state before moving to next cycle
-        const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex());
+        const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex(),
+                                                  [this](int c) { return jump_cycles_.count(c) > 0; });
         if (css_result.converged) {
           LogMessage(LogLevel::LOW, "CSS reached at cycle "
                      + std::to_string(status_.GetCycleIndex() + 1)
                      + " (" + DescribeCSSResult(css_result) + ")");
+          WarnIfFarFromCSS(css_result, [this](LogLevel level, const std::string& msg) { LogMessage(level, msg); });
           LogRunSummary(true);
           status_.ReachedCSS(status_.GetCycleIndex(), IDA_SUCCESS);
           return;
@@ -718,6 +757,7 @@ namespace adsim {
           const double probe_dt = std::min(2.0, 0.1 * first_step.step_time_);
           std::string why;
           if (solver_data_.ValidateAndCommitReseed(user_data_, probe_dt, &why)) {
+            jump_cycles_.insert(status_.GetCycleIndex() + 1);
             LogMessage(LogLevel::MEDIUM, "  CSS acceleration applied");
           } else {
             LogMessage(LogLevel::MEDIUM, "  CSS acceleration skipped (" + why + ")");

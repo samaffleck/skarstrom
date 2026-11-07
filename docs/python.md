@@ -360,7 +360,8 @@ sim.cycles                 # logged cycles, e.g. [0, 1, ..., 13]
 sim.kpis()                 # KPIRecord per tracked component per cycle (every cycle run)
 sim.kpi_table()            # the same as a pandas DataFrame
 sim.css_history()          # the deck's CSS check at every cycle: cycle, converged, error, tolerance,
-                           # state_change, state_tolerance, passing_cycles, required_cycles
+                           # state_change, state_tolerance, passing_cycles, required_cycles,
+                           # distance_estimated, convergence_rate, distance, distance_ratio, distance_note
 y = sim.series("mole_fraction", "CarbonDioxide", location="top")   # NumPy arrays y.time, y.values
 T = sim.series("temperature", z=0.25, cycle=0)                      # at z = 0.25 m in the first cycle
 prof = sim.profile("adsorbed_concentration", "CarbonDioxide", cycle=-1, step=0)

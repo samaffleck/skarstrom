@@ -69,9 +69,18 @@ namespace adsim {
     return count;
   }
 
-  CSSResult CyclicSteadyState::CheckCSS(const EquationLog& logger, int cycle_index) {
+  CSSResult CyclicSteadyState::CheckCSS(const EquationLog& logger, int cycle_index,
+                                        const JumpPredicate& started_from_jump) {
     CSSResult result = CheckCycle(logger, cycle_index);
     if (method_ == CSSMethod::NONE) return result;
+
+    // The diagnostic reads the log only; it does not enter the rule below.
+    const CSSDistanceEstimate d = EstimateDistance(logger, cycle_index, started_from_jump);
+    result.distance_estimated = d.estimated;
+    result.convergence_rate = d.rate;
+    result.distance = d.distance;
+    result.distance_ratio = d.ratio;
+    result.distance_note = d.note;
 
     const int required = std::max(1, consecutive_cycles_);
     result.required_cycles = required;
@@ -87,6 +96,56 @@ namespace adsim {
     // No method may declare convergence before min_cycles_ cycles have run.
     result.converged = result.passing_cycles >= required && cycle_index >= min_cycles_ - 1;
     return result;
+  }
+
+  CSSDistanceEstimate CyclicSteadyState::EstimateDistance(const std::vector<double>& changes,
+                                                          double tolerance) {
+    CSSDistanceEstimate out;
+    const int n = static_cast<int>(changes.size());
+    auto usable = [](double v) { return std::isfinite(v) && v > 0.0; };
+    // Longest trailing run of strictly decreasing positive changes, capped.
+    int len = 0;
+    if (n > 0 && usable(changes[n - 1])) {
+      len = 1;
+      for (int i = n - 2; i >= 0 && len < kDistanceMaxChanges; --i) {
+        if (!usable(changes[i]) || !(changes[i] > changes[i + 1])) break;
+        ++len;
+      }
+    }
+    out.changes_used = len;
+    if (len < kDistanceMinChanges) {
+      out.note = n < kDistanceMinChanges ? "history too short" : "not a monotone decay";
+      return out;
+    }
+    const double first = changes[n - len];
+    const double last = changes[n - 1];
+    double rho = std::pow(last / first, 1.0 / static_cast<double>(len - 1));
+    rho = std::clamp(rho, 0.0, kDistanceMaxRate);
+    out.estimated = true;
+    out.rate = rho;
+    out.distance = last * rho / (1.0 - rho);
+    if (tolerance > 0.0) out.ratio = out.distance / tolerance;
+    return out;
+  }
+
+  CSSDistanceEstimate CyclicSteadyState::EstimateDistance(const EquationLog& logger, int cycle_index,
+                                                          const JumpPredicate& started_from_jump) const {
+    // Collect the changes back from cycle_index, newest first, while they are
+    // logged and on the natural trajectory.
+    std::vector<double> newest_first;
+    bool hit_jump = false;
+    for (int c = cycle_index; c >= 1 && static_cast<int>(newest_first.size()) < kDistanceMaxChanges; --c) {
+      if (started_from_jump && started_from_jump(c)) { hit_jump = true; break; }
+      const double change = EndOfCycleStateChange(logger, c);
+      if (change < 0.0) break;  // not in the log
+      newest_first.push_back(change);
+    }
+    std::vector<double> changes(newest_first.rbegin(), newest_first.rend());
+    const double tolerance = state_tolerance_ > 0.0 ? static_cast<double>(state_tolerance_) : 0.0;
+    CSSDistanceEstimate out = EstimateDistance(changes, tolerance);
+    if (!out.estimated && hit_jump && static_cast<int>(changes.size()) < kDistanceMinChanges)
+      out.note = "too few cycles since the last acceleration jump";
+    return out;
   }
 
   double CyclicSteadyState::EndOfCycleStateChange(const EquationLog& logger, int cycle_index) {

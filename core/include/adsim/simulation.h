@@ -128,6 +128,16 @@ namespace adsim {
     double state_tolerance = 0.0;
     int passing_cycles = 0;
     int required_cycles = 1;
+    // Diagnostic (never part of the stopping rule): the estimated remaining
+    // distance to the cyclic steady state, in the norm of state_change, its
+    // ratio to state_tolerance and the convergence rate it came from
+    // (CyclicSteadyState::EstimateDistance). NaN when not estimated; then
+    // distance_note says why.
+    bool distance_estimated = false;
+    double convergence_rate = std::numeric_limits<double>::quiet_NaN();
+    double distance = std::numeric_limits<double>::quiet_NaN();
+    double distance_ratio = std::numeric_limits<double>::quiet_NaN();
+    std::string distance_note;
   };
 
   struct TimeSeries {

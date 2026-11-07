@@ -29,6 +29,7 @@
 #include "adsim/math/unit_parser.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_edit.h"
+#include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/isotherm_fit.h"
 #include "adsim/solver/sensitivity.h"
 
@@ -322,6 +323,8 @@ adsim::RunResult RunFromPython(std::optional<int> cycles, py::object progress, c
 PYBIND11_MODULE(_core, m) {
   m.doc() = "Skarstrom PSA/TSA simulation engine (compiled core). Use the 'skarstrom' package.";
   m.attr("__version__") = ADSIM_VERSION_STRING;
+  // CSSRecord.distance_ratio above which a CSS stop is reported as far from the CSS.
+  m.attr("CSS_DISTANCE_WARNING_RATIO") = adsim::CyclicSteadyState::kDistanceWarningRatio;
 
   // ---- run status / records ---------------------------------------------
   py::class_<adsim::RunResult>(m, "RunResult")
@@ -397,6 +400,17 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("state_tolerance", &adsim::CSSRecord::state_tolerance)
       .def_readonly("passing_cycles", &adsim::CSSRecord::passing_cycles)
       .def_readonly("required_cycles", &adsim::CSSRecord::required_cycles)
+      .def_readonly("distance_estimated", &adsim::CSSRecord::distance_estimated,
+                    "True when the remaining distance to the cyclic steady state was estimated")
+      .def_readonly("convergence_rate", &adsim::CSSRecord::convergence_rate,
+                    "Estimated cycle-to-cycle convergence rate rho in [0, 0.999] (nan if not estimated)")
+      .def_readonly("distance", &adsim::CSSRecord::distance,
+                    "Estimated remaining distance to the CSS, last state change * rho / (1 - rho), "
+                    "in the norm of state_change (nan if not estimated)")
+      .def_readonly("distance_ratio", &adsim::CSSRecord::distance_ratio,
+                    "distance / state_tolerance (nan if not estimated or the state test is off)")
+      .def_readonly("distance_note", &adsim::CSSRecord::distance_note,
+                    "Why the distance was not estimated (empty when it was)")
       .def("__repr__", [](const adsim::CSSRecord& c) {
         return "<CSSRecord cycle=" + std::to_string(c.cycle) + (c.converged ? " converged" : "") +
                " error=" + std::to_string(c.error) + ">";

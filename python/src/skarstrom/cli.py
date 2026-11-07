@@ -23,6 +23,29 @@ from typing import List, Optional, Sequence, Tuple
 
 from . import Simulation, __version__, examples
 from . import sensitivity as sa
+from ._core import CSS_DISTANCE_WARNING_RATIO
+
+
+def _num(x):
+    """A float for JSON: None for nan or inf."""
+    return None if isinstance(x, float) and not math.isfinite(x) else x
+
+
+def _css_entry(c) -> dict:
+    """One cycle's CSS check for the --json summary (undefined numbers are null)."""
+    return {"cycle": c.cycle, "converged": c.converged, "error": c.error, "tolerance": c.tolerance,
+            "method": c.method, "state_change": _num(c.state_change), "state_tolerance": c.state_tolerance,
+            "distance_estimated": c.distance_estimated, "convergence_rate": _num(c.convergence_rate),
+            "distance": _num(c.distance), "distance_ratio": _num(c.distance_ratio),
+            "distance_note": c.distance_note}
+
+
+def _css_distance_text(c) -> str:
+    """The remaining-distance diagnostic of one CSS check, in words."""
+    if not c.distance_estimated:
+        return f"estimated distance to CSS: not estimated ({c.distance_note})"
+    ratio = f"{c.distance_ratio:.3g} x state tolerance, " if math.isfinite(c.distance_ratio) else ""
+    return f"estimated distance to CSS: {c.distance:.3e} ({ratio}convergence rate {c.convergence_rate:.3g})"
 
 
 def _fmt(x) -> str:
@@ -175,8 +198,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             "stats": result.stats,
             "kpis": [{k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in r.as_dict().items()}
                      for r in kpis],
-            "css": [{"cycle": c.cycle, "converged": c.converged, "error": c.error, "tolerance": c.tolerance,
-                     "method": c.method} for c in css],
+            "css": [_css_entry(c) for c in css],
             "warnings": warnings,
         }
         print(json.dumps(payload, indent=2))
@@ -187,6 +209,13 @@ def cmd_run(args: argparse.Namespace) -> int:
               f"({result.stats['steps']} integrator steps)")
         if result.css_reached:
             print(f"CSS:     reached at cycle {result.css_cycle + 1}")
+            stop = next((c for c in css if c.cycle == result.css_cycle), None)
+            if stop is not None:
+                print(f"         {_css_distance_text(stop)}")
+                if stop.distance_estimated and stop.distance_ratio > CSS_DISTANCE_WARNING_RATIO:
+                    print(f"\nWarning: the run stopped about {stop.distance_ratio:.3g} state tolerances from the "
+                          f"cyclic steady state (convergence rate {stop.convergence_rate:.3g}); a smaller "
+                          f"css.state_tolerance stops closer to it.")
         elif css and css[-1].method != "None":
             c = css[-1]
             min_cycles = sim.get("css.min_cycles")
@@ -219,9 +248,11 @@ def cmd_run(args: argparse.Namespace) -> int:
                 w.writerow([k.cycle + 1, k.component, k.valid] + [getattr(k, fld) for fld, _ in KPI_CSV_FIELDS])
         with open(os.path.join(args.csv, "css.csv"), "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["cycle", "method", "converged", "error", "tolerance"])
+            w.writerow(["cycle", "method", "converged", "error", "tolerance", "state_change", "state_tolerance",
+                        "convergence_rate", "distance", "distance_ratio"])
             for c in css:
-                w.writerow([c.cycle + 1, c.method, c.converged, c.error, c.tolerance])
+                w.writerow([c.cycle + 1, c.method, c.converged, c.error, c.tolerance, c.state_change,
+                            c.state_tolerance, c.convergence_rate, c.distance, c.distance_ratio])
         with open(os.path.join(args.csv, "run.json"), "w") as f:
             json.dump({"status": result.status, "message": result.message, "css_reached": result.css_reached,
                        "css_cycle": result.css_cycle, "cycles_run": result.cycles_run,
