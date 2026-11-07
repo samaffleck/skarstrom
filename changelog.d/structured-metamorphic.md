@@ -1,0 +1,2 @@
+### Added — packed and structured layers give the same breakthrough
+- Verification tests `StructuredMetamorphic.*`: a packed Kozeny–Carman layer, a laminate and a square monolith with the same open fraction (bed void), sorbent mass, constant dispersion, constant LDF coefficient and matched permeability give the same breakthrough curve, isothermal (Henry) and non-isothermal under LTE (Langmuir with a heat of adsorption and wall exchange).
