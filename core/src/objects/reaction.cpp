@@ -165,11 +165,18 @@ namespace adsim {
   }
 
   double Reaction::HeatOfReaction(double T, const Fluid& fluid) const {
-    std::map<std::string, double> cp;
+    const double h_ref = heat_of_reaction_.Get();
+    if (heat_mode_ == HeatOfReactionMode::Constant) return h_ref;
+    // Kirchhoff with the gas heat capacities of the energy balance:
+    // dH_r(T) = dH_ref + sum_i nu_i integral_{T_ref}^{T} Cp_i dT, exact for the
+    // ideal-gas polynomials (Fluid::MolarEnthalpyChange) and dCp (T - T_ref)
+    // for held values.
+    const double T_ref = heat_reference_temperature_.Get();
+    double dh = h_ref;
     for (const auto& [c, v] : nu_) {
-      if (fluid.heat_capacity_.count(c) && fluid.molar_mass_.count(c)) cp[c] = fluid.MolarHeatCapacity(c);
+      if (fluid.heat_capacity_.count(c) && fluid.molar_mass_.count(c)) dh += v * fluid.MolarEnthalpyChange(c, T_ref, T);
     }
-    return HeatOfReaction(T, cp);
+    return dh;
   }
 
   void Reaction::EvaluateExpressions(const EvalContext& ctx) {

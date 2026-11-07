@@ -858,7 +858,8 @@ namespace adsim {
     }
     const double et = eb + (1 - eb) * ep;
     const double V = 0.25 * M_PI * D * D * L;
-    const double Cp = MixtureMolarCp(data.fluid, {{kN2, 1.0}, {kO2, 0.0}});
+    // The gas's ideal-gas C_p0 at the lumped temperature, as the solver uses it.
+    const std::unordered_map<std::string, double> pure_n2{{kN2, 1.0}, {kO2, 0.0}};
     const double q_vol = heater_power / V;
     auto q_eq = [&](size_t n, double P, double T) {
       return solids[n].k * P * std::exp(solids[n].Q / (kR * T));
@@ -877,7 +878,7 @@ namespace adsim {
         solid_cp += rho_b[n] * solids[n].cp;
       }
       const double dC = -sink / et;
-      const double lhs = et * C * Cp + solid_cp - et * kR * C;
+      const double lhs = et * C * MixtureMolarCp(data.fluid, pure_n2, T) + solid_cp - et * kR * C;
       const double rhs = et * kR * T * dC + latent + q_vol;
       return State{rhs / lhs, dC, dq[0], dq[1]};
     };

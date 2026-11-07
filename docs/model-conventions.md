@@ -215,7 +215,7 @@ Go through these before concluding that two models disagree.
 |---|---|---|
 | Advection scheme for the species balance | WENO (third order) | `settings.advection_scheme`: `"upwind"`, `"weno"`, `"van_leer"` |
 | Number of cells | per layer | `layer[ID].cells` |
-| Gas heat capacity | CoolProp, per component, evaluated once at the initial-condition pressure and temperature and held for the run | `fluid.gas_heat_capacity_mode` (`"coolprop"`, `"constant"`), `fluid.gas_heat_capacity[C]` in J mol⁻¹ K⁻¹ |
+| Gas heat capacity | ideal-gas $C_{p0,i}(T)$ per component (NASA polynomials), at the local temperature ([Equation of State](equation-of-state.md#gas-heat-capacity)) | `fluid.gas_heat_capacity_mode` (`"ideal_gas"`, `"constant"`), `fluid.gas_heat_capacity[C]` in J mol⁻¹ K⁻¹ |
 | Gas viscosity | mole-fraction average of pure-component $\mu_i(T)$ polynomials | `fluid.viscosity_mode` (`"polynomial"`, `"constant"`), `fluid.viscosity` in Pa s |
 | Heat-of-adsorption form | isosteric | `fluid.heat_of_adsorption_convention` (see [above](#heat-of-adsorption-sign)) |
 | Adsorbed-phase heat capacity | constant, 0 J mol⁻¹ K⁻¹ | `fluid.adsorbed_heat_capacity_mode`, `fluid.adsorbed_heat_capacity[C]` |

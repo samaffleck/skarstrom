@@ -1490,7 +1490,7 @@ class Fluid(_Node):
     """Heats of adsorption are "isosteric" heats, follow the "internal_energy" convention, or are -dU with the
     isosteric heat -dU + R*T at the local temperature ("isosteric_rt")."""
     gas_heat_capacity_mode = Choice()
-    """"coolprop" (pure-component values at the initial conditions) or "constant" (gas_heat_capacity per component)."""
+    """"ideal_gas" (ideal-gas Cp0(T) of each component at the local temperature; "coolprop" is accepted as its former name) or "constant" (gas_heat_capacity per component)."""
     viscosity_mode = Choice()
     """"polynomial" (mole-fraction average of the pure-component fits) or "constant" (viscosity)."""
     viscosity = Real()

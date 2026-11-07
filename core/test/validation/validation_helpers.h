@@ -43,6 +43,26 @@ namespace adsim::validation {
     return cp_molar;
   }
 
+  // The molar mixture heat capacity at the temperature T [J/(mol-K)], with each
+  // component's ideal-gas C_p0(T) (Fluid::MolarHeatCapacity; the held value for
+  // a component without a polynomial or in the CONSTANT mode). The overload
+  // without T above gives the cached value at the initial temperature.
+  inline double MixtureMolarCp(const Fluid& fluid, const std::unordered_map<std::string, double>& y,
+                               double T) {
+    double cp_molar = 0.0;
+    for (const auto& [component, yi] : y) cp_molar += yi * fluid.MolarHeatCapacity(component, T);
+    return cp_molar;
+  }
+
+  // integral of the molar mixture C_p from T1 to T2 [J/mol]: the ideal-gas
+  // enthalpy change h(T2) - h(T1) of the gas the solver models.
+  inline double MixtureMolarEnthalpyChange(const Fluid& fluid, const std::unordered_map<std::string, double>& y,
+                                           double T1, double T2) {
+    double dh = 0.0;
+    for (const auto& [component, yi] : y) dh += yi * fluid.MolarEnthalpyChange(component, T1, T2);
+    return dh;
+  }
+
   // Molar isochoric heat capacity [J/(mol-K)]. The solver's equation of state is
   // the ideal gas law (C = P/RT), so Cv = Cp - R is the thermodynamically
   // consistent partner of whatever Cp it caches.

@@ -60,12 +60,20 @@ namespace adsim {
 	void Fluid::Initialise(InitialConditions& ic) {
 		molar_mass_.clear();
 		heat_capacity_.clear();
+		cp_polynomial_.clear();
 		for (const std::string& component : components_) {
 			molar_mass_[component] = GetMolarMass(component);
 			auto cp_it = gas_heat_capacity_.try_emplace(component, kDefaultGasHeatCapacity).first;
-			heat_capacity_[component] = gas_heat_capacity_mode_ == GasHeatCapacityMode::CONSTANT
-				? cp_it->second.Get() / molar_mass_[component]   // [J/(mol-K)] -> [J/(kg-K)]
-				: GetGasHeatCapacity(component, ic.pressure, ic.temperature);
+			if (gas_heat_capacity_mode_ == GasHeatCapacityMode::CONSTANT) {
+				heat_capacity_[component] = cp_it->second.Get() / molar_mass_[component];  // [J/(mol-K)] -> [J/(kg-K)]
+			} else if (const NasaPolynomial* p = IdealGasCoeffs(component)) {
+				// The solver evaluates C_p0(T) per cell; the cached value is for display.
+				cp_polynomial_[component] = p;
+				heat_capacity_[component] = EvalIdealGasHeatCapacity(*p, ic.temperature) / molar_mass_[component];
+			} else {
+				// No polynomial: CoolProp at the initial conditions, held for the run.
+				heat_capacity_[component] = GetGasHeatCapacity(component, ic.pressure, ic.temperature);
+			}
 			// Viscosity mu_i(T) uses hard-coded polynomial coefficients
 			// (viscosity_coefficients.h) — no CoolProp fitting needed here.
 

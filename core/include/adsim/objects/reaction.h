@@ -47,9 +47,10 @@ namespace adsim {
 
   // Enumerator values are what the deck stores, so never renumber them.
   //   Constant:  dH_r(T) = dH_ref
-  //   Kirchhoff: dH_r(T) = dH_ref + dCp (T - T_ref),  dCp = sum_i nu_i Cp_i,
+  //   Kirchhoff: dH_r(T) = dH_ref + sum_i nu_i integral_{T_ref}^{T} Cp_i dT,
   //              with the molar gas heat capacities the energy balance uses
-  //              (Fluid::MolarHeatCapacity). The default.
+  //              (Fluid::MolarEnthalpyChange; dCp (T - T_ref) for constant
+  //              Cp_i). The default.
   enum class HeatOfReactionMode {
     Constant = 0,
     Kirchhoff = 1
@@ -159,7 +160,8 @@ namespace adsim {
     double DeltaHeatCapacity(const std::map<std::string, double>& molar_cp) const;
     // dH_r(T) [J/mol] by heat_mode_.
     double HeatOfReaction(double T, const std::map<std::string, double>& molar_cp) const;
-    // As above with Fluid::MolarHeatCapacity (the fluid must be initialised).
+    // As above with the fluid's heat capacities, integrated from T_ref to T
+    // (Fluid::MolarEnthalpyChange; the fluid must be initialised).
     double HeatOfReaction(double T, const Fluid& fluid) const;
 
     void EvaluateExpressions(const EvalContext& ctx);

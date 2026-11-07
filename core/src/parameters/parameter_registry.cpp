@@ -373,6 +373,12 @@ namespace adsim {
               return;
             }
           }
+          for (const auto& [old_name, value] : info_.choice_aliases) {
+            if (key == old_name) {
+              set_int_(static_cast<long long>(value));
+              return;
+            }
+          }
           bool numeric = !key.empty();
           for (char c : key) numeric = numeric && (std::isdigit(static_cast<unsigned char>(c)) || c == '.');
           if (!numeric) {
@@ -903,9 +909,12 @@ namespace adsim {
       // 2 = isosteric heat from -dU + R*T at the local temperature.
       EmplaceEnum("fluid.heat_of_adsorption_convention", "", "fluid", "fluid", "heat of adsorption convention",
                   fluid.heat_of_adsorption_convention_, "isosteric,internal_energy,isosteric_rt");
-      // 0 = CoolProp at the initial conditions, 1 = constant (fluid.gas_heat_capacity).
+      // 0 = ideal-gas Cp(T) polynomials (held CoolProp value for a component
+      // without one), 1 = constant (fluid.gas_heat_capacity). "coolprop" is
+      // the old name of 0.
       EmplaceEnum("fluid.gas_heat_capacity_mode", "", "fluid", "fluid", "gas heat capacity mode",
-                  fluid.gas_heat_capacity_mode_, "coolprop,constant");
+                  fluid.gas_heat_capacity_mode_, "ideal_gas,constant");
+      out.back().info_.choice_aliases = {{"coolprop", 0}};
       // 0 = pure-component polynomials, 1 = constant mixture value (fluid.viscosity).
       EmplaceEnum("fluid.viscosity_mode", "", "fluid", "fluid", "gas viscosity mode",
                   fluid.viscosity_mode_, "polynomial,constant");

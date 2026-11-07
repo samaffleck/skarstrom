@@ -1067,6 +1067,15 @@ PYBIND11_MODULE(_core, m) {
   m.def("stream_variables", &adsim::StreamVariableNames);
   m.def("stream_component_variables", &adsim::StreamComponentVariableNames);
 
+  // ---- gas properties -------------------------------------------------------
+  // Ideal-gas heat capacity C_p0(T) [J/(mol K)] of the NASA polynomials
+  // (ideal_gas_heat_capacity.h), as the default gas heat capacity mode uses it.
+  m.def("ideal_gas_heat_capacity", [](const std::string& component, double temperature) {
+    const adsim::NasaPolynomial* p = adsim::Fluid::IdealGasCoeffs(component);
+    if (!p) throw py::value_error("no ideal-gas heat capacity polynomial for '" + component + "'");
+    return adsim::Fluid::EvalIdealGasHeatCapacity(*p, temperature);
+  }, py::arg("component"), py::arg("temperature"));
+
   // ---- isotherms -------------------------------------------------------------
   m.def("isotherm_kinds", []() {
     std::vector<std::string> out;

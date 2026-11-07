@@ -461,7 +461,7 @@ namespace adsim {
       double ads_heat_cap = 0.0;
       for (const auto& ca : cell_ads[i]) {
         for (const auto& t : state.GetEnergyTerms(ca.id)) {
-          ads_heat_cap += ca.bulk_density * t.heat_capacity * (*t.loading)[i];
+          ads_heat_cap += ca.bulk_density * t.HeatCapacity(T[i]) * (*t.loading)[i];
         }
       }
       double Cbed = et[i] * rho[i] * Cpg[i] + rho_b[i] * Cps[i] + ads_heat_cap;
@@ -483,7 +483,7 @@ namespace adsim {
       double Se = 0.0;
       for (const auto& ca : cell_ads[i]) {
         for (const auto& t : state.GetEnergyTerms(ca.id)) {
-          const double heat = AdsorptionHeat((*t.heat_of_adsorption)[i], t.heat_capacity, T[i], hoa_convention);
+          const double heat = AdsorptionHeat((*t.heat_of_adsorption)[i], t.HeatCapacity(T[i]), T[i], hoa_convention);
           Se += heat * ca.bulk_density * (*t.loading_rate)[i];
         }
       }
@@ -714,8 +714,9 @@ namespace adsim {
       double Se = 0.0;
       for (const auto& ca : cell_ads[i]) {
         for (const auto& t : state.GetEnergyTerms(ca.id)) {
-          ads_heat_cap += ca.bulk_density * t.heat_capacity * (*t.loading)[i];
-          const double heat = AdsorptionHeat((*t.heat_of_adsorption)[i], t.heat_capacity, Ts[i], hoa_convention);
+          const double Cpa = t.HeatCapacity(Ts[i]);
+          ads_heat_cap += ca.bulk_density * Cpa * (*t.loading)[i];
+          const double heat = AdsorptionHeat((*t.heat_of_adsorption)[i], Cpa, Ts[i], hoa_convention);
           Se += heat * ca.bulk_density * (*t.loading_rate)[i];
         }
       }
@@ -1605,17 +1606,24 @@ namespace adsim {
     auto& mole_fraction_map = state.mole_fraction;
     const auto& fluid = udata->fluid;
 
+    // Gas temperature of each cell (the fluid temperature, also in LTNE).
+    const auto& T = state.fluid_temperature.var;
+
     // Mass-specific mixture heat capacity [J/(kg.K)], mixed on the molar basis:
-    // Cp = sum_i y_i M_i Cp_i / sum_i y_i M_i (Fluid::MixtureHeatCapacityFromSums).
-    // Hoist the string-keyed lookups out of the cell loop: resolve
-    // (mole-fraction vector, M_i Cp_i, M_i) once per component (map iteration
-    // order preserved → deterministic sums), then the cell loop is pure FMA.
-    struct CpTerm { const std::vector<double>* yi; double molar_cp; double molar_mass; };
+    // Cp = sum_i y_i M_i Cp_i(T) / sum_i y_i M_i (Fluid::MixtureHeatCapacityFromSums),
+    // with each component's ideal-gas polynomial at the cell's temperature, or
+    // its held value (Fluid::MolarHeatCapacity). Hoist the string-keyed lookups
+    // out of the cell loop: resolve (mole-fraction vector, polynomial, held
+    // M_i Cp_i, M_i) once per component (map iteration order preserved →
+    // deterministic sums).
+    struct CpTerm { const std::vector<double>* yi; const NasaPolynomial* poly; double molar_cp; double molar_mass; };
     static thread_local std::vector<CpTerm> terms;
     terms.clear();
     terms.reserve(mole_fraction_map.size());
     for (auto& [component, mole_fraction] : mole_fraction_map) {
-      terms.push_back({ &mole_fraction.var, fluid.MolarHeatCapacity(component), fluid.molar_mass_.at(component) });
+      const NasaPolynomial* poly = fluid.HeatCapacityPolynomial(component);
+      const double held = poly ? 0.0 : fluid.MolarHeatCapacity(component, 0.0);
+      terms.push_back({ &mole_fraction.var, poly, held, fluid.molar_mass_.at(component) });
     }
 
     // Compute mixture heat capacity for each cell
@@ -1623,7 +1631,7 @@ namespace adsim {
       double sum_cp = 0.0, sum_m = 0.0;
       for (const auto& t : terms) {
         const double y = (*t.yi)[n];
-        sum_cp += y * t.molar_cp;
+        sum_cp += y * (t.poly ? Fluid::EvalIdealGasHeatCapacity(*t.poly, T[n]) : t.molar_cp);
         sum_m += y * t.molar_mass;
       }
       Cp[n] = Fluid::MixtureHeatCapacityFromSums(sum_cp, sum_m);
@@ -1960,8 +1968,7 @@ namespace adsim {
     // solid temperature in LTNE (UpdateSolidTemperature).
     const auto& fluid = udata->fluid;
     const HeatOfAdsorptionConvention hoa_convention = fluid.heat_of_adsorption_convention_;
-    const double Cpa = hoa_convention == HeatOfAdsorptionConvention::INTERNAL_ENERGY
-                           ? fluid.AdsorbedPhaseHeatCapacity(component) : 0.0;
+    const bool internal_energy = hoa_convention == HeatOfAdsorptionConvention::INTERNAL_ENERGY;
     const auto& T_ads =
       (udata->bed.equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL)
         ? state.solid_temperature.var
@@ -1986,6 +1993,7 @@ namespace adsim {
       double s = 0.0;
       for (const auto& ca : cell_ads[n]) {
         const Term& t = term_of(ca.id);
+        const double Cpa = internal_energy ? fluid.AdsorbedPhaseHeatCapacity(component, T_ads[n]) : 0.0;
         const double heat = AdsorptionHeat((*t.dH)[n], Cpa, T_ads[n], hoa_convention);
         s += heat * ca.bulk_density * (*t.ddt_q)[n];
       }

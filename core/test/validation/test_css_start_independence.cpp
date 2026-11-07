@@ -9,10 +9,14 @@
 //   * a bed saturated with the feed: the feed gas, loadings in equilibrium;
 //   * a hot and a cold bed: the state after one cycle from the shipped start
 //     with every temperature (fluid, solid, wall) raised or lowered by 40 K,
-//     given through the warm-start API. Not by editing the deck's initial
-//     temperature: with the default CoolProp gas heat capacities that also
-//     sets the heat capacities for the whole run (Fluid::Initialise), so it
-//     changes the model, not only the start (issue #145);
+//     given through the warm-start API;
+//   * a hot and a cold deck: the deck's own initial temperatures (gas, solid
+//     and wall) edited by +-40 K. This was the original symptom of issue #145:
+//     the gas heat capacities were evaluated at the initial temperature and
+//     held, so editing it changed the model. They are now the ideal-gas
+//     C_p0(T) at the local temperature (Fluid, ideal_gas_heat_capacity.h), so
+//     the initial temperature is only a start. (Skipped for an isothermal
+//     deck, whose initial temperature is its temperature.)
 //   * a neighbouring deck's CSS: the CSS of a deck with the same cycle at
 //     another operating point, given through the warm-start API (decks with
 //     no such neighbour skip this start).
@@ -107,6 +111,14 @@ namespace adsim {
       return true;
     }
 
+    // The deck's initial temperatures (gas and solid, wall) shifted by dT.
+    std::function<void(UserData&)> WithInitialTemperatureShift(double dT) {
+      return [dT](UserData& data) {
+        data.ic.temperature = data.ic.temperature.Get() + dT;
+        data.ic.wall_temperature = data.ic.wall_temperature.Get() + dT;
+      };
+    }
+
     std::function<void(UserData&)> WithGas(const Composition& y) {
       return [y](UserData& data) {
         for (const auto& [c, v] : y) data.ic.mole_fraction[c] = v;
@@ -154,6 +166,10 @@ namespace adsim {
     starts.emplace_back("hot", RunToCss(deck, nullptr, &hot));
     const CycleState cold = ShiftedState(deck, -kTemperatureShift);
     starts.emplace_back("cold", RunToCss(deck, nullptr, &cold));
+    if (!shipped_data.bed.equations_.IsIsothermal()) {
+      starts.emplace_back("hot deck", RunToCss(deck, WithInitialTemperatureShift(kTemperatureShift)));
+      starts.emplace_back("cold deck", RunToCss(deck, WithInitialTemperatureShift(-kTemperatureShift)));
+    }
     if (spec.neighbour) {
       const Result other = RunToCss(spec.neighbour, nullptr);
       ASSERT_GE(other.css_cycle, 0) << spec.neighbour << ": no CSS";

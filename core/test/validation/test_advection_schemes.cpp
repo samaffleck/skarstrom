@@ -570,10 +570,15 @@ namespace adsim {
   TEST(AdvectionSchemeRobustness, AnAbsentComponentCostsNoExtraSteps) {
     for (int n_cells : {40, 80}) {
       const auto up = RunAbsentComponent(AdvectionScheme::Upwind, n_cells);
-      // Guards: gas flows through the bed, and O2 really is absent (round-off
-      // far below its absolute tolerance of 1e-8).
+      // Guards: gas flows through the bed, and O2 really is absent. Absent O2
+      // is an exact fixed point of its balance, but the nonlinear solve leaves
+      // noise at the level of the mole fractions' absolute tolerance (1e-8):
+      // measured max |y_O2| 1.9e-9 / 2.4e-9 (40 / 80 cells) on Linux and
+      // 1.3e-8 on macOS, and 9e-23 / 2.1e-9 with a constant gas Cp. The guard
+      // is ten times that tolerance, far below any real leak of O2.
+      std::printf("[absent O2] %d cells: upwind max |y_O2| %.3e, %d steps\n", n_cells, up.max_abs_o2, (int)up.stats.num_steps);
       ASSERT_GT(up.outlet_flow, 0.5 * 0.01) << "no flow through the bed";
-      ASSERT_LT(up.max_abs_o2, 1e-8) << "O2 is not absent from the bed";
+      ASSERT_LT(up.max_abs_o2, 1e-7) << "O2 is not absent from the bed";
       ASSERT_GT(up.stats.num_steps, 100);
 
       for (auto scheme : { AdvectionScheme::WENO, AdvectionScheme::VanLeer }) {

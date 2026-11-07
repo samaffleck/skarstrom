@@ -24,7 +24,7 @@ $$
 
 | Symbol          | Description                                         | Unit           |
 |-----------------|-----------------------------------------------------|----------------|
-| $C_{p,g}$       | Gas heat capacity                                   | J kg⁻¹ K⁻¹     |
+| $C_{p,g}$       | Gas heat capacity, ideal-gas $C_{p0}(T)$ at the local temperature ([Equation of State](equation-of-state.md#gas-heat-capacity)) | J kg⁻¹ K⁻¹ |
 | $C_{p,s}$       | Adsorbent heat capacity                             | J kg⁻¹ K⁻¹     |
 | $C_{pa,i}$      | Adsorbed-phase molar heat capacity of component i ([below](#adsorbed-phase-heat-capacity)) | J mol⁻¹ K⁻¹ |
 | $T$             | Gas/Adsorbent temperature                           | K              |
@@ -78,7 +78,7 @@ $T$ is the temperature of the adsorbed phase: the bed temperature in LTE, the so
 The **adsorbed phase heat capacity** setting of the energy balance controls how the adsorbed molecules' heat capacity is treated:
 
 - **Constant** — enter a molar heat capacity per component.
-- **Gas phase** — each component's adsorbed-phase heat capacity is taken equal to its own pure-gas molar heat capacity, $C_{p,i}\thinspace M_i$ (see [Equation of State](equation-of-state.md#other-gas-properties)).
+- **Gas phase** — each component's adsorbed-phase heat capacity is taken equal to its own pure-gas molar heat capacity, $C_{p,i}\thinspace M_i$, at the temperature of the adsorbed phase (see [Equation of State](equation-of-state.md#gas-heat-capacity)). The $C_{pa,i} T$ term of the internal-energy convention uses that local value too.
 
 ## Energy source (heating / cooling)
 

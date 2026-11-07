@@ -62,6 +62,11 @@ def build(case: str) -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "isosteric"
     for component in ("CarbonDioxide", "Methane", "Helium"):
         sim.fluid.adsorbed_heat_capacity[component] = 0 * u.J / (u.mol * u.K)
+    # The paper uses constant, average gas heat capacities and prints none; ours is
+    # each component's ideal-gas Cp0 at the feed temperature (298 K).
+    sim.fluid.gas_heat_capacity_mode = "constant"
+    for component in ("CarbonDioxide", "Methane", "Helium"):
+        sim.fluid.gas_heat_capacity[component] = sk.ideal_gas_heat_capacity(component, 298.0)
 
     # ---- adsorbent: zeolite 13X, extended-Sips competitive isotherm (Table 3) ---------
     zeolite = sim.add_adsorbent("13X", solid_density=PARTICLE_DENSITY * u.kg / u.m**3,

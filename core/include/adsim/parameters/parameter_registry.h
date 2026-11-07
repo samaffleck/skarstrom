@@ -99,6 +99,9 @@ namespace adsim {
     // value, in value order ("none", "molar_profile", ...). SetText accepts a
     // name as well as the number. Empty for a plain integer (a count).
     std::vector<std::string> choices;
+    // Former names still accepted by SetText (name -> value), so scripts
+    // written before a choice was renamed keep working. Not listed.
+    std::vector<std::pair<std::string, int>> choice_aliases;
     ParameterKind kind = ParameterKind::Real;
     // A numeric model value the optimiser and parametric studies may vary.
     // False for solver settings, integers, text, and values written as a

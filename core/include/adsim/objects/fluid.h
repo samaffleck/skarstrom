@@ -24,8 +24,10 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/unordered_map.hpp>
 
+#include "adsim/math/constants.h"
 #include "adsim/math/expression_param.h"
 #include "adsim/objects/viscosity_coefficients.h"
+#include "adsim/objects/ideal_gas_heat_capacity.h"
 #include "adsim/objects/thermal_conductivity_coefficients.h"
 #include <cereal/types/memory.hpp>
 #include <cereal/types/string.hpp>
@@ -293,19 +295,26 @@ namespace adsim {
   };
 
   // Source of the pure-component gas heat capacities C_p,i.
-  //   COOLPROP - CoolProp at the initial-condition pressure and temperature
-  //              (default), held for the whole run.
-  //   CONSTANT - the user's molar value per component, gas_heat_capacity_
-  //              [J/(mol-K)] (e.g. the constant 30.7 J/(mol-K) of
-  //              Yancy-Caballero 2020 and Haghpanah 2013).
+  //   IDEAL_GAS - the ideal-gas C_p0,i(T) of the NASA 7-coefficient polynomials
+  //               (ideal_gas_heat_capacity.h), evaluated at the local gas
+  //               temperature in every cell (default). A component without a
+  //               polynomial keeps the CoolProp value at the initial-condition
+  //               pressure and temperature, held for the run (the run-start
+  //               warnings name it). Engines up to 0.8 held the CoolProp value
+  //               for every component in this mode; COOLPROP is its old name.
+  //   CONSTANT  - the user's molar value per component, gas_heat_capacity_
+  //               [J/(mol-K)] (e.g. the constant 30.7 J/(mol-K) of
+  //               Yancy-Caballero 2020 and Haghpanah 2013).
   enum class GasHeatCapacityMode {
-    COOLPROP,
-    CONSTANT
+    IDEAL_GAS = 0,
+    COOLPROP = IDEAL_GAS,  // old name of IDEAL_GAS
+    CONSTANT = 1
   };
 
-  // Display names (front ends); the registry names are "coolprop,constant".
+  // Display names (front ends); the registry names are "ideal_gas,constant"
+  // ("coolprop" is still accepted for ideal_gas).
   static const char* GasHeatCapacityModeList[] = {
-    "CoolProp",
+    "Ideal gas Cp(T)",
     "User defined"
   };
 
@@ -396,19 +405,80 @@ namespace adsim {
       return kg > 0.0 ? kg : 1.0e-4;                        // guard fit undershoot at edges
     }
 
-    // Gas-phase heat capacity of a pure component on a molar basis,
-    // C_p,i * M_i [J/(mol.K)], from the cached per-kilogram heat_capacity_.
-    // Requires Initialise().
-    double MolarHeatCapacity(const std::string& component) const {
-      return heat_capacity_.at(component) * molar_mass_.at(component);
+    // ---- ideal-gas heat capacity polynomials (ideal_gas_heat_capacity.h) ----
+    // The NASA polynomial of `component`, or null when there is none.
+    static const NasaPolynomial* IdealGasCoeffs(const std::string& component) {
+      auto it = kIdealGasHeatCapacity.find(component);
+      return it == kIdealGasHeatCapacity.end() ? nullptr : &it->second;
+    }
+    // C_p0(T) [J/(mol.K)]. Outside [t_min, t_max] the value at the nearer limit
+    // (no extrapolation of the polynomial).
+    static double EvalIdealGasHeatCapacity(const NasaPolynomial& p, double T) {
+      const double Tc = T < p.t_min ? p.t_min : (T > p.t_max ? p.t_max : T);
+      const auto& a = Tc < p.t_mid ? p.low : p.high;
+      return constants::kIdealGasConstant * (a[0] + Tc * (a[1] + Tc * (a[2] + Tc * (a[3] + Tc * a[4]))));
+    }
+    // Ideal-gas enthalpy H0(T) [J/mol] on the polynomial's datum (TM-4513: the
+    // enthalpy of formation at 298.15 K), consistent with
+    // EvalIdealGasHeatCapacity: outside [t_min, t_max] it continues linearly
+    // with the clamped C_p0, so dH0/dT = C_p0 everywhere. Use differences.
+    static double EvalIdealGasEnthalpy(const NasaPolynomial& p, double T) {
+      auto h = [&p](double t) {
+        const auto& a = t < p.t_mid ? p.low : p.high;
+        return constants::kIdealGasConstant *
+               (t * (a[0] + t * (a[1] / 2 + t * (a[2] / 3 + t * (a[3] / 4 + t * a[4] / 5)))) + a[5]);
+      };
+      if (T < p.t_min) return h(p.t_min) + EvalIdealGasHeatCapacity(p, p.t_min) * (T - p.t_min);
+      if (T > p.t_max) return h(p.t_max) + EvalIdealGasHeatCapacity(p, p.t_max) * (T - p.t_max);
+      return h(T);
     }
 
-    // Molar heat capacity Cpa of `component` in the adsorbed phase [J/(mol.K)]:
-    // the gas-phase molar value (GAS_PHASE) or the user's constant (CONSTANT).
-    double AdsorbedPhaseHeatCapacity(const std::string& component) const {
+    // The polynomial the run uses for `component` (IDEAL_GAS mode and a
+    // polynomial exists), or null: the component then has the held value of
+    // heat_capacity_. Requires Initialise().
+    const NasaPolynomial* HeatCapacityPolynomial(const std::string& component) const {
+      auto it = cp_polynomial_.find(component);
+      return it == cp_polynomial_.end() ? nullptr : it->second;
+    }
+    // Components of the IDEAL_GAS mode that have no polynomial, so keep the
+    // CoolProp value held at the initial conditions (empty in CONSTANT mode).
+    std::vector<std::string> ComponentsWithHeldHeatCapacity() const {
+      std::vector<std::string> out;
+      if (gas_heat_capacity_mode_ != GasHeatCapacityMode::IDEAL_GAS) return out;
+      for (const auto& c : components_)
+        if (!IdealGasCoeffs(c)) out.push_back(c);
+      return out;
+    }
+
+    // Gas-phase heat capacity of a pure component on a molar basis at the
+    // temperature T [K], C_p,i(T) M_i [J/(mol.K)]: its polynomial, or the held
+    // per-kilogram heat_capacity_ times M_i. Requires Initialise() (a fluid
+    // that was not initialised uses heat_capacity_ for every component).
+    double MolarHeatCapacity(const std::string& component, double T) const {
+      if (const NasaPolynomial* p = HeatCapacityPolynomial(component)) return EvalIdealGasHeatCapacity(*p, T);
+      return heat_capacity_.at(component) * molar_mass_.at(component);
+    }
+    // integral of C_p,i M_i dT from T1 to T2 [J/mol], consistent with
+    // MolarHeatCapacity (exact for the polynomial; C_p (T2 - T1) when held).
+    double MolarEnthalpyChange(const std::string& component, double T1, double T2) const {
+      if (const NasaPolynomial* p = HeatCapacityPolynomial(component))
+        return EvalIdealGasEnthalpy(*p, T2) - EvalIdealGasEnthalpy(*p, T1);
+      return heat_capacity_.at(component) * molar_mass_.at(component) * (T2 - T1);
+    }
+
+    // Molar heat capacity Cpa of `component` in the adsorbed phase at the
+    // adsorbed-phase temperature T [J/(mol.K)]: the gas-phase molar value
+    // (GAS_PHASE) or the user's constant (CONSTANT, independent of T).
+    double AdsorbedPhaseHeatCapacity(const std::string& component, double T) const {
       return adsorbed_heat_capacity_mode_ == AdsorbedHeatCapacityMode::GAS_PHASE
-        ? MolarHeatCapacity(component)
+        ? MolarHeatCapacity(component, T)
         : adsorbed_heat_capacity_.at(component).Get();
+    }
+    // The polynomial of the adsorbed-phase heat capacity (GAS_PHASE mode with a
+    // polynomial), or null when Cpa is a fixed number.
+    const NasaPolynomial* AdsorbedPhaseHeatCapacityPolynomial(const std::string& component) const {
+      return adsorbed_heat_capacity_mode_ == AdsorbedHeatCapacityMode::GAS_PHASE
+        ? HeatCapacityPolynomial(component) : nullptr;
     }
 
     // Mass-specific heat capacity of a gas mixture [J/(kg.K)]:
@@ -424,11 +494,12 @@ namespace adsim {
     }
 
     // C_p,g [J/(kg.K)] of the mixture with mole fractions y (component -> y_i;
-    // components absent from y count as 0). Requires Initialise().
-    double MixtureHeatCapacity(const std::unordered_map<std::string, double>& y) const {
+    // components absent from y count as 0) at the temperature T. Requires
+    // Initialise().
+    double MixtureHeatCapacity(const std::unordered_map<std::string, double>& y, double T) const {
       double sum_cp = 0.0, sum_m = 0.0;
       for (const auto& [component, yi] : y) {
-        sum_cp += yi * MolarHeatCapacity(component);
+        sum_cp += yi * MolarHeatCapacity(component, T);
         sum_m += yi * molar_mass_.at(component);
       }
       return MixtureHeatCapacityFromSums(sum_cp, sum_m);
@@ -437,7 +508,15 @@ namespace adsim {
     std::vector<std::string> components_{};
     std::unordered_map<std::string, double> molar_mass_{};
     std::unordered_map<std::string, ExpressionParam> adsorbed_heat_capacity_{}; // [J/(mol-K)] - used when mode is CONSTANT
-    std::unordered_map<std::string, double> heat_capacity_{}; // [J/(kg-K)] - pure-component, cached by Initialise (CoolProp or gas_heat_capacity_); mix with MixtureHeatCapacity
+    // [J/(kg-K)] pure-component, cached by Initialise: the held value of a
+    // component without a polynomial (CoolProp at the initial conditions) or of
+    // the CONSTANT mode (gas_heat_capacity_ / M_i). A component with a
+    // polynomial gets its C_p0 at the initial temperature, for display only:
+    // the solver evaluates the polynomial (MolarHeatCapacity).
+    std::unordered_map<std::string, double> heat_capacity_{};
+    // Transient (set by Initialise): the polynomial of each component that has
+    // one, in IDEAL_GAS mode. Not serialised.
+    std::unordered_map<std::string, const NasaPolynomial*> cp_polynomial_{};
     AdsorbedHeatCapacityMode adsorbed_heat_capacity_mode_ = AdsorbedHeatCapacityMode::CONSTANT;
     HeatOfAdsorptionConvention heat_of_adsorption_convention_ = HeatOfAdsorptionConvention::ISOSTERIC;
     GasHeatCapacityMode gas_heat_capacity_mode_ = GasHeatCapacityMode::COOLPROP;

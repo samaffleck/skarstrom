@@ -26,19 +26,81 @@ This is one of the residuals the solver satisfies at every time step (the *Conce
 Components are chosen by their [CoolProp](https://coolprop.org/) fluid names in the deck's fluid package. CoolProp is called only when a run starts (`Fluid::Initialise`), never inside the time integration:
 
 - **Molar mass** $M_i$ of each component, from CoolProp.
-- **Heat capacity** $C_{p,i}$ [J kg⁻¹ K⁻¹] of each pure component, evaluated **once**, at the pressure and temperature of the **initial conditions**, and then held constant for the whole run. A TSA cycle that heats the gas by 100 K therefore uses the gas heat capacity of the initial temperature throughout.
-- The heat capacity is always the **gas-phase** value. A component that would be condensed in its pure state at the initial pressure and temperature (water, ethanol, hexane or toluene at 1 bar and 298 K) takes its **ideal-gas** heat capacity $C_{p0,i}(T)$ instead of CoolProp's liquid value: about 1865 J kg⁻¹ K⁻¹ (33.6 J mol⁻¹ K⁻¹) for water vapour at 298 K, not the liquid's 4181. In the bed such a component is a vapour at a partial pressure no higher than its saturation pressure, where it is close to ideal, and $C_{p0}$ depends on temperature only, so it exists at every state. Components in a gas or supercritical state, which includes the permanent gases (N₂, O₂, CH₄, H₂, Ar, He, and CO₂ below its saturation pressure, about 64 bar at 298 K), keep the real-gas $C_{p,i}(P, T)$.
+- **Heat capacity**: see [Gas heat capacity](#gas-heat-capacity) below. CoolProp is used only for a component without an ideal-gas polynomial.
 
 If CoolProp cannot evaluate a property, the error is printed to the console and the value is set to 0.
+
+### Gas heat capacity
+
+The heat capacity of each pure component is its **ideal-gas** heat capacity $C_{p0,i}(T)$, evaluated at the local gas temperature in every cell at every residual evaluation, from the NASA 7-coefficient polynomials:
+
+$$
+\frac{C_{p0,i}}{R} = a_0 + a_1 T + a_2 T^2 + a_3 T^3 + a_4 T^4,\qquad
+\frac{H_{0,i}}{R\thinspace T} = a_0 + \frac{a_1 T}{2} + \frac{a_2 T^2}{3} + \frac{a_3 T^3}{4} + \frac{a_4 T^4}{5} + \frac{a_5}{T}
+$$
+
+with one coefficient set below 1000 K and another above. The coefficients are those of McBride, Gordon and Reno (1993), *Coefficients for Calculating Thermodynamic and Transport Properties of Individual Species*, NASA TM-4513, copied unchanged with each species' data source (`core/include/adsim/objects/ideal_gas_heat_capacity.h`). Air, which TM-4513 does not list, is the ideal-gas mixture of its N₂, O₂ and Ar entries at the composition of CoolProp's air model (Lemmon et al. 2000: 0.7812, 0.2096, 0.0092 by mole); an ideal-gas mixture mixes the coefficients linearly, so this is exact. Outside a polynomial's range (below 200 K for most species, 298 or 300 K for a few) the value at the nearer limit is used.
+
+Why ideal-gas and temperature-dependent:
+
+- **The initial temperature is only a start.** Earlier engines evaluated CoolProp's heat capacity once, at the initial-condition pressure and temperature, and held it for the run. The initial temperature then also set a model parameter, so two runs differing only in their initial temperature reached different cyclic steady states (for Ward 2024 with a 40 K colder start, recovery differed by 2.4×10⁻⁴). A TSA cycle that heats the gas by 100 K also kept the heat capacity of the initial temperature throughout.
+- **Gas-phase values for condensables.** A vapour such as water, ethanol or toluene takes its vapour heat capacity whatever its pure state at the bed's pressure and temperature (water at 298 K: 33.6 J mol⁻¹ K⁻¹, not the liquid's 75.3).
+- **Ideal gas.** The equation of state is the ideal-gas law, and the real-gas correction to $C_p$ of the permanent gases is small at PSA pressures (at 1 bar and 298 K: CO₂ +0.8 %, CH₄ +0.3 %, N₂ +0.2 %).
+
+The energy balance is written in temperature form, $\rho C_{p,g}(\partial T/\partial t + u\thinspace\partial T/\partial z)$ with the local $C_{p,g}(T)$, which is exact for an ideal gas whose enthalpy is $h = \int C_{p0}\thinspace dT$: no extra term is needed. The open-system energy test (`ClosedBedEnergyTest.OpenSystemEnergyBalanceConvergesUnderGridRefinement`) checks the closure with this enthalpy.
+
+**Agreement with CoolProp.** Each polynomial is compared with CoolProp's ideal-gas $C_{p0}$ (the ideal-gas part of the reference equation of state) from 200 K, or from the fit's lower limit or the fluid's triple point if higher, to 800 K (`test_ideal_gas_heat_capacity.cpp`, which prints this table). The test fails if an error exceeds 1 % for the light and permanent gases (Air, Ar, CO₂, CO, He, H₂, Kr, CH₄, Ne, N₂, O₂, Xe) or 2 % for any other component.
+
+| Component | Polynomial range [K] | Compared [K] | Largest error | at [K] | $C_{p0}$(298.15 K) [J mol⁻¹ K⁻¹] |
+|---|---|---|---|---|---|
+| Air | 200–6000 | 200–800 | −0.08 % | 675 | 29.10 |
+| Ammonia | 200–6000 | 200–800 | +0.57 % | 650 | 35.63 |
+| Argon | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
+| Benzene | 200–6000 | 279–800 | −1.35 % | 424 | 81.92 |
+| Butane | 200–6000 | 200–800 | −0.74 % | 200 | 98.66 |
+| CarbonDioxide | 200–6000 | 217–800 | −0.14 % | 382 | 37.14 |
+| CarbonMonoxide | 200–6000 | 200–800 | +0.13 % | 420 | 29.14 |
+| Cyclohexane | 200–6000 | 280–800 | −1.81 % | 380 | 105.34 |
+| Ethane | 200–6000 | 200–800 | −0.49 % | 200 | 52.50 |
+| Ethanol | 200–6000 | 200–800 | −0.53 % | 415 | 65.31 |
+| Ethylene | 200–6000 | 200–800 | −0.78 % | 200 | 42.89 |
+| Fluorine | 200–6000 | 200–800 | +0.24 % | 655 | 31.30 |
+| Helium | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
+| Hydrogen | 200–6000 | 200–800 | +0.91 % | 200 | 28.84 |
+| HydrogenSulfide | 300–5000 | 300–800 | −0.29 % | 800 | 34.21 |
+| Isobutane | 200–6000 | 200–800 | −0.65 % | 200 | 96.64 |
+| Isopentane | 298–5000 | 298–800 | −0.15 % | 493 | 118.85 |
+| Krypton | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
+| Methane | 200–6000 | 200–800 | +0.81 % | 745 | 35.69 |
+| Methanol | 200–6000 | 200–800 | −0.38 % | 425 | 44.04 |
+| Neon | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
+| Nitrogen | 200–6000 | 200–800 | −0.11 % | 685 | 29.12 |
+| NitrousOxide | 200–6000 | 200–800 | +0.28 % | 210 | 38.63 |
+| Octane | 200–6000 | 217–800 | −1.28 % | 217 | 187.78 |
+| Oxygen | 200–6000 | 200–800 | +0.06 % | 365 | 29.38 |
+| Pentane | 298–5000 | 298–800 | +0.50 % | 798 | 119.95 |
+| Propane | 200–6000 | 200–800 | +0.69 % | 665 | 73.59 |
+| Propylene | 200–6000 | 200–800 | +0.35 % | 665 | 64.43 |
+| SulfurDioxide | 300–5000 | 300–800 | +0.10 % | 365 | 39.94 |
+| SulfurHexafluoride | 300–5000 | 300–800 | −0.17 % | 355 | 97.42 |
+| Toluene | 200–6000 | 200–800 | −1.33 % | 200 | 103.28 |
+| Water | 200–6000 | 274–800 | +0.04 % | 744 | 33.59 |
+| Xenon | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
+
+The larger differences for the heavier organics are differences between the two published correlations (TM-4513's fit and the ideal-gas part of each reference equation of state), not fitting noise; below its triple point (279 K) cyclohexane's two correlations differ by up to 8 %, which is why the comparison starts there.
+
+**Components without a polynomial.** Hexane has no TM-4513 entry. It keeps CoolProp's gas-phase heat capacity at the initial-condition pressure and temperature, held for the run (as every component did before), and a run-start warning says so. For it, the initial temperature still sets the heat capacity.
+
+**Kirchhoff heats of reaction** integrate the same heat capacities exactly: $\Delta H_r(T) = \Delta H_r(T_\mathrm{ref}) + \sum_i \nu_i \int_{T_\mathrm{ref}}^{T} C_{p,i}\thinspace dT$.
 
 ### Constant gas heat capacity and viscosity
 
 Models in the literature often use fixed gas properties; for example, Yancy-Caballero et al. (2020) and Haghpanah et al. (2013) use $C_{p,g} = 30.7$ J mol⁻¹ K⁻¹ and $\mu = 1.72\times10^{-5}$ Pa s. Two fluid switches reproduce them:
 
-- **Gas heat capacity mode** (`fluid.gas_heat_capacity_mode`): `coolprop` (the default, as above) or `constant`. With `constant`, the molar heat capacity of each component is the value given in `fluid.gas_heat_capacity[<component>]` [J mol⁻¹ K⁻¹], and $C_{p,i}$ is that value divided by $M_i$. The mixing rule below is unchanged, so equal values give that molar heat capacity at every composition. A new component starts at 29.1 J mol⁻¹ K⁻¹ (7R/2).
+- **Gas heat capacity mode** (`fluid.gas_heat_capacity_mode`): `ideal_gas` (the default, as above; `coolprop`, its former name, is still accepted) or `constant`. With `constant`, the molar heat capacity of each component is the value given in `fluid.gas_heat_capacity[<component>]` [J mol⁻¹ K⁻¹], and $C_{p,i}$ is that value divided by $M_i$. The mixing rule below is unchanged, so equal values give that molar heat capacity at every composition. A new component starts at 29.1 J mol⁻¹ K⁻¹ (7R/2).
 - **Viscosity mode** (`fluid.viscosity_mode`): `polynomial` (the default, the mole-fraction average below) or `constant`. With `constant`, every cell has the mixture viscosity `fluid.viscosity` [Pa s], whatever its temperature and composition.
 
-The *Gas phase* adsorbed-phase heat capacity takes the same $C_{p,i}\thinspace M_i$, so with a constant gas heat capacity it is the constant too.
+The *Gas phase* adsorbed-phase heat capacity takes the same $C_{p,i}\thinspace M_i$, at the temperature of the adsorbed phase (the gas temperature in LTE, the solid's in LTNE), so with a constant gas heat capacity it is the constant too.
 
 ### Mixture properties
 
@@ -77,5 +139,5 @@ $$
 ### Other gas properties
 
 - **Molecular diffusivities** come from the Chapman–Enskog binary-diffusion model with the Lennard-Jones energy and length of each component (Poling, Prausnitz and O'Connell, *The Properties of Gases and Liquids*, 5th ed.). They feed the dispersion and film mass-transfer correlations; see [Transport Correlations](transport-correlations.md).
-- **Adsorbed-phase heat capacity** is either a constant per component or, with the *Gas phase* option of the energy balance, $C_{p,i}\thinspace M_i$ from the same initial-condition heat capacity; see [Energy Balance](energy-balance.md#adsorbed-phase-heat-capacity).
+- **Adsorbed-phase heat capacity** is either a constant per component or, with the *Gas phase* option of the energy balance, $C_{p,i}\thinspace M_i$ from the same gas heat capacity at the adsorbed phase's temperature; see [Energy Balance](energy-balance.md#adsorbed-phase-heat-capacity).
 - **Isothermal runs** evaluate all of the above at the fixed temperature $T_{\text{iso}}$; see [Isothermal mode](energy-balance.md#isothermal-mode).

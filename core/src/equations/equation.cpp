@@ -449,8 +449,9 @@ namespace adsim {
       const auto& dH = domain_vectors.dH_ads.at(ads_id);
       for (const auto& [component, qi] : comp_map) {
         rates.push_back(&qi.ddt_var);
-        const double Cpa = fluid.AdsorbedPhaseHeatCapacity(component);
-        terms.push_back({ Cpa, &qi.var, &qi.ddt_var, &dH.at(component) });
+        const NasaPolynomial* poly = fluid.AdsorbedPhaseHeatCapacityPolynomial(component);
+        const double Cpa = poly ? 0.0 : fluid.AdsorbedPhaseHeatCapacity(component, 0.0);
+        terms.push_back({ Cpa, &qi.var, &qi.ddt_var, &dH.at(component), poly });
       }
     }
   }

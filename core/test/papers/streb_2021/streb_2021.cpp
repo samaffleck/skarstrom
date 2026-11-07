@@ -75,6 +75,16 @@ namespace adsim {
       if (c.ternary) AddComponents({ "CarbonDioxide", "Methane", "Hydrogen", "Helium" });
       else           AddComponents({ "CarbonDioxide", "Methane", "Helium" });
 
+      // The paper's model uses "constant, average values" for the heat
+      // capacity of the gas phase C_g (model assumptions) and prints no value.
+      // Our choice of the average: each component's ideal-gas C_p0 at the
+      // case's feed (= initial) temperature, held for the run (the engine's
+      // constant gas heat capacity mode; see README).
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      for (const auto& component : data.fluid.components_)
+        data.fluid.gas_heat_capacity_[component] =
+          Fluid::EvalIdealGasHeatCapacity(*Fluid::IdealGasCoeffs(component), c.temperature);
+
       auto [layer_id, ads_id] = AddLayer("13X");
       double skeletal_density = 2359;
       double solid_density = 1085;
@@ -326,18 +336,28 @@ namespace adsim {
 
   TEST_F(Streb2021Test, ExperimentA5) {
     data.info.title = "Streb 2021 - Experiment A5";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.167568, y_CH4 0.659749, T RMSE 16.0716 K, front time CO2 0.0572674, CH4 0.148211; before: y_CO2 0.154613, CO2 front 0.0515382).
+    // Tolerances = measured error rounded up. y_CO2 NRMSE and CO2 front time
+    // re-measured with the paper's constant gas heat capacity (Cp0 at the feed
+    // temperature; 2026-11, owner-approved; see README.md): y_CO2 0.184734,
+    // CO2 front 0.0647726 (were 0.1728 and 0.0594 with the held CoolProp value).
+    // Earlier (molar-basis gas heat capacity fix): y_CH4 0.659749, T RMSE
+    // 16.0716 K, CH4 front 0.148211.
     StrebCase c{ "A5", 25e5, 298, 20e-6, false, 750.0,
-                 0.18, 0.76, kNotUsed, 21, 0.061, 0.17 };
+                 0.19, 0.76, kNotUsed, 21, 0.066, 0.17 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentA6) {
     data.info.title = "Streb 2021 - Experiment A6";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.156654, y_CH4 0.749957, T RMSE 11.7501 K, front time CO2 0.0258134, CH4 0.122827; before: y_CO2 0.101707, CO2 front 0.0148029).
+    // Tolerances = measured error rounded up. y_CO2 NRMSE and CO2 front time
+    // re-measured with the paper's constant gas heat capacity (Cp0 at the feed
+    // temperature; 2026-11, owner-approved; see README.md): y_CO2 0.170486,
+    // CO2 front 0.0292289 (were 0.1608 and 0.0273 with the held CoolProp value).
+    // Earlier (molar-basis gas heat capacity fix): y_CH4 0.749957, T RMSE
+    // 11.7501 K, CH4 front 0.122827.
     StrebCase c{ "A6", 10e5, 318.15, 20e-6, false, 1050.0,
-                 0.17, 0.85, kNotUsed, 13, 0.028, 0.14 };
+                 0.175, 0.85, kNotUsed, 13, 0.030, 0.14 };
     SetUpStreb(c);
     RunAndValidate(c, false);
   }

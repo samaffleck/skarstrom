@@ -619,16 +619,19 @@ namespace adsim {
   //
   //     dU  =  int ( n_dot_in h_in - n_dot_out h_out ) dt
   //
-  // with h = Cp (T - T_ref) and u = Cv (T - T_ref) for an ideal gas. Unlike the
+  // with h(T) = integral_{T_ref}^{T} Cp dT and u = h - R (T - T_ref) for an
+  // ideal gas, whose C_p0(T) the solver evaluates at the local temperature
+  // (MixtureMolarEnthalpyChange; with a constant Cp, h = Cp (T - T_ref)). Unlike the
   // closed-bed tests this one is NOT expected to hold exactly on a coarse grid:
   // the temperature equation discretises convection in non-conservative form
   // (rho Cp u_avg (T_e - T_w) rather than a difference of face fluxes), so
   // neighbouring cells' fluxes do not telescope and a small residual survives.
   //
   // For a single-component, isobaric feed the two forms differ by
-  // T d(rho Cp u)/dz, which vanishes identically because the molar flux is
-  // constant -- so the imbalance is pure discretisation error and must converge
-  // to zero under refinement. That convergence is the assertion.
+  // h d(C u)/dz (C u Cp dT/dz = d(C u h)/dz - h d(C u)/dz, also with a
+  // temperature-dependent Cp), which vanishes identically because the molar
+  // flux is constant -- so the imbalance is pure discretisation error and must
+  // converge to zero under refinement. That convergence is the assertion.
 
   TEST_F(ClosedBedEnergyTest, OpenSystemEnergyBalanceConvergesUnderGridRefinement) {
     data.info.title = "Validation: open-system energy balance";
@@ -729,8 +732,8 @@ namespace adsim {
 
       const auto& log = solver.GetLog();
       const auto& dom = log.GetDomain();
-      const double Cp = MixtureMolarCp(local.fluid, {{"Nitrogen", 1.0}, {"Oxygen", 0.0}});
-      const double Cv = Cp - kR;
+      const std::unordered_map<std::string, double> pure_n2{{"Nitrogen", 1.0}, {"Oxygen", 0.0}};
+      auto h = [&](double T) { return MixtureMolarEnthalpyChange(local.fluid, pure_n2, T_bed, T); };  // [J/mol]
 
       const auto T = log.GetVariable(0, 0, VariableType::TEMPERATURE);
       const auto P = log.GetVariable(0, 0, VariableType::PRESSURE);
@@ -742,17 +745,17 @@ namespace adsim {
       double dU = 0.0;
       for (size_t i = 1; i + 1 < T_end.size(); ++i) {
         const double C = P_end[i] / (kR * T_end[i]);
-        dU += dom.volume[i] * (dom.et[i] * C * Cv + dom.bulk_density[i] * dom.Cps[i]) *
-              (T_end[i] - T_bed);
+        dU += dom.volume[i] * (dom.et[i] * C * (h(T_end[i]) - kR * (T_end[i] - T_bed)) +
+                               dom.bulk_density[i] * dom.Cps[i] * (T_end[i] - T_bed));
       }
 
       // Enthalpy carried in at the bottom face and out at the top face.
-      const double H_in = molar_flow * Cp * (T_feed - T_bed) * run_time;
+      const double H_in = molar_flow * h(T_feed) * run_time;
       std::vector<double> outflow_power(T.values.size(), 0.0);
       for (size_t n = 0; n < T.values.size(); ++n) {
         const double n_out = n_dot.values[n].back();          // [mol/s], + upwards
         const double T_out = T.values[n][T.values[n].size() - 2];
-        outflow_power[n] = n_out * Cp * (T_out - T_bed);
+        outflow_power[n] = n_out * h(T_out);
       }
       const double H_out = TimeIntegral(T.times, outflow_power);
 
@@ -765,6 +768,8 @@ namespace adsim {
     }
 
     ASSERT_EQ(relative_imbalance.size(), 4u);
+    std::printf("[open-system energy] relative imbalance %.2e %.2e %.2e %.2e\n", relative_imbalance[0],
+                relative_imbalance[1], relative_imbalance[2], relative_imbalance[3]);
 
     // Halving the cell width must at least halve the closure error: first-order
     // convergence (or better) is the expected order for the upwind
@@ -773,8 +778,9 @@ namespace adsim {
     // merely accurate enough on one grid. The bottom face carries exactly the
     // feed enthalpy (Danckwerts: no conduction across it, upstream value the
     // face temperature T_in), so what is left is the outlet and time
-    // discretisation: measured 1.5e-3, 7.0e-4, 2.8e-4, 6.6e-5 (ratios 2.2, 2.5,
-    // 4.2). Upwinding the inlet face to the mirrored ghost value 2 T_in - T_1,
+    // discretisation: measured 1.55e-3, 7.25e-4, 3.03e-4, 8.8e-5 (ratios 2.1, 2.4,
+    // 3.4) with the ideal-gas C_p0(T); 1.5e-3, 7.0e-4, 2.8e-4, 6.6e-5 with the
+    // constant Cp held before. Upwinding the inlet face to the mirrored ghost value 2 T_in - T_1,
     // as the residual did before, added a first-order error of its own.
     for (size_t i = 1; i < relative_imbalance.size(); ++i) {
       const double order_ratio = relative_imbalance[i - 1] / relative_imbalance[i];

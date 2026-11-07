@@ -189,6 +189,16 @@ namespace adsim {
     return warnings;
   }
 
+  std::vector<std::string> GasHeatCapacityWarnings(const Fluid& fluid) {
+    std::vector<std::string> warnings;
+    for (const auto& c : fluid.ComponentsWithHeldHeatCapacity())
+      warnings.push_back("Warning: " + c + " has no ideal-gas heat capacity polynomial, so its gas heat capacity is"
+                         " CoolProp's value at the initial pressure and temperature, held for the whole run (it does"
+                         " not follow the temperature, and the initial temperature sets it). Use the constant gas heat"
+                         " capacity mode to give it a value of your own.");
+    return warnings;
+  }
+
   std::vector<std::string> LayerCompositionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed) {
     std::vector<std::string> warnings;
     for (const auto& layer : bed.layers_.layers_)

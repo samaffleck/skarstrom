@@ -59,15 +59,15 @@ namespace adsim {
     }
   };
 
-  TEST_F(FluidPropertyModesTest, DefaultsAreCoolPropAndPolynomial) {
+  TEST_F(FluidPropertyModesTest, DefaultsAreIdealGasAndPolynomial) {
     Build();
-    EXPECT_EQ(data.fluid.gas_heat_capacity_mode_, GasHeatCapacityMode::COOLPROP);
+    EXPECT_EQ(data.fluid.gas_heat_capacity_mode_, GasHeatCapacityMode::IDEAL_GAS);
     EXPECT_EQ(data.fluid.viscosity_mode_, ViscosityMode::POLYNOMIAL);
     EXPECT_LT(data.fluid.ConstantViscosity(), 0.0);
     data.Initialise();
-    // CoolProp N2 at 1 bar / 313 K is about 29.2 J/(mol.K), CO2 about 38.
-    EXPECT_NEAR(data.fluid.MolarHeatCapacity(N2), 29.2, 0.3);
-    EXPECT_NEAR(data.fluid.MolarHeatCapacity(CO2), 38.0, 1.0);
+    // Ideal-gas N2 at 313 K is about 29.2 J/(mol.K), CO2 about 37.6.
+    EXPECT_NEAR(data.fluid.MolarHeatCapacity(N2, 313.15), 29.2, 0.3);
+    EXPECT_NEAR(data.fluid.MolarHeatCapacity(CO2, 313.15), 38.0, 1.0);
   }
 
   // Constant 30.7 J/(mol.K) for both components: the molar mixture heat
@@ -79,8 +79,8 @@ namespace adsim {
     data.fluid.gas_heat_capacity_[CO2] = 30.7;
     data.fluid.gas_heat_capacity_[N2] = 30.7;
     data.Initialise();
-    EXPECT_NEAR(data.fluid.MolarHeatCapacity(CO2), 30.7, 1e-12);
-    EXPECT_NEAR(data.fluid.MolarHeatCapacity(N2), 30.7, 1e-12);
+    EXPECT_NEAR(data.fluid.MolarHeatCapacity(CO2, 313.15), 30.7, 1e-12);
+    EXPECT_NEAR(data.fluid.MolarHeatCapacity(N2, 313.15), 30.7, 1e-12);
     EXPECT_NEAR(data.fluid.heat_capacity_.at(CO2), 30.7 / data.fluid.molar_mass_.at(CO2), 1e-9);
 
     data.state.mole_fraction.at(CO2).var[2] = 0.9;
@@ -98,7 +98,7 @@ namespace adsim {
     data.fluid.gas_heat_capacity_[CO2] = 37.0;
     data.fluid.gas_heat_capacity_[N2] = 29.0;
     data.Initialise();
-    const double cp = data.fluid.MixtureHeatCapacity({{CO2, 0.15}, {N2, 0.85}});
+    const double cp = data.fluid.MixtureHeatCapacity({{CO2, 0.15}, {N2, 0.85}}, 313.15);
     const double M = 0.15 * data.fluid.molar_mass_.at(CO2) + 0.85 * data.fluid.molar_mass_.at(N2);
     EXPECT_NEAR(cp * M, 30.2, 1e-9);
   }
@@ -215,7 +215,7 @@ namespace adsim {
       cereal::JSONInputArchive ar(is);
       ar(cereal::make_nvp("fluid", h));
     }
-    EXPECT_EQ(h.gas_heat_capacity_mode_, GasHeatCapacityMode::COOLPROP);
+    EXPECT_EQ(h.gas_heat_capacity_mode_, GasHeatCapacityMode::IDEAL_GAS);
     EXPECT_EQ(h.viscosity_mode_, ViscosityMode::POLYNOMIAL);
     EXPECT_DOUBLE_EQ(h.gas_heat_capacity_.at(N2).Get(), Fluid::kDefaultGasHeatCapacity);
     EXPECT_EQ(h.heat_of_adsorption_convention_, HeatOfAdsorptionConvention::ISOSTERIC_RT);
