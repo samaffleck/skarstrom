@@ -38,10 +38,13 @@
 //   endpoint[6].valve.cv                   step[2].energy[1].power
 //   initial.pressure  initial.y[Nitrogen]  fluid.adsorbed_heat_capacity[Nitrogen]
 //   bed.particle_htc  bed.top_void.volume  cycle.step_time_mode
+//   kpi[Nitrogen].tracked  cost.discount_rate  cost.compressor[1].rated_power
+//   sensitivity.trajectories
 //
 // Together with the builder (objects/deck_builder.h), which creates the
 // structure these paths address, the registry covers every value of the
-// example decks, so a deck can be written entirely in code.
+// example decks, so a deck can be written entirely in code (test_registry_coverage.cpp
+// checks this leaf by leaf and lists the leaves that are structure instead).
 //
 // An endpoint is a flow stream or a pressure boundary (the same thing the KPI
 // configuration calls an endpoint). Each entry also has an `alias` that uses

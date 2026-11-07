@@ -1443,6 +1443,111 @@ namespace adsim {
       }
     }
 
+    // ---- KPI configuration, cost data, the sensitivity study ----------------
+    // Settings, not model values: none is tunable.
+    void EmplaceSetting(const std::string& path, const std::string& category, const std::string& sub,
+                        const std::string& name, const std::string& unit, double& value, double lo, double hi) {
+      Emplace(path, "", category, sub, name, unit, value, lo, hi);
+      out.back().info_.tunable = false;
+    }
+
+    // Which components' KPIs are computed: kpi[Component].tracked. The
+    // feed / product / recycle endpoints are structure (build::SetKPI).
+    void AddKpi(KPIConfig& kpi) {
+      for (auto& c : kpi.per_component) {
+        if (c.product_component.empty()) continue;
+        EmplaceBool("kpi[" + c.product_component + "].tracked", "", "kpi", c.product_component,
+                    c.product_component + " KPIs tracked", c.tracked);
+      }
+    }
+
+    // The cost estimate (solver/cost_estimator.h): cost.*. Money in the
+    // deck's currency (unit "GBP", not checked).
+    void AddCost(CostEstimator& cost, AdsorbentDirectory& dir) {
+      auto money = [&](const std::string& path, const std::string& sub, const std::string& name, double& v,
+                       double lo, double hi) {
+        EmplaceSetting(path, "cost", sub, name, "GBP", v, lo, hi);
+        out.back().info_.unit_checked = false;
+      };
+      auto count = [&](const std::string& path, const std::string& sub, const std::string& name, int& v) {
+        EmplaceInt(path, "cost", sub, name, v);
+      };
+      count("cost.vessel_count", "plant", "vessels per train", cost.vessel_count);
+      count("cost.train_count", "plant", "trains", cost.train_count);
+      count("cost.operating_days_per_year", "plant", "operating days per year", cost.operating_days_per_year);
+      EmplaceSetting("cost.plant_life_years", "cost", "finance", "plant life (years)", "-", cost.plant_life_years, 1.0,
+                     50.0);
+      EmplaceSetting("cost.discount_rate", "cost", "finance", "discount rate", "-", cost.discount_rate, 0.0, 0.3);
+      money("cost.electricity_cost_per_kWh", "operating", "electricity cost per kWh", cost.electricity_cost_per_kWh,
+            0.0, 1.0);
+      EmplaceSetting("cost.maintenance_fraction", "cost", "operating", "maintenance (fraction of CAPEX per year)", "-",
+                     cost.maintenance_fraction, 0.0, 0.2);
+      EmplaceSetting("cost.overhead_fraction", "cost", "operating", "overhead (fraction of CAPEX per year)", "-",
+                     cost.overhead_fraction, 0.0, 0.2);
+      money("cost.labour_cost_per_year", "operating", "labour cost per year", cost.labour_cost_per_year, 0.0, 1e7);
+      EmplaceSetting("cost.adsorbent_replacement_years", "cost", "adsorbent", "adsorbent replacement interval (years)",
+                     "-", cost.adsorbent_replacement_years, 0.5, 50.0);
+      std::vector<AdsorbentID> ids;
+      for (const auto& [id, ads] : dir.GetAll()) ids.push_back(id);
+      std::sort(ids.begin(), ids.end());
+      for (AdsorbentID id : ids) {
+        auto it = cost.adsorbent_cost_per_kg.find(id);
+        if (it == cost.adsorbent_cost_per_kg.end()) continue;
+        money("cost.adsorbent[" + std::to_string(id) + "].cost_per_kg", "adsorbent",
+              dir.Get(id).name_ + " cost per kg", it->second, 0.0, 1e4);
+      }
+      EmplaceSetting("cost.vessel.installation_factor", "cost", "vessel", "vessel installation factor", "-",
+                     cost.vessel_cost_.installation_factor, 1.0, 10.0);
+      EmplaceBool("cost.heat_exchanger.include", "", "cost", "heat exchanger", "include a heat exchanger",
+                  cost.heat_exchanger_cost_.include);
+      money("cost.heat_exchanger.cost", "heat exchanger", "heat exchanger cost", cost.heat_exchanger_cost_.cost, 0.0,
+            1e7);
+      auto units = [&](auto& bank, const std::string& head, const std::string& what) {
+        for (size_t i = 0; i < bank.units.size(); ++i) {
+          auto& u = bank.units[i];
+          const std::string up = "cost." + head + "[" + std::to_string(i + 1) + "]";
+          const std::string sub = what + " " + std::to_string(i + 1);
+          auto& lbl = Add(Info(up + ".label", "", "cost", sub, what + " label", "", ParameterKind::String,
+                               std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+          std::string* text = &u.label;
+          lbl.get_str_ = [text] { return *text; };
+          lbl.set_str_ = [text](const std::string& t) { *text = t; };
+          EmplaceSetting(up + ".rated_power", "cost", sub, what + " rated shaft power", "kW", u.rated_power_kW, 0.0,
+                         1e5);
+          money(up + ".reference_cost", sub, what + " reference purchase cost", u.reference_cost, 0.0, 1e8);
+          EmplaceSetting(up + ".reference_power", "cost", sub, what + " reference power", "kW", u.reference_power_kW,
+                         0.0, 1e5);
+          EmplaceSetting(up + ".cost_exponent", "cost", sub, what + " cost exponent", "-", u.cost_exponent, 0.0, 1.5);
+          count(up + ".count", sub, what + " count", u.count);
+        }
+      };
+      units(cost.compressors_, "compressor", "compressor");
+      units(cost.vacuum_pumps_, "vacuum_pump", "vacuum pump");
+    }
+
+    // The settings of the deck's sensitivity study (solver/sensitivity_study.h):
+    // sensitivity.*. Its inputs and outputs are lists edited as a whole.
+    void AddSensitivity(sensitivity::Study& study) {
+      const std::string c = "sensitivity";
+      auto& seed = Add(Info("sensitivity.seed", "", c, c, "random seed", "-", ParameterKind::Integer,
+                            std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+      std::uint64_t* sp = &study.seed;
+      seed.get_int_ = [sp] { return static_cast<long long>(*sp); };
+      seed.set_int_ = [sp](long long x) { *sp = static_cast<std::uint64_t>(x); };
+      EmplaceInt("sensitivity.trajectories", c, c, "Morris trajectories", study.trajectories);
+      EmplaceInt("sensitivity.levels", c, c, "Morris grid levels", study.levels);
+      EmplaceSetting("sensitivity.threshold", c, c, "screening threshold (fraction of the largest mu*)", "-",
+                     study.threshold, 0.0, 1.0);
+      EmplaceInt("sensitivity.runs", c, c, "Monte Carlo first batch", study.runs);
+      EmplaceInt("sensitivity.batch", c, c, "Monte Carlo runs per added batch", study.batch);
+      EmplaceInt("sensitivity.max_runs", c, c, "Monte Carlo run limit", study.max_runs);
+      EmplaceSetting("sensitivity.rel_tol", c, c, "percentile tolerance (fraction of the 5-95 % band)", "-",
+                     study.rel_tol, 0.0, 1.0);
+      EmplaceInt("sensitivity.bootstrap", c, c, "bootstrap resamples", study.bootstrap);
+      EmplaceBool("sensitivity.require_css", "", c, c, "runs must reach cyclic steady state", study.policy.require_css);
+      EmplaceInt("sensitivity.cycles", c, c, "cycles per run (0: the deck's)", study.policy.cycles);
+    }
+
     // ---- user variables --------------------------------------------------
     void AddUserVariables(UserVariableRegistry& registry) {
       for (auto& var : registry.GetAll()) {
@@ -1477,6 +1582,9 @@ namespace adsim {
     b.AddInitialConditions(data_.ic);
     b.AddFluid(data_.fluid);
     b.AddUserVariables(data_.variable_registry);
+    b.AddKpi(data_.kpi_config);
+    b.AddCost(data_.cost_estimator, data_.adsorbent_directory);
+    b.AddSensitivity(data_.sensitivity_study);
 
     // Paths are unique by construction once every owner has an ID; this guard
     // keeps Find well defined regardless (a repeat gets a " #n" suffix).

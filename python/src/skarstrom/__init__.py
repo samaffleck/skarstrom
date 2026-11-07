@@ -574,6 +574,21 @@ class Simulation:
         return KPIConfig(self)
 
     @property
+    def cost(self) -> "_model.CostData":
+        """The cost estimate's values (``cost.*``)."""
+        return _model._group(self, _model.CostData, "cost")
+
+    @property
+    def study_settings(self) -> "_model.StudySettings":
+        """Settings of the deck's sensitivity study (``sensitivity.*``)."""
+        return _model._group(self, _model.StudySettings, "sensitivity")
+
+    @property
+    def kpi_tracked(self) -> "_model.ValueMap":
+        """Whether each component's KPIs are computed: ``sim.kpi_tracked["CO2"] = True`` (``kpi[C].tracked``)."""
+        return _model._kpi_tracked(self)
+
+    @property
     def info(self) -> Info:
         """Title, description and author of the deck."""
         return _model._group(self, Info, "info")

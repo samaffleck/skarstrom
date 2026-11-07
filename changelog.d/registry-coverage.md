@@ -1,0 +1,3 @@
+### Added — registry paths for the cost estimate, the sensitivity study and KPI tracking
+- `kpi[Component].tracked`, `cost.*` (plant, finance and operating values, `cost.vessel.*`, `cost.heat_exchanger.*`, `cost.compressor[N].*`, `cost.vacuum_pump[N].*`, `cost.adsorbent[ID].cost_per_kg`) and `sensitivity.*` (the stored study's seed, Morris and Monte Carlo settings). Python: `sim.kpi_tracked`, `sim.cost`, `sim.study_settings`.
+- A test checks, leaf by leaf, that every editable value of every example deck and of a deck with every reaction kind has a registry path; the leaves that are structure (set through `deck_edit.h` / the builder), values of a variant not in use, legacy fields or run results are listed in the test with their reason.

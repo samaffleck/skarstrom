@@ -79,9 +79,9 @@ sim.update({"css.min_cycles": 3, "settings.reltol": 1e-6})
 sim.save("modified.json")
 ```
 
-CLI: `skarstrom params deck.json [--all] [--search TEXT] [--json]`; `--set PATH=VALUE` on `run` (repeatable). Path families: `cycle.*`, `step[ID].time|fraction`, `endpoint[ID].<field>` (flows, pressures, temperatures, `y[Component]`, pump settings), `bed.*`, `wall.*`, `layer[ID].*`, `adsorbent[ID].<property>|isotherm[C].<param>|kinetics[C].<param>|heat_of_adsorption[C]`, `variable[name]`, `settings.*`, `css.*`, `energy_balance.*`, `info.*`. Unknown paths raise `KeyError` (CLI: exit with "unknown parameter").
+CLI: `skarstrom params deck.json [--all] [--search TEXT] [--json]`; `--set PATH=VALUE` on `run` (repeatable). Path families: `cycle.*`, `step[ID].time|fraction`, `endpoint[ID].<field>` (flows, pressures, temperatures, `y[Component]`, pump settings), `bed.*`, `wall.*`, `layer[ID].*`, `adsorbent[ID].<property>|isotherm[C].<param>|kinetics[C].<param>|heat_of_adsorption[C]`, `variable[name]`, `settings.*`, `css.*`, `energy_balance.*`, `info.*`, `kpi[C].tracked`, `cost.*` (cost estimate), `sensitivity.*` (the stored study's settings). Unknown paths raise `KeyError` (CLI: exit with "unknown parameter").
 
-Structural edits: `sim.add_component(name)`, `sim.remove_component(name)`, `sim.add_library_adsorbent(key)` (an entry key, or a material id such as `"zeolite-13x"` for its recommended entry; returns the adsorbent ID), and the builder below.
+Structural edits: `sim.edit.*` (the engine's `deck_edit.h` cascades: add/remove/move layers, steps and streams, kind switches that keep shared parameters, `ensure_ids`, `repair_connections`, `fill_gaps`; kind descriptors in `skarstrom.model_kinds()`), `sim.add_component(name)`, `sim.remove_component(name)`, `sim.add_library_adsorbent(key)` (an entry key, or a material id such as `"zeolite-13x"` for its recommended entry; returns the adsorbent ID), and the builder below.
 
 ### Building a simulation in Python
 
