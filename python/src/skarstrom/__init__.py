@@ -165,6 +165,7 @@ __all__ = [
     "examples",
     "exponential",
     "fit_isotherm",
+    "ideal_gas_heat_capacity",
     "isotherm_kinds",
     "isotherm_parameters",
     "linear",
@@ -1071,6 +1072,17 @@ def stream_variables() -> List[str]:
 
 def stream_component_variables() -> List[str]:
     return _core.stream_component_variables()
+
+
+# ---- gas properties ----------------------------------------------------------------
+
+def ideal_gas_heat_capacity(component: str, temperature: float) -> float:
+    """Ideal-gas heat capacity C_p0 [J/(mol K)] of ``component`` (CoolProp name) at
+    ``temperature`` [K], from the NASA 7-coefficient polynomials (McBride, Gordon and
+    Reno 1993, NASA TM-4513) that the default ``ideal_gas`` gas heat capacity mode
+    uses. Outside a polynomial's range the value at the nearer limit. ValueError for
+    a component without a polynomial (Hexane)."""
+    return _core.ideal_gas_heat_capacity(component, float(temperature))
 
 
 # ---- isotherms -------------------------------------------------------------------

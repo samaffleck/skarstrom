@@ -30,7 +30,12 @@
 // L = evaluated by the NASA Lewis group; X = other, see the report). The
 // coefficients are copied unchanged from the electronic form of the database
 // distributed with Cantera (data/nasa_gas.yaml, which states TM-4513 as its
-// source). Air, absent from TM-4513, is the ideal-gas mixture of the N2, O2
+// source), and were cross-checked digit by digit against the printed TM-4513
+// tables: a0-a5, the ranges and the species agree; the entropy constant a6
+// of F2, He, n-pentane and i-pentane differed in the electronic copy and is
+// given here as printed (a6 enters neither C_p0 nor H0). Argon, helium,
+// krypton and neon have one range in TM-4513: t_mid = t_max = 6000 K and both
+// sets equal. Air, absent from TM-4513, is the ideal-gas mixture of the N2, O2
 // and Ar entries at the composition of Lemmon, Jacobsen, Penoncello and Friend,
 // J. Phys. Chem. Ref. Data 29 (2000) 331, the air model of CoolProp; a
 // mole-fraction mixture of ideal gases mixes the coefficients linearly, so the
@@ -101,12 +106,12 @@ namespace adsim {
       {3.99182761, 0.010483391, -3.71721385e-06, 5.94628514e-10, -3.53630526e-14, 4268.65819, -0.269052151}}},
     // TM-4513 species F2, data source TPIS89
     {"Fluorine", {200, 1000, 6000,
-      {3.20832415, 0.00125919179, 3.89747979e-06, -7.22184984e-09, 3.31837862e-12, -1034.25794, 5.61903589},
-      {3.86166219, 0.000788367679, -1.8198294e-07, -9.1743656e-12, 2.65193472e-15, -1232.38655, 2.04119855}}},
+      {3.20832415, 0.00125919179, 3.89747979e-06, -7.22184984e-09, 3.31837862e-12, -1034.25794, 5.61903603},
+      {3.86166219, 0.000788367679, -1.8198294e-07, -9.1743656e-12, 2.65193472e-15, -1232.38655, 2.04119869}}},
     // TM-4513 species He, data source L10/90
     {"Helium", {200, 6000, 6000,
-      {2.5, 0, 0, 0, 0, -745.375, 0.928724724},
-      {2.5, 0, 0, 0, 0, -745.375, 0.928724724}}},
+      {2.5, 0, 0, 0, 0, -745.375, 0.928723974},
+      {2.5, 0, 0, 0, 0, -745.375, 0.928723974}}},
     // TM-4513 species H2, data source TPIS78
     {"Hydrogen", {200, 1000, 6000,
       {2.34433112, 0.00798052075, -1.9478151e-05, 2.01572094e-08, -7.37611761e-12, -917.935173, 0.683010238},
@@ -121,8 +126,8 @@ namespace adsim {
       {9.76991245, 0.025499721, -9.14142932e-06, 1.47328271e-09, -8.80800188e-14, -21405.2647, -30.0329101}}},
     // TM-4513 species C5H12,i-pentane, data source X10/85
     {"Isopentane", {298.15, 1000, 5000,
-      {1.0832882, 0.044571076, 8.2389934e-06, -3.5258047e-08, 1.5785762e-11, -20807.535, 21.795155},
-      {12.327787, 0.030613087, -9.8415785e-06, 1.3919776e-09, -7.0337345e-14, -25037.492, -41.133494}}},
+      {1.0832882, 0.044571076, 8.2389934e-06, -3.5258047e-08, 1.5785762e-11, -20807.535, 21.795145},
+      {12.327787, 0.030613087, -9.8415785e-06, 1.3919776e-09, -7.0337345e-14, -25037.492, -41.133504}}},
     // TM-4513 species Kr, data source L10/90
     {"Krypton", {200, 6000, 6000,
       {2.5, 0, 0, 0, 0, -745.375, 5.49095651},
@@ -157,8 +162,8 @@ namespace adsim {
       {3.66096083, 0.000656365523, -1.41149485e-07, 2.05797658e-11, -1.29913248e-15, -1215.97725, 3.41536184}}},
     // TM-4513 species C5H12,n-pentane, data source X10/85
     {"Pentane", {298.15, 1000, 5000,
-      {1.8983679, 0.041203037, 1.2312175e-05, -3.6589501e-08, 1.5042509e-11, -20091.5, 18.679082},
-      {13.546998, 0.028421786, -9.4174648e-06, 1.3893589e-09, -7.4212609e-14, -24577.68, -47.021175}}},
+      {1.8983679, 0.041203037, 1.2312175e-05, -3.6589501e-08, 1.5042509e-11, -20091.5, 18.679072},
+      {13.546998, 0.028421786, -9.4174648e-06, 1.3893589e-09, -7.4212609e-14, -24577.68, -47.021185}}},
     // TM-4513 species C3H8, data source L 6/90
     {"Propane", {200, 1000, 6000,
       {4.2110262, 0.00171599803, 7.06183472e-05, -9.19594116e-08, 3.64421372e-11, -14381.2106, 5.60930491},
