@@ -1,0 +1,40 @@
+{
+    "value0": {
+        "cereal_class_version": 5,
+        "Name": "Stainless steel 316L",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 7954.0,
+            "Expression": "7954.0",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 498.733,
+            "Expression": "498.733",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 13.96,
+            "Expression": "13.96",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 1,
+            "Mass_Transfer_Models": [],
+            "Heat_Of_Adsorption": [],
+            "Isotherms": [],
+            "Isotherm_Map": [],
+            "Mixing_Rule": 0
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.0,
+            "Expression": "0.0",
+            "DisplayUnitIndex": 0
+        },
+        "Reaction_Source": {
+            "cereal_class_version": 1,
+            "Reactions": [],
+            "Next_Reaction_ID": 0
+        }
+    }
+}

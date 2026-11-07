@@ -1,5 +1,5 @@
 {
-  "_about": "Curated in-house adsorbent library (no user-contributed entries). Entries are grouped into `materials` (schema 3): each material has a name, a family, exactly one `recommended` entry with a one-line `recommended_reason`, and `aliases` (removed entry keys that now resolve to the recommended entry). An entry names its `material_id`; when its material has more than one entry it also names its `variant` (the product, form or data range that sets it apart), and its label is the material name plus the variant in brackets. Each isotherm records `data_quality`: measured_tabulated (measured by the cited authors; their tabulated data are in source_points), measured_fit (measured by the cited authors, fit only), refit (the cited paper fitted data measured by others), secondary (the cited paper copied the parameters from earlier work), not_checked (with a data_quality_note), unknown (legacy entries only). Each entry's physics is the cereal blob named by `file` (loadable by LoadAdsorbentFromJSON); this catalog adds citation + per-parameter provenance. Provenance codes: source = transcribed from the cited table/figure; derived = computed from cited values (formula in `ref`); repo = value used by the repo deck/validation test that cites the source, but not stated in the source itself; default = engine default, not from any source; not_stated = the source does not state it (value null); unknown = legacy entry, origin not verified. Completeness rule (enforced by scripts/gen_adsorbent_library.mjs and the native library test): for every sourced entry each required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) is either sourced/derived or carries a ref beginning 'Not stated in source (checked: ...)'; fields that could not be checked against the source are listed in `unverified_fields`. `source_points` holds TABULATED equilibrium data from the source (tables, SI files, datasets; never digitised plots), in the source's units. The web header, docs page and capabilities are GENERATED from this file + the blobs by scripts/gen_adsorbent_library.mjs.",
+  "_about": "Curated in-house adsorbent library (no user-contributed entries). Entries are grouped into `materials` (schema 3): each material has a name, a family, exactly one `recommended` entry with a one-line `recommended_reason`, and `aliases` (removed entry keys that now resolve to the recommended entry). An entry names its `material_id`; when its material has more than one entry it also names its `variant` (the product, form or data range that sets it apart), and its label is the material name plus the variant in brackets. Each isotherm records `data_quality`: measured_tabulated (measured by the cited authors; their tabulated data are in source_points), measured_fit (measured by the cited authors, fit only), refit (the cited paper fitted data measured by others), secondary (the cited paper copied the parameters from earlier work), not_checked (with a data_quality_note), unknown (legacy entries only). Each entry's physics is the cereal blob named by `file` (loadable by LoadAdsorbentFromJSON); this catalog adds citation + per-parameter provenance. Provenance codes: source = transcribed from the cited table/figure; derived = computed from cited values (formula in `ref`); repo = value used by the repo deck/validation test that cites the source, but not stated in the source itself; default = engine default, not from any source; convention = the particle voidage 0 of a support solid; not_stated = the source does not state it (value null); unknown = legacy entry, origin not verified. Completeness rule (enforced by scripts/gen_adsorbent_library.mjs and the native library test): for every sourced entry each required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) is either sourced/derived or carries a ref beginning 'Not stated in source (checked: ...)'; fields that could not be checked against the source are listed in `unverified_fields`. Materials of family `support` are non-adsorbing solids for structured contactors (monolith walls, laminate sheets, ceramic paper): no adsorbing component, no particle size, particle voidage 0 by convention (the density is the apparent density of the wall or sheet); their required fields are DOI, density, heat capacity and thermal conductivity. Any property may carry a `temperature_table` {T_K, values (SI), source, ref, note} transcribed from a table; the blob holds the value at the reference temperature. `source_points` holds TABULATED equilibrium data from the source (tables, SI files, datasets; never digitised plots), in the source's units. The web header, docs page and capabilities are GENERATED from this file + the blobs by scripts/gen_adsorbent_library.mjs.",
   "schema_version": 3,
   "materials": {
     "zeolite-13x": {"name": "Zeolite 13X", "family": "zeolite", "recommended": "zeolite_13x_perez2019", "recommended_reason": "Measured by the authors on a named commercial grade (CO2 and N2, 298-348 K, 0-1 bar); the engine's Perez 2019 paper tests check it against VSA experiments. The CO2/CH4/H2 variant has a CO2 fit copied from an earlier paper; the CO2/CH4 variant is a refit of another group's data.", "aliases": []},
@@ -23,7 +23,12 @@
     "lewatit-vp-oc-1065": {"name": "Lewatit VP OC 1065", "family": "amine", "recommended": "lewatit_vp_oc_1065_low2023", "recommended_reason": "The only entry for this material.", "aliases": []},
     "purolite-a110": {"name": "Purolite A110", "family": "amine", "recommended": "purolite_a110_low2023", "recommended_reason": "The only entry for this material.", "aliases": []},
     "apdes-nfc": {"name": "APDES-NFC", "family": "amine", "recommended": "apdes_nfc_stampi2020", "recommended_reason": "The only entry for this material.", "aliases": []},
-    "triamine-alumina": {"name": "Triamine-grafted alumina", "family": "amine", "recommended": "triamine_alumina_grossmann2025", "recommended_reason": "The only entry for this material.", "aliases": []}
+    "triamine-alumina": {"name": "Triamine-grafted alumina", "family": "amine", "recommended": "triamine_alumina_grossmann2025", "recommended_reason": "The only entry for this material.", "aliases": []},
+    "cordierite": {"name": "Cordierite", "family": "support", "recommended": "cordierite_robie1995", "recommended_reason": "The only entry: dense crystalline cordierite, heat capacity and molar volume from the USGS mineral tables, conductivity measured on a single crystal.", "aliases": []},
+    "aluminium": {"name": "Aluminium", "family": "support", "recommended": "aluminium_ho1972", "recommended_reason": "The only entry: pure aluminium, conductivity from the recommended values of Ho, Powell and Liley, density and heat capacity from the USGS tables.", "aliases": []},
+    "stainless-steel-304l": {"name": "Stainless steel 304L", "family": "support", "recommended": "stainless_steel_304l_kim1975", "recommended_reason": "The only entry: recommended values of Kim (1975) for type 304L, which the report also recommends for type 304 (heat capacity).", "aliases": []},
+    "stainless-steel-316l": {"name": "Stainless steel 316L", "family": "support", "recommended": "stainless_steel_316l_kim1975", "recommended_reason": "The only entry: recommended values of Kim (1975) for type 316L, which the report also recommends for type 316 (heat capacity).", "aliases": []},
+    "ceramic-fibre-paper": {"name": "Ceramic fibre paper", "family": "support", "recommended": "ceramic_fibre_paper_headley2019", "recommended_reason": "The only entry: alumina-silica fibre paper (Fiberfrax 970-H), density and composition as reported by Headley et al. (2019) from the manufacturer.", "aliases": []}
   },
   "sources": {
     "arora2021": {
@@ -109,6 +114,26 @@
     "zhang2021": {
       "citation": "Zhang, J., Liu, H., Zhou, F., Li, X., Wei, K., Song, J. (2021). Enrichment of Oxygen-Containing Low-Concentration Coalbed Methane with CMS-3KT as the Adsorbent. ACS Omega 6, 6914-6923.",
       "doi": "10.1021/acsomega.0c06148"
+    },
+    "robie1995": {
+      "citation": "Robie, R.A., Hemingway, B.S. (1995). Thermodynamic properties of minerals and related substances at 298.15 K and 1 bar (10^5 pascals) pressure and at higher temperatures. U.S. Geological Survey Bulletin 2131.",
+      "doi": "10.3133/b2131"
+    },
+    "diment1988": {
+      "citation": "Diment, W.H., Pratt, H.R. (1988). Thermal conductivity of some rock-forming minerals: a tabulation. U.S. Geological Survey Open-File Report 88-690.",
+      "doi": "10.3133/ofr88690"
+    },
+    "ho1972": {
+      "citation": "Ho, C.Y., Powell, R.W., Liley, P.E. (1972). Thermal conductivity of the elements. Journal of Physical and Chemical Reference Data 1, 279-421.",
+      "doi": "10.1063/1.3253100"
+    },
+    "kim1975": {
+      "citation": "Kim, C.S. (1975). Thermophysical properties of stainless steels. Argonne National Laboratory report ANL-75-55.",
+      "doi": "10.2172/4152287"
+    },
+    "headley2019": {
+      "citation": "Headley, A.J., Hileman, M., Robbins, A.S., Piekos, E.S., Stirrup, E.K., Roberts, C.C. (2019). Thermal conductivity measurements and modeling of ceramic fiber insulation materials. International Journal of Heat and Mass Transfer 129, 1287-1294.",
+      "doi": "10.1016/j.ijheatmasstransfer.2018.10.060"
     }
   },
   "entries": [
@@ -1532,6 +1557,140 @@
       "notes": [
         "Non-competitive Sips per component, q = q_m (b p)^(1/n) / (1 + (b p)^(1/n)), exactly the engine's Sips kind; b converted from MPa^-1 to 1/Pa.",
         "CMS separations are kinetic (O2 > N2 >> CH4, Table 2 diffusion time constants); no mass-transfer constant is bundled."
+      ]
+    },
+    {
+      "key": "cordierite_robie1995",
+      "file": "cordierite_robie1995.json",
+      "label": "Cordierite",
+      "material": "Cordierite",
+      "material_id": "cordierite",
+      "status": "sourced",
+      "applications": ["structured contactor support (extruded monolith)"],
+      "components": [],
+      "sources": [
+        {"id": "robie1995", "refs": "Table of thermodynamic properties at 298.15 K (CORDIERITE: formula weight 584.953, molar volume 233.22 cm3/mol); high-temperature table CORDIERITE (heat capacity, 298.15-1700 K)"},
+        {"id": "diment1988", "refs": "Table 1, sample 662 (cordierite single crystal, Wards, Albany Co., Wyo.; 35 C)"}
+      ],
+      "isotherms": [],
+      "heat_of_adsorption": {},
+      "properties": {
+        "particle_density": {"value": 2508.16, "provenance": "derived", "ref": "Formula weight / molar volume = 584.953 g/mol / 233.22 cm3/mol (298.15 K table): the density of the dense crystal"},
+        "heat_capacity": {"value": 761.412, "provenance": "derived", "ref": "High-temperature table CORDIERITE, Cp = 445.39 J/(mol K) at 300 K, divided by the formula weight 584.953 g/mol", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [761.412, 903.184, 987.293, 1045.16, 1088.81], "source": "robie1995", "ref": "High-temperature table CORDIERITE, Cp at 300-700 K divided by the formula weight 584.953 g/mol", "note": "Printed in J/(mol K): 445.39, 528.32, 577.52, 611.37, 636.90."}},
+        "particle_voidage": {"value": 0.0, "provenance": "convention", "ref": "Library convention for support solids: the density is the apparent density of the solid as a whole, so no gas is held in its pores"},
+        "thermal_conductivity": {"value": 3.21122, "provenance": "derived", "ref": "Table 1, sample 662: mean of the four shelf-dried values 7.9 and 8.1 (parallel) and 7.4 and 7.3 (perpendicular) mcal/(cm s C) at 35 C, times 0.4184 W/(m K) per mcal/(cm s C)"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No example deck uses a support solid yet; core/test/integration/test_support_solids.cpp runs each in a monolith layer.",
+      "notes": [
+        "Dense crystalline cordierite. The wall of a commercial extruded monolith is a porous sintered cordierite ceramic: its apparent density and conductivity are lower than these, roughly in proportion to (1 - wall porosity). No citable wall porosity was found, so the dense values are given; scale them by your monolith's wall porosity.",
+        "The conductivity is that of a natural single crystal at 35 C (Diment and Pratt give no temperature dependence); the heat capacity table runs from 300 K."
+      ]
+    },
+    {
+      "key": "aluminium_ho1972",
+      "file": "aluminium_ho1972.json",
+      "label": "Aluminium",
+      "material": "Aluminium",
+      "material_id": "aluminium",
+      "status": "sourced",
+      "applications": ["structured contactor support (laminate sheet, foil or monolith)"],
+      "components": [],
+      "sources": [
+        {"id": "ho1972", "refs": "Thermal conductivity of aluminum, table of recommended values (solid, W/(cm K))"},
+        {"id": "robie1995", "refs": "Table of elements in their reference state at 298.15 K (ALUMINUM: formula weight 26.982, molar volume 9.999 cm3/mol); high-temperature table ALUMINUM (REFERENCE STATE) (heat capacity)"}
+      ],
+      "isotherms": [],
+      "heat_of_adsorption": {},
+      "properties": {
+        "particle_density": {"value": 2698.47, "provenance": "derived", "ref": "Formula weight / molar volume = 26.982 g/mol / 9.999 cm3/mol (298.15 K table)"},
+        "heat_capacity": {"value": 898.747, "provenance": "derived", "ref": "High-temperature table ALUMINUM (REFERENCE STATE), Cp = 24.25 J/(mol K) at 300 K, divided by the formula weight 26.982 g/mol", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [898.747, 954.711, 994.737, 1034.02, 1079.24], "source": "robie1995", "ref": "High-temperature table ALUMINUM (REFERENCE STATE), Cp at 300-700 K divided by 26.982 g/mol", "note": "Printed in J/(mol K): 24.25, 25.76, 26.84, 27.90, 29.12."}},
+        "particle_voidage": {"value": 0.0, "provenance": "convention", "ref": "Library convention for support solids: the density is the apparent density of the solid as a whole, so no gas is held in its pores"},
+        "thermal_conductivity": {"value": 237.0, "provenance": "source", "ref": "Recommended values, 2.37 W/(cm K) at 300 K", "temperature_table": {"T_K": [250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0], "values": [235.0, 237.0, 240.0, 240.0, 236.0, 231.0, 225.0], "source": "ho1972", "ref": "Recommended values at 250-700 K, printed in W/(cm K) (2.35, 2.37, 2.40, 2.40, 2.36, 2.31, 2.25)", "note": "For well-annealed high-purity aluminium; stated accuracy +/-2 to 3 % above room temperature."}}
+      },
+      "example_decks": [],
+      "example_deck_note": "No example deck uses a support solid yet; core/test/integration/test_support_solids.cpp runs each in a monolith layer.",
+      "notes": [
+        "Pure, well-annealed aluminium. Foil and sheet alloys (1100, 3003, 8011, 6061) conduct less: about 150-220 W/(m K) at room temperature; their density and heat capacity are within a few percent of these."
+      ]
+    },
+    {
+      "key": "stainless_steel_304l_kim1975",
+      "file": "stainless_steel_304l_kim1975.json",
+      "label": "Stainless steel 304L",
+      "material": "Stainless steel 304L",
+      "material_id": "stainless-steel-304l",
+      "status": "sourced",
+      "applications": ["structured contactor support (laminate sheet, foil or mesh)"],
+      "components": [],
+      "sources": [
+        {"id": "kim1975", "refs": "Table 2 (heat capacity), Table 7 (density), Table 10 (thermal conductivity), type 304L"}
+      ],
+      "isotherms": [],
+      "heat_of_adsorption": {},
+      "properties": {
+        "particle_density": {"value": 7894.0, "provenance": "source", "ref": "Table 7, 7.894 g/cm3 at 300 K", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [7894.0, 7860.0, 7823.0, 7783.0, 7742.0], "source": "kim1975", "ref": "Table 7, 300-700 K, printed in g/cm3 (7.894, 7.860, 7.823, 7.783, 7.742)"}},
+        "heat_capacity": {"value": 510.03, "provenance": "derived", "ref": "Table 2, 0.1219 cal/(g K) at 300 K, times 4184 J/(kg K) per cal/(g K)", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [510.03, 523.418, 536.807, 550.196, 564.003], "source": "kim1975", "ref": "Table 2, 300-700 K, printed in cal/(g K) (0.1219, 0.1251, 0.1283, 0.1315, 0.1348), times 4184"}},
+        "particle_voidage": {"value": 0.0, "provenance": "convention", "ref": "Library convention for support solids: the density is the apparent density of the solid as a whole, so no gas is held in its pores"},
+        "thermal_conductivity": {"value": 12.97, "provenance": "derived", "ref": "Table 10, 0.1297 W/(cm K) at 300 K, times 100", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [12.97, 14.59, 16.2, 17.82, 19.44], "source": "kim1975", "ref": "Table 10, 300-700 K, printed in W/(cm K) (0.1297, 0.1459, 0.1620, 0.1782, 0.1944), times 100"}}
+      },
+      "example_decks": [],
+      "example_deck_note": "No example deck uses a support solid yet; core/test/integration/test_support_solids.cpp runs each in a monolith layer.",
+      "notes": [
+        "Type 304L (low-carbon). Kim recommends the heat capacity of 304L for type 304 too (p. 4); the density and conductivity tables are for 304L only, and the carbon content changes them by little."
+      ]
+    },
+    {
+      "key": "stainless_steel_316l_kim1975",
+      "file": "stainless_steel_316l_kim1975.json",
+      "label": "Stainless steel 316L",
+      "material": "Stainless steel 316L",
+      "material_id": "stainless-steel-316l",
+      "status": "sourced",
+      "applications": ["structured contactor support (laminate sheet, foil or mesh)"],
+      "components": [],
+      "sources": [
+        {"id": "kim1975", "refs": "Table 2 (heat capacity), Table 7 (density), Table 10 (thermal conductivity), type 316L"}
+      ],
+      "isotherms": [],
+      "heat_of_adsorption": {},
+      "properties": {
+        "particle_density": {"value": 7954.0, "provenance": "source", "ref": "Table 7, 7.954 g/cm3 at 300 K", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [7954.0, 7910.0, 7864.0, 7818.0, 7771.0], "source": "kim1975", "ref": "Table 7, 300-700 K, printed in g/cm3 (7.954, 7.910, 7.864, 7.818, 7.771)"}},
+        "heat_capacity": {"value": 498.733, "provenance": "derived", "ref": "Table 2, 0.1192 cal/(g K) at 300 K, times 4184 J/(kg K) per cal/(g K)", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [498.733, 512.122, 525.51, 538.481, 551.87], "source": "kim1975", "ref": "Table 2, 300-700 K, printed in cal/(g K) (0.1192, 0.1224, 0.1256, 0.1287, 0.1319), times 4184"}},
+        "particle_voidage": {"value": 0.0, "provenance": "convention", "ref": "Library convention for support solids: the density is the apparent density of the solid as a whole, so no gas is held in its pores"},
+        "thermal_conductivity": {"value": 13.96, "provenance": "derived", "ref": "Table 10, 0.1396 W/(cm K) at 300 K, times 100", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [13.96, 15.53, 17.1, 18.68, 20.25], "source": "kim1975", "ref": "Table 10, 300-700 K, printed in W/(cm K) (0.1396, 0.1553, 0.1710, 0.1868, 0.2025), times 100"}}
+      },
+      "example_decks": [],
+      "example_deck_note": "No example deck uses a support solid yet; core/test/integration/test_support_solids.cpp runs each in a monolith layer.",
+      "notes": [
+        "Type 316L (low-carbon). Kim recommends the heat capacity of 316L for type 316 too (p. 4); the density and conductivity tables are for 316L only, and the carbon content changes them by little."
+      ]
+    },
+    {
+      "key": "ceramic_fibre_paper_headley2019",
+      "file": "ceramic_fibre_paper_headley2019.json",
+      "label": "Ceramic fibre paper",
+      "material": "Ceramic fibre paper",
+      "material_id": "ceramic-fibre-paper",
+      "status": "sourced",
+      "applications": ["structured contactor support (paper laminate)"],
+      "components": [],
+      "sources": [
+        {"id": "headley2019", "refs": "Table 1 (nominal density 0.16 g/cm3 and composition 51.7 % Al2O3 / 47.6 % SiO2 + filler of Fiberfrax 970-H, manufacturer data); Table 2 (nominal porosity 95.0 %)"},
+        {"id": "robie1995", "refs": "High-temperature tables CORUNDUM and SILICA GLASS (heat capacity), for the derived heat capacity"}
+      ],
+      "isotherms": [],
+      "heat_of_adsorption": {},
+      "properties": {
+        "particle_density": {"value": 160.0, "provenance": "source", "ref": "Table 1, nominal density 0.16 g/cm3 (bulk density of the paper)"},
+        "heat_capacity": {"value": 712.124, "provenance": "derived", "ref": "Mass-weighted heat capacities of its oxides at 300 K (Neumann-Kopp): 0.5205 x 79.53 J/(mol K) / 101.961 g/mol (corundum) + 0.4795 x 38.36 J/(mol K) / 60.084 g/mol (silica glass); mass fractions from Table 1 of Headley et al. with the unreported 0.7 % shared equally, as in their Eq. 2", "temperature_table": {"T_K": [300.0, 400.0, 500.0, 600.0, 700.0], "values": [712.124, 916.69, 1019.75, 1081.21, 1122.35], "source": "robie1995", "ref": "The same mass-weighted sum at 300-700 K from the CORUNDUM and SILICA GLASS tables", "note": "Derived, not measured on the paper: the fibres are an alumina-silica glass, and crystalline corundum stands in for their alumina."}},
+        "particle_voidage": {"value": 0.0, "provenance": "convention", "ref": "Library convention for support solids: the density is the apparent density of the solid as a whole, so no gas is held in its pores"},
+        "thermal_conductivity": {"value": 0.5, "provenance": "default", "ref": "Not stated in source (checked: Headley et al. 2019 give the conductivity of 970-H only in figures, which are not digitised; the Unifrax paper data sheets give values at 600-1000 C only and carry no DOI). Engine default kept; set your own value"}
+      },
+      "example_decks": [],
+      "example_deck_note": "No example deck uses a support solid yet; core/test/integration/test_support_solids.cpp runs each in a monolith layer.",
+      "notes": [
+        "Bulk properties of a 95 %-porous fibre paper: the density is that of the sheet, not of the fibres. Its conductivity depends on the gas in the pores and the compression of the sheet; no citable value at adsorption temperatures was found, so the engine default (0.5 W/(m K)) is kept and should be replaced."
       ]
     }
   ]

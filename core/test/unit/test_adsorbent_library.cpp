@@ -323,7 +323,8 @@ namespace {
 
 // Roadmap item 10, box 2: for every sourced entry each required field (fit
 // range, heat of adsorption, particle density, heat capacity, particle size,
-// example decks; the DOI is checked above) is sourced or explicitly marked
+// example decks; for a support solid density, heat capacity and thermal
+// conductivity; the DOI is checked above) is sourced or explicitly marked
 // "Not stated in source (checked: ...)"; a field that could not be checked is
 // listed in unverified_fields. Nothing may be silently missing.
 TEST(AdsorbentLibraryTest, RequiredFieldsAreSourcedOrExplicitlyNotStated) {
@@ -348,7 +349,20 @@ TEST(AdsorbentLibraryTest, RequiredFieldsAreSourcedOrExplicitlyNotStated) {
       const auto& h = raw["heat_of_adsorption"][c.c_str()];
       require(Sourced(h) || NotStated(h["ref"]), "heat_of_adsorption", c);
     }
-    for (const char* p : {"particle_density", "heat_capacity", "particle_diameter"}) {
+    // A support solid (a monolith wall, a laminate sheet: family "support")
+    // adsorbs nothing and has no particle size; its thermal conductivity is
+    // required instead, and its voidage is 0 by convention (the density is the
+    // apparent density of the wall or sheet).
+    const bool support = e.family == "support";
+    if (support) {
+      EXPECT_TRUE(e.components.empty()) << "a support solid adsorbs nothing";
+      EXPECT_FALSE(raw["properties"].HasMember("particle_diameter"));
+      EXPECT_EQ(raw["properties"]["particle_voidage"]["value"].GetDouble(), 0.0);
+    }
+    const std::vector<const char*> required =
+        support ? std::vector<const char*>{"particle_density", "heat_capacity", "thermal_conductivity"}
+                : std::vector<const char*>{"particle_density", "heat_capacity", "particle_diameter"};
+    for (const char* p : required) {
       const auto& rec = raw["properties"][p];
       require(Sourced(rec) || NotStated(rec["ref"]), p, "");
     }

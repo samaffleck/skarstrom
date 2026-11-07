@@ -83,7 +83,13 @@ ISOTHERM_LABELS = {
     "gab_young": "GAB (Young 2021 energies)",
 }
 
-FAMILIES = ["zeolite", "carbon", "MOF", "silica", "alumina", "amine", "other"]
+FAMILIES = ["zeolite", "carbon", "MOF", "silica", "alumina", "amine", "other", "support"]
+# A "support" material is a non-adsorbing solid (a monolith wall, a laminate
+# sheet, ceramic paper) mixed by mass with a sorbent in a structured layer. It
+# has no adsorbing component, its density is the apparent density of the wall
+# or sheet (particle voidage 0 by convention, so no gas sits in its pores), and
+# it has no particle size.
+SUPPORT_FAMILY = "support"
 STATUSES = ["sourced", "legacy"]
 SCHEMA_VERSION = 3
 # Per-isotherm data quality, best first. measured_tabulated: measured by the
@@ -103,7 +109,7 @@ DATA_QUALITY_LABELS = {
 }
 MATERIAL_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ASCII_RE = re.compile(r"^[ -~]+$")
-PROVENANCE = ["source", "derived", "repo", "default", "not_stated", "unknown"]
+PROVENANCE = ["source", "derived", "repo", "default", "convention", "not_stated", "unknown"]
 NOT_STATED_RE = re.compile(r"^Not stated in source(?: as a [^(]+)? \(checked: [^)]+\)")
 UNVERIFIABLE_FIELDS = ["T_range_K", "P_range_Pa", "heat_of_adsorption", "particle_density", "heat_capacity", "particle_diameter"]
 P_UNITS = {"Pa": 1, "kPa": 1e3, "MPa": 1e6, "bar": 1e5}
@@ -121,6 +127,9 @@ PROPERTIES = {
     "thermal_conductivity": ("Thermal conductivity", "W/(m K)", "Thermal_Conductivity"),
 }
 REQUIRED_PROPERTIES = ["particle_density", "heat_capacity", "particle_voidage", "particle_diameter", "thermal_conductivity"]
+# A support solid has no particle size; its voidage is 0 by convention.
+SUPPORT_REQUIRED_PROPERTIES = ["particle_density", "heat_capacity", "particle_voidage", "thermal_conductivity"]
+SUPPORT_SOURCED_PROPERTIES = ["particle_density", "heat_capacity", "thermal_conductivity"]
 DOI_RE = re.compile(r"^10\.\d{4,9}/\S+$")
 KEY_RE = re.compile(r"^[a-z0-9_]+$")
 
@@ -164,6 +173,34 @@ def blob_view(blob: dict) -> dict:
         "params_for": lambda comp: params.get(f"{iso_map.get(comp)}:{comp}", []),
         "mtc_components": [m["key"] for m in src.get("Mass_Transfer_Models", [])],
     }
+
+
+def check_temperature_table(err, t, value, entry_source_ids):
+    """Validate a property's optional temperature_table: {"T_K": [...],
+    "values": [...], "source": <entry source id>, "ref": "..."}, values in the
+    property's SI unit at increasing temperatures, transcribed from a table
+    (never a plot). The property's own value must be one of the tabulated
+    values or lie within their range (it is the value at the reference
+    temperature the engine uses). Returns the table for the docs, or None."""
+    if not isinstance(t, dict):
+        err("must be an object")
+        return None
+    T, v = t.get("T_K"), t.get("values")
+    n = len(T) if isinstance(T, list) else -1
+    if n < 2 or not isinstance(v, list) or len(v) != n or not all(is_num(x) for x in T + v):
+        err("needs equal-length arrays T_K and values (two or more finite numbers)")
+        return None
+    if any(b <= a for a, b in zip(T, T[1:])) or T[0] <= 0:
+        err("T_K must be positive and increasing")
+    if any(x <= 0 for x in v):
+        err("values must be positive")
+    if t.get("source") not in entry_source_ids:
+        err(f"source '{t.get('source')}' is not one of this entry's sources")
+    if not t.get("ref"):
+        err("needs a ref (the table it was transcribed from)")
+    if is_num(value) and not (min(v) * (1 - 1e-9) <= value <= max(v) * (1 + 1e-9)):
+        err(f"the property's value {value} is outside the tabulated range")
+    return {"T_K": T, "values": v, "ref": t.get("ref"), "note": t.get("note") or ""}
 
 
 def load_library(catalog=None):
@@ -402,10 +439,17 @@ def load_library(catalog=None):
             need("heat_of_adsorption", (prov in ("source", "derived") and h.get("value") is not None) or not_stated(h.get("ref")), comp)
             hoa_out.append({"component": comp, "value": h.get("value"), "provenance": prov, "ref": h.get("ref")})
 
+        support = mat.get("family") == SUPPORT_FAMILY
+        if support and comps:
+            err(k, "a support solid adsorbs nothing: its blob must give no component a non-inert isotherm")
         props = e.get("properties") or {}
-        for p in REQUIRED_PROPERTIES:
+        for p in (SUPPORT_REQUIRED_PROPERTIES if support else REQUIRED_PROPERTIES):
             if p not in props:
                 err(k, f"property {p} missing")
+        if support and "particle_diameter" in props:
+            err(k, "a support solid has no particle_diameter")
+        if support and (props.get("particle_voidage") or {}).get("value") != 0:
+            err(k, "a support solid has particle_voidage 0 (its density is the apparent density of the wall or sheet)")
         props_out = []
         for p, rec in props.items():
             d = PROPERTIES.get(p)
@@ -421,6 +465,12 @@ def load_library(catalog=None):
                 err(k, f"property {p}: value must be a number or null")
             if prov == "unknown" and not legacy:
                 err(k, f"property {p}: provenance 'unknown' is only for legacy entries")
+            if prov == "convention" and not (support and p == "particle_voidage"):
+                err(k, f"property {p}: provenance 'convention' is only for the particle_voidage (0) of a support solid")
+            table_out = None
+            if "temperature_table" in rec:
+                table_out = check_temperature_table(lambda m: err(k, f"property {p}: temperature_table {m}"),
+                                                    rec["temperature_table"], rec.get("value"), entry_source_ids)
             if prov == "not_stated" and (rec.get("value") is not None or not not_stated(rec.get("ref"))):
                 err(k, f"property {p}: not_stated needs value null and a ref beginning 'Not stated in source (checked: ...)'")
             if rec.get("value") is None and prov != "not_stated" and not (legacy and prov == "unknown") and p not in unverified:
@@ -430,8 +480,8 @@ def load_library(catalog=None):
                 if rec.get("value") is None or not rel_eq(rec["value"], bv):
                     err(k, f"property {p}: catalog {rec.get('value')} != blob {d[2]} {bv}")
             props_out.append({"name": p, "label": d[0], "unit": d[1], "value": rec.get("value"),
-                              "provenance": prov, "ref": rec.get("ref")})
-        for p in ("particle_density", "heat_capacity", "particle_diameter"):
+                              "provenance": prov, "ref": rec.get("ref"), "temperature_table": table_out})
+        for p in (SUPPORT_SOURCED_PROPERTIES if support else ("particle_density", "heat_capacity", "particle_diameter")):
             rec = props.get(p)
             need(p, bool(rec) and ((rec.get("provenance") in ("source", "derived") and rec.get("value") is not None)
                                    or not_stated(rec.get("ref"))))
@@ -464,6 +514,7 @@ def load_library(catalog=None):
             "variant": variant,
             "recommended": mat.get("recommended") == k,
             "family": mat.get("family"),
+            "support": support,
             "status": e.get("status"),
             "legacy_note": e.get("legacy_note") or "",
             "applications": e.get("applications") or [],
@@ -562,7 +613,7 @@ def fmt_range(r, scale=1.0, unit="") -> str:
 
 
 PROV = {"source": "source", "derived": "derived", "repo": "repo deck/test", "default": "engine default",
-        "not_stated": "not stated", "unknown": "unknown"}
+        "convention": "library convention", "not_stated": "not stated", "unknown": "unknown"}
 
 
 def anchor(key: str) -> str:
@@ -613,7 +664,9 @@ def render_docs(entries) -> str:
     out("")
     complete = sum(1 for e in entries if e["meta"]["completeness"]["complete"])
     with_points = sum(1 for e in entries if any(i["source_points"] for i in e["meta"]["isotherms"]))
-    out(f"**Completeness:** {complete} of {len(entries)} entries carry every required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks) as a sourced value or an explicit *not stated in source* note; the others are listed as incomplete below. **Tabulated source data:** {with_points} entries include equilibrium points tabulated in their source (tables, SI files or datasets — never digitised from plots), stored with the entry in `library.json`.")
+    out(f"**Completeness:** {complete} of {len(entries)} entries carry every required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks; for a support solid DOI, density, heat capacity and thermal conductivity) as a sourced value or an explicit *not stated in source* note; the others are listed as incomplete below. **Tabulated source data:** {with_points} entries include equilibrium points tabulated in their source (tables, SI files or datasets — never digitised from plots), stored with the entry in `library.json`.")
+    out("")
+    out("**Support solids** (family *support*: cordierite, aluminium, stainless steel, ceramic fibre paper) are the non-adsorbing walls and sheets of structured contactors. A support has no adsorbing component (every component uses the inert isotherm); mix it by mass with a sorbent in a structured layer's composition. Its density is the apparent density of the wall or sheet, with particle voidage 0 by convention, and it has no particle size; its required fields are density, heat capacity and thermal conductivity. Where the source tabulates a property against temperature, the table is listed under the entry; the engine uses the constant value at the reference temperature (300 K unless stated).")
     out("")
     out("## Using the library")
     out("")
@@ -641,7 +694,7 @@ def render_docs(entries) -> str:
         r = members[0]["meta"]
         src = "source unknown (legacy)" if r["status"] == "legacy" else ", ".join(f"[{md(s['doi'])}]({s['url']})" for s in r["sources"])
         others = ", ".join(f"[{md(e['meta']['variant'])}](#{anchor(e['meta']['key'])})" for e in members[1:]) or "—"
-        out(f"| [{md(mat['name'])}](#material-{mid}) | `{mid}` | {md(mat['family'])} | [{md(r['variant'] or r['label'])}](#{anchor(r['key'])}) | {', '.join(md(c) for c in r['components'])} | {src} | {others} |")
+        out(f"| [{md(mat['name'])}](#material-{mid}) | `{mid}` | {md(mat['family'])} | [{md(r['variant'] or r['label'])}](#{anchor(r['key'])}) | {', '.join(md(c) for c in r['components']) or 'none (inert)'} | {src} | {others} |")
     out("")
     for mid, mat, members in groups:
         if not members:
@@ -676,12 +729,17 @@ def render_entry(out, e) -> None:
         for s in m["sources"]:
             out(f"- {md(s['citation'])} [doi:{md(s['doi'])}]({s['url']}) — {md(s['refs'])}")
         out("")
-    out("| Component | Isotherm | Parameters | T range of fit | P range of fit | Data quality | Ref. |")
-    out("|---|---|---|---|---|---|---|")
-    for i in m["isotherms"]:
+    if m["support"]:
+        out("*Non-adsorbing support solid:* every component uses the inert isotherm (a deck gives each component the inert default when the entry is added). Mix it by mass with a sorbent in a layer's composition.")
+        out("")
+    else:
+        out("| Component | Isotherm | Parameters | T range of fit | P range of fit | Data quality | Ref. |")
+        out("|---|---|---|---|---|---|---|")
+    for i in m["isotherms"]:  # (none for a support solid)
         params = "; ".join(f"{md(p['name'])} = {fmt_num(p['value'])}" for p in i["params"])
         out(f"| {md(i['component'])} | {md(i['kind_label'])} | {params} | {fmt_range(i['T_range_K'], 1, ' K')} | {fmt_range(i['P_range_Pa'], 1e-5, ' bar')} | {DATA_QUALITY_LABELS.get(i['data_quality'], md(i['data_quality']))} | {md(i['ref'])} |")
-    out("")
+    if not m["support"]:
+        out("")
     dq_notes = [f"{md(i['component'])}: {md(i['data_quality_note'])}" for i in m["isotherms"] if i["data_quality_note"]]
     if dq_notes:
         out(f"*Data quality.* {' '.join(dq_notes)}")
@@ -705,8 +763,22 @@ def render_entry(out, e) -> None:
         val = "—" if p["value"] is None else f"{fmt_num(p['value'])}{'' if p['unit'] == '-' else ' ' + md(p['unit'])}"
         out(f"| {md(p['label'])} | {val} | {PROV.get(p['provenance'], p['provenance'])} | {md(p['ref'])} |")
     out("")
+    tables = [p for p in m["properties"] if p["temperature_table"]]
+    for p in tables:
+        t = p["temperature_table"]
+        out(f"*{md(p['label'])} against temperature* ({md(p['unit'])}; {md(t['ref'])}; the engine uses the constant value above)")
+        out("")
+        out("| T [K] | " + " | ".join(fmt_num(x) for x in t["T_K"]) + " |")
+        out("|---|" + "---|" * len(t["T_K"]))
+        out(f"| {md(p['label'])} | " + " | ".join(fmt_num(x) for x in t["values"]) + " |")
+        out("")
+        if t["note"]:
+            out(f"- {md(t['note'])}")
+            out("")
     sp = [i for i in m["isotherms"] if i["source_points"]]
-    if sp:
+    if m["support"]:
+        pass
+    elif sp:
         out("**Tabulated source data** (stored in `library.json`)")
         out("")
         out("| Component | Points | Temperatures [K] | Quantity | Data | Transcribed from |")
