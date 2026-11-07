@@ -16,7 +16,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 
 ## Summary
 
-48 cases from 10 publications; 194 asserted comparisons (1 outside their recorded tolerance) and 15 informational ones. Summary generated on 2026-11-07.
+48 cases from 10 publications; 194 asserted comparisons (0 outside their recorded tolerance) and 15 informational ones. Summary generated on 2026-11-07.
 
 | Publication | Cases | Against | Comparisons | Median error | Worst error |
 |---|---|---|---|---|---|
@@ -26,7 +26,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Nguyen et al. (2022)](#nguyen-2022) | 6 | experiment | 12 | 9.71 % (NRMSE)<br/>0.751 % (rel. error) | 13.7 % (NRMSE)<br/>4.81 % (rel. error) |
 | [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.05 pp (abs. error)<br/>8.41 % (rel. error) | 8.39 pp (abs. error)<br/>15.9 % (rel. error) |
 | [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 2.31 pp (abs. error) | 5.98 pp (abs. error) |
-| [Streb & Mazzotti (2021)](#streb-2021) | 9 | experiment | 47 | 37.7 % (NRMSE)<br/>6.44 % (rel. error)<br/>16.7 K (RMSE) | 84 % (NRMSE)<br/>17.8 % (rel. error)<br/>28.6 K (RMSE) |
+| [Streb & Mazzotti (2021)](#streb-2021) | 9 | experiment | 47 | 37.7 % (NRMSE)<br/>6.48 % (rel. error)<br/>16.4 K (RMSE) | 84.1 % (NRMSE)<br/>18 % (rel. error)<br/>28.5 K (RMSE) |
 | [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.89 % (rel. error)<br/>0.251 K (abs. error)<br/>1.93 pp (abs. error) | 3.92 % (rel. error)<br/>0.251 K (abs. error)<br/>33.5 pp (abs. error) |
 | [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 26.5 % (NRMSE)<br/>3.56 % (rel. error)<br/>1.24 K (RMSE) | 35.2 % (NRMSE)<br/>4.49 % (rel. error)<br/>2.58 K (RMSE) |
 | [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 2.41 pp (abs. error)<br/>2.13 % (rel. error) | 2.76 pp (abs. error)<br/>2.13 % (rel. error) |
@@ -339,53 +339,53 @@ A. Streb, M. Mazzotti, Adsorption for efficient low carbon hydrogen production: 
 |---|---|---|---|---|---|---|---|
 | ExperimentA1 | outlet y_CO2 | experiment | curve | digitised data | 44.7 % NRMSE | 53 % | Fig. 7 (digitised) |
 | ExperimentA1 | outlet y_CH4 | experiment | curve | digitised data | 52.4 % NRMSE | 83 % | Fig. 7 (digitised) |
-| ExperimentA1 | CO2 front time (y_CO2 = y_feed/2) | experiment | 3930 s | 3663 s | 7.3 % rel. error | 9.8 % | Fig. 7 (digitised) |
-| ExperimentA1 | CH4 front time (y_CH4 = y_feed/2) | experiment | 475.8 s | 458.6 s | 3.76 % rel. error | 12 % | Fig. 7 (digitised) |
-| ExperimentA1 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 20.4 K RMSE | 25 K | Fig. 7 (digitised) |
-| ExperimentA2 | outlet y_CO2 | experiment | curve | digitised data | 35.7 % NRMSE | 37 % | Fig. 7 (digitised) |
-| ExperimentA2 | outlet y_CH4 | experiment | curve | digitised data | 84 % NRMSE | 96 % | Fig. 7 (digitised) |
-| ExperimentA2 | CO2 front time (y_CO2 = y_feed/2) | experiment | 912.1 s | 965.7 s | 5.55 % rel. error | 5.8 % | Fig. 7 (digitised) |
-| ExperimentA2 | CH4 front time (y_CH4 = y_feed/2) | experiment | 326.8 s | 365 s | 10.5 % rel. error | 13 % | Fig. 7 (digitised) |
-| ExperimentA2 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 20 K RMSE | 22 K | Fig. 7 (digitised) |
-| ExperimentA3 | outlet y_CO2 | experiment | curve | digitised data | 18.4 % NRMSE | 27 % | Fig. 6 (digitised) |
-| ExperimentA3 | outlet y_CH4 | experiment | curve | digitised data | 60.4 % NRMSE | 73 % | Fig. 6 (digitised) |
-| ExperimentA3 | CO2 front time (y_CO2 = y_feed/2) | experiment | 434.3 s | 414.9 s | 4.67 % rel. error | 8 % | Fig. 6 (digitised) |
-| ExperimentA3 | CH4 front time (y_CH4 = y_feed/2) | experiment | 151.7 s | 156.5 s | 3.11 % rel. error | 4.1 % | Fig. 6 (digitised) |
-| ExperimentA3 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 12.1 K RMSE | 19 K | Fig. 6 (digitised) |
-| ExperimentA3 | CH4 breakthrough time (y &gt; 0.01) | experiment (text, approx.) | 150.1 s | 140 s | 10.1 s abs. error | info | Sect. 4.2.1 text (Fig. 6, reference experiment A3) |
-| ExperimentA3 | CO2 breakthrough time (y &gt; 0.01) | experiment (text, approx.) | 420.6 s | 400 s | 20.6 s abs. error | info | Sect. 4.2.1 text (Fig. 6, reference experiment A3) |
-| ExperimentA4 | outlet y_CO2 | experiment | curve | digitised data | 29 % NRMSE | 35 % | Fig. 7 (digitised) |
-| ExperimentA4 | outlet y_CH4 | experiment | curve | digitised data | 79.3 % NRMSE | 91 % | Fig. 7 (digitised) |
-| ExperimentA4 | CO2 front time (y_CO2 = y_feed/2) | experiment | 203.4 s | 226.2 s | 10.1 % rel. error | 10.5 % | Fig. 7 (digitised) |
-| ExperimentA4 | CH4 front time (y_CH4 = y_feed/2) | experiment | 70.43 s | 85.66 s | 17.8 % rel. error | 19.5 % | Fig. 7 (digitised) |
-| ExperimentA4 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 16.7 K RMSE | 20 K | Fig. 7 (digitised) |
-| ExperimentA5 | outlet y_CO2 | experiment | curve | digitised data | 17.9 % NRMSE | 18 % | Fig. 7 (digitised) |
-| ExperimentA5 | outlet y_CH4 | experiment | curve | digitised data | 66.2 % NRMSE | 76 % | Fig. 7 (digitised) |
-| ExperimentA5 | CO2 front time (y_CO2 = y_feed/2) | experiment | 177.7 s | 189.5 s | 6.21 % rel. error **(outside)** | 6.1 % | Fig. 7 (digitised) |
-| ExperimentA5 | CH4 front time (y_CH4 = y_feed/2) | experiment | 81.05 s | 94.98 s | 14.7 % rel. error | 17 % | Fig. 7 (digitised) |
-| ExperimentA5 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 14.9 K RMSE | 21 K | Fig. 7 (digitised) |
-| ExperimentA6 | outlet y_CO2 | experiment | curve | digitised data | 15.8 % NRMSE | 17 % | Fig. 7 (digitised) |
-| ExperimentA6 | outlet y_CH4 | experiment | curve | digitised data | 75 % NRMSE | 85 % | Fig. 7 (digitised) |
-| ExperimentA6 | CO2 front time (y_CO2 = y_feed/2) | experiment | 435.9 s | 447.9 s | 2.68 % rel. error | 2.8 % | Fig. 7 (digitised) |
-| ExperimentA6 | CH4 front time (y_CH4 = y_feed/2) | experiment | 142.2 s | 160.6 s | 11.5 % rel. error | 14 % | Fig. 7 (digitised) |
-| ExperimentA6 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 11.7 K RMSE | 13 K | Fig. 7 (digitised) |
-| ExperimentA7 | outlet y_CO2 | experiment | curve | digitised data | 3.72 % NRMSE | 14 % | Fig. 7 (digitised) |
-| ExperimentA7 | outlet y_CH4 | experiment | curve | digitised data | 69.2 % NRMSE | 72 % | Fig. 7 (digitised) |
-| ExperimentA7 | CO2 front time (y_CO2 = y_feed/2) | experiment | 428.9 s | 426.5 s | 0.574 % rel. error | 4 % | Fig. 7 (digitised) |
-| ExperimentA7 | CH4 front time (y_CH4 = y_feed/2) | experiment | 131.9 s | 146.2 s | 9.81 % rel. error | 12 % | Fig. 7 (digitised) |
-| ExperimentA7 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 9.13 K RMSE | 14 K | Fig. 7 (digitised) |
+| ExperimentA1 | CO2 front time (y_CO2 = y_feed/2) | experiment | 3929 s | 3663 s | 7.28 % rel. error | 9.8 % | Fig. 7 (digitised) |
+| ExperimentA1 | CH4 front time (y_CH4 = y_feed/2) | experiment | 475.7 s | 458.6 s | 3.74 % rel. error | 12 % | Fig. 7 (digitised) |
+| ExperimentA1 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 20.3 K RMSE | 25 K | Fig. 7 (digitised) |
+| ExperimentA2 | outlet y_CO2 | experiment | curve | digitised data | 36 % NRMSE | 37 % | Fig. 7 (digitised) |
+| ExperimentA2 | outlet y_CH4 | experiment | curve | digitised data | 84.1 % NRMSE | 96 % | Fig. 7 (digitised) |
+| ExperimentA2 | CO2 front time (y_CO2 = y_feed/2) | experiment | 911.3 s | 965.7 s | 5.63 % rel. error | 5.8 % | Fig. 7 (digitised) |
+| ExperimentA2 | CH4 front time (y_CH4 = y_feed/2) | experiment | 326.3 s | 365 s | 10.6 % rel. error | 13 % | Fig. 7 (digitised) |
+| ExperimentA2 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 19.9 K RMSE | 22 K | Fig. 7 (digitised) |
+| ExperimentA3 | outlet y_CO2 | experiment | curve | digitised data | 17.8 % NRMSE | 27 % | Fig. 6 (digitised) |
+| ExperimentA3 | outlet y_CH4 | experiment | curve | digitised data | 60.9 % NRMSE | 73 % | Fig. 6 (digitised) |
+| ExperimentA3 | CO2 front time (y_CO2 = y_feed/2) | experiment | 433.3 s | 414.9 s | 4.44 % rel. error | 8 % | Fig. 6 (digitised) |
+| ExperimentA3 | CH4 front time (y_CH4 = y_feed/2) | experiment | 151.3 s | 156.5 s | 3.33 % rel. error | 4.1 % | Fig. 6 (digitised) |
+| ExperimentA3 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 11.4 K RMSE | 19 K | Fig. 6 (digitised) |
+| ExperimentA3 | CH4 breakthrough time (y &gt; 0.01) | experiment (text, approx.) | 149.7 s | 140 s | 9.75 s abs. error | info | Sect. 4.2.1 text (Fig. 6, reference experiment A3) |
+| ExperimentA3 | CO2 breakthrough time (y &gt; 0.01) | experiment (text, approx.) | 419.6 s | 400 s | 19.6 s abs. error | info | Sect. 4.2.1 text (Fig. 6, reference experiment A3) |
+| ExperimentA4 | outlet y_CO2 | experiment | curve | digitised data | 29.5 % NRMSE | 35 % | Fig. 7 (digitised) |
+| ExperimentA4 | outlet y_CH4 | experiment | curve | digitised data | 79.4 % NRMSE | 91 % | Fig. 7 (digitised) |
+| ExperimentA4 | CO2 front time (y_CO2 = y_feed/2) | experiment | 202.6 s | 226.2 s | 10.4 % rel. error | 10.5 % | Fig. 7 (digitised) |
+| ExperimentA4 | CH4 front time (y_CH4 = y_feed/2) | experiment | 70.27 s | 85.66 s | 18 % rel. error | 19.5 % | Fig. 7 (digitised) |
+| ExperimentA4 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 16.4 K RMSE | 20 K | Fig. 7 (digitised) |
+| ExperimentA5 | outlet y_CO2 | experiment | curve | digitised data | 18.5 % NRMSE | 19 % | Fig. 7 (digitised) |
+| ExperimentA5 | outlet y_CH4 | experiment | curve | digitised data | 66.3 % NRMSE | 76 % | Fig. 7 (digitised) |
+| ExperimentA5 | CO2 front time (y_CO2 = y_feed/2) | experiment | 177.2 s | 189.5 s | 6.48 % rel. error | 6.6 % | Fig. 7 (digitised) |
+| ExperimentA5 | CH4 front time (y_CH4 = y_feed/2) | experiment | 80.82 s | 94.98 s | 14.9 % rel. error | 17 % | Fig. 7 (digitised) |
+| ExperimentA5 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 14.3 K RMSE | 21 K | Fig. 7 (digitised) |
+| ExperimentA6 | outlet y_CO2 | experiment | curve | digitised data | 17 % NRMSE | 17.5 % | Fig. 7 (digitised) |
+| ExperimentA6 | outlet y_CH4 | experiment | curve | digitised data | 75.2 % NRMSE | 85 % | Fig. 7 (digitised) |
+| ExperimentA6 | CO2 front time (y_CO2 = y_feed/2) | experiment | 434.8 s | 447.9 s | 2.92 % rel. error | 3 % | Fig. 7 (digitised) |
+| ExperimentA6 | CH4 front time (y_CH4 = y_feed/2) | experiment | 141.9 s | 160.6 s | 11.6 % rel. error | 14 % | Fig. 7 (digitised) |
+| ExperimentA6 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 11.6 K RMSE | 13 K | Fig. 7 (digitised) |
+| ExperimentA7 | outlet y_CO2 | experiment | curve | digitised data | 2.44 % NRMSE | 14 % | Fig. 7 (digitised) |
+| ExperimentA7 | outlet y_CH4 | experiment | curve | digitised data | 69.1 % NRMSE | 72 % | Fig. 7 (digitised) |
+| ExperimentA7 | CO2 front time (y_CO2 = y_feed/2) | experiment | 427.8 s | 426.5 s | 0.31 % rel. error | 4 % | Fig. 7 (digitised) |
+| ExperimentA7 | CH4 front time (y_CH4 = y_feed/2) | experiment | 131.7 s | 146.2 s | 9.94 % rel. error | 12 % | Fig. 7 (digitised) |
+| ExperimentA7 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 8.71 K RMSE | 14 K | Fig. 7 (digitised) |
 | ExperimentB1 | outlet y_CO2 | experiment | curve | digitised data | 37.7 % NRMSE | 45 % | Fig. 11 (digitised) |
-| ExperimentB1 | outlet y_CH4 | experiment | curve | digitised data | 12.6 % NRMSE | 15 % | Fig. 11 (digitised) |
-| ExperimentB1 | CO2 front time (y_CO2 = y_feed/2) | experiment | 9020 s | 8474 s | 6.44 % rel. error | 8.1 % | Fig. 11 (digitised) |
-| ExperimentB1 | CH4 front time (y_CH4 = y_feed/2) | experiment | 337.1 s | 337.7 s | 0.18 % rel. error | 0.4 % | Fig. 11 (digitised) |
+| ExperimentB1 | outlet y_CH4 | experiment | curve | digitised data | 12.7 % NRMSE | 15 % | Fig. 11 (digitised) |
+| ExperimentB1 | CO2 front time (y_CO2 = y_feed/2) | experiment | 9019 s | 8474 s | 6.43 % rel. error | 8.1 % | Fig. 11 (digitised) |
+| ExperimentB1 | CH4 front time (y_CH4 = y_feed/2) | experiment | 337.1 s | 337.7 s | 0.181 % rel. error | 0.4 % | Fig. 11 (digitised) |
 | ExperimentB1 | outlet y_H2 | experiment | curve | digitised data | 37.2 % NRMSE | 42 % | Fig. 11 (digitised) |
-| ExperimentB1 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 17.9 K RMSE | 20 K | Fig. 11 (digitised) |
+| ExperimentB1 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 17.8 K RMSE | 20 K | Fig. 11 (digitised) |
 | ExperimentB2 | outlet y_CO2 | experiment | curve | digitised data | 45 % NRMSE | 57 % | Fig. 11 (digitised) |
 | ExperimentB2 | outlet y_CH4 | experiment | curve | digitised data | 32.8 % NRMSE | 35 % | Fig. 11 (digitised) |
 | ExperimentB2 | CO2 front time (y_CO2 = y_feed/2) | experiment | 2405 s | 2694 s | 10.7 % rel. error | 11 % | Fig. 11 (digitised) |
-| ExperimentB2 | CH4 front time (y_CH4 = y_feed/2) | experiment | 630.9 s | 713.3 s | 11.6 % rel. error | 15 % | Fig. 11 (digitised) |
+| ExperimentB2 | CH4 front time (y_CH4 = y_feed/2) | experiment | 630.8 s | 713.3 s | 11.6 % rel. error | 15 % | Fig. 11 (digitised) |
 | ExperimentB2 | outlet y_H2 | experiment | curve | digitised data | 39.8 % NRMSE | 46 % | Fig. 11 (digitised) |
-| ExperimentB2 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 28.6 K RMSE | 38 K | Fig. 11 (digitised) |
+| ExperimentB2 | thermocouple T (5 positions, pooled) | experiment | curve | digitised data | 28.5 K RMSE | 38 K | Fig. 11 (digitised) |
 
 ??? note "Notes on these comparisons"
 
