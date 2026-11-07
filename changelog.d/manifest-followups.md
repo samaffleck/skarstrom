@@ -1,0 +1,3 @@
+### Added — KPI diagnostics and Cp provenance in the display manifests
+- The KPI manifest lists the `KPIRecord` diagnostics (`quadrature_*` KPIs, `mass_balance_error`, `quadrature_mass_balance_error`) after the reported KPIs, with `diagnostic: true`. The reported set and `sensitivity::KPINames()` are unchanged, and the CLI tables and `kpis.csv` leave the diagnostics out.
+- The component manifest gives each component's `cp_species` and `cp_source` and a top-level `cp_reference`. **Changed:** `ComponentManifest()` / `skarstrom.component_manifest()` now return `{cp_reference, components}` instead of a bare list.
