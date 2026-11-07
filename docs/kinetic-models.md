@@ -98,7 +98,7 @@ $$
 k_i = \left(\frac{r_p}{3 k_f} + \frac{\tau \thinspace r_p^2}{15 \thinspace \epsilon_p D_m}\right)^{-1}, \qquad k_f = \frac{\mathrm{Sh}\thinspace D_m}{d_p}
 $$
 
-where $r_p = d_p/2$ and the film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ (Wakao and Funazkri, packed beds). For a slab (structured layer) the same series form uses the slab's $V/S = \ell$ and Glueckauf's factor 3: $k_i = \left(\ell/k_f + \tau\thinspace \ell^2/(3\thinspace \epsilon_p D_m)\right)^{-1}$, with $k_f = \mathrm{Sh}\thinspace D_m/D_h$ and the channel Sh ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$. $D_m$ is always the value from $T$ and $P$: the Sherwood number comes from the Schmidt number of that same $D_m$, so a constant $D_m$ is not offered here.
+where $r_p = d_p/2$ and the film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ of the layer's film correlation (default Wakao and Funazkri; [Transport Correlations](transport-correlations.md#packed-bed-film-correlations)). For a slab (structured layer) the same series form uses the slab's $V/S = \ell$ and Glueckauf's factor 3: $k_i = \left(\ell/k_f + \tau\thinspace \ell^2/(3\thinspace \epsilon_p D_m)\right)^{-1}$, with $k_f = \mathrm{Sh}\thinspace D_m/D_h$ and the channel Sh ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$. $D_m$ is always the value from $T$ and $P$: the Sherwood number comes from the Schmidt number of that same $D_m$, so a constant $D_m$ is not offered here.
 
 ### Arrhenius
 

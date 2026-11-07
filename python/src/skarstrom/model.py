@@ -1535,6 +1535,10 @@ class Layer(_Node):
     momentum_model = Choice()
     """Pressure-drop model: "kozeny_carman" (Darcy, constant 180), "ergun" (viscous + inertial terms) or
     "blake_kozeny" (Darcy, constant 150: Ergun's viscous term without the inertial one)."""
+    film_correlation = Choice()
+    """Gas-particle film correlation of a packed layer, giving both the particle Nusselt number (film particle
+    heat transfer) and the Sherwood number (the "haynes" rate coefficient's k_f): "wakao_funazkri" (default),
+    "gunn" or "ranz_marshall" (a single sphere; a deck warning). See docs/transport-correlations.md."""
     dispersion_coefficient = Real()
     """Constant axial dispersion coefficient [m2/s]."""
     molecular_diffusion_coefficient = Real()

@@ -177,6 +177,7 @@ const std::vector<std::string>& MomentumKinds() {
   static const std::vector<std::string> k{"kozeny_carman", "ergun", "blake_kozeny"};
   return k;
 }
+const std::vector<std::string>& FilmCorrelationKinds() { return adsim::FilmCorrelationKinds(); }
 const std::vector<std::string>& LayerKinds() {
   static const std::vector<std::string> k{"packed", "monolith", "laminate"};
   return k;
@@ -498,6 +499,11 @@ void SetLayerComposition(UserData& data, size_t layer,
 
 void SetMomentum(UserData& data, size_t layer, const std::string& kind) {
   GetLayer(data, layer).momentum_model_ = KindEnum<MomentumModel>(MomentumKinds(), kind, "momentum");
+}
+
+void SetFilmCorrelation(UserData& data, size_t layer, const std::string& kind) {
+  GetLayer(data, layer).film_correlation_ =
+      KindEnum<FilmCorrelation>(FilmCorrelationKinds(), kind, "film correlation");
 }
 
 void SetLayerKind(UserData& data, size_t layer, const std::string& kind) {
