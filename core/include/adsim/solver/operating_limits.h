@@ -39,13 +39,15 @@
 #include <string>
 #include <vector>
 
+#include "adsim/math/constants.h"
+
 namespace adsim {
 
   class UserData;
   class EquationLog;
 
   // The reference for gauge pressures [Pa].
-  inline constexpr double kAtmosphericPressure = 101325.0;
+  inline constexpr double kAtmosphericPressure = constants::kStandardAtmosphere;
 
   struct StepOperatingSummary {
     int step = 0;                     // step index in the cycle
