@@ -668,6 +668,7 @@ namespace adsim {
 
   void BoundaryLog::Clear() { 
     log_.clear();
+    step_balances_.clear();
     sys_data.cycle_index_set_.clear();
     sys_data.step_index_set_.clear();
     sys_data.step_list_.clear();
@@ -737,6 +738,7 @@ namespace adsim {
       }
       
       // Remove the cycle
+      step_balances_.erase(oldest_cycle);
       log_.erase(oldest_cycle_it);
       sys_data.cycle_index_set_.erase(oldest_cycle);
       num_cycles--;
@@ -751,6 +753,17 @@ namespace adsim {
     auto stream_it = step_it->second.find(stream_name);
     if (stream_it == step_it->second.end()) return nullptr;
     return &stream_it->second;
+  }
+
+  void BoundaryLog::LogStepBalance(int cycle_idx, int step_idx, StepBalance balance) {
+    step_balances_[cycle_idx][step_idx] = std::move(balance);
+  }
+
+  const StepBalance* BoundaryLog::GetStepBalance(int cycle_idx, int step_idx) const {
+    const auto c = step_balances_.find(cycle_idx);
+    if (c == step_balances_.end()) return nullptr;
+    const auto s = c->second.find(step_idx);
+    return s == c->second.end() ? nullptr : &s->second;
   }
 
   const StreamData* BoundaryLog::GetStreamData(int cycle_idx, int step_idx, const std::string& stream_name) const {

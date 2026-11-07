@@ -88,9 +88,62 @@ namespace adsim {
 		return true;
 	}
 
+	// What one endpoint (a flow stream or a pressure boundary) carries at one
+	// instant, evaluated from the bed state: the values the stream log records
+	// (StreamData::Log) and the KPI quadratures integrate. molar_flow and the
+	// component flows are signed along the bed axis (positive upwards);
+	// temperature is the stream-side temperature, power the pump or
+	// compressor power [W] (0 without one).
+	struct EndpointSample {
+		double molar_flow = 0.0;         // [mol/s]
+		double enthalpy_flow = 0.0;      // [mol K/s] molar flow times temperature
+		double temperature = 0.0;        // [K]
+		double pressure = 0.0;           // [Pa] bed-end face pressure
+		double power = 0.0;              // [W]
+		double end_cell_pressure = 0.0;  // [Pa]
+		std::unordered_map<std::string, double> component_molar_flow{};  // [mol/s]
+		std::unordered_map<std::string, double> mole_fraction{};         // [-]
+	};
+
+	// Time integrals of one endpoint over one step, integrated by IDAS as
+	// quadrature states alongside the solution (SolverData's KPI quadratures)
+	// instead of the trapezoid over the logged samples. Flows use the KPI
+	// convention: "in" is gas entering the bed through the endpoint, "out" gas
+	// leaving it, both >= 0 (the net flow into the bed is in - out). `valid`
+	// is false when the quadratures were not integrated for the step (turned
+	// off, or the step failed).
+	struct EndpointIntegrals {
+		bool valid = false;
+		double moles_in = 0.0;                    // [mol]
+		double moles_out = 0.0;                   // [mol]
+		std::unordered_map<std::string, double> component_in{};   // [mol]
+		std::unordered_map<std::string, double> component_out{};  // [mol]
+		double energy = 0.0;                      // [J] integral of the pump / compressor power
+		double abs_axial_moles = 0.0;             // [mol] integral of |molar flow|
+		double temperature_weighted_moles = 0.0;  // [K mol] integral of T |molar flow|
+
+		// Net moles entering the bed (negative when gas left).
+		double NetMolesIn() const { return moles_in - moles_out; }
+		double NetComponentMolesIn(const std::string& component) const {
+			const auto in = component_in.find(component);
+			const auto out = component_out.find(component);
+			return (in == component_in.end() ? 0.0 : in->second) - (out == component_out.end() ? 0.0 : out->second);
+		}
+	};
+
+	// The same summary from the endpoint's KPI quadratures (StreamData::
+	// integrals_, integrated by IDAS alongside the solution) instead of the
+	// trapezoid over its logged samples; `location` is the bed end the endpoint
+	// sits on. Not valid when the integrals are not. Buffer-tank consumers still
+	// read ComputeSummary; this is its quadrature counterpart for comparison.
+	CycleEndpointSummary ComputeQuadratureSummary(const EndpointIntegrals& integrals,
+	                                              BoundaryLocation location, int cycle_index);
+
 	class StreamData {
 	public:
 		void Clear();
+		// Appends one sample (time from the step start).
+		void Log(const EndpointSample& sample, double time);
 		void Log(
       double molar_flow, 
       double enthalpy_flow, 
@@ -132,6 +185,9 @@ namespace adsim {
 		std::unordered_map<std::string, std::vector<double>> mole_fraction_boundary_{};
 		// The bed end the stream was logged at (set by IBoundaryStream::Log and PressureBoundaryCondition::Log).
 		BoundaryLocation location_ = BoundaryLocation::TOP;
+		// The step's quadrature integrals of this endpoint, set when the step
+		// ends (not serialised; cleared with the log).
+		EndpointIntegrals integrals_{};
 	};
 
 	class IBoundaryStream {
@@ -158,6 +214,9 @@ namespace adsim {
 		}
 
     void Log(const Equations& state, double time, BoundaryLocation location);
+    // The values Log records at `time` (seconds since the step start), without
+    // recording them.
+    EndpointSample Sample(const Equations& state, double time, BoundaryLocation location);
     bool PerformChecks(std::string& error_msg, const Fluid& fluid);
 		void SetDirection(BoundaryDirection dir) { direction_ = dir; }
 
