@@ -99,6 +99,10 @@ set(ADSIM_SLOW_TESTS
     # difference (like the paper suites, an agreement check, not a smoke test).
     "CrossCodePeese.*"
     "CrossCodeToPSAil.*"
+    # Cost and accuracy of the cycle-map Jacobian by forward sensitivities
+    # (the measurement docs/cyclic-steady-state.md reports): 1-16 directions,
+    # both correctors, finite differences at reltol 1e-10 (~1-2 min).
+    "CycleSensitivity.MeasureCostAndAccuracy"
     # Knaebel-Hill Skarstrom cycle refined to 400 cells (the gap halves per
     # level and extrapolates to the theory): ~16 s.
     "SkarstromCycleEquilibriumTheory.GapVanishesUnderRefinement"

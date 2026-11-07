@@ -89,10 +89,15 @@ target_compile_definitions(adsim PRIVATE UNITS_DISABLE_EXTRA_UNIT_STANDARDS=1)
 # Link dependencies. CoolProp has no CMake export of its own (and its include
 # paths point into the source tree), so the installed package re-creates it as
 # the imported target Adsim::CoolProp (see cmake/AdsimConfig.cmake.in).
+#
+# SUNDIALS: IDAS only. It has every IDA entry point (same names, same
+# arithmetic) plus forward sensitivities (solver/cycle_sensitivity.cpp), which
+# must act on the integrator the solver created. Linking IDA as well would
+# resolve those shared names to IDA, whose memory layout IDAS cannot use.
 target_link_libraries(adsim PUBLIC
     $<BUILD_INTERFACE:CoolProp>
     $<INSTALL_INTERFACE:Adsim::CoolProp>
-    sundials_ida sundials_idas dlib::dlib muparser)
+    sundials_idas dlib::dlib muparser)
 
 # Set C++ standard
 target_compile_features(adsim PUBLIC cxx_std_20)
