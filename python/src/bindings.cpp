@@ -844,6 +844,7 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "set_layer_composition")
           b::SetLayerComposition(d, id(0), args[1].cast<std::vector<std::pair<adsim::AdsorbentID, double>>>());
         else if (op == "set_momentum") b::SetMomentum(d, id(0), str(1));
+        else if (op == "set_film_correlation") b::SetFilmCorrelation(d, id(0), str(1));
         else if (op == "set_dispersion") b::SetDispersion(d, id(0), str(1));
         else if (op == "set_heat_dispersion") b::SetHeatDispersion(d, id(0), str(1));
         else if (op == "set_internal_heat_transfer") b::SetInternalHeatTransfer(d, id(0), str(1));
@@ -941,6 +942,7 @@ PYBIND11_MODULE(_core, m) {
           l["id"] = layer.id_;
           l["name"] = layer.name_;
           l["momentum"] = kind(b::MomentumKinds(), static_cast<int>(layer.momentum_model_));
+          l["film_correlation"] = kind(b::FilmCorrelationKinds(), static_cast<int>(layer.film_correlation_));
           auto& le = layer.equations_;
           l["dispersion"] = kind(b::DispersionKinds(), static_cast<int>(le.dispersion_model_->GetModelType()));
           l["heat_dispersion"] = kind(b::HeatDispersionKinds(), static_cast<int>(le.heat_dispersion_model_->GetModelType()));
@@ -1092,6 +1094,7 @@ PYBIND11_MODULE(_core, m) {
     k["rate_coefficient"] = b::RateCoefficientKinds();
     k["mixing_rule"] = b::MixingRuleKinds();
     k["momentum"] = b::MomentumKinds();
+    k["film_correlation"] = b::FilmCorrelationKinds();
     k["dispersion"] = b::DispersionKinds();
     k["heat_dispersion"] = b::HeatDispersionKinds();
     k["internal_heat_transfer"] = b::InternalHeatTransferKinds();

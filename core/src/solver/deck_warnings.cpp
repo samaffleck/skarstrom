@@ -207,6 +207,18 @@ namespace adsim {
     return warnings;
   }
 
+  std::vector<std::string> FilmCorrelationWarnings(const Bed& bed) {
+    std::vector<std::string> warnings;
+    for (const auto& layer : bed.layers_.layers_) {
+      if (layer.IsStructured() || layer.film_correlation_ != FilmCorrelation::RanzMarshall) continue;
+      warnings.push_back("Warning: layer '" + layer.name_ + "' uses the Ranz-Marshall film correlation"
+                         " (Nu, Sh = 2 + 0.6 Re^(1/2) Pr^(1/3) or Sc^(1/3)), which is for a single sphere, not a"
+                         " packed bed: in a bed it under-predicts the particle heat and mass transfer coefficients at"
+                         " moderate Reynolds number. Wakao-Funazkri or Gunn are packed-bed correlations.");
+    }
+    return warnings;
+  }
+
   std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
                                                    const Cycle* cycle) {
     (void)adsorbents;

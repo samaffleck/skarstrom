@@ -453,6 +453,8 @@ namespace adsim {
       LogMessage(LogLevel::LOW, w);
     for (const auto& w : StructuredLayerWarnings(user_data_.adsorbent_directory, user_data_.bed, &cycle))
       LogMessage(LogLevel::LOW, w);
+    for (const auto& w : FilmCorrelationWarnings(user_data_.bed))
+      LogMessage(LogLevel::LOW, w);
 
     stop_requested_ = false;
 
@@ -695,6 +697,8 @@ namespace adsim {
       for (const auto& w : LayerCompositionWarnings(user_data_.adsorbent_directory, user_data_.bed))
         LogMessage(LogLevel::LOW, w);
       for (const auto& w : StructuredLayerWarnings(user_data_.adsorbent_directory, user_data_.bed, &cycle))
+        LogMessage(LogLevel::LOW, w);
+      for (const auto& w : FilmCorrelationWarnings(user_data_.bed))
         LogMessage(LogLevel::LOW, w);
     }
   }

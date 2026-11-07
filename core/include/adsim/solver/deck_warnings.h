@@ -60,6 +60,12 @@ namespace adsim {
   // run). Layer composition errors stop the run in the deck checks instead.
   std::vector<std::string> LayerCompositionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
 
+  // One warning per packed layer whose film correlation is Ranz-Marshall
+  // (film_correlation.h): a single-sphere correlation that under-predicts the
+  // particle heat and mass transfer coefficients in a bed at moderate Re. It
+  // is offered to reproduce papers that use it; not an error.
+  std::vector<std::string> FilmCorrelationWarnings(const Bed& bed);
+
   // Structured layers (monolith, laminate; porous_media.h): one warning for
   // local thermal equilibrium (LTE) in a bed with a structured layer: the
   // thin walls exchange heat with the gas through the channel film, which
