@@ -56,6 +56,8 @@ $$
 
 Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$, optionally a constant **Molecular diffusion coefficient** $D_m$ (see below). The particle diameter $d_p$ comes from the layer.
 
+**Geometry.** The factor is Glueckauf's (1955) linear-driving-force approximation for the shape of the solid, $k = c\thinspace D_\text{eff}/\ell^2$. For packed spheres, $c = 60$ on $\ell = d_p$, which is 15 on the radius. For a structured layer ([Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)) the solid is a slab: $c = 3$ on its half-thickness $\ell$, which is half the monolith wall, half the laminate sheet, or the washcoat thickness when there is a washcoat. The same applies to the capacity-factor and Knudsen variants below.
+
 **Molecular diffusivity.** By default (molecular diffusion coefficient 0) $D_m$ is the binary-diffusion value the engine computes from the local temperature and pressure (Chapman–Enskog), which scales as $1/P$: at an evacuation pressure of 3–10 kPa it is 10–33 times its 1 bar value, and so is the macropore coefficient. A value above 0 [m² s⁻¹] is used as a constant $D_m$ instead, in every cell and at every pressure. Haghpanah et al. (2013) and Estupiñan Perez et al. (2019, Table 1) use a constant $D_m = 1.6 \times 10^{-5}$ m² s⁻¹. The option applies to the three macropore kinds (macropore, with the capacity factor, and macropore + Knudsen); the registry leaf is `adsorbent[...].kinetics[<component>].molecular_diffusion_coefficient` and the Python keyword `molecular_diffusion_coefficient=` of `set_rate_model`.
 
 ### Macropore Diffusion with the capacity factor
@@ -96,7 +98,7 @@ $$
 k_i = \left(\frac{r_p}{3 k_f} + \frac{\tau \thinspace r_p^2}{15 \thinspace \epsilon_p D_m}\right)^{-1}, \qquad k_f = \frac{\mathrm{Sh}\thinspace D_m}{d_p}
 $$
 
-where $r_p = d_p/2$ and the film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$. Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$. $D_m$ is always the value from $T$ and $P$: the Sherwood number comes from the Schmidt number of that same $D_m$, so a constant $D_m$ is not offered here.
+where $r_p = d_p/2$ and the film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ (Wakao and Funazkri, packed beds). For a slab (structured layer) the same series form uses the slab's $V/S = \ell$ and Glueckauf's factor 3: $k_i = \left(\ell/k_f + \tau\thinspace \ell^2/(3\thinspace \epsilon_p D_m)\right)^{-1}$, with $k_f = \mathrm{Sh}\thinspace D_m/D_h$ and the channel Sh ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$. $D_m$ is always the value from $T$ and $P$: the Sherwood number comes from the Schmidt number of that same $D_m$, so a constant $D_m$ is not offered here.
 
 ### Arrhenius
 

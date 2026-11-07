@@ -162,7 +162,12 @@ void SetMomentum(UserData& data, size_t layer, const std::string& kind);
 // "laminate"). The composition, domain, name and every other field are kept,
 // including the structured geometry and the packed-bed fields, so switching
 // back restores them. A structured kind uses laminar channel flow instead of
-// the momentum model.
+// the momentum model. Switching a packed layer to a structured kind installs
+// the channel closures: Taylor-Aris dispersion on the layer (keeping a
+// Ruthven model's molecular diffusion coefficient) and the bed's film
+// gas-solid heat transfer. Switching back restores the packed defaults: a
+// constant dispersion model instead of Taylor-Aris, and the constant
+// gas-solid model once no structured layer remains.
 void SetLayerKind(UserData& data, size_t layer, const std::string& kind);
 // The monolith channel cross-section (ChannelShapeKinds: "square",
 // "circular"); kept, unused, for other kinds.

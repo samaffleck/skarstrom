@@ -82,6 +82,21 @@ namespace adsim {
     std::vector<double> eb;
     std::vector<double> ep;
     std::vector<double> dp;
+    // Gas-solid specific surface area a_v [1/m]: 6 (1 - eb) / dp for a packed
+    // bed, the channel wall area per bed volume for a structured layer.
+    std::vector<double> av;
+    // Length scale of the Reynolds number Re = rho |u| re_length / mu [m]: dp
+    // (particle Re on the superficial velocity) for a packed bed, D_h / OFA
+    // (channel Re on the channel velocity) for a structured layer.
+    std::vector<double> re_length;
+    // Structured cells (0 in packed and void cells): the channel hydraulic
+    // diameter [m], the fully developed Nu = Sh, the Taylor-Aris kappa, and
+    // the length over which Hawthorn's developing-flow correction averages
+    // (the layer length; 0 = fully developed).
+    std::vector<double> hydraulic_diameter;
+    std::vector<double> channel_nu;
+    std::vector<double> taylor_aris_kappa;
+    std::vector<double> entrance_length;
     std::vector<double> ks; // Thermal conductivity of the adsorbent [W/(m-K)]
     std::vector<double> kw; // Thermal conductivity of the wall [W/(m-K)]
     std::vector<double> Cpw; // Specific heat capacity of the wall

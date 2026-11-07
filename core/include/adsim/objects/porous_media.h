@@ -341,6 +341,10 @@ namespace adsim {
     ExpressionParam sheet_thickness_{2e-4};     // laminate sheet [m]
     ExpressionParam gap_{2e-4};                 // laminate gap between sheets [m]
     ExpressionParam washcoat_thickness_{0.0};   // adsorbent layer on the channel walls [m]; 0 = the wall is the adsorbent
+    // Film coefficients: false = fully developed laminar Nu and Sh (Shah and
+    // London); true = Hawthorn's length-averaged developing-flow correction
+    // over the layer length (MixedAdsorbentLayer::GetChannelNusselt).
+    bool entrance_effects_ = false;
 
     void EvaluateExpressions(const EvalContext& ctx) {
       cell_density_.Evaluate(ctx);
@@ -354,7 +358,6 @@ namespace adsim {
     friend class cereal::access;
     template<class Archive>
     void serialize(Archive& ar, std::uint32_t const version) {
-      (void)version;
       ar(
         cereal::make_nvp("Channel_Shape", channel_shape_),
         cereal::make_nvp("Cell_Density", cell_density_),
@@ -363,6 +366,9 @@ namespace adsim {
         cereal::make_nvp("Gap", gap_),
         cereal::make_nvp("Washcoat_Thickness", washcoat_thickness_)
       );
+      // v2: the developing-flow switch (older archives: fully developed).
+      if (version >= 2) ar(cereal::make_nvp("Entrance_Effects", entrance_effects_));
+      else entrance_effects_ = false;
     }
   };
 
@@ -463,6 +469,30 @@ namespace adsim {
     // Washcoat share of the solid cross-section [-] (0 for packed or no washcoat).
     double GetWashcoatFraction() const;
 
+    // Fully developed laminar Nusselt number of a channel at constant wall
+    // temperature, Nu_T (Shah and London 1978): 2.976 square, 3.657 circle,
+    // 7.541 parallel plates; also the Sherwood number by the heat-mass
+    // analogy. 0 for a packed bed (its correlations depend on Re).
+    double GetChannelNusselt() const;
+    // Taylor-Aris coefficient kappa of D_ax = D_m + u_ch^2 D_h^2 / (kappa D_m)
+    // on the channel's own D_h: 192 for a circular tube (Taylor 1953, Aris
+    // 1956), also used for square channels (an approximation); 840 for
+    // parallel plates (Aris 1956: 210 on the gap width, D_h = 2 x gap).
+    // 0 for a packed bed.
+    double GetTaylorArisKappa() const;
+
+    // Diffusion geometry of the linear-driving-force rate coefficients
+    // k = c D_eff / l^2 (Glueckauf 1955): a packed bed of spheres c = 60 on
+    // l = d_p (15 on the radius); a slab (monolith wall, laminate sheet or
+    // washcoat) c = 3 on its half-thickness l. volume_to_surface is the
+    // solid's V/S for the film resistance: r_p / 3 for a sphere, l for a slab.
+    struct DiffusionGeometry {
+      double c = 60.0;
+      double length = 0.0;             // [m]
+      double volume_to_surface = 0.0;  // [m]
+    };
+    DiffusionGeometry GetDiffusionGeometry() const;
+
     // Effective material properties. composition_ holds mass fractions w_k:
     // rho_s = 1 / sum_k(w_k / rho_k); eps_p and k_s are weighted by the solid
     // volume fractions phi_k = w_k * rho_s / rho_k; Cp_s = sum_k w_k Cp_k.
@@ -521,6 +551,16 @@ namespace adsim {
       }
     }
   };
+
+  // Film Nusselt or Sherwood number of a laminar channel. L <= 0: the fully
+  // developed value nu_inf (Shah and London 1978, Nu_T). L > 0: Hawthorn's
+  // (1974) length-averaged developing-flow correction over a channel of
+  // length L, nu_inf (1 + 0.095 Re Pr D_h / L)^0.45, with Pr (heat) or Sc
+  // (mass) as `pr` and Re on the channel velocity and D_h.
+  inline double ChannelFilmNumber(double nu_inf, double re, double pr, double dh, double length) {
+    if (!(length > 0.0)) return nu_inf;
+    return nu_inf * std::pow(1.0 + 0.095 * re * pr * dh / length, 0.45);
+  }
 
   // The geometry of a layer for front ends; `cross_section_area` [m2] (the
   // column's, Bed::GetArea) gives the monolith channel count.
@@ -688,6 +728,6 @@ CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
 // translation unit that saves or loads a deck must see the same numbers.
 CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
 CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
-CEREAL_CLASS_VERSION(adsim::StructuredGeometry, 1);
+CEREAL_CLASS_VERSION(adsim::StructuredGeometry, 2);
 CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 4);
 CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);

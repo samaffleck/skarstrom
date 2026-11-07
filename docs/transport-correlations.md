@@ -35,6 +35,18 @@ $$
 
 ---
 
+### Taylor–Aris (channels)
+
+For a structured layer (monolith or laminate; see [Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)), laminar flow in straight channels spreads a solute by the velocity profile across the channel, on top of molecular diffusion (Taylor 1953; Aris 1956):
+
+$$
+D_{ax} = D_m + \frac{u_{ch}^2\thinspace D_h^2}{\kappa\thinspace D_m}, \qquad u_{ch} = \frac{|u|}{\phi}
+$$
+
+with $\phi$ the open frontal area and $D_h$ the hydraulic diameter. $\kappa = 192$ for a circular tube, which is Taylor's $a^2 U^2/(48 D)$ on the radius $a = D_h/2$. Square channels also use 192; that is an approximation, since the exact square-duct coefficient differs by a few per cent. $\kappa = 840$ for parallel plates, which is Aris's $W^2 U^2/(210 D)$ on the gap $W$ with $D_h = 2W$. Input: **Molecular diffusivity** $D_m$ [m² s⁻¹]. The deck checks refuse this model on a packed layer, and refuse Ruthven's packed-bed model on a structured layer. Switching a layer to a structured kind (`build::SetLayerKind`) installs it.
+
+---
+
 ## Axial Thermal Conductivity
 
 Sets the effective axial conductivity $\lambda$ in the [energy balance](energy-balance.md).
@@ -140,4 +152,42 @@ $$
 h_p^{vol} = h_p\thinspace a_v, \qquad a_v = \frac{6(1-\epsilon_b)}{d_p}
 $$
 
+For a structured layer $a_v$ is the channel wall area per bed volume ($4a/p^2$ for a square monolith, $\pi a/p^2$ for a circular one, $2/(g+t)$ for a laminate).
+
 Input: **Heat transfer coefficient** $h_p$ [W m⁻² K⁻¹]. Under local thermal equilibrium (LTE, the default) this model is not used.
+
+The **Film** model computes the coefficient from correlations, $h_p^{vol} = h\thinspace a_v$:
+
+- packed layer: $\mathrm{Nu} = h\thinspace d_p/k_g = 2 + 1.1\thinspace \mathrm{Pr}^{1/3}\mathrm{Re}^{0.6}$ (Wakao and Funazkri 1978), with Re on the superficial velocity and $d_p$;
+- structured layer: $\mathrm{Nu} = h\thinspace D_h/k_g$, the channel's value below.
+
+The gas–solid model is a setting of the bed, not of a layer. Switching a layer to a structured kind sets it to Film, and switching the last structured layer back to packed restores Constant.
+
+## Film coefficients in structured layers
+
+In a laminar channel the film Nusselt and Sherwood numbers take their fully developed values at constant wall temperature, $\mathrm{Nu}_T$ (Shah and London 1978), with $\mathrm{Sh} = \mathrm{Nu}$ by the heat–mass analogy:
+
+| Channel | $\mathrm{Nu}_T = \mathrm{Sh}$ |
+|---|---|
+| Square | 2.976 |
+| Circular | 3.657 |
+| Parallel plates (laminate) | 7.541 |
+
+With the layer's **entrance effects** switched on (`layer[ID].entrance_effects`), Hawthorn's (1974) length-averaged developing-flow form is used over the layer length $L$:
+
+$$
+\mathrm{Nu} = \mathrm{Nu}_T\left(1 + 0.095\thinspace \mathrm{Re}\thinspace \mathrm{Pr}\thinspace \frac{D_h}{L}\right)^{0.45}
+$$
+
+with Sc in place of Pr for Sh. The Reynolds number of a structured layer is the channel value $\mathrm{Re} = \rho\thinspace (|u|/\phi)\thinspace D_h/\mu$, and the solver warns at the end of a run when it passes 2000, where these laminar closures stop holding (the setting `settings.warn_channel_reynolds`). The film mass-transfer coefficient is $k_f = \mathrm{Sh}\thinspace D_m/D_h$ (Haynes rate model, [Kinetic Models](kinetic-models.md)), and the film heat-transfer coefficient is $h = \mathrm{Nu}\thinspace k_g/D_h$ (the Film gas–solid model above).
+
+**Sources** (the equation and table numbers are still to be confirmed against the texts; the results are as stated above):
+
+- R. K. Shah and A. L. London, *Laminar Flow Forced Convection in Ducts*, Academic Press, 1978: fully developed $\mathrm{Nu}_T$ for square and circular ducts and parallel plates.
+- R. D. Hawthorn, AIChE Symp. Ser. 70(137) (1974) 428: developing-flow Nu in monolith channels.
+- G. I. Taylor, Proc. R. Soc. Lond. A 219 (1953) 186–203: dispersion in a tube.
+- R. Aris, Proc. R. Soc. Lond. A 235 (1956) 67–77: the molecular term and the parallel-plate result.
+- N. Wakao and T. Funazkri, Chem. Eng. Sci. 33 (1978) 1375–1384: the packed-bed film correlation.
+- E. Glueckauf, Trans. Faraday Soc. 51 (1955) 1540–1551: the linear driving force, [Kinetic Models](kinetic-models.md).
+
+The verification tests `StructuredTransfer.*` check each closure against these results, and check a parallel-passage breakthrough against the moment analysis of the LDF model ([Verification](verification.md)).

@@ -279,16 +279,16 @@ namespace {
     EXPECT_TRUE(StructuredLayerWarnings(d.adsorbent_directory, d.bed).empty());
     auto& layer = d.bed.layers_.layers_.front();
     layer.kind_ = LayerKind::Monolith;
-    layer.equations_.dispersion_model_ = std::make_unique<DispersionModelRuthven>();
+    layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
     d.bed.equations_.thermal_equilibrium_mode_ = ThermalEquilibriumMode::LOCAL;
     auto w = StructuredLayerWarnings(d.adsorbent_directory, d.bed);
     ASSERT_EQ(w.size(), 2u);
     EXPECT_NE(w[0].find("is a Monolith but uses packed-bed closures"), std::string::npos) << w[0];
-    EXPECT_NE(w[0].find("Ruthven axial dispersion"), std::string::npos) << w[0];
+    EXPECT_NE(w[0].find("Yagi-Kunii heat dispersion"), std::string::npos) << w[0];
     EXPECT_NE(w[1].find("LTNE) is recommended"), std::string::npos) << w[1];
 
     // Constant coefficients everywhere and LTNE: no warning.
-    layer.equations_.dispersion_model_ = std::make_unique<DispersionModelConstant>();
+    layer.equations_.heat_dispersion_model_ = std::make_unique<HeatDispersionModelConstant>();
     for (const auto& [id, frac] : layer.composition_) {
       auto& ads = d.adsorbent_directory.Get(id);
       for (auto& [c, m] : ads.adsorption_source_.mass_transfer_models_)

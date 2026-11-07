@@ -29,14 +29,15 @@ namespace adsim {
 
 	static const char* AxialDispersionModeList[] = {
 		"Constant",						// 0 
-		"Ruthven (1984)"				// 1
-		// "Wakao and Funazkri (1978)"	// 2
+		"Ruthven (1984)",				// 1
+		"Taylor-Aris (channels)"		// 2
 	};
 
+	// Stored values; never renumber.
 	enum class AxialDispersionType {
-		CONSTANT,
-		RUTHVEN
-		// WAKO_AND_FUNAZKRI
+		CONSTANT = 0,
+		RUTHVEN = 1,
+		TAYLOR_ARIS = 2
 	};
 
 	static const char* AxialHeatDispersionModeList[] = {
@@ -119,6 +120,34 @@ namespace adsim {
 		}
 	};
 
+	// Taylor-Aris dispersion in laminar channels (structured layers):
+	//   D_ax = D_m + u_ch^2 D_h^2 / (kappa D_m),  u_ch = |u| / OFA,
+	// with kappa = 192 for a circular tube (Taylor 1953, Aris 1956; also used
+	// for square channels, an approximation) and 840 for parallel plates on
+	// D_h = 2 x gap (Aris 1956: 210 on the gap width). D_m is this model's
+	// molecular diffusion coefficient. A packed layer cannot use it (deck
+	// checks).
+	class DispersionModelTaylorAris : public IDispersionModel {
+	public:
+		void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
+		AxialDispersionType GetModelType() override { return AxialDispersionType::TAYLOR_ARIS; }
+		unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
+		void EvaluateExpressions(const EvalContext& ctx) override { Dm.Evaluate(ctx); }
+
+		ExpressionParam Dm{1.6e-5}; // [m2/s]
+
+	private:
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const version) {
+			(void)version;
+			ar(
+				cereal::virtual_base_class<IDispersionModel>(this),
+				cereal::make_nvp("Molecular_Diffusion", Dm)
+			);
+		}
+	};
+
 	// class DispersionModelWakaoAndFunazkri : public IDispersionModel {
 	// public:
   //   void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
@@ -198,6 +227,7 @@ namespace adsim {
 		switch (type) {
 		case AxialDispersionType::CONSTANT: return std::make_unique<DispersionModelConstant>();
 		case AxialDispersionType::RUTHVEN: return std::make_unique<DispersionModelRuthven>();
+		case AxialDispersionType::TAYLOR_ARIS: return std::make_unique<DispersionModelTaylorAris>();
 		// case AxialDispersionType::WAKO_AND_FUNAZKRI: return std::make_unique<DispersionModelWakaoAndFunazkri>();
 		default: return nullptr;
 		}
@@ -219,5 +249,6 @@ namespace adsim {
 CEREAL_CLASS_VERSION(adsim::DispersionModelConstant, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelConstant, 1);
 CEREAL_CLASS_VERSION(adsim::DispersionModelRuthven, 1);
+CEREAL_CLASS_VERSION(adsim::DispersionModelTaylorAris, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelRuthven, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelYagiandKunii, 1);

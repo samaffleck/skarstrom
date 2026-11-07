@@ -408,6 +408,38 @@ namespace adsim {
 		return 0.0;
 	}
 
+	double MixedAdsorbentLayer::GetChannelNusselt() const {
+		switch (kind_) {
+			case LayerKind::Packed: return 0.0;
+			case LayerKind::Monolith: return structured_.channel_shape_ == ChannelShape::Circular ? 3.657 : 2.976;
+			case LayerKind::Laminate: return 7.541;
+		}
+		return 0.0;
+	}
+
+	double MixedAdsorbentLayer::GetTaylorArisKappa() const {
+		switch (kind_) {
+			case LayerKind::Packed: return 0.0;
+			case LayerKind::Monolith: return 192.0;
+			case LayerKind::Laminate: return 840.0;
+		}
+		return 0.0;
+	}
+
+	MixedAdsorbentLayer::DiffusionGeometry MixedAdsorbentLayer::GetDiffusionGeometry() const {
+		DiffusionGeometry g;
+		if (!IsStructured()) {
+			g.c = 60.0;
+			g.length = particle_diameter_.Get();
+			g.volume_to_surface = particle_diameter_.Get() / 6.0;
+		} else {
+			g.c = 3.0;
+			g.length = GetDiffusionLength();
+			g.volume_to_surface = g.length;
+		}
+		return g;
+	}
+
 	LayerGeometry LayerGeometrySummary(const MixedAdsorbentLayer& layer, double cross_section_area) {
 		LayerGeometry s;
 		s.kind = layer.kind_;

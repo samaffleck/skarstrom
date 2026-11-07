@@ -787,6 +787,8 @@ class Settings(_Node):
     """Warn when the last cycle's wall temperature passes the design temperature."""
     warn_fluidisation = Boolean()
     """Warn when the last cycle's approach to fluidisation passes 1."""
+    warn_channel_reynolds = Boolean()
+    """Warn when the last cycle's channel Reynolds number in a structured layer passes 2000."""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation) or "anderson"."""
 

@@ -60,7 +60,11 @@ namespace adsim {
     double Di_eff = 0;
 
     double ep = macropore_void_fraction_;
-    double dp = layer.particle_diameter_;
+    // Glueckauf (1955) LDF: k = c D_eff / l^2, c = 60 on d_p for spheres
+    // (packed), 3 on the half-thickness for a slab (structured layer).
+    const auto geo = layer.GetDiffusionGeometry();
+    const double c_ldf = geo.c;
+    double dp = geo.length;
     double tortuosity = tortuosity_;
     double Mr = fluid.molar_mass_.at(component);
     const double Dm_const = molecular_diffusion_coefficient_;  // > 0: constant D_m in place of the state's
@@ -76,7 +80,7 @@ namespace adsim {
       Dki_eff = Dki * ep / tortuosity;
       Dmi_eff = (Dm_const > 0.0 ? Dm_const : Dmi[n]) * ep / tortuosity;
       Di_eff = 1.0 / ((1.0 / Dki_eff) + (1.0 / Dmi_eff));
-      mtc[n] = 60.0 * Di_eff / (dp * dp);
+      mtc[n] = c_ldf * Di_eff / (dp * dp);
     }
   }
 
@@ -85,7 +89,9 @@ namespace adsim {
     auto& T = state.fluid_temperature.var;
     auto& Dmi = state.molecular_diffusion.at(component).var;
     double ep = macropore_void_fraction_;
-    double dp = layer.particle_diameter_;
+    const auto geo = layer.GetDiffusionGeometry();  // Glueckauf (1955): sphere 60 / d_p^2, slab 3 / l^2
+    const double c_ldf = geo.c;
+    double dp = geo.length;
     double tortuosity = tortuosity_;
     const double Dm_const = molecular_diffusion_coefficient_;  // > 0: constant D_m in place of the state's
 
@@ -99,7 +105,7 @@ namespace adsim {
       // The plain macropore coefficient, 15 eps_p D_m / (tau r_p^2); the
       // capacity-factor variant is MassTransferCoefficientMacroporeCapacity.
       double Dmi_eff = (Dm_const > 0.0 ? Dm_const : Dmi[n]) * ep / tortuosity;
-      mtc[n] = 60.0 * Dmi_eff / (dp * dp);
+      mtc[n] = c_ldf * Dmi_eff / (dp * dp);
     }
   }
 
@@ -113,7 +119,9 @@ namespace adsim {
     const double R = constants::kIdealGasConstant;
 
     const double ep = macropore_void_fraction_;
-    const double dp = layer.particle_diameter_;
+    const auto geo = layer.GetDiffusionGeometry();  // Glueckauf (1955): sphere 60 / d_p^2, slab 3 / l^2
+    const double c_ldf = geo.c;
+    const double dp = geo.length;
     const double tortuosity = tortuosity_;
     const double c_floor = std::max(concentration_floor_.Get(), 0.0);
     const double rho_p = solid_density_;
@@ -163,7 +171,7 @@ namespace adsim {
     for (int n = start; n <= end; ++n) {
       if (T[n] < 0) continue;  // Newton iterates can probe T < 0; skip the cell
       const double Dmi_eff = (Dm_const > 0.0 ? Dm_const : Dmi[n]) * ep / tortuosity;
-      const double k_macro = 60.0 * Dmi_eff / (dp * dp);
+      const double k_macro = c_ldf * Dmi_eff / (dp * dp);
       double ratio = 1.0;
       if (evaluate && T[n] > 0.0 && P[n] > 0.0) {
         // Gas-phase concentration from the state itself (y P / R T), floored
@@ -185,6 +193,23 @@ namespace adsim {
     double R = constants::kIdealGasConstant;
 
     double ep = macropore_void_fraction_;
+    // 1/k = (V/S) / k_f + tau l^2 / (c' eps_p D): film plus pore diffusion in
+    // series. Packed spheres: V/S = r_p / 3, l = r_p, c' = 15 (Glueckauf
+    // 1955), k_f = Sh D / d_p with the Wakao-Funazkri Sh. A slab (structured
+    // layer): V/S = l, the half-thickness, c' = 3, k_f = Sh D / D_h with the
+    // channel Sh.
+    if (layer.IsStructured()) {
+      const auto geo = layer.GetDiffusionGeometry();
+      const double l = geo.length;
+      const double dh = layer.GetHydraulicDiameter();
+      for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
+        const double kf = Sh[n] * Dmi[n] / dh;
+        const double film = geo.volume_to_surface / kf;
+        const double molecular = tortuosity_ * l * l / (3.0 * ep * Dmi[n]);
+        mtc[n] = 1.0 / (film + molecular);
+      }
+      return;
+    }
     double dp = layer.particle_diameter_;
     double rp = dp / 2.0;
 

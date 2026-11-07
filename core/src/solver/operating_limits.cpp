@@ -67,6 +67,9 @@ namespace adsim {
     auto is_structured = [&](int i) {
       return i >= 0 && i < static_cast<int>(structured_cell.size()) && structured_cell[i];
     };
+    std::vector<int> structured_cells;
+    for (int i = 0; i < static_cast<int>(structured_cell.size()); ++i)
+      if (structured_cell[i]) structured_cells.push_back(i);
     std::vector<int> bed_faces;
     for (size_t k = 0; k + 1 < bed_cells.size(); ++k)
       if (bed_cells[k + 1] == bed_cells[k] + 1 && !is_structured(bed_cells[k]) && !is_structured(bed_cells[k + 1]))
@@ -75,7 +78,8 @@ namespace adsim {
                           ? dom.positions[dom.bed_face_index_begin] : 0.0;
 
     struct Inherited {
-      bool max_pressure = false, min_pressure = false, max_wall_temperature = false, max_approach = false;
+      bool max_pressure = false, min_pressure = false, max_wall_temperature = false, max_approach = false,
+           max_channel_reynolds = false;
     };
     std::vector<Inherited> inherited;
 
@@ -125,6 +129,11 @@ namespace adsim {
           s.fluidisation_time = (t < times.size() && !times.empty()) ? times[t] - times.front() : 0.0;
         }
       });
+      bool re_at_start = false;
+      scan(rows(VariableType::REYNOLDS_NUMBER), structured_cells, [&](size_t t, int, double re) {
+        if (std::isfinite(re)) track(s.max_channel_reynolds, re_at_start, re, t, true);
+      });
+      from_start.max_channel_reynolds = re_at_start;
       // A step logged at one instant only has nothing to inherit.
       if (times.size() <= 1) from_start = {};
       inherited.push_back(from_start);
@@ -139,6 +148,7 @@ namespace adsim {
         case OperatingLimit::Vacuum:            return on.vacuum;
         case OperatingLimit::DesignTemperature: return on.design_temperature;
         case OperatingLimit::Fluidisation:      return on.fluidisation;
+        case OperatingLimit::ChannelReynolds:   return on.channel_reynolds;
       }
       return true;
     };
@@ -190,6 +200,17 @@ namespace adsim {
              "the approach to fluidisation reaches " + Num(s.max_approach_to_fluidisation) + " "
              + InStep(s, report.cycle) + where.str()
              + ": the upward pressure drop exceeds the weight of the bed, which would lift unless it is held down.");
+      }
+    }
+    for (size_t k = 0; k < report.steps.size(); ++k) {
+      const auto& s = report.steps[k];
+      if (!inherited[k].max_channel_reynolds && std::isfinite(s.max_channel_reynolds)
+          && s.max_channel_reynolds > kLaminarChannelReynolds) {
+        warn(OperatingLimit::ChannelReynolds, s, s.max_channel_reynolds, kLaminarChannelReynolds,
+             "the channel Reynolds number of a structured layer reaches " + Num(s.max_channel_reynolds) + " "
+             + InStep(s, report.cycle) + ", above " + Num(kLaminarChannelReynolds)
+             + ": the flow is no longer laminar, so the channel pressure drop, film coefficients and dispersion"
+               " are underestimated.");
       }
     }
     return report;
