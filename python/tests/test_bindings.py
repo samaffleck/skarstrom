@@ -350,7 +350,7 @@ def test_coadsorption_isotherms_take_the_water_loading():
     q = skarstrom.evaluate_isotherm("toth_wadst", {}, [40.0, 40.0, 1000.0], [298.15, 298.15, 313.15],
                                     water_loading=[0.0, 1.0, 2.0])
     np.testing.assert_allclose(q, [0.8420245338722876, 1.0185996655819423, 1.719685426802942], rtol=1e-10)
-    q = skarstrom.evaluate_isotherm("toth_humid", {}, 40.0, 296.0, water_loading=[0.0, 0.5])
+    q = skarstrom.evaluate_isotherm("toth_humid", {}, [40.0, 40.0], 296.0, water_loading=[0.0, 0.5])
     np.testing.assert_allclose(q, [0.7119412653033451, 1.6748044208814166], rtol=1e-10)
     np.testing.assert_allclose(skarstrom.evaluate_isotherm("toth_humid", {}, 40.0, 296.0),
                                0.7119412653033451, rtol=1e-10)
