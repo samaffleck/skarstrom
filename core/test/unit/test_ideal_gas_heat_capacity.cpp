@@ -24,6 +24,7 @@
 #include "adsim/objects/fluid.h"
 #include "adsim/objects/reaction.h"
 #include "adsim/parameters/parameter_registry.h"
+#include "adsim/solver/deck_warnings.h"
 
 namespace adsim {
 namespace {
@@ -153,9 +154,15 @@ TEST(IdealGasHeatCapacity, FluidUsesThePolynomialOrTheHeldValue) {
   EXPECT_DOUBLE_EQ(f.heat_capacity_.at("Nitrogen"),
                    Fluid::EvalIdealGasHeatCapacity(n2, 320.0) / f.molar_mass_.at("Nitrogen"));
 
+  // The run-start warning names the held component.
+  const auto warnings = GasHeatCapacityWarnings(f);
+  ASSERT_EQ(warnings.size(), 1u);
+  EXPECT_NE(warnings[0].find("Hexane has no ideal-gas heat capacity polynomial"), std::string::npos) << warnings[0];
+
   // CONSTANT mode: no polynomial, nothing held from CoolProp, no warning.
   f.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
   f.Initialise(ic);
+  EXPECT_TRUE(GasHeatCapacityWarnings(f).empty());
   EXPECT_EQ(f.HeatCapacityPolynomial("Nitrogen"), nullptr);
   EXPECT_TRUE(f.ComponentsWithHeldHeatCapacity().empty());
   EXPECT_DOUBLE_EQ(f.MolarHeatCapacity("Nitrogen", 450.0), Fluid::kDefaultGasHeatCapacity);
