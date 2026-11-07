@@ -96,4 +96,6 @@ def test_example_manifest_covers_the_bundled_decks():
     rows = sk.example_manifest()
     assert {r["name"] for r in rows} == {e.name for e in sk.examples.ALL}
     perez = next(r for r in rows if r["name"] == "Perez2019_A")
-    assert perez["family"] == "Perez2019" and perez["summary"] and perez["hidden"] is False
+    assert perez["family"] == "Perez (2019)" and perez["family_key"] == "Perez2019"
+    assert perez["summary"] and perez["hidden"] is False
+    assert next(r for r in rows if r["name"] == "Illustrative_TSA_13X")["hidden"] is True

@@ -365,6 +365,8 @@ namespace adsim {
       Set(v, "name", fs::path(file).stem().string(), a);
       Set(v, "title", title.empty() ? fs::path(file).stem().string() : title, a);
       Set(v, "family", family, a);
+      const std::string family_key = MemberString(d, "family_key");
+      Set(v, "family_key", family_key.empty() ? family : family_key, a);
       const auto hidden = d.FindMember("hidden");
       Set(v, "hidden", hidden != d.MemberEnd() && hidden->value.IsBool() && hidden->value.GetBool(), a);
       Set(v, "summary", MemberString(d, "summary"), a);

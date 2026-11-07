@@ -62,7 +62,7 @@ every value back by path leaves the deck unchanged.
 | `sk.unit_manifest()` | `UnitManifest()` | Unit categories (`key`, `name`, `si_unit`) with suggested display units, the parser's symbol overrides and syntax notes |
 | `sk.check_unit(text, category)` | `CheckUnit(text, category)` | `{ok, category, dimension, factor, offset, message}` from the engine's unit parser |
 | `sk.warning_manifest()` | `WarningManifest()`, `WarningDefinitions()` | Advisory warnings: `key`, `label`, `phase` (`start` of a run or `end`), `setting` (registry path of its switch, or null), `default_on`, `message` template |
-| `sk.example_manifest()` | `ExampleDeckManifest(manifest, decks_dir)` | Example decks: `file`, `name`, `title`, `family`, `hidden`, `summary`, `description` |
+| `sk.example_manifest()` | `ExampleDeckManifest(manifest, decks_dir)` | Example decks: `file`, `name`, `title`, `family` (display label, "Perez (2019)"), `family_key` ("Perez2019"), `hidden`, `summary`, `description` |
 | `sk.component_manifest()` | `ComponentManifest()`, `DescribeComponent(name)` | Components: `name` (CoolProp), `formula`, `molar_mass` [kg/mol], `cas`, `properties_source`, `aliases`, `ideal_gas_heat_capacity`, `heat_capacity_held` |
 
 Units: the parser accepts any LLNL-units symbol with an SI prefix, combined as described in
@@ -70,7 +70,7 @@ Units: the parser accepts any LLNL-units symbol with an SI prefix, combined as d
 category, not every accepted unit. Their factor and offset come from the parser itself. To
 validate a unit someone typed, use `check_unit` rather than a list.
 
-Example decks: `examples/example_decks.json` declares each deck's family, hidden flag and summary.
+Example decks: `examples/example_decks.json` declares each deck's family label and key, hidden flag and summary.
 Titles and descriptions come from the decks themselves. The manifest must list every deck in
 `examples/decks/`; the test suite checks this.
 

@@ -19,8 +19,8 @@
 //   WarningManifest()    the advisory warnings: run-start deck warnings and
 //                        end-of-run operating limits, their switch in the
 //                        deck's settings, default and message template
-//   ExampleDeckManifest  the example decks: file, title, family, hidden flag,
-//                        summary (declared in examples/example_decks.json)
+//   ExampleDeckManifest  the example decks: file, title, family (display label)
+//                        and family_key (AuthorYear), hidden flag, summary (declared in examples/example_decks.json)
 //   ComponentManifest()  the components a deck can use: formula, molar mass,
 //                        CAS number, property source and whether the gas heat
 //                        capacity follows the temperature
@@ -91,7 +91,7 @@ namespace adsim {
   // ---- example decks ---------------------------------------------------------
 
   // Reads the example-deck manifest (examples/example_decks.json: file,
-  // family, hidden, summary) and adds each deck's title and description from
+  // family label, family_key, hidden, summary) and adds each deck's title and description from
   // the deck in `decks_dir`. Throws std::runtime_error when the manifest is
   // malformed, a listed deck is missing, or a deck in `decks_dir` is not
   // listed.

@@ -416,7 +416,7 @@ def cmd_sensitivity(args: argparse.Namespace) -> int:
 def _example_families() -> Dict[str, str]:
     """Example name -> the paper / study it belongs to, from the engine's example manifest."""
     try:
-        return {e["name"]: e["family"] for e in manifests.example_manifest()}
+        return {e["name"]: e["family_key"] for e in manifests.example_manifest()}
     except (FileNotFoundError, RuntimeError):
         return {}
 

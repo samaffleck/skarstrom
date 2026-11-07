@@ -88,8 +88,8 @@ def _example_manifest_path() -> Optional[str]:
 
 
 def example_manifest() -> List[Dict[str, Any]]:
-    """The example decks: ``file``, ``name``, ``title``, ``family``, ``hidden``, ``summary`` and
-    ``description``. Raises FileNotFoundError when the package has no manifest."""
+    """The example decks: ``file``, ``name``, ``title``, ``family`` (display label, e.g.
+    ``"Perez (2019)"``), ``family_key`` (``"Perez2019"``), ``hidden``, ``summary`` and ``description``. Raises FileNotFoundError when the package has no manifest."""
     path = _example_manifest_path()
     decks = os.path.join(_data_dir(), "decks")
     if path is None or not os.path.isdir(decks):
