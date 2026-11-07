@@ -11,6 +11,8 @@
 #include "adsim/solver/ida_settings.h"
 #include "adsim/solver/deck_warnings.h"
 #include "adsim/solver/operating_limits.h"
+#include "adsim/solver/kpi_quadrature.h"
+#include <idas/idas.h>
 #include <chrono>
 #include <optional>
 #include <sstream>
@@ -120,6 +122,62 @@ namespace adsim {
     }
   }
 
+  namespace {
+    // IDAS quadrature right-hand side: the KPI integrands at IDA's corrected
+    // solution (kpi_quadrature.h). It loads (t, y, y') into the state as
+    // logging does; the residual reloads the state on every call, so the
+    // solution path is unchanged. It never fails the run: an integrand that
+    // cannot be evaluated is NaN, which marks the step's quadrature KPIs
+    // undefined (error control is off by default, so NaN quadratures do not
+    // reach IDA's step control).
+    int KpiQuadratureRhs(sunrealtype t, N_Vector y, N_Vector yp, N_Vector rhs_q, void* user_data) {
+      auto* udata = static_cast<UserData*>(user_data);
+      sunrealtype* q = N_VGetArrayPointer(rhs_q);
+      const sunindextype n = N_VGetLength(rhs_q);
+      try {
+        auto& state = udata->state;
+        state.UnpackBanded(N_VGetArrayPointer(y), N_VGetArrayPointer(yp));
+        state.UpdateIndependentEquations(udata);
+        state.UpdateDiagnosticEquations(udata);
+        KpiQuadratureLayout layout;
+        layout.n_components = static_cast<int>(udata->fluid.components_.size());
+        layout.max_endpoints = static_cast<int>((n - 2 * layout.n_components) / layout.BlockSize());
+        if (layout.Size() != n) throw std::runtime_error("KPI quadrature layout mismatch");
+        EvaluateKpiQuadratureIntegrands(*udata, t - udata->step_start_time_, layout, q);
+      } catch (...) {
+        std::fill(q, q + n, std::numeric_limits<double>::quiet_NaN());
+      }
+      return 0;
+    }
+
+    // Writes the step's quadrature integrals into its endpoints' stream logs
+    // (before BoundaryLog::LogEndOfStep copies them) and returns the step's
+    // mole balance. The state must hold the step's end (its last Log).
+    StepBalance FinishStepQuadratures(SolverData& solver_data, UserData& user_data, Step& step,
+                                      std::vector<double> inventory_start, bool step_ok) {
+      StepBalance balance;
+      if (!solver_data.QuadraturesActive()) return balance;
+      std::vector<double> q;
+      const bool ok = step_ok && solver_data.StepQuadratures(q);
+      balance.inventory_start = std::move(inventory_start);
+      balance.inventory_end = ColumnInventory(user_data);
+      DistributeKpiQuadratures(step, solver_data.QuadratureLayout(), user_data.fluid.components_, q, ok, balance);
+      return balance;
+    }
+
+    // The step-balance diagnostic line (HIGH): for a step with one open end,
+    // the inventory-difference cross-check of that end's flow.
+    std::string DescribeStepBalance(const Step& step, const StepBalance& b) {
+      std::ostringstream ss;
+      ss << std::scientific << std::setprecision(3) << "  Step \"" << step.step_name_ << "\" mole balance";
+      if (b.open_ends == 1) ss << " (one open end)";
+      ss << ": moles in " << b.TotalEndpointNetIn() << " mol, inventory change " << b.TotalInventoryChange()
+         << " mol, discrepancy " << b.EndpointDiscrepancy() << " mol (" << b.RelativeEndpointDiscrepancy()
+         << " relative); face flux discrepancy " << b.FaceDiscrepancy() << " mol.";
+      return ss.str();
+    }
+  }
+
   CoupledSolver::CoupledSolver(UserData& data) : user_data_(data) {}
 
   void CoupledSolver::LogMessage(LogLevel level, const std::string& msg) {
@@ -185,6 +243,7 @@ namespace adsim {
     // Fresh IDA history for the new boundary conditions (see
     // SolverData::RestartForNewStep).
     solver_data_.RestartForNewStep();
+    solver_data_.BeginQuadratureStep();
 
     double t_curr = t_start;
     
@@ -200,6 +259,9 @@ namespace adsim {
       double t_relative = t_curr - user_data_.step_start_time_;
       step.LogOutletConditions(user_data_.state, t_relative);
     }
+    // Column inventory at the step start, for the step's mole balance.
+    std::vector<double> inventory_start;
+    if (solver_data_.QuadraturesActive()) inventory_start = ColumnInventory(user_data_);
   
     if (verbose) {
       std::cout << "Solving Step: " << step.step_name_ << " (from t=" << t_start << " to t=" << t_final << ", step time: 0 to " << step.step_time_ << ")" << std::endl;
@@ -354,7 +416,13 @@ namespace adsim {
 
     {
       ProfileTimer log_timer(profile.enabled, profile.log_ns);
+      const bool step_ok = flag >= 0 && flag != 99;
+      StepBalance balance = FinishStepQuadratures(solver_data_, user_data_, step, std::move(inventory_start), step_ok);
       boundary_log_.LogEndOfStep(step, cycle_index, step_index);
+      if (balance.valid) {
+        LogMessage(LogLevel::HIGH, DescribeStepBalance(step, balance));
+        boundary_log_.LogStepBalance(cycle_index, step_index, std::move(balance));
+      }
     }
 
     // Snapshot the just-finished step's outlet aggregates so any downstream
@@ -834,7 +902,14 @@ namespace adsim {
       LogMessage(LogLevel::HIGH, ss.str());
 
       status_.StepComplete();
+      StepBalance balance = FinishStepQuadratures(solver_data_, user_data_, step,
+                                                  std::move(step_inventory_start_), true);
+      step_inventory_start_.clear();
       boundary_log_.LogEndOfStep(step, cycle_index, step_index);
+      if (balance.valid) {
+        LogMessage(LogLevel::HIGH, DescribeStepBalance(step, balance));
+        boundary_log_.LogStepBalance(cycle_index, step_index, std::move(balance));
+      }
 
       // Snapshot the just-finished step's outlet aggregates for any
       // downstream BufferTankSource consumer (mirrors
@@ -966,12 +1041,15 @@ namespace adsim {
     // Fresh IDA history for the new boundary conditions (see
     // SolverData::RestartForNewStep).
     solver_data_.RestartForNewStep();
+    solver_data_.BeginQuadratureStep();
 
     // Clear logs for this step ??
     step.ClearOutletConditions();
 
     // Log initial state
     Log(step, t_start, step_index, cycle_index);
+    step_inventory_start_.clear();
+    if (solver_data_.QuadraturesActive()) step_inventory_start_ = ColumnInventory(user_data_);
     
     status_.StepInitialised(t_start, t_final);
     return true;
@@ -1052,12 +1130,14 @@ namespace adsim {
       N_VDestroy_Serial(ele_);
       ele_ = nullptr;
     }
-    for (N_Vector* v : { &y_interp_, &yp_interp_ }) {
+    for (N_Vector* v : { &y_interp_, &yp_interp_, &yQ_, &yQ_tmp_ }) {
       if (*v) {
         N_VDestroy_Serial(*v);
         *v = nullptr;
       }
     }
+    quad_carry_.clear();
+    quad_layout_ = KpiQuadratureLayout{};
   }
 
   int SolverData::Initialise(UserData& user_data, std::string& error_message) {
@@ -1191,6 +1271,37 @@ namespace adsim {
       error_message += ("Applying the solver settings failed with code: " + std::to_string(retval)
                         + ". Please check the solver settings (e.g. the maximum BDF order must be 1-5).");
       return retval;
+    }
+
+    // KPI quadratures (kpi_quadrature.h). Optional extras: if IDAS cannot set
+    // them up, the run goes on without them.
+    if (settings.kpi_quadratures_) {
+      quad_layout_ = KpiQuadratureLayout::For(user_data);
+      const int nq = quad_layout_.Size();
+      if (nq > 0) {
+        yQ_ = N_VNew_Serial(nq, sunctx_);
+        yQ_tmp_ = N_VNew_Serial(nq, sunctx_);
+        bool ok = yQ_ && yQ_tmp_;
+        if (ok) {
+          N_VConst(0.0, yQ_);
+          ok = IDAQuadInit(ida_mem_, KpiQuadratureRhs, yQ_) == IDA_SUCCESS;
+        }
+        if (ok) ok = IDASetQuadErrCon(ida_mem_, settings.quadrature_error_control_ ? SUNTRUE : SUNFALSE) == IDA_SUCCESS;
+        if (ok && settings.quadrature_error_control_)
+          ok = IDAQuadSStolerances(ida_mem_, settings.reltol, settings.quadrature_abstol_) == IDA_SUCCESS;
+        if (!ok) {
+          // IDAFree releases the quadrature memory with the rest; just stop
+          // using it. IDAS integrates quadratures only after IDAQuadInit
+          // succeeded, and IDASetQuadErrCon(false) leaves them out of the
+          // error test, so a half set-up is harmless.
+          if (ida_mem_) IDASetQuadErrCon(ida_mem_, SUNFALSE);
+          for (N_Vector* v : { &yQ_, &yQ_tmp_ }) {
+            if (*v) { N_VDestroy_Serial(*v); *v = nullptr; }
+          }
+        } else {
+          quad_carry_.assign(nq, 0.0);
+        }
+      }
     }
 
     // Compute consistent initial conditions
@@ -1650,11 +1761,50 @@ namespace adsim {
     stats_carry_.num_lin_res_evals += c.num_lin_res_evals;
     stats_carry_.num_jac_evals += c.num_jac_evals;
     stats_carry_.num_lin_setups += c.num_lin_setups;
-    if (!reinit_observer_) return IDAReInit(ida_mem_, t, y_, yp_);
-    reinit_observer_->BeforeReInit(ida_mem_, t);
+    // KPI quadratures: keep what was integrated up to t, then restart IDAS's
+    // quadrature history from zero along with the solution's.
+    if (yQ_) {
+      std::vector<double> current;
+      CurrentQuadratures(t, current);
+      for (size_t i = 0; i < quad_carry_.size() && i < current.size(); ++i) quad_carry_[i] += current[i];
+    }
+    if (reinit_observer_) reinit_observer_->BeforeReInit(ida_mem_, t);
     int flag = IDAReInit(ida_mem_, t, y_, yp_);
-    if (flag == IDA_SUCCESS) flag = reinit_observer_->AfterReInit(ida_mem_, t);
+    if (flag == IDA_SUCCESS && yQ_) {
+      N_VConst(0.0, yQ_);
+      flag = IDAQuadReInit(ida_mem_, yQ_);
+    }
+    if (flag == IDA_SUCCESS && reinit_observer_) flag = reinit_observer_->AfterReInit(ida_mem_, t);
     return flag;
+  }
+
+  void SolverData::CurrentQuadratures(double t, std::vector<double>& out) const {
+    out.assign(quad_carry_.size(), 0.0);
+    if (!yQ_ || !ida_mem_ || out.empty()) return;
+    long int nst = 0;
+    IDAGetNumSteps(ida_mem_, &nst);
+    if (nst == 0) return;  // no step since IDAQuadInit / IDAQuadReInit: still zero
+    if (IDAGetQuadDky(ida_mem_, t, 0, yQ_tmp_) != IDA_SUCCESS) {
+      std::fill(out.begin(), out.end(), std::numeric_limits<double>::quiet_NaN());
+      return;
+    }
+    const sunrealtype* q = N_VGetArrayPointer(yQ_tmp_);
+    for (size_t i = 0; i < out.size(); ++i) out[i] = q[i];
+  }
+
+  void SolverData::BeginQuadratureStep() {
+    if (!yQ_) return;
+    // Usually RestartForNewStep has just re-initialised IDAS (current = 0);
+    // otherwise subtract what is there.
+    CurrentQuadratures(GetTime(), quad_carry_);
+    for (double& v : quad_carry_) v = -v;
+  }
+
+  bool SolverData::StepQuadratures(std::vector<double>& out) const {
+    if (!yQ_) return false;
+    CurrentQuadratures(GetTime(), out);
+    for (size_t i = 0; i < out.size() && i < quad_carry_.size(); ++i) out[i] += quad_carry_[i];
+    return true;
   }
 
   double SolverData::GetLastStep() const {

@@ -4,6 +4,7 @@
 // STL includes
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -58,6 +59,14 @@ namespace adsim {
     }
   }
 
+  // Where the KPI integrals come from: the trapezoid over the logged boundary
+  // samples (the reported KPIs) or the IDAS quadratures integrated alongside
+  // the solution (StreamData::integrals_, kpi_quadrature.h). The KPI formulas
+  // are the same; only the time integrals of the endpoint flows and the pump
+  // power differ. A quadrature integral that was not integrated is NaN, which
+  // makes the KPIs that need it undefined.
+  enum class KPIIntegration { TRAPEZOID, QUADRATURE };
+
   class KPIParams {
   public:
     KPIParams(const EquationLog& eq_log, const BoundaryLog& b_log) : eq_log_(eq_log), b_log_(b_log) {}
@@ -90,6 +99,7 @@ namespace adsim {
     std::vector<KPIEndpointRef> feed_endpoints{};
     std::vector<KPIEndpointRef> product_endpoints{};
     std::vector<KPIEndpointRef> recycle_endpoints{};
+    KPIIntegration integration_ = KPIIntegration::TRAPEZOID;
     const EquationLog& eq_log_;
     const BoundaryLog& b_log_;
   };
@@ -156,11 +166,24 @@ namespace adsim {
   // entering, negative = leaving. The per-stream log records molar flow with a
   // velocity sign (positive = bottom->top), so a TOP endpoint is negated to
   // share the "entering the bed" convention with the rest of the KPI maths.
+  // The quadrature integrals of one endpoint over its step, or nullptr when
+  // the endpoint was not logged or its quadratures were not integrated.
+  inline const EndpointIntegrals* EndpointQuadrature(const adsim::BoundaryLog& b_log, int cycle_index,
+                                                     int step_index, const std::string& endpoint_name) {
+    const StreamData* d = b_log.GetStreamData(cycle_index, step_index, endpoint_name);
+    return (d && d->integrals_.valid) ? &d->integrals_ : nullptr;
+  }
+
   static double EndpointMolesIn(
     const adsim::BoundaryLog& b_log,
     int cycle_index,
-    const KPIEndpointRef& ep
+    const KPIEndpointRef& ep,
+    KPIIntegration integration = KPIIntegration::TRAPEZOID
   ) {
+    if (integration == KPIIntegration::QUADRATURE) {
+      const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, ep.step_index, ep.endpoint_name);
+      return q ? q->NetMolesIn() : std::numeric_limits<double>::quiet_NaN();
+    }
     adsim::BoundaryVariableData d = b_log.GetVariableData(
       cycle_index, ep.step_index, ep.endpoint_name,
       adsim::BoundaryVariableType::MOLAR_FLOW_RATE);
@@ -174,8 +197,13 @@ namespace adsim {
     const adsim::BoundaryLog& b_log,
     int cycle_index,
     const KPIEndpointRef& ep,
-    const std::string& component
+    const std::string& component,
+    KPIIntegration integration = KPIIntegration::TRAPEZOID
   ) {
+    if (integration == KPIIntegration::QUADRATURE) {
+      const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, ep.step_index, ep.endpoint_name);
+      return q ? q->NetComponentMolesIn(component) : std::numeric_limits<double>::quiet_NaN();
+    }
     adsim::BoundaryVariableData d = b_log.GetComponentVariableData(
       cycle_index, ep.step_index, ep.endpoint_name,
       adsim::BoundaryComponentVariableType::MOLAR_FLOW, component);
@@ -334,7 +362,7 @@ namespace adsim {
 
     double moles_in_product = 0.0;
     for (const auto& ep : params.product_endpoints) {
-      double moles_in = EndpointMolesIn(params.b_log_, params.cycle_index_, ep);
+      double moles_in = EndpointMolesIn(params.b_log_, params.cycle_index_, ep, params.integration_);
       moles_in_product += -moles_in;  // leaving = positive product
     }
 
@@ -349,7 +377,7 @@ namespace adsim {
     double product_moles = 0.0;
     for (const auto& ep : params.product_endpoints) {
       double moles_in = EndpointComponentMolesIn(
-        params.b_log_, params.cycle_index_, ep, params.product_comp_);
+        params.b_log_, params.cycle_index_, ep, params.product_comp_, params.integration_);
       product_moles += -moles_in;  // component leaving = positive product
     }
 
@@ -365,7 +393,8 @@ namespace adsim {
 
     double recycled = 0.0;
     for (const auto& ep : params.recycle_endpoints) {
-      recycled += EndpointComponentMolesIn(params.b_log_, params.cycle_index_, ep, params.product_comp_);
+      recycled += EndpointComponentMolesIn(params.b_log_, params.cycle_index_, ep, params.product_comp_,
+                                           params.integration_);
     }
 
     return recycled;
@@ -386,7 +415,7 @@ namespace adsim {
     double component_moles_in_feed = 0.0;
     for (const auto& ep : params.feed_endpoints) {
       double moles_in = EndpointComponentMolesIn(
-        params.b_log_, params.cycle_index_, ep, params.product_comp_);
+        params.b_log_, params.cycle_index_, ep, params.product_comp_, params.integration_);
       component_moles_in_feed += moles_in;  // entering = positive feed
     }
 
@@ -571,6 +600,11 @@ namespace adsim {
     double step_energy = 0.0;
 
     for (const auto& stream_name : stream_name_list) {
+      if (params.integration_ == KPIIntegration::QUADRATURE) {
+        const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, step_idx, stream_name);
+        step_energy += q ? q->energy : std::numeric_limits<double>::quiet_NaN();
+        continue;
+      }
       adsim::BoundaryVariableData data = b_log.GetVariableData(
         cycle_index, 
         step_idx,

@@ -187,6 +187,37 @@ namespace adsim {
     return endpoints;
   }
 
+  std::vector<Step::LoggedEndpoint> Step::LoggedEndpoints() {
+    std::vector<LoggedEndpoint> out;
+    auto add = [&](IBoundaryCondition* bc) {
+      if (!bc) return;
+      if (auto* fbc = dynamic_cast<FlowBoundaryCondition*>(bc)) {
+        for (auto& stream : fbc->streams_) {
+          if (stream) out.push_back({&stream->stream_data_, bc->location_, stream.get(), nullptr});
+        }
+      } else if (auto* pbc = dynamic_cast<PressureBoundaryCondition*>(bc)) {
+        out.push_back({&pbc->stream_data_, bc->location_, nullptr, pbc});
+      }
+    };
+    add(bottom_boundary_condition_.get());
+    add(top_boundary_condition_.get());
+    return out;
+  }
+
+  void Step::SampleEndpoints(const Equations& state, double time, std::vector<EndpointSample>& out) {
+    for (const auto& ep : LoggedEndpoints()) {
+      if (ep.stream) out.push_back(ep.stream->Sample(state, time, ep.location));
+      else if (ep.pressure) out.push_back(ep.pressure->Sample(state, time));
+    }
+  }
+
+  int Step::NumberOfOpenEnds() const {
+    auto open = [](const IBoundaryCondition* bc) {
+      return bc && !dynamic_cast<const ClosedBoundaryCondition*>(bc);
+    };
+    return (open(bottom_boundary_condition_.get()) ? 1 : 0) + (open(top_boundary_condition_.get()) ? 1 : 0);
+  }
+
   std::vector<std::string> Step::GetEndpointNames() const {
     std::vector<std::string> names;
     CollectEndpointNames(top_boundary_condition_.get(), names);

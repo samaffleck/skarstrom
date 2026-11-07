@@ -18,6 +18,7 @@
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpi_history.h"
 #include "adsim/solver/cycle_state.h"
+#include "adsim/solver/kpi_quadrature.h"
 
 // SUNDIALS includes
 #include <ida/ida.h>
@@ -350,6 +351,18 @@ namespace adsim {
     // and IDAGetConsistentIC into y_ / yp_ and the state. Returns false (the
     // integrator is then unusable) if any of these fail.
     bool RestartFromConsistentIC();
+    // ---- KPI quadratures (kpi_quadrature.h) ----
+    // True when the integrator carries the KPI quadrature states
+    // (IDASettings::kpi_quadratures_).
+    bool QuadraturesActive() const { return yQ_ != nullptr; }
+    const KpiQuadratureLayout& QuadratureLayout() const { return quad_layout_; }
+    // Starts the integrals of a new cycle step from zero at the current point.
+    // Call right after RestartForNewStep.
+    void BeginQuadratureStep();
+    // The integrals since the last BeginQuadratureStep, at IDA's current time,
+    // into `out` (resized to the layout). False when the quadratures are off.
+    bool StepQuadratures(std::vector<double>& out) const;
+
     // Raw integrator handles, for the same prototype only.
     void* IdaMemory() const { return ida_mem_; }
     N_Vector StateVector() const { return y_; }
@@ -372,6 +385,9 @@ namespace adsim {
     int ReInit(double t);
     // IDA's own counters since the last IDAInit / IDAReInit.
     IntegrationStats IdaCounters() const;
+    // KPI quadratures: integrals since the last IDAQuadInit / IDAQuadReInit
+    // at time t (zero before the first step since then).
+    void CurrentQuadratures(double t, std::vector<double>& out) const;
 
     // Owns the SUNContext. Declared first so it is destroyed last: every
     // SUNDIALS object below (including those held by jacobian_) is created
@@ -407,6 +423,14 @@ namespace adsim {
     // IDA's counters accumulated over the re-initialisations of this run.
     IntegrationStats stats_carry_{};
     ReInitObserver* reinit_observer_ = nullptr;
+    // KPI quadratures. IDAReInit restarts IDAS's quadrature history too, so
+    // ReInit folds the integrals reached so far into quad_carry_ and restarts
+    // them from zero (IDAQuadReInit); a step's integrals are quad_carry_ plus
+    // IDAS's current ones.
+    N_Vector yQ_ = nullptr;
+    mutable N_Vector yQ_tmp_ = nullptr;
+    KpiQuadratureLayout quad_layout_{};
+    std::vector<double> quad_carry_;
 
   };
 
@@ -540,6 +564,8 @@ namespace adsim {
     std::chrono::steady_clock::time_point run_wall_start_{};
     std::chrono::steady_clock::time_point step_wall_start_{};
     long int ida_steps_before_step_ = 0;
+    // Column inventory at the start of the current step (step mole balance).
+    std::vector<double> step_inventory_start_;
   };
 
 } // end adsim namespace

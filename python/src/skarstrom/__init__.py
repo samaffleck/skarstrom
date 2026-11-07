@@ -168,6 +168,9 @@ __all__ = [
     "exponential",
     "fit_isotherm",
     "ideal_gas_heat_capacity",
+    "ideal_gas_heat_capacity_reference",
+    "ideal_gas_heat_capacity_source",
+    "components_with_held_heat_capacity",
     "isotherm_kinds",
     "isotherm_parameters",
     "linear",
@@ -1086,6 +1089,23 @@ def ideal_gas_heat_capacity(component: str, temperature: float) -> float:
     the value at the nearer limit. ValueError for
     a component without a polynomial (Hexane)."""
     return _core.ideal_gas_heat_capacity(component, float(temperature))
+
+
+def ideal_gas_heat_capacity_reference() -> str:
+    """Literature reference of the ideal-gas heat-capacity polynomials (NASA TM-4513)."""
+    return _core.ideal_gas_heat_capacity_reference()
+
+
+def ideal_gas_heat_capacity_source(component: str) -> Dict[str, str]:
+    """Provenance of ``component``'s polynomial: ``{"species": TM-4513 species label,
+    "source": TM-4513 data-source code}`` (Air: its mixture and mixing note).
+    ValueError for a component without a polynomial (Hexane)."""
+    return dict(_core.ideal_gas_heat_capacity_source(component))
+
+
+def components_with_held_heat_capacity() -> List[str]:
+    """Components without a polynomial; they keep CoolProp's value held at the initial conditions."""
+    return list(_core.components_with_held_heat_capacity())
 
 
 # ---- isotherms -------------------------------------------------------------------
