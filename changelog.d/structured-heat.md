@@ -7,3 +7,4 @@
 - Under LTNE, the whole bed-to-wall flux of a structured layer goes into the solid; the gas share is 0 instead of the open frontal area. Packed layers keep the ε_b split.
 - The deck checks refuse Ruthven and Yagi–Kunii heat dispersion and Dixon and Leva wall coefficients on a structured layer, and the `channel` model on a packed one. The structured-layer warning about these closures is gone; the LTE warning stays.
 - `build::SetLayerKind` to a structured kind installs `channel` heat dispersion and a constant h_i (replacing Dixon or Leva; a constant coefficient keeps its value). Switching back to packed restores constant heat dispersion.
+- New run-start warning: a structured layer whose constant h_i is 0 while the column wall exchanges heat (h_o > 0 or a correlation, a fixed-temperature wall end, or a heating medium) is cut off from the wall; the warning names `layer[ID].internal_htc`.

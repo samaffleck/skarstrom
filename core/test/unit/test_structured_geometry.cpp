@@ -20,6 +20,7 @@
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/simulation.h"
 #include "adsim/solver/deck_warnings.h"
+#include "adsim/solver/cycle.h"
 #include "adsim/equations/dispersion_model.h"
 #include "adsim/equations/mass_transfer_model.h"
 
@@ -296,6 +297,50 @@ namespace {
     d.bed.equations_.thermal_equilibrium_mode_ = ThermalEquilibriumMode::NON_LOCAL;
     w = StructuredLayerWarnings(d.adsorbent_directory, d.bed);
     for (const auto& s : w) ADD_FAILURE() << s;
+  }
+
+  // A structured layer with h_i = 0 next to a wall that exchanges heat is
+  // cut off from it: warn, naming the parameter. An adiabatic wall, a nonzero
+  // h_i or an isothermal run: no warning.
+  TEST(StructuredGeometry, WarningForZeroWallCoefficient) {
+    UserData d;
+    LoadFromJson(d, (kExamples / "Perez2019_A.json").string());
+    d.bed.equations_.thermal_equilibrium_mode_ = ThermalEquilibriumMode::NON_LOCAL;
+    auto& layer = d.bed.layers_.layers_.front();
+    build::SetLayerKind(d, layer.id_, "monolith");
+    auto set_h = [&](double hi, double ho) {
+      for (auto& l : d.bed.layers_.layers_) {
+        auto i = std::make_unique<ConstantInternalHeatTransferModel>();
+        i->heat_transfer_coefficient_ = hi;
+        l.equations_.internal_heat_transfer_model_ = std::move(i);
+        auto o = std::make_unique<ConstantExternalHeatTransferModel>();
+        o->heat_transfer_coefficient_ = ho;
+        l.equations_.external_heat_transfer_model_ = std::move(o);
+      }
+    };
+    auto count = [&](const Cycle* cycle) {
+      size_t n = 0;
+      for (const auto& s : StructuredLayerWarnings(d.adsorbent_directory, d.bed, cycle))
+        if (s.find("internal_htc") != std::string::npos) {
+          ++n;
+          EXPECT_NE(s.find("set layer[" + std::to_string(layer.id_) + "].internal_htc"), std::string::npos) << s;
+        }
+      return n;
+    };
+    d.bed.equations_.wall_temperature_boundary_condition_ =
+        CreateWallTemperatureBoundaryCondition(WallTemperatureBoundaryConditionType::ZERO_FLUX);
+    set_h(0.0, 10.0);
+    EXPECT_EQ(count(nullptr), 1u);
+    set_h(25.0, 10.0);
+    EXPECT_EQ(count(nullptr), 0u);
+    set_h(0.0, 0.0);  // adiabatic wall: nothing is lost
+    EXPECT_EQ(count(nullptr), 0u);
+    Cycle cycle;
+    cycle.AddStep("Heat");
+    cycle.GetStep("Heat").heating_medium_.enabled_ = true;  // a jacket makes the wall exchange heat
+    EXPECT_EQ(count(&cycle), 1u);
+    d.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
+    EXPECT_EQ(count(&cycle), 0u);
   }
 
   // The packed-bed heat closures, which read the particle diameter, are deck

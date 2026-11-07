@@ -60,7 +60,14 @@ namespace adsim {
   // (The packed-bed closures that read the particle diameter, Ruthven axial
   // and heat dispersion, Yagi-Kunii heat dispersion and Dixon or Leva wall
   // coefficients, are deck errors on a structured layer.)
-  std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
+  // - per structured layer whose bed-to-wall coefficient is a constant 0 while
+  //   the column wall is not adiabatic (an outer-face coefficient h_o > 0 or
+  //   a correlation, a fixed-temperature wall end, or, given `cycle`, a step
+  //   with a heating medium): the wall then exchanges no heat with that
+  //   layer. (Switching a layer to a structured kind can leave h_i = 0, the
+  //   constant model's default.) Not for an isothermal run.
+  std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
+                                                   const Cycle* cycle = nullptr);
 
   // Reactions (objects/reaction.h): one warning per solid with reactions that
   // no layer uses (its reactions take no part, and the deck checks skip

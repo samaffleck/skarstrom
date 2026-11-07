@@ -16,6 +16,7 @@
 #include "adsim/equations/isotherm_kinds.h"
 #include "adsim/equations/dispersion_model.h"
 #include "adsim/equations/heat_transfer_model.h"
+#include "adsim/equations/wall_temperature_boundary_condition.h"
 #include "adsim/equations/mass_transfer_model.h"
 
 #include <algorithm>
@@ -196,7 +197,8 @@ namespace adsim {
     return warnings;
   }
 
-  std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed) {
+  std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
+                                                   const Cycle* cycle) {
     (void)adsorbents;
     std::vector<std::string> warnings;
     // The packed-bed heat closures (Ruthven and Yagi-Kunii heat dispersion,
@@ -208,6 +210,33 @@ namespace adsim {
       warnings.push_back("Warning: the bed has a structured layer (monolith or laminate) and uses local thermal"
                          " equilibrium (LTE), which takes heat exchange between the gas and the thin channel walls"
                          " as instantaneous; local thermal non-equilibrium (LTNE) is recommended.");
+
+    // A structured layer cut off from a wall that does exchange heat.
+    if (any_structured && !bed.equations_.IsIsothermal()) {
+      bool wall_exchanges = false;
+      for (const auto& layer : bed.layers_.layers_) {
+        const auto* ho = layer.equations_.external_heat_transfer_model_.get();
+        const auto* c = dynamic_cast<const ConstantExternalHeatTransferModel*>(ho);
+        if (ho && (!c || c->heat_transfer_coefficient_.Get() != 0.0)) wall_exchanges = true;
+      }
+      if (dynamic_cast<const WallTemperatureBoundaryConditionFixed*>(
+              bed.equations_.wall_temperature_boundary_condition_.get()))
+        wall_exchanges = true;
+      if (cycle)
+        for (const auto& step : cycle->step_list_)
+          if (step.heating_medium_.enabled_) wall_exchanges = true;
+      if (wall_exchanges) {
+        for (const auto& layer : bed.layers_.layers_) {
+          if (!layer.IsStructured()) continue;
+          const auto* hi = dynamic_cast<const ConstantInternalHeatTransferModel*>(
+              layer.equations_.internal_heat_transfer_model_.get());
+          if (!hi || hi->heat_transfer_coefficient_.Get() != 0.0) continue;
+          warnings.push_back("Warning: layer '" + layer.name_ + "': the bed-to-wall heat transfer coefficient is 0, so"
+                             " the column wall exchanges no heat with this layer; set layer[" +
+                             std::to_string(layer.id_) + "].internal_htc.");
+        }
+      }
+    }
     return warnings;
   }
 

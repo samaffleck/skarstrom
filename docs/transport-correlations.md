@@ -136,7 +136,7 @@ $$
 
 where $D_c$ is the column (internal) diameter. The film term is valid for roughly $10 < \mathrm{Re} < 1200$.
 
-Dixon's and Leva's correlations are for packed beds (they read the particle diameter): the deck checks refuse them on a structured layer, which uses a constant $h_i$. Switching a layer to a structured kind replaces either with a constant coefficient (default 0, an adiabatic contact, so set it); a constant coefficient keeps its value. In a structured layer the whole bed-to-wall flux passes through the solid ([Wall Energy Balance](wall-energy-balance.md)).
+Dixon's and Leva's correlations are for packed beds (they read the particle diameter): the deck checks refuse them on a structured layer, which uses a constant $h_i$. Switching a layer to a structured kind replaces either with a constant coefficient (default 0, an adiabatic contact, so set it); a constant coefficient keeps its value. At run start the solver warns about a structured layer whose $h_i$ is 0 while the column wall exchanges heat (an outer coefficient $h_o > 0$, a fixed-temperature wall end or a heating medium), naming `layer[ID].internal_htc`. In a structured layer the whole bed-to-wall flux passes through the solid ([Wall Energy Balance](wall-energy-balance.md)).
 
 ---
 
