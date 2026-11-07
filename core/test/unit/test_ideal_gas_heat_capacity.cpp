@@ -67,6 +67,23 @@ TEST(IdealGasHeatCapacity, EveryComponentHasAPolynomialExceptTheHeldOnes) {
   }
 }
 
+TEST(IdealGasHeatCapacity, ProvenanceIsData) {
+  EXPECT_FALSE(kIdealGasHeatCapacityReference.empty());
+  for (const auto& [c, p] : kIdealGasHeatCapacity) {
+    EXPECT_FALSE(p.species.empty()) << c;
+    EXPECT_FALSE(p.source.empty()) << c;
+  }
+  EXPECT_EQ(Fluid::IdealGasCoeffs("Butane")->species, "C4H10,n-butane");
+  EXPECT_EQ(Fluid::IdealGasCoeffs("Butane")->source, "L 6/90");
+  // Held components have no entry, hence no provenance.
+  Fluid f;
+  f.AddComponent("Butane");
+  f.AddComponent("Hexane");
+  InitialConditions ic;
+  f.Initialise(ic);
+  EXPECT_EQ(f.ComponentsWithHeldHeatCapacity(), std::vector<std::string>{"Hexane"});
+}
+
 // The table of docs/equation-of-state.md comes from this test's output.
 TEST(IdealGasHeatCapacity, AgreesWithCoolPropIdealGasHeatCapacity) {
   std::printf("| Component | Fit range [K] | Compared [K] | Max error | at [K] | C_p0(298.15 K) [J/(mol K)] |\n");
