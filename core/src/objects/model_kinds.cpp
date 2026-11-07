@@ -157,26 +157,34 @@ const std::vector<K>& Streams() {
 }
 
 const std::vector<K>& Profiles() {
+  // Labels are what the registry appends to the profiled value's name:
+  // "inlet temperature (linear end)".
   const char* q = kProfileQuantityUnit;
   static const std::vector<K> k{
       {"constant", "Constant", {{"value", q, 1e5, 0.0, 0.0}}},
-      {"linear", "Linear", {{"start", q, 1.0, 0.0, 0.0}, {"end", q, 1e5, 0.0, 0.0}, {"time", "s", 1.0, 0.0, 1e4}}},
+      {"linear",
+       "Linear",
+       {{"start", q, 1.0, 0.0, 0.0, true, "linear start"},
+        {"end", q, 1e5, 0.0, 0.0, true, "linear end"},
+        {"time", "s", 1.0, 0.0, 1e4, true, "linear ramp time"}}},
       {"exponential",
        "Exponential",
-       {{"start", q, 1.0, 0.0, 0.0},
-        {"end", q, 1e5, 0.0, 0.0},
-        {"time", "s", 1.0, 0.0, 1e4},
-        {"factor", "-", 100.0, 1.01, 1e6}}},
+       {{"start", q, 1.0, 0.0, 0.0, true, "exponential start"},
+        {"end", q, 1e5, 0.0, 0.0, true, "exponential end"},
+        {"time", "s", 1.0, 0.0, 1e4, true, "exponential ramp time"},
+        {"factor", "-", 100.0, 1.01, 1e6, true, "exponential factor"}}},
       {"log_linear",
        "Log-linear",
-       {{"start", q, 1.0, 0.0, 0.0}, {"end", q, 1e5, 0.0, 0.0}, {"time", "s", 1.0, 0.0, 1e4}}},
+       {{"start", q, 1.0, 0.0, 0.0, true, "log-linear start"},
+        {"end", q, 1e5, 0.0, 0.0, true, "log-linear end"},
+        {"time", "s", 1.0, 0.0, 1e4, true, "log-linear ramp time"}}},
       {"double_exponential",
        "Double exponential",
-       {{"start", q, 1.0, 0.0, 0.0},
-        {"end", q, 1e5, 0.0, 0.0},
-        {"rate_1", "1/s", 0.02, 0.0, 10.0},
-        {"rate_2", "1/s", 0.1, 0.0, 10.0},
-        {"weight", "-", 0.5, 0.0, 1.0}}},
+       {{"start", q, 1.0, 0.0, 0.0, true, "double-exponential start"},
+        {"end", q, 1e5, 0.0, 0.0, true, "double-exponential end"},
+        {"rate_1", "1/s", 0.02, 0.0, 10.0, true, "double-exponential rate 1"},
+        {"rate_2", "1/s", 0.1, 0.0, 10.0, true, "double-exponential rate 2"},
+        {"weight", "-", 0.5, 0.0, 1.0, true, "double-exponential weight of term 1"}}},
   };
   return k;
 }
@@ -186,9 +194,9 @@ const std::vector<K>& Flows() {
   // profile takes.
   static const std::vector<K> k{
       {"velocity", "Velocity", {{"velocity", "m/s", 0.0, 0.0, 10.0}}},
-      {"volumetric_flow", "Volumetric flow", {{"volumetric_flow", "m3/s", 0.0, 0.0, 1.0}}},
-      {"molar_flow", "Molar flow", {{"molar_flow", "mol/s", 0.0, 0.0, 100.0}}},
-      {"mass_flow", "Mass flow", {{"mass_flow", "kg/s", 0.0, 0.0, 10.0}}},
+      {"volumetric_flow", "Volumetric flow", {{"volumetric_flow", "m3/s", 0.0, 0.0, 1.0, true, "volumetric flow"}}},
+      {"molar_flow", "Molar flow", {{"molar_flow", "mol/s", 0.0, 0.0, 100.0, true, "molar flow"}}},
+      {"mass_flow", "Mass flow", {{"mass_flow", "kg/s", 0.0, 0.0, 10.0, true, "mass flow"}}},
   };
   return k;
 }
@@ -484,12 +492,18 @@ std::vector<IsothermKindDescriptor> BuildIsothermKinds() {
               T::EXTENDED_DUAL_SITE_LANGMUIR_C, T::EXTENDED_SIPS_2, T::ARRHENIUS_SIPS, T::EXTENDED_LANGMUIR_FREUNDLICH})
     k[static_cast<std::size_t>(t)].competitive = true;
   for (T t : {T::TOTH_WADST, T::TOTH_HUMID}) k[static_cast<std::size_t>(t)].water_coupled = true;
-  // The isotherm fitter's kinds, and those whose temperature dependence it fits.
+  // The isotherm fitter's kinds (in its list order), and those whose
+  // temperature dependence it fits.
+  int fit_n = 0;
   for (T t : {T::HENRY, T::SINGLE_SITE_LANGMUIR_P, T::DUAL_SITE_LANGMUIR_P, T::SINGLE_SITE_LANGMUIR_C,
               T::DUAL_SITE_LANGMUIR_C, T::EXTENDED_SINGLE_SITE_LANGMUIR_P, T::EXTENDED_DUAL_SITE_LANGMUIR_P,
               T::FREUNDLICH, T::SIPS, T::DUAL_SITE_SIPS, T::TOTH, T::SIPS_2, T::EXTENDED_SIPS_2, T::TOTH_2, T::GAB,
               T::GAB_YOUNG, T::TOTH_WADST, T::TOTH_HUMID})
-    k[static_cast<std::size_t>(t)].fittable = true;
+  {
+    auto& d = k[static_cast<std::size_t>(t)];
+    d.fittable = true;
+    d.fit_order = ++fit_n;
+  }
   for (T t : {T::HENRY, T::SINGLE_SITE_LANGMUIR_P, T::DUAL_SITE_LANGMUIR_P, T::SINGLE_SITE_LANGMUIR_C,
               T::DUAL_SITE_LANGMUIR_C, T::EXTENDED_SINGLE_SITE_LANGMUIR_P, T::EXTENDED_DUAL_SITE_LANGMUIR_P,
               T::SIPS_2, T::EXTENDED_SIPS_2, T::TOTH_2, T::GAB, T::GAB_YOUNG, T::TOTH_WADST, T::TOTH_HUMID})

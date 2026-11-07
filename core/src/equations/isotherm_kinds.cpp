@@ -6,42 +6,18 @@
  */
 #include "adsim/equations/isotherm_kinds.h"
 #include "adsim/math/constants.h"
+#include "adsim/objects/model_kinds.h"
 
 #include <cmath>
 #include <limits>
 
 namespace adsim {
 
+// Tags and flags come from the kind descriptors (objects/model_kinds.h).
 const char* IsothermKindString(IsothermType t) {
-  using T = IsothermType;
-  switch (t) {
-    case T::INERT: return "inert";
-    case T::HENRY: return "henry";
-    case T::SINGLE_SITE_LANGMUIR_P: return "single_site_langmuir_p";
-    case T::DUAL_SITE_LANGMUIR_P: return "dual_site_langmuir_p";
-    case T::SINGLE_SITE_LANGMUIR_C: return "single_site_langmuir_c";
-    case T::DUAL_SITE_LANGMUIR_C: return "dual_site_langmuir_c";
-    case T::EXTENDED_SINGLE_SITE_LANGMUIR_P: return "extended_single_site_langmuir_p";
-    case T::EXTENDED_DUAL_SITE_LANGMUIR_P: return "extended_dual_site_langmuir_p";
-    case T::EXTENDED_SINGLE_SITE_LANGMUIR_C: return "extended_single_site_langmuir_c";
-    case T::EXTENDED_DUAL_SITE_LANGMUIR_C: return "extended_dual_site_langmuir_c";
-    case T::ANTI_LANGMUIR: return "anti_langmuir";
-    case T::FREUNDLICH: return "freundlich";
-    case T::SIPS: return "sips";
-    case T::SIPS_2: return "sips_2";
-    case T::EXTENDED_SIPS_2: return "extended_sips_2";
-    case T::DUAL_SITE_SIPS: return "dual_site_sips";
-    case T::REDLICH_PETERSON: return "redlich_peterson";
-    case T::TOTH: return "toth";
-    case T::TOTH_2: return "toth_2";
-    case T::ARRHENIUS_SIPS: return "arrhenius_sips";
-    case T::EXTENDED_LANGMUIR_FREUNDLICH: return "extended_langmuir_freundlich";
-    case T::GAB: return "gab";
-    case T::GAB_YOUNG: return "gab_young";
-    case T::TOTH_WADST: return "toth_wadst";
-    case T::TOTH_HUMID: return "toth_humid";
-  }
-  return "unknown";
+  const auto& all = IsothermKindDescriptors();
+  const auto i = static_cast<std::size_t>(t);
+  return i < all.size() ? all[i].tag.c_str() : "unknown";
 }
 
 std::vector<std::pair<std::string, ExpressionParam*>>
@@ -266,57 +242,20 @@ bool IsSupportedIsothermKind(IsothermType t) {
 }
 
 bool IsCompetitiveIsothermKind(IsothermType t) {
-  using T = IsothermType;
-  switch (t) {
-    case T::EXTENDED_SINGLE_SITE_LANGMUIR_P:
-    case T::EXTENDED_SINGLE_SITE_LANGMUIR_C:
-    case T::EXTENDED_DUAL_SITE_LANGMUIR_P:
-    case T::EXTENDED_DUAL_SITE_LANGMUIR_C:
-    case T::EXTENDED_SIPS_2:
-    case T::ARRHENIUS_SIPS:
-    case T::EXTENDED_LANGMUIR_FREUNDLICH:
-      return true;
-    case T::INERT:
-    case T::HENRY:
-    case T::SINGLE_SITE_LANGMUIR_P:
-    case T::SINGLE_SITE_LANGMUIR_C:
-    case T::DUAL_SITE_LANGMUIR_P:
-    case T::DUAL_SITE_LANGMUIR_C:
-    case T::FREUNDLICH:
-    case T::SIPS:
-    case T::TOTH:
-    case T::ANTI_LANGMUIR:
-    case T::REDLICH_PETERSON:
-    case T::SIPS_2:
-    case T::DUAL_SITE_SIPS:
-    case T::TOTH_2:
-    case T::GAB:
-    case T::GAB_YOUNG:
-    case T::TOTH_WADST:
-    case T::TOTH_HUMID:
-      return false;
-  }
-  return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
+  const auto i = static_cast<std::size_t>(t);
+  return i < IsothermKindDescriptors().size() && IsothermKindDescriptors()[i].competitive;
 }
 
 bool IsWaterCoupledIsothermKind(IsothermType t) {
-  return t == IsothermType::TOTH_WADST || t == IsothermType::TOTH_HUMID;
+  const auto i = static_cast<std::size_t>(t);
+  return i < IsothermKindDescriptors().size() && IsothermKindDescriptors()[i].water_coupled;
 }
 
 bool PairedIsothermKind(IsothermType t, IsothermType& out) {
-  using T = IsothermType;
-  static constexpr std::pair<T, T> kPairs[] = {
-      {T::SINGLE_SITE_LANGMUIR_P, T::EXTENDED_SINGLE_SITE_LANGMUIR_P},
-      {T::SINGLE_SITE_LANGMUIR_C, T::EXTENDED_SINGLE_SITE_LANGMUIR_C},
-      {T::DUAL_SITE_LANGMUIR_P, T::EXTENDED_DUAL_SITE_LANGMUIR_P},
-      {T::DUAL_SITE_LANGMUIR_C, T::EXTENDED_DUAL_SITE_LANGMUIR_C},
-      {T::SIPS_2, T::EXTENDED_SIPS_2},
-  };
-  for (const auto& [pure, competitive] : kPairs) {
-    if (t == pure) { out = competitive; return true; }
-    if (t == competitive) { out = pure; return true; }
-  }
-  return false;
+  const auto i = static_cast<std::size_t>(t);
+  if (i >= IsothermKindDescriptors().size() || !IsothermKindDescriptors()[i].has_pair) return false;
+  out = IsothermKindDescriptors()[i].pair;
+  return true;
 }
 
 bool KindFromString(const std::string& kind, IsothermType& out) {

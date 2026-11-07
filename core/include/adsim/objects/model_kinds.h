@@ -124,6 +124,7 @@ struct IsothermKindDescriptor : KindDescriptor {
   bool competitive = false;     // IsCompetitiveIsothermKind
   bool water_coupled = false;   // IsWaterCoupledIsothermKind
   bool fittable = false;        // offered by the isotherm fitter (isotherm_fit.h)
+  int fit_order = 0;            // position in the fitter's kind list (FittableKinds), from 1
   bool temperature_dependent = false;  // the fitter can identify a T dependence
   bool has_pair = false;        // PairedIsothermKind
   IsothermType pair = IsothermType::INERT;
