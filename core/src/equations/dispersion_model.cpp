@@ -124,6 +124,20 @@ namespace adsim {
     }
   }
 
+	void HeatDispersionModelChannel::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+		auto& Lam = state.axial_thermal_conductivity.var;
+		const auto& kg = state.fluid_thermal_conductivity.var;
+		const auto& dv = state.domain_vectors;
+		const auto& ofa = dv.eb;                  // the open frontal area of a structured layer
+		const auto& lambda_s = dv.solid_conductivity;  // (1 - OFA) k_s; 0 in a packed layer
+		// LTE lumps the solid's conduction into the one energy balance; LTNE
+		// gives it to the solid energy balance (UpdateSolidTemperature).
+		const bool lte = dv.local_thermal_equilibrium;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
+			Lam[n] = ofa[n] * kg[n] + (lte ? lambda_s[n] : 0.0);
+		}
+	}
+
 } // end adsim namespace
 
 
@@ -135,6 +149,7 @@ CEREAL_REGISTER_TYPE(adsim::DispersionModelRuthven)
 CEREAL_REGISTER_TYPE(adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelYagiandKunii)
+CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelChannel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelConstant)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelConstant)
 // CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelWakaoAndFunazkri)
@@ -142,4 +157,5 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionM
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelYagiandKunii)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelChannel)
 // CEREAL_CLASS_VERSION(adsim::DispersionModelWakaoAndFunazkri, 1);

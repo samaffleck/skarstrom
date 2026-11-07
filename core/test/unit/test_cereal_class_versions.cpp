@@ -119,6 +119,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::DispersionModelTaylorAris, 1),
       ADSIM_PIN(adsim::HeatDispersionModelRuthven, 1),
       ADSIM_PIN(adsim::HeatDispersionModelYagiandKunii, 1),
+      ADSIM_PIN(adsim::HeatDispersionModelChannel, 1),
       ADSIM_PIN(adsim::ConstantParticleHeatTransferModel, 1),
       ADSIM_PIN(adsim::ConstantInternalHeatTransferModel, 1),
       ADSIM_PIN(adsim::InternalHeatTransferModel_Dixon, 1),

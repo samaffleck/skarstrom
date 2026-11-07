@@ -562,6 +562,7 @@ namespace adsim {
 
     const auto& et = state.domain_vectors.et;
     const auto& eb = state.domain_vectors.eb;
+    const auto& wall_gas_share = state.domain_vectors.wall_gas_share;
     const auto& dV = state.domain_vectors.volume;
     const auto& dx = state.domain_vectors.cell_width;
     const auto& A = state.domain_vectors.area;
@@ -597,11 +598,13 @@ namespace adsim {
       double Acc = dV[i] * Cfluid * ddt_T[i];
 
       // Bed-to-wall exchange over the internal wall area pi*di*dx (= 4*dV/di).
-      // In LTNE the wall contact is split by the bed voidage: the gas carries
-      // the eb share, the solid the (1 - eb) share (see UpdateSolidTemperature
-      // and the NON_LOCAL branch of UpdateWallTemperature, which absorbs the sum).
+      // In LTNE the wall contact is split: the gas carries the share
+      // wall_gas_share (eb in a packed bed, 0 in a structured layer, whose gas
+      // reaches the column wall only through the channel walls), the solid the
+      // rest (see UpdateSolidTemperature and the NON_LOCAL branch of
+      // UpdateWallTemperature, which absorbs the sum).
       double Hi = 4 * hi[i] * dV[i] / di[i];
-      double Hw = eb[i] * Hi * (T[i] - Tw[i]);
+      double Hw = wall_gas_share[i] * Hi * (T[i] - Tw[i]);
 
       // Gas-to-solid heat transfer (hp is volumetric: W/(m3.K))
       double Hp = hp[i] * dV[i] * (T[i] - Ts[i]);
@@ -666,6 +669,8 @@ namespace adsim {
     const auto& A = state.domain_vectors.area;
     const auto& rho_b = state.domain_vectors.bulk_density;
     const auto& eb = state.domain_vectors.eb;
+    const auto& wall_gas_share = state.domain_vectors.wall_gas_share;
+    const auto& lambda_s = state.domain_vectors.solid_conductivity;
     const auto& di = state.domain_vectors.di;
     const auto& cell_ads = state.domain_vectors.cell_adsorbents;
 
@@ -679,6 +684,27 @@ namespace adsim {
     const InternalExchanger exchanger = ActiveInternalExchanger(udata);
 
     const auto& is_void = state.domain_vectors.is_void_cell;
+    const int first_bed = bed.GetFirstBedCellIndex();
+    const int last_bed = bed.GetLastBedCellIndex();
+
+    // Axial conduction through the solid of a structured layer, whose channel
+    // walls are continuous along the column (packed and void cells have
+    // lambda_s = 0). The conductance of the face between cells j and j + 1 is
+    // that of the two half cells in series,
+    //   G = 1 / (dx_j / (2 lambda_j) + dx_{j+1} / (2 lambda_{j+1})),
+    // which on a uniform grid is the harmonic face mean of lambda over dx; it
+    // is 0 on any face touching a packed or void cell, and the bed-end faces
+    // carry no flux. A bed without a structured layer skips the term, so its
+    // residual is unchanged.
+    bool any_solid_conduction = false;
+    for (int i = first_bed; i <= last_bed && i < N; ++i) any_solid_conduction = any_solid_conduction || lambda_s[i] > 0.0;
+    auto solid_face_conductance = [&](int j) {  // face between cells j and j + 1 [W/(m2-K)]
+      if (j < first_bed || j + 1 > last_bed) return 0.0;
+      const double lw = lambda_s[j], le = lambda_s[j + 1];
+      if (!(lw > 0.0) || !(le > 0.0)) return 0.0;
+      return 1.0 / (0.5 * dx[j] / lw + 0.5 * dx[j + 1] / le);
+    };
+
     for (int i = 1; i < N - 1; ++i) {
       if (i < (int)is_void.size() && is_void[i]) continue;  // void cells: Ts is not part of the state vector
 
@@ -701,10 +727,11 @@ namespace adsim {
 
       double Acc = dV[i] * Csolid * ddt_Ts[i];
 
-      // Solid share (1 - eb) of the bed-to-wall exchange; the gas carries the
-      // eb share in UpdateFluidTemperature, and the wall absorbs the sum.
+      // Solid share of the bed-to-wall exchange (1 - eb packed, all of it in a
+      // structured layer); the gas carries the rest in UpdateFluidTemperature,
+      // and the wall absorbs the sum.
       double Hi = 4 * hi[i] * dV[i] / di[i];
-      double Hw = (1.0 - eb[i]) * Hi * (Ts[i] - Tw[i]);
+      double Hw = (1.0 - wall_gas_share[i]) * Hi * (Ts[i] - Tw[i]);
 
       res_Ts[i] =
         Acc
@@ -712,14 +739,18 @@ namespace adsim {
         + Hw
         - Se;
 
+      if (any_solid_conduction) {
+        const double q_e = solid_face_conductance(i) * (Ts[i + 1] - Ts[i]);      // [W/m2], into cell i
+        const double q_w = solid_face_conductance(i - 1) * (Ts[i] - Ts[i - 1]);  // [W/m2], out of cell i
+        res_Ts[i] -= (q_e - q_w) * A[i];
+      }
+
       if (exchanger.ua > 0.0)
         res_Ts[i] -= (1.0 - eb[i]) * exchanger.ua * dV[i] * (exchanger.T_m - Ts[i]);
     }
 
     // Ghost cells mirror the first/last *bed* cell. When voids are disabled
     // first_bed = 1 and last_bed = N-2 so this matches the legacy behaviour.
-    const int first_bed = bed.GetFirstBedCellIndex();
-    const int last_bed = bed.GetLastBedCellIndex();
     res_Ts[0] = Ts[0] - Ts[first_bed];
     res_Ts[N - 1] = Ts[N - 1] - Ts[last_bed];
   }
@@ -760,7 +791,7 @@ namespace adsim {
     const auto& dV = state.domain_vectors.volume;
     const auto& dx = state.domain_vectors.cell_width;
     const auto& A = state.domain_vectors.area;
-    const auto& eb = state.domain_vectors.eb;
+    const auto& wall_gas_share = state.domain_vectors.wall_gas_share;
     const auto& kw = state.domain_vectors.kw;
     const auto& Cpw = state.domain_vectors.Cpw;
     const auto& rho_w = state.domain_vectors.rho_w;
@@ -799,7 +830,8 @@ namespace adsim {
       // Internal heat flux: in LTNE (local thermal non-equilibrium), split between fluid (eb) and solid (1-eb)
       double flux_i;
       if (thermal_mode == ThermalEquilibriumMode::NON_LOCAL) {
-        flux_i = 4 * d_i[i] * hi[i] * (eb[i] * (Tf[i] - Tw[i]) + (1.0 - eb[i]) * (Ts[i] - Tw[i])) / denominator;
+        const double g = wall_gas_share[i];  // eb packed, 0 structured (UpdateFluidTemperature)
+        flux_i = 4 * d_i[i] * hi[i] * (g * (Tf[i] - Tw[i]) + (1.0 - g) * (Ts[i] - Tw[i])) / denominator;
       } else {
         flux_i = 4 * d_i[i] * hi[i] * (Tf[i] - Tw[i]) / denominator;
       }

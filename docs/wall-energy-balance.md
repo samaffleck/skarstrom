@@ -13,11 +13,13 @@ $$
 {}- \frac{4\thinspace d_o\thinspace h_o}{d_o^2 - d_i^2}\left(T_w - T_{amb}\right)
 $$
 
-With local thermal non-equilibrium, the bed side of the exchange is split between the gas and the solid in proportion to the bed voidage:
+With local thermal non-equilibrium, the bed side of the exchange is split between the gas and the solid, the gas taking the share $g$:
 
 $$
-\frac{4\thinspace d_i\thinspace h_i}{d_o^2 - d_i^2}\Big[\varepsilon_b\left(T - T_w\right) + \left(1-\varepsilon_b\right)\left(T_s - T_w\right)\Big]
+\frac{4\thinspace d_i\thinspace h_i}{d_o^2 - d_i^2}\Big[g\left(T - T_w\right) + \left(1-g\right)\left(T_s - T_w\right)\Big]
 $$
+
+In a packed bed $g = \varepsilon_b$, in proportion to the bed voidage. In a structured layer (monolith or laminate) $g = 0$: the gas flows in channels whose walls touch the column wall, so the whole exchange passes through the solid.
 
 The same exchange appears with the opposite sign in the bed's [energy balance](energy-balance.md) as $\tfrac{4 h_i}{d_i}(T - T_w)$ per unit bed volume. Both terms describe the same heat flow through the same area, so the heat the wall absorbs is exactly the heat the bed loses.
 
@@ -33,6 +35,7 @@ The same exchange appears with the opposite sign in the bed's [energy balance](e
 | $h_i$            | Bed-to-wall (internal) heat transfer coefficient        | W m⁻² K⁻¹      | layer internal heat transfer model |
 | $h_o$            | Wall-to-ambient (external) heat transfer coefficient    | W m⁻² K⁻¹      | layer external heat transfer model |
 | $\varepsilon_b$  | Bed voidage                                             | –              | layer properties |
+| $g$              | Gas share of the wall exchange under LTNE: $\varepsilon_b$ packed, 0 structured | – | layer kind |
 
 Notes:
 

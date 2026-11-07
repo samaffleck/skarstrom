@@ -40,9 +40,44 @@ namespace adsim {
     }
     if (!geometry_ok) return false;
 
-    // Dispersion closures that belong to one kind of layer: Ruthven's packed-
-    // bed correlation on a structured layer (Taylor-Aris replaces it), and
-    // Taylor-Aris on a packed bed (it needs channels).
+    // Closures that belong to one kind of layer. On a structured layer:
+    // Ruthven's packed-bed dispersion (Taylor-Aris replaces it), Ruthven's and
+    // Yagi-Kunii's packed-bed heat dispersion (channel conduction replaces
+    // them) and Dixon's and Leva's packed-bed wall coefficients (a constant
+    // h_i replaces them). On a packed bed: Taylor-Aris dispersion and channel
+    // conduction (they need channels).
+    for (const auto& layer : layers_.layers_) {
+      const std::string kind = LayerKindList[static_cast<int>(layer.kind_)];
+      const auto* heat = layer.equations_.heat_dispersion_model_.get();
+      const auto* wall = layer.equations_.internal_heat_transfer_model_.get();
+      if (layer.IsStructured()) {
+        const char* packed_closure = nullptr;
+        const char* replacement = nullptr;
+        if (dynamic_cast<const HeatDispersionModelRuthven*>(heat)) {
+          packed_closure = "Ruthven's packed-bed heat dispersion";
+          replacement = "use channel conduction (channel) or a constant axial conductivity";
+        } else if (dynamic_cast<const HeatDispersionModelYagiandKunii*>(heat)) {
+          packed_closure = "Yagi and Kunii's packed-bed heat dispersion";
+          replacement = "use channel conduction (channel) or a constant axial conductivity";
+        } else if (dynamic_cast<const InternalHeatTransferModel_Dixon*>(wall)) {
+          packed_closure = "Dixon's packed-bed wall heat transfer coefficient";
+          replacement = "use a constant coefficient";
+        } else if (dynamic_cast<const InternalHeatTransferModel_Leva*>(wall)) {
+          packed_closure = "Leva's packed-bed wall heat transfer coefficient";
+          replacement = "use a constant coefficient";
+        }
+        if (packed_closure) {
+          errorMsg += "Error: Layer \"" + layer.name_ + "\" is a " + kind + " but uses " + packed_closure +
+                      ", which reads the particle diameter; " + replacement + ".\n";
+          return false;
+        }
+      } else if (dynamic_cast<const HeatDispersionModelChannel*>(heat)) {
+        errorMsg += "Error: Layer \"" + layer.name_ + "\" is a packed bed but uses channel heat conduction, which is"
+                    " for monoliths and laminates; use Ruthven or Yagi-Kunii heat dispersion or a constant axial"
+                    " conductivity.\n";
+        return false;
+      }
+    }
     for (const auto& layer : layers_.layers_) {
       const auto* disp = layer.equations_.dispersion_model_.get();
       if (layer.IsStructured() && dynamic_cast<const DispersionModelRuthven*>(disp)) {

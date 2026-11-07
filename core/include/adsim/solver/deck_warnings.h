@@ -53,16 +53,21 @@ namespace adsim {
   // run). Layer composition errors stop the run in the deck checks instead.
   std::vector<std::string> LayerCompositionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
 
-  // Structured layers (monolith, laminate; porous_media.h), one warning each:
-  // - local thermal equilibrium (LTE) in a bed with a structured layer: the
-  //   thin walls exchange heat with the gas through the channel film, which
-  //   LTE takes as infinitely fast; LTNE is recommended.
-  // - per structured layer, the packed-bed closures it still uses, which read
-  //   the particle diameter and have no channel form yet: Ruthven or
-  //   Yagi-Kunii heat dispersion, Dixon or Leva internal heat transfer.
-  //   (Ruthven axial dispersion on a structured layer is a deck error; the
-  //   rate coefficients and gas-solid heat transfer use the channel geometry.)
-  std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
+  // Structured layers (monolith, laminate; porous_media.h): one warning for
+  // local thermal equilibrium (LTE) in a bed with a structured layer: the
+  // thin walls exchange heat with the gas through the channel film, which
+  // LTE takes as infinitely fast; LTNE is recommended.
+  // (The packed-bed closures that read the particle diameter, Ruthven axial
+  // and heat dispersion, Yagi-Kunii heat dispersion and Dixon or Leva wall
+  // coefficients, are deck errors on a structured layer.)
+  // - per structured layer whose bed-to-wall coefficient is a constant 0 while
+  //   the column wall is not adiabatic (an outer-face coefficient h_o > 0 or
+  //   a correlation, a fixed-temperature wall end, or, given `cycle`, a step
+  //   with a heating medium): the wall then exchanges no heat with that
+  //   layer. (Switching a layer to a structured kind can leave h_i = 0, the
+  //   constant model's default.) Not for an isothermal run.
+  std::vector<std::string> StructuredLayerWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
+                                                   const Cycle* cycle = nullptr);
 
   // Reactions (objects/reaction.h): one warning per solid with reactions that
   // no layer uses (its reactions take no part, and the deck checks skip

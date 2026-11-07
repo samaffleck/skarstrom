@@ -190,7 +190,7 @@ const std::vector<std::string>& DispersionKinds() {
   return k;
 }
 const std::vector<std::string>& HeatDispersionKinds() {
-  static const std::vector<std::string> k{"constant", "ruthven", "yagi_kunii"};
+  static const std::vector<std::string> k{"constant", "ruthven", "yagi_kunii", "channel"};
   return k;
 }
 const std::vector<std::string>& InternalHeatTransferKinds() {
@@ -515,6 +515,11 @@ void SetLayerKind(UserData& data, size_t layer, const std::string& kind) {
     auto ta = std::make_unique<DispersionModelTaylorAris>();
     if (auto* r = dynamic_cast<DispersionModelRuthven*>(l.equations_.dispersion_model_.get())) ta->Dm = r->Dm;
     l.equations_.dispersion_model_ = std::move(ta);
+    // Channel heat conduction, and a constant wall coefficient in place of a
+    // packed-bed correlation (Dixon, Leva); a constant one keeps its value.
+    l.equations_.heat_dispersion_model_ = std::make_unique<HeatDispersionModelChannel>();
+    if (!dynamic_cast<ConstantInternalHeatTransferModel*>(l.equations_.internal_heat_transfer_model_.get()))
+      l.equations_.internal_heat_transfer_model_ = std::make_unique<ConstantInternalHeatTransferModel>();
     if (particle_type() != static_cast<int>(ParticleHeatTransferType::FILM))
       bed_eqs.particle_heat_transfer_model_ = CreateParticleHeatTransferModel(ParticleHeatTransferType::FILM);
   } else if (!l.IsStructured()) {
@@ -522,6 +527,8 @@ void SetLayerKind(UserData& data, size_t layer, const std::string& kind) {
     // model; the constant gas-solid model once no structured layer remains).
     if (dynamic_cast<DispersionModelTaylorAris*>(l.equations_.dispersion_model_.get()))
       l.equations_.dispersion_model_ = std::make_unique<DispersionModelConstant>();
+    if (dynamic_cast<HeatDispersionModelChannel*>(l.equations_.heat_dispersion_model_.get()))
+      l.equations_.heat_dispersion_model_ = std::make_unique<HeatDispersionModelConstant>();
     bool any_structured = false;
     for (const auto& other : data.bed.layers_.layers_) any_structured = any_structured || other.IsStructured();
     if (!any_structured && particle_type() == static_cast<int>(ParticleHeatTransferType::FILM))

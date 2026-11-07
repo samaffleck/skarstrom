@@ -84,6 +84,22 @@ $$
 | $k_g, k_s$ | Gas and solid thermal conductivity | W m⁻¹ K⁻¹ |
 | $\mathrm{Pr}, \mathrm{Re}$ | Prandtl and Reynolds numbers | - |
 
+Ruthven's and Yagi and Kunii's correlations are for packed beds: the deck checks refuse them on a structured layer.
+
+### Channel conduction (structured layers)
+
+In a monolith or laminate the gas and the channel walls run side by side along the column, so axial heat flows through the two in parallel, each over its share of the cross-section (the parallel arrangement of the effective conductivity of a two-phase medium, which is exact for straight channels whose walls are continuous along the flow; see e.g. Kaviany 1995):
+
+$$
+\text{LTNE:}\quad \lambda_f = \phi\thinspace k_g, \qquad \lambda_s = (1-\phi)\thinspace k_s
+$$
+
+$$
+\text{LTE:}\quad \lambda = \phi\thinspace k_g + (1-\phi)\thinspace k_s
+$$
+
+with $\phi$ the open frontal area and $k_s$ the layer's effective solid conductivity (the solid-volume-weighted conductivity of its solids). Under local thermal non-equilibrium $\lambda_f$ is the gas equation's conductivity and $\lambda_s$ conducts in the [solid energy balance](energy-balance.md#solid-conduction-in-structured-layers); under local thermal equilibrium the single temperature sees their sum. Thermal Taylor dispersion in the channels is left out, as it is small at the channel Péclet numbers of adsorption contactors. The model takes no input. The deck checks refuse it on a packed layer, and switching a layer to a structured kind (`build::SetLayerKind`) installs it.
+
 ---
 
 ## Internal Heat Transfer Coefficient
@@ -119,6 +135,8 @@ $$
 $$
 
 where $D_c$ is the column (internal) diameter. The film term is valid for roughly $10 < \mathrm{Re} < 1200$.
+
+Dixon's and Leva's correlations are for packed beds (they read the particle diameter): the deck checks refuse them on a structured layer, which uses a constant $h_i$. Switching a layer to a structured kind replaces either with a constant coefficient (default 0, an adiabatic contact, so set it); a constant coefficient keeps its value. At run start the solver warns about a structured layer whose $h_i$ is 0 while the column wall exchanges heat (an outer coefficient $h_o > 0$, a fixed-temperature wall end or a heating medium), naming `layer[ID].internal_htc`. In a structured layer the whole bed-to-wall flux passes through the solid ([Wall Energy Balance](wall-energy-balance.md)).
 
 ---
 
@@ -189,5 +207,6 @@ with Sc in place of Pr for Sh. The Reynolds number of a structured layer is the 
 - R. Aris, Proc. R. Soc. Lond. A 235 (1956) 67–77: the molecular term and the parallel-plate result.
 - N. Wakao and T. Funazkri, Chem. Eng. Sci. 33 (1978) 1375–1384: the packed-bed film correlation.
 - E. Glueckauf, Trans. Faraday Soc. 51 (1955) 1540–1551: the linear driving force, [Kinetic Models](kinetic-models.md).
+- M. Kaviany, *Principles of Heat Transfer in Porous Media*, 2nd ed., Springer, 1995: the parallel arrangement of the effective thermal conductivity, the channel conduction model above (the section is to be confirmed).
 
-The verification tests `StructuredTransfer.*` check each closure against these results, and check a parallel-passage breakthrough against the moment analysis of the LDF model ([Verification](verification.md)).
+The verification tests `StructuredTransfer.*` check each closure against these results, and check a parallel-passage breakthrough against the moment analysis of the LDF model; `StructuredHeat.*` check the heat closures ([Verification](verification.md)).

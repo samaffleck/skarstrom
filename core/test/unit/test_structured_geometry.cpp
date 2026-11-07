@@ -14,11 +14,13 @@
 #include <gtest/gtest.h>
 
 #include "adsim/objects/deck_builder.h"
+#include "adsim/objects/deck_io.h"
 #include "adsim/objects/porous_media.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/simulation.h"
 #include "adsim/solver/deck_warnings.h"
+#include "adsim/solver/cycle.h"
 #include "adsim/equations/dispersion_model.h"
 #include "adsim/equations/mass_transfer_model.h"
 
@@ -209,8 +211,13 @@ namespace {
       EXPECT_TRUE(mono.count(lp + f)) << f;
     for (const char* f : {"bed_void_fraction", "momentum_model", "sheet_thickness", "gap"})
       EXPECT_FALSE(mono.count(lp + f)) << f;
-    // Still read by the packed-bed transfer closures, so still listed.
+    // Kept listed (an existing path), though no accepted closure reads it.
     EXPECT_TRUE(mono.count(lp + "particle_diameter"));
+    // The channel heat closures were installed: channel conduction and a
+    // constant wall coefficient.
+    EXPECT_NE(dynamic_cast<HeatDispersionModelChannel*>(layer.equations_.heat_dispersion_model_.get()), nullptr);
+    EXPECT_NE(dynamic_cast<ConstantInternalHeatTransferModel*>(layer.equations_.internal_heat_transfer_model_.get()),
+              nullptr);
     sim.SetParameter(lp + "cell_density", 9.3e5);  // 600 cpsi
     EXPECT_DOUBLE_EQ(layer.structured_.cell_density_.Get(), 9.3e5);
     build::SetChannelShape(d, id, "circular");
@@ -225,9 +232,13 @@ namespace {
     err.clear();
     EXPECT_TRUE(sim.Check(err)) << err;
 
-    // Back to packed: the packed fields were kept.
+    // Back to packed: the packed fields were kept, and the packed default
+    // (constant) heat dispersion replaces channel conduction.
     build::SetLayerKind(d, id, "packed");
     EXPECT_DOUBLE_EQ(layer.eb_.Get(), eb);
+    EXPECT_NE(dynamic_cast<HeatDispersionModelConstant*>(layer.equations_.heat_dispersion_model_.get()), nullptr);
+    err.clear();
+    EXPECT_TRUE(sim.Check(err)) << err;
     EXPECT_DOUBLE_EQ(layer.structured_.cell_density_.Get(), 9.3e5);  // kept for next time
     EXPECT_THROW(build::SetLayerKind(d, id, "foam"), std::invalid_argument);
     EXPECT_EQ(build::LayerKinds(), (std::vector<std::string>{"packed", "monolith", "laminate"}));
@@ -271,33 +282,126 @@ namespace {
     }
   }
 
-  // Structured layers warn about LTE and name the packed-bed closures they
-  // still use; a packed deck gets neither warning.
-  TEST(StructuredGeometry, WarningsForLteAndPackedBedClosures) {
+  // Structured layers warn about LTE only; a packed deck gets no warning.
+  TEST(StructuredGeometry, WarningForLte) {
     UserData d;
     LoadFromJson(d, (kExamples / "Perez2019_A.json").string());
     EXPECT_TRUE(StructuredLayerWarnings(d.adsorbent_directory, d.bed).empty());
     auto& layer = d.bed.layers_.layers_.front();
     layer.kind_ = LayerKind::Monolith;
-    layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
     d.bed.equations_.thermal_equilibrium_mode_ = ThermalEquilibriumMode::LOCAL;
     auto w = StructuredLayerWarnings(d.adsorbent_directory, d.bed);
-    ASSERT_EQ(w.size(), 2u);
-    EXPECT_NE(w[0].find("is a Monolith but uses packed-bed closures"), std::string::npos) << w[0];
-    EXPECT_NE(w[0].find("Yagi-Kunii heat dispersion"), std::string::npos) << w[0];
-    EXPECT_NE(w[1].find("LTNE) is recommended"), std::string::npos) << w[1];
+    ASSERT_EQ(w.size(), 1u);
+    EXPECT_NE(w[0].find("LTNE) is recommended"), std::string::npos) << w[0];
 
-    // Constant coefficients everywhere and LTNE: no warning.
-    layer.equations_.heat_dispersion_model_ = std::make_unique<HeatDispersionModelConstant>();
-    for (const auto& [id, frac] : layer.composition_) {
-      auto& ads = d.adsorbent_directory.Get(id);
-      for (auto& [c, m] : ads.adsorption_source_.mass_transfer_models_)
-        if (m) m->mtc_model_ = std::make_unique<MassTransferCoefficientConstant>();
-    }
     d.bed.equations_.thermal_equilibrium_mode_ = ThermalEquilibriumMode::NON_LOCAL;
-    d.bed.equations_.particle_heat_transfer_model_.reset();
     w = StructuredLayerWarnings(d.adsorbent_directory, d.bed);
     for (const auto& s : w) ADD_FAILURE() << s;
+  }
+
+  // A structured layer with h_i = 0 next to a wall that exchanges heat is
+  // cut off from it: warn, naming the parameter. An adiabatic wall, a nonzero
+  // h_i or an isothermal run: no warning.
+  TEST(StructuredGeometry, WarningForZeroWallCoefficient) {
+    UserData d;
+    LoadFromJson(d, (kExamples / "Perez2019_A.json").string());
+    d.bed.equations_.thermal_equilibrium_mode_ = ThermalEquilibriumMode::NON_LOCAL;
+    auto& layer = d.bed.layers_.layers_.front();
+    build::SetLayerKind(d, layer.id_, "monolith");
+    auto set_h = [&](double hi, double ho) {
+      for (auto& l : d.bed.layers_.layers_) {
+        auto i = std::make_unique<ConstantInternalHeatTransferModel>();
+        i->heat_transfer_coefficient_ = hi;
+        l.equations_.internal_heat_transfer_model_ = std::move(i);
+        auto o = std::make_unique<ConstantExternalHeatTransferModel>();
+        o->heat_transfer_coefficient_ = ho;
+        l.equations_.external_heat_transfer_model_ = std::move(o);
+      }
+    };
+    auto count = [&](const Cycle* cycle) {
+      size_t n = 0;
+      for (const auto& s : StructuredLayerWarnings(d.adsorbent_directory, d.bed, cycle))
+        if (s.find("internal_htc") != std::string::npos) {
+          ++n;
+          EXPECT_NE(s.find("set layer[" + std::to_string(layer.id_) + "].internal_htc"), std::string::npos) << s;
+        }
+      return n;
+    };
+    d.bed.equations_.wall_temperature_boundary_condition_ =
+        CreateWallTemperatureBoundaryCondition(WallTemperatureBoundaryConditionType::ZERO_FLUX);
+    set_h(0.0, 10.0);
+    EXPECT_EQ(count(nullptr), 1u);
+    set_h(25.0, 10.0);
+    EXPECT_EQ(count(nullptr), 0u);
+    set_h(0.0, 0.0);  // adiabatic wall: nothing is lost
+    EXPECT_EQ(count(nullptr), 0u);
+    Cycle cycle;
+    cycle.AddStep("Heat");
+    cycle.GetStep("Heat").heating_medium_.enabled_ = true;  // a jacket makes the wall exchange heat
+    EXPECT_EQ(count(&cycle), 1u);
+    d.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
+    EXPECT_EQ(count(&cycle), 0u);
+  }
+
+  // The packed-bed heat closures, which read the particle diameter, are deck
+  // errors on a structured layer now that channel closures replace them; the
+  // channel conduction model is an error on a packed bed.
+  TEST(StructuredGeometry, DeckChecksRefuseHeatClosuresOfTheOtherKind) {
+    Simulation sim = Simulation::FromFile((kExamples / "Perez2019_A.json").string());
+    UserData& d = sim.Data();
+    const LayerID id = d.bed.layers_.layers_.front().id_;
+    auto& layer = d.bed.layers_.Get(id);
+    std::string err;
+    ASSERT_TRUE(sim.Check(err)) << err;
+
+    build::SetHeatDispersion(d, id, "channel");
+    err.clear();
+    EXPECT_FALSE(sim.Check(err));
+    EXPECT_NE(err.find("is a packed bed but uses channel heat conduction"), std::string::npos) << err;
+
+    build::SetLayerKind(d, id, "monolith");
+    err.clear();
+    EXPECT_TRUE(sim.Check(err)) << err;
+    struct Case { const char* op; const char* kind; const char* says; };
+    for (const Case& c : {Case{"heat", "ruthven", "Ruthven's packed-bed heat dispersion"},
+                          Case{"heat", "yagi_kunii", "Yagi and Kunii's packed-bed heat dispersion"},
+                          Case{"wall", "dixon", "Dixon's packed-bed wall heat transfer coefficient"},
+                          Case{"wall", "leva", "Leva's packed-bed wall heat transfer coefficient"}}) {
+      if (std::string(c.op) == "heat") build::SetHeatDispersion(d, id, c.kind);
+      else build::SetInternalHeatTransfer(d, id, c.kind);
+      err.clear();
+      EXPECT_FALSE(sim.Check(err)) << c.kind;
+      EXPECT_NE(err.find(std::string("is a Monolith but uses ") + c.says), std::string::npos) << err;
+      build::SetHeatDispersion(d, id, "channel");
+      build::SetInternalHeatTransfer(d, id, "constant");
+    }
+    err.clear();
+    EXPECT_TRUE(sim.Check(err)) << err;
+
+    // A packed layer switched to a structured kind with Dixon gets a constant
+    // h_i; a constant one keeps its value.
+    build::SetLayerKind(d, id, "packed");
+    build::SetInternalHeatTransfer(d, id, "dixon");
+    build::SetLayerKind(d, id, "laminate");
+    EXPECT_NE(dynamic_cast<ConstantInternalHeatTransferModel*>(layer.equations_.internal_heat_transfer_model_.get()),
+              nullptr);
+    build::SetLayerKind(d, id, "packed");
+    auto hi = std::make_unique<ConstantInternalHeatTransferModel>();
+    hi->heat_transfer_coefficient_ = 42.0;
+    layer.equations_.internal_heat_transfer_model_ = std::move(hi);
+    build::SetLayerKind(d, id, "monolith");
+    auto* kept = dynamic_cast<ConstantInternalHeatTransferModel*>(layer.equations_.internal_heat_transfer_model_.get());
+    ASSERT_NE(kept, nullptr);
+    EXPECT_DOUBLE_EQ(kept->heat_transfer_coefficient_.Get(), 42.0);
+    EXPECT_EQ(build::HeatDispersionKinds(), (std::vector<std::string>{"constant", "ruthven", "yagi_kunii", "channel"}));
+
+    // The channel model survives a save and load.
+    std::string json;
+    SaveToString(d, json);
+    UserData back;
+    LoadDeckFlexible(back, json);
+    EXPECT_EQ(back.bed.layers_.layers_.front().equations_.heat_dispersion_model_->GetModelType(),
+              AxialHeatDispersionType::CHANNEL);
   }
 
 }  // namespace

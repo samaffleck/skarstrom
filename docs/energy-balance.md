@@ -49,6 +49,18 @@ The effective axial thermal conductivity $\lambda$ and the internal coefficient 
 
 When gas–solid heat transfer is not fast (for example large particles or fast cycles), select **Local thermal non-equilibrium** (LTNE). The solver then carries **separate fluid and solid temperature equations** coupled by a gas–particle heat transfer term. This requires a **Particle heat transfer model** and coefficient, described in the [transport correlations](transport-correlations.md#particle-heat-transfer-ltne-only). With LTNE, the solid temperature is available as its own plotted variable.
 
+### Solid conduction in structured layers
+
+In a monolith or laminate the channel walls are continuous along the column, so under LTNE the solid energy balance carries its own axial conduction,
+
+$$
+\ldots - \frac{\partial}{\partial z}\left(\lambda_s \frac{\partial T_s}{\partial z}\right), \qquad \lambda_s = (1-\phi)\thinspace k_s,
+$$
+
+with $\phi$ the open frontal area and $k_s$ the layer's effective solid conductivity. The face between two cells conducts as their two half cells in series, $G = 1/\left(\Delta z_j/(2\lambda_{s,j}) + \Delta z_{j+1}/(2\lambda_{s,j+1})\right)$, the harmonic mean of $\lambda_s$ on a uniform grid. A packed bed's particles touch only at points, so $\lambda_s = 0$ there and in a void region: no heat crosses a face that touches a packed layer or a void, nor the two bed ends, and a bed without a structured layer has no such term. The gas equation's conductivity is then the gas's alone, $\phi\thinspace k_g$ (the [channel conduction](transport-correlations.md#channel-conduction-structured-layers) model). Under LTE that model gives the single temperature the sum $\phi\thinspace k_g + (1-\phi)\thinspace k_s$ instead.
+
+The bed-to-wall exchange of a structured layer goes into the solid: the gas reaches the column wall only through the channel walls ([Wall Energy Balance](wall-energy-balance.md)). LTE is allowed with a structured layer, but the solver warns, since it takes the exchange between the gas and the thin channel walls as instantaneous; LTNE is recommended.
+
 ## Heat of adsorption convention
 
 The stored value is positive for exothermic adsorption; [Matching Another Model](model-conventions.md#heat-of-adsorption-sign) has a worked sign example. The value stored as `adsorbent[<id>].heat_of_adsorption[<component>]` is read according to the fluid's **heat of adsorption convention** (`fluid.heat_of_adsorption_convention`). The convention sets the heat released per mole adsorbed, $\Delta H_i^{\mathrm{eff}}$, that multiplies $\rho_b\thinspace \partial q_i / \partial t$ in the source term; $\Delta H_i$ below is the stored value, positive for exothermic adsorption:
