@@ -13,6 +13,12 @@ import skarstrom
 from skarstrom import optimisation as opt
 from skarstrom import sensitivity as sa
 
+try:
+    import pandas  # noqa: F401
+    HAVE_PANDAS = True
+except ImportError:  # tables need pandas, an optional dependency
+    HAVE_PANDAS = False
+
 DECK = "Illustrative_TSA_13X"
 COARSE = {"layer[1].cells": 6}
 
@@ -37,9 +43,10 @@ def test_optimise_warm_starts_and_reports_the_cold_optimum(sim):
     assert r.cost == pytest.approx(r.search_cost, abs=100 * sim.get("css.state_tolerance"))
     assert 0.8 * t <= r.x["step[1].time"] <= 1.2 * t
     assert 0 < r.kpis["CarbonDioxide"]["recovery"] <= 1
-    table = r.table()
-    assert list(table["index"]) == [0, 1, 2, -1]
-    assert {"step[1].time", "cost", "warm", "cycles_run", "CarbonDioxide.recovery"} <= set(table.columns)
+    if HAVE_PANDAS:
+        table = r.table()
+        assert list(table["index"]) == [0, 1, 2, -1]
+        assert {"step[1].time", "cost", "warm", "cycles_run", "CarbonDioxide.recovery"} <= set(table.columns)
     copy = sim.copy()
     r.apply(copy)
     assert copy.get("step[1].time") == pytest.approx(r.x["step[1].time"])
@@ -103,4 +110,5 @@ def test_study_warm_starts_its_runs(sim):
     for a, b in zip(ws.samples, cs.samples):
         for x, y in zip(a["outputs"], b["outputs"]):
             assert math.isfinite(x) and abs(x - y) <= tol
-    assert {"warm", "cycles_run", "note"} <= set(ws.samples_table().columns)
+    if HAVE_PANDAS:
+        assert {"warm", "cycles_run", "note"} <= set(ws.samples_table().columns)
