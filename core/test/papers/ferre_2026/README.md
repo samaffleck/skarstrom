@@ -63,6 +63,10 @@ value in a comment next to it. Results of the last run:
 - The decks now use the extended (competitive) DSL isotherm the paper states (Sect. 3.1); they previously used the non-competitive form. adsim uses a constant LDF coefficient and a single heat of adsorption per component instead of the paper's loading-dependent forms.
 - Specific energy is not compared: the decks drive the pressure steps with pressure boundary conditions, not pump models.
 
+### Gas heat capacity as in the paper (2026-11)
+
+The paper uses a constant 30.70 J/(mol K) for the gas and the adsorbed phase. The deck now uses the constant gas heat capacity mode with 30.7 J/(mol K) for CO₂ and CH₄ (before: the default ideal-gas C_p0 at the local temperature; the adsorbed phase was already 30.7). Changes: MIL-160(Al) CO₂ purity error 2.152 → 2.186 pp (bound 2.2), CO₂ recovery 2.287 → 2.333 pp; NaY(F) CO₂ purity 0.392 → 0.335 pp, CH₄ recovery 3.62 → 3.53 pp; NaY(W) CO₂ purity 1.265 → 1.214 pp; 13X CH₄ purity 0.005 → 0.014 pp (bound 0.076), CO₂ recovery 0.244 → 0.261 pp. No bound changed. All papers' settings: [../README.md](../README.md#gas-heat-capacity-per-paper).
+
 ### Grid and advection scheme (2026-11-04)
 
 The decks ran first-order upwind advection on 30 cells. A grid study of

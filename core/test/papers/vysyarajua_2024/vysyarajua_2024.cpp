@@ -86,6 +86,14 @@ namespace adsim {
     // Cp,a assumed equal to Cp,g (paper). N2: 1040 J/kg/K * 0.028 kg/mol.
     constexpr double kCpaN2   = 29.1;      // [J/mol/K]
 
+    // Constant gas heat capacities per species from NIST, as printed in the
+    // paper: N2 1040, He 5193 J/(kg-K), converted with the molar masses [kg/mol].
+    inline void SetGasHeatCapacity(UserData& data) {
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      data.fluid.gas_heat_capacity_["Nitrogen"] = 1040.0 * 28.01348e-3;
+      data.fluid.gas_heat_capacity_["Helium"] = 5193.0 * 4.002602e-3;
+    }
+
     // Macropore-diffusion LDF: k = 15 * ep * Dm / (tau * rp^2) ~ 105 /s. The
     // separation is far from mass-transfer-limited, so a constant reproduces the
     // equilibrium loading and the (rate-insensitive) breakthrough plateau.
@@ -147,6 +155,7 @@ namespace adsim {
       // would release only ~10 kJ/mol and under-predict the rise by ~4 K.
       data.fluid.adsorbed_heat_capacity_[N2] = kCpaN2;
       data.fluid.heat_of_adsorption_convention_ = HeatOfAdsorptionConvention::ISOSTERIC;
+      SetGasHeatCapacity(data);
 
       t.AddConstantInternalHeatTransferCoefficientModel(kHtc, layer_id);
       t.AddConstantExternalHeatTransferCoefficientModel(kHtc, layer_id);
@@ -289,6 +298,7 @@ namespace adsim {
       t.SetHOA(ads_id, N2, kHoaN2);
       data.fluid.adsorbed_heat_capacity_[N2] = kCpaN2;
       data.fluid.heat_of_adsorption_convention_ = HeatOfAdsorptionConvention::ISOSTERIC;
+      SetGasHeatCapacity(data);
 
       t.AddConstantInternalHeatTransferCoefficientModel(kHtc, layer_id);
       t.AddConstantExternalHeatTransferCoefficientModel(kHtc, layer_id);

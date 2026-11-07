@@ -64,8 +64,15 @@ namespace adsim {
       // none). 293 K is an assumption; the isotherms were measured from 22 C up.
       data.bed.ambient_temperature_ = 293.0;
 
-      data.fluid.adsorbed_heat_capacity_[CO2] = 37.435; // J/(mol-K)
-      data.fluid.adsorbed_heat_capacity_[N2] = 29.171; // J/(mol-K)
+      data.fluid.adsorbed_heat_capacity_[CO2] = 37.435; // J/(mol-K); unused in the GAS_PHASE mode below
+      data.fluid.adsorbed_heat_capacity_[N2] = 29.171; // J/(mol-K); unused in the GAS_PHASE mode below
+      // Constant gas heat capacities per species from NIST, as printed in the
+      // paper: N2 1040, CO2 841 J/(kg-K), converted with the molar masses
+      // [kg/mol]. The paper takes the adsorbed phase's equal to the gas's.
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      data.fluid.gas_heat_capacity_[CO2] = 841.0 * 44.0098e-3;
+      data.fluid.gas_heat_capacity_[N2] = 1040.0 * 28.01348e-3;
+      data.fluid.adsorbed_heat_capacity_mode_ = AdsorbedHeatCapacityMode::GAS_PHASE;
 
       // Competitive (extended) DSL. Nguyen et al. (2023), Sect. 2: "The
       // single-component isotherms and the competitive forms were shown to be

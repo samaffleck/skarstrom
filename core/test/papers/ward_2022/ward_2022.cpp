@@ -58,6 +58,17 @@ namespace adsim {
       const double vF = Q / (constants::kPI / 4.0 * Di * Di) / eb;
       return 4.0 * (0.7 * Dm + vF * rp);
     }
+
+    // Table 1: one constant heat capacity, 840 J/(kg-K), for the CO2/He gas
+    // (and the adsorbed phase). Given to each component per kilogram, converted
+    // with its own molar mass [kg/mol]: the engine mixes molar C_p by mole
+    // fraction and divides by the mixture molar mass, so every mixture then has
+    // exactly 840 J/(kg-K), as in the paper (He: 3.36 J/(mol-K), CO2: 36.97).
+    void SetGasHeatCapacity(UserData& data) {
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      data.fluid.gas_heat_capacity_["CarbonDioxide"] = 840.0 * 44.0098e-3;
+      data.fluid.gas_heat_capacity_["Helium"] = 840.0 * 4.002602e-3;
+    }
     // Heat released per mole adsorbed in the paper's energy balance (Eq. A4):
     // -dU_1 + R T with the site-1 internal energy of Table 2, at T_F = 293 K.
     constexpr double kPaperHeat = 29980.0 + 8.314462618 * 293.0;
@@ -157,6 +168,7 @@ namespace adsim {
     wall_bc->temperature_ = 291.4;
     data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
+    SetGasHeatCapacity(data);
 
     auto dsl_co2 = std::make_unique<DualSiteLangmuirIsotherm_Concentration>("CarbonDioxide");
     dsl_co2->params_["CarbonDioxide"].m1 = 0.418;
@@ -290,6 +302,7 @@ namespace adsim {
     wall_bc->temperature_ = 291.4;
     data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
+    SetGasHeatCapacity(data);
 
     auto dsl_co2 = std::make_unique<DualSiteLangmuirIsotherm_Concentration>("CarbonDioxide");
     dsl_co2->params_["CarbonDioxide"].m1 = 0.418;
@@ -424,6 +437,7 @@ namespace adsim {
     wall_bc->temperature_ = 291.4;
     data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
+    SetGasHeatCapacity(data);
 
     auto dsl_co2 = std::make_unique<DualSiteLangmuirIsotherm_Concentration>("CarbonDioxide");
     dsl_co2->params_["CarbonDioxide"].m1 = 0.418;

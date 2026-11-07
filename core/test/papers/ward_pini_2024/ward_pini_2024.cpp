@@ -117,6 +117,10 @@ namespace adsim {
     // ballast so the bed overheats and CO2 capacity/recovery collapse.
     data.fluid.adsorbed_heat_capacity_[CO2] = 30.7;
     data.fluid.adsorbed_heat_capacity_[N2] = 30.7;
+    // Constant gas heat capacity (Table 2: Cp,g = 30.7 J/mol/K) for every component.
+    data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+    data.fluid.gas_heat_capacity_[CO2] = 30.7;
+    data.fluid.gas_heat_capacity_[N2] = 30.7;
 
     // Ward & Pini use the Haghpanah 2013 column energy balance, whose heat of
     // adsorption is the internal-energy convention (the balance carries the extra

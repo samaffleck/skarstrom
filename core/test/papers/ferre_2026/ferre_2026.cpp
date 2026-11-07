@@ -126,6 +126,11 @@ namespace adsim {
       t.SetHOA(ads_id, CH4, fc.hoa_ch4);
       data.fluid.adsorbed_heat_capacity_[CO2] = 30.7;
       data.fluid.adsorbed_heat_capacity_[CH4] = 30.7;
+      // Constant gas heat capacity 30.70 J/(mol-K) for every component, the
+      // value the paper uses for the gas and the adsorbed phase.
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      data.fluid.gas_heat_capacity_[CO2] = 30.7;
+      data.fluid.gas_heat_capacity_[CH4] = 30.7;
       data.fluid.heat_of_adsorption_convention_ = HeatOfAdsorptionConvention::INTERNAL_ENERGY;
 
       t.AddConstantInternalHeatTransferCoefficientModel(8.6, layer_id);

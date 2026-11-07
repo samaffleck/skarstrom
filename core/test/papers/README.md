@@ -242,3 +242,34 @@ Pure **serialization / isotherm-function** tests that happen to use a paper's
 published parameters live in `core/test/unit/test_adsorbents.cpp` — they test
 the serialization machinery, not a simulation, so they stay as unit tests. The
 relevant paper README cross-references them.
+
+## Gas heat capacity per paper
+
+The engine's default gas heat capacity is the ideal-gas C_p0(T) of each
+component at the local temperature (NASA TM-4513 polynomials,
+`docs/equation-of-state.md`). A paper deck follows its paper instead:
+
+- a paper that uses a constant gas heat capacity and prints it gets the
+  `constant` mode (`fluid.gas_heat_capacity_mode`) with the printed value per
+  component (`fluid.gas_heat_capacity[<component>]`, J/(mol K); per-kilogram
+  values are converted with the component's molar mass);
+- a paper that says the value is constant but prints none gets the constant
+  mode with C_p0 evaluated at the paper's stated temperature or averaged over
+  its stated window;
+- a paper that says nothing keeps the default.
+
+| Paper | What the paper assumes | Deck setting | Effect on the metrics (2026-11) |
+|---|---|---|---|
+| Arora & Hasan 2021 | gas C_p appears only as a symbol, no value | default `ideal_gas` | none (unchanged) |
+| Casas et al. 2012 | constant per species, averaged over 298–373 K at 15 bar, mixed by concentration; no value printed | `constant`: mean of C_p0(T) over 298–373 K, (H0(373 K) − H0(298 K)) / 75 K, to 4 significant figures: CO₂ 38.73, H₂ 29.06, He 20.79 J/(mol K) | breakthrough-time errors move by ≤ 0.02 pp (Fig. 4 CO₂ 2.137 → 2.146 %, bound 2.4 %) |
+| Ferré et al. 2026 | constant 30.70 J/(mol K) for the gas and the adsorbed phase | `constant` 30.7 J/(mol K), CO₂ and CH₄ (adsorbed phase was already 30.7) | largest: MIL-160(Al) CO₂ purity 2.152 → 2.186 pp (bound 2.2), NaY(F) CO₂ purity 0.392 → 0.335 pp, NaY(W) CO₂ purity 1.265 → 1.214 pp, 13X CH₄ purity 0.005 → 0.014 pp (bound 0.076); others ≤ 0.1 pp or 0.4 % |
+| Nguyen et al. 2022 | paper text not available here | default `ideal_gas` | none (unchanged) |
+| Nguyen et al. 2023 | constant per species from NIST: N₂ 1040, CO₂ 841 J/(kg K) (H₂O 4165, not in these decks); adsorbed phase = gas | `constant`: CO₂ 841 × 0.0440098 = 37.01, N₂ 1040 × 0.02801348 = 29.13 J/(mol K); adsorbed mode `gas_phase` (was constant 37.435 / 29.171) | every metric moves by < 0.01 pp or 0.03 % (largest: Exp. I recovery vs paper model 0.688 → 0.695 pp, bound 1.1) |
+| Estupiñan Perez et al. 2019 | constant 30.7 J/(mol K) for the gas ("standard"), adsorbed phase assumed equal | `constant` 30.7 J/(mol K), CO₂ and N₂ | ≤ 0.005 pp (largest: Config A recovery vs paper model 0.351 → 0.356 pp, bound 0.43; Config B purity vs experiment 0.691 → 0.693 pp, bound 0.7) |
+| Streb & Mazzotti 2021 | constant, average gas heat capacity; no value printed | `constant`: C_p0 at the feed temperature (set earlier; verified, not changed) | none in this change |
+| Vysyaraju et al. 2024 | constant per species from NIST: N₂ 1040, He 5193 J/(kg K); adsorbed phase = gas | `constant`: N₂ 1040 × 0.02801348 = 29.13, He 5193 × 0.004002602 = 20.79 J/(mol K) (adsorbed N₂ stays 29.1) | every metric moves by < 0.001 in its unit |
+| Ward & Pini 2022 | one constant 840 J/(kg K) for the CO₂/He gas and the adsorbed phase | `constant`: 840 J/(kg K) per component with its own molar mass, CO₂ 36.97, He 3.362 J/(mol K); the engine's mixture C_p (Σ y_i C_p,i / Σ y_i M_i) is then exactly 840 J/(kg K) for every composition | ≤ 0.1 pp: Q200 front-time error 1.724 → 1.735 % (bound 1.8 %), Q200 outlet NRMSE 0.1402 → 0.1410 (0.17), Q200 thermocouple RMSE 2.58 → 2.56 K |
+| Ward & Pini 2024 | constant 30.7 J/(mol K) for the gas and the adsorbed phase (Table 2) | `constant` 30.7 J/(mol K), CO₂ and N₂ | CO₂ purity error 2.406 → 2.391 pp (bound 2.7), productivity 2.13 → 2.12 % |
+
+No bound was changed. Molar masses are CoolProp's (the engine's). The
+Ward 2022 `MTC_Invariance` check (CO₂/air, not a paper case) keeps the default.

@@ -91,6 +91,10 @@ value in a comment next to it. Results of the last run:
 - The N2 breakthrough loadings match the reported value (ambient) and the DSL value (11.2 bar) to 2-4 %, and the peak bed temperature to 0.3 K.
 - He purity is 0.54 pp below the paper model (1.4 pp above the experiment), and He recovery is 63 % against 31 %: the deck is a single bed with self-equalisation, the experiment and the paper's model are a 3-bed cycle.
 
+### Gas heat capacity as in the paper (2026-11)
+
+The paper takes constant gas heat capacities per species from NIST (N₂ 1040, He 5193 J/(kg K)). The deck now uses the constant gas heat capacity mode with those values per mole (N₂ 29.13, He 20.79 J/(mol K); before: the default ideal-gas C_p0(T), which for both gases is within 0.1 % of these at 298 K). Every metric moves by less than 0.001 in its unit. No bound changed. All papers' settings: [../README.md](../README.md#gas-heat-capacity-per-paper).
+
 ### Grid and advection scheme (2026-11-04)
 
 The PSA deck ran first-order upwind advection on 30 cells. A grid study (10-160

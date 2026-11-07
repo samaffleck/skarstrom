@@ -142,6 +142,10 @@ value in a comment next to it. Results of the last run:
 - **Competitive-Sips trace fix (WP19-1, 2026-11).** `arrhenius_sips` used to multiply each competitive term by y²/(y² + 10⁻⁶) in the solver, which halved a component's loading at y = 10⁻³; it now uses the published isotherm down to y = 10⁻⁵ (see `docs/isotherms.md`). The breakthrough times are taken at y > 0.002, on the toe of the front, so they move: CO₂ 0.8, 1.2 and 0.6 s later (errors 0.92 → 0.73 %, 0.64 → 0.45 %, 9.81 → 9.99 %), H₂ 0.3-0.5 s later (16.8 → 16.4 %, 19.8 → 19.4 %, 1.17 → 1.53 %). No tolerance changed.
 - The competitive Arrhenius-Sips isotherm reproduces the paper's per-temperature Sips fits (Schell et al., Table 3) to 7 % (CO2) and 0.6 % (H2).
 
+### Gas heat capacity as in the paper (2026-11)
+
+Casas et al. use a constant heat capacity per species, averaged over 298–373 K at 15 bar and mixed by concentration, and print no value. The deck uses the constant gas heat capacity mode with the mean of each component's ideal-gas C_p0(T) over 298–373 K (CO₂ 38.73, H₂ 29.06, He 20.79 J/(mol K)); before, the default C_p0 at the local temperature. Breakthrough-time errors move by at most 0.02 pp (Fig. 4 CO₂ 2.137 → 2.146 %, bound 2.4 %); no bound changed. All papers' settings: [../README.md](../README.md#gas-heat-capacity-per-paper).
+
 ### Grid and advection scheme (2026-11-04)
 
 The decks ran first-order upwind advection on 60 cells. A grid study (10-160

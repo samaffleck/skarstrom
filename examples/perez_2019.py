@@ -105,6 +105,9 @@ def build(case: str) -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "isosteric"
     sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 30.7 * u.J / (u.mol * u.K)
     sim.fluid.adsorbed_heat_capacity["Nitrogen"] = 30.7 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity_mode = "constant"  # the paper's standard 30.7 J/(mol K)
+    sim.fluid.gas_heat_capacity["CarbonDioxide"] = 30.7 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity["Nitrogen"] = 30.7 * u.J / (u.mol * u.K)
 
     # ---- adsorbent -------------------------------------------------------------------
     add_zeolite_13x(sim)

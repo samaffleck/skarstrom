@@ -90,6 +90,12 @@ def build(case: str) -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "isosteric"
     for component in COMPONENTS:
         sim.fluid.adsorbed_heat_capacity[component] = 0 * u.J / (u.mol * u.K)
+    # The paper uses a constant heat capacity per species averaged over 298-373 K and prints
+    # none; ours is the mean of each component's ideal-gas Cp0 over that window.
+    sim.fluid.gas_heat_capacity_mode = "constant"
+    sim.fluid.gas_heat_capacity["CarbonDioxide"] = 38.73 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity["Hydrogen"] = 29.06 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity["Helium"] = 20.79 * u.J / (u.mol * u.K)
 
     # ---- adsorbent ---------------------------------------------------------------------------
     add_ap3_60(sim)

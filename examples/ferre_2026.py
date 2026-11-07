@@ -76,6 +76,9 @@ def build(case: str = "NaY_F") -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "internal_energy"
     sim.fluid.adsorbed_heat_capacity["CarbonDioxide"] = 30.7 * u.J / (u.mol * u.K)
     sim.fluid.adsorbed_heat_capacity["Methane"] = 30.7 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity_mode = "constant"  # the paper's 30.70 J/(mol K) for the gas too
+    sim.fluid.gas_heat_capacity["CarbonDioxide"] = 30.7 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity["Methane"] = 30.7 * u.J / (u.mol * u.K)
 
     # ---- adsorbent ----------------------------------------------------------------------------
     add_nay(sim)

@@ -74,6 +74,10 @@ def build(case: str = "PSA_Exp1") -> sk.Simulation:
     sim.fluid.heat_of_adsorption_convention = "isosteric"
     sim.fluid.adsorbed_heat_capacity["Nitrogen"] = 29.1 * u.J / (u.mol * u.K)
     sim.fluid.adsorbed_heat_capacity["Helium"] = 0 * u.J / (u.mol * u.K)
+    # The paper's constant NIST gas heat capacities, N2 1040 and He 5193 J/(kg K), per mole.
+    sim.fluid.gas_heat_capacity_mode = "constant"
+    sim.fluid.gas_heat_capacity["Nitrogen"] = 1040.0 * 28.01348e-3 * u.J / (u.mol * u.K)
+    sim.fluid.gas_heat_capacity["Helium"] = 5193.0 * 4.002602e-3 * u.J / (u.mol * u.K)
 
     # ---- adsorbent -------------------------------------------------------------------
     add_zeolite_5a(sim)

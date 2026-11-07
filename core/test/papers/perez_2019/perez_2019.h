@@ -76,6 +76,11 @@ namespace adsim {
 
       data.fluid.adsorbed_heat_capacity_[CO2] = 30.7;
       data.fluid.adsorbed_heat_capacity_[N2] = 30.7;
+      // Constant gas heat capacity 30.7 J/(mol-K) for every component (the
+      // paper's "standard" value, also assumed for the adsorbed phase).
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      data.fluid.gas_heat_capacity_[CO2] = 30.7;
+      data.fluid.gas_heat_capacity_[N2] = 30.7;
 
       // Competitive (extended) DSL. Perez et al. (2019), Sect. 4.1: "the description
       // of the competitive behavior of a given gas mixture is critical" - the
