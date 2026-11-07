@@ -251,11 +251,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip build
           python -m build --wheel --outdir dist .
-      - name: Install into a fresh venv and test
+      - name: Install into a fresh venv
+        uses: ./.github/actions/install-and-run
+        with:
+          package: dist/*.whl
+          extra-packages: matplotlib pint
+      - name: Test the installed wheel
         run: |
-          python -m venv --upgrade-deps /tmp/venv
-          /tmp/venv/bin/pip install dist/*.whl pytest matplotlib pint
-          cd /tmp && /tmp/venv/bin/skarstrom --version && /tmp/venv/bin/skarstrom examples | head -3
+          cd /tmp && /tmp/venv/bin/skarstrom examples | head -3
           cd "$GITHUB_WORKSPACE" && /tmp/venv/bin/python -m pytest python/tests -q
       - uses: actions/upload-artifact@v4
         with:
@@ -342,16 +345,9 @@ jobs:
           python-version: "3.12"
       - name: Release helper tests (scripts/release.py)
         run: python -m unittest discover -s scripts -p 'test_release.py' -v
-      - name: Generated pages are up to date
-        run: |
-          python scripts/docs/gen_validation_page.py --check
-          python scripts/docs/gen_adsorbent_library.py --check
-          python scripts/gen_examples_module.py --check
-      - name: mkdocs build --strict
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-docs.txt
-          mkdocs build --strict
+      - name: Examples module is up to date
+        run: python scripts/gen_examples_module.py --check
+      - uses: ./.github/actions/docs-checks
 
   lint:
     name: Workflow lint
