@@ -194,13 +194,25 @@ namespace adsim {
       int step_counter = -1;
       int next_fraction = 0;
       int coloured_seen = 0;
+      bool want_coloured = false;  // a sample point checked a band evaluation
       BandedJacobian::SetEvaluationObserverForTesting([&](const BandedJacobian::EvaluationView& v) {
         if (v.udata->step_start_time_ != last_start || step_counter < 0) {
           last_start = v.udata->step_start_time_;
           ++step_counter;
           next_fraction = 0;
         }
-        if (v.kind == BandedJacobian::EvaluationView::Kind::Coloured && coloured_seen++ < c.first_coloured) {
+        const bool is_coloured = v.kind == BandedJacobian::EvaluationView::Kind::Coloured;
+        if (is_coloured && coloured_seen++ < c.first_coloured) {
+          CompareWithDense(v, out);
+          return;
+        }
+        // A sample point whose evaluation was a band one (the pattern being
+        // learned or audited) also checks the next coloured evaluation, so
+        // every case checks the matrix IDA usually receives whatever the
+        // solver's path (which evaluations fall after the sample points
+        // differs between platforms).
+        if (is_coloured && want_coloured) {
+          want_coloured = false;
           CompareWithDense(v, out);
           return;
         }
@@ -210,6 +222,7 @@ namespace adsim {
         if (next_fraction >= kNumFractions || t_rel < fractions[next_fraction] * duration) return;
         while (next_fraction < kNumFractions && t_rel >= fractions[next_fraction] * duration) ++next_fraction;
         CompareWithDense(v, out);
+        if (!is_coloured) want_coloured = true;
       });
 
       CoupledSolver solver{data};

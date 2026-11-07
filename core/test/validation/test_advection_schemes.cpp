@@ -572,6 +572,7 @@ namespace adsim {
       const auto up = RunAbsentComponent(AdvectionScheme::Upwind, n_cells);
       // Guards: gas flows through the bed, and O2 really is absent (round-off
       // far below its absolute tolerance of 1e-8).
+      std::printf("[absent O2] %d cells: upwind max |y_O2| %.3e, %d steps\n", n_cells, up.max_abs_o2, (int)up.stats.num_steps);
       ASSERT_GT(up.outlet_flow, 0.5 * 0.01) << "no flow through the bed";
       ASSERT_LT(up.max_abs_o2, 1e-8) << "O2 is not absent from the bed";
       ASSERT_GT(up.stats.num_steps, 100);
