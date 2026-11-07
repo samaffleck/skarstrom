@@ -60,6 +60,8 @@ env:
   # ccache: cache the translation units that use the engine's precompiled header.
   CCACHE_SLOPPINESS: pch_defines,time_macros
   HOMEBREW_NO_AUTO_UPDATE: "1"
+  # The Emscripten version of the emscripten job (toolchain and cache keys).
+  EMSCRIPTEN_VERSION: "6.0.13"
 
 jobs:
   changes:
@@ -278,7 +280,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - uses: mymindstorm/setup-emsdk@v14
         with:
-          version: 6.0.13
+          version: ${{ env.EMSCRIPTEN_VERSION }}
       # "ccache em++" works as a compiler launcher (Emscripten docs, "Using a
       # compiler wrapper"); CMake reads the launcher from these variables.
       # emsdk is installed afresh on every run, so ccache identifies the
@@ -286,12 +288,12 @@ jobs:
       - name: Compiler cache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: emscripten-6.0.13
+          key: emscripten-${{ env.EMSCRIPTEN_VERSION }}
           max-size: 1G
       - name: Use ccache for the Emscripten builds
         run: |
           {
-            echo "CCACHE_COMPILERCHECK=string:emscripten-6.0.13"
+            echo "CCACHE_COMPILERCHECK=string:emscripten-${EMSCRIPTEN_VERSION}"
             echo "CMAKE_C_COMPILER_LAUNCHER=ccache"
             echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"
           } >> "$GITHUB_ENV"
