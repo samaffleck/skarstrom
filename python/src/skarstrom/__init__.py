@@ -37,6 +37,15 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 import numpy as np
 
 from . import _core, examples, optimisation, sensitivity, units
+from .manifests import (
+    check_unit,
+    component_manifest,
+    deck_view_schema,
+    example_manifest,
+    kpi_manifest,
+    unit_manifest,
+    warning_manifest,
+)
 from .units import Quantity, ureg
 from ._core import (
     AxialProfile,
@@ -160,6 +169,13 @@ __all__ = [
     "build",
     "build_kinds",
     "bulk_variables",
+    "check_unit",
+    "component_manifest",
+    "deck_view_schema",
+    "example_manifest",
+    "kpi_manifest",
+    "unit_manifest",
+    "warning_manifest",
     "component_variables",
     "constant",
     "evaluate_iast",
@@ -843,6 +859,13 @@ class Simulation:
         """The deck's structure: the model kind of every object, how each step end is set up,
         connections and KPI endpoints (endpoint IDs). Values are in :meth:`parameters`."""
         return self._sim.describe()
+
+    def deck_view(self) -> Dict[str, Any]:
+        """The deck view: the structure plus every editable value with its registry path,
+        value, text, unit, bounds, choices and label (``adsim/objects/deck_view.h``; its
+        shape is :func:`skarstrom.deck_view_schema`). Read-only: change values with
+        :meth:`set` by path and structure with the builder, then take a new view."""
+        return json.loads(self._sim.deck_view())
 
     def add_adsorbent(self, name: str, **values: Any) -> Adsorbent:
         """A new adsorbent (default physics for every component: inert isotherm, LDF with a
