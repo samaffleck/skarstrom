@@ -1082,7 +1082,8 @@ def ideal_gas_heat_capacity(component: str, temperature: float) -> float:
     """Ideal-gas heat capacity C_p0 [J/(mol K)] of ``component`` (CoolProp name) at
     ``temperature`` [K], from the NASA 7-coefficient polynomials (McBride, Gordon and
     Reno 1993, NASA TM-4513) that the default ``ideal_gas`` gas heat capacity mode
-    uses. Outside a polynomial's range the value at the nearer limit. ValueError for
+    uses (one coefficient set per component, to 1000 K). Outside a polynomial's range
+    the value at the nearer limit. ValueError for
     a component without a polynomial (Hexane)."""
     return _core.ideal_gas_heat_capacity(component, float(temperature))
 

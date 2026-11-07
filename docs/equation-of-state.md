@@ -39,7 +39,7 @@ $$
 \frac{H_{0,i}}{R\thinspace T} = a_0 + \frac{a_1 T}{2} + \frac{a_2 T^2}{3} + \frac{a_3 T^3}{4} + \frac{a_4 T^4}{5} + \frac{a_5}{T}
 $$
 
-with one coefficient set below 1000 K and another above. The coefficients are those of McBride, Gordon and Reno (1993), *Coefficients for Calculating Thermodynamic and Transport Properties of Individual Species*, NASA TM-4513, copied unchanged with each species' data source (`core/include/adsim/objects/ideal_gas_heat_capacity.h`). Air, which TM-4513 does not list, is the ideal-gas mixture of its N₂, O₂ and Ar entries at the composition of CoolProp's air model (Lemmon et al. 2000: 0.7812, 0.2096, 0.0092 by mole); an ideal-gas mixture mixes the coefficients linearly, so this is exact. Outside a polynomial's range (below 200 K for most species, 298 or 300 K for a few) the value at the nearer limit is used.
+with one coefficient set per component, valid to 1000 K: the low-temperature set of TM-4513 (adsorption processes stay well below 1000 K, so the report's 1000–6000 K set is not carried). The coefficients are those of McBride, Gordon and Reno (1993), *Coefficients for Calculating Thermodynamic and Transport Properties of Individual Species*, NASA TM-4513, copied unchanged with each species' data source (`core/include/adsim/objects/ideal_gas_heat_capacity.h`). Air, which TM-4513 does not list, is the ideal-gas mixture of its N₂, O₂ and Ar entries at the composition of CoolProp's air model (Lemmon et al. 2000: 0.7812, 0.2096, 0.0092 by mole); an ideal-gas mixture mixes the coefficients linearly, so this is exact. Outside a polynomial's range (below 200 K for most species, 298 or 300 K for a few, and above 1000 K) the value at the nearer limit is used.
 
 Why ideal-gas and temperature-dependent:
 
@@ -53,39 +53,39 @@ The energy balance is written in temperature form, $\rho C_{p,g}(\partial T/\par
 
 | Component | Polynomial range [K] | Compared [K] | Largest error | at [K] | $C_{p0}$(298.15 K) [J mol⁻¹ K⁻¹] |
 |---|---|---|---|---|---|
-| Air | 200–6000 | 200–800 | −0.08 % | 675 | 29.10 |
-| Ammonia | 200–6000 | 200–800 | +0.57 % | 650 | 35.63 |
-| Argon | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
-| Benzene | 200–6000 | 279–800 | −1.35 % | 424 | 81.92 |
-| Butane | 200–6000 | 200–800 | −0.74 % | 200 | 98.66 |
-| CarbonDioxide | 200–6000 | 217–800 | −0.14 % | 382 | 37.14 |
-| CarbonMonoxide | 200–6000 | 200–800 | +0.13 % | 420 | 29.14 |
-| Cyclohexane | 200–6000 | 280–800 | −1.81 % | 380 | 105.34 |
-| Ethane | 200–6000 | 200–800 | −0.49 % | 200 | 52.50 |
-| Ethanol | 200–6000 | 200–800 | −0.53 % | 415 | 65.31 |
-| Ethylene | 200–6000 | 200–800 | −0.78 % | 200 | 42.89 |
-| Fluorine | 200–6000 | 200–800 | +0.24 % | 655 | 31.30 |
-| Helium | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
-| Hydrogen | 200–6000 | 200–800 | +0.91 % | 200 | 28.84 |
-| HydrogenSulfide | 300–5000 | 300–800 | −0.29 % | 800 | 34.21 |
-| Isobutane | 200–6000 | 200–800 | −0.65 % | 200 | 96.64 |
-| Isopentane | 298–5000 | 298–800 | −0.15 % | 493 | 118.85 |
-| Krypton | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
-| Methane | 200–6000 | 200–800 | +0.81 % | 745 | 35.69 |
-| Methanol | 200–6000 | 200–800 | −0.38 % | 425 | 44.04 |
-| Neon | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
-| Nitrogen | 200–6000 | 200–800 | −0.11 % | 685 | 29.12 |
-| NitrousOxide | 200–6000 | 200–800 | +0.28 % | 210 | 38.63 |
-| Octane | 200–6000 | 217–800 | −1.28 % | 217 | 187.78 |
-| Oxygen | 200–6000 | 200–800 | +0.06 % | 365 | 29.38 |
-| Pentane | 298–5000 | 298–800 | +0.50 % | 798 | 119.95 |
-| Propane | 200–6000 | 200–800 | +0.69 % | 665 | 73.59 |
-| Propylene | 200–6000 | 200–800 | +0.35 % | 665 | 64.43 |
-| SulfurDioxide | 300–5000 | 300–800 | +0.10 % | 365 | 39.94 |
-| SulfurHexafluoride | 300–5000 | 300–800 | −0.17 % | 355 | 97.42 |
-| Toluene | 200–6000 | 200–800 | −1.33 % | 200 | 103.28 |
-| Water | 200–6000 | 274–800 | +0.04 % | 744 | 33.59 |
-| Xenon | 200–6000 | 200–800 | 0.00 % | — | 20.79 |
+| Air | 200–1000 | 200–800 | −0.08 % | 675 | 29.10 |
+| Ammonia | 200–1000 | 200–800 | +0.57 % | 650 | 35.63 |
+| Argon | 200–1000 | 200–800 | 0.00 % | — | 20.79 |
+| Benzene | 200–1000 | 279–800 | −1.35 % | 424 | 81.92 |
+| Butane | 200–1000 | 200–800 | −0.74 % | 200 | 98.66 |
+| CarbonDioxide | 200–1000 | 217–800 | −0.14 % | 382 | 37.14 |
+| CarbonMonoxide | 200–1000 | 200–800 | +0.13 % | 420 | 29.14 |
+| Cyclohexane | 200–1000 | 280–800 | −1.81 % | 380 | 105.34 |
+| Ethane | 200–1000 | 200–800 | −0.49 % | 200 | 52.50 |
+| Ethanol | 200–1000 | 200–800 | −0.53 % | 415 | 65.31 |
+| Ethylene | 200–1000 | 200–800 | −0.78 % | 200 | 42.89 |
+| Fluorine | 200–1000 | 200–800 | +0.24 % | 655 | 31.30 |
+| Helium | 200–1000 | 200–800 | 0.00 % | — | 20.79 |
+| Hydrogen | 200–1000 | 200–800 | +0.91 % | 200 | 28.84 |
+| HydrogenSulfide | 300–1000 | 300–800 | −0.29 % | 800 | 34.21 |
+| Isobutane | 200–1000 | 200–800 | −0.65 % | 200 | 96.64 |
+| Isopentane | 298–1000 | 298–800 | −0.15 % | 493 | 118.85 |
+| Krypton | 200–1000 | 200–800 | 0.00 % | — | 20.79 |
+| Methane | 200–1000 | 200–800 | +0.81 % | 745 | 35.69 |
+| Methanol | 200–1000 | 200–800 | −0.38 % | 425 | 44.04 |
+| Neon | 200–1000 | 200–800 | 0.00 % | — | 20.79 |
+| Nitrogen | 200–1000 | 200–800 | −0.11 % | 685 | 29.12 |
+| NitrousOxide | 200–1000 | 200–800 | +0.28 % | 210 | 38.63 |
+| Octane | 200–1000 | 217–800 | −1.28 % | 217 | 187.78 |
+| Oxygen | 200–1000 | 200–800 | +0.06 % | 365 | 29.38 |
+| Pentane | 298–1000 | 298–800 | +0.50 % | 798 | 119.95 |
+| Propane | 200–1000 | 200–800 | +0.69 % | 665 | 73.59 |
+| Propylene | 200–1000 | 200–800 | +0.35 % | 665 | 64.43 |
+| SulfurDioxide | 300–1000 | 300–800 | +0.10 % | 365 | 39.94 |
+| SulfurHexafluoride | 300–1000 | 300–800 | −0.17 % | 355 | 97.42 |
+| Toluene | 200–1000 | 200–800 | −1.33 % | 200 | 103.28 |
+| Water | 200–1000 | 274–800 | +0.04 % | 744 | 33.59 |
+| Xenon | 200–1000 | 200–800 | 0.00 % | — | 20.79 |
 
 The larger differences for the heavier organics are differences between the two published correlations (TM-4513's fit and the ideal-gas part of each reference equation of state), not fitting noise; below its triple point (279 K) cyclohexane's two correlations differ by up to 8 %, which is why the comparison starts there.
 

@@ -61,8 +61,8 @@ TEST(IdealGasHeatCapacity, EveryComponentHasAPolynomialExceptTheHeldOnes) {
   for (const auto& [c, p] : kIdealGasHeatCapacity) {
     EXPECT_NE(std::find(Components::componentNames.begin(), Components::componentNames.end(), c),
               Components::componentNames.end()) << c << " is not an engine component";
-    EXPECT_LT(p.t_min, p.t_mid) << c;
-    EXPECT_LE(p.t_mid, p.t_max) << c;
+    EXPECT_LT(p.t_min, p.t_max) << c;
+    EXPECT_DOUBLE_EQ(p.t_max, 1000.0) << c;  // one set, to 1000 K
     EXPECT_LE(p.t_min, 300.0) << c;  // covers room temperature
   }
 }
@@ -101,9 +101,9 @@ TEST(IdealGasHeatCapacity, ClampingAndEnthalpyAreConsistent) {
   ASSERT_DOUBLE_EQ(so2.t_min, 300.0);
   EXPECT_DOUBLE_EQ(Fluid::EvalIdealGasHeatCapacity(so2, 250.0), Fluid::EvalIdealGasHeatCapacity(so2, 300.0));
   const NasaPolynomial& co2 = *Fluid::IdealGasCoeffs("CarbonDioxide");
-  EXPECT_DOUBLE_EQ(Fluid::EvalIdealGasHeatCapacity(co2, 7000.0), Fluid::EvalIdealGasHeatCapacity(co2, 6000.0));
+  EXPECT_DOUBLE_EQ(Fluid::EvalIdealGasHeatCapacity(co2, 1500.0), Fluid::EvalIdealGasHeatCapacity(co2, 1000.0));
   for (const auto* p : {&so2, &co2}) {
-    for (double T : {150.0, 250.0, 298.15, 450.0, 999.0, 1001.0, 3000.0, 6500.0}) {
+    for (double T : {150.0, 250.0, 298.15, 450.0, 999.0, 1001.0, 1500.0}) {
       const double h = 1e-3;
       const double dHdT = (Fluid::EvalIdealGasEnthalpy(*p, T + h) - Fluid::EvalIdealGasEnthalpy(*p, T - h)) / (2 * h);
       EXPECT_NEAR(dHdT, Fluid::EvalIdealGasHeatCapacity(*p, T), 2e-3 * dHdT) << T;
