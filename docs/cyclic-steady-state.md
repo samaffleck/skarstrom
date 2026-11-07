@@ -229,6 +229,34 @@ A study changes the deck between runs. A warm start from the previous run's CSS 
 
 The saving is largest when the edit leaves the bed close to its old CSS, as with a grid refinement. An edit that moves the CSS a long way still leaves many cycles of slow approach. The largest differences come from where the stopping rule halts each run, not from the start.
 
+### Warm-started optimisation and studies
+
+An optimisation or a sensitivity study runs the same deck many times at nearby points, so each run can start from the CSS of an earlier one. The engine keeps those states in a `CycleStateCache` (`adsim/solver/state_cache.h`), keyed by the decision vector, and starts each new run from the state of the **nearest** point evaluated so far. The distance is Euclidean in the variables scaled to [0, 1] by their bounds; a sensitivity study uses the runs' probability coordinates. The nearest point, not the previous one: a global optimiser jumps across the whole box at first, so the previous candidate is often far away.
+
+- **On by default** in `skarstrom.optimisation.optimise` / `OptimizeSimulation` and in sensitivity studies; `warm_start=False` (CLI `skarstrom sensitivity --no-warm-start`) runs every point cold.
+- **The reported optimum is cold.** After the search, the optimum is re-run from the deck's initial conditions; that is the reported cost and KPIs, next to the search's own value (`search_cost`).
+- **Only CSS states are cached.** A run that stops at the cycle limit ends in a state that depends on where it started, so it is not reused. A deck without a CSS check, or a fixed-cycle study that never reaches CSS, runs every point cold, exactly as before.
+- **A state that does not fit is skipped.** The start goes through the warm-start path above, so changed step times and cell counts are fine. A cached state of another structure (components, layers, steps or endpoints) is refused, the run is cold and the evaluation's `note` says why. A warm-started run that fails is repeated cold.
+- **Warm runs stop at the same CSS within the bound, not bit for bit.** With several worker processes in a study, each keeps its own states, so which run starts from which depends on scheduling.
+
+Measured on three example decks as shipped (deck CSS settings, ε = `css.state_tolerance` = 2×10⁻⁵). The optimisation varies two step times over ±20 % of the deck's value, maximising purity + recovery of CO₂, with 20 evaluations (5 initial samples). The study is a Morris screening of the same two step times at ±10 %, 4 trajectories (12 runs) after the nominal run. Cycles and wall times are means per run, the first (cold) run included; wall times are from one Linux run with three jobs sharing four cores, so read them to about 15 %.
+
+| Deck (cold CSS cycles) | Task | Cycles per run, cold → warm | Wall time per run, cold → warm | Largest KPI difference warm vs cold | Optimum: cold re-run vs search |
+|---|---|---|---|---|---|
+| Illustrative_TSA_13X (27) | optimisation | 18.2 → 9.9 | 6.1 → 3.3 s | 0.4 ε | 0.01 ε |
+| | screening | 28.2 → 15.1 | 7.9 → 4.9 s | 0.15 ε | — |
+| Perez2019_A (49) | optimisation | 51.5 → 23.9 | 55 → 26 s | 4.3 ε | 2.5 ε |
+| | screening | 49.2 → 23.3 | 59 → 26 s | 4.1 ε | — |
+| Nguyen2023_Exp_I (37) | optimisation | 37.8 → 17.0 | 38 → 15 s | 0.8 ε | 0.7 ε |
+| | screening | 36.9 → 19.2 | 29 → 20 s | 0.7 ε | — |
+
+The KPI difference is the largest difference in CO₂ purity or recovery between a warm and a cold run at the same point (for the optimisation, at the points both searches evaluated: the initial samples and any later coincidences). The last column compares the optimum's cold re-run with the value the warm-started search found for it.
+
+- **A warm-started run needs about half the cycles of a cold one**: 1.8–2.2× fewer cycles per run, and 1.4–2.5× less wall time per run (the spread is mostly the shared machine). A whole 20-evaluation optimisation of `Perez2019_A` took 10 min instead of 19.
+- **Everything is within the bound** used throughout this page ($c \le 100$): the largest difference is 4.3 ε, on `Perez2019_A`, the slowest-converging deck, as in [the verification](#verification-against-a-long-reference).
+- **The searches end at the same optimum.** On `Illustrative_TSA_13X` both find the same corner of the box. On `Nguyen2023_Exp_I` the warm search's optimum is 0.4 s of feed time from the cold search's and its cold cost is 0.3 ε lower. On `Perez2019_A` the objective is flat near the optimum: the warm search stops 2.3 s of feed time from the cold search, with a cold cost 5.9 ε higher (1.2×10⁻⁴ in purity + recovery). Two searches whose costs differ by a few ε take different paths through the box; that is a property of the search, not an error of the warm start.
+- **The screening's μ\* agree to 1 %** on every deck and output, so the ranking is the same. A run's noise from the stopping rule is a few ε at most; keep the effects being measured well above it (tighten `css.state_tolerance` for the study, see [Sensitivity Analysis](sensitivity.md#rules-that-keep-the-numbers-honest)).
+
 ## Verification against a long reference
 
 `core/test/validation/test_css_reference.cpp` (slow tier) checks, deck by deck, that a run stopped at CSS has reached the cyclic steady state of a much longer run. It compares the end-of-cycle state, not only the KPIs. For each deck it makes:

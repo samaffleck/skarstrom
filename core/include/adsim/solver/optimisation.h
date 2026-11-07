@@ -400,7 +400,9 @@ namespace adsim {
 
     std::vector<double> OptimizeParameters() {
       if (params_ref_) {
-        // The bounds may have been edited since construction.
+        // The parameters and their bounds may have changed since construction.
+        lower_.resize(params_ref_->Size());
+        upper_.resize(params_ref_->Size());
         for (size_t i = 0; i < params_ref_->Size(); ++i) {
           lower_[i] = (*params_ref_)[i].lower_bound;
           upper_[i] = (*params_ref_)[i].upper_bound;
