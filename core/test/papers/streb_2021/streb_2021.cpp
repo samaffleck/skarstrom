@@ -75,6 +75,16 @@ namespace adsim {
       if (c.ternary) AddComponents({ "CarbonDioxide", "Methane", "Hydrogen", "Helium" });
       else           AddComponents({ "CarbonDioxide", "Methane", "Helium" });
 
+      // The paper's model uses "constant, average values" for the heat
+      // capacity of the gas phase C_g (model assumptions) and prints no value.
+      // Our choice of the average: each component's ideal-gas C_p0 at the
+      // case's feed (= initial) temperature, held for the run (the engine's
+      // constant gas heat capacity mode; see README).
+      data.fluid.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
+      for (const auto& component : data.fluid.components_)
+        data.fluid.gas_heat_capacity_[component] =
+          Fluid::EvalIdealGasHeatCapacity(*Fluid::IdealGasCoeffs(component), c.temperature);
+
       auto [layer_id, ads_id] = AddLayer("13X");
       double skeletal_density = 2359;
       double solid_density = 1085;
