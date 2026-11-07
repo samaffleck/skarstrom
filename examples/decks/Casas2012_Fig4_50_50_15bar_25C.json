@@ -365,7 +365,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 5,
+                        "cereal_class_version": 6,
                         "Name": "AP3-60",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -517,7 +517,8 @@
                                 "DisplayUnitIndex": 0
                             },
                             "Entrance_Effects": false
-                        }
+                        },
+                        "Film_Correlation": 0
                     }
                 ],
                 "Next_Layer_ID": 1
