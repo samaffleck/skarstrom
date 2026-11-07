@@ -108,7 +108,7 @@ namespace adsim {
 
   // Pressure Boundary Conditions
   PressureBoundaryCondition::PressureBoundaryCondition() {
-    pressure_ = std::make_unique<ConstantBoundaryValue>(101325.0);
+    pressure_ = std::make_unique<ConstantBoundaryValue>(constants::kStandardAtmosphere);
     pump_ = CreatePump(PumpType::COMPRESSOR);
   }
 

@@ -18,6 +18,7 @@
 
 // adsim includes
 #include "adsim/objects/fluid.h"
+#include "adsim/math/constants.h"
 #include "adsim/math/expression_map.h"
 
 
@@ -29,7 +30,7 @@ namespace adsim {
 
 	  ExpressionParam temperature{293.0};       // [K], fluid and solid temperature
 	  ExpressionParam wall_temperature{293.0};  // [K]
-	  ExpressionParam pressure{101325.0};       // [Pa]
+	  ExpressionParam pressure{constants::kStandardAtmosphere};       // [Pa]
 	  ExpressionParam velocity{0.0};            // [m/s]
 	  ExpressionMap mole_fraction{}; // [mol/mol]
 	  std::unordered_map<std::string, double> adsorbed_concentration{}; // [mol/kg]

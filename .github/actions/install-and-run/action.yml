@@ -1,0 +1,25 @@
+name: Install into a fresh venv
+description: >-
+  Create /tmp/venv, install a built wheel or sdist into it (with pytest and any
+  extra packages) and check that the skarstrom command starts. Used by ci.yml
+  (wheel) and release.yml (sdist); each caller then runs its own tests.
+inputs:
+  package:
+    description: Glob of the wheel or sdist to install, for example dist/*.whl.
+    required: true
+  extra-packages:
+    description: Further packages to install beside pytest.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+        EXTRA_PACKAGES: ${{ inputs.extra-packages }}
+      run: |
+        python -m venv --upgrade-deps /tmp/venv
+        # shellcheck disable=SC2086
+        /tmp/venv/bin/pip install $PACKAGE pytest $EXTRA_PACKAGES
+        cd /tmp && /tmp/venv/bin/skarstrom --version
