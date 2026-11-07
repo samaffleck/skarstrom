@@ -19,9 +19,9 @@ import math
 import os
 import re
 import sys
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from . import Simulation, __version__, examples
+from . import Simulation, __version__, examples, manifests
 from . import sensitivity as sa
 from ._core import CSS_DISTANCE_WARNING_RATIO
 
@@ -119,33 +119,19 @@ def _print_table(rows: List[List[str]], header: List[str], out=None) -> None:
         print("  ".join(c.ljust(w) for c, w in zip(r, widths)), file=out)
 
 
-# The KPI table printed by `run`. The specific energy is the electrical
-# energy (compressor and vacuum-pump work per kg of product): `electrical_energy`
-# and `energy_consumption` hold the same value.
-KPI_FIELDS = [
-    ("purity", "purity [mol/mol]"),
-    ("recovery", "recovery [mol/mol]"),
-    ("productivity_mass", "productivity [kg/(kg s)]"),
-    ("productivity_volume", "productivity [kg/(m3 s)]"),
-    ("electrical_energy", "electrical energy [J/kg]"),
-    ("thermal_energy", "thermal energy [J/kg]"),
-    ("cooling_duty", "cooling duty [J/kg]"),
-    ("production_rate", "production [mol/s]"),
-]
+# The KPIs, from the engine's KPI manifest (skarstrom.kpi_manifest()): the
+# column head is the short label with the SI unit, "purity [mol/mol]". The
+# table printed by `run` shows the displayed KPIs (the electrical energy, not
+# its duplicate energy_consumption); kpis.csv has every per-cycle KPI in the
+# engine's order, so its original columns keep their order and headers
+# (scripts read them) and new KPIs are appended.
+def _kpi_columns(display_only: bool) -> List[Tuple[str, str]]:
+    return [(k["key"], f"{k['short_label']} [{k['unit']}]") for k in manifests.kpi_manifest()
+            if not k["per_step"] and (k["display"] or not display_only)]
 
-# The columns of kpis.csv. The original columns keep their order and headers
-# (scripts read them); new KPIs are appended.
-KPI_CSV_FIELDS = [
-    ("purity", "purity [mol/mol]"),
-    ("recovery", "recovery [mol/mol]"),
-    ("productivity_mass", "productivity [kg/(kg s)]"),
-    ("productivity_volume", "productivity [kg/(m3 s)]"),
-    ("energy_consumption", "energy [J/kg]"),
-    ("production_rate", "production [mol/s]"),
-    ("electrical_energy", "electrical energy [J/kg]"),
-    ("thermal_energy", "thermal energy [J/kg]"),
-    ("cooling_duty", "cooling duty [J/kg]"),
-]
+
+KPI_FIELDS = _kpi_columns(display_only=True)
+KPI_CSV_FIELDS = _kpi_columns(display_only=False)
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -427,8 +413,18 @@ def cmd_sensitivity(args: argparse.Namespace) -> int:
     return 0
 
 
-def _example_family(name: str) -> str:
-    """The paper / study an example deck belongs to: its AuthorYear prefix."""
+def _example_families() -> Dict[str, str]:
+    """Example name -> the paper / study it belongs to, from the engine's example manifest."""
+    try:
+        return {e["name"]: e["family"] for e in manifests.example_manifest()}
+    except (FileNotFoundError, RuntimeError):
+        return {}
+
+
+def _example_family(name: str, families: Dict[str, str]) -> str:
+    """The deck's declared family; for a deck missing from the manifest, its AuthorYear prefix."""
+    if name in families:
+        return families[name]
     m = re.match(r"[A-Za-z]+\d{4}", name)
     return m.group(0) if m else name.split("_")[0]
 
@@ -445,7 +441,8 @@ def cmd_examples(args: argparse.Namespace) -> int:
     if action == "list":
         names = examples.names()
         if args.json:
-            print(json.dumps([{"name": e.name, "title": e.title, "family": _example_family(e.name), "path": e.path}
+            families = _example_families()
+            print(json.dumps([{"name": e.name, "title": e.title, "family": _example_family(e.name, families), "path": e.path}
                               for e in examples.ALL], indent=2))
             return 0
         for name in names:

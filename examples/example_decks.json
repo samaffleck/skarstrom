@@ -1,0 +1,246 @@
+{
+  "description": "The example decks in examples/decks/: the family each belongs to (the paper or study, also the example script examples/<family>.py groups by), whether front ends hide it from their example lists, and a one-line summary. Titles and descriptions are read from the decks. Every deck must be listed (ExampleDeckManifest checks).",
+  "version": 1,
+  "decks": [
+    {
+      "file": "Arora2021_LiLSX_PSA.json",
+      "family": "Arora2021",
+      "hidden": false,
+      "summary": "Four-step Skarstrom PSA: air to O2 on LiLSX"
+    },
+    {
+      "file": "Arora2021_LiLSX_PVSA.json",
+      "family": "Arora2021",
+      "hidden": false,
+      "summary": "Four-step Skarstrom PVSA: air to O2 on LiLSX"
+    },
+    {
+      "file": "Casas2012_Fig4_50_50_15bar_25C.json",
+      "family": "Casas2012",
+      "hidden": false,
+      "summary": "CO2/H2 breakthrough on activated carbon, 50/50 feed at 15 bar and 25 C"
+    },
+    {
+      "file": "Casas2012_Fig6_25_75_15bar_25C.json",
+      "family": "Casas2012",
+      "hidden": false,
+      "summary": "CO2/H2 breakthrough on activated carbon, 25/75 feed at 15 bar and 25 C"
+    },
+    {
+      "file": "Casas2012_Fig6_75_25_15bar_25C.json",
+      "family": "Casas2012",
+      "hidden": false,
+      "summary": "CO2/H2 breakthrough on activated carbon, 75/25 feed at 15 bar and 25 C"
+    },
+    {
+      "file": "Ferre2026_NaYF.json",
+      "family": "Ferre2026",
+      "hidden": false,
+      "summary": "Biogas upgrading (CO2/CH4) by four-step PVSA on zeolite NaY"
+    },
+    {
+      "file": "FiveStepProductPurge.json",
+      "family": "FiveStepProductPurge",
+      "hidden": false,
+      "summary": "Template CO2/N2 vacuum swing cycle with a product purge step (no literature source)"
+    },
+    {
+      "file": "Haghpanah2013_Fig5Benchmark.json",
+      "family": "Haghpanah2013",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on zeolite 13X: Fig. 5 benchmark"
+    },
+    {
+      "file": "Haghpanah2013_PL002.json",
+      "family": "Haghpanah2013",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design, P_L = 0.02 bar"
+    },
+    {
+      "file": "Haghpanah2013_PL003.json",
+      "family": "Haghpanah2013",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design, P_L = 0.03 bar"
+    },
+    {
+      "file": "Haghpanah2013_PL005.json",
+      "family": "Haghpanah2013",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design, P_L = 0.05 bar"
+    },
+    {
+      "file": "Haghpanah2013_PL007.json",
+      "family": "Haghpanah2013",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design, P_L = 0.07 bar"
+    },
+    {
+      "file": "Haghpanah2013_PL010.json",
+      "family": "Haghpanah2013",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on zeolite 13X: minimum-energy design, P_L = 0.10 bar"
+    },
+    {
+      "file": "Haghpanah2013_Sec61.json",
+      "family": "Haghpanah2013",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on zeolite 13X: reference design (Section 6.1)"
+    },
+    {
+      "file": "Illustrative_TSA_13X.json",
+      "family": "Illustrative",
+      "hidden": false,
+      "summary": "Illustrative temperature swing cycle on 13X (not a validated reproduction)"
+    },
+    {
+      "file": "Nguyen2022_Fig4.json",
+      "family": "Nguyen2022",
+      "hidden": false,
+      "summary": "Binary CO2/He breakthrough on CALF-20"
+    },
+    {
+      "file": "Nguyen2022_Fig5.json",
+      "family": "Nguyen2022",
+      "hidden": false,
+      "summary": "Ternary CO2/N2/He breakthrough on CALF-20"
+    },
+    {
+      "file": "Nguyen2023_Exp_I.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle on CALF-20, experiment I"
+    },
+    {
+      "file": "Nguyen2023_Exp_II.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle on CALF-20, experiment II"
+    },
+    {
+      "file": "Nguyen2023_Exp_III.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle on CALF-20, experiment III"
+    },
+    {
+      "file": "Nguyen2023_Exp_IV.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle on CALF-20, experiment IV"
+    },
+    {
+      "file": "Nguyen2023_Exp_IX.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle with light product pressurisation on CALF-20, experiment IX"
+    },
+    {
+      "file": "Nguyen2023_Exp_V.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle on CALF-20, experiment V"
+    },
+    {
+      "file": "Nguyen2023_Exp_VI.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle with light product pressurisation on CALF-20, experiment VI"
+    },
+    {
+      "file": "Nguyen2023_Exp_VII.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle with light product pressurisation on CALF-20, experiment VII"
+    },
+    {
+      "file": "Nguyen2023_Exp_VIII.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle with light product pressurisation on CALF-20, experiment VIII"
+    },
+    {
+      "file": "Nguyen2023_Exp_X.json",
+      "family": "Nguyen2023",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VPSA cycle with light product pressurisation on CALF-20, experiment X"
+    },
+    {
+      "file": "Perez2019_A.json",
+      "family": "Perez2019",
+      "hidden": false,
+      "summary": "CO2/N2 VSA on 13X, configuration A"
+    },
+    {
+      "file": "Perez2019_B.json",
+      "family": "Perez2019",
+      "hidden": false,
+      "summary": "CO2/N2 VSA on 13X, configuration B"
+    },
+    {
+      "file": "Perez2019_C1.json",
+      "family": "Perez2019",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VSA on 13X, configuration C1"
+    },
+    {
+      "file": "Perez2019_D1.json",
+      "family": "Perez2019",
+      "hidden": false,
+      "summary": "Five-step CO2/N2 VSA on 13X, configuration D1"
+    },
+    {
+      "file": "Perez2019_E.json",
+      "family": "Perez2019",
+      "hidden": false,
+      "summary": "CO2/N2 VSA on 13X, configuration E"
+    },
+    {
+      "file": "Perez2019_F.json",
+      "family": "Perez2019",
+      "hidden": false,
+      "summary": "CO2/N2 VSA on 13X, configuration F"
+    },
+    {
+      "file": "Streb2021_A1.json",
+      "family": "Streb2021",
+      "hidden": false,
+      "summary": "Binary CO2/CH4 breakthrough, case A1"
+    },
+    {
+      "file": "Streb2021_A3.json",
+      "family": "Streb2021",
+      "hidden": false,
+      "summary": "Binary CO2/CH4 breakthrough, case A3"
+    },
+    {
+      "file": "Vysyaraju2024_PSA_exp1.json",
+      "family": "Vysyaraju2024",
+      "hidden": false,
+      "summary": "Helium recovery from He/N2 by five-step PSA with pressure equalisation on 5A, experiment 1"
+    },
+    {
+      "file": "Ward2022_Q100ccm.json",
+      "family": "Ward2022",
+      "hidden": false,
+      "summary": "CO2 breakthrough at 100 ccm"
+    },
+    {
+      "file": "Ward2022_Q200ccm.json",
+      "family": "Ward2022",
+      "hidden": false,
+      "summary": "CO2 breakthrough at 200 ccm"
+    },
+    {
+      "file": "Ward2022_Q50ccm.json",
+      "family": "Ward2022",
+      "hidden": false,
+      "summary": "CO2 breakthrough at 50 ccm"
+    },
+    {
+      "file": "Ward2024.json",
+      "family": "Ward2024",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PSA of Ward and Pini 2024"
+    }
+  ]
+}
