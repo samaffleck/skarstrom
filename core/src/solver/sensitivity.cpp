@@ -540,10 +540,18 @@ void CheckStudy(const std::string& deck_json, const Study& study) {
 SampleOutcome EvaluateSample(const std::string& deck_json, const std::vector<Input>& inputs,
                              const std::vector<double>& values, const std::vector<Output>& outputs,
                              const RunPolicy& policy, const CancelPoll& cancel) {
+  return EvaluateSample(deck_json, inputs, values, outputs, policy, cancel, nullptr, {});
+}
+
+SampleOutcome EvaluateSample(const std::string& deck_json, const std::vector<Input>& inputs,
+                             const std::vector<double>& values, const std::vector<Output>& outputs,
+                             const RunPolicy& policy, const CancelPoll& cancel, CycleStateCache* cache,
+                             const std::vector<double>& key) {
   if (!values.empty() && values.size() != inputs.size()) {
     throw std::invalid_argument("a sample needs one value per input (" + std::to_string(inputs.size()) + "), got " +
                                 std::to_string(values.size()));
   }
+  if (cache && key.empty()) throw std::invalid_argument("a warm-started sample needs a key");
   Simulation sim;
   try {
     sim.LoadJson(deck_json);
@@ -562,12 +570,18 @@ SampleOutcome EvaluateSample(const std::string& deck_json, const std::vector<Inp
   RunOptions options;
   if (policy.cycles > 0) options.cycles = policy.cycles;
   options.cancel = cancel;
-  const RunResult r = sim.Run(options);
+  CachedRunInfo info;
+  const RunResult r = cache ? RunWithStateCache(sim, cache, key, options, &info) : sim.Run(options);
 
   SampleOutcome out;
   out.status = r.status;
   out.message = r.message;
   out.wall_time_s = r.wall_time_s;
+  out.css_reached = r.css_reached;
+  out.cycles_run = r.cycles_run;
+  out.warm = info.warm;
+  out.distance = info.distance;
+  out.note = info.note;
   out.outputs.assign(outputs.size(), kNaN);
   out.accepted = r.Ok() && (!policy.require_css || r.css_reached);
   if (r.Ok() && policy.require_css && !r.css_reached) {

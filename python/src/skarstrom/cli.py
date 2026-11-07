@@ -342,6 +342,8 @@ def cmd_sensitivity(args: argparse.Namespace) -> int:
         given["cycles"] = args.cycles
     if args.no_require_css:
         given["require_css"] = False
+    if args.no_warm_start:
+        given["warm_start"] = False
     try:
         if args.input:
             inputs = [_parse_input(sim, t) for t in args.input]
@@ -521,6 +523,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--cycles", type=int, help="override the deck's cycle limit")
     s.add_argument("--no-require-css", action="store_true",
                    help="count runs that stop at the cycle limit without reaching CSS")
+    s.add_argument("--no-warm-start", action="store_true",
+                   help="start every run from the deck's initial conditions (default: from the cyclic "
+                        "steady state of the nearest earlier run)")
     s.add_argument("--seed", type=int, help="random seed (default 1)")
     s.add_argument("--workers", type=int, default=1, help="parallel processes (default 1)")
     s.add_argument("--save", metavar="FILE", help="write the study, every run and the results as JSON")

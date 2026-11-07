@@ -139,6 +139,18 @@ spread = study.propagate(inputs=screen.important())   # LHS Monte Carlo: .table(
 
 CLI: `skarstrom sensitivity deck.json --input "PATH=10%" --input "PATH=LO:HI" --input "PATH=normal:MEAN:SD" [--output Component.kpi] [--method screen|propagate|both] [--workers N] [--json] [--save FILE]`. Outputs are `Component.kpi` at the last cycle, any KPI of `sa.kpi_names()` (default: purity, recovery, productivity_mass, energy_consumption of every tracked component). Runs must reach CSS unless `require_css=False` / `--no-require-css`; a deck whose `css.method` is none (e.g. the Arora decks) needs `settings={"css.method": 3}` or the flag. Not-accepted runs are counted in `.failed` / `.warnings`, never dropped silently. C++: `adsim/solver/sensitivity.h` (plans, `EvaluateSample`, analyses). Guide: `docs/sensitivity.md`.
 
+### Optimisation and warm starts
+
+```python
+from skarstrom import optimisation as opt
+r = opt.optimise(sim, {"step[Feed].time": (60, 150)}, objectives=[opt.maximise("CarbonDioxide", "recovery")],
+                 constraints=[opt.at_least("CarbonDioxide", "purity", 0.9, penalty=10)], evaluations=20)
+r.x, r.cost, r.search_cost, r.kpis, r.table()   # cost = cold re-run of the optimum; search_cost = warm search value
+cache = opt.StateCache(lower, upper); run, info = opt.run_warm(cand, cache, x)   # your own loop
+```
+
+Candidates and study runs warm-start from the CSS of the nearest earlier point (`warm_start=False` / `--no-warm-start` to turn off); only CSS states are cached. C++: `adsim/solver/state_cache.h`, `OptimizeSimulation` in `adsim/solver/optimisation.h`.
+
 ### Isotherms and the adsorbent library
 
 ```python

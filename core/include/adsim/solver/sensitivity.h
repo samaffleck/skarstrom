@@ -57,6 +57,7 @@
 
 #include "adsim/simulation.h"
 #include "adsim/solver/sensitivity_study.h"  // Distribution, Input, RunPolicy, Study
+#include "adsim/solver/state_cache.h"        // CycleStateCache
 
 namespace adsim {
 namespace sensitivity {
@@ -136,6 +137,13 @@ struct SampleOutcome {
   // undefined for it (e.g. no product drawn).
   std::vector<double> outputs;
   double wall_time_s = 0.0;
+  // The run itself (as RunResult) and its warm start (CachedRunInfo; all
+  // false / NaN for a run without a cache).
+  bool css_reached = false;
+  int cycles_run = 0;
+  bool warm = false;
+  double distance = kNaN;
+  std::string note;
 };
 
 // Checks a study before any run: loads `deck_json`, applies policy.settings
@@ -163,6 +171,20 @@ void CheckStudy(const std::string& deck_json, const Study& study);
 SampleOutcome EvaluateSample(const std::string& deck_json, const std::vector<Input>& inputs,
                              const std::vector<double>& values, const std::vector<Output>& outputs,
                              const RunPolicy& policy = {}, const CancelPoll& cancel = {});
+
+// The same run warm-started from `cache` (RunWithStateCache in
+// adsim/solver/state_cache.h): it starts from the cached state nearest to
+// `key` and its final state is cached under `key`. The key is the sample's
+// probability coordinates (its row of Plan::u; 0.5 per input for the nominal
+// run), so the cache is made without bounds and holds the runs of one deck,
+// one input list and one policy. A null cache runs cold, as above. Warm and
+// cold runs stop at the same cyclic steady state within the CSS tolerance's
+// bound, not bit for bit, and with several workers each holding a cache the
+// starts depend on the order the runs reach them.
+SampleOutcome EvaluateSample(const std::string& deck_json, const std::vector<Input>& inputs,
+                             const std::vector<double>& values, const std::vector<Output>& outputs,
+                             const RunPolicy& policy, const CancelPoll& cancel, CycleStateCache* cache,
+                             const std::vector<double>& key);
 
 // ---- analysis ----------------------------------------------------------------
 

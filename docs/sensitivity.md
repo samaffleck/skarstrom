@@ -99,6 +99,7 @@ study = sa.Study.from_deck(sim, seed=2)   # any saved value can be overridden
 
 - **Every run must reach cyclic steady state.** A run that stops at the cycle limit is not settled, and the difference would read as sensitivity. Such runs are counted as not accepted (`require_css=True`, the default). Tighten the CSS tolerance of the deck's CSS method for a study with `settings` (`css.state_tolerance` for the mass-balance methods, whose balance band only screens out gross imbalance; `css.molar_relative_tolerance` for the molar profile), so that the remaining drift stays well below the effects being measured ([Cyclic Steady State](cyclic-steady-state.md#state-test)). A deck with no CSS check (`css.method` none) needs one switched on, e.g. `settings={"css.method": 3}`.
 - **Failed runs are reported, never dropped silently.** `failed` and `warnings` say how many runs did not count and why. Failures tend to cluster in one corner of the ranges, so the results then describe the rest of it.
+- **Runs are warm-started by default.** Each run starts from the cyclic steady state of the nearest run made so far, in the inputs' probability coordinates (the nominal run sits at the median). This saves cycles; warm and cold runs stop at the same cyclic steady state to within the CSS tolerance's bound, not bit for bit (measured in [Cyclic Steady State](cyclic-steady-state.md#warm-started-optimisation-and-studies)). With `workers > 1` each process keeps its own states, so which run starts from which depends on scheduling. For runs that are exactly repeatable, pass `warm_start=False` (CLI `--no-warm-start`). Each sample records `warm`, `cycles_run` and a `note` when a warm start was skipped.
 - **Fixed-cycle screening** (`require_css=False`, `cycles=N`) is fine for a quick ranking when every run gets the same number of cycles. Do not use it for error bars.
 
 ## The C++ API
@@ -120,5 +121,7 @@ for (const auto& row : plan.values)
   y.push_back(sa::EvaluateSample(deck_json, inputs, row, outputs).outputs);
 sa::MorrisResult m = sa::AnalyseMorris(plan, {"CarbonDioxide.purity"}, y);
 ```
+
+To warm-start the runs, keep a `CycleStateCache` (made without bounds; `adsim/solver/state_cache.h`) per worker and pass it with the run's probability coordinates: `sa::EvaluateSample(deck_json, inputs, plan.values[r], outputs, policy, {}, &cache, plan.u[r])`. The run starts from the cached state nearest to `plan.u[r]` and its own state is cached under it.
 
 `AnalyseMonteCarlo(inputs, values, names, y)` takes the runs of every batch stacked. The study saved with a deck is `UserData::sensitivity_study` (`sa::Study`, in `adsim/solver/sensitivity_study.h`); `sa::CheckStudy(deck_json, study)` checks it, and `sa::StudyOutputs(study, data)` gives its outputs (the deck's defaults when it names none). Plans use `std::mt19937_64` with every draw done by the engine, so a seed gives the same runs natively, in the Python wheels and in WebAssembly.

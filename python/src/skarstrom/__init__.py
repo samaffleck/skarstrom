@@ -36,7 +36,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
-from . import _core, examples, sensitivity, units
+from . import _core, examples, optimisation, sensitivity, units
 from .units import Quantity, ureg
 from ._core import (
     AxialProfile,
@@ -46,6 +46,7 @@ from ._core import (
     OperatingLimitsReport,
     OperatingWarning,
     RunResult,
+    StateCache,
     StepOperatingSummary,
     TimeSeries,
     WallDesignResult,
@@ -113,6 +114,7 @@ __all__ = [
     "CycleState",
     "OperatingLimitsReport",
     "OperatingWarning",
+    "StateCache",
     "StepOperatingSummary",
     "WallDesignResult",
     "Collection",

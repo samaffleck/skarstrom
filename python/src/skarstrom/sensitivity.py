@@ -126,9 +126,33 @@ def kpi_names() -> List[str]:
 
 # ---- running ------------------------------------------------------------------------
 
+# Warm-start caches of this process, one per (deck, input paths, policy): the
+# cyclic steady states of the runs it made, keyed by their probability
+# coordinates. Worker processes keep their own. Only the most recent few are
+# kept, so a session running many studies does not hold every state.
+_CACHES: Dict[Any, Any] = {}
+_MAX_CACHES = 4
+
+
+def _cache_for(deck: str, inputs: List[Dict[str, Any]], policy: Dict[str, Any]) -> Any:
+    key = (hash(deck), tuple(i["path"] for i in inputs), json.dumps(policy, sort_keys=True, default=str))
+    cache = _CACHES.pop(key, None)
+    if cache is None:
+        cache = _core.StateCache()
+    _CACHES[key] = cache  # most recent last
+    while len(_CACHES) > _MAX_CACHES:
+        _CACHES.pop(next(iter(_CACHES)))
+    return cache
+
+
 def _evaluate(deck: str, inputs: List[Dict[str, Any]], values: List[float], outputs: List[str],
-              policy: Dict[str, Any]) -> Dict[str, Any]:
-    """One sample (top level, so worker processes can run it)."""
+              policy: Dict[str, Any], key: Optional[List[float]] = None) -> Dict[str, Any]:
+    """One sample (top level, so worker processes can run it). With ``key``
+    (the sample's probability coordinates) the run warm-starts from the
+    nearest state this process has cached for the same study."""
+    if key:
+        cache = _cache_for(deck, inputs, policy)
+        return _core.sensitivity_evaluate(deck, inputs, values, outputs, policy, cache, list(key))
     return _core.sensitivity_evaluate(deck, inputs, values, outputs, policy)
 
 
@@ -155,7 +179,17 @@ class Study:
     wobble would read as sensitivity. ``require_css`` (default) only counts
     runs that reach cyclic steady state; ``cycles`` overrides the deck's
     cycle limit. ``workers`` runs that many processes. ``seed`` makes the
-    study repeatable. ``trajectories``, ``levels`` and ``threshold`` are the
+    study repeatable.
+
+    ``warm_start`` (default) starts each run from the cyclic steady state of
+    the nearest run made so far (in the inputs' probability coordinates; the
+    nominal run counts, at the median), which saves cycles. Warm and cold
+    runs stop at the same cyclic steady state to within the CSS tolerance's
+    bound, not bit for bit; with ``workers > 1`` each process keeps its own
+    states, so which run starts from which depends on scheduling. Set
+    ``warm_start=False`` for runs that are exactly repeatable. Each sample
+    records ``warm``, ``cycles_run`` and ``note`` (why a warm start was
+    skipped). ``trajectories``, ``levels`` and ``threshold`` are the
     screening's defaults, ``runs``, ``batch``, ``max_runs`` and ``rel_tol``
     the propagation's, and ``bootstrap`` both analyses' (see :meth:`screen`
     and :meth:`propagate`).
@@ -182,6 +216,7 @@ class Study:
         max_runs: int = 400,
         rel_tol: float = 0.1,
         bootstrap: int = 1000,
+        warm_start: bool = True,
     ) -> None:
         if not inputs:
             raise ValueError("a study needs at least one input")
@@ -199,6 +234,7 @@ class Study:
         self.max_runs = int(max_runs)
         self.rel_tol = float(rel_tol)
         self.bootstrap = int(bootstrap)
+        self.warm_start = bool(warm_start)
         self.deck = sim.to_json()
         self.title = sim.get_text("info.title")
         self._named_outputs: List[str] = list(outputs) if outputs else []
@@ -325,22 +361,27 @@ class Study:
             "propagation": {"runs": self.runs, "batch": self.batch, "max_runs": self.max_runs,
                             "rel_tol": self.rel_tol},
             "bootstrap": self.bootstrap,
+            "warm_start": self.warm_start,
         }
 
     # ---- running ---------------------------------------------------------------------
     def _run(self, inputs: Sequence[Input], rows: List[List[float]], progress: Optional[Progress],
-             offset: int = 0, total: Optional[int] = None) -> List[Dict[str, Any]]:
+             offset: int = 0, total: Optional[int] = None,
+             keys: Optional[List[List[float]]] = None) -> List[Dict[str, Any]]:
         args = (self.deck, self._input_dicts(inputs))
         total = total if total is not None else len(rows)
+        if not self.warm_start or keys is None:
+            keys = [None] * len(rows)  # type: ignore[list-item]
         out: List[Dict[str, Any]] = []
         if self.workers == 1 or len(rows) == 1:
-            for i, values in enumerate(rows):
-                out.append(_evaluate(*args, values, self.outputs, self.policy))
+            for i, (values, key) in enumerate(zip(rows, keys)):
+                out.append(_evaluate(*args, values, self.outputs, self.policy, key))
                 if progress:
                     progress(offset + i + 1, total)
             return out
         with ProcessPoolExecutor(max_workers=min(self.workers, len(rows))) as pool:
-            futures = [pool.submit(_evaluate, *args, values, self.outputs, self.policy) for values in rows]
+            futures = [pool.submit(_evaluate, *args, values, self.outputs, self.policy, key)
+                       for values, key in zip(rows, keys)]
             try:
                 for i, f in enumerate(futures):
                     out.append(f.result())
@@ -356,7 +397,8 @@ class Study:
         """The unperturbed run (with the study's settings): status, message,
         accepted, outputs (dict by name) and wall_time_s. Run once and cached."""
         if self._nominal is None:
-            r = _evaluate(self.deck, self._input_dicts(), [], self.outputs, self.policy)
+            key = [0.5] * len(self.inputs) if self.warm_start else None
+            r = _evaluate(self.deck, self._input_dicts(), [], self.outputs, self.policy, key)
             r["outputs"] = dict(zip(self.outputs, r["outputs"]))
             self._nominal = r
         return self._nominal
@@ -374,7 +416,7 @@ class Study:
         bootstrap = self.bootstrap if bootstrap is None else bootstrap
         chosen = self._select(inputs)
         plan = _core.sensitivity_morris_plan(self._input_dicts(chosen), trajectories, levels, self.seed)
-        samples = self._run(chosen, plan["values"], progress)
+        samples = self._run(chosen, plan["values"], progress, keys=plan["u"])
         y = [s["outputs"] for s in samples]
         result = _core.sensitivity_analyse_morris(self._input_dicts(chosen), plan, self.outputs, y, bootstrap)
         return Screening(self, chosen, plan, samples, result)
@@ -407,7 +449,8 @@ class Study:
         n = runs
         while True:
             plan = _core.sensitivity_monte_carlo_plan(dicts, n, self.seed, batches)
-            samples += self._run(chosen, plan["values"], progress, offset=len(values), total=max_runs)
+            samples += self._run(chosen, plan["values"], progress, offset=len(values), total=max_runs,
+                                 keys=plan["u"])
             values += plan["values"]
             batches += 1
             result = _core.sensitivity_analyse_monte_carlo(
@@ -458,7 +501,8 @@ class _StudyResult:
         for values, s in zip(self.values, self.samples):
             row = {i.path: v for i, v in zip(self.inputs, values)}
             row.update(dict(zip(self.study.outputs, s["outputs"])))
-            row.update(status=s["status"], accepted=s["accepted"], message=s["message"], wall_time_s=s["wall_time_s"])
+            row.update(status=s["status"], accepted=s["accepted"], message=s["message"], wall_time_s=s["wall_time_s"],
+                       cycles_run=s.get("cycles_run"), warm=s.get("warm"), note=s.get("note"))
             rows.append(row)
         return pd.DataFrame(rows)
 
