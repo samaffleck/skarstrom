@@ -83,7 +83,8 @@ namespace adsim {
   // (KPIRecord::mass_balance_error): the net moles that entered through every
   // endpoint of every step, minus the change of the column inventory over the
   // cycle, over the moles that entered. NaN when the cycle's step balances
-  // (recorded with the KPI quadratures) or a stream log are missing.
+  // (recorded with the KPI quadratures) or a stream log are missing, or when
+  // the component's inflow is round-off (below 1e-12 of the column inventory).
   double CycleMassBalanceError(const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
                                const std::string& component, KPIIntegration integration);
 

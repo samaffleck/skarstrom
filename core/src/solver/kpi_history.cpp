@@ -47,7 +47,11 @@ namespace adsim {
         entered += std::max(n, 0.0);
       }
     }
-    if (!std::isfinite(net_in) || !(entered > 0.0)) return nan;
+    // A component that (to round-off) never entered has no balance: its
+    // round-off over its round-off is meaningless.
+    double inventory = 0.0;
+    for (double v : first->inventory_start) inventory += std::abs(v);
+    if (!std::isfinite(net_in) || !(entered > 1e-12 * inventory)) return nan;
     return (net_in - accumulation) / entered;
   }
 
