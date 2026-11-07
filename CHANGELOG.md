@@ -8,6 +8,35 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-11-07
+
+### Added — estimated distance to cyclic steady state
+- Every CSS check now estimates how far the run still is from the cyclic steady state: the convergence rate ρ from the decay of the last few end-of-cycle state changes, and the remaining distance ≈ last change × ρ/(1−ρ), in the norm of `css.state_tolerance` and as a multiple of it. It is reported in the solver's CSS log lines, as `distance_estimated`, `convergence_rate`, `distance`, `distance_ratio` and `distance_note` on `sim.css_history()` records, in the `css` entries of `skarstrom run --json` and in `css.csv`. The cycles right after an acceleration jump, and windows that are not a monotone decay, report "not estimated" with the reason.
+- A run that stops at CSS more than 100 state tolerances from it (by this estimate) logs a warning. The stopping rule is unchanged: no result moves.
+
+### Changed — the gas heat capacity is the ideal-gas Cp0(T) at the local temperature
+- The default gas heat capacity is now each component's ideal-gas heat capacity C_p0,i(T), evaluated at the local gas temperature in every cell. It comes from the NASA 7-coefficient polynomials of McBride, Gordon and Reno (1993, NASA TM-4513), with the source of every species in `ideal_gas_heat_capacity.h`. It replaces CoolProp's value evaluated once at the initial-condition pressure and temperature and held for the run. The initial temperature is now only a start: editing it no longer changes the cyclic steady state (#145), and a TSA cycle's gas heat capacity follows its temperature.
+- The polynomials cover 33 of the engine's 34 components; Air is built from N2, O2 and Ar at CoolProp's air composition. Each one agrees with CoolProp's ideal-gas Cp0 within 1 % (light and permanent gases) or 2 % (others) from 200 to 800 K; the table is in the Equation of State page. Hexane, which has no TM-4513 entry, keeps the held CoolProp value, and a run-start warning says so.
+- **Results move** for every deck in the default mode. The example decks are re-saved.
+- The registry name of the mode is now `ideal_gas` (`fluid.gas_heat_capacity_mode`: `ideal_gas`, `constant`); `coolprop` is still accepted as its former name. In C++, `GasHeatCapacityMode::IDEAL_GAS`, with `COOLPROP` kept as an alias.
+- The *Gas phase* adsorbed-phase heat capacity follows the adsorbed phase's temperature. Kirchhoff heats of reaction integrate the heat capacities exactly.
+- `Fluid::MolarHeatCapacity`, `MixtureHeatCapacity` and `AdsorbedPhaseHeatCapacity` take the temperature; new `MolarEnthalpyChange`, `HeatCapacityPolynomial` and `ComponentsWithHeldHeatCapacity`. Python: `skarstrom.ideal_gas_heat_capacity(component, T)`.
+- `CSSStartIndependence` gains hot-deck and cold-deck starts: the deck's own initial temperatures edited by ±40 K.
+
+### Added — a layer's mass fractions can be expressions
+- A layer's mass fractions are expressions over the deck variables, like other deck values: a two-solid blend can be written as `x` and `1 - x` with a deck variable `x`, and a sweep or a sensitivity study varies `variable[x]`. The registry path `layer[ID].mass_fraction[ID]` is now an Expression parameter, so `--set`, `sim[...] = "1 - x"` and `layer.set_composition({"13X": "x", "Glass beads": "1 - x"})` accept text. The composition check uses the evaluated fractions, shows the formulas with their values when the sum is off, and reports a fraction whose formula does not evaluate. The blend edits (`AddSolidToLayer`, `SetLayerMassFraction`, `RemoveSolidFromLayer`) refuse a layer whose fractions include a formula, with nothing changed.
+- `MixedAdsorbentLayer` archive version 5: the fractions are written as expressions. Older decks load with their numbers unchanged, bit for bit.
+
+### Changed — paper decks use their paper's gas heat capacity
+- The Casas 2012, Ferré 2026, Nguyen 2023, Estupiñan Perez 2019, Vysyaraju 2024, Ward & Pini 2022 and Ward & Pini 2024 decks now use the constant gas heat capacity mode with the paper's value: the printed constant where there is one (30.7 J/(mol K); per-kilogram NIST values converted with each component's molar mass; Ward & Pini 2022's single 840 J/(kg K) given to each component per kilogram, so every CO₂/He mixture has 840 J/(kg K)), and the mean of the ideal-gas Cp0 over 298–373 K for Casas 2012, which states that window but prints no value. Nguyen 2023 also takes the adsorbed-phase heat capacity from the gas, as the paper does. Arora & Hasan 2021 and Nguyen 2022 keep the default. The per-paper table is in `core/test/papers/README.md`.
+- **Results move** slightly for these decks (at most 0.06 pp in a purity or recovery); every validation bound holds. The example decks and the example scripts are updated.
+
+### Added — warm-started optimisation and sensitivity studies
+- `CycleStateCache` and `RunWithStateCache` (`adsim/solver/state_cache.h`): a cache of cyclic steady states keyed by the decision vector, owned by the caller. Each run starts from the state of the **nearest** point evaluated so far (Euclidean distance in the variables scaled to [0, 1] by their bounds), through the ordinary warm-start path (grid remap, stretched histories). A state that does not fit the deck (another structure) is skipped with a note, a warm-started run that fails is repeated cold, and only runs that reached CSS are cached, so decks without a CSS check and fixed-cycle studies run cold as before. Python: `skarstrom.StateCache` and `skarstrom.optimisation.run_warm`.
+- `OptimizeSimulation` (`adsim/solver/optimisation.h`) and `skarstrom.optimisation.optimise`: the whole single-objective loop over registry paths (`GlobalOptimizer`, MaxLIPO with a trust region), the cost from the candidates' KPIs. Candidates are warm-started from the cache by default (`warm_start=False` turns it off); the optimum is re-run from the deck's initial conditions and that cold value is the reported cost, next to the search's own value (`search_cost`). Every evaluation reports whether it was warm, its cycles and wall time. `GlobalOptimizer` also takes plain bounds and an objective of the candidate vector, and exposes `CurrentPoint()` and `GetBestValue()`.
+- Sensitivity studies warm-start each run from the nearest earlier run's CSS, keyed by the run's probability coordinates (`sa::EvaluateSample` overload with a cache; Python `Study(warm_start=True)` by default, one cache per worker process; CLI `skarstrom sensitivity --no-warm-start`). Samples report `warm`, `cycles_run`, `css_reached` and `note`.
+- Measured savings and the agreement with cold runs are in the cyclic-steady-state documentation (*Warm-started optimisation and studies*). Runs outside optimisation and studies are unchanged.
+
 ## [0.8.0] — 2026-11-07
 
 ### Added — CSS stops verified against a long reference
