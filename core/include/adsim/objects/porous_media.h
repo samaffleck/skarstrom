@@ -38,6 +38,7 @@
 #include <cereal/archives/json.hpp>
 
 // ads includes
+#include "adsim/equations/film_correlation.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/equations/isotherm.h"
 #include "adsim/equations/iast.h"
@@ -409,6 +410,11 @@ namespace adsim {
     // used: the channels give laminar Darcy flow (GetPermeability).
     LayerKind kind_ = LayerKind::Packed;
     StructuredGeometry structured_{};
+    // Gas-particle film correlation of a packed layer (film_correlation.h):
+    // the Nu of the film particle heat-transfer model and the Sh of the
+    // Haynes k_f. Not used by a structured layer (its channel Nu = Sh).
+    // Archives older than v6 load the default, Wakao-Funazkri.
+    FilmCorrelation film_correlation_ = FilmCorrelation::WakaoFunazkri;
 
     bool IsStructured() const { return kind_ != LayerKind::Packed; }
 
@@ -565,6 +571,9 @@ namespace adsim {
       } else {
         kind_ = LayerKind::Packed;
       }
+      // v6: the film correlation (Wakao-Funazkri, the fixed Sh before v6).
+      if (version >= 6) ar(cereal::make_nvp("Film_Correlation", film_correlation_));
+      else film_correlation_ = FilmCorrelation::WakaoFunazkri;
     }
   };
 
@@ -745,5 +754,5 @@ CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
 CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
 CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
 CEREAL_CLASS_VERSION(adsim::StructuredGeometry, 2);
-CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 5);
+CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 6);
 CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);

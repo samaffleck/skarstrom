@@ -88,7 +88,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::Adsorbent, 5),
       ADSIM_PIN(adsim::AdsorptionSource, 1),
       ADSIM_PIN(adsim::AdsorbentDirectory, 1),
-      ADSIM_PIN(adsim::MixedAdsorbentLayer, 5),
+      ADSIM_PIN(adsim::MixedAdsorbentLayer, 6),
       ADSIM_PIN(adsim::StructuredGeometry, 2),
       ADSIM_PIN(adsim::AdsorbentLayers, 1),
       ADSIM_PIN(adsim::EnergySource, 2),

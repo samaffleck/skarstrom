@@ -154,7 +154,7 @@ namespace adsim {
         const double nu = ChannelFilmNumber(dv.channel_nu[n], re, pr, dv.hydraulic_diameter[n], dv.entrance_length[n]);
         h = nu * k_g[n] / dv.hydraulic_diameter[n];
       } else {
-        const double nu = 2.0 + 1.1 * std::cbrt(pr) * std::pow(re, 0.6);
+        const double nu = PackedFilmNumber(layer.film_correlation_, re, pr, layer.GetVoidFraction());
         h = nu * k_g[n] / dv.dp[n];
       }
       hp[n] = h * dv.av[n];

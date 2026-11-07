@@ -23,7 +23,9 @@
 //     k = 15 D / r^2 for a sphere of radius r, 3 D / l^2 for a slab of
 //     half-thickness l.
 //  5. Wakao and Funazkri (1978, Chem. Eng. Sci. 33, 1375), packed beds:
-//     Nu = 2 + 1.1 Pr^(1/3) Re^0.6.
+//     Nu = 2 + 1.1 Pr^(1/3) Re^0.6; with Gunn (1978, Int. J. Heat Mass
+//     Transfer 21, 467) and Ranz and Marshall (1952, Chem. Eng. Prog. 48,
+//     141) as the other packed-layer film correlations (5b).
 //  6. A linear-isotherm breakthrough through a parallel-passage contactor
 //     (laminate) against the moment analysis of the LDF model (derived
 //     below), which exercises the slab LDF, Taylor-Aris dispersion and the
@@ -71,6 +73,8 @@ namespace adsim {
       double dm_dispersion = 1.6e-5;                 // [m2/s], Taylor-Aris D_m
       bool ltne = false;
       bool packed = false;                           // a packed bed instead (for the packed closures)
+      FilmCorrelation film = FilmCorrelation::WakaoFunazkri;  // packed layer's film correlation
+      bool haynes = false;                           // Haynes rate coefficient (film + pore) instead
       double run_time = 600.0, reltol = 1e-8, max_step = 0.5;
     };
 
@@ -89,11 +93,18 @@ namespace adsim {
       henry->params_[kTracer].Q = 0.0;
       ads.adsorption_source_.AddIsotherm({kTracer}, std::move(henry));
       auto ldf = std::make_unique<LinearDrivingForce>();
-      auto macro = std::make_unique<MassTransferCoefficientMacropore>();
-      macro->macropore_void_fraction_ = d.ep;
-      macro->tortuosity_ = d.tortuosity;
-      macro->molecular_diffusion_coefficient_ = d.dm_ldf;
-      ldf->mtc_model_ = std::move(macro);
+      if (d.haynes) {
+        auto haynes = std::make_unique<MassTransferCoefficient_Haynes>();
+        haynes->macropore_void_fraction_ = d.ep;
+        haynes->tortuosity_ = d.tortuosity;
+        ldf->mtc_model_ = std::move(haynes);
+      } else {
+        auto macro = std::make_unique<MassTransferCoefficientMacropore>();
+        macro->macropore_void_fraction_ = d.ep;
+        macro->tortuosity_ = d.tortuosity;
+        macro->molecular_diffusion_coefficient_ = d.dm_ldf;
+        ldf->mtc_model_ = std::move(macro);
+      }
       ads.adsorption_source_.mass_transfer_models_[kTracer] = std::move(ldf);
       ads.adsorption_source_.heat_of_adsorption_[kTracer] = 0.0;
 
@@ -107,6 +118,7 @@ namespace adsim {
         layer.eb_ = 0.4;
         layer.particle_diameter_ = 2.0e-3;
         layer.momentum_model_ = MomentumModel::BlakeKozeny;
+        layer.film_correlation_ = d.film;
         auto disp = std::make_unique<DispersionModelConstant>();
         disp->dispersion_coefficient_ = 1e-5;
         layer.equations_.dispersion_model_ = std::move(disp);
@@ -303,7 +315,9 @@ namespace adsim {
         double expected;
         if (packed) {
           const double eb = 0.4, dp = 2.0e-3;
-          const double nu = 2.0 + 1.1 * std::cbrt(cp * mu / kg) * std::pow(re, 0.6);
+          // The cube root as the engine has always evaluated it for Sh
+          // (film_correlation.h), so the packed Nu and Sh are one function.
+          const double nu = 2.0 + 1.1 * std::pow(cp * mu / kg, 0.3333333) * std::pow(re, 0.6);
           expected = nu * kg / dp * 6.0 * (1.0 - eb) / dp;
         } else {
           const double open = d.gap, period = d.gap + d.sheet;
@@ -316,6 +330,72 @@ namespace adsim {
         EXPECT_NEAR(hp, expected, 1e-10 * expected);
       });
     }
+  }
+
+  // 5b. Packed-bed film correlations (Wakao-Funazkri, Gunn, Ranz-Marshall;
+  //     film_correlation.h): the layer's one choice sets both the particle Nu
+  //     of the film heat model and the Sh of the Haynes coefficient, each
+  //     written out here from its source and the logged gas properties, with
+  //     Re on the superficial velocity and d_p.
+  TEST(FilmCorrelation, HeatAndMassFollowTheLayerChoice) {
+    const double eb = 0.4, dp = 2.0e-3;  // ChannelDeck's packed layer
+    struct Case { FilmCorrelation film; const char* name; };
+    const Case cases[] = {{FilmCorrelation::WakaoFunazkri, "Wakao-Funazkri"},
+                          {FilmCorrelation::Gunn, "Gunn"},
+                          {FilmCorrelation::RanzMarshall, "Ranz-Marshall"}};
+    auto number = [&](FilmCorrelation c, double re, double x) {
+      switch (c) {
+      case FilmCorrelation::Gunn:
+        return (7.0 - 10.0 * eb + 5.0 * eb * eb) * (1.0 + 0.7 * std::pow(re, 0.2) * std::cbrt(x)) +
+               (1.33 - 2.4 * eb + 1.2 * eb * eb) * std::pow(re, 0.7) * std::cbrt(x);
+      case FilmCorrelation::RanzMarshall: return 2.0 + 0.6 * std::sqrt(re) * std::cbrt(x);
+      default: return 2.0 + 1.1 * std::pow(x, 0.3333333) * std::pow(re, 0.6);
+      }
+    };
+    double hp_by[3] = {}, k_by[3] = {};
+    for (const auto& c : cases) {
+      ChannelDeck d;
+      d.packed = true;
+      d.ltne = true;
+      d.haynes = true;
+      d.film = c.film;
+      d.molar_flow = 1.0e-2;
+      d.run_time = 2.0;
+      d.cells = 10;
+      RunChannelDeck(d, [&](const UserData&, const CoupledSolver& solver) {
+        const auto& log = solver.GetLog();
+        auto mid = [&](VariableType v) { return Mid(log.GetVariable(0, 0, v).values); };
+        const double hp = mid(VariableType::PARTICLE_HEAT_TRANSFER_COEFFICIENT);
+        const double kg = mid(VariableType::THERMAL_CONDUCTIVITY), cp = mid(VariableType::HEAT_CAPACITY);
+        const double mu = mid(VariableType::VISCOSITY), re = mid(VariableType::REYNOLDS_NUMBER);
+        const double sc = mid(VariableType::SCHMIDT_NUMBER), sh = mid(VariableType::SHERWOOD_NUMBER);
+        const double dm = Mid(log.GetComponentVariable(0, 0, ComponentVariableType::MOLECULAR_DIFFUSION, kTracer).values);
+        const double k = Mid(log.GetComponentVariable(0, 0, ComponentVariableType::MASS_TRANSFER_COEFFICIENT, kTracer).values);
+        ASSERT_GT(re, 1.0) << "the case should have a non-trivial Reynolds number";
+
+        const double nu_expected = number(c.film, re, cp * mu / kg);
+        const double hp_expected = nu_expected * kg / dp * 6.0 * (1.0 - eb) / dp;
+        const double sh_expected = number(c.film, re, sc);
+        // Haynes: 1/k = r_p / (3 k_f) + tau r_p^2 / (15 eps_p D_m), k_f = Sh D_m / d_p.
+        const double rp = 0.5 * dp, kf = sh_expected * dm / dp;
+        const double k_expected = 1.0 / (rp / (3.0 * kf) + d.tortuosity * rp * rp / (15.0 * d.ep * dm));
+        std::cout << "[film " << c.name << "] Re " << re << " Nu " << hp / (kg / dp * 6.0 * (1.0 - eb) / dp)
+                  << " (expected " << nu_expected << "), Sh " << sh << " (expected " << sh_expected << ")\n";
+        EXPECT_NEAR(hp, hp_expected, 1e-10 * hp_expected) << c.name;
+        EXPECT_NEAR(sh, sh_expected, 1e-12 * sh_expected) << c.name;
+        EXPECT_NEAR(k, k_expected, 1e-10 * k_expected) << c.name;
+        if (c.film == FilmCorrelation::WakaoFunazkri)  // the engine's fixed Sh before the choice existed
+          EXPECT_EQ(sh, 2 + 1.1 * std::pow(sc, 0.3333333) * std::pow(re, 0.6));
+        hp_by[static_cast<int>(c.film)] = hp;
+        k_by[static_cast<int>(c.film)] = k;
+      });
+    }
+    // The choice matters: the three correlations give different coefficients,
+    // and the single-sphere Ranz-Marshall gives the smallest film coefficient.
+    EXPECT_LT(hp_by[2], hp_by[0]);
+    EXPECT_LT(hp_by[2], hp_by[1]);
+    EXPECT_LT(k_by[2], k_by[0]);
+    EXPECT_NE(hp_by[0], hp_by[1]);
   }
 
   // 6. A linear-isotherm breakthrough through a parallel-passage contactor.

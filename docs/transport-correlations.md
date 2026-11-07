@@ -176,10 +176,43 @@ Input: **Heat transfer coefficient** $h_p$ [W m⁻² K⁻¹]. Under local therma
 
 The **Film** model computes the coefficient from correlations, $h_p^{vol} = h\thinspace a_v$:
 
-- packed layer: $\mathrm{Nu} = h\thinspace d_p/k_g = 2 + 1.1\thinspace \mathrm{Pr}^{1/3}\mathrm{Re}^{0.6}$ (Wakao and Funazkri 1978), with Re on the superficial velocity and $d_p$;
+- packed layer: $\mathrm{Nu} = h\thinspace d_p/k_g$ from the layer's [film correlation](#packed-bed-film-correlations) (default Wakao–Kaguei–Funazkri, $2 + 1.1\thinspace \mathrm{Pr}^{1/3}\mathrm{Re}^{0.6}$), with Re on the superficial velocity and $d_p$;
 - structured layer: $\mathrm{Nu} = h\thinspace D_h/k_g$, the channel's value below.
 
 The gas–solid model is a setting of the bed, not of a layer. Switching a layer to a structured kind sets it to Film, and switching the last structured layer back to packed restores Constant.
+
+## Packed-bed film correlations
+
+Each packed layer has one gas–particle **film correlation** (`layer[ID].film_correlation`; Python `layer.film_correlation = "gunn"`). By the heat–mass analogy the same correlation gives the particle Nusselt number with the Prandtl number and the Sherwood number with the Schmidt number:
+
+- $\mathrm{Nu} = h\thinspace d_p/k_g$ feeds the **Film** gas–solid heat transfer model (above), $h_p^{vol} = h\thinspace a_v$;
+- $\mathrm{Sh} = k_f\thinspace d_p/D_m$ feeds the film resistance of the **Haynes** rate coefficient ([Kinetic Models](kinetic-models.md#haynes-1973)).
+
+In both, $\mathrm{Re} = \rho\thinspace |u|\thinspace d_p/\mu$ on the superficial velocity $u$, $\mathrm{Pr} = c_p\thinspace\mu/k_g$ and $\mathrm{Sc} = \mu/(\rho\thinspace D_m)$ with the mole-fraction-weighted molecular diffusivity. A structured layer ignores the setting: its channels use the laminar Nu = Sh [below](#film-coefficients-in-structured-layers). Gas phase only.
+
+| Choice | Correlation ($X$ = Pr for Nu, Sc for Sh) | Limit at Re → 0 |
+|---|---|---|
+| `wakao_funazkri` (default) | $2 + 1.1\thinspace X^{1/3}\thinspace \mathrm{Re}^{0.6}$ | 2 |
+| `gunn` | $(7 - 10\epsilon_b + 5\epsilon_b^2)(1 + 0.7\thinspace \mathrm{Re}^{0.2} X^{1/3}) + (1.33 - 2.4\epsilon_b + 1.2\epsilon_b^2)\thinspace \mathrm{Re}^{0.7} X^{1/3}$ | $7 - 10\epsilon_b + 5\epsilon_b^2$ (2 at $\epsilon_b = 1$) |
+| `ranz_marshall` | $2 + 0.6\thinspace \mathrm{Re}^{1/2} X^{1/3}$ (single sphere) | 2 |
+
+**Wakao–Funazkri (mass) and Wakao–Kaguei–Funazkri (heat).** Fitted to packed-bed data re-reduced with the axial dispersion included, which matches the engine's dispersed plug-flow model. This is the Sherwood number the engine has always used for the Haynes coefficient, so decks keep their results bit for bit. (The cube root is evaluated as $X^{0.3333333}$, as before; it differs from $X^{1/3}$ by a relative $3.3\times10^{-8}\ln X$.) Validity: roughly $3 < \mathrm{Re} < 10\,000$ for mass and $15 < \mathrm{Re} < 8\,500$ for heat (*to be confirmed* against the papers).
+
+**Gunn (1978).** Covers fixed and fluidised beds over the whole voidage range, and reduces to an isolated sphere's $\mathrm{Nu} = 2$ at $\epsilon_b = 1$, Re = 0. The void fraction is the layer's bed void fraction $\epsilon_b$. Re is on the superficial velocity and $d_p$, the basis of the engine's Re: Gunn's correlation is usually quoted with the superficial (empty-tube) slip velocity, which in CFD–DEM codes appears as $\epsilon\thinspace|u_f - u_p|$ (the velocity basis is *to be confirmed* against the paper). Validity: $0.35 \le \epsilon_b \le 1$, Re up to about $10^5$ (*to be confirmed*). At low Re in a packed bed ($\epsilon_b \approx 0.4$) its limit is $7 - 4 + 0.8 = 3.8$, above Wakao's 2.
+
+**Ranz–Marshall (1952).** A correlation for a **single sphere** (evaporating drops), not for a packed bed: in a bed at moderate Re it under-predicts the coefficients. It is offered so that papers that use it can be reproduced, and the run log carries a warning for every packed layer that selects it (a warning, not an error). Re on the superficial velocity, as the papers that apply it to beds usually do.
+
+Not included: older j-factor fits reduced without axial dispersion, which are not consistent with a dispersed plug-flow model.
+
+**Sources.** Equation and table numbers are *to be confirmed* against the texts; the DOIs were checked against Crossref.
+
+- N. Wakao and T. Funazkri, "Effect of fluid dispersion coefficients on particle-to-fluid mass transfer coefficients in packed beds", Chem. Eng. Sci. 33 (1978) 1375–1384, doi:10.1016/0009-2509(78)85120-3.
+- N. Wakao, S. Kaguei and T. Funazkri, "Effect of fluid dispersion coefficients on particle-to-fluid heat transfer coefficients in packed beds", Chem. Eng. Sci. 34 (1979) 325–336, doi:10.1016/0009-2509(79)85064-2.
+- N. Wakao and S. Kaguei, *Heat and Mass Transfer in Packed Beds*, Gordon and Breach, 1982 (both correlations).
+- D. J. Gunn, "Transfer of heat or mass to particles in fixed and fluidised beds", Int. J. Heat Mass Transfer 21 (1978) 467–476, doi:10.1016/0017-9310(78)90080-7.
+- W. E. Ranz and W. R. Marshall, "Evaporation from drops", Chem. Eng. Prog. 48 (1952) 141–146 and 173–180 (no DOI).
+
+The verification tests `FilmCorrelation.*` check each correlation's analytic limits, hand-computed values, the heat–mass symmetry and $h \propto 1/d_p$, and that the Film heat model and the Haynes coefficient both follow the layer's choice ([Verification](verification.md)).
 
 ## Film coefficients in structured layers
 

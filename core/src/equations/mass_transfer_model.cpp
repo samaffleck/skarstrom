@@ -195,7 +195,8 @@ namespace adsim {
     double ep = macropore_void_fraction_;
     // 1/k = (V/S) / k_f + tau l^2 / (c' eps_p D): film plus pore diffusion in
     // series. Packed spheres: V/S = r_p / 3, l = r_p, c' = 15 (Glueckauf
-    // 1955), k_f = Sh D / d_p with the Wakao-Funazkri Sh. A slab (structured
+    // 1955), k_f = Sh D / d_p with the layer's film correlation Sh
+    // (film_correlation.h; default Wakao-Funazkri). A slab (structured
     // layer): V/S = l, the half-thickness, c' = 3, k_f = Sh D / D_h with the
     // channel Sh.
     if (layer.IsStructured()) {

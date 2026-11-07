@@ -960,6 +960,14 @@ namespace adsim {
         MixedAdsorbentLayer* l = &layer;
         p.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->momentum_model_)); };
         p.set_int_ = [l](long long x) { l->momentum_model_ = static_cast<MomentumModel>(static_cast<int>(x)); };
+        // Gas-particle film correlation (film_correlation.h): the Nu of the
+        // film particle heat transfer and the Sh of the Haynes k_f.
+        auto& f = Add(Info(lp + ".film_correlation", la + ".film_correlation", "layer", ln,
+                           "film correlation (particle Nu and Sh)", "-", ParameterKind::Integer,
+                           std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+        f.info_.choices = FilmCorrelationKinds();
+        f.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->film_correlation_)); };
+        f.set_int_ = [l](long long x) { l->film_correlation_ = static_cast<FilmCorrelation>(static_cast<int>(x)); };
       } else {
         // A structured layer: only the fields of its kind. Bed void fraction
         // and momentum model are not used (the open frontal area and laminar
