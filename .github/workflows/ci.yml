@@ -60,6 +60,8 @@ env:
   # ccache: cache the translation units that use the engine's precompiled header.
   CCACHE_SLOPPINESS: pch_defines,time_macros
   HOMEBREW_NO_AUTO_UPDATE: "1"
+  # The Emscripten version of the emscripten job (toolchain and cache keys).
+  EMSCRIPTEN_VERSION: "6.0.13"
 
 jobs:
   changes:
@@ -249,11 +251,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip build
           python -m build --wheel --outdir dist .
-      - name: Install into a fresh venv and test
+      - name: Install into a fresh venv
+        uses: ./.github/actions/install-and-run
+        with:
+          package: dist/*.whl
+          extra-packages: matplotlib pint
+      - name: Test the installed wheel
         run: |
-          python -m venv --upgrade-deps /tmp/venv
-          /tmp/venv/bin/pip install dist/*.whl pytest matplotlib pint
-          cd /tmp && /tmp/venv/bin/skarstrom --version && /tmp/venv/bin/skarstrom examples | head -3
+          cd /tmp && /tmp/venv/bin/skarstrom examples | head -3
           cd "$GITHUB_WORKSPACE" && /tmp/venv/bin/python -m pytest python/tests -q
       - uses: actions/upload-artifact@v4
         with:
@@ -278,7 +283,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - uses: mymindstorm/setup-emsdk@v14
         with:
-          version: 6.0.13
+          version: ${{ env.EMSCRIPTEN_VERSION }}
       # "ccache em++" works as a compiler launcher (Emscripten docs, "Using a
       # compiler wrapper"); CMake reads the launcher from these variables.
       # emsdk is installed afresh on every run, so ccache identifies the
@@ -286,12 +291,12 @@ jobs:
       - name: Compiler cache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: emscripten-6.0.13
+          key: emscripten-${{ env.EMSCRIPTEN_VERSION }}
           max-size: 1G
       - name: Use ccache for the Emscripten builds
         run: |
           {
-            echo "CCACHE_COMPILERCHECK=string:emscripten-6.0.13"
+            echo "CCACHE_COMPILERCHECK=string:emscripten-${EMSCRIPTEN_VERSION}"
             echo "CMAKE_C_COMPILER_LAUNCHER=ccache"
             echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"
           } >> "$GITHUB_ENV"
@@ -340,16 +345,9 @@ jobs:
           python-version: "3.12"
       - name: Release helper tests (scripts/release.py)
         run: python -m unittest discover -s scripts -p 'test_release.py' -v
-      - name: Generated pages are up to date
-        run: |
-          python scripts/docs/gen_validation_page.py --check
-          python scripts/docs/gen_adsorbent_library.py --check
-          python scripts/gen_examples_module.py --check
-      - name: mkdocs build --strict
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-docs.txt
-          mkdocs build --strict
+      - name: Examples module is up to date
+        run: python scripts/gen_examples_module.py --check
+      - uses: ./.github/actions/docs-checks
 
   lint:
     name: Workflow lint

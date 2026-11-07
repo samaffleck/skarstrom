@@ -39,6 +39,7 @@
 #include <string>
 #include <vector>
 
+#include "adsim/math/constants.h"
 #include "adsim/objects/wall.h"
 
 namespace adsim {
@@ -46,7 +47,7 @@ namespace adsim {
   class Bed;
 
   // Full vacuum: the external design pressure of a wall in vacuum service [Pa].
-  inline constexpr double kFullVacuumExternalPressure = 101325.0;
+  inline constexpr double kFullVacuumExternalPressure = constants::kStandardAtmosphere;
 
   struct WallDesignInput {
     WallDesignCode code = WallDesignCode::ASME_VIII_1;

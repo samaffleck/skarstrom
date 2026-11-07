@@ -454,6 +454,18 @@ bool SplitQuantity(const std::string& text, double& number, std::string& unit) {
     return true;
 }
 
+UnitCategory UnitCategoryOf(const std::string& symbol, const Dimension& dimension) {
+    return CategoryOf(symbol, dimension);
+}
+
+std::vector<std::string> UnitOverrideSymbols() {
+    std::vector<std::string> out;
+    for (const auto& [symbol, unit] : Overrides()) out.push_back(symbol);
+    std::sort(out.begin(), out.end());
+    out.push_back("Nm3");  // read by the expression parser (normal cubic metre)
+    return out;
+}
+
 bool ParseUnitSuffix(const std::string& expr,
                      std::string&       math_out,
                      UnitXform&         xform_out,

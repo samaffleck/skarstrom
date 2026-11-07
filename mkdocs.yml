@@ -66,6 +66,7 @@ nav:
       - Python and the Command Line: python.md
       - Examples: examples.md
       - Using the C++ Library: cpp-library.md
+      - Deck View and Manifests: deck-view.md
   - Tutorials:
       - "O₂ PSA (Arora 2021)": arora-2021-o2-psa.md
       - "CO₂ VPSA with LPP (Perez 2019)": perez-2019-vpsa.md

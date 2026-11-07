@@ -9,6 +9,7 @@
 #include "adsim/math/user_variables.h"
 
 #include <string>
+#include <vector>
 
 namespace adsim {
 
@@ -83,5 +84,15 @@ double ConvertUnit(double value, const std::string& from, const std::string& to)
 // Returns false when `text` is not a single number followed by a parseable
 // unit (a plain number, a formula, a unit that does not parse).
 bool SplitQuantity(const std::string& text, double& number, std::string& unit);
+
+// The unit category of a parsed unit (the category ParseUnitSuffix reports):
+// by its dimension, with %, ppm and mol/mol as mole fractions; Custom when no
+// category has the dimension.
+UnitCategory UnitCategoryOf(const std::string& symbol, const Dimension& dimension);
+
+// The symbols the parser reads with a process-engineering meaning instead of
+// LLNL units' default (C, F and A as degC, degF and the angstrom; ccm, SCCM,
+// sccm, SCFM, ppm; Nm3), in a fixed order. Every one parses.
+std::vector<std::string> UnitOverrideSymbols();
 
 } // namespace adsim

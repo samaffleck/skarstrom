@@ -29,6 +29,8 @@
 #include "adsim/math/unit_parser.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_edit.h"
+#include "adsim/objects/deck_view.h"
+#include "adsim/objects/manifests.h"
 #include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/isotherm_fit.h"
 #include "adsim/solver/optimisation.h"
@@ -983,6 +985,12 @@ PYBIND11_MODULE(_core, m) {
       // The deck's structure in builder vocabulary: which model kind each
       // object uses, how the steps' ends are set up, the connections and the
       // KPI configuration. Values are read from the parameter registry.
+      // The deck view (adsim/objects/deck_view.h) as JSON text.
+      .def("deck_view", [](adsim::Simulation& s, bool pretty) {
+        adsim::DeckViewOptions o;
+        o.pretty = pretty;
+        return adsim::DeckView(s.Data(), o);
+      }, py::arg("pretty") = false)
       .def("describe", [](adsim::Simulation& s) {
         namespace b = adsim::build;
         using namespace adsim;
@@ -1292,6 +1300,27 @@ PYBIND11_MODULE(_core, m) {
     if (!adsim::SplitQuantity(text, number, unit)) return py::none();
     return py::make_tuple(number, unit);
   }, py::arg("text"));
+
+  // Deck view schema and display manifests (adsim/objects/manifests.h), as JSON text.
+  m.def("deck_view_schema", []() { return adsim::DeckViewSchema(); });
+  m.def("kpi_manifest", []() { return adsim::KpiManifest(); });
+  m.def("unit_manifest", []() { return adsim::UnitManifest(); });
+  m.def("warning_manifest", []() { return adsim::WarningManifest(); });
+  m.def("component_manifest", []() { return adsim::ComponentManifest(); });
+  m.def("example_deck_manifest", [](const std::string& manifest, const std::string& decks) {
+    return adsim::ExampleDeckManifest(manifest, decks);
+  }, py::arg("manifest_path"), py::arg("decks_dir"));
+  m.def("check_unit", [](const std::string& text, const std::string& category) {
+    const adsim::UnitCheck c = adsim::CheckUnit(text, category);
+    py::dict d;
+    d["ok"] = c.ok;
+    d["category"] = c.category;
+    d["dimension"] = c.dimension;
+    d["factor"] = c.factor;
+    d["offset"] = c.offset;
+    d["message"] = c.message;
+    return d;
+  }, py::arg("unit"), py::arg("category") = "");
 
   m.def("bulk_variables", &adsim::BulkVariableNames);
   m.def("component_variables", &adsim::ComponentVariableNames);

@@ -152,7 +152,7 @@ namespace adsim {
   }
 
   ValveBoundaryStream::ValveBoundaryStream() {
-    boundary_value_ = std::make_unique<ConstantBoundaryValue>(101325.0);
+    boundary_value_ = std::make_unique<ConstantBoundaryValue>(constants::kStandardAtmosphere);
   }
 
   // void ValveBoundaryStream::Initialise(double step_time) {}
