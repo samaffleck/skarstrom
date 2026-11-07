@@ -437,6 +437,14 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("cooling_duty", &adsim::KPIRecord::cooling_duty)
       .def_readonly("step_thermal_energy", &adsim::KPIRecord::step_thermal_energy)
       .def_readonly("step_cooling_duty", &adsim::KPIRecord::step_cooling_duty)
+      .def_readonly("quadrature_purity", &adsim::KPIRecord::quadrature_purity)
+      .def_readonly("quadrature_recovery", &adsim::KPIRecord::quadrature_recovery)
+      .def_readonly("quadrature_productivity_mass", &adsim::KPIRecord::quadrature_productivity_mass)
+      .def_readonly("quadrature_productivity_volume", &adsim::KPIRecord::quadrature_productivity_volume)
+      .def_readonly("quadrature_energy_consumption", &adsim::KPIRecord::quadrature_energy_consumption)
+      .def_readonly("quadrature_production_rate", &adsim::KPIRecord::quadrature_production_rate)
+      .def_readonly("mass_balance_error", &adsim::KPIRecord::mass_balance_error)
+      .def_readonly("quadrature_mass_balance_error", &adsim::KPIRecord::quadrature_mass_balance_error)
       .def("as_dict", [](const adsim::KPIRecord& k) {
         py::dict d;
         d["cycle"] = k.cycle;
@@ -453,6 +461,14 @@ PYBIND11_MODULE(_core, m) {
         d["cooling_duty"] = k.cooling_duty;
         d["step_thermal_energy"] = k.step_thermal_energy;
         d["step_cooling_duty"] = k.step_cooling_duty;
+        d["quadrature_purity"] = k.quadrature_purity;
+        d["quadrature_recovery"] = k.quadrature_recovery;
+        d["quadrature_productivity_mass"] = k.quadrature_productivity_mass;
+        d["quadrature_productivity_volume"] = k.quadrature_productivity_volume;
+        d["quadrature_energy_consumption"] = k.quadrature_energy_consumption;
+        d["quadrature_production_rate"] = k.quadrature_production_rate;
+        d["mass_balance_error"] = k.mass_balance_error;
+        d["quadrature_mass_balance_error"] = k.quadrature_mass_balance_error;
         return d;
       })
       .def("__repr__", [](const adsim::KPIRecord& k) {

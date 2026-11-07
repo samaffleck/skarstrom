@@ -166,6 +166,23 @@ namespace adsim {
     // it is kPressureBoundaryEndpointName.
     CycleEndpointSummary* FindSummaryForEndpoint(const std::string& endpoint_name);
 
+    // One logged endpoint of the step (a flow stream or a pressure boundary)
+    // in BoundaryLog order: the bottom boundary condition's endpoints, then
+    // the top's, streams in their order (GetAllBoundaryStreams(const Step&)).
+    struct LoggedEndpoint {
+      StreamData* data = nullptr;           // its stream log
+      BoundaryLocation location = BoundaryLocation::BOTTOM;
+      IBoundaryStream* stream = nullptr;    // set for a flow stream
+      PressureBoundaryCondition* pressure = nullptr;  // set for a pressure boundary
+    };
+    std::vector<LoggedEndpoint> LoggedEndpoints();
+    // Appends what every logged endpoint carries at `time` (seconds since the
+    // step start) to `out`, in LoggedEndpoints order. Records nothing: the
+    // KPI quadratures evaluate it inside the integrator.
+    void SampleEndpoints(const Equations& state, double time, std::vector<EndpointSample>& out);
+    // Bed ends that are not closed (0, 1 or 2).
+    int NumberOfOpenEnds() const;
+
     // Names of every endpoint exposed by this step's two boundary conditions.
     // Used by the GUI dropdown and by BufferTankSource resolution.
     std::vector<std::string> GetEndpointNames() const;
