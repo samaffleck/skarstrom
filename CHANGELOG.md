@@ -8,6 +8,144 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-11-07
+
+### Added — CSS stops verified against a long reference
+- A slow-tier test (`CSSReference`) checks plain, Aitken and Anderson stops
+  and a perturbed warm start against a long reference run, on eight example
+  decks. It compares the full end-of-cycle state (loadings, mole fractions,
+  temperatures and pressure), the endpoint histories and the KPIs. Every
+  distance must be within c times the stop's state tolerance, with one bound
+  (c <= 100) for all decks and methods. The measured c is at most 37.
+- `docs/cyclic-steady-state.md` tabulates c per deck and method, gives the
+  reference drift, and lists the decks left out and why.
+
+### Added — CSS start independence verified
+- A slow-tier test (`CSSStartIndependence`) runs eight example decks to CSS
+  from the shipped start, a clean bed, a feed-saturated bed, a hot and a
+  cold bed (+-40 K, through the warm-start API) and, where one exists, a
+  neighbouring deck's CSS. Every start must reach the shipped start's CSS
+  within c <= 100 times the state tolerance, in the full state, the
+  histories and the KPIs. The measured c is at most 74 (Perez 2019 E), and
+  no deck has a second steady state.
+- `docs/cyclic-steady-state.md` tabulates the result, and explains why the
+  hot and cold starts do not edit the initial temperature: with CoolProp
+  gas heat capacities that also changes the model for the whole run.
+
+### Added — grid sequencing benchmark
+- A slow-tier test (`GridSequencing`) compares three ways of reaching a
+  fine-grid cyclic steady state on six example decks: the fine grid from
+  cold, a coarse grid to CSS followed by a warm-started fine grid, and three
+  levels (N/4, N/2, N cells). It asserts that every path reaches the same CSS
+  within the CSS reference bound and that the warm-started fine level needs
+  fewer cycles than the cold run; timings are printed, not asserted.
+- `docs/cyclic-steady-state.md` tabulates cycles and wall time per path and
+  recommends when sequencing pays: 1.4-2.1x on the slower VSA decks, nothing
+  on a fast TSA deck or the PSA deck; a grid-refinement study should always
+  warm-start each level from the previous level's CSS.
+
+### Changed — TSA tutorial heated by a heating medium
+- The illustrative TSA deck (`Illustrative_TSA_13X`) and its tutorial now
+  heat with a 150 C medium (steam or hot oil) and cool with 25 C water.
+  Both pass through a jacket on the wall and an internal heat exchanger in
+  the packing, replacing the 30 W heater and the -12 W cooler. The deck's
+  results change: CSS at cycle 27, CO2 purity 86.3 %, recovery 96.0 %,
+  thermal energy 10.9 MJ/kg, all of it from the medium duty.
+- The tutorial explains the choice, with a table showing that a 100 C
+  jacket alone is limited by the bed-to-wall heat transfer on this column.
+
+### Added — heating-medium verification
+- Analytic heat-up tests against closed forms: the jacket heating the wall
+  alone, the jacket heating wall and bed (exact two-node solution), and the
+  internal exchanger heating the bed alone.
+- `sk.to_script` writes a step's heating medium (its temperature, jacket
+  coefficient and internal exchanger). A ramped medium temperature is left
+  as a comment, since the builder cannot create the ramp yet.
+
+### Added — inert support solids in the adsorbent library
+- Five non-adsorbing support solids for structured contactors, each a
+  library material of the new family `support`: cordierite (dense crystal),
+  pure aluminium, stainless steel 304L and 316L, and alumina-silica ceramic
+  fibre paper. Mix one by mass with a sorbent in a monolith or laminate
+  layer's composition (`sim.add_library_adsorbent("cordierite")`). Every
+  value is cited (USGS Bulletin 2131 and Open-File Report 88-690, Ho, Powell
+  and Liley 1972, ANL-75-55, Headley et al. 2019); the ceramic paper's
+  thermal conductivity has no citable value at adsorption temperatures and
+  keeps the engine default, as its entry says.
+- Library catalogue: a property may carry a `temperature_table` (values
+  against temperature, transcribed from the source); the engine uses the
+  constant value at 300 K. Support entries need density, heat capacity and
+  thermal conductivity instead of a particle size, and their particle
+  voidage is 0 by convention (provenance `convention`).
+
+### Added — heat in monolith and laminate layers
+- Heat-dispersion model `channel` for structured layers: the gas conducts over the open frontal area, λ_f = OFA·k_g, under LTNE; under LTE the single temperature sees OFA·k_g + (1 − OFA)·k_s.
+- Axial conduction through the solid of a structured layer under LTNE, λ_s = (1 − OFA)·k_s, with the face conductance of the two half cells in series. It is zero on faces that touch a packed layer or a void and at the bed ends; packed beds are unchanged.
+- Verification tests `StructuredHeat.*`: wall-to-solid and gas-to-solid relaxation against the analytic exponentials, steady Fourier conduction through the solid, energy closure, and packed beds free of solid conduction.
+
+### Changed — structured layers take the column-wall flux through the solid
+- Under LTNE, the whole bed-to-wall flux of a structured layer goes into the solid; the gas share is 0 instead of the open frontal area. Packed layers keep the ε_b split.
+- The deck checks refuse Ruthven and Yagi–Kunii heat dispersion and Dixon and Leva wall coefficients on a structured layer, and the `channel` model on a packed one. The structured-layer warning about these closures is gone; the LTE warning stays.
+- `build::SetLayerKind` to a structured kind installs `channel` heat dispersion and a constant h_i (replacing Dixon or Leva; a constant coefficient keeps its value). Switching back to packed restores constant heat dispersion.
+- New run-start warning: a structured layer whose constant h_i is 0 while the column wall exchanges heat (h_o > 0 or a correlation, a fixed-temperature wall end, or a heating medium) is cut off from the wall; the warning names `layer[ID].internal_htc`.
+
+### Added — structured layers: monolith and laminate geometry
+- A layer can now be a monolith (square or circular channels) or a laminate
+  (sheets with a gap) as well as a packed bed: `MixedAdsorbentLayer::kind_`
+  with `StructuredGeometry` (cell density, wall thickness, sheet thickness,
+  gap, washcoat thickness). Builder: `build::SetLayerKind`,
+  `build::SetChannelShape`, `build::LayerKinds`, `build::ChannelShapeKinds`.
+- The flow in a structured layer is laminar Hagen-Poiseuille,
+  `K = OFA D_h^2 / (2 fRe)` with fRe 14.23 (square), 16 (circle), 24 (plates),
+  and no inertial term; the layer's momentum model is not used. The open
+  frontal area takes the bed void fraction's place (gas holdup, bulk density,
+  dispersion area, heat split).
+- Derived geometry for front ends: `LayerGeometrySummary` (open fraction,
+  hydraulic diameter, specific surface, diffusion length, channel count,
+  washcoat fraction).
+- Parameter registry: a structured layer lists its kind's fields
+  (`channel_shape`, `cell_density`, `wall_thickness` for a monolith;
+  `sheet_thickness`, `gap` for a laminate; `washcoat_thickness`) and keeps
+  `particle_diameter` while the packed-bed transfer closures still read it;
+  `bed_void_fraction` and `momentum_model` are not listed for it.
+- Deck checks refuse a geometry without an open channel. Run-start warnings:
+  LTE with a structured layer (LTNE recommended), and the packed-bed closures
+  a structured layer still uses.
+- `MixedAdsorbentLayer` is serialised at version 4 (`Kind`,
+  `Structured_Geometry`), `StructuredGeometry` at version 1. Older decks load
+  as packed beds with unchanged results.
+
+### Removed
+- The unused `StructuredLayer` class.
+
+### Added — structured layers: channel heat and mass transfer
+- Reynolds number of a structured layer on the channel velocity and hydraulic
+  diameter, `rho (|u| / OFA) D_h / mu`.
+- Channel film coefficients: the fully developed laminar Nu = Sh of Shah and
+  London (2.976 square, 3.657 circle, 7.541 plates), or Hawthorn's
+  developing-flow form over the layer length with the new per-layer switch
+  `layer[ID].entrance_effects` (`StructuredGeometry` v2).
+- The macropore rate coefficients use Glueckauf's slab LDF `3 D_eff / l^2`
+  (half the wall or sheet, or the washcoat) on a structured layer; Haynes uses
+  the slab's film and pore resistances with the channel Sh. Packed beds keep
+  `60 D_eff / d_p^2`, unchanged.
+- New gas-solid model `film` (bed-wide): Wakao-Funazkri on packed layers,
+  the channel Nu on structured layers. The constant model uses the layer's
+  specific surface (`6 (1 - eb) / dp` for packed beds, unchanged).
+- New dispersion model `taylor_aris`: `D_m + u_ch^2 D_h^2 / (kappa D_m)`,
+  kappa 192 (circle; square as an approximation) and 840 (plates).
+- `build::SetLayerKind` installs Taylor-Aris and `film` for a structured
+  layer and restores the packed defaults when switching back.
+- Deck checks reject Ruthven dispersion on a structured layer and Taylor-Aris
+  on a packed one.
+- Operating limits: a warning when a structured layer's channel Reynolds
+  number passes 2000 (`settings.warn_channel_reynolds`, `WarningSettings` v1).
+- Verification tests `StructuredTransfer.*` against each source's own result
+  and a parallel-passage breakthrough against the LDF moment analysis.
+
+### Added — packed and structured layers give the same breakthrough
+- Verification tests `StructuredMetamorphic.*`: a packed Kozeny–Carman layer, a laminate and a square monolith with the same open fraction (bed void), sorbent mass, constant dispersion, constant LDF coefficient and matched permeability give the same breakthrough curve, isothermal (Henry) and non-isothermal under LTE (Langmuir with a heat of adsorption and wall exchange).
+
 ## [0.7.0] — 2026-11-06
 
 ### Added — Anderson acceleration of the approach to cyclic steady state
