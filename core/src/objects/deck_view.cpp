@@ -169,6 +169,8 @@ namespace adsim {
         Set(root, "connections", Connections(), a_);
         Set(root, "kpis", Kpis(), a_);
         Set(root, "variables", Variables(), a_);
+        Set(root, "cost", Node("cost."), a_);
+        Set(root, "sensitivity", Node("sensitivity."), a_);
 
         // Whatever no node claimed (a registry family the view does not know).
         Set(root, "other", Node(""), a_);
@@ -497,6 +499,7 @@ namespace adsim {
           Set(k, "feed", ids(cfg.feed_endpoints), a_);
           Set(k, "product", ids(cfg.product_endpoints), a_);
           Set(k, "recycle", ids(cfg.recycle_endpoints), a_);
+          Set(k, "values", Values("kpi[" + cfg.product_component + "]."), a_);
           list.PushBack(k, a_);
         }
         return list;
@@ -567,7 +570,7 @@ namespace adsim {
   "additionalProperties": false,
   "required": ["view_version", "engine_version", "info", "settings", "css", "energy_balance", "components", "fluid",
                "initial_conditions", "adsorbents", "layers", "bed", "cycle", "steps", "connections", "kpis",
-               "variables", "other"],
+               "variables", "cost", "sensitivity", "other"],
   "properties": {
     "view_version": {"type": "integer", "enum": [@VIEW_VERSION@]},
     "engine_version": {"type": "string"},
@@ -586,6 +589,8 @@ namespace adsim {
     "connections": {"type": "array", "items": {"$ref": "#/definitions/Connection"}},
     "kpis": {"type": "array", "items": {"$ref": "#/definitions/KpiConfig"}},
     "variables": {"type": "array", "items": {"$ref": "#/definitions/Variable"}},
+    "cost": {"$ref": "#/definitions/Node"},
+    "sensitivity": {"$ref": "#/definitions/Node"},
     "other": {"$ref": "#/definitions/Node"}
   },
   "definitions": {
@@ -819,13 +824,14 @@ namespace adsim {
       }
     },
     "KpiConfig": {
-      "type": "object", "additionalProperties": false, "required": ["component", "tracked", "feed", "product", "recycle"],
+      "type": "object", "additionalProperties": false, "required": ["component", "tracked", "feed", "product", "recycle", "values"],
       "properties": {
         "component": {"type": "string"},
         "tracked": {"type": "boolean"},
         "feed": {"type": "array", "items": {"type": "integer"}},
         "product": {"type": "array", "items": {"type": "integer"}},
-        "recycle": {"type": "array", "items": {"type": "integer"}}
+        "recycle": {"type": "array", "items": {"type": "integer"}},
+        "values": {"$ref": "#/definitions/ValueList"}
       }
     },
     "Variable": {
