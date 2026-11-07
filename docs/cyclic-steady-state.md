@@ -83,6 +83,45 @@ Stopping cycle (0-based) and the largest distance of the tracked purity and reco
 
 The error left at the stop grows with how slowly the deck approaches CSS: if each cycle closes a fraction $1-\rho$ of the remaining gap, what is left when the per-cycle change reaches the tolerance is proportional to $1/(1-\rho)$. `Perez2019_F` closes only about 1.5 % of its gap per cycle, which is why it ends furthest away; lower `css.state_tolerance` for such a deck. Keep it well above the noise of the state change itself, which is set by the integrator tolerance: about 10⁻⁶ at the default `settings.reltol` of 10⁻⁶ and up to 1.3×10⁻⁵ at 10⁻⁴ (both measured on the Yancy cycle). A tolerance below that floor stops the run only by chance. The verification suite checks this relation on a cycle with $\rho = 0.966$: the error left at the default stop matched the geometric prediction to within 2 % ([Numerics](numerics.md#convergence-of-the-results)).
 
+### Estimated distance to CSS
+
+The stopping rule bounds the size of the last cycle-to-cycle change, not the distance still to go. With a geometric approach at rate $\rho$, a run whose last change is $\Delta$ is still about
+
+$$
+d \approx \Delta\,\frac{\rho}{1-\rho}
+$$
+
+from the cyclic steady state, so a deck with $\rho$ near 1 stops several tolerances away. Every CSS check therefore reports an estimate of $d$, in the norm of the [state test](#state-test), and $d/\varepsilon_{\text{state}}$. It is a diagnostic only: it never changes when a run stops, and it changes no result.
+
+The estimate uses the state changes $\Delta$ of the last few cycles:
+
+- **Window.** The longest run of strictly decreasing, positive changes that ends at the cycle checked, at most 5 changes long. The cycle that starts from an [accelerated](#accelerating-the-approach-to-css) state, and every cycle before it, are left out: a jump is not a step of the natural cycle. Cycles no longer in the log are left out too.
+- **Rate.** $\rho = (\Delta_\text{last}/\Delta_\text{first})^{1/(n-1)}$ over the $n$ changes of the window (the geometric mean of their ratios), clipped to $[0, 0.999]$.
+- **Not estimated** when the window has fewer than 3 changes. The note says why: *history too short* (fewer than 3 changes logged), *too few cycles since the last acceleration jump*, or *not a monotone decay* (for example just after a jump, or once the changes have reached the integrator's noise floor, about 10⁻⁶ at the default `settings.reltol`, where they wander instead of decaying).
+
+$d/\varepsilon_{\text{state}}$ is reported for the mass-balance methods with the state test on. For **Molar Profile** the distance is still given in the state-change norm, without the ratio.
+
+Where it appears:
+
+- **Solver log.** Each CSS check line ends with, for example, `est. distance to CSS 7.69e-04 (38.5 x tolerance, rate 0.976)` (`Perez2019_E` at its stop). At the stop, a run whose estimate exceeds **100 tolerances** (`CyclicSteadyState::kDistanceWarningRatio`) also logs a warning (always shown). Lower `css.state_tolerance` for such a deck if the state itself matters, keeping it above the noise floor.
+- **Python.** `sim.css_history()` records have `distance_estimated`, `convergence_rate`, `distance`, `distance_ratio` (NaN when not estimated) and `distance_note`.
+- **CLI.** The `css` entries of `skarstrom run --json` carry the same fields (`null` when not estimated), `css.csv` has the numbers, and the text summary prints the estimate at the stop.
+
+On the decks of the [long-reference verification](#verification-against-a-long-reference), the estimate at the plain stop against the measured distance of that stop from the reference (both in multiples of $\varepsilon$, state):
+
+| Deck | CSS stop | Rate $\rho$ | Estimated $d/\varepsilon$ | Measured $c$ state |
+|---|---|---|---|---|
+| `Illustrative_TSA_13X` | 26 | 0.57 | 0.30 | 0.27 |
+| `Perez2019_A` | 48 | 0.86 | 4.0 | 4.0 |
+| `Perez2019_E` | 205 | 0.976 | 38 | 37 |
+| `Nguyen2023_Exp_I` | 36 | 0.80 | 2.1 | 2.1 |
+| `Nguyen2023_Exp_VI` | 79 | 0.90 | 7.5 | 7.4 |
+| `Vysyaraju2024_PSA_exp1` | 72 | — | not estimated (not a monotone decay) | 5.7 |
+| `Ward2024` | 153 | 0.959 | 21 | 21 |
+| `FiveStepProductPurge` (per-component rule) | 94 | 0.92 | 9.5 | 9.2 |
+
+On these decks the estimate matches the measured distance to within a few per cent, though the reference also counts the pressure. The slow-tier test `CSSDistanceDecks.Perez2019EReportsTheRemainingDistance` checks the `Perez2019_E` figure.
+
 ### Decks saved before the state test
 
 The state test and the consecutive-cycles rule were added after Skarstrom 0.3.0 (CSS settings class version 2). A deck saved before them loads with the defaults above, so a run that used **Mass Balance (Total)** or **Mass Balance (Per-Component)** now runs on until the bed state has settled: later than before, and with different (converged) purity and recovery. A **Molar Profile** run stops at least two cycles later than before, because its test must now hold on three cycles in a row. To get the old single-cycle balance test back, set `css.state_tolerance` to 0 and `css.consecutive_cycles` to 1.

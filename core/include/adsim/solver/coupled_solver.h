@@ -9,6 +9,7 @@
 // STL includes
 #include <atomic>
 #include <functional>
+#include <set>
 #include <string>
 #include <chrono>
 
@@ -435,6 +436,10 @@ namespace adsim {
     // KPIs of every completed cycle of the run (the logs keep only the last
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
+    // Cycles that started from a state moved by CSS acceleration (a committed
+    // re-seed) in the most recent run. The CSS distance diagnostic leaves them
+    // out of its window (CyclicSteadyState::EstimateDistance).
+    const std::set<int>& GetJumpCycles() const { return jump_cycles_; }
     EquationLog ExtractLog() { return std::move(equation_log_); }
     BoundaryLog ExtractBoundaryLog() { return std::move(boundary_log_); }
 
@@ -449,6 +454,7 @@ namespace adsim {
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
     KPIHistory kpi_history_;
+    std::set<int> jump_cycles_;
     SolverProgressCallback progress_callback_;
     SolverMessageCallback message_callback_;
     SolverMetricsCallback metrics_callback_;
@@ -479,6 +485,10 @@ namespace adsim {
     // KPIs of every completed cycle of the run (the logs keep only the last
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
+    // Cycles that started from a state moved by CSS acceleration (a committed
+    // re-seed) in the most recent run. The CSS distance diagnostic leaves them
+    // out of its window (CyclicSteadyState::EstimateDistance).
+    const std::set<int>& GetJumpCycles() const { return jump_cycles_; }
     EquationLog ExtractLog() { return std::move(equation_log_); }
     BoundaryLog ExtractBoundaryLog() { return std::move(boundary_log_); }
 
@@ -498,6 +508,7 @@ namespace adsim {
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
     KPIHistory kpi_history_;
+    std::set<int> jump_cycles_;
     ChunkStatus status_;
 
     SolverMessageCallback message_callback_;

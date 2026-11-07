@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cmath>
 #include <iterator>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -698,10 +699,17 @@ namespace adsim {
 
   std::vector<CSSRecord> Simulation::CSSHistory() {
     std::vector<CSSRecord> out;
+    // Cycles that started from an accelerated state (a committed re-seed) are
+    // left out of the distance diagnostic's window.
+    static const std::set<int> kNone{};
+    const std::set<int>& jumps = solver_ ? solver_->GetJumpCycles()
+                               : chunked_ ? chunked_->GetJumpCycles() : kNone;
+    auto started_from_jump = [&jumps](int c) { return jumps.count(c) > 0; };
     for (int c : Cycles()) {
-      CSSResult r = data_->settings.css.CheckCSS(Log(), c);
+      CSSResult r = data_->settings.css.CheckCSS(Log(), c, started_from_jump);
       out.push_back({c, r.converged, r.error, r.tolerance, r.method_name, r.state_change,
-                     r.state_tolerance, r.passing_cycles, r.required_cycles});
+                     r.state_tolerance, r.passing_cycles, r.required_cycles, r.distance_estimated,
+                     r.convergence_rate, r.distance, r.distance_ratio, r.distance_note});
     }
     return out;
   }

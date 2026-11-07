@@ -64,6 +64,9 @@ set(ADSIM_SLOW_TESTS
     "CSSAcceleration.SlowGeometricModeReachesCssSooner"
     # Anderson acceleration on Perez 2019 A and E as shipped (~50 s).
     "CSSAndersonDecks.*"
+    # The CSS remaining-distance estimate at the plain stop of Perez 2019 E
+    # (205 cycles, ~90 s).
+    "CSSDistanceDecks.Perez2019EReportsTheRemainingDistance"
     # CSS stops (plain, Aitken, Anderson) and a perturbed warm start against a
     # long reference run, full state and KPIs, on eight example decks
     # (1-8 min each).
