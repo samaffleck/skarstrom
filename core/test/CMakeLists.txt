@@ -53,7 +53,7 @@ include(GoogleTest)
 #          fast tier fast").
 # Entries are GoogleTest filter patterns (Suite.Name, '*' wildcards).
 set(ADSIM_PAPER_TESTS
-    "Arora2021Test.*" "Casas2012Test.*" "Ferre2026Test.*" "Nguyen2022Test.*"
+    "Arora2021Test.*" "Casas2012Test.*" "Ferre2026Test.*" "Haghpanah2013Test.*" "Nguyen2022Test.*"
     "Nguyen2023Test.*" "Perez2019Test.*" "Streb2021Test.*" "Vysyaraju2024Test.*"
     "Ward2022Test.*" "WardPini2024Test.*")
 set(ADSIM_SLOW_TESTS
