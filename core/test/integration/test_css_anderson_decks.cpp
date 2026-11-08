@@ -15,11 +15,14 @@
 //   Perez2019_E     206      65        43
 //
 // The reference KPIs are those of a long plain run with the CSS check off
-// (cycle 499 for A, 999 for E). Over its last few hundred cycles the
-// reference itself wanders by about 1e-7 (A) and 3e-6 (E) in purity and 2e-6
-// (A) and 2e-5 (E) in recovery. The stops, references and errors were
-// measured on the decks with their constant gas heat capacity (30.7 J/(mol K));
-// re-measure them whenever the decks' inputs change. Each test runs Anderson
+// (cycle 499 for A, 999 for E). Over its last 300 cycles the reference itself
+// wanders by 5e-8 (A) and 6e-7 (E) in purity and 2e-6 (A) and 5e-6 (E) in
+// recovery. The stops, references and errors were measured on the decks with
+// their constant gas heat capacity (30.7 J/(mol K)), with the KPIs on the
+// quadrature integrals and outlet component flows on the face composition
+// (re-measured when those became the reported basis: the references moved by
+// up to 9e-5); re-measure them whenever the decks' inputs or the KPI basis
+// change. Each test runs Anderson
 // only (a plain run of E takes 70 s) and checks that it stops well before the plain run, at KPIs no
 // further from the reference than the plain stop's or within 5e-5 of it (half
 // the 1e-4 to which CSSRobustDeck holds a plain run).
@@ -85,13 +88,13 @@ namespace adsim {
   }  // namespace
 
   TEST(CSSAndersonDecks, Perez2019AStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 35, purity error 6.6e-7, recovery error 2.5e-5.
-    CheckAnderson({"Perez2019_A", 47, 40, 0.99508079, 0.59641507, 3.4e-7, 2.5e-5});
+    // Reference and plain stop re-measured on the quadrature KPI basis.
+    CheckAnderson({"Perez2019_A", 47, 40, 0.9950806698, 0.5964245845, 3.7e-7, 2.6e-5});
   }
 
   TEST(CSSAndersonDecks, Perez2019EStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 43, purity error 7.3e-6, recovery error 6.3e-6.
-    CheckAnderson({"Perez2019_E", 206, 70, 0.86641524, 0.94362659, 6.9e-5, 1.9e-6});
+    // Reference and plain stop re-measured on the quadrature KPI basis.
+    CheckAnderson({"Perez2019_E", 206, 70, 0.8664116199, 0.9435543246, 7.0e-5, 2.6e-5});
   }
 
 }  // namespace adsim
