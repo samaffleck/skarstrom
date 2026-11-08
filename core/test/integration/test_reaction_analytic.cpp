@@ -661,13 +661,17 @@ TEST(ReactionAnalytic, TraceProductStaysAboveMinusAtol) {
     // against atol = 1e-8.
     EXPECT_GE(y_min, -atol);
     // sum(nu) = 0: y_P,out = y_A,in - y_A,out = y_A,in X. Each fraction is
-    // an unknown with atol 1e-8 and the sum closes to the integrator's
-    // tolerance: measured differences 4e-8 (WENO), < 1e-15 otherwise;
-    // bound 2e-7.
+    // its own unknown, so the identity holds to the integrator's global
+    // error, of order its reltol (1e-6): measured differences with WENO
+    // 4e-8 (Linux GCC) and 4.5e-7 (Windows MSVC, a different trajectory
+    // through the same error control), < 1e-15 with van Leer and upwind;
+    // bound reltol.
+    const double reltol = r.sim.Data().settings.reltol.Get();
+    ASSERT_GT(reltol, 0.0);
     const double yA = Outlet(LastRow(r.sim, ComponentVariableType::MOLE_FRACTION, BUT));
     const double yP = Outlet(LastRow(r.sim, ComponentVariableType::MOLE_FRACTION, IBUT));
     EXPECT_GT(yP, 0.099);  // X > 0.99 (1 - exp(-8) = 0.9997)
-    EXPECT_NEAR(yP, o.y_feed.at(BUT) - yA, 2e-7);
+    EXPECT_NEAR(yP, o.y_feed.at(BUT) - yA, reltol);
   }
 }
 
