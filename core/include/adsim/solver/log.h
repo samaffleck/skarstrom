@@ -314,6 +314,25 @@ namespace adsim {
 
   using VariableLog = std::unordered_map<VariableType, VariableData>;
   using ComponentVariableLog = std::unordered_map<std::string, std::unordered_map<ComponentVariableType, VariableData>>;
+  // Per-adsorbent series, [adsorbent id][component][type]: the loading of each
+  // solid of a mixed layer on its own (see IsPerAdsorbentVariable).
+  using AdsorbentVariableLog = std::map<AdsorbentID, ComponentVariableLog>;
+
+  // The component variables that are also logged per adsorbent in a bed with a
+  // mixed layer: the adsorbed and equilibrium loading, the mass-transfer
+  // coefficient and the slow-site loading [per kg of that solid].
+  inline constexpr bool IsPerAdsorbentVariable(ComponentVariableType t) {
+    return t == ComponentVariableType::ADSORBED_CONCENTRATION
+        || t == ComponentVariableType::EQUILIBRIUM_ADSORBED_CONCENTRATION
+        || t == ComponentVariableType::MASS_TRANSFER_COEFFICIENT
+        || t == ComponentVariableType::SLOW_ADSORBED_CONCENTRATION;
+  }
+
+  // Display name of a per-adsorbent series, e.g. "CarbonDioxide Adsorbed
+  // Concentration (13X)": the component series' name with the adsorbent's
+  // label in brackets.
+  std::string PerAdsorbentVariableName(const std::string& component, ComponentVariableType type,
+                                       const std::string& adsorbent_label);
 
   // Heat put into the column during one step, as the solver applied it, in two
   // separate parts. All of it is 0 in an isothermal run, where neither the
@@ -362,6 +381,10 @@ namespace adsim {
     StepData step_data;  // Shared metadata including times
     VariableLog variables;
     ComponentVariableLog component_variables;
+    // Logged only when some cell holds more than one solid (a mixed layer):
+    // otherwise each cell's aggregate in component_variables already is the
+    // loading of its one solid.
+    AdsorbentVariableLog adsorbent_variables;
     StepHeatDuty heat_duty;  // recorded with the step's first log; evicted with the cycle
   };
 
@@ -380,7 +403,22 @@ namespace adsim {
     VariableLogEntry GetVariable(int cycle_index, int step_index, VariableType type) const;
     VariableLogEntry GetComponentVariable(int cycle_index, int step_index,
       ComponentVariableType type, const std::string& component) const;
+    // The per-adsorbent series of `type` (IsPerAdsorbentVariable) for one
+    // adsorbent: the loading of that solid [per kg of it] in each cell, 0 in
+    // the cells without it, ghost cells mirroring the first and last bed cell
+    // (as the aggregate). When the run logged no per-adsorbent series (no
+    // mixed layer) it is read off the aggregate, which in every cell holding
+    // that adsorbent is its loading. Empty when not logged.
+    VariableLogEntry GetAdsorbentComponentVariable(int cycle_index, int step_index, ComponentVariableType type,
+      const std::string& component, AdsorbentID adsorbent) const;
     VariableLogEntry GetFaceVariable(int cycle_index, int step_index, VariableType type) const;
+
+    // The adsorbents of the bed (id -> label, the adsorbent's name, made
+    // unique with " #<id>" when two share one), set by Initialise.
+    const std::map<AdsorbentID, std::string>& AdsorbentLabels() const { return adsorbent_labels_; }
+    // True when this run logs per-adsorbent series (some cell holds more than
+    // one solid).
+    bool LogsPerAdsorbent() const { return per_adsorbent_; }
     VariableLogEntry GetComponentFaceVariable(int cycle_index, int step_index,
       ComponentVariableType type, const std::string& component) const;
 
@@ -419,6 +457,8 @@ namespace adsim {
     double medium_prev_t_ = 0.0;
     MediumHeatFlow medium_prev_flow_{};
     bool non_local_ = false;  // LTNE run (set in Initialise)
+    bool per_adsorbent_ = false;  // some cell holds more than one solid (set in Initialise / per step)
+    std::map<AdsorbentID, std::string> adsorbent_labels_;
 
   };
 
