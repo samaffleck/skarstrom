@@ -442,8 +442,11 @@ void BuildCycle(Reactor& r) {
   UserData& d = r.sim.Data();
   const size_t purge = build::AddStep(d, "Purge");
   build::SetFlowBoundary(d, purge, "top", "inlet");
-  build::AddStream(d, purge, "top", "Purge inlet", "velocity", "constant");
-  build::SetPressureBoundary(d, purge, "bottom", "outlet", "constant");
+  const size_t purge_in = build::AddStream(d, purge, "top", "Purge inlet", "velocity", "constant");
+  const size_t purge_out = build::SetPressureBoundary(d, purge, "bottom", "outlet", "constant");
+  // Ethane: fed in the feed step, leaves through both outlets; the cycle
+  // mole-balance diagnostic must count what the reaction consumes.
+  build::SetKPI(d, C2H6, {r.feed_in, purge_in}, {r.outlet, purge_out});
   r.sim.RefreshParameters();
   for (const auto& [path, text] : std::vector<std::pair<std::string, std::string>>{
            {"step[Purge].time", "4"},
@@ -477,6 +480,13 @@ TEST(ReactionBalances, MassBalanceCssMethodsCountGeneration) {
         in += std::max(GetTotalMolesIn(r.sim.Log(), c, s, loc), 0.0);
     }
     EXPECT_GT(G / in, 0.05);
+
+    // The KPI cycle mole balance (and MASS_BALANCE_STUCK) counts the moles
+    // consumed: (in + G - accumulation) / in closes at CSS.
+    const auto kpis = r.sim.KPIs(-1);
+    ASSERT_EQ(kpis.size(), 1u);
+    EXPECT_LT(std::abs(kpis[0].mass_balance_error), 2e-3) << kpis[0].mass_balance_error;
+    EXPECT_TRUE(r.sim.Data().state.HasReactions());
   }
 }
 
