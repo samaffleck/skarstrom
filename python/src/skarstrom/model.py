@@ -768,6 +768,14 @@ class Settings(_Node):
     """Warn when the last cycle's approach to fluidisation passes 1."""
     warn_channel_reynolds = Boolean()
     """Warn when the last cycle's channel Reynolds number in a structured layer passes 2000."""
+    warn_mole_fraction_sum = Boolean()
+    """Run health: warn when the gas mole fractions do not sum to 1 (MOLE_FRACTION_SUM)."""
+    warn_mass_balance_stuck = Boolean()
+    """Run health: warn when a cycle mole balance stays open as the run settles (MASS_BALANCE_STUCK)."""
+    warn_step_retries = Boolean()
+    """Run health: warn on many rejected integrator attempts in a cycle (STEP_RETRIES)."""
+    warn_history_truncated = Boolean()
+    """Run health: warn when the log keeps fewer cycles than the diagnostics read (HISTORY_TRUNCATED)."""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation) or "anderson"."""
 

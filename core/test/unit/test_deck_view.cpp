@@ -11,6 +11,7 @@
 // registry, the KPI list, the warning settings and the example decks.
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -34,6 +35,7 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/solver/operating_limits.h"
+#include "adsim/solver/run_health.h"
 #include "adsim/solver/sensitivity.h"
 
 namespace adsim {
@@ -272,6 +274,16 @@ TEST(Manifests, WarningsMatchTheSettingsAndOperatingLimits) {
     }
   }
   for (const char* limit : kOperatingLimitList) EXPECT_TRUE(keys.count(limit)) << limit;
+  // Every run-health code has its entry, keyed by the code in lower case.
+  for (const char* code : kRunHealthCodeList) {
+    const auto it = std::find_if(WarningDefinitions().begin(), WarningDefinitions().end(),
+                                 [&](const WarningDefinition& w) { return w.code == code; });
+    ASSERT_NE(it, WarningDefinitions().end()) << code;
+    std::string key = code;
+    for (auto& ch : key) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    EXPECT_EQ(it->key, key);
+    EXPECT_FALSE(it->setting.empty()) << code;
+  }
   // Every warning switch of the registry has its manifest entry, and back.
   std::set<std::string> registry_switches;
   for (const auto* f : StaticFieldsInSection("settings")) {

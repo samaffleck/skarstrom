@@ -55,6 +55,9 @@ from ._core import (
     KPIRecord,
     OperatingLimitsReport,
     OperatingWarning,
+    RunHealthCycle,
+    RunHealthReport,
+    RunHealthWarning,
     RunResult,
     StateCache,
     StepOperatingSummary,
@@ -127,6 +130,9 @@ __all__ = [
     "CycleState",
     "OperatingLimitsReport",
     "OperatingWarning",
+    "RunHealthCycle",
+    "RunHealthReport",
+    "RunHealthWarning",
     "StateCache",
     "StepOperatingSummary",
     "WallDesignResult",
@@ -749,6 +755,13 @@ class Simulation:
         onto this deck's grid and its histories are stretched onto changed
         step times (:meth:`prepare_state`); one that does not fit (other
         components, layers or steps) fails the run with the reason.
+
+        The result's ``healthy`` is False when a run-health check fired after
+        a cycle (the gas mole fractions not summing to 1, a cycle mole balance
+        that stays open, many rejected integrator steps, a log too short for
+        the diagnostics); ``warnings`` lists them (:class:`RunHealthWarning`:
+        ``code``, ``value``, ``threshold``, ``cycle``, ``step``, ``suspects``,
+        ``hint``). The status and results are unchanged; see docs/run-health.md.
         """
         return self._sim.run(cycles, progress, log_level, on_message, initial_state)
 
@@ -1044,6 +1057,14 @@ class Simulation:
         checks run only when the wall has a design (a positive
         ``wall.design_pressure`` or ``wall.vacuum_service``)."""
         return self._sim.operating_limits(cycle)
+
+    def run_health(self) -> RunHealthReport:
+        """The run-health checks of the last run: ``cycles`` (per completed cycle:
+        ``mole_fraction_sum_error``, ``state_change``, ``mass_balance_error`` per
+        component in ``components`` order, integrator ``steps`` and ``rejected``
+        attempts), ``warnings`` (the same as ``RunResult.warnings``) and
+        ``healthy``. See docs/run-health.md."""
+        return self._sim.run_health()
 
     def wall_design(self) -> WallDesignResult:
         """The wall's minimum thickness [m] for its pressure design

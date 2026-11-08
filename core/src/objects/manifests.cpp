@@ -296,6 +296,26 @@ namespace adsim {
          defaults.channel_reynolds,
          "the channel Reynolds number of a structured layer reaches {value} in step {step}, above {limit}: the "
          "flow is no longer laminar."},
+        // Run health, checked after every cycle, reported at the end (run_health.h), switchable.
+        {"mole_fraction_sum", "Mole fractions do not sum to 1", "end", "settings.warn_mole_fraction_sum",
+         defaults.mole_fraction_sum,
+         "the gas mole fractions sum to 1 +/- {value} in step {step} of cycle {cycle} (more than {limit}): the "
+         "composition is not conserved.",
+         "MOLE_FRACTION_SUM"},
+        {"mass_balance_stuck", "Cycle mole balance stays open", "end", "settings.warn_mass_balance_stuck",
+         defaults.mass_balance_stuck,
+         "the cycle mole balance of {component} stays at {value} in cycle {cycle} (above {limit}, no longer "
+         "falling) while the end-of-cycle state has settled: moles are gained or lost.",
+         "MASS_BALANCE_STUCK"},
+        {"step_retries", "Many rejected integrator steps", "end", "settings.warn_step_retries",
+         defaults.step_retries,
+         "the integrator rejected {value} attempts per accepted step in cycle {cycle} (more than {limit}).",
+         "STEP_RETRIES"},
+        {"history_truncated", "Log shorter than the diagnostics need", "end", "settings.warn_history_truncated",
+         defaults.history_truncated,
+         "the log kept {value} cycles, fewer than the {limit} the CSS history and its distance estimate read back "
+         "(settings.max_cycles_to_keep).",
+         "HISTORY_TRUNCATED"},
       };
       return w;
     }();
@@ -315,6 +335,8 @@ namespace adsim {
       else Set(v, "setting", w.setting, a);
       Set(v, "default_on", w.default_on, a);
       Set(v, "message", w.message, a);
+      if (w.code.empty()) SetNull(v, "code", a);
+      else Set(v, "code", w.code, a);
       list.PushBack(v, a);
     }
     return Write(list, options.pretty);

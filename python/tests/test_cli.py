@@ -100,6 +100,28 @@ def test_run_json(capsys):
     assert any("vacuum service" in w for w in json.loads(out)["warnings"])
 
 
+def test_run_health_is_reported_even_when_quiet(capsys):
+    # A healthy run: healthy is true and no run-health warning reaches stderr.
+    code, out, err = run_cli(capsys, "run", PEREZ, "--cycles", "1", "--json", "-q")
+    payload = json.loads(out)
+    assert code == 0 and payload["healthy"] is True and payload["run_health"] == []
+    assert "run health" not in err
+    # A log shorter than the diagnostics read: the status and exit code are unchanged, the warning is in
+    # the JSON (structured, and its message in warnings) and on stderr despite -q.
+    argv = ["run", PEREZ, "--cycles", "3", "--set", "settings.max_cycles_to_keep=1", "--set", "css.method=0"]
+    code, out, err = run_cli(capsys, *argv, "--json", "-q")
+    payload = json.loads(out)
+    assert code == 0 and payload["status"] == "completed"
+    assert payload["healthy"] is False
+    (w,) = payload["run_health"]
+    assert w["code"] == "HISTORY_TRUNCATED" and w["value"] < w["threshold"] and w["suspects"] and w["hint"]
+    assert w["message"] in payload["warnings"]
+    assert "run health: " in err
+    code, out, err = run_cli(capsys, *argv, "-q")
+    assert code == 0 and "Health:  1 run-health warning(s): HISTORY_TRUNCATED" in out
+    assert "run health: " in err
+
+
 def test_run_rejects_unknown_parameter_and_bad_value(capsys):
     with pytest.raises(SystemExit) as e:
         main(["run", PEREZ, "--set", "no.such=1", "-q"])

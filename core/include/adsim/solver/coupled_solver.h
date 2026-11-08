@@ -17,6 +17,7 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpi_history.h"
+#include "adsim/solver/run_health.h"
 #include "adsim/solver/cycle_state.h"
 #include "adsim/solver/kpi_quadrature.h"
 
@@ -480,6 +481,8 @@ namespace adsim {
     // KPIs of every completed cycle of the run (the logs keep only the last
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
+    // Run-health measures and warnings of the most recent run (run_health.h).
+    const RunHealthReport& GetRunHealth() const { return run_health_.Report(); }
     // Cycles that started from a state moved by CSS acceleration (a committed
     // re-seed) in the most recent run. The CSS distance diagnostic leaves them
     // out of its window (CyclicSteadyState::EstimateDistance).
@@ -498,6 +501,8 @@ namespace adsim {
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
     KPIHistory kpi_history_;
+    RunHealthMonitor run_health_;
+    long step_recoveries_ = 0;  // recoverable IDA failures retried this run (run health)
     std::set<int> jump_cycles_;
     SolverProgressCallback progress_callback_;
     SolverMessageCallback message_callback_;
@@ -529,6 +534,8 @@ namespace adsim {
     // KPIs of every completed cycle of the run (the logs keep only the last
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
+    // Run-health measures and warnings of the most recent run (run_health.h).
+    const RunHealthReport& GetRunHealth() const { return run_health_.Report(); }
     // Cycles that started from a state moved by CSS acceleration (a committed
     // re-seed) in the most recent run. The CSS distance diagnostic leaves them
     // out of its window (CyclicSteadyState::EstimateDistance).
@@ -552,6 +559,10 @@ namespace adsim {
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
     KPIHistory kpi_history_;
+    RunHealthMonitor run_health_;
+    long step_recoveries_ = 0;      // recoverable IDA failures retried this run (run health)
+    long cycle_recoveries_start_ = 0;
+    IntegrationStats cycle_stats_start_{};
     std::set<int> jump_cycles_;
     ChunkStatus status_;
 

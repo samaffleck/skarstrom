@@ -403,6 +403,54 @@ PYBIND11_MODULE(_core, m) {
   m.attr("CSS_DISTANCE_WARNING_RATIO") = adsim::CyclicSteadyState::kDistanceWarningRatio;
 
   // ---- run status / records ---------------------------------------------
+  py::class_<adsim::RunHealthWarning>(m, "RunHealthWarning")
+      .def_readonly("code", &adsim::RunHealthWarning::code)
+      .def_readonly("value", &adsim::RunHealthWarning::value)
+      .def_readonly("threshold", &adsim::RunHealthWarning::threshold)
+      .def_readonly("cycle", &adsim::RunHealthWarning::cycle)
+      .def_readonly("step", &adsim::RunHealthWarning::step)
+      .def_readonly("step_name", &adsim::RunHealthWarning::step_name)
+      .def_readonly("component", &adsim::RunHealthWarning::component)
+      .def_readonly("suspects", &adsim::RunHealthWarning::suspects)
+      .def_readonly("hint", &adsim::RunHealthWarning::hint)
+      .def_readonly("message", &adsim::RunHealthWarning::message)
+      .def("as_dict", [](const adsim::RunHealthWarning& w) {
+        py::dict d;
+        d["code"] = w.code;
+        d["value"] = w.value;
+        d["threshold"] = w.threshold;
+        d["cycle"] = w.cycle;
+        d["step"] = w.step;
+        d["step_name"] = w.step_name;
+        d["component"] = w.component;
+        d["suspects"] = w.suspects;
+        d["hint"] = w.hint;
+        d["message"] = w.message;
+        return d;
+      })
+      .def("__repr__", [](const adsim::RunHealthWarning& w) { return w.message; });
+
+  py::class_<adsim::RunHealthCycle>(m, "RunHealthCycle")
+      .def_readonly("cycle", &adsim::RunHealthCycle::cycle)
+      .def_readonly("mole_fraction_sum_error", &adsim::RunHealthCycle::mole_fraction_sum_error)
+      .def_readonly("mole_fraction_sum_step", &adsim::RunHealthCycle::mole_fraction_sum_step)
+      .def_readonly("state_change", &adsim::RunHealthCycle::state_change)
+      .def_readonly("mass_balance_error", &adsim::RunHealthCycle::mass_balance_error)
+      .def_readonly("steps", &adsim::RunHealthCycle::steps)
+      .def_readonly("rejected", &adsim::RunHealthCycle::rejected);
+
+  py::class_<adsim::RunHealthReport>(m, "RunHealthReport")
+      .def_readonly("components", &adsim::RunHealthReport::components)
+      .def_readonly("cycles", &adsim::RunHealthReport::cycles)
+      .def_readonly("warnings", &adsim::RunHealthReport::warnings)
+      .def_property_readonly("healthy", &adsim::RunHealthReport::Healthy);
+
+  m.attr("RUN_HEALTH_CODES") = [] {
+    std::vector<std::string> codes;
+    for (const char* c : adsim::kRunHealthCodeList) codes.emplace_back(c);
+    return codes;
+  }();
+
   py::class_<adsim::RunResult>(m, "RunResult")
       .def_property_readonly("status", [](const adsim::RunResult& r) { return adsim::RunStatusName(r.status); })
       .def_readonly("message", &adsim::RunResult::message)
@@ -412,6 +460,10 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("cycles_run", &adsim::RunResult::cycles_run)
       .def_readonly("wall_time_s", &adsim::RunResult::wall_time_s)
       .def_property_readonly("ok", &adsim::RunResult::Ok)
+      .def_readonly("healthy", &adsim::RunResult::healthy,
+                    "False when a run-health check fired (the status and results are unchanged)")
+      .def_readonly("warnings", &adsim::RunResult::health_warnings,
+                    "The run-health warnings (RunHealthWarning: code, value, threshold, cycle, step, suspects, hint)")
       .def_property_readonly("stats", [](const adsim::RunResult& r) {
         py::dict d;
         d["steps"] = r.stats.num_steps;
@@ -785,6 +837,7 @@ PYBIND11_MODULE(_core, m) {
       }, py::arg("cycle") = py::none())
       .def("css_history", &adsim::Simulation::CSSHistory)
       .def("operating_limits", &adsim::Simulation::OperatingLimits, py::arg("cycle") = -1)
+      .def("run_health", &adsim::Simulation::RunHealth, py::return_value_policy::copy)
       .def("wall_design", &adsim::Simulation::WallDesign)
       .def("series", [](const adsim::Simulation& s, const std::string& variable, const std::string& component,
                         const std::string& location, double z, int cycle) {

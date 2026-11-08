@@ -156,6 +156,14 @@ def test_run_results(perez_run):
     assert r.status in ("completed", "reached_css")
     assert r.cycles_run == 3 and sim.cycles == [0, 1, 2] and sim.last_cycle == 2
     assert r.stats["steps"] > 0 and r.wall_time_s > 0
+    # Run health: silent on the example deck, measures kept for every cycle.
+    assert r.healthy and r.warnings == []
+    health = sim.run_health()
+    assert health.healthy and "CarbonDioxide" in health.components
+    assert [c.cycle for c in health.cycles] == [0, 1, 2]
+    assert all(c.mole_fraction_sum_error < 1e-3 and c.steps > 0 for c in health.cycles)
+    assert len(health.cycles[0].mass_balance_error) == len(health.components)
+    assert "MOLE_FRACTION_SUM" in skarstrom._core.RUN_HEALTH_CODES
 
     kpis = sim.kpis()
     assert len(kpis) == 3
