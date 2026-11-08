@@ -474,6 +474,7 @@ PYBIND11_MODULE(_core, m) {
         d["jacobian_residual_evaluations"] = r.stats.num_lin_res_evals;
         d["jacobian_evaluations"] = r.stats.num_jac_evals;
         d["linear_setups"] = r.stats.num_lin_setups;
+        d["recovered_steps"] = r.stats.recovered_steps;
         return d;
       })
       .def("__repr__", [](const adsim::RunResult& r) {
