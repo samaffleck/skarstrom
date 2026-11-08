@@ -59,13 +59,31 @@ namespace adsim {
     }
   }
 
-  // Where the KPI integrals come from: the trapezoid over the logged boundary
-  // samples (the reported KPIs) or the IDAS quadratures integrated alongside
-  // the solution (StreamData::integrals_, kpi_quadrature.h). The KPI formulas
-  // are the same; only the time integrals of the endpoint flows and the pump
-  // power differ. A quadrature integral that was not integrated is NaN, which
-  // makes the KPIs that need it undefined.
+  // Where the KPI integrals come from: the IDAS quadratures integrated
+  // alongside the solution (StreamData::integrals_, kpi_quadrature.h; the
+  // default and the reported KPIs) or the trapezoid over the logged boundary
+  // samples (KPIRecord::trapezoid_*). The KPI formulas are the same; only the
+  // time integrals of the endpoint flows and the pump power differ. An
+  // endpoint whose quadratures were not integrated (turned off with
+  // IDASettings::kpi_quadratures_, or its step failed) falls back to the
+  // trapezoid, so QUADRATURE always gives a value where TRAPEZOID does.
   enum class KPIIntegration { TRAPEZOID, QUADRATURE };
+
+  // Volume [m3] of the packed bed: the cells the domain lists as packed
+  // (DomainVectors::bed_cell_indices: no ghost cells, no void end cells), or
+  // every interior cell when it lists none. What the per-bed-volume KPIs
+  // (productivity_volume, the space-time yield on the bed-volume basis)
+  // divide by.
+  inline double PackedBedVolume(const DomainVectors& domain) {
+    double volume = 0.0;
+    if (!domain.bed_cell_indices.empty()) {
+      for (int i : domain.bed_cell_indices)
+        if (i >= 0 && static_cast<size_t>(i) < domain.volume.size()) volume += domain.volume[static_cast<size_t>(i)];
+    } else {
+      for (size_t i = 1; i + 1 < domain.volume.size(); ++i) volume += domain.volume[i];
+    }
+    return volume;
+  }
 
   class KPIParams {
   public:
@@ -99,7 +117,7 @@ namespace adsim {
     std::vector<KPIEndpointRef> feed_endpoints{};
     std::vector<KPIEndpointRef> product_endpoints{};
     std::vector<KPIEndpointRef> recycle_endpoints{};
-    KPIIntegration integration_ = KPIIntegration::TRAPEZOID;
+    KPIIntegration integration_ = KPIIntegration::QUADRATURE;
     const EquationLog& eq_log_;
     const BoundaryLog& b_log_;
   };
@@ -166,6 +184,8 @@ namespace adsim {
   // entering, negative = leaving. The per-stream log records molar flow with a
   // velocity sign (positive = bottom->top), so a TOP endpoint is negated to
   // share the "entering the bed" convention with the rest of the KPI maths.
+  // (The default, QUADRATURE, reads the endpoint's quadrature integrals and
+  // falls back to the trapezoid when they were not integrated.)
   // The quadrature integrals of one endpoint over its step, or nullptr when
   // the endpoint was not logged or its quadratures were not integrated.
   inline const EndpointIntegrals* EndpointQuadrature(const adsim::BoundaryLog& b_log, int cycle_index,
@@ -178,11 +198,11 @@ namespace adsim {
     const adsim::BoundaryLog& b_log,
     int cycle_index,
     const KPIEndpointRef& ep,
-    KPIIntegration integration = KPIIntegration::TRAPEZOID
+    KPIIntegration integration = KPIIntegration::QUADRATURE
   ) {
     if (integration == KPIIntegration::QUADRATURE) {
-      const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, ep.step_index, ep.endpoint_name);
-      return q ? q->NetMolesIn() : std::numeric_limits<double>::quiet_NaN();
+      if (const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, ep.step_index, ep.endpoint_name))
+        return q->NetMolesIn();
     }
     adsim::BoundaryVariableData d = b_log.GetVariableData(
       cycle_index, ep.step_index, ep.endpoint_name,
@@ -198,11 +218,11 @@ namespace adsim {
     int cycle_index,
     const KPIEndpointRef& ep,
     const std::string& component,
-    KPIIntegration integration = KPIIntegration::TRAPEZOID
+    KPIIntegration integration = KPIIntegration::QUADRATURE
   ) {
     if (integration == KPIIntegration::QUADRATURE) {
-      const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, ep.step_index, ep.endpoint_name);
-      return q ? q->NetComponentMolesIn(component) : std::numeric_limits<double>::quiet_NaN();
+      if (const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, ep.step_index, ep.endpoint_name))
+        return q->NetComponentMolesIn(component);
     }
     adsim::BoundaryVariableData d = b_log.GetComponentVariableData(
       cycle_index, ep.step_index, ep.endpoint_name,
@@ -540,13 +560,8 @@ namespace adsim {
   }
 
   static double CalculateProductivityVolume(const KPIParams& params, bool* defined = nullptr) {
-    const auto& eq_log = params.eq_log_;
-    auto& cell_volumes = eq_log.GetDomain().volume;
-
-    double volume = 0.0;
-    for (double dv : cell_volumes) {
-      volume += dv;
-    }
+    // The packed bed's volume: no ghost cells (and no void end cells).
+    const double volume = PackedBedVolume(params.eq_log_.GetDomain());
 
     bool ok = true;
     double productivity = CalculateProductivity(params, &ok);
@@ -601,9 +616,10 @@ namespace adsim {
 
     for (const auto& stream_name : stream_name_list) {
       if (params.integration_ == KPIIntegration::QUADRATURE) {
-        const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, step_idx, stream_name);
-        step_energy += q ? q->energy : std::numeric_limits<double>::quiet_NaN();
-        continue;
+        if (const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, step_idx, stream_name)) {
+          step_energy += q->energy;
+          continue;
+        }
       }
       adsim::BoundaryVariableData data = b_log.GetVariableData(
         cycle_index, 

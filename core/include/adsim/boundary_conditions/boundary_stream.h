@@ -190,6 +190,14 @@ namespace adsim {
 		EndpointIntegrals integrals_{};
 	};
 
+	// Mole fraction of `component` on the bed-end face at `loc`: the face
+	// value the species balance convects through that face (the upwind or
+	// high-order reconstruction, Equations::mole_fraction_face), so an
+	// outlet's component flow n * y counts the moles the balance removes.
+	// Falls back to the bed-end gas (ghost and end cell average) when the
+	// face values are not set up.
+	double BedEndFaceMoleFraction(const Equations& state, BoundaryLocation loc, const std::string& component);
+
 	class IBoundaryStream {
 	public:
 		virtual ~IBoundaryStream() = default;
@@ -202,8 +210,12 @@ namespace adsim {
     // Molar flow of one component and the enthalpy flow (molar flow times the
     // gas temperature) through this stream, with the sign of GetMolarFlow. An
     // inlet carries the stream-side composition and the temperature from
-    // BedInletTemperature; an outlet carries the bed-end gas (the average of
-    // the ghost and first interior cell). The same for every stream kind.
+    // BedInletTemperature. At an outlet the component flow carries the gas
+    // of the bed-end face as the species balance convects it
+    // (BedEndFaceMoleFraction), so the KPIs count the moles the balance
+    // removes; the enthalpy flow carries the bed-end gas temperature (the
+    // average of the ghost and first interior cell). The same for every
+    // stream kind.
     double GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component);
     double GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc);
 		virtual void EvaluateExpressions(const EvalContext& ctx) {

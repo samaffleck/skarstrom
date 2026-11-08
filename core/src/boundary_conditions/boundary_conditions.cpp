@@ -306,7 +306,8 @@ namespace adsim {
 
     // Log the stream-side values:
     // - Inlet: the specified/connected inlet stream values (the values used by Apply()).
-    // - Outlet: boundary-adjacent bed values.
+    // - Outlet: boundary-adjacent bed values (the component flows below use
+    //   the bed-end face composition instead).
     if (direction_ == BoundaryDirection::INLET) {
       temperature = InletTemperature(time);
 
@@ -345,8 +346,14 @@ namespace adsim {
       }
     }
 
+    // Component flows: the stream's composition at an inlet; at an outlet the
+    // bed-end face composition the species balance convects (the logged
+    // composition above keeps the bed-end sampling), so the KPIs count the
+    // moles the balance removes.
     for (const auto& [component, y] : mole_fraction) {
-      component_molar_flow[component] = molar_flow * y;
+      component_molar_flow[component] = direction_ == BoundaryDirection::INLET
+                                            ? molar_flow * y
+                                            : molar_flow * BedEndFaceMoleFraction(state, location_, component);
     }
 
     enthalpy_flow = molar_flow * temperature;

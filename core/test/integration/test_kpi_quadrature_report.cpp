@@ -1,7 +1,8 @@
 // test_kpi_quadrature_report.cpp
 //
 // Opt-in measurement of the KPI quadratures on the example decks (which the
-// paper suites write): quadrature against trapezoid KPIs at the last cycle,
+// paper suites write): the reported (quadrature) KPIs against the trapezoid
+// KPIs at the last cycle,
 // the trapezoid's own error (its change when the log interval is halved), the
 // cycle mole-balance error with each, whether the run with the quadratures is
 // bit-identical to one without, the cost of the quadrature states, and what
@@ -39,6 +40,8 @@ struct DeckRun {
   double mb_quad = std::numeric_limits<double>::quiet_NaN();
   double step_disc = std::numeric_limits<double>::quiet_NaN();  // max |relative step discrepancy|, one open end
   double mb_face = std::numeric_limits<double>::quiet_NaN();  // cycle balance from the face-flux quadratures
+  // max |cycle balance| over components from the face-flux quadratures
+  double mb_face_comp = std::numeric_limits<double>::quiet_NaN();
 };
 
 DeckRun RunOne(const std::string& deck, bool quadratures, int log_points, bool error_control) {
@@ -82,6 +85,25 @@ DeckRun RunOne(const std::string& deck, bool quadratures, int log_points, bool e
     double acc = 0.0;
     for (size_t c = 0; c < first->components.size(); ++c) acc += end->inventory_end[c] - first->inventory_start[c];
     if (ok && entered > 0.0) out.mb_face = (net - acc) / entered;
+    // Per component, as CycleMassBalanceError but with the face fluxes.
+    double inventory = 0.0;
+    for (double v : first->inventory_start) inventory += std::abs(v);
+    for (size_t c = 0; ok && c < first->components.size(); ++c) {
+      double net_c = 0.0, in_c = 0.0;
+      for (int s = 0; s < n_steps; ++s) {
+        const StepBalance* sb = b.GetStepBalance(last, s);
+        net_c += sb->FaceNetIn(c);
+        in_c += std::max(sb->face_in_bottom[c], 0.0) + std::max(sb->face_in_top[c], 0.0);
+      }
+      if (!(in_c > 1e-12 * inventory)) continue;
+      const double gen = [&] {
+        double g = 0.0;
+        for (int s = 0; s < n_steps; ++s) g += eq.ReactionGeneration(last, s, first->components[c]);
+        return g;
+      }();
+      out.mb_face_comp =
+          worse(out.mb_face_comp, (net_c + gen - (end->inventory_end[c] - first->inventory_start[c])) / in_c);
+    }
   }
   return out;
 }
@@ -115,7 +137,7 @@ TEST(KpiQuadratureReport, ExampleDecks) {
 
   std::ofstream csv(out_path);
   csv << "deck,status,cycles,css_cycle,component,kpi,trapezoid,quadrature,trapezoid_400,rel_quad_vs_trap,"
-         "rel_trap_halving,mb_trap,mb_quad,mb_face_total,step_disc_one_open_end,identical,steps_on,steps_off,res_on,res_off,"
+         "rel_trap_halving,mb_trap,mb_quad,mb_face_total,mb_face_component,step_disc_one_open_end,identical,steps_on,steps_off,res_on,res_off,"
          "wall_on,wall_off,steps_errcon,res_errcon,quad_errcon,rel_errcon\n";
   const char* names[] = {"purity", "recovery", "productivity_mass", "productivity_volume", "energy_consumption",
                          "production_rate"};
@@ -133,9 +155,10 @@ TEST(KpiQuadratureReport, ExampleDecks) {
       const auto& a = on.kpis[i];
       const auto& b = off.kpis[i];
       auto same = [](double x, double y) { return (std::isnan(x) && std::isnan(y)) || x == y; };
-      identical = same(a.purity, b.purity) && same(a.recovery, b.recovery)
-                  && same(a.productivity_mass, b.productivity_mass) && same(a.energy_consumption, b.energy_consumption)
-                  && same(a.production_rate, b.production_rate);
+      identical = same(a.trapezoid_purity, b.trapezoid_purity) && same(a.trapezoid_recovery, b.trapezoid_recovery)
+                  && same(a.trapezoid_productivity_mass, b.trapezoid_productivity_mass)
+                  && same(a.trapezoid_energy_consumption, b.trapezoid_energy_consumption)
+                  && same(a.trapezoid_production_rate, b.trapezoid_production_rate);
     }
     EXPECT_TRUE(identical);
 
@@ -147,7 +170,7 @@ TEST(KpiQuadratureReport, ExampleDecks) {
     };
     auto row_suffix = [&]() {
       std::ostringstream ss;
-      ss << Num(on.mb_trap) << "," << Num(on.mb_quad) << "," << Num(on.mb_face) << "," << Num(on.step_disc) << "," << (identical ? 1 : 0) << ","
+      ss << Num(on.mb_trap) << "," << Num(on.mb_quad) << "," << Num(on.mb_face) << "," << Num(on.mb_face_comp) << "," << Num(on.step_disc) << "," << (identical ? 1 : 0) << ","
          << on.result.stats.num_steps << "," << off.result.stats.num_steps << "," << on.result.stats.num_res_evals
          << "," << off.result.stats.num_res_evals << "," << Num(on.result.wall_time_s) << ","
          << Num(off.result.wall_time_s) << "," << ec.result.stats.num_steps << "," << ec.result.stats.num_res_evals;
@@ -160,18 +183,18 @@ TEST(KpiQuadratureReport, ExampleDecks) {
       const KPIRecord& k = on.kpis[i];
       const KPIRecord* kf = i < fine.kpis.size() ? &fine.kpis[i] : nullptr;
       const KPIRecord* ke = i < ec.kpis.size() ? &ec.kpis[i] : nullptr;
-      const double trap[] = {k.purity, k.recovery, k.productivity_mass, k.productivity_volume, k.energy_consumption,
+      const double trap[] = {k.trapezoid_purity, k.trapezoid_recovery, k.trapezoid_productivity_mass,
+                             k.trapezoid_productivity_volume, k.trapezoid_energy_consumption,
+                             k.trapezoid_production_rate};
+      const double quad[] = {k.purity, k.recovery, k.productivity_mass, k.productivity_volume, k.energy_consumption,
                              k.production_rate};
-      const double quad[] = {k.quadrature_purity, k.quadrature_recovery, k.quadrature_productivity_mass,
-                             k.quadrature_productivity_volume, k.quadrature_energy_consumption,
-                             k.quadrature_production_rate};
       const double nan = std::numeric_limits<double>::quiet_NaN();
-      const double fine_v[] = {kf ? kf->purity : nan, kf ? kf->recovery : nan, kf ? kf->productivity_mass : nan,
-                               kf ? kf->productivity_volume : nan, kf ? kf->energy_consumption : nan,
-                               kf ? kf->production_rate : nan};
-      const double ec_v[] = {ke ? ke->quadrature_purity : nan, ke ? ke->quadrature_recovery : nan,
-                             ke ? ke->quadrature_productivity_mass : nan, ke ? ke->quadrature_productivity_volume : nan,
-                             ke ? ke->quadrature_energy_consumption : nan, ke ? ke->quadrature_production_rate : nan};
+      const double fine_v[] = {kf ? kf->trapezoid_purity : nan, kf ? kf->trapezoid_recovery : nan,
+                               kf ? kf->trapezoid_productivity_mass : nan, kf ? kf->trapezoid_productivity_volume : nan,
+                               kf ? kf->trapezoid_energy_consumption : nan, kf ? kf->trapezoid_production_rate : nan};
+      const double ec_v[] = {ke ? ke->purity : nan, ke ? ke->recovery : nan, ke ? ke->productivity_mass : nan,
+                             ke ? ke->productivity_volume : nan, ke ? ke->energy_consumption : nan,
+                             ke ? ke->production_rate : nan};
       for (int j = 0; j < 6; ++j) {
         csv << row_prefix(k.component, names[j]) << Num(trap[j]) << "," << Num(quad[j]) << "," << Num(fine_v[j]) << ","
             << Num(Rel(quad[j], trap[j])) << "," << Num(Rel(fine_v[j], trap[j])) << "," << row_suffix() << ","
