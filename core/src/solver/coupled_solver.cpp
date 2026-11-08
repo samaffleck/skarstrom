@@ -196,10 +196,10 @@ namespace adsim {
     user_data_.Initialise();
     equation_log_.Initialise(user_data_);
     equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
+    solver_data_.SetMessageSink([this](const std::string& msg) { LogMessage(LogLevel::HIGH, "  IDA: " + msg); });
     boundary_log_.Initialise(user_data_);
     kpi_history_.Clear();
     run_health_.Begin(user_data_);
-    step_recoveries_ = 0;
     jump_cycles_.clear();
     
     // Set current step for initial conditions
@@ -329,20 +329,25 @@ namespace adsim {
              || flag == IDA_LSOLVE_FAIL // linear solver solve failure
              || flag == IDA_TOO_MUCH_WORK);
 
+        // IDA's own message for this failure (its error handler sent it to
+        // the log at HIGH); quoted in the recovered or failed step's line.
+        // Taken before PrepareStepRetry, whose restart may raise its own.
+        const std::string ida_message = solver_data_.TakeLastMessage();
+
         SolverData::StepRetry retry;
         if (recoverable && retry_count < kMaxStepRetries)
           retry = solver_data_.PrepareStepRetry(flag, min_step);
 
         if (retry.retry) {
           ++retry_count;
-          ++step_recoveries_;
           std::ostringstream ss;
-          ss << "  Step \"" << step.step_name_ << "\" IDA failure (code " << flag
+          ss << "  Step \"" << step.step_name_ << "\" recovered step: IDA failure (code " << flag
              << ") at t=" << t_curr << "; retry " << retry_count << "/" << kMaxStepRetries
              << (retry.consistent_ic ? " restarting from a consistent initial condition"
                  : retry.restarted ? " restarting at step " : " continuing from IDA's step ");
           if (!retry.consistent_ic) ss << retry.h << "s";
           ss << ".";
+          if (!ida_message.empty()) ss << " IDA: " << ida_message;
           LogMessage(LogLevel::MEDIUM, ss.str());
           continue;
         }
@@ -356,7 +361,10 @@ namespace adsim {
              << retry_count << " retr" << (retry_count == 1 ? "y" : "ies")
              << " (last IDA code " << flag << ", min step " << min_step << "s) at t="
              << t_curr << ".";
+          if (!ida_message.empty()) ss << " IDA: " << ida_message;
           LogMessage(LogLevel::LOW, ss.str());
+        } else if (!ida_message.empty()) {
+          LogMessage(LogLevel::LOW, "  Step \"" + step.step_name_ + "\" IDA: " + ida_message);
         }
         break;
       }
@@ -538,7 +546,6 @@ namespace adsim {
 
       LogMessage(LogLevel::LOW, "Cycle " + std::to_string(i) + " of " + std::to_string(total_cycles));
       const IntegrationStats cycle_stats_start = solver_data_.GetStatistics();
-      const long cycle_recoveries_start = step_recoveries_;
 
       int step_index = 0;
       for (auto& step : cycle.step_list_) {
@@ -595,7 +602,7 @@ namespace adsim {
       // The cycle is complete: keep its KPIs before the log evicts it.
       kpi_history_.Record(user_data_.kpi_config, cycle.step_list_, equation_log_, boundary_log_, cycle_index);
       run_health_.OnCycle(user_data_, equation_log_, boundary_log_, cycle_index, cycle_stats_start,
-                          solver_data_.GetStatistics(), step_recoveries_ - cycle_recoveries_start);
+                          solver_data_.GetStatistics());
 
       std::optional<ProfileTimer> css_timer;  // CSS check + acceleration
       css_timer.emplace(user_data_.profile_.enabled, user_data_.profile_.css_ns);
@@ -728,11 +735,10 @@ namespace adsim {
       user_data_.Initialise();
       equation_log_.Initialise(user_data_);
       equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
+      solver_data_.SetMessageSink([this](const std::string& msg) { LogMessage(LogLevel::HIGH, "  IDA: " + msg); });
       boundary_log_.Initialise(user_data_);
       kpi_history_.Clear();
       run_health_.Begin(user_data_);
-      step_recoveries_ = 0;
-      cycle_recoveries_start_ = 0;
       jump_cycles_.clear();
 
       // Clear stream_data_ for every step so connected boundary streams don't
@@ -815,9 +821,8 @@ namespace adsim {
                             status_.GetCycleIndex());
         const IntegrationStats cycle_stats_end = solver_data_.GetStatistics();
         run_health_.OnCycle(user_data_, equation_log_, boundary_log_, status_.GetCycleIndex(), cycle_stats_start_,
-                            cycle_stats_end, step_recoveries_ - cycle_recoveries_start_);
+                            cycle_stats_end);
         cycle_stats_start_ = cycle_stats_end;
-        cycle_recoveries_start_ = step_recoveries_;
 
         // Check for cyclic steady state before moving to next cycle
         const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex(),
@@ -970,10 +975,15 @@ namespace adsim {
              || flag == IDA_REP_RES_ERR || flag == IDA_LSETUP_FAIL
              || flag == IDA_LSOLVE_FAIL || flag == IDA_TOO_MUCH_WORK);
 
+        const std::string ida_message = solver_data_.TakeLastMessage();
         if (recoverable && retry_count < kMaxStepRetries
             && solver_data_.PrepareStepRetry(flag, min_step).retry) {
           ++retry_count;
-          ++step_recoveries_;
+          std::ostringstream ss;
+          ss << "  Step \"" << step.step_name_ << "\" recovered step: IDA failure (code " << flag
+             << ") at t=" << t_curr << "; retry " << retry_count << "/" << kMaxStepRetries << ".";
+          if (!ida_message.empty()) ss << " IDA: " << ida_message;
+          LogMessage(LogLevel::MEDIUM, ss.str());
           continue;
         }
 
@@ -983,7 +993,7 @@ namespace adsim {
         LogMessage(LogLevel::LOW, "  Step \"" + step.step_name_ + "\" failed: "
                    + temp_status.GetFlagMessage() + " Largest local error: "
                    + solver_data_.DescribeLargestLocalError(user_data_.state) + "."
-                   + residual_error);
+                   + residual_error + (ida_message.empty() ? "" : " IDA: " + ida_message));
         status_.Failed(
             (recoverable
                 ? ("IDASolve failed to converge after " + std::to_string(retry_count)
@@ -1109,7 +1119,32 @@ namespace adsim {
     step.LogOutletConditions(user_data_.state, t_relative);
   }
 
-  SolverData::SolverData() = default;
+  SolverData::SolverData() {
+    // Route SUNDIALS errors to the engine log instead of stderr. SUNDIALS calls
+    // every handler on the context's stack, so the default one (which writes to
+    // stderr through the SUNDIALS logger) is removed first.
+    if (sunctx_) {
+      SUNContext_ClearErrHandlers(sunctx_);
+      SUNContext_PushErrHandler(sunctx_, &SolverData::OnSundialsError, this);
+    }
+  }
+
+  void SolverData::OnSundialsError(int /*line*/, const char* func, const char* /*file*/, const char* msg,
+                                   SUNErrCode code, void* data, SUNContext /*ctx*/) {
+    auto* self = static_cast<SolverData*>(data);
+    if (!self) return;
+    std::string text = func ? std::string(func) + ": " : std::string();
+    text += msg ? msg : SUNGetErrMsg(code);
+    while (!text.empty() && (text.back() == '\n' || text.back() == ' ')) text.pop_back();
+    self->last_message_ = text;
+    if (self->message_sink_) self->message_sink_(text);
+  }
+
+  std::string SolverData::TakeLastMessage() {
+    std::string m;
+    m.swap(last_message_);
+    return m;
+  }
 
   SolverData::~SolverData() {
     Free();
@@ -1169,6 +1204,8 @@ namespace adsim {
     // same SolverData on every call (e.g. once per optimiser evaluation).
     Free();
     stats_carry_ = IntegrationStats{};
+    recovered_steps_ = 0;
+    last_message_.clear();
 
     auto& state = user_data.state;
     auto& settings = user_data.settings;
@@ -1411,6 +1448,7 @@ namespace adsim {
       if (ReInit(GetTime()) != IDA_SUCCESS) return StepRetry{};
       r.retry = true;
       r.restarted = true;
+      ++recovered_steps_;
       return r;
     }
 
@@ -1432,10 +1470,12 @@ namespace adsim {
       r.restarted = true;
       r.consistent_ic = true;
       r.h = GetInitStepSetting();
+      ++recovered_steps_;
       return r;
     }
     r.retry = true;
     r.h = h_cur;
+    ++recovered_steps_;
     return r;
   }
 
@@ -1772,6 +1812,7 @@ namespace adsim {
     stats.num_jac_evals += stats_carry_.num_jac_evals;
     stats.num_lin_setups += stats_carry_.num_lin_setups;
     if (ida_mem_ && custom_jacobian_) stats.num_lin_res_evals += jacobian_.NumResidualEvals();
+    stats.recovered_steps = recovered_steps_;
     return stats;
   }
 
@@ -1881,6 +1922,7 @@ namespace adsim {
     std::cout << "  Number of Jacobian evals: " << stats.num_jac_evals << std::endl;
     std::cout << "  Number of linear solver setups: " << stats.num_lin_setups << std::endl;
     std::cout << "  Number of Jacobian (DQ) residual evals: " << stats.num_lin_res_evals << std::endl;
+    std::cout << "  Number of recovered steps: " << stats.recovered_steps << std::endl;
   }
 
 } // end adsim namespace

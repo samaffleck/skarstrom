@@ -34,8 +34,9 @@
 //    them the column inventory is not recorded and the check is skipped.
 //  * STEP_RETRIES: the integrator rejected too many attempts in a cycle:
 //    (error-test failures + nonlinear convergence failures + the solver's own
-//    step recoveries) / accepted internal steps above kStepRetryRatio, over a
-//    cycle of at least kStepRetryMinSteps accepted steps.
+//    step recoveries, IntegrationStats::recovered_steps) / accepted internal
+//    steps above kStepRetryRatio, over a cycle of at least kStepRetryMinSteps
+//    accepted steps.
 //  * HISTORY_TRUNCATED: the run outlived its log (settings.max_cycles_to_keep)
 //    and the log kept fewer cycles than the diagnostics read back
 //    (kHistoryCycles: the CSS distance estimate's window, and this check's
@@ -131,10 +132,10 @@ namespace adsim {
     // Starts a run of `data` (clears everything).
     void Begin(const UserData& data);
     // After a cycle completes (before the CSS check stops the run), with the
-    // integrator counters at the cycle's start and end and the solver's step
-    // recoveries during the cycle.
+    // integrator counters at the cycle's start and end (their recovered_steps
+    // is the run statistics' count, so the warning and the stats agree).
     void OnCycle(const UserData& data, const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
-                 const IntegrationStats& at_start, const IntegrationStats& at_end, long recoveries);
+                 const IntegrationStats& at_start, const IntegrationStats& at_end);
     // At the end of a run that completed (or reached CSS): the run-level
     // checks. Idempotent.
     void Finish(const UserData& data, const EquationLog& eq_log);

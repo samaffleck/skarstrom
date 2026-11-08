@@ -88,6 +88,7 @@ def test_run_json(capsys):
     assert code == 0
     payload = json.loads(out)
     assert payload["cycles_run"] == 1 and payload["kpis"][0]["component"] == "CarbonDioxide"
+    assert payload["stats"]["recovered_steps"] == 0
     # The CSS check with its state test and remaining-distance diagnostic;
     # undefined numbers are null.
     css = payload["css"][0]

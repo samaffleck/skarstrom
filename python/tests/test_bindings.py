@@ -156,6 +156,7 @@ def test_run_results(perez_run):
     assert r.status in ("completed", "reached_css")
     assert r.cycles_run == 3 and sim.cycles == [0, 1, 2] and sim.last_cycle == 2
     assert r.stats["steps"] > 0 and r.wall_time_s > 0
+    assert r.stats["recovered_steps"] == 0  # integrator failures recovered by retrying
     # Run health: silent on the example deck, measures kept for every cycle.
     assert r.healthy and r.warnings == []
     health = sim.run_health()

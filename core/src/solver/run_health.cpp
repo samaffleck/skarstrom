@@ -107,8 +107,7 @@ namespace adsim {
   }
 
   void RunHealthMonitor::OnCycle(const UserData& data, const EquationLog& eq_log, const BoundaryLog& b_log,
-                                 int cycle, const IntegrationStats& at_start, const IntegrationStats& at_end,
-                                 long recoveries) {
+                                 int cycle, const IntegrationStats& at_start, const IntegrationStats& at_end) {
     RunHealthCycle m;
     m.cycle = cycle;
     MoleFractionSum(eq_log, cycle, m);
@@ -121,7 +120,8 @@ namespace adsim {
     }
     m.steps = at_end.num_steps - at_start.num_steps;
     m.rejected = (at_end.num_err_test_fails - at_start.num_err_test_fails)
-               + (at_end.num_conv_fails - at_start.num_conv_fails) + recoveries;
+               + (at_end.num_conv_fails - at_start.num_conv_fails)
+               + (at_end.recovered_steps - at_start.recovered_steps);
     report_.cycles.push_back(m);
 
     const WarningSettings& on = data.settings.warnings_;

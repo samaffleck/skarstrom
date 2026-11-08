@@ -135,6 +135,20 @@ This is the form Estupiñan Perez et al. (2019) fitted to the evacuation pressur
 
 > All numeric fields accept [expressions and units](global-variables.md), e.g. `2 [bar]` or a reference to a global variable.
 
+### Starting a flow inlet into a bed at low pressure
+
+A constant flow inlet switched on at the start of a step into a bed at low pressure (a feed or pressurisation step straight after evacuation or blowdown) is a step change at the boundary: the first cell sees the full molar flux at once while the gas there is thin, so the pressure and velocity at the inlet jump. The integrator often fails its first attempts at such a step, and the engine recovers by retrying (below). Ramping the flow from zero over about 1 s (a **Linear** profile with Start Value 0 and Ramp Time 1 s, or `sk.linear(v, start=0, time=1)` in Python) removes the jump and the failed attempts, and changes the amount fed by only half a second's worth of flow. A pressure boundary is smoothed the same way with a short ramp instead of a constant value.
+
+### Recovered steps in the log
+
+When the integrator (IDA) fails a step (repeated error-test or convergence failures, a linear-solver failure or too much work), the engine retries it up to four times, from a smaller step or, at a step-size floor, from a consistent restart at the last accepted point. A failure the retry gets past is a **recovered step**:
+
+- it does not stop the run or change the results beyond the integration tolerance;
+- the log shows it at level *medium* as `Step "<name>" recovered step: IDA failure (code <n>) at t=... ; retry k/4 ...`, followed by IDA's own message;
+- it counts in the run statistics, `recovered_steps` (`result.stats["recovered_steps"]` in Python, `stats.recovered_steps` in the CLI `--json` summary), and in the [run-health](run-health.md) `STEP_RETRIES` measure, which reads the same count.
+
+Only a step whose retries run out is a failure: it is logged at level *low* with IDA's last message and the run stops. IDA's messages never go to stderr; at level *high* the log shows every one of them (`IDA: ...`).
+
 ---
 
 ## Valves
