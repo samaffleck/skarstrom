@@ -149,7 +149,14 @@ namespace adsim {
   //   adsorbent_name the per-adsorbent log name pattern, "{component} Adsorbed
   //                  Concentration ({adsorbent})" ({adsorbent} is a label of
   //                  Simulation::SeriesAdsorbents()), "" when not per adsorbent
-  // and `per_adsorbent_logged_when`, the rule for when a run logs them.
+  // and `per_adsorbent_logged_when`, the rule for when a run logs them;
+  // `reaction_variables`, the series logged per reaction and solid (key,
+  // label, name pattern "{reaction} Rate ({adsorbent})", unit, kind
+  // "reaction", porous_only, description; read with
+  // EquationLog::GetReactionRate, not yet with Series / Profile), and
+  // `reactions_logged_when`. reaction_heat and reaction_source (in
+  // `variables`) and the reaction_variables are logged only for a deck with
+  // reactions.
   std::string SeriesManifest(const ManifestOptions& options = {});
 
 }  // namespace adsim

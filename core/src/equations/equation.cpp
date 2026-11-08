@@ -10,6 +10,7 @@
 #include "adsim/boundary_conditions/step.h"
 
 #include <algorithm>
+#include <limits>
 
 
 namespace adsim {
@@ -34,9 +35,31 @@ namespace adsim {
             if (model && model->mtc_model_) reads |= model->mtc_model_->ReadsTransportProperties();
         }
       }
+      // The Thiele effectiveness of a reaction reads the key reactant's Dm.
+      for (const auto& layer : bed.layers_.layers_)
+        for (const auto& [ads_id, fraction] : layer.composition_)
+          if (dir.Contains(ads_id))
+            for (const auto& r : dir.Get(ads_id).reaction_source_.reactions_)
+              if (r.effectiveness_.mode_ == EffectivenessMode::Thiele) reads |= kMolecularDiffusion;
       if (reads & kSherwoodNumber) reads |= kSchmidtNumber | kReynoldsNumber;
       if (reads & kSchmidtNumber) reads |= kMolecularDiffusion;
       return reads;
+    }
+
+    // True when `component` uses the Inert isotherm on adsorbent `ads_id`.
+    bool InertPair(const AdsorbentDirectory& dir, AdsorbentID ads_id, const std::string& component) {
+      if (!dir.Contains(ads_id)) return false;
+      const auto& map = dir.Get(ads_id).adsorption_source_.IsothermMap();
+      auto it = map.find(component);
+      return it != map.end() && it->second == IsothermType::INERT;
+    }
+
+    // True when some solid of some layer has a reaction.
+    bool BedHasReactions(const Bed& bed, const AdsorbentDirectory& dir) {
+      for (const auto& layer : bed.layers_.layers_)
+        for (const auto& [ads_id, fraction] : layer.composition_)
+          if (dir.Contains(ads_id) && !dir.Get(ads_id).reaction_source_.Empty()) return true;
+      return false;
     }
   } // namespace
 
@@ -247,6 +270,7 @@ namespace adsim {
     }
 
     ads_concentration.clear();
+    inert_loadings_.clear();
     for (AdsorbentID ads_id : adsorbent_ids_) {
       const std::vector<bool>* mask = GetAdsorbentMask(ads_id);
       auto& comp_map = ads_concentration[ads_id];
@@ -264,7 +288,9 @@ namespace adsim {
         );
         it->second.SetDomain(EquationDomain::PorousMediaOnly);
         it->second.SetActiveMask(mask);
-        equations_.emplace_back(&it->second);
+        // An inert pair has no loading to solve for: q = 0 throughout.
+        if (InertPair(dir, ads_id, component)) inert_loadings_.push_back(&it->second);
+        else equations_.emplace_back(&it->second);
       }
     }
 
@@ -280,6 +306,7 @@ namespace adsim {
       for (const auto& component : fluid.components_) {
         auto m = models.find(component);
         if (m == models.end() || !m->second || !m->second->HasSlowSite()) continue;
+        if (InertPair(dir, ads_id, component)) continue;
         auto& comp_map = ads_concentration_slow[ads_id];
         auto [it, inserted] = comp_map.emplace(
           std::piecewise_construct,
@@ -400,6 +427,34 @@ namespace adsim {
       }
     }
 
+    // Reactions: registered only for a deck with some, after the fields they
+    // read (state, Dm), before the logging-only sources.
+    component_reaction_source.clear();
+    reaction_fields.clear();
+    reaction_total_source.clear();
+    has_reactions_ = BedHasReactions(bed, dir);
+    if (has_reactions_) {
+      for (const auto& component : fluid.components_) {
+        component_reaction_source.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(component),
+          std::forward_as_tuple(component + " Reaction Source", CellType::CellCentre, [](UserData*) {}));
+      }
+      for (AdsorbentID ads_id : adsorbent_ids_) {
+        if (!dir.Contains(ads_id)) continue;
+        const Adsorbent& ads = dir.Get(ads_id);
+        for (const auto& r : ads.reaction_source_.reactions_) {
+          const std::string label = r.name_ + " Rate (" + ads.name_ + ")";
+          reaction_fields.push_back(std::make_unique<ReactionField>(ReactionField{
+            ads_id, r.id_, r.name_,
+            IndependentEquation(label, CellType::CellCentre, [](UserData*) {}),
+            IndependentEquation(r.name_ + " Extent Rate (" + ads.name_ + ")", CellType::CellCentre, [](UserData*) {}),
+            {}}));
+        }
+      }
+      independent_equations_.emplace_back(&reaction_heat);
+    }
+
     component_mass_source.clear();
     for (const auto& component : fluid.components_) {
       auto [it, inserted] = component_mass_source.emplace(
@@ -497,6 +552,8 @@ namespace adsim {
       terms.reserve(comp_map.size());
       const auto& dH = domain_vectors.dH_ads.at(ads_id);
       for (const auto& [component, qi] : comp_map) {
+        // q = dq/dt = 0 for an inert pair: it adds nothing to any sum.
+        if (IsInertLoading(ads_id, component)) continue;
         rates.push_back(&qi.ddt_var);
         const NasaPolynomial* poly = fluid.AdsorbedPhaseHeatCapacityPolynomial(component);
         const double Cpa = poly ? 0.0 : fluid.AdsorbedPhaseHeatCapacity(component, 0.0);
@@ -530,6 +587,16 @@ namespace adsim {
       fluid_temperature.Resize(n_cells);
       solid_temperature.Resize(n_cells);
       wall_temperature.Resize(n_cells);
+    }
+    for (auto* eq : inert_loadings_) eq->Resize(n_cells);
+    if (has_reactions_) {
+      for (auto& [component, eq] : component_reaction_source) eq.Resize(n_cells);
+      for (auto& f : reaction_fields) {
+        f->rate.Resize(n_cells);
+        f->extent_rate.Resize(n_cells);
+        f->equilibrium_guess.assign(n_cells, std::numeric_limits<double>::quiet_NaN());
+      }
+      reaction_total_source.assign(n_cells, 0.0);
     }
     if (solid_temperature_aliased_) solid_temperature.Resize(n_cells);
     if (derived_concentration_) concentration.Resize(n_cells);
@@ -592,6 +659,7 @@ namespace adsim {
         eq.SetInitialConditions(qi_0);
       }
     }
+    ZeroInertLoadings();
     // The slow site holds (1 - phi) of the initial loading.
     for (auto& [ads_id, comp_map] : ads_concentration_slow) {
       for (auto& [component, eq] : comp_map) {
@@ -602,6 +670,18 @@ namespace adsim {
         eq.SetInitialConditions((1.0 - FastSiteFraction(ads_id, component)) * qi_0);
       }
     }
+  }
+
+  bool Equations::IsInertLoading(AdsorbentID id, const Component& component) const {
+    auto a = ads_concentration.find(id);
+    if (a == ads_concentration.end()) return false;
+    auto c = a->second.find(component);
+    if (c == a->second.end()) return false;
+    return std::find(inert_loadings_.begin(), inert_loadings_.end(), &c->second) != inert_loadings_.end();
+  }
+
+  void Equations::ZeroInertLoadings() {
+    for (auto* eq : inert_loadings_) eq->SetInitialConditions(0.0);
   }
 
   double Equations::FastSiteFraction(AdsorbentID id, const Component& component) const {
@@ -624,6 +704,7 @@ namespace adsim {
         }
       }
     }
+    ZeroInertLoadings();
     // Each site in equilibrium with its share of q*.
     for (auto& [ads_id, comp_map] : ads_concentration_slow) {
       for (auto& [component, slow_eq] : comp_map) {

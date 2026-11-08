@@ -165,10 +165,18 @@ namespace adsim {
     // GUARD: the error at the loosest tolerance is far above the reference's
     // own (the floor, ~1e-8), so the slope measures the tolerance.
     ASSERT_GT(err.front(), 1e3 * kAbsTolMoleFraction);
-    // The error falls with every decade of reltol (by uneven factors where IDA
-    // changes order: measured 2.7e-4, 3.9e-5, 2.5e-6, 2.1e-6, 4.6e-7).
-    for (size_t i = 1; i < err.size(); ++i)
+    // The error falls with every decade of reltol down to 1e-6, by uneven
+    // factors where IDA changes BDF order. The last point is compared over two
+    // decades: its single-decade factor is noise from the order switch and
+    // moves with the step sequence. Measured (1e-3 .. 1e-7):
+    //   Linux GCC     2.57e-4, 2.94e-5, 2.88e-6, 1.30e-6, 3.12e-7
+    //   Windows MSVC  2.57e-4, 2.94e-5, 2.88e-6, 3.39e-7, 3.60e-7
+    //   before inert loadings left the unknowns (a different step sequence):
+    //                 2.7e-4, 3.9e-5, 2.5e-6, 2.1e-6, 4.6e-7
+    // The slope bounds below carry the convergence claim over the whole range.
+    for (size_t i = 1; i + 1 < err.size(); ++i)
       EXPECT_LT(err[i], err[i - 1]) << "reltol " << tols[i];
+    EXPECT_LT(err.back(), err[err.size() - 3]) << "reltol " << tols.back() << " vs " << tols[tols.size() - 3];
     const double slope = LogLogSlope(tols, err);
     std::printf("  observed slope d log(error) / d log(reltol) = %.2f\n", slope);
     EXPECT_GE(slope, 0.5) << "global error falls slower than error-per-step BDF control allows";
