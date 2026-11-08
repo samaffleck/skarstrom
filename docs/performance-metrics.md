@@ -117,7 +117,7 @@ print(f"electrical {k.electrical_energy / 1e6:.3f} GJ/t, thermal {k.thermal_ener
 
 For a deck with reactions (`adsorbent[ID].reaction[ID].*`), the KPI configuration also takes a **key reactant** A, the **products** P to report, and the **space-time yield basis**. In Python, `sim.kpi.track_reaction("Methane", products=["Hydrogen", "CarbonDioxide"], basis="catalyst_mass")`; through the registry, `kpi.reaction.key_reactant` (a choice: `none` or a component name), `kpi.reaction.product[C]` (true or false per component) and `kpi.reaction.basis` (`catalyst_mass` or `bed_volume`). In C++, `build::SetReactionKPI` (adsim/objects/deck_builder.h).
 
-From the moles $G_i$ the reactions made of each component in the bed over the cycle (negative when consumed; the same generation the [mole balance](#quadrature-kpis-and-the-mole-balance) and the [CSS check](cyclic-steady-state.md) count) and the moles of A fed, $F_{A,\text{in}}$:
+From the moles $G_i$ the reactions made of each component in the bed over the cycle (negative when consumed; the same generation the [mole balance](#how-the-kpis-are-integrated-and-the-mole-balance) and the [CSS check](cyclic-steady-state.md) count) and the moles of A fed, $F_{A,\text{in}}$:
 
 | KPI | Field | Definition | Unit |
 |---|---|---|---|
@@ -131,7 +131,7 @@ From the moles $G_i$ the reactions made of each component in the bed over the cy
 - $F_{A,\text{in}}$ is the key reactant's **Feed** endpoints when it has a KPI configuration with some; otherwise every endpoint's inflow of A over the cycle (all streams that carry A into the bed, recycles included).
 - The conversion uses the reactions' own consumption, so it equals $(F_{\text{in}} - F_{\text{out}}) / F_{\text{in}}$ at cyclic steady state and is meaningful before it.
 - **No stoichiometric normalisation.** Selectivity and yield are plain molar ratios: moles of P made per mole of A consumed or fed. For a single main reaction A → ν_P P, multiply by $|\nu_A / \nu_P|$ to get the normalised figures (1 for complete selectivity).
-- $m_{\text{cat}}$ is the mass of the solids that carry the reactions (in a mixed layer, the catalyst's mass fraction of it); $V_{\text{bed}}$ is the volume of the packed bed. The figures use the reported (trapezoid) stream integrals; there are no quadrature variants.
+- $m_{\text{cat}}$ is the mass of the solids that carry the reactions (in a mixed layer, the catalyst's mass fraction of it); $V_{\text{bed}}$ is the volume of the packed bed (its cells, without the ghost cells or void end cells). $F_{A,\text{in}}$ uses the reported (quadrature) stream integrals; there are no trapezoid variants of the reaction KPIs.
 - The key reactant gets `conversion`, each product `selectivity`, `reaction_yield` and `space_time_yield`; both get `reaction_generation` and the peak temperature. These records exist even when the components are not tracked (their `valid` then says whether purity and recovery are configured), and they have `reaction_kpis` true. Every other record, and every record of a deck without reactions or without a key reactant, has `reaction_kpis` false and `nan` reaction fields.
 - **Purity and recovery still apply.** A product that is not fed has no recovery: with $F_{\text{in}} = 0$ it is `nan` (not applicable), never a number.
 
