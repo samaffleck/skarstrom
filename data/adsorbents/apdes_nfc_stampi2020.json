@@ -22,7 +22,7 @@
             "cereal_class_version": 1,
             "Mass_Transfer_Models": [
                 {
-                    "key": "Water",
+                    "key": "CarbonDioxide",
                     "value": {
                         "polymorphic_id": 2147483649,
                         "polymorphic_name": "adsim::LinearDrivingForce",
@@ -33,15 +33,79 @@
                                 "value0": {
                                     "Mass_Transfer_Coefficient_Model": {
                                         "polymorphic_id": 2147483650,
-                                        "polymorphic_name": "adsim::MassTransferCoefficientConstant",
+                                        "polymorphic_name": "adsim::MassTransferCoefficientSeriesResistance",
                                         "ptr_wrapper": {
                                             "valid": 1,
                                             "data": {
-                                                "cereal_class_version": 3,
+                                                "cereal_class_version": 2,
                                                 "value0": {},
+                                                "Film_Resistance_Factor": {
+                                                    "Value": 1.0,
+                                                    "Expression": "1",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Tortuosity": {
+                                                    "Value": 3.0,
+                                                    "Expression": "3",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Macropore_Void_Fraction": {
+                                                    "Value": 0.35,
+                                                    "Expression": "0.35",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Molecular_Diffusion_Coefficient": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Crystal_Radius": {
+                                                    "Value": 0.000001,
+                                                    "Expression": "1e-06",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Diffusivity": {
+                                                    "Value": 1e-13,
+                                                    "Expression": "1e-13",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Capacity_Factor": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Concentration_Floor": {
+                                                    "Value": 0.001,
+                                                    "Expression": "0.001",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Resistances": {
+                                                    "cereal_class_version": 1,
+                                                    "Film": false,
+                                                    "Macropore": false,
+                                                    "Knudsen": false,
+                                                    "Micropore": false,
+                                                    "Lumped": true
+                                                },
+                                                "Capacity_Factor_Mode": 0,
                                                 "Mass_Transfer_Coefficient": {
-                                                    "Value": 0.002,
-                                                    "Expression": "0.002",
+                                                    "Value": 0.0002,
+                                                    "Expression": "0.0002",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Pore_Radius": {
+                                                    "Value": 1e-9,
+                                                    "Expression": "1e-09",
                                                     "DisplayUnitIndex": 0
                                                 }
                                             }
@@ -53,7 +117,7 @@
                     }
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Water",
                     "value": {
                         "polymorphic_id": 1,
                         "ptr_wrapper": {
@@ -66,9 +130,72 @@
                                             "valid": 1,
                                             "data": {
                                                 "value0": {},
+                                                "Film_Resistance_Factor": {
+                                                    "Value": 1.0,
+                                                    "Expression": "1",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Tortuosity": {
+                                                    "Value": 3.0,
+                                                    "Expression": "3",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Macropore_Void_Fraction": {
+                                                    "Value": 0.35,
+                                                    "Expression": "0.35",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Molecular_Diffusion_Coefficient": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Crystal_Radius": {
+                                                    "Value": 0.000001,
+                                                    "Expression": "1e-06",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Diffusivity": {
+                                                    "Value": 1e-13,
+                                                    "Expression": "1e-13",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Capacity_Factor": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Concentration_Floor": {
+                                                    "Value": 0.001,
+                                                    "Expression": "0.001",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Resistances": {
+                                                    "Film": false,
+                                                    "Macropore": false,
+                                                    "Knudsen": false,
+                                                    "Micropore": false,
+                                                    "Lumped": true
+                                                },
+                                                "Capacity_Factor_Mode": 0,
                                                 "Mass_Transfer_Coefficient": {
-                                                    "Value": 0.0002,
-                                                    "Expression": "0.0002",
+                                                    "Value": 0.002,
+                                                    "Expression": "0.002",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Pore_Radius": {
+                                                    "Value": 1e-9,
+                                                    "Expression": "1e-09",
                                                     "DisplayUnitIndex": 0
                                                 }
                                             }
@@ -82,79 +209,27 @@
             ],
             "Heat_Of_Adsorption": [
                 {
-                    "key": "Water",
-                    "value": {
-                        "Value": 49000.0,
-                        "Expression": "4.9e+04",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": {
                         "Value": 57000.0,
                         "Expression": "5.7e+04",
                         "DisplayUnitIndex": 0
                     }
+                },
+                {
+                    "key": "Water",
+                    "value": {
+                        "Value": 49000.0,
+                        "Expression": "4.9e+04",
+                        "DisplayUnitIndex": 0
+                    }
                 }
             ],
             "Isotherms": [
                 {
-                    "key": 21,
-                    "value": {
-                        "polymorphic_id": 2147483651,
-                        "polymorphic_name": "adsim::GabIsotherm",
-                        "ptr_wrapper": {
-                            "valid": 1,
-                            "data": {
-                                "cereal_class_version": 1,
-                                "value0": {},
-                                "Isotherm_Params": [
-                                    {
-                                        "key": "Water",
-                                        "value": {
-                                            "cereal_class_version": 0,
-                                            "IP_q_m0": {
-                                                "Value": 36.48,
-                                                "Expression": "36.48",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_dH_m": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_C0": {
-                                                "Value": 0.1489,
-                                                "Expression": "0.1489",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_dH_C": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_K0": {
-                                                "Value": 0.5751,
-                                                "Expression": "0.5751",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_dH_K": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                },
-                {
                     "key": 24,
                     "value": {
-                        "polymorphic_id": 2147483652,
+                        "polymorphic_id": 2147483651,
                         "polymorphic_name": "adsim::TothHumidIsotherm",
                         "ptr_wrapper": {
                             "valid": 1,
@@ -217,16 +292,68 @@
                             }
                         }
                     }
+                },
+                {
+                    "key": 21,
+                    "value": {
+                        "polymorphic_id": 2147483652,
+                        "polymorphic_name": "adsim::GabIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Water",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_q_m0": {
+                                                "Value": 36.48,
+                                                "Expression": "36.48",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH_m": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_C0": {
+                                                "Value": 0.1489,
+                                                "Expression": "0.1489",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH_C": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_K0": {
+                                                "Value": 0.5751,
+                                                "Expression": "0.5751",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH_K": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
                 }
             ],
             "Isotherm_Map": [
                 {
-                    "key": "Water",
-                    "value": 21
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": 24
+                },
+                {
+                    "key": "Water",
+                    "value": 21
                 }
             ],
             "Mixing_Rule": 0

@@ -113,11 +113,11 @@
             ],
             "Isotherm_Map": [
                 {
-                    "key": "Nitrogen",
+                    "key": "CarbonDioxide",
                     "value": 9
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Nitrogen",
                     "value": 9
                 }
             ],
