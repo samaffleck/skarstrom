@@ -1,0 +1,22 @@
+{#- Theme overrides shared by both site builds (see .github/workflows/docs.yml).
+    - Development preview (mkdocs.dev.yml sets extra.dev_banner): announcement bar on every page.
+    - Released root (the tag's own mkdocs.yml, built with this directory as --theme-dir): a footer note
+      that points to /dev/. The tag itself is not edited. -#}
+{% extends "base.html" %}
+
+{% block announce %}
+  {% if config.extra.dev_banner %}
+    <strong>Development version ({{ config.extra.dev_version }}):</strong> not on PyPI yet.
+    <a href="{{ config.extra.released_url }}">Released docs</a>
+  {% endif %}
+{% endblock %}
+
+{% block footer %}
+  {{ super() }}
+  {% if not config.extra.dev_banner and config.extra.dev_url %}
+    <div class="md-footer-meta md-typeset" style="text-align:center; padding: 0.4rem">
+      These pages describe the latest release. Unreleased changes are previewed at
+      <a href="{{ config.extra.dev_url }}">the development version</a>.
+    </div>
+  {% endif %}
+{% endblock %}

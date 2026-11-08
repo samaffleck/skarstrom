@@ -1,5 +1,9 @@
 # Run health
 
+!!! note "New in 0.9"
+    The run-health checks, `result.healthy` and `result.warnings`, `sim.run_health()` and the `healthy` and
+    `run_health` fields of the CLI `--json` summary are not in 0.8.
+
 <!-- doc-setup
 import skarstrom
 sim = skarstrom.examples.Perez2019_A.load()

@@ -8,6 +8,15 @@ source tarball; tags the commit `v<version>`; attaches them to a GitHub Release
 whose notes are the version's `CHANGELOG.md` section; and publishes to PyPI or
 TestPyPI when enabled.
 
+## Documentation site
+
+The site at <https://samaffleck.github.io/skarstrom/> is the documentation of the latest release tag, built
+from that tag's own tree, so it matches what `pip install skarstrom` gives. `main` is previewed under `/dev/`
+behind a "not on PyPI yet" banner. `.github/workflows/docs.yml` rebuilds both on every push to `main` and,
+through `workflow_run`, after every successful *Release* run (the tag is created with the workflow token, which
+starts no other workflow), so a release refreshes the root automatically. To rebuild by hand, run the *Docs*
+workflow.
+
 ## Versions
 
 SemVer. The version lives in the root `CMakeLists.txt`:
