@@ -27,7 +27,7 @@ skarstrom run path/to/deck.json --cycles 20 --set "step[Feed].time=120" --json -
 skarstrom run deck.json --csv out/                          # kpis.csv, css.csv, run.json, logs/
 ```
 
-The `--json` summary has `status` (`completed`, `reached_css`, `failed`, `cancelled`), `message`, `css_reached`, `css_cycle` (0-based, -1 if not reached), `cycles_run`, `wall_time_s`, `stats` (integrator counters), `kpis` (one object per tracked component per cycle of the run; undefined values are `null`) `css` (the CSS check per cycle) and `warnings` (operating limits of the last cycle: wall design pressure and temperature, vacuum, approach to fluidisation; see `sim.operating_limits()`). Progress goes to stderr; use `-q` to silence it.
+The `--json` summary has `status` (`completed`, `reached_css`, `failed`, `cancelled`), `message`, `css_reached`, `css_cycle` (0-based, -1 if not reached), `cycles_run`, `wall_time_s`, `stats` (integrator counters), `kpis` (one object per tracked component per cycle of the run; undefined values are `null`) `css` (the CSS check per cycle) and `warnings` (operating limits of the last cycle: wall design pressure and temperature, vacuum, approach to fluidisation; see `sim.operating_limits()`; run-health messages are appended), `healthy` and `run_health` (structured run-health warnings `{code, value, threshold, cycle, step, suspects, hint}`: MOLE_FRACTION_SUM, MASS_BALANCE_STUCK, STEP_RETRIES, HISTORY_TRUNCATED; docs/run-health.md). The status and exit code do not change with them. Progress goes to stderr; use `-q` to silence it (run-health warnings still go to stderr).
 
 Python:
 
@@ -37,6 +37,7 @@ import skarstrom
 sim = skarstrom.examples.Perez2019_A.load()   # or skarstrom.Simulation(path | JSON text | Example)
 result = sim.run()                       # blocking; run(cycles=N, progress=f, log_level=..., on_message=f)
 result.status, result.ok, result.css_cycle, result.message
+result.healthy, result.warnings          # run-health checks (status unchanged); sim.run_health() per cycle
 ```
 
 ### Parameters: objects

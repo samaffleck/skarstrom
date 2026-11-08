@@ -71,12 +71,33 @@ completes, so neither is affected.
 
 ## Thresholds
 
-| Code | Value | Threshold |
-|---|---|---|
-| `MOLE_FRACTION_SUM` | max $\lvert\sum y - 1\rvert$ | $10^{-3}$ |
-| `MASS_BALANCE_STUCK` | $\lvert e\rvert$ of the component | $2 \times 10^{-3}$ (with the state change $\le 10^{-3}$ and the rate $\ge 0.9$) |
-| `STEP_RETRIES` | rejected attempts per accepted step | 0.5 |
-| `HISTORY_TRUNCATED` | cycles logged | cycles needed (6, or the cycles run if fewer) |
+The thresholds come from the engine's own decks: every one of the 40 bundled example decks (which include
+the paper cases) was run as shipped, to its own cycle count or CSS stop, and the measures recorded after every
+cycle. The table gives the largest value any deck reached, the deck, and the threshold; the margin is their
+ratio.
+
+| Code | Value | Largest on the example decks | Threshold | Margin |
+|---|---|---|---|---|
+| `MOLE_FRACTION_SUM` | max $\lvert\sum y - 1\rvert$ over a cycle | $2.2 \times 10^{-5}$ (Perez2019_B) | $10^{-3}$ | 45 |
+| `MASS_BALANCE_STUCK` | $\lvert e\rvert$ of a component, any cycle | $2.2 \times 10^{-4}$ (Perez2019_C1, an early cycle) | $2 \times 10^{-3}$ | 9 |
+| | $\lvert e\rvert$ once the state change is $\le 10^{-3}$ | $2.3 \times 10^{-5}$ (Nguyen2023_Exp_IX) | $2 \times 10^{-3}$ | 87 |
+| `STEP_RETRIES` | rejected attempts per accepted step, per cycle | 0.078 (Perez2019_B) | 0.25 | 3.2 |
+| `HISTORY_TRUNCATED` | cycles logged | every deck keeps 10 or more | 6, or the cycles run if fewer | |
+
+Distribution over the decks (the largest value of each deck):
+
+- $\lvert\sum y - 1\rvert$: below $10^{-10}$ for the breakthrough decks (Casas, Nguyen 2022, Streb,
+  Ward 2022), $10^{-7}$ to $2.2 \times 10^{-5}$ for the cyclic ones (WENO at the default reltol).
+- Cycle mole balance: $10^{-8}$ to $10^{-6}$ for most decks, up to a few $10^{-5}$ for the long Nguyen 2023
+  and Perez 2019 runs; at most $2.2 \times 10^{-5}$ in the last cycle of any deck.
+- Rejected attempts per accepted step: 0.012 to 0.078 (median about 0.03).
+
+The broken cases in `core/test/integration/test_run_health.cpp` sit well past the thresholds: a manufactured
+CO2 sink in the component balance only (the sum drifts), the same sink in the overall balance too (a leak:
+the balance stays open at a constant level), and a nonlinear tolerance of $10^{-6}$ with at most two Newton
+iterations per step (0.59 rejected attempts per step on Perez2019_A). A tight or loose `settings.reltol` alone
+does not trip `STEP_RETRIES`: from $10^{-15}$ to $10^{-1}$ IDA adapts its step and stays at or below 0.15, but at
+$10^{-2}$ and looser the mole fractions no longer sum to 1 and `MOLE_FRACTION_SUM` fires.
 
 Every example deck and paper case runs without a run-health warning; the test suite checks it for each deck it
 regenerates.

@@ -169,7 +169,7 @@ namespace adsim {
     // An absurd nonlinear tolerance (1e-6 of the error-test tolerance) with
     // at most two Newton iterations per step: most attempts fail to
     // converge, yet the run finishes. (A tight or loose relative tolerance
-    // alone does not do it: IDA adapts its step and stays below 0.15.)
+    // alone does not do it: IDA adapts its step and stays at or below 0.15.)
     data.settings.nonlin_conv_coef = ExpressionParam{1e-6};
     data.settings.max_nonlin_iters = 2;
     ConfigureCycle(1);
