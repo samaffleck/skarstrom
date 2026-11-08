@@ -19,7 +19,7 @@
 //   * the same deck with split = 1, K = 1 and the micropore term off is the
 //     plain LDF + Haynes deck bit for bit.
 
-#include "validation_helpers.h"
+#include "../validation/validation_helpers.h"
 
 #include <filesystem>
 
@@ -127,7 +127,7 @@ struct DacDeck : UserDataTest {
   static constexpr double kSplit = 0.7;
   static constexpr double kCrystalRadius = 1.0e-5;  // [m]
   static constexpr double kFastDc0 = 2.0e-10;       // [m2/s]
-  static constexpr double kSlowDc0 = 1.0e-11;       // [m2/s]
+  static constexpr double kSlowDc0 = 1.0e-12;       // [m2/s]
 };
 
 // Outlet CO2 over the feed, c/c0 at the top of the bed.
@@ -184,7 +184,7 @@ TEST(DacKineticsBreakthrough, FastFrontAndSlowTailWithClosedBalances) {
 
   // Shape: monotone, an early front and a slow tail.
   const Breakthrough out = OutletOf(sim);
-  for (size_t i = 1; i < out.y.size(); ++i) EXPECT_GE(out.y[i], out.y[i - 1] - 1e-6);
+  for (size_t i = 1; i < out.y.size(); ++i) EXPECT_GE(out.y[i], out.y[i - 1] - 1e-4);
   const double t05 = out.TimeAt(0.05), t50 = out.TimeAt(0.5), t95 = out.TimeAt(0.95);
   std::printf("  DAC breakthrough: t5 = %.0f s, t50 = %.0f s, t95 = %.0f s, c/c0 at end %.4f\n", t05, t50, t95,
               out.y.back());

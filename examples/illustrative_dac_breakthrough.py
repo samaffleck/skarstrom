@@ -57,7 +57,7 @@ def build(case: str = "DAC") -> sk.Simulation:
                        crystal_radius=1e-5 * u.m, micropore_diffusivity=2e-10 * u.m**2 / u.s,
                        micropore_activation_energy=20 * u.kJ / u.mol,
                        slow_tortuosity=3.0, slow_macropore_void_fraction=0.338,
-                       slow_crystal_radius=1e-5 * u.m, slow_micropore_diffusivity=1e-11 * u.m**2 / u.s,
+                       slow_crystal_radius=1e-5 * u.m, slow_micropore_diffusivity=1e-12 * u.m**2 / u.s,
                        slow_micropore_activation_energy=20 * u.kJ / u.mol)
 
     # ---- column ---------------------------------------------------------------------------
