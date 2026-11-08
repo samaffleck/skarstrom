@@ -41,11 +41,22 @@
 
 namespace adsim {
 
+  // Source of a Lennard-Jones (eps/k, sigma) pair.
+  enum class LJSource {
+    Svehla1962,        // NASA TR R-132, Table I(a), pp. 20-24
+    CoolPropOctane,    // CoolProp fluid file n-Octane, viscosity fit (Huber et al. 2004)
+    CoolPropToluene,   // CoolProp fluid file Toluene, viscosity fit (Avgeri et al. 2015)
+    IsomerStandIn      // estimate: the n-pentane row stands in for the isomer
+  };
+
   // Contains component data that can not be found in coolprop
   struct ComponentData  {
     // Air as default params
     double eps = 78.6; // = e/k_b [=] [K]
     double sigma = 3.711; // = [Angstrom]
+    // Where the (eps, sigma) pair comes from. One source per parameter set:
+    // NASA TR R-132 for every component, except the three listed in LJSource.
+    LJSource source = LJSource::Svehla1962;
   };
 
   namespace Components{
@@ -90,7 +101,16 @@ namespace adsim {
       "Xenon"
     };
 
-    // 1. Poling BE, Prausnitz JM, O’Connell JP. Properties of Gases and Liquids, Fifth Edition. Fifth edition. New York, N.Y: McGraw-Hill Education; 2020. 1 p. (McGraw-Hill’s AccessEngineering).
+    // Lennard-Jones parameters (eps/k [K], sigma [Angstrom]).
+    // Source: Svehla RA. Estimated Viscosities and Thermal Conductivities of
+    // Gases at High Temperatures. NASA TR R-132 (1962), Table I(a) "Force
+    // constants for molecules", pp. 20-24 (public domain). Exceptions, which
+    // are not in TR R-132 (see `source` and LennardJonesCitation):
+    //   Octane      CoolProp viscosity-fit pair, fluid file n-Octane
+    //               (Huber et al., Fluid Phase Equilib. 224, 2004)
+    //   Toluene     CoolProp viscosity-fit pair, fluid file Toluene
+    //               (Avgeri et al., J. Phys. Chem. Ref. Data 44, 2015)
+    //   Isopentane  n-pentane row of TR R-132 (p. 21), an isomer stand-in
     //
     // These Lennard-Jones parameters are fixed physical constants, so the table
     // is `const`: it must never be mutated at runtime. Keeping it immutable is
@@ -147,7 +167,7 @@ namespace adsim {
 
       { "Iodine",             { 474.2, 5.160 } },  // I2
       { "Isobutane",          { 330.1, 5.278 } },  // iso-C4H10
-      { "Isopentane",         { 341.1, 5.784 } },  // (using n-C5H12 parameters)
+      { "Isopentane",         { 341.1, 5.784, LJSource::IsomerStandIn } },  // n-C5H12 row of TR R-132 (estimate)
 
       { "Krypton",            { 178.9, 3.655 } },  // Kr
 
@@ -170,7 +190,7 @@ namespace adsim {
       { "NitrosylChloride",   { 395.3, 4.112 } },  // NOCl
       { "NitrousOxide",       { 232.4, 3.828 } },  // N2O
 
-      { "Octane",             { 320.0, 7.45  } },  // user value (not in table)
+      { "Octane",             { 452.09, 6.362, LJSource::CoolPropOctane } },  // CoolProp n-Octane viscosity fit
       { "Oxygen",             { 106.7, 3.467 } },  // O2
 
       { "Pentane",            { 341.1, 5.784 } },  // n-C5H12
@@ -186,7 +206,7 @@ namespace adsim {
       { "SulfurDioxide",      { 335.4, 4.112 } },  // SO2
       { "SulfurHexafluoride", { 222.1, 5.128 } },  // SF6
 
-      { "Toluene",            { 285.7, 5.93  } },  // user value (not in table)
+      { "Toluene",            { 472.0, 5.240, LJSource::CoolPropToluene } },  // CoolProp Toluene viscosity fit
 
       { "UraniumHexafluoride",{ 236.8, 5.967 } },  // UF6
 
@@ -194,6 +214,25 @@ namespace adsim {
 
       { "Xenon",              { 231.0, 4.047 } }   // Xe
     };
+
+    inline LJSource GetComponentDataSource(const std::string& name) {
+      auto it = componentData.find(name);
+      return it != componentData.end() ? it->second.source : LJSource::Svehla1962;
+    }
+
+    // Citation of the Lennard-Jones pair of a component.
+    inline std::string LennardJonesCitation(const std::string& name) {
+      switch (GetComponentDataSource(name)) {
+        case LJSource::CoolPropOctane:
+          return "CoolProp fluid file n-Octane viscosity fit (Huber et al., Fluid Phase Equilib. 2004)";
+        case LJSource::CoolPropToluene:
+          return "CoolProp fluid file Toluene viscosity fit (Avgeri et al., J. Phys. Chem. Ref. Data 2015)";
+        case LJSource::IsomerStandIn:
+          return "estimate (isomer stand-in): n-pentane row, Svehla 1962, NASA TR R-132 Table I(a), p. 21";
+        default:
+          return "Svehla 1962, NASA TR R-132 Table I(a), pp. 20-24";
+      }
+    }
 
     // Read-only lookup into the constant table. Unknown components fall back to
     // the ComponentData defaults (air), matching the previous operator[]

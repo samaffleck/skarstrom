@@ -26,7 +26,7 @@
 //   - For the 8 components CoolProp has NO viscosity model for (CarbonMonoxide,
 //     Ethylene, Fluorine, Krypton, Neon, NitrousOxide, SulfurDioxide, Xenon), the
 //     polynomial fits Chapman-Enskog kinetic theory using the Lennard-Jones
-//     eps/sigma from Components::componentData.
+//     eps/sigma of Svehla (1962), NASA TR R-132 Table I(a).
 //   - Max relative fit error across the window is <=1% for every component.
 //
 // Gas viscosity is essentially pressure-independent over PSA/TSA swings (<~1%
