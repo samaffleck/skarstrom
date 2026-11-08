@@ -115,6 +115,13 @@
       "summary": "Illustrative CO2 breakthrough on activated carbon diluted with 30 % inert glass beads by mass in a mixed layer (not a validated reproduction)"
     },
     {
+      "file": "Illustrative_Humid_DAC_Breakthrough.json",
+      "family": "Illustrative",
+      "family_key": "Illustrative",
+      "hidden": false,
+      "summary": "Illustrative humid DAC breakthrough: 400 ppm CO2 at 49 % RH on APDES-NFC, water and CO2 fronts with the water sorption heat (not a validated reproduction)"
+    },
+    {
       "file": "Illustrative_TSA_13X.json",
       "family": "Illustrative",
       "family_key": "Illustrative",

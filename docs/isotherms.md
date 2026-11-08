@@ -448,6 +448,36 @@ At $q_w = 0$ this is Toth 2 exactly. $\Delta H_0 > 0$ makes the affinity fall wi
 
 **From Python and the fitter.** `skarstrom.evaluate_isotherm(..., water_loading=q_w)` evaluates either kind at a given water loading (default 0, the dry isotherm). `skarstrom.fit_isotherm(..., water_loading=...)` takes the water loading of each point and fits the way the papers do. Points at $q_w = 0$ fit the dry Toth block. Points at fixed $q_w > 0$ fit the water terms: $A$ and the wet site for WADST, $\gamma$ and $\beta$ for the humid Toth. A block that the data cannot identify is held. So with humid data only, pass the dry fit's values in `fixed=`; with both kinds of data, everything is fitted together. In C++ these are the `q_w` member of `isofit::Point` and the `q_water` argument of `adsim::EvalIsotherm`.
 
+**Worked example: APDES-NFC at a humid air feed.**
+
+!!! note "New in 0.9"
+    The example and the [`Illustrative_Humid_DAC_Breakthrough`](examples.md) deck.
+
+The library entry [APDES-NFC](adsorbent-library.md#apdes-nfc-stampi2020) carries a `gab` isotherm for water and a `toth_humid` isotherm for CO₂. At the feed of its source paper (400 ppm CO₂, $y_{H_2O} = 0.0115$, 20 °C, 1 bar, about 49 % relative humidity) the water loading is 2.82 mol/kg, and that water raises the CO₂ loading from 0.82 to 2.07 mol/kg:
+
+```python
+import skarstrom as sk
+
+sim = sk.Simulation.new(title="APDES-NFC at the feed state")
+for name in ("Nitrogen", "CarbonDioxide", "Water"):
+    sim.add_component(name)
+adsorbent_id = sim.add_library_adsorbent("apdes_nfc_stampi2020")
+ads = sim.adsorbents.by_id(adsorbent_id)
+
+def params(node):
+    return {name: node.get(name) for name in node.fields}
+
+T, P = 293.15, 1e5
+q_w = sk.evaluate_isotherm("gab", params(ads.isotherm["Water"]), pressure=0.0115 * P, temperature=T)[0]
+co2 = params(ads.isotherm["CarbonDioxide"])
+dry = sk.evaluate_isotherm("toth_humid", co2, pressure=400e-6 * P, temperature=T)[0]
+humid = sk.evaluate_isotherm("toth_humid", co2, pressure=400e-6 * P, temperature=T, water_loading=q_w)[0]
+print(f"water {q_w:.2f}, CO2 dry {dry:.2f}, CO2 humid {humid:.2f} mol/kg")
+# water 2.82, CO2 dry 0.82, CO2 humid 2.07 mol/kg
+```
+
+In a bed, the CO₂ isotherm reads the water actually adsorbed in each cell, so the humid capacity appears only behind the water front. The illustrative deck `Illustrative_Humid_DAC_Breakthrough` runs this feed through a column of APDES-NFC: the water front leaves the bed first, then the CO₂ front, with the humid loading behind it. See [Humid feeds](tsa-regeneration.md#6-humid-feeds) in the TSA tutorial.
+
 ---
 
 ## Mixture loadings: the mixing rule and IAST
