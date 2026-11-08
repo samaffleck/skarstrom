@@ -138,3 +138,36 @@ The first gas out of the bed is the feed left in the voids, 15 % CO₂. The outl
 - **Use a direct air capture sorbent.** The library's [APDES-NFC](adsorbent-library.md#apdes-nfc-stampi2020) amine sorbent has a temperature-dependent Toth isotherm for CO₂ from Stampi-Bombelli et al. (2020). Its rate constant is 2 × 10⁻⁴ s⁻¹, so adsorption steps last hours rather than minutes.
 - **Compare the momentum models.** Switch the layer's momentum model (`layer[13X].momentum_model`) to *Darcy (Kozeny–Carman)*, as in the Perez2019 decks. At 0.05 m/s through 1.5 mm particles the inertial (Burke–Plummer) term of Ergun is small, so the results barely move: in our native run the cycle again reached CSS at cycle 27, with a CO₂ purity of 86.31 % and a recovery of 95.97 %. Both models cross this cycle's abrupt step switches without a solver retry.
 - **Sweep the heating time** (`step[Heating].time`) in a [parametric study](parameterisation.md) and plot recovery against the thermal energy (`k.thermal_energy`).
+
+## 6. Humid feeds
+
+!!! note "New in 0.9"
+    This section and the `Illustrative_Humid_DAC_Breakthrough` deck.
+
+Ambient air carries far more water than CO₂: at 20 °C and 49 % relative humidity, $y_{H_2O} = 0.0115$ against 400 ppm of CO₂. On amine sorbents the water adsorbs too, releases its heat of sorption and raises the CO₂ capacity. To model it:
+
+- **Add water as a component.** Its fluid name is `Water` (`sim.add_component("Water")`); give it a mole fraction in the feed and in the initial conditions. The gas heat capacity of water uses its vapour-phase ideal-gas value, so a humid feed carries the right sensible heat even below the boiling point.
+- **Give the sorbent a water isotherm.** Use `gab` (or `gab_young`), which works in relative humidity with $p_{sat}(T)$ from CoolProp ([GAB and BET](isotherms.md#gab-and-bet-water-and-other-vapours)), and a rate model for water.
+- **Pick a coupled kind for CO₂.** `toth_humid` or `toth_wadst` read the water actually adsorbed in the same cell ([CO₂ with adsorbed water](isotherms.md#co2-with-adsorbed-water-toth-wadst-and-humid-toth)); keep the mixing rule `none`.
+- **Energy balance.** Water needs its own `heat_of_adsorption["Water"]`, usually near the heat of condensation plus a few kJ/mol. With a feed 30 times richer in water than in CO₂, the water heat dominates the temperature trace of the adsorption step, and on heating the water desorbs too, so the thermal energy KPI pays for it.
+
+The library entry [APDES-NFC](adsorbent-library.md#apdes-nfc-stampi2020) has all of this. The illustrative deck `Illustrative_Humid_DAC_Breakthrough` (built by `core/test/integration/test_humid_dac_breakthrough.cpp`; **not a validated reproduction**) feeds humid air at 0.01 m/s through a 0.2 m column of it for 33 h. Water leaves the bed first (half the feed water at the outlet after about 53 min); the bed warms by about 2.7 K as the water front passes and is back at ambient long before CO₂ breaks through (50 % after about 25 h). Behind the fronts the CO₂ loading is the humid 2.07 mol/kg; the same deck with a dry feed holds 0.82 mol/kg and the CO₂ breaks through after about 9.5 h.
+
+```python
+import skarstrom
+
+sim = skarstrom.examples.Illustrative_Humid_DAC_Breakthrough.load()
+result = sim.run()
+print(result.status, result.healthy)
+for component in ("Water", "CarbonDioxide"):
+    y = sim.series("mole_fraction", component, location="top")
+    print(f"{component}: outlet y = {y.values[-1]:.3g} at t = {y.time[-1] / 3600:.0f} h")
+T = sim.series("temperature", z=0.1)
+print(f"mid-bed temperature peak {T.values.max():.1f} K at {T.time[T.values.argmax()] / 60:.0f} min")
+# completed True
+# Water: outlet y = 0.0115 at t = 33 h
+# CarbonDioxide: outlet y = 0.000399 at t = 33 h
+# mid-bed temperature peak 295.8 K at 12 min
+```
+
+To try the dry case, set the feed's water to zero and the nitrogen to the balance (`sim.steps[0].bottom.y["Water"] = 0` and `sim.steps[0].bottom.y["Nitrogen"] = 0.9996`).

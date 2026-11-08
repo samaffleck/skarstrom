@@ -1,6 +1,6 @@
 # Examples
 
-Skarstrom ships 42 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
+Skarstrom ships 43 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
 
 Every paper-based deck is also an automated validation test; the [Validation](validation.md) page lists the simulated and published values and the error metric for each case, including where Skarstrom and the paper disagree, and why.
 
@@ -59,6 +59,7 @@ Three executed notebooks are in `examples/notebooks/`: a parametric study of the
 | **Ward (2024)** | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74 (Table 4) |
 | **Illustrative** | `Illustrative_TSA_13X` | **Not a reproduction.** A four-step indirectly heated TSA for CO₂ on zeolite 13X, built for the [TSA tutorial](tsa-regeneration.md) |
 | **Illustrative** | `Illustrative_DAC_Breakthrough` | **Not a reproduction.** An isothermal breakthrough of 400 ppm CO₂ in N₂ on the Lewatit VP OC 1065 library adsorbent, with the [dual-rate LDF and series-resistance kinetics](kinetic-models.md#which-to-use-for-direct-air-capture) |
+| **Illustrative** | `Illustrative_Humid_DAC_Breakthrough` | **Not a reproduction.** A non-isothermal breakthrough of 400 ppm CO₂ in humid N₂ (49 % RH at 20 °C) on the APDES-NFC library adsorbent: water on a GAB isotherm, CO₂ on the [humid Toth](isotherms.md#co2-with-adsorbed-water-toth-wadst-and-humid-toth) that reads the adsorbed water, and the water sorption heat in the temperature trace ([Humid feeds](tsa-regeneration.md#6-humid-feeds)). *New in 0.9.* |
 | **Illustrative** | `Illustrative_Diluted_Bed` | **Not a reproduction.** The Ward 2022 100 ccm CO₂ breakthrough on activated carbon with the adsorbent diluted by 30 % glass beads by mass in a [mixed layer](mixed-layers.md) |
 | **Other** | `FiveStepProductPurge` | A CO₂/N₂ VSA cycle with feed, blowdown, evacuation, pressurisation and product purge on a 13X-type isotherm; the feed is split into two sub-steps so that one light-product connection pressurises and the other purges (six steps in the deck). It comes from an integration test, has no KPI configuration and no literature source; use it as a template, not as data |
 
