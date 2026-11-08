@@ -2,6 +2,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <filesystem>
+#include <cstdlib>
 
 // AdSim includes
 #include "../../../src/pch.h"
@@ -54,7 +55,37 @@ namespace adsim {
       { "ConfigF",  { 2.6, 2.6, 4.4, 3.8 } },  // measured 0.916, 1.606, 3.116, 2.606 pp
     };
 
+    // Evacuation-profile split (weight of the slow term) used by the decks: 0.5.
+    // For the attribution study (README.md "Attribution runs after the holdup
+    // change") the environment variable ADSIM_PEREZ_EVAC_WEIGHT overrides it for
+    // one run; such a run prints an [ATTRIB] line and neither asserts the
+    // tolerances below nor re-saves a deck. Unset, nothing changes.
+    constexpr double kDefaultEvacuationWeight = 0.5;
+    double EvacuationWeight() {
+      if (const char* v = std::getenv("ADSIM_PEREZ_EVAC_WEIGHT")) return std::atof(v);
+      return kDefaultEvacuationWeight;
+    }
+    bool EvacuationWeightOverridden() {
+      return std::getenv("ADSIM_PEREZ_EVAC_WEIGHT") != nullptr;
+    }
+
+    // One line per run for scripts/perez_attribution.py: split, case, CSS cycle
+    // count, purity / recovery (%), mass productivity [kg CO2/(kg ads h)] and the
+    // specific energy [MJ/kg CO2] (nan where the deck has no pump or compressor).
+    void PrintAttribution(const std::string& id, const KPIParams& kpi, int cycles, double purity,
+                          double recovery) {
+      if (!EvacuationWeightOverridden()) return;
+      bool pd = true, ed = true;
+      const double prod = CalculateProductivityMass(kpi, &pd) * 3600.0;
+      const double energy = CalculateSpecificEnergyConsumption(kpi, &ed) * 1e-6;
+      std::cout << "[ATTRIB] split=" << EvacuationWeight() << " case=" << id << " cycles=" << cycles
+                << " purity=" << purity << " recovery=" << recovery << " productivity="
+                << (pd ? prod : std::nan("")) << " energy=" << (ed ? energy : std::nan(""))
+                << std::endl;
+    }
+
     void ValidatePerez(const std::string& id, double purity, double recovery) {
+      if (EvacuationWeightOverridden()) return;
       using namespace validation;
       const auto& tol = kPerezTol.at(id);
       CaseReport report("perez_2019", id);
@@ -113,13 +144,13 @@ namespace adsim {
   // Sect. 4.3: the evacuation pressure follows a two-term exponential decay,
   // P = P_L + (P_H1 - P_L) e^(-0.019 t) + (P_H2 - P_L) e^(-0.101 t) (Table 1),
   // fitted to the rig's pressure history. The split P_H1 / P_H2 is not printed:
-  // an equal split (weight 0.5) is used, see README.md "Attribution runs".
+  // an equal split (weight 0.5, kDefaultEvacuationWeight) is used, see README.md "Attribution runs".
   static std::unique_ptr<IBoundaryValue> PaperEvacuationProfile(double evac_pressure) {
     auto bv = std::make_unique<DoubleExponentialBoundaryValue>();
     bv->end_value_ = evac_pressure;
     bv->rate_1_ = 0.019;
     bv->rate_2_ = 0.101;
-    bv->weight_ = 0.5;
+    bv->weight_ = EvacuationWeight();
     return bv;
   }
 
@@ -238,9 +269,12 @@ namespace adsim {
               << " | CO2 purity = " << purity << " % (paper " << target_purity << ") | CO2 recovery = "
               << recovery << " % (paper " << target_recovery << ")\n" << std::endl;
     ValidatePerez("Config" + save_name.substr(save_name.rfind('_') + 1), purity, recovery);
+    PrintAttribution("Config" + save_name.substr(save_name.rfind('_') + 1), kpi, last_cycle + 1, purity, recovery);
 
-    SaveTest(save_name, solver);
-    SaveResultsAsExample(save_name, solver);
+    if (!EvacuationWeightOverridden()) {
+      SaveTest(save_name, solver);
+      SaveResultsAsExample(save_name, solver);
+    }
   }
 
   // ---- 4-step LPP cycle (Perez 2019 Table 3, experiments D/E/F) ----
@@ -394,11 +428,16 @@ namespace adsim {
               << " | CO2 purity = " << purity << " % (paper " << target_purity << ") | CO2 recovery = "
               << recovery << " % (paper " << target_recovery << ")\n" << std::endl;
     ValidatePerez("Config" + save_name.substr(save_name.rfind('_') + 1), purity, recovery);
+    PrintAttribution("Config" + save_name.substr(save_name.rfind('_') + 1), kpi, last_cycle + 1, purity, recovery);
 
-    SaveTest(save_name, solver);
-    SaveResultsAsExample(save_name, solver);
-    ReportPaperProtocol(data, "Config" + save_name.substr(save_name.rfind('_') + 1), purity, recovery,
-                        last_cycle + 1);
+    if (!EvacuationWeightOverridden()) {
+      SaveTest(save_name, solver);
+      SaveResultsAsExample(save_name, solver);
+    }
+    if (!EvacuationWeightOverridden()) {
+      ReportPaperProtocol(data, "Config" + save_name.substr(save_name.rfind('_') + 1), purity, recovery,
+                          last_cycle + 1);
+    }
   }
 
   TEST_F(Perez2019Test, ConfigD1_ConnectedBC) {
@@ -854,12 +893,17 @@ namespace adsim {
                 << " | CO2 purity = " << purity << " % (paper 96.1) | CO2 recovery = "
                 << recovery << " % (paper 86.8)\n" << std::endl;
       ValidatePerez("ConfigD1", purity, recovery);
+      PrintAttribution("ConfigD1", kpi, last_cycle + 1, purity, recovery);
       css_purity = purity; css_recovery = recovery; css_cycles = last_cycle + 1;
     }
 
-    SaveTest("Perez2019_D1", solver);
-    SaveResultsAsExample("Perez2019_D1", solver);
-    ReportPaperProtocol(data, "ConfigD1", css_purity, css_recovery, css_cycles);
+    if (!EvacuationWeightOverridden()) {
+      SaveTest("Perez2019_D1", solver);
+      SaveResultsAsExample("Perez2019_D1", solver);
+    }
+    if (!EvacuationWeightOverridden()) {
+      ReportPaperProtocol(data, "ConfigD1", css_purity, css_recovery, css_cycles);
+    }
   }
 
   TEST_F(Perez2019Test, ConfigC1) {
@@ -1021,10 +1065,13 @@ namespace adsim {
                 << " | CO2 purity = " << purity << " % (paper 83.4) | CO2 recovery = "
                 << recovery << " % (paper 68.2)\n" << std::endl;
       ValidatePerez("ConfigC1", purity, recovery);
+      PrintAttribution("ConfigC1", kpi, last_cycle + 1, purity, recovery);
     }
 
-    SaveTest("Perez2019_C1", solver);
-    SaveResultsAsExample("Perez2019_C1", solver);
+    if (!EvacuationWeightOverridden()) {
+      SaveTest("Perez2019_C1", solver);
+      SaveResultsAsExample("Perez2019_C1", solver);
+    }
   }
 
   // Remaining Table 3 experiments via the shared runners.
