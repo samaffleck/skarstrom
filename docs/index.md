@@ -64,3 +64,5 @@ The **Model** section documents the physics behind the solver:
 Source, issues and releases: <https://github.com/samaffleck/skarstrom>. Skarstrom is licensed under the Apache License 2.0; see the repository's `LICENSE`, `NOTICE` and `THIRD_PARTY_NOTICES.md`. If you use it in published work, please cite it (`CITATION.cff`).
 
 **Get involved.** We are forming a steering committee to guide the project's direction; people from academia and industry are welcome. To join, contact [Sam Affleck on LinkedIn](https://www.linkedin.com/in/sam-affleck).
+
+For AI agents: `llms.txt` and `llms-full.txt` at the site root (the documentation as plain Markdown), and [AGENTS.md](https://github.com/samaffleck/skarstrom/blob/main/AGENTS.md).

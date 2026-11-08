@@ -23,6 +23,22 @@ T_K = 298.15
 
 ## Using Skarstrom
 
+### Before you start (for agents)
+
+- **Check the version, read the docs for it.** Run `skarstrom --version` first. The site root <https://samaffleck.github.io/skarstrom/> documents the latest release (what `pip install skarstrom` gives); <https://samaffleck.github.io/skarstrom/dev/> documents `main`, which may describe parameters the installed wheel rejects.
+- **Prefer the wheel.** Ask the user before a source build: it takes several minutes and needs CMake >= 3.15 and a C++20 compiler.
+- **Run a few cycles before hundreds.** Start with `cycles=3` and check `result.status`, `result.message`, `result.healthy` and `result.warnings` after every run.
+- **A run-health warning is a wrong answer until explained.** The status stays `completed` on purpose, so you must look. The codes are `MOLE_FRACTION_SUM`, `MASS_BALANCE_STUCK`, `STEP_RETRIES` and `HISTORY_TRUNCATED`; each warning carries its value, threshold, suspects and a hint (docs page `run-health.md`; names and hints in `core/include/adsim/solver/run_health.h`).
+- **Matching another model or a paper?** Read "Matching Another Model" (`docs/model-conventions.md`) first: bulk vs solid density, total voidage, heat-of-adsorption sign, which composition the rate uses, the boundary profiles.
+- **Machine-readable pointers:** `skarstrom examples --json`; `skarstrom run ... --json -q`; the parameter registry (`sim.parameters()`, `skarstrom params deck.json --json`); the deck view and manifests (`docs/deck-view.md`); and `llms.txt` / `llms-full.txt` at the root of the docs site (an index of the pages and the whole documentation as one Markdown file).
+
+```python
+result = sim.run(cycles=3)
+print(result.status, result.message, result.healthy)
+for w in result.warnings:
+    print(w.code, w.value, w.threshold, w.hint)
+```
+
 ### Install
 
 <!-- no-run: installs the package -->
