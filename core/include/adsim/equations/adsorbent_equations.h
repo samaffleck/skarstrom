@@ -45,6 +45,8 @@ namespace adsim {
   void UpdatePressure(UserData* udata);
   void UpdateMolarConcentration(UserData* udata, Component component);
   void UpdateAdsorbedConcentration(UserData* udata, AdsorbentID ads_id, Component component);
+  void UpdateSlowAdsorbedConcentration(UserData* udata, AdsorbentID ads_id, Component component);
+  void UpdateSlowMassTransferCoefficient(UserData* udata, AdsorbentID ads_id, Component component);
   void UpdateEquilibriumAdsorbedConcentration(UserData* udata, AdsorbentID ads_id, Component component);
   void UpdateMoleFraction(UserData* udata, Component component);
   void UpdateMoleFractionFaceUpwind(UserData* udata, Component component);

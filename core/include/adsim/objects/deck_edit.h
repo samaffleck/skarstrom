@@ -322,7 +322,9 @@ bool SetIsothermKind(UserData& data, AdsorbentID adsorbent, const std::string& c
 // The rate model of one component and its coefficient model (an LDF model is
 // created when the component has none). The rate constant keeps its value only
 // while the rate model keeps its order (its unit is 1/s for LDF, kg/(mol s)
-// for LDF2).
+// for LDF2). A dual-rate model's slow-site coefficient model takes the same
+// kind: a new dual-rate model starts with it a copy of the fast site's, an
+// existing one keeps the slow-site parameters the old and new kinds share.
 bool SetMassTransferKind(UserData& data, AdsorbentID adsorbent, const std::string& component,
                          MassTransferModelType rate_kind, MassTransferCoefficientType coefficient_kind,
                          std::string& err);

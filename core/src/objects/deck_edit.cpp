@@ -818,6 +818,14 @@ bool SetMassTransferKind(UserData& data, AdsorbentID adsorbent, const std::strin
     CarryOverParameters(from, ModelFields(old_coeff.get()), to, ModelFields(fresh.get()));
   }
   slot->mtc_model_ = std::move(fresh);
+  // A dual-rate model's slow site follows the fast site's kind: a new dual-rate
+  // model starts with the slow site a copy of the fast one (so it behaves as
+  // the LDF until split or the slow coefficient changes); an existing one keeps
+  // the slow-site values the two coefficient kinds share.
+  if (auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(slot.get())) {
+    if (old_rate != rate_kind) dual->slow_mtc_model_.reset();
+    dual->SyncSlowSite();
+  }
   return true;
 }
 

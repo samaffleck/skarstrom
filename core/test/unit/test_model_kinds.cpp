@@ -150,7 +150,13 @@ TEST(ModelKinds, DescriptorsMatchTheModelClasses) {
   ExpectMatches(*FindKind(F::Stream, "valve"), {{"cv", &valve.valve_.cv_}, {"xt", &valve.valve_.xt_}}, "valve");
 
   // Every family has one descriptor per enum value.
-  EXPECT_EQ(KindDescriptors(F::RateModel).size(), 2u);
+  EXPECT_EQ(KindDescriptors(F::RateModel).size(), static_cast<size_t>(MassTransferModelType::DUAL_RATE_LDF) + 1);
+  // The rate models' own parameters bind to the model classes (dual_rate_ldf: split).
+  for (size_t k = 0; k < KindDescriptors(F::RateModel).size(); ++k) {
+    auto rate = CreateMassTransferModel(static_cast<MassTransferModelType>(k));
+    ASSERT_NE(rate, nullptr);
+    ExpectMatches(*KindAt(F::RateModel, k), ModelFields(rate.get()), "rate." + KindAt(F::RateModel, k)->tag);
+  }
   EXPECT_EQ(KindDescriptors(F::RateCoefficient).size(), static_cast<size_t>(MassTransferCoefficientType::MACROPORE_CAPACITY) + 1);
   EXPECT_EQ(KindDescriptors(F::Boundary).size(), static_cast<size_t>(BoundaryType::CLOSED) + 1);
   EXPECT_EQ(KindDescriptors(F::Stream).size(), static_cast<size_t>(BoundaryStreamType::PUMP) + 1);
@@ -239,14 +245,20 @@ TEST(ModelKinds, RegistryEntriesFollowTheDescriptors) {
     EXPECT_EQ(n, k.parameters.size()) << k.tag;
     for (const auto& p : k.parameters) ExpectEntry(reg, ap + "isotherm[" + c + "]." + p.name, p);
   }
-  for (auto rate : {MassTransferModelType::LDF, MassTransferModelType::LDF2}) {
+  for (auto rate : {MassTransferModelType::LDF, MassTransferModelType::LDF2, MassTransferModelType::DUAL_RATE_LDF}) {
     for (size_t i = 0; i < KindDescriptors(ModelFamily::RateCoefficient).size(); ++i) {
       ASSERT_TRUE(SetMassTransferKind(d, ads, c, rate, static_cast<MassTransferCoefficientType>(i), err)) << err;
       ParameterRegistry reg(d);
       for (const auto& p0 : KindAt(ModelFamily::RateCoefficient, i)->parameters) {
         const KindParameter p = rate == MassTransferModelType::LDF2 ? Ldf2RateConstant(p0) : p0;
         ExpectEntry(reg, ap + "kinetics[" + c + "]." + p.name, p);
+        // The dual-rate model's slow site: the same kind, its own leaves.
+        if (rate == MassTransferModelType::DUAL_RATE_LDF)
+          ExpectEntry(reg, ap + "kinetics[" + c + "]." + SlowSiteParameter(p0).name, SlowSiteParameter(p0));
       }
+      // The rate model's own parameters (dual_rate_ldf: split).
+      for (const auto& p : KindAt(ModelFamily::RateModel, static_cast<size_t>(rate))->parameters)
+        ExpectEntry(reg, ap + "kinetics[" + c + "]." + p.name, p);
     }
   }
   auto layer_family = [&](ModelFamily family, auto set) {

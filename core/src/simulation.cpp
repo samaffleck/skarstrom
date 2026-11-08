@@ -86,6 +86,7 @@ namespace adsim {
       {"component_molar_concentration", ComponentVariableType::COMPONENT_MOLAR_CONCENTRATION},
       {"mass_transfer_coefficient", ComponentVariableType::MASS_TRANSFER_COEFFICIENT},
       {"molecular_diffusion", ComponentVariableType::MOLECULAR_DIFFUSION},
+      {"slow_adsorbed_concentration", ComponentVariableType::SLOW_ADSORBED_CONCENTRATION},
     };
     static_assert(std::size(kComponent) == std::size(ComponentVariableTypeList),
                   "kComponent must name every ComponentVariableType");

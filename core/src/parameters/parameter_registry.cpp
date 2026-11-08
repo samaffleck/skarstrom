@@ -1028,6 +1028,12 @@ namespace adsim {
         EmplaceKind(KindAt(ModelFamily::RateCoefficient, static_cast<size_t>(mtc->GetModelType())),
                     ModelFields(mtc), ap + "." + kp, aa + "." + kp, "adsorbent", sub,
                     ldf2 ? &Ldf2RateConstant : nullptr);
+        // The rate model's own parameters (dual_rate_ldf: split) and the slow
+        // site's coefficient model (dual_rate_ldf: slow_<name>).
+        EmplaceKind(KindAt(ModelFamily::RateModel, static_cast<size_t>(mtm->GetModelType())),
+                    ModelFields(mtm.get()), ap + "." + kp, aa + "." + kp, "adsorbent", sub);
+        EmplaceKind(SlowSiteKind(mtm.get()), SlowSiteFields(mtm.get()), ap + "." + kp, aa + "." + kp, "adsorbent",
+                    sub);
       }
 
       AddIsotherms(source, ap, aa, an);

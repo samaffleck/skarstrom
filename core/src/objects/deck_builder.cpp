@@ -299,6 +299,12 @@ void SetRateModel(UserData& data, AdsorbentID adsorbent, const std::string& comp
   auto m = CreateMassTransferModel(KindEnum<MassTransferModelType>(RateModelKinds(), model, "rate model"));
   m->mtc_model_ = CreateMassTransferCoefficientModel(
       KindEnum<MassTransferCoefficientType>(RateCoefficientKinds(), coefficient, "rate coefficient"));
+  // A dual-rate model's slow site: the same coefficient kind, a copy of the
+  // fast site's values until set (registry leaves slow_<name>).
+  if (auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(m.get())) {
+    dual->slow_mtc_model_.reset();
+    dual->SyncSlowSite();
+  }
   GetAdsorbent(data, adsorbent).adsorption_source_.mass_transfer_models_[component] = std::move(m);
 }
 

@@ -30,6 +30,41 @@ $$
 | $q_i^*$ | Equilibrium adsorbed loading (from the isotherm) | mol kg⁻¹ |
 | $q_i$ | Current adsorbed loading | mol kg⁻¹ |
 
+
+### Dual-Rate Linear Driving Force
+
+Two first-order LDF sites in parallel that share the component's equilibrium loading (tag `dual_rate_ldf`). A fraction $\varphi$ of $q_i^*$ belongs to a fast site, the rest to a slow site, and each site relaxes towards its own share:
+
+$$
+\frac{\partial q_{i,1}}{\partial t} = k_{i,1} \left(\varphi\, q_i^* - q_{i,1}\right), \qquad
+\frac{\partial q_{i,2}}{\partial t} = k_{i,2} \left((1 - \varphi)\, q_i^* - q_{i,2}\right), \qquad
+q_i = q_{i,1} + q_{i,2}
+$$
+
+The component's loading $q_i$ is the sum of the two sites. It is what the mass and energy balances, the KPIs and the logged *Adsorbed Concentration* use, and the heat of adsorption applies to its total rate. The slow-site loading $q_{i,2}$ is a state variable of its own, logged as *Slow Adsorbed Concentration* (`slow_adsorbed_concentration` in `sim.series` and `sim.profile`). It starts in equilibrium with its share, $(1 - \varphi)\, q_i^*$, of the initial loading.
+
+With a step in $q_i^*$ from a clean sorbent, the loading follows two exponentials:
+
+$$
+\frac{q_i(t)}{q_i^*} = \varphi \left(1 - e^{-k_{i,1} t}\right) + (1 - \varphi) \left(1 - e^{-k_{i,2} t}\right)
+$$
+
+This model describes uptake curves with a fast initial rise followed by a slow tail, as in the direct-air-capture breakthrough experiments on amine sorbents at 400 ppm CO₂ that Stampi-Bombelli et al. (2024) fit with two rates ([doi:10.1021/acs.iecr.4c01392](https://doi.org/10.1021/acs.iecr.4c01392)).
+
+| Parameter (registry leaf) | Description | Unit | Default |
+|---------------------------|-------------|------|---------|
+| `split` | Fast-site fraction $\varphi$ of $q_i^*$, in (0, 1] | – | 1 |
+| coefficient parameters (e.g. `k`) | Fast-site coefficient $k_{i,1}$ | as the coefficient type | |
+| `slow_<name>` (e.g. `slow_k`) | Slow-site coefficient $k_{i,2}$ | as the coefficient type | the fast site's values |
+
+The slow site has its own coefficient model, of the **same mass transfer coefficient type** as the fast site, with its own values, because published fits report both rate constants. With the constant type, the registry paths are `adsorbent[A].kinetics[C].k` ($k_{i,1}$), `adsorbent[A].kinetics[C].slow_k` ($k_{i,2}$) and `adsorbent[A].kinetics[C].split` ($\varphi$). Changing the coefficient type changes both sites. A new dual-rate model starts with the slow site a copy of the fast one, so it behaves like the LDF until you change `split` or the slow coefficient.
+
+With $\varphi = 1$ the slow site holds nothing. The model is then exactly the first-order LDF with $k = k_{i,1}$, and the solver adds no unknown for it. The slow-site unknown exists only for components whose $\varphi$ is below 1. A warm start from a state taken with another $\varphi$, or with another rate model, gives a new slow site its share $(1 - \varphi)$ of the total loading. A slow site the deck no longer has is dropped, and the total loading keeps the inventory. $\varphi$ is one number per run; it may come from a variable but not from the local state.
+
+```python
+ads.set_rate_model("CO2", "dual_rate_ldf", "constant", k=0.05, slow_k=0.002, split=0.6)
+```
+
 ---
 
 ## Mass Transfer Coefficient

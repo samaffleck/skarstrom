@@ -10,6 +10,7 @@
 #include "adsim/equations/isotherm.h"
 #include "adsim/objects/reactor.h"
 #include "adsim/objects/porous_media.h"
+#include "adsim/objects/model_kinds.h"
 
 
 namespace adsim {
@@ -235,6 +236,29 @@ namespace adsim {
     mtc_model_ = std::make_unique<MassTransferCoefficientConstant>();
   }
 
+  DualRateLinearDrivingForce::DualRateLinearDrivingForce() {
+    mtc_model_ = std::make_unique<MassTransferCoefficientConstant>();
+    slow_mtc_model_ = std::make_unique<MassTransferCoefficientConstant>();
+  }
+
+  bool DualRateLinearDrivingForce::SyncSlowSite() {
+    if (!mtc_model_) return false;
+    const auto kind = mtc_model_->GetModelType();
+    if (slow_mtc_model_ && slow_mtc_model_->GetModelType() == kind) return false;
+    const KindDescriptor* to = KindAt(ModelFamily::RateCoefficient, static_cast<std::size_t>(kind));
+    auto fresh = CreateMassTransferCoefficientModel(kind);
+    if (!fresh || !to) return false;
+    // The fast site's values first, then whatever the old slow model shares.
+    CarryOverParameters(*to, ModelFields(mtc_model_.get()), *to, ModelFields(fresh.get()));
+    if (slow_mtc_model_) {
+      const KindDescriptor* from =
+          KindAt(ModelFamily::RateCoefficient, static_cast<std::size_t>(slow_mtc_model_->GetModelType()));
+      if (from) CarryOverParameters(*from, ModelFields(slow_mtc_model_.get()), *to, ModelFields(fresh.get()));
+    }
+    slow_mtc_model_ = std::move(fresh);
+    return true;
+  }
+
 } // end adsim namespace
 
 
@@ -254,5 +278,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim
 
 CEREAL_REGISTER_TYPE(adsim::LinearDrivingForce)
 CEREAL_REGISTER_TYPE(adsim::LinearDrivingForceSecondOrder)
+CEREAL_REGISTER_TYPE(adsim::DualRateLinearDrivingForce)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferModel, adsim::LinearDrivingForce)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferModel, adsim::LinearDrivingForceSecondOrder)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferModel, adsim::DualRateLinearDrivingForce)

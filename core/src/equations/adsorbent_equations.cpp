@@ -896,12 +896,35 @@ namespace adsim {
     // Manufactured rate source [mol/(kg s)] (verification hook).
     const auto* mms_loading = SourceOf(udata->manufactured_sources_.loading, component);
 
+    // Dual-rate LDF with a slow site: the total loading's rate is the sum of
+    // the two sites' (DualRateLinearDrivingForce), the slow-site loading q2
+    // and its coefficient k2 being state fields of their own.
+    const std::vector<double>* q2 = nullptr;
+    const std::vector<double>* K2 = nullptr;
+    double phi = 1.0;
+    if (state.HasSlowSites()) {
+      auto a = state.ads_concentration_slow.find(ads_id);
+      if (a != state.ads_concentration_slow.end()) {
+        auto c = a->second.find(component);
+        if (c != a->second.end()) {
+          q2 = &c->second.var;
+          K2 = &state.slow_mass_transfer_coefficient.at(ads_id).at(component).var;
+          phi = state.FastSiteFraction(ads_id, component);
+        }
+      }
+    }
+
     int N = qi.size(); // Includes ghost cells
     for (int i = 1; i < N - 1; ++i) { // Interior cells
       if (i < (int)is_void.size() && is_void[i]) continue;  // void cells: qi is not part of the state vector
       if (mask && !(*mask)[i]) continue;  // adsorbent absent here: loading DOF is inactive
-      const double rate = rate_model ? rate_model->Rate(qi_sat[i], qi[i], Ki[i])
-                                     : Ki[i] * (qi_sat[i] - qi[i]);
+      double rate;
+      if (q2) {
+        rate = DualRateLinearDrivingForce::FastRate(phi, qi_sat[i], qi[i], (*q2)[i], Ki[i])
+               + DualRateLinearDrivingForce::SlowRate(phi, qi_sat[i], (*q2)[i], (*K2)[i]);
+      } else {
+        rate = rate_model ? rate_model->Rate(qi_sat[i], qi[i], Ki[i]) : Ki[i] * (qi_sat[i] - qi[i]);
+      }
       res_qi[i] = ddt_qi[i] * dx[i] - dx[i] * rate;
       if (mms_loading)
         res_qi[i] -= dx[i] * (*mms_loading)(CellCentre(domain, i), udata->residual_time_);
@@ -912,6 +935,39 @@ namespace adsim {
     const int last_bed = bed.GetLastBedCellIndex();
     res_qi[0] = qi[0] - qi[first_bed];
     res_qi[N - 1] = qi[N - 1] - qi[last_bed];
+  }
+
+  // Slow-site loading q2 of a dual-rate LDF component:
+  //   dq2/dt = k2 ((1 - phi) q* - q2).
+  void UpdateSlowAdsorbedConcentration(UserData* udata, AdsorbentID ads_id, Component component) {
+    auto& state = udata->state;
+    const auto& bed = udata->bed;
+
+    auto& eq = state.ads_concentration_slow.at(ads_id).at(component);
+    auto& q2 = eq.var;
+    auto& ddt_q2 = eq.ddt_var;
+    auto& res_q2 = eq.res_var;
+    const auto& qi_sat = state.eq_ads_concentration.at(ads_id).at(component).var;
+    const auto& K2 = state.slow_mass_transfer_coefficient.at(ads_id).at(component).var;
+    const double phi = state.FastSiteFraction(ads_id, component);
+
+    const auto& domain = state.domain_vectors;
+    const auto& dx = domain.cell_width;
+    const auto& is_void = domain.is_void_cell;
+    const auto* mask = state.GetAdsorbentMask(ads_id);
+
+    const int N = (int)q2.size();
+    for (int i = 1; i < N - 1; ++i) {
+      if (i < (int)is_void.size() && is_void[i]) continue;
+      if (mask && !(*mask)[i]) continue;
+      res_q2[i] = ddt_q2[i] * dx[i] - dx[i] * DualRateLinearDrivingForce::SlowRate(phi, qi_sat[i], q2[i], K2[i]);
+    }
+
+    // Ghost cells mirror the first/last *bed* cell.
+    const int first_bed = bed.GetFirstBedCellIndex();
+    const int last_bed = bed.GetLastBedCellIndex();
+    res_q2[0] = q2[0] - q2[first_bed];
+    res_q2[N - 1] = q2[N - 1] - q2[last_bed];
   }
 
   void UpdateEquilibriumAdsorbedConcentration(UserData* udata, AdsorbentID ads_id, Component component) {
@@ -1378,6 +1434,19 @@ namespace adsim {
     }
 
     ZeroVoidCellsAndMirrorGhosts(state.mass_transfer_coefficient.at(ads_id).at(component).var, bed);
+  }
+
+  void UpdateSlowMassTransferCoefficient(UserData* udata, AdsorbentID ads_id, Component component) {
+    auto& state = udata->state;
+    auto& bed = udata->bed;
+    auto& adsorbent = udata->adsorbent_directory.Get(ads_id);
+    auto& source = adsorbent.adsorption_source_;
+    for (auto& layer : bed.layers_.layers_) {
+      if (layer.composition_.find(ads_id) == layer.composition_.end()) continue;
+      source.UpdateSlowMassTransferCoefficient(state, ads_id, component, udata->fluid, layer,
+                                               &udata->variable_registry, adsorbent.solid_density_.Get());
+    }
+    ZeroVoidCellsAndMirrorGhosts(state.slow_mass_transfer_coefficient.at(ads_id).at(component).var, bed);
   }
 
   static void BlanksLaw(UserData* udata, Component component) {

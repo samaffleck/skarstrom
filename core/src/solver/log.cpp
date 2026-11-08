@@ -272,6 +272,38 @@ namespace adsim {
     log_aggregate(ComponentVariableType::ADSORBED_CONCENTRATION, state.ads_concentration);
     log_aggregate(ComponentVariableType::EQUILIBRIUM_ADSORBED_CONCENTRATION, state.eq_ads_concentration);
     log_aggregate(ComponentVariableType::MASS_TRANSFER_COEFFICIENT, state.mass_transfer_coefficient);
+    if (state.HasSlowSites()) {
+      // Slow-site loading of the dual-rate LDF components, aggregated like the
+      // loading; an (adsorbent, component) without a slow site adds 0.
+      for (const auto& [component, eq] : state.mole_fraction) {
+        auto& entry = sim_log.component_variables[component][ComponentVariableType::SLOW_ADSORBED_CONCENTRATION];
+        if (entry.values.empty()) {
+          entry.variable_name =
+              component + " " + ComponentVariableTypeList[static_cast<size_t>(ComponentVariableType::SLOW_ADSORBED_CONCENTRATION)];
+          entry.units = GetComponentVariableUnits(ComponentVariableType::SLOW_ADSORBED_CONCENTRATION);
+          entry.step_name = step_name;
+        }
+        const size_t M = state.mole_fraction.at(component).var.size();
+        Var1D out = TakeRow();
+        out.assign(M, 0.0);
+        for (size_t i = 0; i < M; ++i) {
+          double s = 0.0;
+          for (const auto& ca : cell_ads[i]) {
+            auto a = state.ads_concentration_slow.find(ca.id);
+            if (a == state.ads_concentration_slow.end()) continue;
+            auto c = a->second.find(component);
+            if (c == a->second.end()) continue;
+            s += ca.mass_fraction * c->second.var[i];
+          }
+          out[i] = s;
+        }
+        if (M > 0 && !bed_cells.empty()) {
+          out[0] = out[bed_cells.front()];
+          out[M - 1] = out[bed_cells.back()];
+        }
+        entry.values.push_back(std::move(out));
+      }
+    }
 
     ThinIfOverBudget(sim_log);
   }
@@ -903,6 +935,7 @@ namespace adsim {
       case ComponentVariableType::COMPONENT_MOLAR_CONCENTRATION: return "[mol/m^3]";
       case ComponentVariableType::MASS_TRANSFER_COEFFICIENT: return "[1/s]";
       case ComponentVariableType::MOLECULAR_DIFFUSION: return "[m^2/s]";
+      case ComponentVariableType::SLOW_ADSORBED_CONCENTRATION: return "[mol/kg]";
       default: return "[-]";
     }
   }

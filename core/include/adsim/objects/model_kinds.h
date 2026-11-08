@@ -36,6 +36,7 @@
 
 namespace adsim {
 
+class IMassTransferModel;
 class IMassTransferCoefficientModel;
 class IDispersionModel;
 class IHeatDispersionModel;
@@ -71,7 +72,7 @@ struct KindDescriptor {
 };
 
 enum class ModelFamily {
-  RateModel,             // MassTransferModelType: ldf, ldf2
+  RateModel,             // MassTransferModelType: ldf, ldf2, dual_rate_ldf
   RateCoefficient,       // MassTransferCoefficientType
   Momentum,              // MomentumModel
   Dispersion,            // AxialDispersionType
@@ -111,6 +112,13 @@ const KindDescriptor* KindAt(ModelFamily family, std::size_t index);
 inline constexpr const char* kLdf2RateConstantUnit = "kg/(mol-s)";
 KindParameter Ldf2RateConstant(const KindParameter& p);
 
+// The slow site of a dual-rate LDF model has its own coefficient model, of the
+// same kind as the fast site's. Its parameters are those of the
+// rate-coefficient descriptor under the name "slow_<name>" (registry leaf
+// adsorbent[A].kinetics[C].slow_<name>), labelled "slow-site <label>".
+inline constexpr const char* kSlowSitePrefix = "slow_";
+KindParameter SlowSiteParameter(const KindParameter& p);
+
 // ---- isotherms -------------------------------------------------------------------
 
 // Pure-component form IAST integrates (iast.cpp): a kind maps onto one of
@@ -141,6 +149,7 @@ using ModelFieldList = std::vector<std::pair<std::string, ExpressionParam*>>;
 // The model's parameters by descriptor name, in descriptor order (empty for a
 // null model or a kind with no parameters). Profile names are the plain
 // descriptor names ("start", "end", "time", "value", ...).
+ModelFieldList ModelFields(IMassTransferModel* model);  // the rate model's own (dual_rate_ldf: split)
 ModelFieldList ModelFields(IMassTransferCoefficientModel* model);
 ModelFieldList ModelFields(IDispersionModel* model);
 ModelFieldList ModelFields(IHeatDispersionModel* model);
@@ -153,6 +162,12 @@ ModelFieldList ModelFields(IPumpPowerModel* model);
 // A pump's own fields by kind (suction or discharge pressure); the polytropic
 // index is common to every pump and not part of a kind.
 ModelFieldList ModelFields(IPump* pump);
+
+// The slow site's descriptor (the coefficient kind's, every parameter through
+// SlowSiteParameter) and its live fields under those names; nullptr / empty
+// when the rate model has no slow-site coefficient model.
+const KindDescriptor* SlowSiteKind(IMassTransferModel* model);
+ModelFieldList SlowSiteFields(IMassTransferModel* model);
 
 // Copy every parameter `to` shares with `from` (same name and same unit in
 // their descriptors), value and expression text. Returns the names copied.
