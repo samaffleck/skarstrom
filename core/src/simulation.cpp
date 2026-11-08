@@ -73,6 +73,7 @@ namespace adsim {
       {"axial_dispersion_coefficient", VariableType::AXIAL_DISPERSION_COEFFICIENT},
       {"solid_temperature", VariableType::SOLID_TEMPERATURE},
       {"particle_heat_transfer_coefficient", VariableType::PARTICLE_HEAT_TRANSFER_COEFFICIENT},
+      {"reaction_heat", VariableType::REACTION_HEAT},
     };
     static_assert(std::size(kBulk) == std::size(VariableTypeList),
                   "kBulk must name every VariableType (keep it in VariableTypeList order)");
@@ -87,6 +88,7 @@ namespace adsim {
       {"mass_transfer_coefficient", ComponentVariableType::MASS_TRANSFER_COEFFICIENT},
       {"molecular_diffusion", ComponentVariableType::MOLECULAR_DIFFUSION},
       {"slow_adsorbed_concentration", ComponentVariableType::SLOW_ADSORBED_CONCENTRATION},
+      {"reaction_source", ComponentVariableType::REACTION_SOURCE},
     };
     static_assert(std::size(kComponent) == std::size(ComponentVariableTypeList),
                   "kComponent must name every ComponentVariableType");

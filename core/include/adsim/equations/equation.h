@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <string>
 #include <optional>
+#include <memory>
 
 // SUNDIALS includes
 #include <ida/ida.h>
@@ -212,6 +213,16 @@ namespace adsim {
     const std::vector<AdsorbentEnergyTerm>& GetEnergyTerms(AdsorbentID id) const {
       return energy_terms_.at(adsorbent_slot_.at(id));
     }
+    // True when some solid of some layer has a reaction (objects/reaction.h):
+    // UpdateReactions then fills the reaction fields below before the
+    // balances read them. False for every other deck, whose balances skip the
+    // reaction terms on this one check (nothing is registered for them).
+    bool HasReactions() const { return has_reactions_; }
+    // True when the loading of `component` on adsorbent `id` is not a DAE
+    // unknown: its isotherm is Inert, so q = 0 and dq/dt = 0 for the whole run
+    // (the field keeps its storage, filled with zeros, for the logs, the
+    // KPIs and the per-adsorbent series).
+    bool IsInertLoading(AdsorbentID id, const Component& component) const;
     // Per-adsorbent active-cell mask (true where the adsorbent is present),
     // or nullptr if the adsorbent is unknown. Stable after Initialise().
     const std::vector<bool>* GetAdsorbentMask(AdsorbentID id) const {
@@ -266,6 +277,30 @@ namespace adsim {
     
     // Domain vector
     DomainVectors domain_vectors;
+    // Heterogeneous reactions (only when HasReactions(); otherwise empty and
+    // never registered). Filled together by UpdateReactions, once per
+    // residual evaluation before the balances:
+    //   reaction_heat              Q_rxn = sum_k rho_b,k sum_r (-dH_r) eta r [W/m3 bed]
+    //                              (0 in an isothermal run)
+    //   component_reaction_source  S_i = sum_k rho_b,k sum_r nu_r,i eta r [mol/(m3 bed s)]
+    //   reaction_total_source      S_tot = sum_i S_i [mol/(m3 bed s)] (not logged)
+    //   reaction_fields            per (solid, reaction): eta r [mol/(kg s)] and
+    //                              rho_b,k eta r [mol/(m3 bed s)], 0 where the solid is absent
+    // Interior non-void cells only; ghost and void cells hold 0.
+    IndependentEquation reaction_heat{ "Reaction Heat", CellType::CellCentre, UpdateReactions };
+    ComponentIndependentEquation component_reaction_source;
+    vec reaction_total_source;
+    struct ReactionField {
+      AdsorbentID adsorbent;
+      std::size_t reaction;  // ReactionID
+      std::string reaction_name;
+      IndependentEquation rate;         // eta r [mol/(kg s)]
+      IndependentEquation extent_rate;  // rho_b,k eta r [mol/(m3 s)]
+      // Thiele warm start: the previous equilibrium concentration per cell.
+      vec equilibrium_guess;
+    };
+    std::vector<std::unique_ptr<ReactionField>> reaction_fields;
+
 
   private:
     std::vector<Equation*> equations_;
@@ -287,6 +322,11 @@ namespace adsim {
     std::vector<std::vector<const vec*>> loading_rate_terms_;
     std::vector<std::vector<AdsorbentEnergyTerm>> energy_terms_;
     Step* current_step_ = nullptr;
+    bool has_reactions_ = false;
+    // Loading equations of the inert (adsorbent, component) pairs: kept out
+    // of equations_, held at zero (see IsInertLoading).
+    std::vector<Equation*> inert_loadings_;
+    void ZeroInertLoadings();
     // Isothermal run: temperature equations not registered in equations_.
     bool isothermal_ = false;
     double isothermal_temperature_ = 0.0;

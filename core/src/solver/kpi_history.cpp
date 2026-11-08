@@ -32,7 +32,9 @@ namespace adsim {
     const double accumulation = last->inventory_end[c] - first->inventory_start[c];
 
     double net_in = 0.0, entered = 0.0;
+    double generated = 0.0;  // by the reactions (0 without)
     for (int s = 0; s < n_steps; ++s) {
+      generated += eq_log.ReactionGeneration(cycle, s, component);
       const auto names = b_log.stream_names.find(steps[s]);
       if (names == b_log.stream_names.end()) continue;
       for (const auto& name : names->second) {
@@ -52,7 +54,7 @@ namespace adsim {
     double inventory = 0.0;
     for (double v : first->inventory_start) inventory += std::abs(v);
     if (!std::isfinite(net_in) || !(entered > 1e-12 * inventory)) return nan;
-    return (net_in - accumulation) / entered;
+    return (net_in + generated - accumulation) / entered;
   }
 
   std::vector<KPIRecord> ComputeCycleKPIs(const KPIConfig& config_in, const std::vector<Step>& steps,

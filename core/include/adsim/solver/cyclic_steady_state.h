@@ -127,7 +127,9 @@ namespace adsim {
   //  * Molar Profile: the total-concentration profile at the end of the first
   //    step changed by at most abs + rel * |profile| since the previous cycle.
   //  * Mass Balance (Total / Per-Component): the relative balance error of the
-  //    cycle is within mass_balance_tolerance_, AND the end-of-cycle bed state
+  //    cycle, |in + G - out| / in with G the moles the reactions made in the
+  //    bed over the cycle (EquationLog::ReactionGeneration; 0 without
+  //    reactions), is within mass_balance_tolerance_, AND the end-of-cycle bed state
   //    changed by at most state_tolerance_ since the previous cycle
   //    (EndOfCycleStateChange). The balance alone is not a safe stopping test:
   //    on the way to CSS it can swing through zero (accumulation changing sign),

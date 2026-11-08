@@ -16,9 +16,13 @@
 // [mol/(kg s)], in moles of reaction extent (equations/reaction_kinds.h has the
 // rate laws).
 //
-// This header holds the data model, the checks and the evaluation of a rate
-// and a heat of reaction at a given state. The reactions do not yet enter the
-// balances of a run.
+// This header holds the data model, the checks and the evaluation of a rate,
+// an effectiveness factor and a heat of reaction at a given state. The
+// balances of a run take them through UpdateReactions
+// (equations/adsorbent_equations.h): component i gains
+// S_i = sum_k rho_b,k sum_r nu_r,i eta_k,r r_k,r [mol/(m3 bed s)], the total
+// balance the sum over i, and the energy balance (the solid's in LTNE)
+// Q = sum_k rho_b,k sum_r (-dH_r(T)) eta_k,r r_k,r [W/m3 bed].
 
 #include <cstdint>
 #include <map>
@@ -57,8 +61,9 @@ namespace adsim {
   };
 
   //   Constant: a user effectiveness factor eta (default 1).
-  //   Thiele:   eta from a generalised Thiele modulus of the key reactant
-  //             (its evaluation is not implemented yet; the fields are kept).
+  //   Thiele:   eta from the generalised (Aris-Bischoff) Thiele modulus of the
+  //             key reactant in a spherical, isothermal particle without film
+  //             resistance (Reaction::Effectiveness).
   enum class EffectivenessMode {
     Constant = 0,
     Thiele = 1
@@ -155,6 +160,30 @@ namespace adsim {
     // Intrinsic rate per kg of solid [mol/(kg s)] at a state (cached values;
     // call EvaluateExpressions first). 0 without a rate.
     double IntrinsicRate(const ReactionState& state);
+    // Effectiveness factor eta [-] at the particle surface state `surface`.
+    // Constant mode: the user value. Thiele mode: the generalised modulus of
+    // the key reactant A (effectiveness_.key_component_, else the first
+    // reactant) for a sphere of radius `particle_radius` [m],
+    //   phi = (R_p / 3) R_A(C_A,s) / sqrt(2 integral_{C_A,eq}^{C_A,s} D_eff R_A(C) dC),
+    //   eta = (1 / phi) (1 / tanh(3 phi) - 1 / (3 phi))   (-> 1 as phi -> 0),
+    // with R_A = |nu_A| rho_p r the consumption of A per particle volume
+    // [mol/(m3 s)], rho_p = `particle_density` [kg/m3] and D_eff =
+    // `effective_diffusivity` [m2/s]. Inside the particle the other components
+    // follow A along the stoichiometry (equal diffusivities) at the surface P
+    // and T, C_j = C_j,s + (nu_j / nu_A) (C_A - C_A,s), clipped at 0; the
+    // integral is an 8-point Gauss-Legendre rule. The lower limit is where
+    // the rate vanishes along that line: the equilibrium concentration of a
+    // reversible rate (a 1D root, warm-started from *warm_start when given and
+    // stored back there), else the concentration at which a reactant runs
+    // out. A reaction running backwards at the surface (r < 0) is treated the
+    // same way with A as the product. eta = 1 when the rate at the surface is
+    // 0 or the integral vanishes. For a first-order irreversible rate this is
+    // eta = 3 / phi1^2 (phi1 coth phi1 - 1), phi1 = R_p sqrt(k_v / D_eff).
+    double Effectiveness(const ReactionState& surface, double particle_radius, double particle_density,
+                         double effective_diffusivity, double* warm_start = nullptr);
+    // The key reactant of the Thiele mode: key_component_ when it is a
+    // reactant, else the first reactant ("" without one).
+    std::string KeyReactant() const;
     // dCp = sum_i nu_i Cp_i [J/(mol K)] from molar heat capacities (a
     // component absent from `molar_cp` counts as 0).
     double DeltaHeatCapacity(const std::map<std::string, double>& molar_cp) const;

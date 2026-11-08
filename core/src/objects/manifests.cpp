@@ -552,8 +552,30 @@ namespace adsim {
           IsPerAdsorbentVariable(t) ? PerAdsorbentVariableName("{component}", t, "{adsorbent}") : std::string(), a);
       list.PushBack(v, a);
     }
+    // The rate of each reaction on each solid (logged only for a deck with
+    // reactions; EquationLog::GetReactionRate).
+    Value reactions(rapidjson::kArrayType);
+    {
+      Value v(rapidjson::kObjectType);
+      Set(v, "key", "reaction_rate", a);
+      Set(v, "label", "Rate", a);
+      Set(v, "name", ReactionRateVariableName("{reaction}", "{adsorbent}"), a);
+      std::string unit = kReactionRateUnits;
+      unit = unit.substr(1, unit.size() - 2);
+      Set(v, "unit", unit, a);
+      Set(v, "kind", "reaction", a);
+      Set(v, "porous_only", true, a);
+      Set(v, "description",
+          "effectiveness factor times the intrinsic rate of one reaction, per kg of the solid that carries it, "
+          "in moles of reaction extent; 0 in the cells without that solid",
+          a);
+      reactions.PushBack(v, a);
+    }
     Value out(rapidjson::kObjectType);
     out.AddMember("variables", list, a);
+    out.AddMember("reaction_variables", reactions, a);
+    Set(out, "reactions_logged_when", "some solid of some layer has a reaction (reaction_heat, reaction_source and "
+        "the reaction_variables)", a);
     Set(out, "per_adsorbent_logged_when",
         "some layer of the bed holds more than one solid; otherwise each cell's series is that of its one "
         "solid and the per-adsorbent series are read off it",
