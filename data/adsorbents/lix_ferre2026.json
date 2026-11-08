@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 4,
+        "cereal_class_version": 5,
         "Name": "LiX (Ferre 2026)",
         "Density": {
             "cereal_class_version": 2,
@@ -19,10 +19,10 @@
             "DisplayUnitIndex": 0
         },
         "Adsorption_Source": {
-            "cereal_class_version": 0,
+            "cereal_class_version": 1,
             "Mass_Transfer_Models": [
                 {
-                    "key": "Methane",
+                    "key": "CarbonDioxide",
                     "value": {
                         "polymorphic_id": 2147483649,
                         "polymorphic_name": "adsim::LinearDrivingForce",
@@ -33,15 +33,79 @@
                                 "value0": {
                                     "Mass_Transfer_Coefficient_Model": {
                                         "polymorphic_id": 2147483650,
-                                        "polymorphic_name": "adsim::MassTransferCoefficientConstant",
+                                        "polymorphic_name": "adsim::MassTransferCoefficientSeriesResistance",
                                         "ptr_wrapper": {
                                             "valid": 1,
                                             "data": {
-                                                "cereal_class_version": 3,
+                                                "cereal_class_version": 2,
                                                 "value0": {},
+                                                "Film_Resistance_Factor": {
+                                                    "Value": 1.0,
+                                                    "Expression": "1",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Tortuosity": {
+                                                    "Value": 3.0,
+                                                    "Expression": "3",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Macropore_Void_Fraction": {
+                                                    "Value": 0.35,
+                                                    "Expression": "0.35",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Molecular_Diffusion_Coefficient": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Crystal_Radius": {
+                                                    "Value": 0.000001,
+                                                    "Expression": "1e-06",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Diffusivity": {
+                                                    "Value": 1e-13,
+                                                    "Expression": "1e-13",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Capacity_Factor": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Concentration_Floor": {
+                                                    "Value": 0.001,
+                                                    "Expression": "0.001",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Resistances": {
+                                                    "cereal_class_version": 1,
+                                                    "Film": false,
+                                                    "Macropore": false,
+                                                    "Knudsen": false,
+                                                    "Micropore": false,
+                                                    "Lumped": true
+                                                },
+                                                "Capacity_Factor_Mode": 0,
                                                 "Mass_Transfer_Coefficient": {
                                                     "Value": 46.666666666666667,
                                                     "Expression": "46.666666666666664",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Pore_Radius": {
+                                                    "Value": 1e-9,
+                                                    "Expression": "1e-09",
                                                     "DisplayUnitIndex": 0
                                                 }
                                             }
@@ -53,7 +117,7 @@
                     }
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Methane",
                     "value": {
                         "polymorphic_id": 1,
                         "ptr_wrapper": {
@@ -66,9 +130,72 @@
                                             "valid": 1,
                                             "data": {
                                                 "value0": {},
+                                                "Film_Resistance_Factor": {
+                                                    "Value": 1.0,
+                                                    "Expression": "1",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Tortuosity": {
+                                                    "Value": 3.0,
+                                                    "Expression": "3",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Macropore_Void_Fraction": {
+                                                    "Value": 0.35,
+                                                    "Expression": "0.35",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Molecular_Diffusion_Coefficient": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Crystal_Radius": {
+                                                    "Value": 0.000001,
+                                                    "Expression": "1e-06",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Diffusivity": {
+                                                    "Value": 1e-13,
+                                                    "Expression": "1e-13",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Capacity_Factor": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Concentration_Floor": {
+                                                    "Value": 0.001,
+                                                    "Expression": "0.001",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Resistances": {
+                                                    "Film": false,
+                                                    "Macropore": false,
+                                                    "Knudsen": false,
+                                                    "Micropore": false,
+                                                    "Lumped": true
+                                                },
+                                                "Capacity_Factor_Mode": 0,
                                                 "Mass_Transfer_Coefficient": {
                                                     "Value": 46.666666666666667,
                                                     "Expression": "46.666666666666664",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Pore_Radius": {
+                                                    "Value": 1e-9,
+                                                    "Expression": "1e-09",
                                                     "DisplayUnitIndex": 0
                                                 }
                                             }
@@ -94,44 +221,9 @@
                                 "value0": {},
                                 "Isotherm_Params": [
                                     {
-                                        "key": "Methane",
-                                        "value": {
-                                            "cereal_class_version": 0,
-                                            "IP_m1": {
-                                                "Value": 3.19,
-                                                "Expression": "3.19",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_b1": {
-                                                "Value": 0.0000252,
-                                                "Expression": "2.52e-05",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_q1": {
-                                                "Value": 14204.0,
-                                                "Expression": "14204",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_m2": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_b2": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_q2": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            }
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
+                                            "cereal_class_version": 0,
                                             "IP_m1": {
                                                 "Value": 3.08,
                                                 "Expression": "3.08",
@@ -163,6 +255,41 @@
                                                 "DisplayUnitIndex": 0
                                             }
                                         }
+                                    },
+                                    {
+                                        "key": "Methane",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 3.19,
+                                                "Expression": "3.19",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 0.0000252,
+                                                "Expression": "2.52e-05",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 14204.0,
+                                                "Expression": "14204",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
                                     }
                                 ]
                             }
@@ -172,19 +299,25 @@
             ],
             "Isotherm_Map": [
                 {
-                    "key": "Methane",
+                    "key": "CarbonDioxide",
                     "value": 9
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Methane",
                     "value": 9
                 }
-            ]
+            ],
+            "Mixing_Rule": 0
         },
         "Particle_Void_Fraction": {
             "Value": 0.35,
             "Expression": "0.35",
             "DisplayUnitIndex": 0
+        },
+        "Reaction_Source": {
+            "cereal_class_version": 1,
+            "Reactions": [],
+            "Next_Reaction_ID": 0
         }
     }
 }

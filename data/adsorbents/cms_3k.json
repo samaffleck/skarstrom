@@ -23,18 +23,18 @@
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
-                    "key": "Methane",
-                    "value": {
-                        "Value": 33674.0,
-                        "Expression": "33674",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": {
                         "Value": 38947.0,
                         "Expression": "38947",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Methane",
+                    "value": {
+                        "Value": 33674.0,
+                        "Expression": "33674",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -100,11 +100,11 @@
             ],
             "Isotherm_Map": [
                 {
-                    "key": "Methane",
+                    "key": "CarbonDioxide",
                     "value": 6
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Methane",
                     "value": 6
                 }
             ],

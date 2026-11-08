@@ -1,0 +1,2 @@
+### Changed — example decks and library entries stored on the generic mass-transfer coefficient model
+- The bundled example decks and the adsorbent library entries (`data/adsorbents/*.json`, `library.merged.json`) now store their mass-transfer coefficients in the `series_resistance` form (explicit resistance switches, capacity-factor mode, every parameter present) instead of the old fixed-combination classes. The file format changes only; results are unchanged, bit for bit. A new test checks this for every example deck.
