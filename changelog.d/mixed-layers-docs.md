@@ -1,0 +1,3 @@
+### Added — mixed adsorbent layers documented, with an example deck
+- New documentation page [Mixed Adsorbent Layers](https://samaffleck.github.io/skarstrom/mixed-layers/): how a layer's composition is stored and checked, the mixing rules with their equations, the shared-temperature assumption, mixture versus thin layers, per-solid results, and how to set a composition from Python and the CLI (`layer[ID].mass_fraction[ID]`).
+- New bundled deck `Illustrative_Diluted_Bed`: the Ward 2022 100 ccm CO2 breakthrough on activated carbon diluted with 30 % glass beads by mass in a mixed layer (illustrative, not a validated reproduction).
