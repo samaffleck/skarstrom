@@ -97,6 +97,7 @@ namespace adsim {
   }
 
   void RunHealthMonitor::Offer(RunHealthWarning w) {
+    w.code = RunHealthCode(w.check);
     for (auto& existing : report_.warnings) {
       if (existing.check != w.check) continue;
       if (w.value > existing.value) existing = std::move(w);
