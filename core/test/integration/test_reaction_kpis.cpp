@@ -152,6 +152,8 @@ const KPIRecord* Find(const std::vector<KPIRecord>& rows, const std::string& com
     if (k.component == component) return &k;
   return nullptr;
 }
+// A pointer into a temporary would dangle.
+const KPIRecord* Find(std::vector<KPIRecord>&& rows, const std::string& component) = delete;
 
 double CycleGeneration(const Simulation& sim, int cycle, const std::string& c) {
   double g = 0.0;
@@ -293,7 +295,8 @@ TEST(ReactionKPIs, SelectivityYieldAndSpaceTimeYield) {
   // The bed-volume basis.
   Reactor v;
   SideReactionReactor(v, "bed_volume");
-  const KPIRecord* bv = Find(v.sim.KPIs(1), C2H4);
+  const auto rows_v = v.sim.KPIs(1);  // keep the records alive: Find returns a pointer into them
+  const KPIRecord* bv = Find(rows_v, C2H4);
   ASSERT_NE(bv, nullptr);
   const double GBv = CycleGeneration(v.sim, 1, C2H4);
   EXPECT_NEAR(bv->space_time_yield, GBv * mm.at(C2H4) / (t_cycle * v.BedVolume()), 1e-6 * bv->space_time_yield);
@@ -325,7 +328,8 @@ TEST(ReactionKPIs, PeakTemperatureIsTheLoggedMaximum) {
   const RunResult run = RunReactor(r, 1);
   ASSERT_TRUE(run.Ok()) << run.message;
 
-  const KPIRecord* a = Find(r.sim.KPIs(0), BUT);
+  const auto rows = r.sim.KPIs(0);  // keep the records alive: Find returns a pointer into them
+  const KPIRecord* a = Find(rows, BUT);
   ASSERT_NE(a, nullptr);
   // Brute force over the logged temperature of the bed cells.
   const auto e = r.sim.Log().GetVariable(0, 0, VariableType::TEMPERATURE);
@@ -342,7 +346,7 @@ TEST(ReactionKPIs, PeakTemperatureIsTheLoggedMaximum) {
   EXPECT_DOUBLE_EQ(a->peak_temperature, peak);
   EXPECT_DOUBLE_EQ(a->peak_temperature_position, z);
   EXPECT_DOUBLE_EQ(a->peak_temperature_time, t);
-  const KPIRecord* b = Find(r.sim.KPIs(0), IBUT);
+  const KPIRecord* b = Find(rows, IBUT);
   ASSERT_NE(b, nullptr);
   EXPECT_DOUBLE_EQ(b->peak_temperature, peak);
 }
