@@ -783,7 +783,7 @@
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.05186412639523523
+                                            "value": 0.05186412639523522
                                         }
                                     ],
                                     "Source_Cycle_Index": 56
@@ -1345,11 +1345,11 @@
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.03206636003271977
+                                            "value": 0.032066360056485939
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.9679336399672802
+                                            "value": 0.967933639943514
                                         }
                                     ],
                                     "Source_Cycle_Index": 56
@@ -1540,11 +1540,11 @@
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Nitrogen",
-                                            "value": 0.85
+                                            "value": 0.850010076821206
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.14999999999999998
+                                            "value": 0.14998992317879393
                                         }
                                     ],
                                     "Source_Cycle_Index": 56
@@ -1688,7 +1688,7 @@
             "Version": 3
         },
         "KPI_Config": {
-            "cereal_class_version": 3,
+            "cereal_class_version": 4,
             "Per_Component": [
                 {
                     "cereal_class_version": 2,
@@ -1729,7 +1729,13 @@
                     "Product_Endpoints": [],
                     "Recycle_Endpoints": []
                 }
-            ]
+            ],
+            "Reaction": {
+                "cereal_class_version": 0,
+                "Key_Reactant": "",
+                "Products": [],
+                "Space_Time_Yield_Basis": 0
+            }
         },
         "Variable_Registry": {
             "cereal_class_version": 1,
