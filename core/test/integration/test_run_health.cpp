@@ -31,6 +31,10 @@ namespace adsim {
   class RunHealthTest : public UserDataTest {
   protected:
     static constexpr double kAtm = 101325.0;
+    // Manufactured CO2 sink with no overall sink [mol/(m3 s)]: strong
+    // enough to break the sum, weak enough for the run to finish (a source of the
+    // same size fails the run).
+    static constexpr double kSumSource = -0.02;
     const std::unordered_map<std::string, double> feed{ {"CarbonDioxide", 0.15}, {"Nitrogen", 0.85} };
 
     void SetUp() override {
@@ -108,9 +112,9 @@ namespace adsim {
   }
 
   TEST_F(RunHealthTest, ComponentSourceBreaksTheMoleFractionSum) {
-    // CO2 is created in its own balance but not in the overall one: the mole
+    // CO2 is removed from its own balance but not from the overall one: the mole
     // fractions no longer sum to 1.
-    data.manufactured_sources_.species["CarbonDioxide"] = [](double, double) { return 0.5; };
+    data.manufactured_sources_.species["CarbonDioxide"] = [](double, double) { return kSumSource; };
     ConfigureCycle(2);
     CoupledSolver solver{ data };
     const auto messages = Run(solver);
@@ -131,13 +135,14 @@ namespace adsim {
   }
 
   TEST_F(RunHealthTest, SwitchedOffCheckIsNotReported) {
-    data.manufactured_sources_.species["CarbonDioxide"] = [](double, double) { return 0.5; };
+    data.manufactured_sources_.species["CarbonDioxide"] = [](double, double) { return kSumSource; };
     data.settings.warnings_.mole_fraction_sum = false;
     ConfigureCycle(2);
     CoupledSolver solver{ data };
     Run(solver);
     EXPECT_EQ(Find(solver.GetRunHealth(), RunHealthCheck::MoleFractionSum), nullptr);
     // The measure is still recorded.
+    ASSERT_FALSE(solver.GetRunHealth().cycles.empty());
     EXPECT_GT(solver.GetRunHealth().cycles.back().mole_fraction_sum_error, RunHealthThresholds::kMoleFractionSum);
   }
 
