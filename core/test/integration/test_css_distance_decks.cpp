@@ -14,12 +14,12 @@
 //    line carries the estimate, and css_history() agrees with the solver.
 //  * Perez2019_E as shipped (slow tier, ~70 s): the slowest deck of the
 //    long-reference verification (test_css_reference.cpp), whose plain stop
-//    was measured 37 tolerances from the reference CSS in the state norm. The
-//    estimate at the stop must be of that size. The deck sits at the edge of
-//    its stopping rule: the state change of cycle 203 is 0.07 % above the
-//    tolerance, so the 3-cycle window ends at cycle 206; a 0.07 % smaller state
-//    change at that cycle would end it at 205. The check accepts
-//    206 +/- 1; a stop further away means the deck or the rule changed.
+//    was measured 35 tolerances from the reference CSS in the state norm. The
+//    estimate at the stop must be of that size. The state change falls
+//    through the tolerance at cycle 192 (cycle 191 is 2.4 % above it), so the
+//    3-cycle window ends at cycle 194 (measured with the gas held in the bed
+//    voids only). The check accepts 194 +/- 1; a stop further away means the
+//    deck or the rule changed.
 
 #include <cmath>
 #include <cstdio>
@@ -114,18 +114,18 @@ namespace adsim {
     ASSERT_TRUE(o.run.Ok()) << o.run.message;
     ASSERT_TRUE(o.run.css_reached);
     // The diagnostic does not move the stop (the plain stop of the reference
-    // verification, measured at 206; +/- 1 for the boundary, see the top).
-    EXPECT_GE(o.run.css_cycle, 205);
-    EXPECT_LE(o.run.css_cycle, 207);
+    // verification, measured at 194; +/- 1 for the boundary, see the top).
+    EXPECT_GE(o.run.css_cycle, 193);
+    EXPECT_LE(o.run.css_cycle, 195);
 
     const CSSRecord stop = sim.CSSHistory().back();
     ASSERT_EQ(stop.cycle, o.run.css_cycle);
     ASSERT_TRUE(stop.distance_estimated) << stop.distance_note;
     std::printf("  Perez2019_E: stop at cycle %d, rate %.4f, distance %.3e, d/eps %.1f "
-                "(measured against the long reference: 37)\n",
+                "(measured against the long reference: 35)\n",
                 stop.cycle, stop.convergence_rate, stop.distance, stop.distance_ratio);
     EXPECT_NE(o.stop_line.find("x tolerance"), std::string::npos) << o.stop_line;
-    // Same size as the measured 37: within a factor of about 3 either way.
+    // Same size as the measured 35: within a factor of about 3 either way.
     EXPECT_GT(stop.distance_ratio, 12.0);
     EXPECT_LT(stop.distance_ratio, 100.0);
     EXPECT_GT(stop.convergence_rate, 0.8);

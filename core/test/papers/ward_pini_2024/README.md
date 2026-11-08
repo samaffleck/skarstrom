@@ -25,6 +25,12 @@
   validation change). The activated-carbon material is defined but not used.
 - Setup is inline in the test body.
 
+## Provenance
+
+| Deck value | Value | Source | Note |
+|---|---|---|---|
+| Gas holdup | bed voids only, ε_t = ε_b = 0.52 | the balances of the model the paper builds on (Ward & Pini 2022, Adsorption, Eqs. A1, A2, A4) use ρ_b/ε; the nomenclature has no total voidage | `adsorbent[Mg-MOF-74].particle_void_fraction` = 0 (and the unused activated carbon); total voidage 0.688 before 2026-11-07 |
+
 ## Related unit tests
 
 The Table 1 isotherm parameters are also exercised as serialization roundtrip
@@ -41,7 +47,7 @@ value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#ward-pini-2024)
 (generated from `../validation_summary.json`).
 
-- CO2 purity within 2.5 pp, recovery within 2.9 pp and productivity within 2.3 % of Table 4 (WENO, 100 cells; see below).
+- CO2 purity within 2.4 pp, recovery within 2.9 pp and productivity within 1.9 % of Table 4 (WENO, 100 cells, gas held in the bed voids only; see below).
 - The deck now uses the extended (competitive) DSL the paper states (Sect. 2.1). Energy is not compared (no pump model in the deck).
 
 ### Gas heat capacity as in the paper (2026-11)
@@ -67,3 +73,20 @@ scheme's numerical dispersion.
 | FourStepPSA | CO2 purity | 98.50 | 96.21 | 96.08 | 2.29 → 2.42 | 2.7 |
 | FourStepPSA | CO2 recovery | 89.00 | 90.97 | 91.83 | 1.97 → 2.83 | **2.1 → 3.4** |
 | FourStepPSA | CO2 productivity | 0.828 | 0.8358 | 0.8465 | 0.009377 → 0.02229 | **0.018 → 0.027** |
+
+### Gas holdup in the bed voids only (2026-11-07)
+
+The 2024 model builds on Ward & Pini (2022), whose balances (Adsorption 2022,
+Eqs. A1, A2, A4) hold the gas in the bed voids only (ρ_b/ε); the nomenclature
+has no particle or total voidage. The deck held gas in the total voidage
+ε_t = ε_b + (1 − ε_b) ε_p = 0.688
+([model conventions](../../../../docs/model-conventions.md#total-voidage)). It
+now sets `particle_void_fraction` to 0 (ε_t = ε_b = 0.52); the LDF coefficient
+is a constant 1 s⁻¹, so the rate is unchanged. Every metric moves by at most
+0.07 pp (productivity by 0.25 %); no bound changed.
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| FourStepPSA | CO2 purity | 98.50 | 96.11 | 96.16 | 2.391 → 2.337 | 2.7 |
+| FourStepPSA | CO2 recovery | 89.00 | 91.76 | 91.83 | 2.759 → 2.827 | 3.4 |
+| FourStepPSA | CO2 productivity | 0.8280 | 0.8455 | 0.8434 | 0.021 → 0.019 | 0.027 |
