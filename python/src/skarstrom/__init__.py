@@ -44,6 +44,7 @@ from .manifests import (
     deck_view_schema,
     example_manifest,
     kpi_manifest,
+    series_manifest,
     unit_manifest,
     warning_manifest,
 )
@@ -185,9 +186,11 @@ __all__ = [
     "deck_view_schema",
     "example_manifest",
     "kpi_manifest",
+    "series_manifest",
     "unit_manifest",
     "warning_manifest",
     "component_variables",
+    "per_adsorbent_variables",
     "constant",
     "evaluate_iast",
     "evaluate_isotherm",
@@ -1083,6 +1086,7 @@ class Simulation:
         location: str = "top",
         z: Optional[float] = None,
         cycle: int = -1,
+        adsorbent: Any = None,
     ) -> TimeSeries:
         """A log variable over one cycle at one point of the bed.
 
@@ -1097,21 +1101,39 @@ class Simulation:
         temperature after any compressor, set pressure), at an outlet the
         bed-end face value. A closed end, and every other variable, gives the
         face value (face variables such as velocity: the boundary face).
+
+        ``adsorbent`` (a name or label of :meth:`series_adsorbents`, a deck ID,
+        or an adsorbent object such as ``sim.adsorbents["13X"]``) gives that
+        solid's own series of a :func:`per_adsorbent_variables` variable (its
+        loading per kg of that solid, 0 where it is absent). Without it the
+        series is the mass-weighted sum over the solids of each cell, which is
+        the same for a layer of one solid.
         """
         if z is not None:
             location = "position"
-        return self._sim.series(variable, component or "", location, 0.0 if z is None else float(z), cycle)
+        return self._sim.series(variable, component or "", location, 0.0 if z is None else float(z), cycle,
+                                _adsorbent_arg(adsorbent))
 
-    def profile(self, variable: str, component: Optional[str] = None, cycle: int = -1, step: int = 0) -> AxialProfile:
+    def series_adsorbents(self) -> List[Dict[str, Any]]:
+        """The adsorbents packed in the last run's bed: ``id`` (deck ID), ``label`` (the name,
+        with `` #<id>`` when two share one; the ``adsorbent=`` of :meth:`series` and the
+        bracket in the log names, ``"<component> Adsorbed Concentration (<label>)"``) and
+        ``logged`` (True when the bed has a mixed layer and the run logged per-adsorbent
+        series; otherwise they are read off the aggregate). Empty without results."""
+        return self._sim.series_adsorbents()
+
+    def profile(
+        self, variable: str, component: Optional[str] = None, cycle: int = -1, step: int = 0, adsorbent: Any = None
+    ) -> AxialProfile:
         """Axial profiles over one step: ``values`` has shape (len(time), len(z)).
 
         ``z`` [m] are the cell centres (:attr:`positions`) for a cell variable
         and the faces (:attr:`face_positions`, ``faces`` True) for a face
         variable (velocity, volumetric and molar flow rate, approach to
         fluidisation). The bed-end values are :meth:`series` with
-        ``location="bottom"`` or ``"top"``.
+        ``location="bottom"`` or ``"top"``. ``adsorbent`` as in :meth:`series`.
         """
-        return self._sim.profile(variable, component or "", cycle, step)
+        return self._sim.profile(variable, component or "", cycle, step, _adsorbent_arg(adsorbent))
 
     def stream_series(
         self, step: int, stream: str, variable: str, component: Optional[str] = None, cycle: int = -1
@@ -1141,6 +1163,29 @@ def bulk_variables() -> List[str]:
 def component_variables() -> List[str]:
     """Names accepted by :meth:`Simulation.series` / :meth:`Simulation.profile` with a component."""
     return _core.component_variables()
+
+
+def per_adsorbent_variables() -> List[str]:
+    """The component variables :meth:`Simulation.series` / :meth:`Simulation.profile` also give
+    per adsorbent (``adsorbent=``): the adsorbed and equilibrium loading, the mass-transfer
+    coefficient and the slow-site loading."""
+    return _core.per_adsorbent_variables()
+
+
+def _adsorbent_arg(adsorbent: Any) -> str:
+    """The ``adsorbent=`` of series/profile as the engine takes it: a label, or a deck ID as text."""
+    if adsorbent is None:
+        return ""
+    if isinstance(adsorbent, bool):
+        raise TypeError("adsorbent must be a name, a deck ID or an adsorbent object")
+    if isinstance(adsorbent, int):
+        return str(adsorbent)
+    if isinstance(adsorbent, str):
+        return adsorbent
+    ads_id = getattr(adsorbent, "id", None)
+    if isinstance(ads_id, int):
+        return str(ads_id)
+    raise TypeError("adsorbent must be a name, a deck ID or an adsorbent object")
 
 
 def stream_variables() -> List[str]:

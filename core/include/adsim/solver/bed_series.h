@@ -42,6 +42,7 @@
 // A position between a bed end and the centre of the end cell interpolates
 // between the boundary value and that cell.
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -55,12 +56,14 @@ namespace adsim {
   enum class ParamSpatialLoc { Top = 0, Bottom = 1, Position = 2 };
 
   // One logged bed variable: a bulk VariableType, or a ComponentVariableType
-  // of one component.
+  // of one component, optionally of one adsorbent (the per-adsorbent series
+  // of IsPerAdsorbentVariable; EquationLog::GetAdsorbentComponentVariable).
   struct BedVariable {
     bool is_component = false;
     VariableType bulk = VariableType::PRESSURE;
     ComponentVariableType comp = ComponentVariableType::MOLE_FRACTION;
     std::string component;
+    std::optional<AdsorbentID> adsorbent;  // unset: the mass-weighted aggregate
 
     static BedVariable Bulk(VariableType t) { BedVariable v; v.bulk = t; return v; }
     static BedVariable Component(ComponentVariableType t, std::string name) {
@@ -68,6 +71,11 @@ namespace adsim {
       v.is_component = true;
       v.comp = t;
       v.component = std::move(name);
+      return v;
+    }
+    static BedVariable AdsorbentComponent(ComponentVariableType t, std::string name, AdsorbentID id) {
+      BedVariable v = Component(t, std::move(name));
+      v.adsorbent = id;
       return v;
     }
   };

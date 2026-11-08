@@ -21,6 +21,20 @@
 
 namespace adsim {
 
+  namespace {
+    // True when some cell holds more than one solid (a mixed layer).
+    bool HasMixedCell(const DomainVectors& domain) {
+      for (const auto& cell : domain.cell_adsorbents)
+        if (cell.size() > 1) return true;
+      return false;
+    }
+  }  // namespace
+
+  std::string PerAdsorbentVariableName(const std::string& component, ComponentVariableType type,
+                                       const std::string& adsorbent_label) {
+    return component + " " + ComponentVariableTypeList[static_cast<size_t>(type)] + " (" + adsorbent_label + ")";
+  }
+
   void EquationLog::Initialise(UserData& user_data) {
     auto& settings = user_data.settings;
     auto& fluid = user_data.fluid;
@@ -32,6 +46,17 @@ namespace adsim {
 
     domain = state.domain_vectors;
     non_local_ = bed.equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL;
+    per_adsorbent_ = HasMixedCell(domain);
+
+    // Adsorbent labels for the per-adsorbent series: the name, with " #<id>"
+    // when another adsorbent has the same name.
+    adsorbent_labels_.clear();
+    {
+      std::map<std::string, int> uses;
+      for (const auto& [id, ads] : user_data.adsorbent_directory.GetAll()) ++uses[ads.name_];
+      for (const auto& [id, ads] : user_data.adsorbent_directory.GetAll())
+        adsorbent_labels_[id] = uses[ads.name_] > 1 ? ads.name_ + " #" + std::to_string(id) : ads.name_;
+    }
     // Keep at least the cycles the CSS check reads (it is a function of the log).
     // When a cycle is checked the log holds it plus max_cycles_to_keep_ earlier
     // cycles (eviction happens when the next cycle starts), hence the - 1.
@@ -113,6 +138,7 @@ namespace adsim {
     // deep-copying every solver step.
     if (is_new_step) {
       domain = state.domain_vectors;
+      per_adsorbent_ = HasMixedCell(domain);
       sys_data.cycle_index_set_.insert(cycle_index);
       sys_data.step_index_set_.insert(step_index);
     }
@@ -229,8 +255,8 @@ namespace adsim {
     // Adsorbed-phase quantities are tracked per adsorbent internally. Log the
     // mass-fraction-weighted aggregate per component (sum_k w_k * x_{k,comp}),
     // which reduces to the single adsorbent's value for a single-adsorbent bed.
-    // TODO(per-adsorbent curves): also emit one curve per (component, adsorbent);
-    // requires the AdsorbentDirectory for names and matching GUI/CSV plumbing.
+    // In a bed with a mixed layer each solid's own series are logged too
+    // (below), so that what each one holds can be read and plotted.
     const auto& cell_ads = state.domain_vectors.cell_adsorbents;
     const auto& bed_cells = state.domain_vectors.bed_cell_indices;
     auto aggregate_per_component = [&](const auto& nested, const std::string& comp) {
@@ -305,6 +331,55 @@ namespace adsim {
       }
     }
 
+    // Per-adsorbent series: in a bed where some cell holds more than one solid,
+    // each solid's own loading [per kg of that solid] beside the aggregate, 0
+    // in the cells without it and the ghost cells mirroring the first and last
+    // bed cell, as the aggregate. Skipped otherwise: there the aggregate of
+    // each cell is the loading of its one solid (GetAdsorbentComponentVariable
+    // reads it from there), and the log stays the same size.
+    if (per_adsorbent_) {
+      // `x` (one adsorbent's values, or nullptr for none) in the cells that
+      // hold adsorbent `id`.
+      auto masked = [&](AdsorbentID id, const std::vector<double>* x, size_t M) {
+        Var1D out = TakeRow();
+        out.assign(M, 0.0);
+        if (x) {
+          for (size_t i = 0; i < M && i < cell_ads.size() && i < x->size(); ++i)
+            for (const auto& ca : cell_ads[i])
+              if (ca.id == id) { out[i] = (*x)[i]; break; }
+        }
+        if (M > 0 && !bed_cells.empty()) {
+          out[0] = out[bed_cells.front()];
+          out[M - 1] = out[bed_cells.back()];
+        }
+        return out;
+      };
+      auto log_per_adsorbent = [&](ComponentVariableType type, const auto& nested) {
+        for (const auto& [component, y] : state.mole_fraction) {
+          const size_t M = y.var.size();
+          for (const auto& [id, label] : adsorbent_labels_) {
+            auto a = state.ads_concentration.find(id);
+            if (a == state.ads_concentration.end()) continue;  // not in the bed
+            const std::vector<double>* x = nullptr;
+            if (auto n = nested.find(id); n != nested.end())
+              if (auto c = n->second.find(component); c != n->second.end()) x = &c->second.var;
+            auto& entry = sim_log.adsorbent_variables[id][component][type];
+            if (entry.values.empty()) {
+              entry.variable_name = PerAdsorbentVariableName(component, type, label);
+              entry.units = GetComponentVariableUnits(type);
+              entry.step_name = step_name;
+            }
+            entry.values.push_back(masked(id, x, M));
+          }
+        }
+      };
+      log_per_adsorbent(ComponentVariableType::ADSORBED_CONCENTRATION, state.ads_concentration);
+      log_per_adsorbent(ComponentVariableType::EQUILIBRIUM_ADSORBED_CONCENTRATION, state.eq_ads_concentration);
+      log_per_adsorbent(ComponentVariableType::MASS_TRANSFER_COEFFICIENT, state.mass_transfer_coefficient);
+      if (state.HasSlowSites())
+        log_per_adsorbent(ComponentVariableType::SLOW_ADSORBED_CONCENTRATION, state.ads_concentration_slow);
+    }
+
     ThinIfOverBudget(sim_log);
   }
 
@@ -328,6 +403,9 @@ namespace adsim {
       for (auto& [type, data] : log.variables) f(data.values);
       for (auto& [component, vars] : log.component_variables)
         for (auto& [type, data] : vars) f(data.values);
+      for (auto& [id, comps] : log.adsorbent_variables)
+        for (auto& [component, vars] : comps)
+          for (auto& [type, data] : vars) f(data.values);
     };
     if (sd.row_bytes == 0) {
       std::size_t doubles = 1;  // the time
@@ -495,6 +573,26 @@ namespace adsim {
             }
           }
         }
+
+        // Per-adsorbent variables (mixed layers), named like
+        // "CarbonDioxide_Adsorbed_Concentration__13X_.csv"
+        for (const auto& [ads_id, comps] : step_data.adsorbent_variables) {
+          for (const auto& [component, comp_vars] : comps) {
+            for (const auto& [comp_var_type, entry] : comp_vars) {
+              if (step_data.step_data.times.empty() || entry.values.empty()) continue;
+              const std::string filename = SanitizeFilename(entry.variable_name) + ".csv";
+              if (files.find(filename) == files.end()) {
+                files[filename].open(out_dir / filename);
+                if (files[filename].is_open()) {
+                  files[filename] << "Cycle Index,Step Index,time";
+                  const size_t num_cells = entry.values[0].size();
+                  for (size_t i = 0; i < num_cells; ++i) files[filename] << ",cell_" << i;
+                  files[filename] << "\n";
+                }
+              }
+            }
+          }
+        }
       }
     }
 
@@ -528,6 +626,18 @@ namespace adsim {
             WriteCsvRows(file, cycle_index, step_index, shared_times, entry.values, max_log_points_per_step_);
           }
         }
+
+        // Per-adsorbent variables
+        for (const auto& [ads_id, comps] : step_data.adsorbent_variables) {
+          for (const auto& [component, comp_vars] : comps) {
+            for (const auto& [comp_var_type, entry] : comp_vars) {
+              if (shared_times.empty() || entry.values.empty()) continue;
+              auto& file = files[SanitizeFilename(entry.variable_name) + ".csv"];
+              if (!file.is_open()) continue;
+              WriteCsvRows(file, cycle_index, step_index, shared_times, entry.values, max_log_points_per_step_);
+            }
+          }
+        }
       }
     }
   }
@@ -553,6 +663,9 @@ namespace adsim {
     for (auto& [type, data] : log.variables) recycle(data);
     for (auto& [component, vars] : log.component_variables)
       for (auto& [type, data] : vars) recycle(data);
+    for (auto& [id, comps] : log.adsorbent_variables)
+      for (auto& [component, vars] : comps)
+        for (auto& [type, data] : vars) recycle(data);
   }
 
   void EquationLog::Clear() {
@@ -679,6 +792,48 @@ namespace adsim {
     auto type_it = comp_it->second.find(type);
     if (type_it == comp_it->second.end()) return VariableLogEntry{};
     return MakeEntry(log.step_data, type_it->second);
+  }
+
+  VariableLogEntry EquationLog::GetAdsorbentComponentVariable(int cycle_index, int step_index,
+      ComponentVariableType type, const std::string& component, AdsorbentID adsorbent) const
+  {
+    if (!IsPerAdsorbentVariable(type)) return VariableLogEntry{};
+    const Log& log = GetLog(cycle_index, step_index);
+    if (!log.adsorbent_variables.empty()) {
+      auto ads_it = log.adsorbent_variables.find(adsorbent);
+      if (ads_it == log.adsorbent_variables.end()) return VariableLogEntry{};
+      auto comp_it = ads_it->second.find(component);
+      if (comp_it == ads_it->second.end()) return VariableLogEntry{};
+      auto type_it = comp_it->second.find(type);
+      if (type_it == comp_it->second.end()) return VariableLogEntry{};
+      return MakeEntry(log.step_data, type_it->second);
+    }
+
+    // No mixed layer: every cell holds at most one solid, so in a cell holding
+    // `adsorbent` the aggregate w x is its value x (w = 1 unless the layer's
+    // one mass fraction was set otherwise).
+    auto label = adsorbent_labels_.find(adsorbent);
+    if (label == adsorbent_labels_.end()) return VariableLogEntry{};
+    VariableLogEntry e = GetComponentVariable(cycle_index, step_index, type, component);
+    if (e.times.empty()) return e;
+    const auto& cell_ads = domain.cell_adsorbents;
+    const auto& bed_cells = domain.bed_cell_indices;
+    for (auto& row : e.values) {
+      const size_t M = row.size();
+      for (size_t i = 0; i < M; ++i) {
+        double x = 0.0;
+        if (i < cell_ads.size())
+          for (const auto& ca : cell_ads[i])
+            if (ca.id == adsorbent && ca.mass_fraction > 0.0) { x = row[i] / ca.mass_fraction; break; }
+        row[i] = x;
+      }
+      if (M > 0 && !bed_cells.empty()) {
+        row[0] = row[bed_cells.front()];
+        row[M - 1] = row[bed_cells.back()];
+      }
+    }
+    e.variable_name = PerAdsorbentVariableName(component, type, label->second);
+    return e;
   }
 
   VariableLogEntry EquationLog::GetFaceVariable(int cycle_index, int step_index, VariableType type) const {

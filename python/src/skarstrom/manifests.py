@@ -13,6 +13,7 @@ Front ends read these instead of keeping their own copies (see
     sk.warning_manifest()         # advisory warnings: switch, default, message template
     sk.component_manifest()       # formula, molar mass, CAS, heat-capacity source
     sk.example_manifest()         # example decks: title, family, hidden, summary
+    sk.series_manifest()          # bed series variables: key, log name, unit, per-adsorbent
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ __all__ = [
     "deck_view_schema",
     "example_manifest",
     "kpi_manifest",
+    "series_manifest",
     "unit_manifest",
     "warning_manifest",
 ]
@@ -46,6 +48,15 @@ def kpi_manifest() -> List[Dict[str, Any]]:
     ``label``, ``short_label``, ``unit`` (SI), ``family``, ``description``, ``display``
     (shown in summary tables) and ``per_step`` (a list per step)."""
     return json.loads(_core.kpi_manifest())
+
+
+def series_manifest() -> Dict[str, Any]:
+    """The bed series variables :meth:`skarstrom.Simulation.series` and ``profile`` take:
+    ``variables`` (``key``, ``label``, log ``name`` pattern such as ``"{component} Adsorbed
+    Concentration"``, ``unit``, ``kind`` bulk/component, ``porous_only``, ``per_adsorbent`` and
+    ``adsorbent_name``, the per-adsorbent log name pattern ``"{component} Adsorbed
+    Concentration ({adsorbent})"``) and ``per_adsorbent_logged_when``."""
+    return json.loads(_core.series_manifest())
 
 
 def unit_manifest() -> Dict[str, Any]:

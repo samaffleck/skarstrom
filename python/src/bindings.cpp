@@ -604,18 +604,21 @@ PYBIND11_MODULE(_core, m) {
   py::class_<adsim::TimeSeries>(m, "TimeSeries")
       .def_readonly("variable", &adsim::TimeSeries::variable)
       .def_readonly("component", &adsim::TimeSeries::component)
+      .def_readonly("adsorbent", &adsim::TimeSeries::adsorbent)
       .def_readonly("unit", &adsim::TimeSeries::unit)
       .def_property_readonly("time", [](const adsim::TimeSeries& t) { return ToArray(t.time); })
       .def_property_readonly("values", [](const adsim::TimeSeries& t) { return ToArray(t.values); })
       .def("__len__", [](const adsim::TimeSeries& t) { return t.time.size(); })
       .def("__repr__", [](const adsim::TimeSeries& t) {
-        return "<TimeSeries " + t.variable + (t.component.empty() ? "" : "[" + t.component + "]") + " [" +
+        return "<TimeSeries " + t.variable + (t.component.empty() ? "" : "[" + t.component + "]") +
+               (t.adsorbent.empty() ? "" : " (" + t.adsorbent + ")") + " [" +
                t.unit + "], " + std::to_string(t.time.size()) + " points>";
       });
 
   py::class_<adsim::AxialProfile>(m, "AxialProfile")
       .def_readonly("variable", &adsim::AxialProfile::variable)
       .def_readonly("component", &adsim::AxialProfile::component)
+      .def_readonly("adsorbent", &adsim::AxialProfile::adsorbent)
       .def_readonly("unit", &adsim::AxialProfile::unit)
       .def_readonly("cycle", &adsim::AxialProfile::cycle)
       .def_readonly("step", &adsim::AxialProfile::step)
@@ -625,7 +628,8 @@ PYBIND11_MODULE(_core, m) {
       .def_property_readonly("values",
                              [](const adsim::AxialProfile& p) { return ToArray2D(p.values, p.rows, p.cols); })
       .def("__repr__", [](const adsim::AxialProfile& p) {
-        return "<AxialProfile " + p.variable + (p.component.empty() ? "" : "[" + p.component + "]") + " [" +
+        return "<AxialProfile " + p.variable + (p.component.empty() ? "" : "[" + p.component + "]") +
+               (p.adsorbent.empty() ? "" : " (" + p.adsorbent + ")") + " [" +
                p.unit + "], cycle " + std::to_string(p.cycle) + " step " + std::to_string(p.step) + ", " +
                std::to_string(p.rows) + " x " + std::to_string(p.cols) + ">";
       });
@@ -841,12 +845,23 @@ PYBIND11_MODULE(_core, m) {
       .def("run_health", &adsim::Simulation::RunHealth, py::return_value_policy::copy)
       .def("wall_design", &adsim::Simulation::WallDesign)
       .def("series", [](const adsim::Simulation& s, const std::string& variable, const std::string& component,
-                        const std::string& location, double z, int cycle) {
-        return s.Series(variable, component, ParseLocation(location), z, cycle);
+                        const std::string& location, double z, int cycle, const std::string& adsorbent) {
+        return s.Series(variable, component, ParseLocation(location), z, cycle, adsorbent);
       }, py::arg("variable"), py::arg("component") = "", py::arg("location") = "top", py::arg("z") = 0.0,
-         py::arg("cycle") = -1)
+         py::arg("cycle") = -1, py::arg("adsorbent") = "")
       .def("profile", &adsim::Simulation::Profile, py::arg("variable"), py::arg("component") = "",
-           py::arg("cycle") = -1, py::arg("step") = 0)
+           py::arg("cycle") = -1, py::arg("step") = 0, py::arg("adsorbent") = "")
+      .def("series_adsorbents", [](const adsim::Simulation& s) {
+        py::list out;
+        for (const auto& a : s.SeriesAdsorbents()) {
+          py::dict d;
+          d["id"] = a.id;
+          d["label"] = a.label;
+          d["logged"] = a.logged;
+          out.append(d);
+        }
+        return out;
+      })
       .def("stream_series", &adsim::Simulation::StreamSeries, py::arg("step"), py::arg("stream"),
            py::arg("variable"), py::arg("component") = "", py::arg("cycle") = -1)
       .def("endpoint_series", &adsim::Simulation::EndpointSeries, py::arg("endpoint_id"), py::arg("variable"),
@@ -1361,6 +1376,7 @@ PYBIND11_MODULE(_core, m) {
   m.def("unit_manifest", []() { return adsim::UnitManifest(); });
   m.def("warning_manifest", []() { return adsim::WarningManifest(); });
   m.def("component_manifest", []() { return adsim::ComponentManifest(); });
+  m.def("series_manifest", []() { return adsim::SeriesManifest(); });
   m.def("example_deck_manifest", [](const std::string& manifest, const std::string& decks) {
     return adsim::ExampleDeckManifest(manifest, decks);
   }, py::arg("manifest_path"), py::arg("decks_dir"));
@@ -1380,6 +1396,7 @@ PYBIND11_MODULE(_core, m) {
   m.def("component_variables", &adsim::ComponentVariableNames);
   m.def("stream_variables", &adsim::StreamVariableNames);
   m.def("stream_component_variables", &adsim::StreamComponentVariableNames);
+  m.def("per_adsorbent_variables", &adsim::PerAdsorbentVariableNames);
 
   // ---- gas properties -------------------------------------------------------
   // Ideal-gas heat capacity C_p0(T) [J/(mol K)] of the NASA polynomials
