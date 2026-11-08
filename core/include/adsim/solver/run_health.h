@@ -39,7 +39,8 @@
 //  * HISTORY_TRUNCATED: the run outlived its log (settings.max_cycles_to_keep)
 //    and the log kept fewer cycles than the diagnostics read back
 //    (kHistoryCycles: the CSS distance estimate's window, and this check's
-//    own balance window), so CSS history read after the run is incomplete.
+//    own balance window), so the series and profiles read after the run cover
+//    only the logged cycles. KPIs and the CSS history are kept for every cycle.
 //    The checks above run as each cycle completes and are not affected.
 //
 // Each code gives at most one warning per run, at the cycle where its value

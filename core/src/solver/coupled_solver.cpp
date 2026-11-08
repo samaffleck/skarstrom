@@ -198,6 +198,7 @@ namespace adsim {
     equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
     boundary_log_.Initialise(user_data_);
     kpi_history_.Clear();
+    css_history_.Clear();
     run_health_.Begin(user_data_);
     step_recoveries_ = 0;
     jump_cycles_.clear();
@@ -603,6 +604,7 @@ namespace adsim {
       auto& css = user_data_.settings.css;
       CSSResult css_result = css.CheckCSS(equation_log_, cycle_index,
                                           [this](int c) { return jump_cycles_.count(c) > 0; });
+      css_history_.Record(cycle_index, css_result);
 
       if (css_result.converged) {
         LogMessage(LogLevel::LOW, "CSS reached at cycle " + std::to_string(i)
@@ -730,6 +732,7 @@ namespace adsim {
       equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
       boundary_log_.Initialise(user_data_);
       kpi_history_.Clear();
+      css_history_.Clear();
       run_health_.Begin(user_data_);
       step_recoveries_ = 0;
       cycle_recoveries_start_ = 0;
@@ -822,6 +825,7 @@ namespace adsim {
         // Check for cyclic steady state before moving to next cycle
         const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex(),
                                                   [this](int c) { return jump_cycles_.count(c) > 0; });
+        css_history_.Record(status_.GetCycleIndex(), css_result);
         if (css_result.converged) {
           LogMessage(LogLevel::LOW, "CSS reached at cycle "
                      + std::to_string(status_.GetCycleIndex() + 1)

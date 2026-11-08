@@ -430,7 +430,7 @@ for s in sim.streams():                                              # every end
 - **Variable names**: `skarstrom.bulk_variables()` (pressure, temperature, velocity, ...) and `skarstrom.component_variables()` (mole_fraction, adsorbed_concentration, ...) list what `series` and `profile` accept. `stream_series` accepts `temperature`, `molar_flow_rate`, `compressor_power` and `pressure` (the bed-end face pressure; a pressure boundary's set value), or `mole_fraction` and `molar_flow` with a component.
 - `sim.save_logs("out")` writes the full solver log as CSV files.
 
-The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles, stream series and CSS history cover those. KPIs are recorded at the end of every cycle, so `sim.kpis()` covers the whole run.
+The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles and stream series cover those. KPIs and the CSS check are recorded at the end of every cycle, so `sim.kpis()`, `sim.kpi_table()` and `sim.css_history()` cover the whole run (a few hundred bytes per cycle: a 2000-cycle run adds well under 1 MB).
 
 ## Optimisation
 

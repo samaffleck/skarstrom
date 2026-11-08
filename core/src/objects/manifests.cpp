@@ -313,7 +313,7 @@ namespace adsim {
          "STEP_RETRIES"},
         {"history_truncated", "Log shorter than the diagnostics need", "end", "settings.warn_history_truncated",
          defaults.history_truncated,
-         "the log kept {value} cycles, fewer than the {limit} the CSS history and its distance estimate read back "
+         "the log kept {value} cycles, fewer than {limit}: series and profiles cover only the logged cycles "
          "(settings.max_cycles_to_keep).",
          "HISTORY_TRUNCATED"},
       };

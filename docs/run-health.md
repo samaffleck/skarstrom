@@ -65,9 +65,9 @@ a grid too coarse for a front.
 ### `HISTORY_TRUNCATED`
 
 The run outlived its log (`settings.max_cycles_to_keep`) and the log kept fewer cycles than the diagnostics
-read back (6: the window of the CSS remaining-distance estimate). The CSS history, profiles and series read
-after the run are then incomplete. KPIs are kept for every cycle, and the checks above run as each cycle
-completes, so neither is affected.
+read back (6: the window of the CSS remaining-distance estimate). The series and profiles read after the run
+then cover only the logged cycles. KPIs and the CSS history are kept for every cycle, and the checks above run
+as each cycle completes, so none of them is affected.
 
 ## Thresholds
 

@@ -13,6 +13,9 @@
 // demand cover only those cycles. The solvers therefore evaluate the KPIs of
 // every tracked component when a cycle completes and keep the few numbers in a
 // KPIHistory, which is never evicted: a run's KPI history spans all its cycles.
+// A KPIRecord is a few dozen doubles per tracked component, so a 2000-cycle run
+// holds well under 1 MB. The CSS check of every cycle is kept the same way
+// (CSSHistory, cyclic_steady_state.h).
 
 #include <limits>
 #include <map>

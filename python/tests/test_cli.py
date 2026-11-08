@@ -122,6 +122,18 @@ def test_run_health_is_reported_even_when_quiet(capsys):
     assert "run health: " in err
 
 
+def test_csv_has_every_cycle_although_the_log_keeps_few(capsys, tmp_path):
+    argv = ["run", PEREZ, "--cycles", "4", "--set", "settings.max_cycles_to_keep=1", "--set", "css.method=0",
+            "--csv", str(tmp_path), "-q"]
+    code, _, _ = run_cli(capsys, *argv)
+    assert code == 0
+    for name, col in (("kpis.csv", "cycle"), ("css.csv", "cycle")):
+        with open(tmp_path / name, newline="") as f:
+            rows = list(csv.DictReader(f))
+        cycles = sorted({int(r[col]) for r in rows})
+        assert cycles == [1, 2, 3, 4], name
+
+
 def test_run_rejects_unknown_parameter_and_bad_value(capsys):
     with pytest.raises(SystemExit) as e:
         main(["run", PEREZ, "--set", "no.such=1", "-q"])
