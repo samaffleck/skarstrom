@@ -210,7 +210,6 @@ namespace adsim {
       EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Moles are not conserved.";
       EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
-      SaveTest("streb_2021_" + c.name, solver);
       if (save_example) SaveResultsAsExample("Streb2021_" + c.name, solver);
 
       Validate(solver, c);

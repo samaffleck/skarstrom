@@ -226,8 +226,6 @@ namespace adsim {
         report.CheckRel("CH4 productivity", pr_ch4, Reference("ferre_2026", case_id, "CH4_productivity"), fc.tol_pr_ch4);
       }
 
-      t.SaveTest("Ferre2026_" + fc.name, solver);
-
       // Emit the flagship NaY(F) biogas PVSA case as a bundled GUI example.
       if (fc.name == "NaY(F)")
         t.SaveResultsAsExample("Ferre2026_NaYF", solver);

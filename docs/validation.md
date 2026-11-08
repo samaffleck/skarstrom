@@ -614,4 +614,4 @@ ctest --preset linux-release -R "(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguye
 python scripts/docs/gen_validation_page.py --merge build/linux-release/validation
 ```
 
-Each test writes `<build>/validation/<paper>__<case>.json`; the script merges them into `core/test/papers/validation_summary.json` and regenerates this page. The test suite also writes about 4 GB of results to `core/Results/`; delete it afterwards.
+Each test writes `<build>/validation/<paper>__<case>.json`; the script merges them into `core/test/papers/validation_summary.json` and regenerates this page.
