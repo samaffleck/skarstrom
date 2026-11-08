@@ -30,6 +30,8 @@ $$
 | $q_i^*$ | Equilibrium adsorbed loading (from the isotherm) | mol kg⁻¹ |
 | $q_i$ | Current adsorbed loading | mol kg⁻¹ |
 
+The same symbols are used throughout this page: $k_i$ is the coefficient of the [rate model](#rate-models), whatever [coefficient type](#mass-transfer-coefficient) produces it; the dual-rate model below writes its two coefficients $k_{i,1}$ (fast) and $k_{i,2}$ (slow), and each is produced by the coefficient type in the same way.
+
 
 ### Dual-Rate Linear Driving Force
 
@@ -177,6 +179,17 @@ k_i = k_0 \thinspace \exp\negthinspace \left(-\frac{E_a}{R T}\right)
 $$
 
 Inputs: **Pre-exponential factor** $k_0$ [s⁻¹], **Activation energy** $E_a$ [J mol⁻¹].
+
+---
+
+## Which to use for direct air capture
+
+Direct-air-capture sorbents (amine-functionalised resins, aluminas and silicas) at 400 ppm CO₂ sit on the steep, Henry-like part of their isotherm, where the capacity factor $K$ is large, and their breakthrough curves show a fast initial front followed by a slow tail. Two choices follow:
+
+- **Rate model.** Use [dual-rate LDF](#dual-rate-linear-driving-force) when the measured breakthrough or uptake curve has the tail, with $\varphi$ the fraction of the capacity that loads fast and $k_{i,1} \gg k_{i,2}$. Stampi-Bombelli et al. (2024, [doi:10.1021/acs.iecr.4c01392](https://doi.org/10.1021/acs.iecr.4c01392)) fit breakthrough curves of amine-functionalised sorbents at DAC conditions with two rates. A single LDF is enough when the outlet reaches the feed in one front.
+- **Coefficient type.** Use [series resistance](#series-resistance-film-macropore-micropore) when the rate constants should follow from particle and transport properties (film, macropore and micropore resistances, with $K$ from the isotherm) rather than being fitted, for instance to scale a laboratory column to another particle size or temperature. Use [constant](#constant) when you have fitted values of $k_{i,1}$ and $k_{i,2}$ directly. The slow site can use a different $D_{c,0}$ or $r_c$ from the fast one.
+
+See also Stampi-Bombelli and Mazzotti (2024) on DAC process modelling. With $\varphi = 1$, the capacity factor set to 1 and the micropore term off, the two models reduce to the first-order LDF with [Haynes](#haynes-1973) coefficient, bit for bit. The bundled deck `Illustrative_DAC_Breakthrough` (400 ppm CO₂ in N₂ on the Lewatit VP OC 1065 library entry) uses both together; its rate parameters are illustrative, not fitted.
 
 ---
 
