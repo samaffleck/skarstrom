@@ -339,7 +339,7 @@ What each part takes:
 | `sim.add_adsorbent(name, **values)` | `solid_density`, `heat_capacity`, `thermal_conductivity`, `particle_void_fraction`; new components get an inert isotherm and a constant LDF rate |
 | `ads.set_isotherm(kind, {component: {param: value}}, components=None)` | `build_kinds()["isotherm"]`; the parameters are those of `skarstrom.isotherm_parameters(kind)`. Components given together share one (competitive) isotherm |
 | `ads.set_mixing_rule(kind)` | `none` (each isotherm on its own) or `iast` (Ideal Adsorbed Solution Theory over the pure isotherms; see [Isotherms](isotherms.md#mixture-loadings-the-mixing-rule-and-iast)); also the field `ads.mixing_rule` |
-| `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf` or `ldf2`; coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity` |
+| `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf`, `ldf2` or `dual_rate_ldf` (`split`, slow-site `slow_<name>` values); coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity` or `series_resistance` |
 | `sim.bed.set_shape(kind, **values)` | `cylinder` (diameter), `square` (width), `rectangle` (width, length) |
 | `sim.bed.set_thermal_equilibrium(kind)`, `sim.bed.set_particle_heat_transfer("constant", particle_htc=...)` | `lte` or `ltne` |
 | `sim.wall.set_material(kind, **values)`, `sim.wall.set_boundary(kind, **values)` | a library material or `custom`; `zero_flux` or `fixed` |
