@@ -1,6 +1,7 @@
 """The deck view, its schema and the display manifests (adsim/objects/deck_view.h, manifests.h)."""
 
 import math
+import os
 
 import pytest
 
@@ -115,3 +116,65 @@ def test_kpi_manifest_covers_every_emitted_kpi_field():
     record = record[0] if isinstance(record, (list, tuple)) else record
     emitted = set(record.as_dict()) - {"cycle", "component", "valid"}
     assert emitted <= {k["key"] for k in sk.kpi_manifest()}
+
+
+def test_manifests_are_not_empty():
+    assert sk.kpi_manifest()
+    assert sk.warning_manifest()
+    assert sk.component_manifest()["components"]
+    assert sk.example_manifest()
+    units = sk.unit_manifest()
+    assert units["categories"]
+    # Every category lists suggested units except "custom" (any unit text the parser accepts).
+    assert all(c["units"] for c in units["categories"] if c["key"] != "custom")
+
+
+def test_every_warning_has_a_registry_switch():
+    sim = sk.Simulation.new(title="t")
+    registry = {p.path for p in sim.parameters()}
+    switches = {p for p in registry if p.startswith("settings.warn_")}
+    seen = set()
+    for w in sk.warning_manifest():
+        assert w["phase"] in ("start", "end"), w["key"]
+        assert w["message"] and w["label"], w["key"]
+        if w["setting"] is None:  # a warning without a switch is always on
+            assert w["default_on"], w["key"]
+            continue
+        assert w["setting"] == f"settings.warn_{w['key']}", w["key"]
+        assert w["setting"] in registry, w["key"]
+        assert sim.get(w["setting"]) == (1.0 if w["default_on"] else 0.0), w["key"]
+        seen.add(w["setting"])
+    # No switch exists without a manifest entry.
+    assert switches == seen
+
+
+def test_every_example_file_in_the_manifest_exists():
+    rows = sk.example_manifest()
+    assert len({r["name"] for r in rows}) == len(rows)
+    for r in rows:
+        assert r["file"] == r["name"] + ".json"
+        assert sk.examples.get(r["name"]).path.endswith(r["file"])
+        assert os.path.isfile(sk.examples.get(r["name"]).path), r["file"]
+        assert r["title"] and r["family"] and r["family_key"], r["name"]
+
+
+def test_component_aliases_come_from_the_component_manifest():
+    comps = {c["name"]: c for c in sk.component_manifest()["components"]}
+    aliases = sk.component_aliases()
+    assert aliases["CO2"] == "CarbonDioxide" and aliases["N2"] == "Nitrogen"
+    for formula in ("CO2", "N2", "O2", "H2", "CH4", "He", "Ar", "H2O", "CO", "C2H6", "C2H4",
+                    "C3H8", "C3H6", "H2S", "SO2", "NH3", "Kr", "Xe", "Ne"):
+        assert aliases[formula] in comps, formula
+    for alias, name in aliases.items():
+        assert name in comps, alias
+    # The typed objects resolve a formula through the same table.
+    sim = sk.examples.Perez2019_A.load()
+    assert sim.steps[0].bottom.y["CO2"] == sim.steps[0].bottom.y["CarbonDioxide"]
+
+
+def test_python_keeps_no_copy_of_the_manifests():
+    # The CLI's KPI columns and the sensitivity outputs are the manifest's, in its order.
+    scalar = [k["key"] for k in sk.kpi_manifest() if not k["per_step"] and not k["diagnostic"]]
+    assert [f for f, _ in cli.KPI_CSV_FIELDS] == scalar
+    from skarstrom import model
+    assert not hasattr(model, "_COMPONENT_ALIASES")

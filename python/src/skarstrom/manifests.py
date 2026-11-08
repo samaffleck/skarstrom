@@ -17,6 +17,7 @@ Front ends read these instead of keeping their own copies (see
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 from typing import Any, Dict, List, Optional
@@ -25,6 +26,7 @@ from . import _core
 
 __all__ = [
     "check_unit",
+    "component_aliases",
     "component_manifest",
     "deck_view_schema",
     "example_manifest",
@@ -72,6 +74,25 @@ def component_manifest() -> Dict[str, Any]:
     ``cp_species`` and ``cp_source`` (empty when the heat capacity is held); ``cp_reference`` is the
     table the polynomials come from."""
     return json.loads(_core.component_manifest())
+
+
+@functools.lru_cache(maxsize=1)
+def _component_aliases() -> Dict[str, str]:
+    table: Dict[str, str] = {}
+    comps = component_manifest()["components"]
+    for pass_keys in (("formula",), ("aliases",)):  # formulas win over CoolProp aliases
+        for c in comps:
+            names = [c[pass_keys[0]]] if pass_keys[0] == "formula" else c[pass_keys[0]]
+            for n in names:
+                if n and n != c["name"]:
+                    table.setdefault(n, c["name"])
+    return table
+
+
+def component_aliases() -> Dict[str, str]:
+    """Formula / alias -> CoolProp name (``"CO2"`` -> ``"CarbonDioxide"``), read from the
+    component manifest once per process. Decks accept these wherever a component is named."""
+    return dict(_component_aliases())
 
 
 def _data_dir() -> str:

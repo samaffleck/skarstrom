@@ -241,6 +241,38 @@ sim.edit.connect(a, b); sim.edit.ensure_ids(); sim.edit.repair_connections(); si
 
 The builder methods of the next section also work on a loaded deck as well as on a new one.
 
+## Views and manifests
+
+The engine describes a deck and the things around it (KPIs, units, warnings, components, example decks) as JSON, and the package returns that JSON as it is. Nothing here is a Python copy: a front end, a script and the CLI read the same data. The page [Deck View and Manifests](deck-view.md) defines the shapes.
+
+```python
+import skarstrom as sk
+
+sim = sk.examples.Perez2019_A.load()
+view = sim.deck_view()                   # structure plus every editable value, as plain dicts
+schema = sk.deck_view_schema()           # JSON Schema of the view (validate it with jsonschema if you like)
+
+feed = view["steps"][0]                  # steps, layers, adsorbents, cycle, kpis, variables ...
+time = next(v for v in feed["values"] if v["key"] == "time")
+print(time["path"], time["text"], time["unit"], time["lower"], time["upper"])   # step[1].time 99 s 0.0 1000.0
+
+sim[time["path"]] = 2 * sk.ureg.min      # every value in the view is a registry path: edit by path
+sim.save("modified.json")
+```
+
+Each value carries its `path`, `alias`, `label`, `value` (SI), `text` (the expression), `unit`, bounds and, for a choice, its `choices`. Setting every value back by its path leaves the deck unchanged, which the test suite checks for every bundled deck. After a structural edit (`sim.edit`) call `sim.deck_view()` again: the view always describes the deck as it is.
+
+The manifests are read once per process:
+
+```python
+sk.kpi_manifest()          # KPI key, label, unit, family, description (the KPIRecord fields)
+sk.unit_manifest()         # unit categories and suggested units; sk.check_unit("kPa", "pressure")
+sk.warning_manifest()      # advisory warnings; each one's switch is a settings.warn_* path
+sk.component_manifest()    # formula, molar mass, CAS, heat-capacity source, aliases
+sk.component_aliases()     # {"CO2": "CarbonDioxide", ...}: the names the typed objects accept
+sk.example_manifest()      # the bundled decks: title, family, summary
+```
+
 ## Building a simulation in Python
 
 A deck can be written entirely in code. `Simulation.new()` starts an empty one; methods named `add_*` and `set_*` create the structure, each model chosen by a kind name; every value is then set like any other field, with the same unit rules. `skarstrom.build_kinds()` lists the kinds of every model family, and an unknown kind raises `ValueError` listing the valid ones.

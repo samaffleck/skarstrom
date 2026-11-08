@@ -39,6 +39,7 @@ import numpy as np
 from . import _core, examples, optimisation, sensitivity, units
 from .manifests import (
     check_unit,
+    component_aliases,
     component_manifest,
     deck_view_schema,
     example_manifest,
@@ -173,6 +174,7 @@ __all__ = [
     "build_kinds",
     "bulk_variables",
     "check_unit",
+    "component_aliases",
     "component_manifest",
     "deck_view_schema",
     "example_manifest",
