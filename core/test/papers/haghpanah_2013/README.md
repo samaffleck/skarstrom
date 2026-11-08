@@ -145,16 +145,16 @@ recorded without a bound (–) otherwise.
 | PL005 | energy vs G | 289.3 | 317.85 | 9.9 % | – |
 | PL007 | energy vs H Table 6 | 388.68 | 402.55 | 3.6 % | 4.2 % |
 | PL007 | CO₂ purity vs G | 91.0 % | 90.57 % | 0.43 pp | 0.55 |
-| PL007 | CO₂ recovery vs G | 91.4 % | 90.79 % | 0.61 pp | 0.75 |
+| PL007 | CO₂ recovery vs G | 91.4 % | 90.78 % | 0.61 pp | 0.75 |
 | PL007 | productivity vs G | 0.704 | 0.6910 | 1.8 % | 2.3 % |
 | PL007 | productivity vs G Ref. | 0.688 | 0.6910 | 0.4 % | 1 % |
 | PL007 | energy vs G | 373.2 | 402.55 | 7.9 % | – |
-| PL010 | energy vs H Table 6 | 499.65 | 503.22 | 0.7 % | 1.2 % |
+| PL010 | energy vs H Table 6 | 499.65 | 503.23 | 0.7 % | 1.2 % |
 | PL010 | CO₂ purity vs G | 91.8 % | 90.65 % | 1.15 pp | 1.35 |
 | PL010 | CO₂ recovery vs G | 91.1 % | 91.57 % | 0.47 pp | 0.6 |
 | PL010 | productivity vs G | 0.721 | 0.7213 | 0.04 % | 0.5 % |
 | PL010 | productivity vs G Ref. | 0.694 | 0.7213 | 3.9 % | 4.6 % |
-| PL010 | energy vs G | 486.8 | 503.22 | 3.4 % | 4 % |
+| PL010 | energy vs G | 486.8 | 503.23 | 3.4 % | 4 % |
 | Fig5Benchmark | dominant multiplier (fitted decay) | 0.9509 | 0.95131 | 0.00041 | 0.0015 |
 | Fig5Benchmark | engine CSS rate, median over the window | 0.9509 | 0.95134 | 0.00044 | – |
 | Fig5Benchmark | cycles to a 10⁻⁵ state change, N₂ start | 115 | 99 | 14 % | order of magnitude |

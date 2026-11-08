@@ -121,7 +121,6 @@ namespace adsim {
     
     EXPECT_GE(retval, 0) << "IDASolve should succeed";
     
-    solver.SaveLogs();
     solver.PrintStatistics();
   }
 
@@ -232,7 +231,6 @@ namespace adsim {
     
     EXPECT_GE(retval, 0) << "IDACycle should succeed";
     
-    solver.SaveLogs();
     solver.PrintStatistics();
   }
   

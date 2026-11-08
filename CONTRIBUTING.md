@@ -27,7 +27,6 @@ ctest --preset linux-release -j3
 # verification tests (label `slow`); CI runs it on Linux, macOS and Windows for
 # every pull request, and every tier on main, nightly and manual runs
 ctest --preset linux-release -j3 -LE "paper|slow"
-rm -rf core/Results                 # the suite writes ~4 GB of output there
 
 # Python package, CLI and example smoke tests
 pip install . pytest

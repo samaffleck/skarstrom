@@ -2,11 +2,14 @@
 //
 // KPI quadratures (adsim/solver/kpi_quadrature.h): the endpoint flows, the
 // pump energy and the face fluxes integrated by IDAS as quadrature states
-// beside the solution. With quadrature error control off (the default) they
-// must leave the run untouched; the quadrature KPIs must agree with the
-// trapezoid KPIs; the step mole balance (inventory difference against the
-// integrated flows) must close; and the buffer-tank summary rebuilt from the
-// quadratures must match the one from the logged samples.
+// beside the solution, and the integrals behind the reported KPIs. With
+// quadrature error control off (the default) they must leave the solution
+// untouched; the reported KPIs must be the quadrature KPIs, and agree with the
+// trapezoid KPIs (trapezoid_*); the step and cycle mole balances (inventory
+// difference against the integrated flows) must close, per component too, now
+// that an outlet's component flow is on the face basis; the per-bed-volume
+// productivity must use the packed cells only; and the buffer-tank summary
+// rebuilt from the quadratures must match the one from the logged samples.
 
 #include <cmath>
 #include <filesystem>
@@ -16,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include "adsim/simulation.h"
+#include "adsim/solver/kpi_history.h"
 #include "adsim/solver/kpis.h"
 #include "adsim/solver/kpi_quadrature.h"
 
@@ -45,8 +49,8 @@ void ExpectRelNear(double got, double want, double rel, const char* what) {
 }  // namespace
 
 // Error control off: the quadratures do not reach IDA's step control, so the
-// solution, the logs and the reported KPIs are bit-identical to a run
-// without them.
+// solution, the logs and the trapezoid KPIs are bit-identical to a run
+// without them; without them the reported KPIs fall back to the trapezoid.
 TEST(KpiQuadrature, LeavesTheRunUnchanged) {
   Simulation with = ShortPerez();
   Simulation without = ShortPerez();
@@ -64,20 +68,63 @@ TEST(KpiQuadrature, LeavesTheRunUnchanged) {
   const auto kb = without.KPIs();
   ASSERT_EQ(ka.size(), kb.size());
   for (size_t i = 0; i < ka.size(); ++i) {
-    EXPECT_EQ(ka[i].purity, kb[i].purity);
-    EXPECT_EQ(ka[i].recovery, kb[i].recovery);
-    EXPECT_EQ(ka[i].productivity_mass, kb[i].productivity_mass);
-    EXPECT_EQ(ka[i].productivity_volume, kb[i].productivity_volume);
-    EXPECT_EQ(ka[i].energy_consumption, kb[i].energy_consumption);
-    EXPECT_EQ(ka[i].production_rate, kb[i].production_rate);
-    // Without the quadratures the quadrature KPIs are undefined.
-    EXPECT_TRUE(std::isnan(kb[i].quadrature_purity));
-    EXPECT_TRUE(std::isnan(kb[i].quadrature_mass_balance_error));
+    EXPECT_EQ(ka[i].trapezoid_purity, kb[i].trapezoid_purity);
+    EXPECT_EQ(ka[i].trapezoid_recovery, kb[i].trapezoid_recovery);
+    EXPECT_EQ(ka[i].trapezoid_productivity_mass, kb[i].trapezoid_productivity_mass);
+    EXPECT_EQ(ka[i].trapezoid_productivity_volume, kb[i].trapezoid_productivity_volume);
+    EXPECT_EQ(ka[i].trapezoid_energy_consumption, kb[i].trapezoid_energy_consumption);
+    EXPECT_EQ(ka[i].trapezoid_production_rate, kb[i].trapezoid_production_rate);
+    // Without the quadratures the reported KPIs are the trapezoid ones, and
+    // the balance (whose inventory is recorded with them) is undefined.
+    EXPECT_EQ(kb[i].purity, kb[i].trapezoid_purity);
+    EXPECT_EQ(kb[i].recovery, kb[i].trapezoid_recovery);
+    EXPECT_EQ(kb[i].productivity_mass, kb[i].trapezoid_productivity_mass);
+    EXPECT_EQ(kb[i].energy_consumption, kb[i].trapezoid_energy_consumption);
+    EXPECT_TRUE(std::isnan(kb[i].mass_balance_error));
   }
   const TimeSeries sa = with.Series("mole_fraction", "CarbonDioxide", SeriesLocation::Top);
   const TimeSeries sb = without.Series("mole_fraction", "CarbonDioxide", SeriesLocation::Top);
   EXPECT_EQ(sa.time, sb.time);
   EXPECT_EQ(sa.values, sb.values);
+}
+
+// The reported KPIs are the quadrature KPIs, exactly: the KPI functions with
+// KPIIntegration::QUADRATURE give the record's values bit for bit, and with
+// TRAPEZOID its trapezoid_* values.
+TEST(KpiQuadrature, ReportedKpisAreTheQuadratureKpis) {
+  Simulation sim = ShortPerez(2);
+  const RunResult r = sim.Run();
+  ASSERT_TRUE(r.Ok()) << r.message;
+  const KPIConfig& cfg_in = sim.Data().kpi_config;
+  KPIConfig cfg = cfg_in;
+  cfg.ResolveIds(sim.Data().cycle.step_list_);
+  const ComponentKPIConfig* c = cfg.FindByComponent("CarbonDioxide");
+  ASSERT_NE(c, nullptr);
+  const auto kpis = sim.KPIs();
+  ASSERT_EQ(kpis.size(), 2u);
+  for (const auto& k : kpis) {
+    SCOPED_TRACE("cycle " + std::to_string(k.cycle));
+    KPIParams p(sim.Log(), sim.Boundaries());
+    p.cycle_index_ = k.cycle;
+    p.product_comp_ = c->product_component;
+    p.feed_endpoints = c->feed_endpoints;
+    p.product_endpoints = c->product_endpoints;
+    p.recycle_endpoints = c->recycle_endpoints;
+    EXPECT_EQ(p.integration_, KPIIntegration::QUADRATURE);  // the default
+    EXPECT_EQ(k.purity, CalculatePurity(p));
+    EXPECT_EQ(k.recovery, CalculateRecovery(p));
+    EXPECT_EQ(k.productivity_mass, CalculateProductivityMass(p));
+    EXPECT_EQ(k.productivity_volume, CalculateProductivityVolume(p));
+    EXPECT_EQ(k.energy_consumption, CalculateSpecificEnergyConsumption(p));
+    EXPECT_EQ(k.production_rate, CalculateProductionRate(p));
+    EXPECT_EQ(k.mass_balance_error,
+              CycleMassBalanceError(sim.Log(), sim.Boundaries(), k.cycle, "CarbonDioxide", KPIIntegration::QUADRATURE));
+    p.integration_ = KPIIntegration::TRAPEZOID;
+    EXPECT_EQ(k.trapezoid_purity, CalculatePurity(p));
+    EXPECT_EQ(k.trapezoid_recovery, CalculateRecovery(p));
+    EXPECT_EQ(k.trapezoid_energy_consumption, CalculateSpecificEnergyConsumption(p));
+    EXPECT_NE(k.purity, k.trapezoid_purity);  // two different integrals
+  }
 }
 
 // The quadrature KPIs integrate the same integrands as the trapezoid over the
@@ -92,16 +139,16 @@ TEST(KpiQuadrature, AgreesWithTheTrapezoidKpis) {
   for (const auto& k : kpis) {
     SCOPED_TRACE("cycle " + std::to_string(k.cycle));
     ASSERT_TRUE(k.valid);
-    ExpectRelNear(k.quadrature_purity, k.purity, 1e-4, "purity");
-    ExpectRelNear(k.quadrature_recovery, k.recovery, 1e-4, "recovery");
-    ExpectRelNear(k.quadrature_productivity_mass, k.productivity_mass, 1e-4, "productivity");
-    ExpectRelNear(k.quadrature_productivity_volume, k.productivity_volume, 1e-4, "productivity (volume)");
-    ExpectRelNear(k.quadrature_production_rate, k.production_rate, 1e-4, "production rate");
-    ExpectRelNear(k.quadrature_energy_consumption, k.energy_consumption, 1e-3, "energy");
+    ExpectRelNear(k.purity, k.trapezoid_purity, 1e-4, "purity");
+    ExpectRelNear(k.recovery, k.trapezoid_recovery, 1e-4, "recovery");
+    ExpectRelNear(k.productivity_mass, k.trapezoid_productivity_mass, 1e-4, "productivity");
+    ExpectRelNear(k.productivity_volume, k.trapezoid_productivity_volume, 1e-4, "productivity (volume)");
+    ExpectRelNear(k.production_rate, k.trapezoid_production_rate, 1e-4, "production rate");
+    ExpectRelNear(k.energy_consumption, k.trapezoid_energy_consumption, 1e-3, "energy");
     ASSERT_TRUE(std::isfinite(k.mass_balance_error));
-    ASSERT_TRUE(std::isfinite(k.quadrature_mass_balance_error));
-    EXPECT_LT(std::abs(k.quadrature_mass_balance_error), 1e-4);
-    EXPECT_LT(std::abs(k.mass_balance_error), 1e-3);
+    ASSERT_TRUE(std::isfinite(k.trapezoid_mass_balance_error));
+    EXPECT_LT(std::abs(k.mass_balance_error), 1e-4);
+    EXPECT_LT(std::abs(k.trapezoid_mass_balance_error), 1e-3);
   }
 }
 
@@ -129,6 +176,63 @@ TEST(KpiQuadrature, StepInventoryBalanceCloses) {
     EXPECT_LT(std::abs(b->RelativeEndpointDiscrepancy()), 1e-5);
   }
   EXPECT_GE(one_open_end, 1);
+}
+
+// An outlet's component flow is the face composition the species balance
+// convects (BedEndFaceMoleFraction), so the endpoint integrals of every
+// component match the face-flux integrals of each step and the cycle
+// component balance closes to the integrator's accuracy. With the bed-end
+// average composition the endpoint balance of each component closed only to
+// about 1e-5 on this deck (2e-5 on the full grid at CSS), the face balance to
+// about 1e-7.
+TEST(KpiQuadrature, ComponentBalanceClosesOnTheFaceBasis) {
+  Simulation sim = ShortPerez(3);
+  const RunResult r = sim.Run();
+  ASSERT_TRUE(r.Ok()) << r.message;
+  const EquationLog& eq = sim.Log();
+  const BoundaryLog& b_log = sim.Boundaries();
+  const int last = sim.LastCycle();
+  for (const auto& comp : sim.Data().fluid.components_) {
+    SCOPED_TRACE(comp);
+    const double e = CycleMassBalanceError(eq, b_log, last, comp);
+    ASSERT_TRUE(std::isfinite(e));
+    EXPECT_LT(std::abs(e), 1e-6);
+  }
+  // Step by step, each component's endpoint moles equal its face moles.
+  const int n_steps = static_cast<int>(sim.Data().cycle.step_list_.size());
+  for (int s = 0; s < n_steps; ++s) {
+    SCOPED_TRACE("step " + std::to_string(s));
+    const StepBalance* b = b_log.GetStepBalance(last, s);
+    ASSERT_NE(b, nullptr);
+    ASSERT_TRUE(b->valid);
+    for (size_t c = 0; c < b->components.size(); ++c) {
+      const double scale = std::max(b->endpoint_in[c] + b->endpoint_out[c], 1e-12);
+      EXPECT_LT(std::abs(b->EndpointNetIn(c) - b->FaceNetIn(c)) / scale, 1e-8) << b->components[c];
+    }
+  }
+}
+
+// productivity_volume divides by the packed bed's volume (its 20 cells), not
+// by the domain's volume with its two ghost cells: productivity_volume times
+// the bed volume is the production rate times the molar mass, and the ratio
+// to the former value is (N + 2) / N.
+TEST(KpiQuadrature, ProductivityVolumeUsesThePackedCells) {
+  Simulation sim = ShortPerez(1);
+  const RunResult r = sim.Run();
+  ASSERT_TRUE(r.Ok()) << r.message;
+  const DomainVectors& domain = sim.Log().GetDomain();
+  const double bed = PackedBedVolume(domain);
+  double with_ghosts = 0.0;
+  for (double v : domain.volume) with_ghosts += v;
+  ASSERT_EQ(domain.volume.size(), 22u);
+  EXPECT_NEAR(with_ghosts / bed, 22.0 / 20.0, 1e-12);
+  const double molar_mass = sim.Log().sys_data.molar_mass.at("CarbonDioxide");
+  const auto kpis = sim.KPIs();
+  ASSERT_EQ(kpis.size(), 1u);
+  const KPIRecord& k = kpis[0];
+  ExpectRelNear(k.productivity_volume * bed, k.production_rate * molar_mass, 1e-12, "productivity x volume");
+  const double former = k.production_rate * molar_mass / with_ghosts;
+  ExpectRelNear(k.productivity_volume / former, 22.0 / 20.0, 1e-12, "ratio to the ghost-cell volume");
 }
 
 // The buffer-tank summary (total moles, flow-weighted temperature and
@@ -172,9 +276,9 @@ TEST(KpiQuadrature, ChunkedRunRecordsTheSameQuadratures) {
   const auto b = chunked.KPIs();
   ASSERT_EQ(a.size(), b.size());
   for (size_t i = 0; i < a.size(); ++i) {
-    EXPECT_NEAR(b[i].quadrature_purity, a[i].quadrature_purity, 1e-12);
-    EXPECT_NEAR(b[i].quadrature_recovery, a[i].quadrature_recovery, 1e-12);
-    EXPECT_NEAR(b[i].quadrature_mass_balance_error, a[i].quadrature_mass_balance_error, 1e-12);
+    EXPECT_NEAR(b[i].purity, a[i].purity, 1e-12);
+    EXPECT_NEAR(b[i].recovery, a[i].recovery, 1e-12);
+    EXPECT_NEAR(b[i].mass_balance_error, a[i].mass_balance_error, 1e-12);
   }
 }
 
@@ -193,8 +297,8 @@ TEST(KpiQuadrature, ErrorControlOn) {
   const auto kb = on.KPIs();
   ASSERT_EQ(ka.size(), kb.size());
   for (size_t i = 0; i < ka.size(); ++i) {
-    ExpectRelNear(kb[i].quadrature_purity, ka[i].quadrature_purity, 1e-4, "purity");
-    ExpectRelNear(kb[i].quadrature_recovery, ka[i].quadrature_recovery, 1e-4, "recovery");
+    ExpectRelNear(kb[i].purity, ka[i].purity, 1e-4, "purity");
+    ExpectRelNear(kb[i].recovery, ka[i].recovery, 1e-4, "recovery");
   }
 }
 

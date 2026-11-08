@@ -323,7 +323,6 @@ namespace adsim {
     ASSERT_TRUE(HasKpiFace(kpi.recycle_endpoints, 2, BoundaryLocation::TOP));
     ASSERT_TRUE(HasKpiFace(kpi.recycle_endpoints, 3, BoundaryLocation::TOP));
 
-    SaveTest("Arora2021_LiLSX_PSA", solver);
     SaveResultsAsExample("Arora2021_LiLSX_PSA", solver);
 
     int retval = solver.IntegrateCycle(data.cycle, false);
@@ -471,7 +470,6 @@ namespace adsim {
     ASSERT_TRUE(HasKpiFace(kpi.recycle_endpoints, 2, BoundaryLocation::TOP));
     ASSERT_TRUE(HasKpiFace(kpi.recycle_endpoints, 3, BoundaryLocation::TOP));
 
-    SaveTest("Arora2021_LiLSX_PVSA", solver);
     SaveResultsAsExample("Arora2021_LiLSX_PVSA", solver);
 
     int retval = solver.IntegrateCycle(data.cycle, false);

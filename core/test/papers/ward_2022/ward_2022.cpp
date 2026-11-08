@@ -255,7 +255,6 @@ namespace adsim {
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
 
-    SaveTest("Ward2022_Q100ccm", solver);
     SaveResultsAsExample("Ward2022_Q100ccm", solver);
 
     ValidateWard(solver, "Q100ccm", 100, kTolY_100, kTolT_100, kTolT50_100);
@@ -389,7 +388,6 @@ namespace adsim {
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
     // solver.PrintStatistics();
-    SaveTest("Ward2022_Q50ccm", solver);
     SaveResultsAsExample("Ward2022_Q50ccm", solver);
 
     ValidateWard(solver, "Q50ccm", 50, kTolY_50, kTolT_50, kTolT50_50);
@@ -524,7 +522,6 @@ namespace adsim {
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
 
     // solver.PrintStatistics();
-    SaveTest("Ward2022_Q200ccm", solver);
     SaveResultsAsExample("Ward2022_Q200ccm", solver);
 
     ValidateWard(solver, "Q200ccm", 200, kTolY_200, kTolT_200, kTolT50_200);
@@ -633,9 +630,6 @@ namespace adsim {
                 << "  gas="   << gas
                 << "  solid=" << solid
                 << "  total=" << total << "\n";
-
-      std::string test_name = "Ward_2022_Q=80[ccm]_k=" + std::to_string(co2_mtc);
-      SaveTest(test_name, solver);
 
       return total;
     };

@@ -114,9 +114,9 @@ namespace adsim {
     const double change = CyclicSteadyState::EndOfCycleStateChange(eq_log, cycle);
     m.state_change = change >= 0.0 ? change : std::numeric_limits<double>::quiet_NaN();
     for (const auto& c : report_.components) {
-      double e = CycleMassBalanceError(eq_log, b_log, cycle, c, KPIIntegration::QUADRATURE);
-      if (!std::isfinite(e)) e = CycleMassBalanceError(eq_log, b_log, cycle, c, KPIIntegration::TRAPEZOID);
-      m.mass_balance_error.push_back(e);
+      // The reported KPIs' balance: the quadratures, each endpoint falling
+      // back to the trapezoid when it has none (KPIIntegration::QUADRATURE).
+      m.mass_balance_error.push_back(CycleMassBalanceError(eq_log, b_log, cycle, c));
     }
     m.steps = at_end.num_steps - at_start.num_steps;
     m.rejected = (at_end.num_err_test_fails - at_start.num_err_test_fails)

@@ -21,7 +21,7 @@ namespace adsim {
     constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
     // Moles of `component` that entered the bed over the cycle through every
-    // endpoint of every step (the inflow only), trapezoid.
+    // endpoint of every step (the inflow only), from the KPI quadratures.
     double AllEndpointInflow(const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
                              const std::string& component) {
       const auto& steps = eq_log.sys_data.step_list_;
@@ -52,20 +52,6 @@ namespace adsim {
         for (const auto& ca : domain.cell_adsorbents[i])
           if (catalysts.count(ca.id)) mass += ca.bulk_density * domain.volume[i];
       return mass;
-    }
-
-    // Volume [m3] of the packed bed: its cells, without the ghost cells (and
-    // without void end cells).
-    double BedVolume(const EquationLog& eq_log) {
-      const DomainVectors& domain = eq_log.GetDomain();
-      double volume = 0.0;
-      if (!domain.bed_cell_indices.empty()) {
-        for (int i : domain.bed_cell_indices)
-          if (i >= 0 && static_cast<size_t>(i) < domain.volume.size()) volume += domain.volume[static_cast<size_t>(i)];
-      } else {
-        for (size_t i = 1; i + 1 < domain.volume.size(); ++i) volume += domain.volume[i];
-      }
-      return volume;
     }
 
     double RatioOrNaN(double num, double den) {
@@ -153,6 +139,11 @@ namespace adsim {
     return (net_in + generated - accumulation) / entered;
   }
 
+  double CycleMassBalanceError(const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
+                               const std::string& component) {
+    return CycleMassBalanceError(eq_log, b_log, cycle, component, KPIIntegration::QUADRATURE);
+  }
+
   std::vector<KPIRecord> ComputeCycleKPIs(const KPIConfig& config_in, const std::vector<Step>& steps,
                                           const EquationLog& eq_log, const BoundaryLog& b_log,
                                           int cycle) {
@@ -177,7 +168,7 @@ namespace adsim {
       } else {
         f_key = AllEndpointInflow(eq_log, b_log, cycle, rx.key_reactant);
       }
-      const double extent = rx.basis == SpaceTimeYieldBasis::BED_VOLUME ? BedVolume(eq_log) : CatalystMass(eq_log);
+      const double extent = rx.basis == SpaceTimeYieldBasis::BED_VOLUME ? PackedBedVolume(eq_log.GetDomain()) : CatalystMass(eq_log);
       sty_denominator = eq_log.sys_data.total_cycle_time * extent;
       peak = CyclePeakTemperature(eq_log, cycle);
     }
@@ -222,20 +213,20 @@ namespace adsim {
           r.step_cooling_duty.push_back(ok_c ? c : nan);
         }
 
-        // The same KPIs from the quadratures.
-        p.integration_ = KPIIntegration::QUADRATURE;
+        // The same KPIs from the trapezoid over the logged samples.
+        p.integration_ = KPIIntegration::TRAPEZOID;
         ok = true;
-        v = CalculatePurity(p, &ok);                    r.quadrature_purity = value(v);
-        v = CalculateRecovery(p, &ok);                  r.quadrature_recovery = value(v);
-        v = CalculateProductivityMass(p, &ok);          r.quadrature_productivity_mass = value(v);
-        v = CalculateProductivityVolume(p, &ok);        r.quadrature_productivity_volume = value(v);
-        v = CalculateSpecificEnergyConsumption(p, &ok); r.quadrature_energy_consumption = value(v);
-        v = CalculateProductionRate(p, &ok);            r.quadrature_production_rate = value(v);
+        v = CalculatePurity(p, &ok);                    r.trapezoid_purity = value(v);
+        v = CalculateRecovery(p, &ok);                  r.trapezoid_recovery = value(v);
+        v = CalculateProductivityMass(p, &ok);          r.trapezoid_productivity_mass = value(v);
+        v = CalculateProductivityVolume(p, &ok);        r.trapezoid_productivity_volume = value(v);
+        v = CalculateSpecificEnergyConsumption(p, &ok); r.trapezoid_energy_consumption = value(v);
+        v = CalculateProductionRate(p, &ok);            r.trapezoid_production_rate = value(v);
       }
       r.mass_balance_error =
-          CycleMassBalanceError(eq_log, b_log, cycle, cfg.product_component, KPIIntegration::TRAPEZOID);
-      r.quadrature_mass_balance_error =
           CycleMassBalanceError(eq_log, b_log, cycle, cfg.product_component, KPIIntegration::QUADRATURE);
+      r.trapezoid_mass_balance_error =
+          CycleMassBalanceError(eq_log, b_log, cycle, cfg.product_component, KPIIntegration::TRAPEZOID);
       if (is_key || is_product) {
         r.reaction_kpis = true;
         double g = 0.0;

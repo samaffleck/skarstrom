@@ -496,14 +496,14 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("cooling_duty", &adsim::KPIRecord::cooling_duty)
       .def_readonly("step_thermal_energy", &adsim::KPIRecord::step_thermal_energy)
       .def_readonly("step_cooling_duty", &adsim::KPIRecord::step_cooling_duty)
-      .def_readonly("quadrature_purity", &adsim::KPIRecord::quadrature_purity)
-      .def_readonly("quadrature_recovery", &adsim::KPIRecord::quadrature_recovery)
-      .def_readonly("quadrature_productivity_mass", &adsim::KPIRecord::quadrature_productivity_mass)
-      .def_readonly("quadrature_productivity_volume", &adsim::KPIRecord::quadrature_productivity_volume)
-      .def_readonly("quadrature_energy_consumption", &adsim::KPIRecord::quadrature_energy_consumption)
-      .def_readonly("quadrature_production_rate", &adsim::KPIRecord::quadrature_production_rate)
+      .def_readonly("trapezoid_purity", &adsim::KPIRecord::trapezoid_purity)
+      .def_readonly("trapezoid_recovery", &adsim::KPIRecord::trapezoid_recovery)
+      .def_readonly("trapezoid_productivity_mass", &adsim::KPIRecord::trapezoid_productivity_mass)
+      .def_readonly("trapezoid_productivity_volume", &adsim::KPIRecord::trapezoid_productivity_volume)
+      .def_readonly("trapezoid_energy_consumption", &adsim::KPIRecord::trapezoid_energy_consumption)
+      .def_readonly("trapezoid_production_rate", &adsim::KPIRecord::trapezoid_production_rate)
       .def_readonly("mass_balance_error", &adsim::KPIRecord::mass_balance_error)
-      .def_readonly("quadrature_mass_balance_error", &adsim::KPIRecord::quadrature_mass_balance_error)
+      .def_readonly("trapezoid_mass_balance_error", &adsim::KPIRecord::trapezoid_mass_balance_error)
       .def_readonly("reaction_kpis", &adsim::KPIRecord::reaction_kpis)
       .def_readonly("reaction_generation", &adsim::KPIRecord::reaction_generation)
       .def_readonly("conversion", &adsim::KPIRecord::conversion)
@@ -530,14 +530,14 @@ PYBIND11_MODULE(_core, m) {
         d["cooling_duty"] = k.cooling_duty;
         d["step_thermal_energy"] = k.step_thermal_energy;
         d["step_cooling_duty"] = k.step_cooling_duty;
-        d["quadrature_purity"] = k.quadrature_purity;
-        d["quadrature_recovery"] = k.quadrature_recovery;
-        d["quadrature_productivity_mass"] = k.quadrature_productivity_mass;
-        d["quadrature_productivity_volume"] = k.quadrature_productivity_volume;
-        d["quadrature_energy_consumption"] = k.quadrature_energy_consumption;
-        d["quadrature_production_rate"] = k.quadrature_production_rate;
+        d["trapezoid_purity"] = k.trapezoid_purity;
+        d["trapezoid_recovery"] = k.trapezoid_recovery;
+        d["trapezoid_productivity_mass"] = k.trapezoid_productivity_mass;
+        d["trapezoid_productivity_volume"] = k.trapezoid_productivity_volume;
+        d["trapezoid_energy_consumption"] = k.trapezoid_energy_consumption;
+        d["trapezoid_production_rate"] = k.trapezoid_production_rate;
         d["mass_balance_error"] = k.mass_balance_error;
-        d["quadrature_mass_balance_error"] = k.quadrature_mass_balance_error;
+        d["trapezoid_mass_balance_error"] = k.trapezoid_mass_balance_error;
         // The reaction KPIs only on the records that carry them, so a deck
         // without reactions keeps its keys.
         if (k.reaction_kpis) {

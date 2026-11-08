@@ -301,7 +301,6 @@ namespace adsim {
       report.CheckRel("CO2 productivity", pr, Reference("ward_pini_2024", "FourStepPSA", "CO2_productivity"), kTolProductivity);
     }
 
-    SaveTest("Ward2024", solver);
     SaveResultsAsExample("Ward2024", solver);
   }
 

@@ -70,8 +70,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("BreakthroughTest2", solver);
-
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
   }
 
@@ -146,8 +144,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("BreakthroughTest3", solver);
-
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
   }
 
@@ -211,8 +207,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("ValvePressurisationTest1", solver);
-
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
   }
 
@@ -266,8 +260,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("ValveDepressurisationTest1", solver);
-
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
   }
 
@@ -320,8 +312,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("DepressurisationTest1", solver);
-
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
   }
 
@@ -371,8 +361,6 @@ namespace adsim {
     bool verbose = false;
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
-
-    SaveTest("DepressurisationTest2", solver);
 
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
   }
@@ -608,8 +596,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("FiveStepProductPurge", solver);
-
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
 
     // TODO: Below needs adapting for interacting steps.
@@ -692,8 +678,6 @@ namespace adsim {
     bool verbose = false;
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
-
-    SaveTest("ExtendedLangmuirIsothermBreakthrough2", solver);
 
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
   }

@@ -60,7 +60,7 @@ every value back by path leaves the deck unchanged.
 
 | Python | C++ (`adsim/objects/manifests.h`) | Contents |
 |---|---|---|
-| `sk.kpi_manifest()` | `KpiManifest()`, `KpiDefinitions()` | Each KPI the engine reports, in report order: `key` (the `KPIRecord` field), `label`, `short_label`, SI `unit`, `family` (purity, recovery, productivity, energy, thermal), `description`, `display`, `per_step`, `diagnostic`. The reported KPIs come first, then the diagnostics (`diagnostic: true`: the `quadrature_*` values and the `mass_balance_error` fractions, [mol/mol]), which a front end can show in a separate section |
+| `sk.kpi_manifest()` | `KpiManifest()`, `KpiDefinitions()` | Each KPI the engine reports, in report order: `key` (the `KPIRecord` field), `label`, `short_label`, SI `unit`, `family` (purity, recovery, productivity, energy, thermal), `description`, `display`, `per_step`, `diagnostic`. The reported KPIs come first, then the diagnostics (`diagnostic: true`: the `trapezoid_*` values and the `mass_balance_error` fractions, [mol/mol]), which a front end can show in a separate section |
 | `sk.unit_manifest()` | `UnitManifest()` | Unit categories (`key`, `name`, `si_unit`) with suggested display units, the parser's symbol overrides and syntax notes |
 | `sk.check_unit(text, category)` | `CheckUnit(text, category)` | `{ok, category, dimension, factor, offset, message}` from the engine's unit parser |
 | `sk.warning_manifest()` | `WarningManifest()`, `WarningDefinitions()` | Advisory warnings: `key`, `label`, `phase` (`start` of a run or `end`), `setting` (registry path of its switch, or null), `default_on`, `message` template |

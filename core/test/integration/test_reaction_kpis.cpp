@@ -205,6 +205,14 @@ TEST(ReactionKPIs, FirstOrderPlugFlowConversion) {
   const double F_out = -EndpointComponentMolesIn(r.sim.Boundaries(), 1, out, BUT);
   EXPECT_NEAR(a->conversion, (F_in - F_out) / F_in, 2e-3 * a->conversion);
   EXPECT_NEAR(a->conversion, -a->reaction_generation / F_in, 1e-12);
+  // F_in is the quadrature integral (the reported KPIs' basis); the
+  // trapezoid over the logged samples moves the conversion by their
+  // difference only (measured 0 here: a constant feed, which the trapezoid
+  // integrates exactly).
+  const double F_in_trapezoid = EndpointComponentMolesIn(r.sim.Boundaries(), 1, in, BUT, KPIIntegration::TRAPEZOID);
+  std::printf("conversion: quadrature %.10g, trapezoid feed %.10g (rel. difference %.3g)\n", a->conversion,
+              -a->reaction_generation / F_in_trapezoid, std::abs(F_in_trapezoid / F_in - 1.0));
+  EXPECT_NEAR(F_in_trapezoid, F_in, 1e-4 * F_in);
 
   // The product's record: one mole of B per mole of A, so S = 1 and Y = X.
   const KPIRecord* b = Find(rows, IBUT);

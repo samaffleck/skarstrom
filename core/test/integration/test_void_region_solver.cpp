@@ -154,8 +154,10 @@ namespace adsim {
     top.endpoint_name = "Feed Pressure Boundary Top";
     top.location = BoundaryLocation::TOP;
 
-    const double logged_in = EndpointMolesIn(solver.GetBoundaryLog(), 0, bottom);
-    const double logged_out = EndpointMolesIn(solver.GetBoundaryLog(), 0, top);
+    // The trapezoid over the logged samples, as GetTotalMolesIn integrates the
+    // face values (the default KPI integration is the quadratures).
+    const double logged_in = EndpointMolesIn(solver.GetBoundaryLog(), 0, bottom, KPIIntegration::TRAPEZOID);
+    const double logged_out = EndpointMolesIn(solver.GetBoundaryLog(), 0, top, KPIIntegration::TRAPEZOID);
     const double face_in = GetTotalMolesIn(solver.GetLog(), 0, 0, BoundaryLocation::BOTTOM);
     const double face_out = GetTotalMolesIn(solver.GetLog(), 0, 0, BoundaryLocation::TOP);
     ASSERT_GT(logged_in, 0.0);
