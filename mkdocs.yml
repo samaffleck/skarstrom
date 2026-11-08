@@ -80,6 +80,7 @@ nav:
       - Wall Design and Operating Limits: wall-design.md
       - Isotherms: isotherms.md
       - Kinetic Models: kinetic-models.md
+      - Mixed Adsorbent Layers: mixed-layers.md
       - Transport Correlations: transport-correlations.md
       - Equation of State: equation-of-state.md
       - Matching Another Model: model-conventions.md

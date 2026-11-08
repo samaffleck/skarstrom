@@ -108,6 +108,13 @@
       "summary": "Illustrative 400 ppm CO2 breakthrough on an amine sorbent with dual-rate LDF and series-resistance kinetics (not a validated reproduction)"
     },
     {
+      "file": "Illustrative_Diluted_Bed.json",
+      "family": "Illustrative",
+      "family_key": "Illustrative",
+      "hidden": false,
+      "summary": "Illustrative CO2 breakthrough on activated carbon diluted with 30 % inert glass beads by mass in a mixed layer (not a validated reproduction)"
+    },
+    {
       "file": "Illustrative_TSA_13X.json",
       "family": "Illustrative",
       "family_key": "Illustrative",
