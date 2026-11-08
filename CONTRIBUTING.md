@@ -128,6 +128,6 @@ licensed under the Apache License 2.0 (see [LICENSE](LICENSE)).
 
 ## Releases
 
-Releases are cut from `main` by merging the "Release X.Y.Z" pull request
-that the Prepare release workflow keeps open; merging it tags the version
-and publishes it to PyPI. Maintainers: see [RELEASING.md](RELEASING.md).
+Releases are automatic: once a day, the Daily release workflow releases `main`
+to PyPI when it has changelog fragments and its CI is green. Between releases
+`main` carries a development version (`0.9.1.dev0`). See [RELEASING.md](RELEASING.md).

@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${1:-$(sed -n 's/^set(ADSIM_PROJECT_VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)$(sed -n 's/^set(ADSIM_VERSION_SUFFIX "\([a-z0-9]*\)").*/\1/p' CMakeLists.txt)}"
+VERSION="${1:-$(sed -n 's/^set(ADSIM_PROJECT_VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)$(sed -n 's/^set(ADSIM_VERSION_SUFFIX "\([a-z0-9.]*\)").*/\1/p' CMakeLists.txt)}"
 OUTDIR="${2:-dist}"
 NAME="skarstrom-${VERSION}"
 mkdir -p "$OUTDIR"

@@ -3,6 +3,7 @@
 import json
 import math
 import os
+import re
 
 import numpy as np
 import pytest
@@ -34,7 +35,9 @@ def perez_run():
 
 
 def test_version_and_examples(tmp_path):
-    assert skarstrom.__version__.count(".") == 2
+    # PEP 440: 0.9.0, 0.9.0rc1, or a development build 0.9.1.dev0[+g<commit>].
+    assert re.fullmatch(r"\d+\.\d+\.\d+((a|b|rc)\d+)?(\.dev\d+)?(\+g[0-9a-f]+)?",
+                        skarstrom.__version__), skarstrom.__version__
     names = skarstrom.examples.names()
     assert PEREZ.name in names and WARD.name in names
     assert len(names) >= 30, "every deck in examples/decks/ ships with the package"
