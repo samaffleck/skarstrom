@@ -221,11 +221,11 @@ namespace adsim {
       w.threshold = needed;
       w.suspects = { "settings.max_cycles_to_keep = " + std::to_string(data.settings.max_cycles_to_keep_) };
       w.hint = "Set settings.max_cycles_to_keep to at least " + std::to_string(T::kHistoryCycles)
-               + " (default 10). KPIs are kept for every cycle; profiles, series and the CSS history only for "
-                 "the logged ones.";
+               + " (default 10) to plot or inspect more of the run. KPIs and the CSS history are kept for every "
+                 "cycle; only the logged series and profiles are limited.";
       w.message = "Warning: the log kept " + std::to_string(kept) + " of the " + std::to_string(run)
-                  + " cycles run, fewer than the " + std::to_string(needed)
-                  + " the CSS history and its distance estimate read back. " + w.hint;
+                  + " cycles run, fewer than " + std::to_string(needed)
+                  + ": series and profiles read after the run cover only the logged cycles. " + w.hint;
       Offer(std::move(w));
     }
   }

@@ -1034,8 +1034,8 @@ class Simulation:
         return self._sim.face_positions
 
     def kpis(self, cycle: Optional[int] = None) -> List[KPIRecord]:
-        """KPIs of every tracked component: every cycle of the run, or one (-1 = the
-        last logged cycle). Cycles the log no longer holds come from the record
+        """KPIs of every tracked component: every cycle of the run (whatever
+        ``settings.max_cycles_to_keep`` is), or one (-1 = the last logged cycle). Cycles the log no longer holds come from the record
         the solver made when each cycle completed."""
         return self._sim.kpis(cycle)
 
@@ -1046,7 +1046,9 @@ class Simulation:
         return pd.DataFrame([k.as_dict() for k in self.kpis(cycle)])
 
     def css_history(self) -> List[CSSRecord]:
-        """The deck's cyclic-steady-state check at every logged cycle."""
+        """The deck's cyclic-steady-state check at every cycle of the run. Cycles the log
+        has evicted (``settings.max_cycles_to_keep``) come from the check made when each
+        cycle completed."""
         return self._sim.css_history()
 
     def operating_limits(self, cycle: int = -1) -> OperatingLimitsReport:

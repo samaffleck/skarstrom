@@ -119,7 +119,7 @@ namespace adsim {
     bool Ok() const { return status == RunStatus::Completed || status == RunStatus::ReachedCSS; }
   };
 
-  // Cyclic-steady-state check for one logged cycle (the deck's CSS method).
+  // Cyclic-steady-state check for one cycle (the deck's CSS method).
   struct CSSRecord {
     int cycle = 0;
     bool converged = false;

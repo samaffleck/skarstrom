@@ -481,6 +481,7 @@ namespace adsim {
     // KPIs of every completed cycle of the run (the logs keep only the last
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
+    const CSSHistory& GetCSSHistory() const { return css_history_; }
     // Run-health measures and warnings of the most recent run (run_health.h).
     const RunHealthReport& GetRunHealth() const { return run_health_.Report(); }
     // Cycles that started from a state moved by CSS acceleration (a committed
@@ -501,6 +502,7 @@ namespace adsim {
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
     KPIHistory kpi_history_;
+    CSSHistory css_history_;  // the CSS check of every cycle (the log keeps only the last few)
     RunHealthMonitor run_health_;
     long step_recoveries_ = 0;  // recoverable IDA failures retried this run (run health)
     std::set<int> jump_cycles_;
@@ -534,6 +536,7 @@ namespace adsim {
     // KPIs of every completed cycle of the run (the logs keep only the last
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
+    const CSSHistory& GetCSSHistory() const { return css_history_; }
     // Run-health measures and warnings of the most recent run (run_health.h).
     const RunHealthReport& GetRunHealth() const { return run_health_.Report(); }
     // Cycles that started from a state moved by CSS acceleration (a committed
@@ -559,6 +562,7 @@ namespace adsim {
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
     KPIHistory kpi_history_;
+    CSSHistory css_history_;  // the CSS check of every cycle (the log keeps only the last few)
     RunHealthMonitor run_health_;
     long step_recoveries_ = 0;      // recoverable IDA failures retried this run (run health)
     long cycle_recoveries_start_ = 0;

@@ -9,6 +9,7 @@
 // STL includes
 #include <functional>
 #include <limits>
+#include <map>
 #include <vector>
 #include <string>
 
@@ -89,6 +90,22 @@ namespace adsim {
     double distance = std::numeric_limits<double>::quiet_NaN();
     double distance_ratio = std::numeric_limits<double>::quiet_NaN();
     std::string distance_note;
+  };
+
+  // The CSS check of each completed cycle, recorded when the cycle completed.
+  // The equation log evicts old cycles (settings.max_cycles_to_keep) but this
+  // record is never evicted: one CSSResult per cycle (about 200 bytes with its two
+  // short strings), so a 2000-cycle run adds well under 1 MB.
+  class CSSHistory {
+  public:
+    void Clear() { records_.clear(); }
+    void Record(int cycle, CSSResult result) { records_[cycle] = std::move(result); }
+    bool Has(int cycle) const { return records_.find(cycle) != records_.end(); }
+    const CSSResult& Cycle(int cycle) const { return records_.at(cycle); }
+    const std::map<int, CSSResult>& Records() const { return records_; }
+
+  private:
+    std::map<int, CSSResult> records_;
   };
 
   // The remaining-distance estimate on its own (CyclicSteadyState::EstimateDistance).

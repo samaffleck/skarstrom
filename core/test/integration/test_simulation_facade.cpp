@@ -363,4 +363,50 @@ TEST(SimulationFacade, KPIsCoverCyclesTheLogEvicted) {
   }
 }
 
+// The CSS check of every cycle is recorded when the cycle completes, so
+// CSSHistory() covers the whole run although the log keeps only the last cycles,
+// and the evicted cycles carry the numbers a full log gives.
+TEST(SimulationFacade, CSSHistoryCoversCyclesTheLogEvicted) {
+  auto run = [](int keep, bool chunked) {
+    Simulation sim = ShortPerez();
+    sim.SetParameter("cycle.number_of_cycles", 8);
+    sim.SetParameter("css.method", 3);
+    sim.SetParameter("css.min_cycles", 100);  // never stops early
+    sim.SetParameter("settings.max_cycles_to_keep", keep);
+    if (chunked) {
+      EXPECT_TRUE(sim.Start());
+      RunStatus st = RunStatus::Running;
+      for (int i = 0; i < 100000 && st == RunStatus::Running; ++i) st = sim.Advance(50);
+      EXPECT_EQ(st, RunStatus::Completed) << sim.LastResult().message;
+    } else {
+      const RunResult r = sim.Run();
+      EXPECT_TRUE(r.Ok()) << r.message;
+    }
+    return sim;
+  };
+
+  Simulation full = run(10, false);
+  const auto want = full.CSSHistory();
+  ASSERT_EQ(want.size(), 8u);
+
+  for (const bool chunked : {false, true}) {
+    SCOPED_TRACE(chunked ? "chunked" : "blocking");
+    Simulation sim = run(1, chunked);
+    ASSERT_LT(sim.Cycles().size(), 8u);  // the log evicted some cycles
+    const auto got = sim.CSSHistory();
+    ASSERT_EQ(got.size(), want.size());
+    for (size_t i = 0; i < got.size(); ++i) {
+      SCOPED_TRACE("cycle " + std::to_string(want[i].cycle));
+      EXPECT_EQ(got[i].cycle, want[i].cycle);
+      EXPECT_EQ(got[i].converged, want[i].converged);
+      EXPECT_EQ(got[i].method, want[i].method);
+      EXPECT_DOUBLE_EQ(got[i].error, want[i].error);
+      EXPECT_DOUBLE_EQ(got[i].tolerance, want[i].tolerance);
+      EXPECT_TRUE((std::isnan(got[i].state_change) && std::isnan(want[i].state_change)) ||
+                  got[i].state_change == want[i].state_change);
+      EXPECT_EQ(got[i].passing_cycles, want[i].passing_cycles);
+    }
+  }
+}
+
 }  // namespace adsim

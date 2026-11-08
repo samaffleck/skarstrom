@@ -707,11 +707,21 @@ namespace adsim {
     // Cycles that started from an accelerated state (a committed re-seed) are
     // left out of the distance diagnostic's window.
     static const std::set<int> kNone{};
+    static const ::adsim::CSSHistory kNoCSS{};
     const std::set<int>& jumps = solver_ ? solver_->GetJumpCycles()
                                : chunked_ ? chunked_->GetJumpCycles() : kNone;
     auto started_from_jump = [&jumps](int c) { return jumps.count(c) > 0; };
-    for (int c : Cycles()) {
-      CSSResult r = data_->settings.css.CheckCSS(Log(), c, started_from_jump);
+    const ::adsim::CSSHistory& recorded = solver_ ? solver_->GetCSSHistory()
+                               : chunked_ ? chunked_->GetCSSHistory() : kNoCSS;
+    // Every cycle of the run, from the check the solver made as each completed.
+    std::set<int> cycles;
+    for (const auto& kv : recorded.Records()) cycles.insert(kv.first);
+    for (int c : Cycles()) cycles.insert(c);
+    for (int c : cycles) {
+      // The check made when the cycle completed (it saw the earlier cycles the log
+      // has since evicted); a cycle with no record is checked against the log.
+      CSSResult r = recorded.Has(c) ? recorded.Cycle(c)
+                                    : data_->settings.css.CheckCSS(Log(), c, started_from_jump);
       out.push_back({c, r.converged, r.error, r.tolerance, r.method_name, r.state_change,
                      r.state_tolerance, r.passing_cycles, r.required_cycles, r.distance_estimated,
                      r.convergence_rate, r.distance, r.distance_ratio, r.distance_note});
