@@ -52,6 +52,8 @@ from typing import (
     overload,
 )
 
+from .manifests import component_aliases
+
 if TYPE_CHECKING:
     from . import Parameter, Simulation
 
@@ -85,30 +87,6 @@ __all__ = [
 #: What a field accepts: a number (SI), a pint Quantity, or a string (an
 #: expression such as "2*feed_time", or a deck-syntax quantity such as "2 [min]").
 Value = Union[float, int, str, Any]
-
-# Formula-style names for the CoolProp components decks use most.
-_COMPONENT_ALIASES = {
-    "CO2": "CarbonDioxide",
-    "N2": "Nitrogen",
-    "O2": "Oxygen",
-    "H2": "Hydrogen",
-    "CH4": "Methane",
-    "He": "Helium",
-    "Ar": "Argon",
-    "H2O": "Water",
-    "CO": "CarbonMonoxide",
-    "C2H6": "Ethane",
-    "C2H4": "Ethylene",
-    "C3H8": "n-Propane",
-    "C3H6": "Propylene",
-    "H2S": "HydrogenSulfide",
-    "SO2": "SulfurDioxide",
-    "NH3": "Ammonia",
-    "Kr": "Krypton",
-    "Xe": "Xenon",
-    "Ne": "Neon",
-}
-
 
 # ---------------------------------------------------------------------------
 # The registry, as a tree
@@ -523,7 +501,7 @@ def _apply(node: "_Node", values: Dict[str, Any]) -> None:
 def _resolve_key(key: str, keys: List[str], what: str) -> str:
     if key in keys:
         return key
-    alias = _COMPONENT_ALIASES.get(key)
+    alias = component_aliases().get(key)
     if alias in keys:
         return alias  # type: ignore[return-value]
     folded = [k for k in keys if k.lower() == str(key).lower()]

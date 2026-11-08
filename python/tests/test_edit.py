@@ -119,3 +119,140 @@ def test_refused_edits_change_nothing(perez):
     with pytest.raises(ValueError, match="already the first"):
         sim.edit.move_step(sim.steps[0], -1)
     assert _deck(sim) == before
+
+
+# ---- every cascade leaves a deck that checks and round-trips ---------------------------------
+# The kinds are read from model_kinds(), never listed here, so a new kind is covered at once.
+
+
+def _paths(sim):
+    return {p.path: p.text for p in sim.parameters()}
+
+
+def _assert_sound(sim, model_mismatch=None):
+    """The deck passes check() and a save/load round trip keeps every registry value and the
+    check's verdict. ``model_mismatch`` names a text the check may report instead: a kind that
+    does not suit the bed (Taylor-Aris dispersion in a packed bed) is the user's modelling
+    choice, which the check reports, not a broken deck."""
+    ok, msg = sim.check()
+    assert ok or (model_mismatch and model_mismatch in msg), msg
+    again = skarstrom.Simulation(sim.to_json())
+    assert _paths(again) == _paths(sim)
+    assert again.check() == (ok, msg)
+
+
+def _tags(family):
+    return [k["tag"] for k in skarstrom.model_kinds()[family]]
+
+
+@pytest.mark.parametrize("family, setter", [
+    ("dispersion", "set_dispersion_kind"),
+    ("heat_dispersion", "set_heat_dispersion_kind"),
+    ("internal_heat_transfer", "set_internal_heat_transfer_kind"),
+    ("external_heat_transfer", "set_external_heat_transfer_kind"),
+])
+def test_layer_kind_switches_round_trip(perez, family, setter):
+    layer = perez.layers[0]
+    for tag in _tags(family):
+        getattr(perez.edit, setter)(layer, tag)
+        _assert_sound(perez, model_mismatch="packed bed")
+
+
+def test_particle_heat_transfer_kind_switches_round_trip(perez):
+    for tag in _tags("particle_heat_transfer"):
+        perez.edit.set_particle_heat_transfer_kind(tag)
+        _assert_sound(perez)
+
+
+def test_every_isotherm_kind_round_trips(perez):
+    ads, comp = perez.adsorbents[0], perez.components[0]
+    for tag in _tags("isotherm"):
+        perez.edit.set_isotherm_kind(ads, comp, tag)
+        perez.edit.fill_gaps()
+        _assert_sound(perez)
+
+
+def test_every_mass_transfer_kind_round_trips(perez):
+    ads, comp = perez.adsorbents[0], perez.components[0]
+    for model in _tags("rate_model"):
+        for coeff in _tags("rate_coefficient"):
+            perez.edit.set_mass_transfer_kind(ads, comp, model, coeff)
+            perez.edit.fill_gaps()
+            _assert_sound(perez)
+
+
+def test_boundary_stream_flow_pump_and_profile_switches_round_trip(perez):
+    step = perez.edit.add_step("Edit")
+    for tag in _tags("boundary"):
+        perez.edit.set_boundary_kind(step, "top", tag)
+        _assert_sound(perez)
+    # A flow end holds streams: every device kind, and every flow quantity of a set-flow stream.
+    perez.edit.set_boundary_kind(step, "bottom", "flow")
+    for tag in _tags("stream"):
+        endpoint = perez.edit.add_stream(step, "bottom", tag)
+        _assert_sound(perez)
+        if tag == "flow":
+            for flow in _tags("flow"):
+                perez.edit.set_flow_kind(endpoint, flow)
+                _assert_sound(perez)
+        if tag == "pump":
+            for pump in _tags("pump_power"):
+                perez.edit.set_pump_power_kind(endpoint, pump)
+                _assert_sound(perez)
+    for index in reversed(range(3)):
+        perez.edit.remove_stream(step, "bottom", index)
+        _assert_sound(perez)
+    # A pressure end: every profile kind and every pump kind.
+    perez.edit.set_boundary_kind(step, "top", "pressure")
+    top = perez.steps.by_id(step).top.id
+    for tag in _tags("profile"):
+        perez.edit.set_profile_kind(top, "pressure", tag)
+        _assert_sound(perez)
+    for tag in _tags("pump"):
+        perez.edit.set_pump_kind(top, tag)
+        _assert_sound(perez)
+
+
+def test_add_remove_connect_cascades_round_trip(perez):
+    before_layers, before_steps = len(perez.layers), len(perez.steps)
+    layer = perez.edit.add_layer("Second")
+    _assert_sound(perez)
+    a = perez.edit.add_step("A")
+    b = perez.edit.duplicate_step(a)
+    _assert_sound(perez)
+    perez.edit.move_step(b, -1)
+    perez.edit.move_layer(layer, -1)
+    _assert_sound(perez)
+    # Connect two flow ends, then disconnect by removing a stream (its link goes with it).
+    perez.edit.set_boundary_kind(a, "top", "flow")
+    perez.edit.set_boundary_kind(b, "top", "flow")
+    s1 = perez.edit.add_stream(a, "top", "flow")
+    s2 = perez.edit.add_stream(b, "top", "flow")
+    perez.edit.connect(s1, s2)
+    _assert_sound(perez)
+    perez.edit.remove_stream(a, "top", 0)
+    assert perez.edit.repair_connections() == 0
+    _assert_sound(perez)
+    perez.edit.remove_step(a)
+    perez.edit.remove_step(b)
+    perez.edit.remove_layer(layer)
+    assert (len(perez.layers), len(perez.steps)) == (before_layers, before_steps)
+    perez.edit.sync_kpi_config()
+    _assert_sound(perez)
+
+
+@pytest.mark.parametrize("example", [pytest.param(e, id=e.name) for e in EX.ALL])
+def test_housekeeping_cascades_on_every_example(example):
+    sim = example.load()
+    before = _paths(sim)
+    sim.edit.ensure_ids()
+    assert sim.edit.repair_connections() == 0
+    assert _paths(sim) == before
+    # fill_gaps only adds entries a deck lacks (older decks), never changes one, and is idempotent.
+    sim.edit.fill_gaps()
+    filled = _paths(sim)
+    assert {k: v for k, v in filled.items() if k in before} == before
+    sim.edit.fill_gaps()
+    assert _paths(sim) == filled
+    ok, msg = sim.check()
+    assert ok, msg
