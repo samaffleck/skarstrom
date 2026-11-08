@@ -146,6 +146,69 @@ The approach to CSS is often a slow geometric decay. Setting **CSS acceleration 
 
 The long reference runs themselves wander by about 10⁻⁷ (A) and 10⁻⁶ (E) in purity and 2×10⁻⁶ (A) and 2×10⁻⁵ (E) in recovery over their last few hundred cycles. Anderson gains most where the approach to CSS is slow (Perez 2019 E, Nguyen 2023 X); on a deck that already converges in a few dozen cycles (Perez 2019 A) it does about as well as Aitken.
 
+### Newton–Krylov
+
+!!! note "New in 0.9"
+    The *Newton-Krylov* acceleration method (`settings.acceleration_method = "newton_krylov"`) and the `newton_*` and `floquet_multiplier` fields of `sim.css_history()`.
+
+Aitken and Anderson extrapolate from cycles the run has already made. *Newton–Krylov* instead solves for the cyclic steady state directly. With x the bed state at the start of a cycle and G(x) the state one cycle later, the CSS is the root of
+
+F(x) = G(x) − x = 0.
+
+Newton's method solves (I − J) d = F(x) for a step d, with J = ∂G/∂x the cycle map's Jacobian, and moves to x + α d. J is never formed. The linear system is solved by GMRES, which only needs products J·v, and each product is a finite difference of the cycle map:
+
+J·v ≈ (G(x + h v) − G(x)) / h,
+
+one plain cycle per Krylov vector. The eigenvalues of I − J cluster near 1, except for the few slow Floquet modes that make the approach to CSS slow, so GMRES needs a handful of vectors per Newton step. The extra cycles run in a scratch copy of the simulation, started from the state the run holds at the end of a cycle. The run itself, its log and its KPIs only see the result: one jump, through the same projection and throwaway-integrator check as Aitken and Anderson.
+
+**Why finite differences.** The [cycle-map Jacobian by forward sensitivities](#cycle-map-jacobian-by-forward-sensitivities-prototype) does not work across the step switches of a PSA cycle. A finite difference only ever runs plain cycles, so it does. Its increment is the crux: G carries the integrator's error, about `settings.reltol`, so h is scaled to that noise. The perturbation's RMS size, in the scaled state, is √reltol·(1 + RMS of the scaled state). That balances the difference's truncation error (of order h) against the noise divided by h, and gives J·v to about √reltol (10⁻³ at the default reltol). Newton is then inexact, and the linear solve need not be more accurate than that. GMRES stops at a residual η·‖F‖, with the forcing term η of Eisenstat and Walker (η = 0.9 (‖F_k‖/‖F_{k−1}‖)², between 10⁻³ and 0.5, starting at 0.1).
+
+**The unknowns** are every differential field of the bed at its cells (loadings, mole fractions, total gas concentration, fluid, solid and wall temperatures), scaled as in the [state test](#state-test). The residual ‖F‖ is the state test's norm: the largest, over the fields, of the RMS scaled change. Unlike Aitken and Anderson, Newton–Krylov also moves the gas concentration and the fluid temperature. Holding them at the run's values made a solve converge in the scratch copy while the run did not: on Perez 2019 A, every following cycle moved by 2×10⁻³ again. The endpoint histories (connected streams, buffer tanks) are held during a solve and updated by the run's own cycles between solves.
+
+**A solve** starts after the fourth cycle, from the end state of that cycle. Each Newton step is damped by the rule of Glover, Papathanasiou and Pini: when some entries would go negative, α is the smallest x_i/(2(x_i − x_i,new)) over them (half the way to zero), otherwise 1. A step is accepted when it reduces ‖F‖; otherwise it is halved once, and if that does not help either, the solve ends. The run then jumps to G of the best iterate. A solve stops at ‖F‖ ≤ 10·reltol, ten times the noise floor of the state norm, or after eight Newton steps. After a converged solve the run continues with plain cycles, and the stopping rule ends it a few cycles later. After a solve that did not converge, Anderson runs for five cycles. The next solve then runs its cycles at reltol/100 and stops at 10 times that. Without a cycle map (a C++ `CoupledSolver` run not started through `Simulation`), the method behaves as Anderson.
+
+On the shipped decks, with their own grid, start and CSS rule (cycle equivalents are the logged cycles plus the solve's extra cycles; c is the distance from a long plain reference in multiples of the state tolerance ε = 2×10⁻⁵, as in the [reference check](#verification-against-a-long-reference)):
+
+| Deck | Method | CSS stop | Cycle equivalents | Newton steps (Krylov vectors) | c state | c KPIs |
+|---|---|---|---|---|---|---|
+| Perez 2019 A | none | 48 | 48 | | 4.4 | 1.2 |
+| | Anderson | 36 | 36 | | | |
+| | Newton–Krylov | 8 | 35 | 3 (7, 14, 2) | 0.43 | 0.38 |
+| Perez 2019 E | none | 195 | 195 | | 36 | 3.4 |
+| | Anderson | 47 | 47 | | | |
+| | Newton–Krylov | 8 | 48 | 6 (3, 5, 6, 7, 10, 2) | 3.7 | 3.4 |
+| Nguyen 2023 X | none | over 800 | | | | |
+| | Anderson | 190 | 190 | | | |
+| | Newton–Krylov | 14 | 218 | 8 + 8, in two solves | — | — |
+
+The CSS stop is the cycle at which the stopping rule fired (counted from 1). The Anderson stops are those of `CSSAndersonDecks` (`core/test/integration/test_css_anderson_decks.cpp`) on the current decks; the tables above were measured before the Perez 2019 decks held gas in the bed voids only.
+The reference of Perez 2019 A drifts by 0.002 ε, that of Perez 2019 E by 0.21 ε. Nguyen 2023 X has no feasible plain reference: its slowest Floquet multiplier is about 0.998, so a plain run still drifts after a thousand cycles. Instead, 50 plain cycles continued from the Newton–Krylov end state move it by 0.47 ε (Perez 2019 A: 0.43 ε, Perez 2019 E: 3.5 ε). The first solve on Nguyen 2023 X reaches the iteration limit at ‖F‖ = 1.5×10⁻⁴ (Krylov vectors 3, 2, 4, 5, 6, 10, 13, 1). The second, after five Anderson cycles, runs at reltol 10⁻⁸ and takes ‖F‖ from 1.6×10⁻⁴ to 3.8×10⁻⁷ (Krylov vectors 24, 4, 29, 9, 30, 6, 23, 15), where that tolerance's noise floor stops it.
+
+**What the measurements show.**
+
+- **The finite-difference increment.** At the deck's own reltol (10⁻⁶), J·v to about 10⁻³ is enough on both Perez decks: the first solve converges, at a dominant multiplier of about 0.9 on Perez 2019 E. It is not enough on Nguyen 2023 X. A slow mode of multiplier μ puts an eigenvalue 1 − μ = 0.002 in I − J, as small as the error of J·v. The Newton direction along that mode is then wrong, and the steps stop reducing ‖F‖. With every solve at the deck's reltol, Nguyen 2023 X took 299 cycle equivalents, against 190 for Anderson. Running the solve's cycles at reltol/100 from the start costs time on the fast decks (Perez 2019 A, before its gas-holdup change: 39 s instead of 28 s, for one cycle equivalent more; Perez 2019 E: 51 instead of 65 cycle equivalents but the same 22 s; Nguyen 2023 X: 152 cycle equivalents, 56 s instead of 81 s). Hence the rule above: tighten only after a solve fails.
+- **Krylov vectors per Newton step.** Two to fourteen on the Perez decks, about as many as there are slow modes, as the Floquet argument predicts. The last steps of a solve need more: near the noise floor GMRES has to resolve the slow mode itself. The slow mode of Nguyen 2023 X needs up to 30, the limit per step.
+- **Cost from cold.** 35 to 48 cycle equivalents on the Perez decks and 218 on Nguyen 2023 X: about Anderson's cost on the two Perez decks, more on Nguyen 2023 X. The run stops at cycle 8 to 14, but the solves' extra cycles cost about as much as the cycles Anderson saves. With every solve kept at the deck's reltol, Nguyen 2023 X took 299 cycle equivalents and ended 7.6 ε (in 50 plain cycles) from its fixed point.
+- **The main gain is the end state.** A solve stops at a residual r, which leaves about r/(1 − μ) to go along the slowest mode. On Perez 2019 A that is 0.4 ε from the reference, against 4.4 ε for the plain stop; on Perez 2019 E 3.7 ε, against 36 ε. The remaining distance shrinks with the solve's tolerance, that is with `settings.reltol`.
+- **Below the noise floor.** For a deeper CSS, tighten `settings.reltol`: the solve's tolerance follows it. On Perez 2019 A (20 cells) at reltol 10⁻¹², one solve takes ‖F‖ from 5.0×10⁻³ through 5.0×10⁻⁴, 3.2×10⁻⁵, 1.7×10⁻⁶ and 1.8×10⁻⁸ to 6.0×10⁻⁹ (contraction factors 0.10, 0.064, 0.053, 0.011 down to the floor: superlinear, as inexact Newton should be), in 57 extra cycles. Below about 10⁻⁸ the integrator's absolute tolerances (10⁻⁸ mol/kg on the loadings, 10⁻⁴ K on the temperatures), which reltol does not change, set the floor: the solve stalls at 1.2×10⁻⁸ at reltol 10⁻¹⁰.
+- **Warm starts.** Started from the CSS of a neighbouring design (feed step 5 % longer, coarse Perez 2019 A), the first solve needs two Newton steps (‖F‖ 1.8×10⁻⁴ → 2.4×10⁻⁵ → 7.9×10⁻⁶) and 15 extra cycles. This is the situation of the [warm-started optimiser](#warm-started-optimisation-and-studies) and of a gradient computed by perturbing a design.
+
+**When to use it.** Use Newton–Krylov when the state at CSS matters: comparing designs that differ by little, finite-difference gradients, or a slow deck whose plain stop ends far from its CSS. From cold it costs about as much as Anderson, or somewhat more on a slow deck, and it ends closer to the CSS, much closer with a tighter reltol. For a quick look at a deck's KPIs, Anderson is as good. Each solve is reported in the solver log at level *medium* (*Newton-Krylov: |F| … → … in N Newton step(s) …*, then the residual history) and in `sim.css_history()`, at the cycle after which it ran:
+
+```python
+import skarstrom
+
+sim = skarstrom.examples.Perez2019_A.load()
+sim.settings.acceleration_method = "newton_krylov"
+result = sim.run()
+for rec in sim.css_history():
+    if rec.newton_iterations >= 0:  # a solve ran after this cycle
+        print(rec.cycle, rec.newton_iterations, rec.newton_cycles, rec.newton_krylov_vectors,
+              rec.newton_residuals, rec.floquet_multiplier, rec.newton_outcome)
+```
+
+`newton_cycles` counts the solve's extra cycles (cycle equivalents). `newton_residuals` is ‖F‖ at each Newton iterate, the start first, in the norm of `state_change`. `floquet_multiplier` is the dominant Floquet multiplier of the cycle map: the largest |1 − θ| over the eigenvalues θ of GMRES's Hessenberg matrix, the Ritz values of I − J. Only the directions the Krylov basis explored count, so a solve that needed few vectors can miss the slowest mode (0.30 on the first solve of Nguyen 2023 X, 0.99 on the second). The C++ API is `AccelerationMethod::NEWTON_KRYLOV`, `AccelerateCyclicSteadyState::NewtonRecords()` and the generic solver `SolveFixedPointNewtonKrylov` in `adsim/solver/newton_krylov.h`.
+
 ## Restarting from a cycle state and warm starts
 
 A completed run keeps its **final state**, the state at the end of its last cycle. It holds everything the next cycle depends on:

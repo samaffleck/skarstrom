@@ -17,10 +17,98 @@
 
 #include <cereal/archives/json.hpp>
 
+#include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/kpis.h"
 #include "adsim/solver/parameterisation.h"
 
 namespace adsim {
+
+  namespace {
+    // The cycle map for the Newton-Krylov acceleration (cyclic_steady_state.h):
+    // plain cycles of a scratch copy of the deck, started from the live run's
+    // state at the cycle boundary with the unknowns replaced. The copy has its
+    // CSS check and acceleration off, so it runs exactly one cycle, and the
+    // live run (its solver, log and state) is never touched.
+    class SimulationCycleMap : public CycleMapEvaluator {
+    public:
+      SimulationCycleMap(UserData& live, std::function<bool()> stop, std::function<void(const std::string&)> log)
+        : live_(live), stop_(std::move(stop)), log_(std::move(log)) {}
+
+      bool Begin(const std::vector<NewtonUnknown>& unknowns) override {
+        try {
+          if (!scratch_) {
+            // A copy of the deck as the run uses it. cereal directly, not
+            // SaveToString, which counts a save of the deck.
+            std::ostringstream oss;
+            {
+              cereal::JSONOutputArchive archive(oss);
+              archive(cereal::make_nvp("simulation", live_));
+            }
+            scratch_ = std::make_unique<Simulation>(Simulation::FromJson(oss.str()));
+            UserData& d = scratch_->Data();
+            d.settings.css.method_ = CSSMethod::NONE;
+            d.settings.acc_css.method_ = AccelerationMethod::NONE;
+          }
+          base_ = CaptureCycleState(live_, 0);
+          index_.clear();
+          index_.reserve(unknowns.size());
+          for (const NewtonUnknown& u : unknowns) {
+            if (u.equation >= base_.fields.size()) return false;
+            const CycleStateField& f = base_.fields[u.equation];
+            const auto it = std::find(f.cell.begin(), f.cell.end(), u.cell);
+            if (it == f.cell.end()) return false;
+            index_.push_back(f.index[static_cast<size_t>(it - f.cell.begin())]);
+          }
+          return true;
+        } catch (const std::exception& e) {
+          Log(std::string("  Newton-Krylov: no cycle map (") + e.what() + ")");
+          return false;
+        }
+      }
+
+      bool Evaluate(const std::vector<double>& x, std::vector<double>& gx) override {
+        if (!scratch_ || x.size() != index_.size()) return false;
+        if (stop_ && stop_()) return false;
+        // Every evaluation sets every unknown, so the start state is updated
+        // in place rather than copied.
+        for (size_t i = 0; i < x.size(); ++i) base_.y[index_[i]] = x[i];
+        RunOptions options;
+        options.cancel = stop_;
+        try {
+          const RunResult r = scratch_->RunCycle(base_, options);
+          if (!r.Ok() || !scratch_->HasFinalState()) return false;
+          const CycleState& end = scratch_->FinalState();
+          if (end.y.size() != base_.y.size()) return false;
+          gx.resize(x.size());
+          for (size_t i = 0; i < x.size(); ++i) gx[i] = end.y[index_[i]];
+        } catch (const std::exception&) {
+          return false;
+        }
+        return true;
+      }
+
+      double RelativeTolerance() const override { return live_.settings.reltol; }
+
+      void SetEvaluationTolerance(double reltol) override {
+        if (!scratch_) return;
+        const double value = reltol > 0.0 ? reltol : static_cast<double>(live_.settings.reltol);
+        scratch_->Data().settings.reltol = value;
+      }
+
+      void Log(const std::string& message) override {
+        if (log_) log_(message);
+      }
+
+    private:
+      UserData& live_;
+      std::function<bool()> stop_;
+      std::function<void(const std::string&)> log_;
+      std::unique_ptr<Simulation> scratch_;
+      CycleState base_;
+      std::vector<size_t> index_;  // the unknowns' entries of CycleState::y
+    };
+  }
+
 
   const char* RunStatusName(RunStatus status) {
     switch (status) {
@@ -466,6 +554,28 @@ namespace adsim {
     const int saved_min_cycles = css.min_cycles_;
     if (start) css.min_cycles_ = std::max(1, css.min_cycles_ - start->cycles);
 
+    // The CSS accelerator starts the run afresh; Newton-Krylov gets its
+    // cycle map (scratch cycles, cancelled with the run).
+    auto& acc = data.settings.acc_css;
+    acc.ResetRun();
+    if (acc.method_ == AccelerationMethod::NEWTON_KRYLOV) {
+      auto cancel = options.cancel;
+      acc.SetCycleMap(std::make_shared<SimulationCycleMap>(
+          data,
+          [&solver, &cancelled, cancel]() {
+            if (cancel && !cancelled && cancel()) {
+              cancelled = true;
+              solver.RequestStop();
+            }
+            return cancelled || solver.IsStopRequested();
+          },
+          [this, keep, forward](const std::string& msg) {
+            if (static_cast<int>(LogLevel::MEDIUM) > static_cast<int>(keep)) return;
+            messages_.push_back({LogLevel::MEDIUM, msg});
+            if (forward) forward(LogLevel::MEDIUM, msg);
+          }));
+    }
+
     const auto t0 = std::chrono::steady_clock::now();
     int rc = -1;
     std::string exception_text;
@@ -474,6 +584,7 @@ namespace adsim {
     } catch (const std::exception& e) {
       exception_text = e.what();
     }
+    acc.SetCycleMap(nullptr);
     css.min_cycles_ = saved_min_cycles;
     solver.SetInitialState(nullptr);
     result_.wall_time_s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
@@ -539,6 +650,20 @@ namespace adsim {
       messages_.push_back({level, msg});
       if (chunked_on_message_) chunked_on_message_(level, msg);
     });
+    auto& acc = data_->settings.acc_css;
+    acc.ResetRun();
+    acc.SetCycleMap(nullptr);
+    if (acc.method_ == AccelerationMethod::NEWTON_KRYLOV) {
+      // The cycle map of a chunked run: its Newton-Krylov solve runs inside
+      // one Advance call (the solve's cycles are not chunked).
+      acc.SetCycleMap(std::make_shared<SimulationCycleMap>(
+          *data_, std::function<bool()>{},
+          [this](const std::string& msg) {
+            if (static_cast<int>(LogLevel::MEDIUM) > static_cast<int>(chunked_log_level_)) return;
+            messages_.push_back({LogLevel::MEDIUM, msg});
+            if (chunked_on_message_) chunked_on_message_(LogLevel::MEDIUM, msg);
+          }));
+    }
     chunked_->Start();
     const auto st = chunked_->GetStatus();
     if (st.GetStatus() == SolverStatus::FAILED) {
@@ -801,6 +926,17 @@ namespace adsim {
       out.push_back({c, r.converged, r.error, r.tolerance, r.method_name, r.state_change,
                      r.state_tolerance, r.passing_cycles, r.required_cycles, r.distance_estimated,
                      r.convergence_rate, r.distance, r.distance_ratio, r.distance_note});
+      // The Newton-Krylov solve made after this cycle, if any.
+      const auto& newton = data_->settings.acc_css.NewtonRecords();
+      if (auto it = newton.find(c); it != newton.end()) {
+        CSSRecord& rec = out.back();
+        rec.newton_iterations = it->second.newton_iterations;
+        rec.newton_cycles = it->second.cycles;
+        rec.newton_residuals = it->second.residuals;
+        rec.newton_krylov_vectors = it->second.krylov_vectors;
+        rec.floquet_multiplier = it->second.floquet_multiplier;
+        rec.newton_outcome = it->second.outcome;
+      }
     }
     return out;
   }
