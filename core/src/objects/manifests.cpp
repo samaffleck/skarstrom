@@ -22,6 +22,8 @@
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/parameters/parameter_registry.h"
+#include "adsim/simulation.h"
+#include "adsim/solver/log.h"
 #include "adsim/solver/operating_limits.h"
 #include "adsim/solver/warning_settings.h"
 #include "view_json.h"
@@ -505,6 +507,57 @@ namespace adsim {
     Value out(rapidjson::kObjectType);
     Set(out, "cp_reference", std::string(kIdealGasHeatCapacityReference), a);
     out.AddMember("components", list, a);
+    return Write(out, options.pretty);
+  }
+
+  std::string SeriesManifest(const ManifestOptions& options) {
+    Document doc;
+    auto& a = doc.GetAllocator();
+    Value list(rapidjson::kArrayType);
+    // BulkVariableNames() / ComponentVariableNames() follow the enum order of
+    // VariableTypeList / ComponentVariableTypeList (static_asserts in
+    // simulation.cpp), so entry i names enum value i.
+    const auto bulk = BulkVariableNames();
+    for (size_t i = 0; i < bulk.size(); ++i) {
+      const auto t = static_cast<VariableType>(i);
+      const std::string label = VariableTypeList[i];
+      Value v(rapidjson::kObjectType);
+      Set(v, "key", bulk[i], a);
+      Set(v, "label", label, a);
+      Set(v, "name", label, a);
+      std::string unit = GetVariableUnits(t);
+      if (unit.size() >= 2 && unit.front() == '[' && unit.back() == ']') unit = unit.substr(1, unit.size() - 2);
+      Set(v, "unit", unit, a);
+      Set(v, "kind", "bulk", a);
+      Set(v, "porous_only", IsPorousOnlyVariable(t), a);
+      Set(v, "per_adsorbent", false, a);
+      Set(v, "adsorbent_name", "", a);
+      list.PushBack(v, a);
+    }
+    const auto comp = ComponentVariableNames();
+    for (size_t i = 0; i < comp.size(); ++i) {
+      const auto t = static_cast<ComponentVariableType>(i);
+      const std::string label = ComponentVariableTypeList[i];
+      Value v(rapidjson::kObjectType);
+      Set(v, "key", comp[i], a);
+      Set(v, "label", label, a);
+      Set(v, "name", "{component} " + label, a);
+      std::string unit = GetComponentVariableUnits(t);
+      if (unit.size() >= 2 && unit.front() == '[' && unit.back() == ']') unit = unit.substr(1, unit.size() - 2);
+      Set(v, "unit", unit, a);
+      Set(v, "kind", "component", a);
+      Set(v, "porous_only", IsPorousOnlyComponentVariable(t), a);
+      Set(v, "per_adsorbent", IsPerAdsorbentVariable(t), a);
+      Set(v, "adsorbent_name",
+          IsPerAdsorbentVariable(t) ? PerAdsorbentVariableName("{component}", t, "{adsorbent}") : std::string(), a);
+      list.PushBack(v, a);
+    }
+    Value out(rapidjson::kObjectType);
+    out.AddMember("variables", list, a);
+    Set(out, "per_adsorbent_logged_when",
+        "some layer of the bed holds more than one solid; otherwise each cell's series is that of its one "
+        "solid and the per-adsorbent series are read off it",
+        a);
     return Write(out, options.pretty);
   }
 

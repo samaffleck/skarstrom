@@ -24,9 +24,14 @@
 //   ComponentManifest()  the components a deck can use: formula, molar mass,
 //                        CAS number, property source and whether the gas heat
 //                        capacity follows the temperature
+//   SeriesManifest()     the bed series variables (Simulation::Series and
+//                        Profile, the solver log): key, log name pattern,
+//                        unit, bulk or per component, and which are also
+//                        logged per adsorbent in a bed with a mixed layer
 //
 // The results variables (series and profiles) are listed by
-// BulkVariableNames() and its siblings in simulation.h; the model kinds by
+// BulkVariableNames() and its siblings in simulation.h (SeriesManifest
+// describes the same list); the model kinds by
 // the builder (deck_builder.h); the editable values by the parameter registry
 // and the deck view (deck_view.h).
 
@@ -128,5 +133,23 @@ namespace adsim {
   // Every component a deck can add (Components::componentNames): an object
   // with `cp_reference` (the source table of the polynomials) and `components`.
   std::string ComponentManifest(const ManifestOptions& options = {});
+
+  // ---- series ----------------------------------------------------------------
+
+  // The bed series variables, BulkVariableNames() then ComponentVariableNames()
+  // in that order: an object with `variables`, each
+  //   key            the name Series / Profile take ("adsorbed_concentration")
+  //   label          the log's display name ("Adsorbed Concentration")
+  //   name           the log name pattern: "Pressure", "{component} Adsorbed
+  //                  Concentration"
+  //   unit           SI unit symbol
+  //   kind           "bulk" or "component"
+  //   porous_only    meaningful in packed cells only
+  //   per_adsorbent  also logged per adsorbent (the `adsorbent` argument)
+  //   adsorbent_name the per-adsorbent log name pattern, "{component} Adsorbed
+  //                  Concentration ({adsorbent})" ({adsorbent} is a label of
+  //                  Simulation::SeriesAdsorbents()), "" when not per adsorbent
+  // and `per_adsorbent_logged_when`, the rule for when a run logs them.
+  std::string SeriesManifest(const ManifestOptions& options = {});
 
 }  // namespace adsim
