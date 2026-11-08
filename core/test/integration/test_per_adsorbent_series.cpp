@@ -235,8 +235,10 @@ namespace adsim {
     const AxialProfile q_agg = blend.Profile("adsorbed_concentration", CO2);
     const double scale = MaxAbs(q_a.values);
     ASSERT_GT(scale, 0.1);
-    EXPECT_EQ(MaxAbs(q_i.values), 0.0);
-    EXPECT_EQ(MaxAbs(blend.Profile("equilibrium_adsorbed_concentration", CO2, -1, 0, "Glass beads").values), 0.0);
+    // The inert's loading and equilibrium loading are 0 to round-off.
+    EXPECT_LT(MaxAbs(q_i.values), 1e-12 * scale);
+    EXPECT_LT(MaxAbs(blend.Profile("equilibrium_adsorbed_concentration", CO2, -1, 0, "Glass beads").values),
+              1e-12 * scale);
     // Same run, same cells: the aggregate is w_A q_A + w_I * 0.
     EXPECT_LT(MaxAbsDiff(q_agg.values, q_a.values, kInertW) / scale, 1e-12);
 

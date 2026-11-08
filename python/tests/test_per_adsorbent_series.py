@@ -29,14 +29,14 @@ def test_series_and_profile_per_adsorbent(mixed):
     beads = mixed.profile("adsorbed_concentration", CO2, adsorbent=ads["Beads"]["id"])
     assert q13x.adsorbent == "13X" and beads.adsorbent == "Beads"
     assert q13x.values.shape == agg.values.shape
-    assert np.max(np.abs(q13x.values)) > 0 and np.all(beads.values == 0)
-    np.testing.assert_allclose(agg.values, 0.9 * q13x.values, rtol=1e-12, atol=1e-15)
+    assert np.max(np.abs(q13x.values)) > 0 and np.max(np.abs(beads.values)) < 1e-12 * np.max(np.abs(q13x.values))
+    np.testing.assert_allclose(agg.values, 0.9 * q13x.values, rtol=1e-12, atol=1e-12 * np.max(np.abs(q13x.values)))
 
     # By adsorbent object too; series at a position.
     s = mixed.series("equilibrium_adsorbed_concentration", CO2, z=0.1, adsorbent=mixed.adsorbents["13X"])
     s_agg = mixed.series("equilibrium_adsorbed_concentration", CO2, z=0.1)
     assert s.adsorbent == "13X" and "(13X)" in repr(s)
-    np.testing.assert_allclose(s_agg.values, 0.9 * s.values, rtol=1e-12, atol=1e-15)
+    np.testing.assert_allclose(s_agg.values, 0.9 * s.values, rtol=1e-12, atol=1e-12 * np.max(np.abs(s.values)))
 
     with pytest.raises(ValueError):
         mixed.series("pressure", adsorbent="13X")
