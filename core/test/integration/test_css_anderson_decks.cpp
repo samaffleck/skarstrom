@@ -12,7 +12,7 @@
 //
 //   deck          plain  Aitken  Anderson
 //   Perez2019_A      47       -        35
-//   Perez2019_E     194      59        46
+//   Perez2019_E     194      59        43
 //
 // The reference KPIs are those of a long plain run with the CSS check off
 // (cycle 499 for A, 999 for E). Over its last 300 cycles the reference
@@ -88,12 +88,12 @@ namespace adsim {
   }  // namespace
 
   TEST(CSSAndersonDecks, Perez2019AStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 35, purity error 7.0e-7, recovery error 3.1e-5.
+    // Measured: stop at 35, purity error 7.6e-7, recovery error 3.2e-5.
     CheckAnderson({"Perez2019_A", 47, 40, 0.9955118911, 0.6014141775, 4.3e-7, 2.7e-5});
   }
 
   TEST(CSSAndersonDecks, Perez2019EStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 46, purity error 1.7e-7, recovery error 4.0e-5.
+    // Measured: stop at 43, purity error 2.2e-5, recovery error 9.1e-6.
     CheckAnderson({"Perez2019_E", 194, 70, 0.8724318702, 0.9390793657, 6.8e-5, 3.1e-5});
   }
 
