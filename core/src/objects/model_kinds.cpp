@@ -71,9 +71,9 @@ K ResistanceModel() {
        {"micropore_activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "micropore diffusion activation energy"},
        {"capacity_factor", "-", 0.0, 0.0, 1e5, true, "fixed capacity factor (the fixed mode sets 0 to 1)"},
        {"concentration_floor", "mol/m3", 1e-3, 0.0, 10.0, true, "capacity-factor concentration floor"},
-       {"k", "1/s", 0.5, 1e-4, 100.0, true, "lumped mass transfer coefficient"},
-       {"activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "lumped coefficient activation energy"},
-       {"pore_radius", "m", 1e-9, 1e-10, 1e-6, true, "Knudsen pore radius"}}};
+       {"k", "1/s", 0.5, 1e-4, 100.0, true, "mass transfer coefficient"},
+       {"activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "MTC activation energy"},
+       {"pore_radius", "m", 1e-9, 1e-10, 1e-6, true, "pore radius"}}};
   using R = ResistanceDescriptor;
   R film{"film", "external film", "", true, {"film_resistance_factor"}};
   film.sphere = {R"(f_{film}\,\frac{{K}r_p}{3\,k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{d_p})", ""};
