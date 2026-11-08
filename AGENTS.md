@@ -16,7 +16,7 @@ git clone --recursive https://github.com/samaffleck/skarstrom.git && cd skarstro
 
 ### Run a deck
 
-A **deck** is a JSON simulation file. 40 example decks ship with the package (`examples/decks/` in the repository).
+A **deck** is a JSON simulation file. 41 example decks ship with the package (`examples/decks/` in the repository).
 
 CLI with machine-readable output (exit code 0 = completed or cyclic steady state reached, 1 = failed, 130 = interrupted):
 

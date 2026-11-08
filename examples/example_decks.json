@@ -101,6 +101,13 @@
       "summary": "Four-step CO2/N2 PVSA on zeolite 13X: reference design (Section 6.1)"
     },
     {
+      "file": "Illustrative_DAC_Breakthrough.json",
+      "family": "Illustrative",
+      "family_key": "Illustrative",
+      "hidden": false,
+      "summary": "Illustrative 400 ppm CO2 breakthrough on an amine sorbent with dual-rate LDF and series-resistance kinetics (not a validated reproduction)"
+    },
+    {
       "file": "Illustrative_TSA_13X.json",
       "family": "Illustrative",
       "family_key": "Illustrative",
