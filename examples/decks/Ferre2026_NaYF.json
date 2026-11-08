@@ -748,7 +748,7 @@
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.012412186539298629
+                                            "value": 0.012412186539298624
                                         }
                                     ],
                                     "Source_Cycle_Index": 153
@@ -1092,11 +1092,11 @@
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Methane",
-                                            "value": 0.9766792718403374
+                                            "value": 0.9766792718403375
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.023320728159662467
+                                            "value": 0.02332072815966247
                                         }
                                     ],
                                     "Source_Cycle_Index": 153
@@ -1305,7 +1305,7 @@
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Methane",
-                                            "value": 0.052346641061935979
+                                            "value": 0.05234664106193601
                                         },
                                         {
                                             "key": "CarbonDioxide",
@@ -1500,11 +1500,11 @@
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Methane",
-                                            "value": 0.5999999999999998
+                                            "value": 0.6000005132510929
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.4000000000000002
+                                            "value": 0.399999486748907
                                         }
                                     ],
                                     "Source_Cycle_Index": 153
@@ -1648,8 +1648,14 @@
             "Version": 3
         },
         "KPI_Config": {
-            "cereal_class_version": 3,
-            "Per_Component": []
+            "cereal_class_version": 4,
+            "Per_Component": [],
+            "Reaction": {
+                "cereal_class_version": 0,
+                "Key_Reactant": "",
+                "Products": [],
+                "Space_Time_Yield_Basis": 0
+            }
         },
         "Variable_Registry": {
             "cereal_class_version": 1,
