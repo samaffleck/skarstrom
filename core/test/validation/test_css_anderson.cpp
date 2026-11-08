@@ -213,7 +213,7 @@ namespace adsim {
     LoadFromJson(data, "../examples/decks/Perez2019_A.json");
     ParameterRegistry reg(data);
     Parameter& method = reg.Get("settings.acceleration_method");
-    ASSERT_EQ(method.Info().choices.size(), 3u);
+    ASSERT_EQ(method.Info().choices.size(), 4u);
     EXPECT_EQ(method.Info().choices[2], "anderson");
     method.SetText("anderson");
     EXPECT_EQ(data.settings.acc_css.method_, AccelerationMethod::ANDERSON);

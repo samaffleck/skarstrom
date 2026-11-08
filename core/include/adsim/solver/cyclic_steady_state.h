@@ -10,6 +10,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -51,13 +52,15 @@ namespace adsim {
   enum class AccelerationMethod {
     NONE,     // No acceleration (plain successive substitution)
     AITKEN,   // Aitken delta^2 / Graves-Morris vector extrapolation
-    ANDERSON  // Anderson mixing over the last few cycles (see AccelerateCyclicSteadyState)
+    ANDERSON, // Anderson mixing over the last few cycles (see AccelerateCyclicSteadyState)
+    NEWTON_KRYLOV  // Newton-Krylov on G(x) - x = 0 with finite-difference J v (see AccelerateCyclicSteadyState)
   };
 
   static const char* AccelerationMethodList[] = {
     "None",
     "Aitken (Graves-Morris)",
-    "Anderson"
+    "Anderson",
+    "Newton-Krylov"
   };
 
   struct CSSResult {
@@ -323,14 +326,119 @@ namespace adsim {
   // fitted combination does not reduce the residual, and shortened to
   // kMaxStepMultiple natural steps. It goes through the same projection and
   // the caller's re-seed probe as an Aitken jump.
+  //
+  // Newton-Krylov (AccelerationMethod::NEWTON_KRYLOV) solves F(x) = G(x) - x = 0
+  // by Newton's method with GMRES, forming each product J v by a finite
+  // difference of the cycle map, one plain cycle per Krylov vector
+  // (SolveFixedPointNewtonKrylov in newton_krylov.h). The extra cycles run in
+  // a scratch copy of the simulation (CycleMapEvaluator, provided by
+  // Simulation for its runs), started from the state the live run holds at
+  // the end of the cycle with the unknowns replaced; the live run and its log
+  // are never touched.
+  //  * Unknowns: every differential field (the slow fields above AND the
+  //    total gas concentration and fluid temperature), at its differential,
+  //    active entries (ghost and void cells are left out); the algebraic
+  //    fields follow from the consistent-IC solve at the cycle start. The
+  //    concentration and fluid temperature are not fast enough to hold fixed:
+  //    on Perez 2019 A a solve over the slow fields alone converged to 6e-7
+  //    in the scratch map, yet the next live cycle moved by 2e-3 again; with
+  //    them, the cycle after the jump moved by 3e-7. The endpoint histories
+  //    (connected streams, buffer tanks) are held at the live values during a
+  //    solve and updated by the logged cycles between solves.
+  //  * Scaling: as the state test (CyclicSteadyState::EndOfCycleStateChange):
+  //    loadings by the RMS total loading (floored at 1e-8 mol/kg), mole
+  //    fractions absolute, temperatures and the concentration by their RMS.
+  //    The residual norm is the state test's: the largest, over the fields,
+  //    of the RMS scaled residual.
+  //  * The difference increment is scaled to the integrator's noise:
+  //    fd_relative_step = sqrt(reltol), with reltol the scratch cycles' own.
+  //    They run at settings.reltol, until a solve fails to converge; later
+  //    solves run them at newton_reltol_factor_ times it. A slow mode of
+  //    multiplier mu puts an eigenvalue 1 - mu in I - J, and the difference
+  //    J v carries an error of about sqrt(reltol): at the deck's reltol 1e-6
+  //    that swamps the slow mode of Nguyen 2023 X (mu = 0.998) and the Newton
+  //    steps stop reducing |F|, while on Perez 2019 A and E the first solve
+  //    converges and a tighter tolerance would only make the cycles dearer.
+  //  * A solve starts from the live end state x0 (one scratch cycle for
+  //    G(x0)), runs up to kNewtonMaxIterations damped Newton steps (Glover
+  //    rule, one halving when a step does not reduce |F|), and stops at
+  //    |F| <= newton_tolerance_ (by default 10 times the scratch cycles'
+  //    reltol, so 10 settings.reltol until tightened) or when a step
+  //    fails to reduce |F|. The jump is then G of the best iterate (one free
+  //    plain cycle beyond it), through the same projection (clipping, mole
+  //    fractions renormalised) and re-seed probe as the other methods.
+  //  * Solves start at cycle kNewtonFirstCycle. After a solve that did not
+  //    converge, Anderson runs for kNewtonCooldownCycles cycles before the
+  //    next attempt. After one that did, the run continues with plain cycles
+  //    and solves again only when the natural cycle-to-cycle change exceeds
+  //    kNewtonRetryFactor times the residual that solve reached (or times
+  //    10 settings.reltol, the live cycles' noise, when that is larger).
+  //  * Without an evaluator (an engine-level CoupledSolver run, not one
+  //    started through Simulation) it behaves as Anderson.
   struct AccelerationNote {
     std::string skipped;  // set when a full three-cycle window is rejected: the reason
     std::string fit;      // set for every full window: the fitted coefficient and rates
   };
 
+  // One unknown of the Newton-Krylov solve: an entry of one equation's
+  // profile (Equations::GetEquations() index and cell).
+  struct NewtonUnknown {
+    size_t equation = 0;
+    size_t cell = 0;
+  };
+
+  // The cycle map G for the Newton-Krylov acceleration: plain cycles run
+  // outside the live run (see AccelerateCyclicSteadyState). Simulation
+  // provides one for its runs.
+  class CycleMapEvaluator {
+  public:
+    virtual ~CycleMapEvaluator() = default;
+    // Takes the live state at the cycle boundary (the end of the cycle just
+    // completed) as the start state of the evaluations that follow; unknowns
+    // are the entries Evaluate sets and reads. false when it cannot.
+    virtual bool Begin(const std::vector<NewtonUnknown>& unknowns) = 0;
+    // gx = G(x): one plain cycle from the Begin state with the unknowns set
+    // to x, and the unknowns at its end. false when the cycle fails or a stop
+    // was requested.
+    virtual bool Evaluate(const std::vector<double>& x, std::vector<double>& gx) = 0;
+    // The integrator's relative tolerance (settings.reltol of the run).
+    virtual double RelativeTolerance() const = 0;
+    // The relative tolerance of the evaluations that follow (<= 0: the
+    // run's own).
+    virtual void SetEvaluationTolerance(double reltol) = 0;
+    // A message for the run log (level medium).
+    virtual void Log(const std::string& message) = 0;
+  };
+
+  // The Newton-Krylov solve made after one cycle.
+  struct NewtonKrylovRecord {
+    int cycle = 0;                       // the cycle after which it ran (0-based)
+    int newton_iterations = 0;           // accepted Newton steps
+    int cycles = 0;                      // scratch cycles run (cycle equivalents)
+    std::vector<double> residuals;       // |F| at each accepted iterate, the start first
+    std::vector<int> krylov_vectors;     // per Newton step
+    double floquet_multiplier = std::numeric_limits<double>::quiet_NaN();
+    bool converged = false;              // |F| <= the Newton tolerance
+    bool jumped = false;                 // a jump was proposed (subject to the re-seed probe)
+    std::string outcome;
+  };
+
   class AccelerateCyclicSteadyState {
   public:
     AccelerationMethod method_ = AccelerationMethod::NONE;
+
+    // Newton-Krylov: stop a solve when the residual (state-test norm) is at
+    // most this. 0 (the default) means kNewtonDefaultToleranceFactor times the
+    // run's settings.reltol: the state norm's noise floor is about reltol
+    // (5e-7 to 1e-6 measured at 1e-6), where Newton steps stop paying, so a
+    // deeper CSS is asked for by tightening settings.reltol (down to about
+    // 1e-8, where the fixed absolute tolerances take over). Not serialised
+    // (an override for tests and C++ callers).
+    double newton_tolerance_ = 0.0;
+    // Newton-Krylov: after a solve that did not converge, the scratch cycles
+    // of later solves run at settings.reltol times this (1: never tighter).
+    // Not serialised.
+    double newton_reltol_factor_ = kNewtonTightReltolFactor;
 
     // Largest jump, in multiples of the last natural cycle-to-cycle step.
     static constexpr double kMaxStepMultiple = 20.0;
@@ -344,15 +452,38 @@ namespace adsim {
     // 2023 X at cycle 234 instead of 190 (see docs/numerics.md).
     static constexpr double kAndersonMaxResidualRatio = 0.5;
 
+    // Newton-Krylov (see the comment above AccelerationNote).
+    static constexpr int kNewtonFirstCycle = 3;
+    static constexpr int kNewtonMaxIterations = 8;
+    static constexpr int kNewtonMaxKrylov = 30;
+    static constexpr int kNewtonCooldownCycles = 5;
+    static constexpr double kNewtonRetryFactor = 10.0;
+    static constexpr double kNewtonTightReltolFactor = 0.01;
+    static constexpr double kNewtonDefaultToleranceFactor = 10.0;
+
     // Called after every cycle with the natural end-of-cycle state. Returns
     // true when it has moved the extrapolable fields of state (the caller then
     // validates and commits the re-seed). note, when given, says why a full
     // window was skipped and what was fitted.
     bool Accelerate(Equations& state, int cycle_index, AccelerationNote* note = nullptr);
 
+    // Newton-Krylov: the cycle map for the next run (nullptr: none, then the
+    // method behaves as Anderson). Not serialised.
+    void SetCycleMap(std::shared_ptr<CycleMapEvaluator> evaluator) { cycle_map_ = std::move(evaluator); }
+    // Forgets everything collected in a run (the histories, the Newton
+    // records); Simulation calls it before each run.
+    void ResetRun();
+    // The Newton-Krylov solves of the last run, by cycle.
+    const std::map<int, NewtonKrylovRecord>& NewtonRecords() const { return newton_records_; }
+
   private:
     bool AccelerateAitken(Equations& state, int cycle_index, AccelerationNote* note);
     bool AccelerateAnderson(Equations& state, int cycle_index, AccelerationNote* note);
+    // Anderson's bookkeeping and jump without the new-run check;
+    // allow_jump = false only records the pair.
+    bool AndersonStep(Equations& state, int cycle_index, AccelerationNote* note, bool allow_jump);
+    bool AccelerateNewtonKrylov(Equations& state, int cycle_index, AccelerationNote* note);
+    void ResetHistories();
 
     // Rolling history of natural end-of-cycle snapshots. Each snapshot holds one
     // profile per equation in Equations::GetEquations() order. Transient: rebuilt
@@ -369,6 +500,15 @@ namespace adsim {
     std::vector<AndersonPair> pairs_;   // oldest first, at most kAndersonDepth + 1
     std::vector<double> previous_end_;  // the previous cycle's end state
     bool previous_jumped_ = false;      // the previous call returned true
+
+    // Newton-Krylov (transient).
+    std::shared_ptr<CycleMapEvaluator> cycle_map_;
+    std::map<int, NewtonKrylovRecord> newton_records_;
+    std::vector<double> newton_previous_end_;  // the previous cycle's end (the unknowns)
+    bool newton_previous_jumped_ = false;
+    int newton_cooldown_ = 0;                  // Anderson cycles left before the next attempt
+    double newton_settled_residual_ = -1.0;    // residual of the last converged solve (< 0: none)
+    bool newton_tight_ = false;                // a solve did not converge: later ones run tighter
 
     friend class cereal::access;
     template <class Archive>

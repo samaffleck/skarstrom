@@ -11,11 +11,14 @@
 #include <cmath>
 #include <iomanip>
 #include <limits>
+#include <map>
+#include <set>
 #include <sstream>
 
 #include <Eigen/Dense>
 
 #include "adsim/solver/cycle.h"
+#include "adsim/solver/newton_krylov.h"
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpis.h"
 #include "adsim/objects/reactor.h"
@@ -404,6 +407,7 @@ namespace adsim {
     switch (method_) {
       case AccelerationMethod::AITKEN: return AccelerateAitken(state, cycle_index, note);
       case AccelerationMethod::ANDERSON: return AccelerateAnderson(state, cycle_index, note);
+      case AccelerationMethod::NEWTON_KRYLOV: return AccelerateNewtonKrylov(state, cycle_index, note);
       case AccelerationMethod::NONE: break;
     }
     return false;
@@ -587,6 +591,24 @@ namespace adsim {
     return true;
   }
 
+  void AccelerateCyclicSteadyState::ResetHistories() {
+    history_.clear();
+    pairs_.clear();
+    previous_end_.clear();
+    previous_jumped_ = false;
+    newton_records_.clear();
+    newton_previous_end_.clear();
+    newton_previous_jumped_ = false;
+    newton_cooldown_ = 0;
+    newton_settled_residual_ = -1.0;
+    newton_tight_ = false;
+  }
+
+  void AccelerateCyclicSteadyState::ResetRun() {
+    ResetHistories();
+    last_cycle_index_ = -1;
+  }
+
   bool AccelerateCyclicSteadyState::AccelerateAnderson(Equations& state, int cycle_index, AccelerationNote* note) {
     // A cycle index that does not advance means a new run has started.
     if (cycle_index <= last_cycle_index_) {
@@ -595,7 +617,11 @@ namespace adsim {
       previous_jumped_ = false;
     }
     last_cycle_index_ = cycle_index;
+    return AndersonStep(state, cycle_index, note, true);
+  }
 
+  bool AccelerateCyclicSteadyState::AndersonStep(Equations& state, int cycle_index, AccelerationNote* note,
+                                                 bool allow_jump) {
     const std::vector<Equation*>& equations = state.GetEquations();
 
     // The natural end state of this cycle, the slow fields flattened in
@@ -623,6 +649,7 @@ namespace adsim {
     }
     previous_end_ = end_state;
     previous_jumped_ = false;
+    if (!allow_jump) return false;
 
     // A jump starts from the newest pair's end state, which must be the state
     // the solver holds now, and needs at least one earlier pair.
@@ -722,6 +749,237 @@ namespace adsim {
     RenormaliseMoleFractions(state);
 
     previous_jumped_ = true;
+    return true;
+  }
+
+
+  namespace {
+    // The Newton-Krylov unknowns: the differential, active entries of every
+    // differential field (not only the extrapolable ones: see the header),
+    // field by field in GetEquations() order.
+    struct NewtonLayout {
+      std::vector<NewtonUnknown> unknowns;
+      // Each field's range of unknowns, and its weight (1 / scale).
+      struct Field { size_t begin = 0, end = 0; double weight = 1.0; bool mole_fraction = false; };
+      std::vector<Field> fields;
+      // The mole-fraction unknowns of each cell (for the projection).
+      std::map<size_t, std::vector<size_t>> mole_fraction_cells;
+      std::vector<double> weights;  // per unknown
+    };
+
+    NewtonLayout BuildNewtonLayout(const Equations& state) {
+      NewtonLayout layout;
+      const std::vector<Equation*>& equations = state.GetEquations();
+      const std::vector<bool>* void_mask = &state.domain_vectors.is_void_cell;
+
+      std::set<const Equation*> mole_fractions, loadings, total_loading_fields;
+      for (const auto& [component, eq] : state.mole_fraction) mole_fractions.insert(&eq);
+      for (const auto& [ads, comp_map] : state.ads_concentration)
+        for (const auto& [component, eq] : comp_map) { loadings.insert(&eq); total_loading_fields.insert(&eq); }
+      for (const auto& [ads, comp_map] : state.ads_concentration_slow)
+        for (const auto& [component, eq] : comp_map) loadings.insert(&eq);
+
+      // The loading scale of the state test: the RMS total loading over the
+      // cells that carry a loading, floored at the loadings' absolute
+      // tolerance (1e-8 mol/kg).
+      std::map<size_t, double> total_loading;
+      for (const Equation* eq : total_loading_fields)
+        for (size_t c = 0; c < eq->var.size(); ++c)
+          if (eq->IsActiveAt(c, void_mask) && eq->GetIDValue(c) != 0.0) total_loading[c] += eq->var[c];
+      double loading_sq = 0.0;
+      for (const auto& [c, q] : total_loading) loading_sq += q * q;
+      const double loading_scale = std::max(
+          total_loading.empty() ? 0.0 : std::sqrt(loading_sq / static_cast<double>(total_loading.size())), 1e-8);
+
+      for (size_t k = 0; k < equations.size(); ++k) {
+        const Equation* eq = equations[k];
+        if (eq->GetEquationType() != EquationType::Differential) continue;
+        NewtonLayout::Field field;
+        field.begin = layout.unknowns.size();
+        field.mole_fraction = mole_fractions.count(eq) > 0;
+        double sq = 0.0;
+        for (size_t c = 0; c < eq->var.size(); ++c) {
+          if (!eq->IsActiveAt(c, void_mask) || eq->GetIDValue(c) == 0.0) continue;
+          if (field.mole_fraction) layout.mole_fraction_cells[c].push_back(layout.unknowns.size());
+          layout.unknowns.push_back({k, c});
+          sq += eq->var[c] * eq->var[c];
+        }
+        field.end = layout.unknowns.size();
+        if (field.end == field.begin) continue;
+        if (field.mole_fraction) {
+          field.weight = 1.0;
+        } else if (loadings.count(eq)) {
+          field.weight = 1.0 / loading_scale;
+        } else {
+          const double rms = std::sqrt(sq / static_cast<double>(field.end - field.begin));
+          field.weight = 1.0 / std::max(rms, 1e-12);
+        }
+        layout.fields.push_back(field);
+      }
+      layout.weights.assign(layout.unknowns.size(), 1.0);
+      for (const auto& f : layout.fields)
+        for (size_t i = f.begin; i < f.end; ++i) layout.weights[i] = f.weight;
+      return layout;
+    }
+
+    // The state test's norm of a scaled vector: the largest field RMS.
+    double FieldMaxRms(const NewtonLayout& layout, const std::vector<double>& scaled) {
+      double worst = 0.0;
+      for (const auto& f : layout.fields) {
+        double sq = 0.0;
+        for (size_t i = f.begin; i < f.end; ++i) sq += scaled[i] * scaled[i];
+        worst = std::max(worst, std::sqrt(sq / static_cast<double>(f.end - f.begin)));
+      }
+      return worst;
+    }
+
+    // Keep an iterate physical, as a jump is: clip at zero and renormalise
+    // the mole fractions of each cell to sum to one.
+    void ProjectNewtonIterate(const NewtonLayout& layout, std::vector<double>& x) {
+      for (double& v : x) v = std::max(v, 0.0);
+      for (const auto& [cell, indices] : layout.mole_fraction_cells) {
+        double sum = 0.0;
+        for (size_t i : indices) sum += x[i];
+        if (sum > 1e-30)
+          for (size_t i : indices) x[i] /= sum;
+      }
+    }
+
+    std::string FormatList(const std::vector<double>& v) {
+      std::string out;
+      for (size_t i = 0; i < v.size(); ++i) out += (i ? ", " : "") + FormatNumber(v[i], 2);
+      return out;
+    }
+    std::string FormatList(const std::vector<int>& v) {
+      std::string out;
+      for (size_t i = 0; i < v.size(); ++i) out += (i ? ", " : "") + std::to_string(v[i]);
+      return out;
+    }
+  }
+
+  bool AccelerateCyclicSteadyState::AccelerateNewtonKrylov(Equations& state, int cycle_index, AccelerationNote* note) {
+    // A cycle index that does not advance means a new run has started.
+    if (cycle_index <= last_cycle_index_) ResetHistories();
+    last_cycle_index_ = cycle_index;
+
+    // Without a cycle map (a run not started through Simulation): Anderson.
+    if (!cycle_map_) return AndersonStep(state, cycle_index, note, true);
+
+    const NewtonLayout layout = BuildNewtonLayout(state);
+    const size_t n = layout.unknowns.size();
+    const std::vector<Equation*>& equations = state.GetEquations();
+    std::vector<double> x_end(n);
+    for (size_t i = 0; i < n; ++i) x_end[i] = equations[layout.unknowns[i].equation]->var[layout.unknowns[i].cell];
+
+    // The natural cycle-to-cycle change, when this cycle started from the
+    // previous cycle's natural end.
+    double natural_change = -1.0;
+    if (!newton_previous_jumped_ && newton_previous_end_.size() == n && n > 0) {
+      std::vector<double> d(n);
+      for (size_t i = 0; i < n; ++i) d[i] = layout.weights[i] * (x_end[i] - newton_previous_end_[i]);
+      natural_change = FieldMaxRms(layout, d);
+    }
+    newton_previous_end_ = x_end;
+    newton_previous_jumped_ = false;
+
+    const double reltol = cycle_map_->RelativeTolerance();
+    const double factor = newton_tight_ && newton_reltol_factor_ > 0.0 ? newton_reltol_factor_ : 1.0;
+    const double eval_reltol = reltol * factor;
+    // The stopping tolerance follows the scratch cycles' tolerance: a solve
+    // that had to tighten them is on a deck with a slow mode, where the
+    // distance left at a residual r is about r / (1 - mu).
+    const double tolerance =
+        newton_tolerance_ > 0.0 ? newton_tolerance_ : kNewtonDefaultToleranceFactor * eval_reltol;
+
+    bool attempt = n > 0 && cycle_index >= kNewtonFirstCycle && newton_cooldown_ == 0;
+    if (attempt && newton_settled_residual_ >= 0.0) {
+      // After a converged solve: plain cycles, unless the natural change
+      // shows the state moving again (measured against the live cycles'
+      // own noise, which a tightened solve may have gone below).
+      const double floor = std::max({newton_settled_residual_, tolerance, kNewtonDefaultToleranceFactor * reltol});
+      attempt = natural_change >= 0.0 && natural_change > kNewtonRetryFactor * floor;
+    }
+    if (!attempt) {
+      if (newton_cooldown_ > 0) {
+        // The fallback after a solve that did not converge: Anderson cycles.
+        --newton_cooldown_;
+        const bool jumped = AndersonStep(state, cycle_index, note, true);
+        if (jumped) newton_previous_jumped_ = true;
+        return jumped;
+      }
+      AndersonStep(state, cycle_index, nullptr, false);  // keep its pairs current
+      return false;
+    }
+    AndersonStep(state, cycle_index, nullptr, false);
+
+    NewtonKrylovRecord record;
+    record.cycle = cycle_index;
+    CycleMapEvaluator& evaluator = *cycle_map_;
+    if (!evaluator.Begin(layout.unknowns)) {
+      record.outcome = "the cycle map could not start";
+      newton_records_[cycle_index] = record;
+      newton_cooldown_ = kNewtonCooldownCycles;
+      if (note) note->skipped = "Newton-Krylov: " + record.outcome;
+      return false;
+    }
+
+    evaluator.SetEvaluationTolerance(eval_reltol);
+    FixedPointNewtonOptions options;
+    options.tolerance = tolerance;
+    options.fd_relative_step = std::sqrt(std::max(eval_reltol, 1e-16));
+    options.max_newton_iterations = kNewtonMaxIterations;
+    options.max_krylov = kNewtonMaxKrylov;
+    options.nonnegative = true;
+
+    const FixedPointNewtonResult result = SolveFixedPointNewtonKrylov(
+        [&evaluator](const std::vector<double>& x, std::vector<double>& gx) { return evaluator.Evaluate(x, gx); },
+        x_end, layout.weights,
+        [&layout](const std::vector<double>& f) { return FieldMaxRms(layout, f); },
+        [&layout](std::vector<double>& x) { ProjectNewtonIterate(layout, x); },
+        options);
+
+    record.newton_iterations = result.newton_iterations;
+    record.cycles = result.map_evaluations;
+    record.residuals = result.residual_history;
+    record.krylov_vectors = result.krylov_vectors;
+    record.floquet_multiplier = result.dominant_multiplier;
+    record.converged = result.converged;
+    record.outcome = result.outcome;
+
+    if (result.converged) {
+      newton_settled_residual_ = result.residual;
+    } else {
+      newton_cooldown_ = kNewtonCooldownCycles;
+      newton_tight_ = true;
+    }
+
+    // Jump to G of the best iterate when the solve improved on the start.
+    const bool jump = result.newton_iterations > 0 && result.gx.size() == n
+                   && result.residual < result.initial_residual;
+    record.jumped = jump;
+    newton_records_[cycle_index] = record;
+
+    std::string summary = "Newton-Krylov: |F| " + FormatNumber(result.initial_residual) + " -> "
+                        + FormatNumber(result.residual) + " in " + std::to_string(result.newton_iterations)
+                        + " Newton step(s) (Krylov vectors " + FormatList(result.krylov_vectors) + "), "
+                        + std::to_string(result.map_evaluations) + " extra cycles at reltol "
+                        + FormatNumber(eval_reltol, 2);
+    if (std::isfinite(result.dominant_multiplier))
+      summary += ", dominant Floquet multiplier " + FormatNumber(result.dominant_multiplier, 4);
+    summary += " (" + result.outcome + ")";
+    evaluator.Log("  " + summary);
+    if (result.residual_history.size() > 1)
+      evaluator.Log("  Newton-Krylov residuals: " + FormatList(result.residual_history));
+    if (note) {
+      note->fit = summary;
+      if (!jump) note->skipped = "Newton-Krylov: " + result.outcome;
+    }
+    if (!jump) return false;
+
+    for (size_t i = 0; i < n; ++i)
+      equations[layout.unknowns[i].equation]->var[layout.unknowns[i].cell] = result.gx[i];
+    newton_previous_jumped_ = true;
+    previous_jumped_ = true;  // Anderson: the next cycle gives no pair
     return true;
   }
 
