@@ -43,6 +43,7 @@ configuration).
 | [`vysyaraju_2024.py`](vysyaraju_2024.py) | `Vysyaraju2024_PSA_exp1` | He/N₂ 5-step PSA on binderless 5A, to CSS | measured and paper-model He purity/recovery (Table 3) | 30 s |
 | [`ward_pini_2024.py`](ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 80 s |
 | [`tsa_illustrative.py`](tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA heated and cooled by a medium (jacket + internal exchanger), to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
+| [`illustrative_dac_breakthrough.py`](illustrative_dac_breakthrough.py) | `Illustrative_DAC_Breakthrough` | Illustrative 400 ppm CO₂ breakthrough on Lewatit VP OC 1065 with dual-rate LDF and series-resistance kinetics | — (outlet times to 5, 50 and 95 % of the feed) | 2 s |
 | [`five_step_product_purge.py`](five_step_product_purge.py) | `FiveStepProductPurge` | CO₂/N₂ VSA template with product purge | — (CSS status, integrator statistics) | 4 s |
 | [`optimise_nsga2.py`](optimise_nsga2.py) | `Perez2019_A` | NSGA-II search (pymoo) of feed time and evacuation pressure, each candidate run to CSS in a process pool | — (the CO₂ purity / recovery Pareto front) | about 10 min (estimated: 60 runs of about 30 s, 4 cores) |
 
@@ -75,7 +76,7 @@ To turn any deck (yours, or one written by a front end) into builder code
 like these scripts, use `skarstrom.to_script(sim)` (see
 [Building a simulation in Python](../docs/python.md#building-a-simulation-in-python)).
 
-`decks/` holds the 40 example decks (also bundled in the Python package:
+`decks/` holds the 41 example decks (also bundled in the Python package:
 `skarstrom examples`). Their file names must stay shell-safe (checked by the
 `DataFileNamesAreShellSafe` test). The test suite re-saves several of them; small
 changes to the embedded numbers are expected and should be committed with the

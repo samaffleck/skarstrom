@@ -160,8 +160,10 @@ namespace adsim {
 
   VariableLogEntry GetBedVariable(const EquationLog& eq_log, int cycle_index, int step_index,
                                   const BedVariable& var) {
-    return var.is_component ? eq_log.GetComponentVariable(cycle_index, step_index, var.comp, var.component)
-                            : eq_log.GetVariable(cycle_index, step_index, var.bulk);
+    if (!var.is_component) return eq_log.GetVariable(cycle_index, step_index, var.bulk);
+    if (var.adsorbent)
+      return eq_log.GetAdsorbentComponentVariable(cycle_index, step_index, var.comp, var.component, *var.adsorbent);
+    return eq_log.GetComponentVariable(cycle_index, step_index, var.comp, var.component);
   }
 
   bool ExtractBedTimeSeries(const EquationLog& eq_log, const BedVariable& var, ParamSpatialLoc where,

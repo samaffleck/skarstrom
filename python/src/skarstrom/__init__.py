@@ -37,6 +37,17 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 import numpy as np
 
 from . import _core, examples, optimisation, sensitivity, units
+from .manifests import (
+    check_unit,
+    component_aliases,
+    component_manifest,
+    deck_view_schema,
+    example_manifest,
+    kpi_manifest,
+    series_manifest,
+    unit_manifest,
+    warning_manifest,
+)
 from .units import Quantity, ureg
 from ._core import (
     AxialProfile,
@@ -45,6 +56,9 @@ from ._core import (
     KPIRecord,
     OperatingLimitsReport,
     OperatingWarning,
+    RunHealthCycle,
+    RunHealthReport,
+    RunHealthWarning,
     RunResult,
     StateCache,
     StepOperatingSummary,
@@ -101,11 +115,14 @@ from .model import (
 )
 from . import build
 from . import model as _model
+from .edit import Editor, model_kinds
 
 __version__: str = _core.__version__
 
 __all__ = [
     "Adsorbent",
+    "Editor",
+    "model_kinds",
     "AxialProfile",
     "Bed",
     "BufferTank",
@@ -114,6 +131,9 @@ __all__ = [
     "CycleState",
     "OperatingLimitsReport",
     "OperatingWarning",
+    "RunHealthCycle",
+    "RunHealthReport",
+    "RunHealthWarning",
     "StateCache",
     "StepOperatingSummary",
     "WallDesignResult",
@@ -160,7 +180,17 @@ __all__ = [
     "build",
     "build_kinds",
     "bulk_variables",
+    "check_unit",
+    "component_aliases",
+    "component_manifest",
+    "deck_view_schema",
+    "example_manifest",
+    "kpi_manifest",
+    "series_manifest",
+    "unit_manifest",
+    "warning_manifest",
     "component_variables",
+    "per_adsorbent_variables",
     "constant",
     "evaluate_iast",
     "evaluate_isotherm",
@@ -168,6 +198,9 @@ __all__ = [
     "exponential",
     "fit_isotherm",
     "ideal_gas_heat_capacity",
+    "ideal_gas_heat_capacity_reference",
+    "ideal_gas_heat_capacity_source",
+    "components_with_held_heat_capacity",
     "isotherm_kinds",
     "isotherm_parameters",
     "linear",
@@ -495,6 +528,12 @@ class Simulation:
         self._epoch += 1
 
     @property
+    def edit(self) -> Editor:
+        """Structural edits with the engine's cascades: ``sim.edit.add_step()``,
+        ``sim.edit.set_stream_kind("Feed", "bottom", 0, "valve")`` (see :mod:`skarstrom.edit`)."""
+        return Editor(self)
+
+    @property
     def steps(self) -> Collection[Step]:
         """The cycle's steps in order: ``sim.steps["Feed"]``, ``sim.steps[0]``."""
         return _model._steps(self)
@@ -563,6 +602,21 @@ class Simulation:
     def kpi(self) -> KPIConfig:
         """KPI configuration: ``sim.kpi.track("CO2", feed=[...], product=[...])``."""
         return KPIConfig(self)
+
+    @property
+    def cost(self) -> "_model.CostData":
+        """The cost estimate's values (``cost.*``)."""
+        return _model._group(self, _model.CostData, "cost")
+
+    @property
+    def study_settings(self) -> "_model.StudySettings":
+        """Settings of the deck's sensitivity study (``sensitivity.*``)."""
+        return _model._group(self, _model.StudySettings, "sensitivity")
+
+    @property
+    def kpi_tracked(self) -> "_model.ValueMap":
+        """Whether each component's KPIs are computed: ``sim.kpi_tracked["CO2"] = True`` (``kpi[C].tracked``)."""
+        return _model._kpi_tracked(self)
 
     @property
     def info(self) -> Info:
@@ -704,6 +758,13 @@ class Simulation:
         onto this deck's grid and its histories are stretched onto changed
         step times (:meth:`prepare_state`); one that does not fit (other
         components, layers or steps) fails the run with the reason.
+
+        The result's ``healthy`` is False when a run-health check fired after
+        a cycle (the gas mole fractions not summing to 1, a cycle mole balance
+        that stays open, many rejected integrator steps, a log too short for
+        the diagnostics); ``warnings`` lists them (:class:`RunHealthWarning`:
+        ``code``, ``value``, ``threshold``, ``cycle``, ``step``, ``suspects``,
+        ``hint``). The status and results are unchanged; see docs/run-health.md.
         """
         return self._sim.run(cycles, progress, log_level, on_message, initial_state)
 
@@ -841,6 +902,13 @@ class Simulation:
         connections and KPI endpoints (endpoint IDs). Values are in :meth:`parameters`."""
         return self._sim.describe()
 
+    def deck_view(self) -> Dict[str, Any]:
+        """The deck view: the structure plus every editable value with its registry path,
+        value, text, unit, bounds, choices and label (``adsim/objects/deck_view.h``; its
+        shape is :func:`skarstrom.deck_view_schema`). Read-only: change values with
+        :meth:`set` by path and structure with the builder, then take a new view."""
+        return json.loads(self._sim.deck_view())
+
     def add_adsorbent(self, name: str, **values: Any) -> Adsorbent:
         """A new adsorbent (default physics for every component: inert isotherm, LDF with a
         constant coefficient); ``values`` set its fields (solid_density, heat_capacity,
@@ -969,8 +1037,8 @@ class Simulation:
         return self._sim.face_positions
 
     def kpis(self, cycle: Optional[int] = None) -> List[KPIRecord]:
-        """KPIs of every tracked component: every cycle of the run, or one (-1 = the
-        last logged cycle). Cycles the log no longer holds come from the record
+        """KPIs of every tracked component: every cycle of the run (whatever
+        ``settings.max_cycles_to_keep`` is), or one (-1 = the last logged cycle). Cycles the log no longer holds come from the record
         the solver made when each cycle completed."""
         return self._sim.kpis(cycle)
 
@@ -981,7 +1049,9 @@ class Simulation:
         return pd.DataFrame([k.as_dict() for k in self.kpis(cycle)])
 
     def css_history(self) -> List[CSSRecord]:
-        """The deck's cyclic-steady-state check at every logged cycle."""
+        """The deck's cyclic-steady-state check at every cycle of the run. Cycles the log
+        has evicted (``settings.max_cycles_to_keep``) come from the check made when each
+        cycle completed."""
         return self._sim.css_history()
 
     def operating_limits(self, cycle: int = -1) -> OperatingLimitsReport:
@@ -992,6 +1062,14 @@ class Simulation:
         checks run only when the wall has a design (a positive
         ``wall.design_pressure`` or ``wall.vacuum_service``)."""
         return self._sim.operating_limits(cycle)
+
+    def run_health(self) -> RunHealthReport:
+        """The run-health checks of the last run: ``cycles`` (per completed cycle:
+        ``mole_fraction_sum_error``, ``state_change``, ``mass_balance_error`` per
+        component in ``components`` order, integrator ``steps`` and ``rejected``
+        attempts), ``warnings`` (the same as ``RunResult.warnings``) and
+        ``healthy``. See docs/run-health.md."""
+        return self._sim.run_health()
 
     def wall_design(self) -> WallDesignResult:
         """The wall's minimum thickness [m] for its pressure design
@@ -1008,6 +1086,7 @@ class Simulation:
         location: str = "top",
         z: Optional[float] = None,
         cycle: int = -1,
+        adsorbent: Any = None,
     ) -> TimeSeries:
         """A log variable over one cycle at one point of the bed.
 
@@ -1022,21 +1101,39 @@ class Simulation:
         temperature after any compressor, set pressure), at an outlet the
         bed-end face value. A closed end, and every other variable, gives the
         face value (face variables such as velocity: the boundary face).
+
+        ``adsorbent`` (a name or label of :meth:`series_adsorbents`, a deck ID,
+        or an adsorbent object such as ``sim.adsorbents["13X"]``) gives that
+        solid's own series of a :func:`per_adsorbent_variables` variable (its
+        loading per kg of that solid, 0 where it is absent). Without it the
+        series is the mass-weighted sum over the solids of each cell, which is
+        the same for a layer of one solid.
         """
         if z is not None:
             location = "position"
-        return self._sim.series(variable, component or "", location, 0.0 if z is None else float(z), cycle)
+        return self._sim.series(variable, component or "", location, 0.0 if z is None else float(z), cycle,
+                                _adsorbent_arg(adsorbent))
 
-    def profile(self, variable: str, component: Optional[str] = None, cycle: int = -1, step: int = 0) -> AxialProfile:
+    def series_adsorbents(self) -> List[Dict[str, Any]]:
+        """The adsorbents packed in the last run's bed: ``id`` (deck ID), ``label`` (the name,
+        with `` #<id>`` when two share one; the ``adsorbent=`` of :meth:`series` and the
+        bracket in the log names, ``"<component> Adsorbed Concentration (<label>)"``) and
+        ``logged`` (True when the bed has a mixed layer and the run logged per-adsorbent
+        series; otherwise they are read off the aggregate). Empty without results."""
+        return self._sim.series_adsorbents()
+
+    def profile(
+        self, variable: str, component: Optional[str] = None, cycle: int = -1, step: int = 0, adsorbent: Any = None
+    ) -> AxialProfile:
         """Axial profiles over one step: ``values`` has shape (len(time), len(z)).
 
         ``z`` [m] are the cell centres (:attr:`positions`) for a cell variable
         and the faces (:attr:`face_positions`, ``faces`` True) for a face
         variable (velocity, volumetric and molar flow rate, approach to
         fluidisation). The bed-end values are :meth:`series` with
-        ``location="bottom"`` or ``"top"``.
+        ``location="bottom"`` or ``"top"``. ``adsorbent`` as in :meth:`series`.
         """
-        return self._sim.profile(variable, component or "", cycle, step)
+        return self._sim.profile(variable, component or "", cycle, step, _adsorbent_arg(adsorbent))
 
     def stream_series(
         self, step: int, stream: str, variable: str, component: Optional[str] = None, cycle: int = -1
@@ -1068,6 +1165,29 @@ def component_variables() -> List[str]:
     return _core.component_variables()
 
 
+def per_adsorbent_variables() -> List[str]:
+    """The component variables :meth:`Simulation.series` / :meth:`Simulation.profile` also give
+    per adsorbent (``adsorbent=``): the adsorbed and equilibrium loading, the mass-transfer
+    coefficient and the slow-site loading."""
+    return _core.per_adsorbent_variables()
+
+
+def _adsorbent_arg(adsorbent: Any) -> str:
+    """The ``adsorbent=`` of series/profile as the engine takes it: a label, or a deck ID as text."""
+    if adsorbent is None:
+        return ""
+    if isinstance(adsorbent, bool):
+        raise TypeError("adsorbent must be a name, a deck ID or an adsorbent object")
+    if isinstance(adsorbent, int):
+        return str(adsorbent)
+    if isinstance(adsorbent, str):
+        return adsorbent
+    ads_id = getattr(adsorbent, "id", None)
+    if isinstance(ads_id, int):
+        return str(ads_id)
+    raise TypeError("adsorbent must be a name, a deck ID or an adsorbent object")
+
+
 def stream_variables() -> List[str]:
     return _core.stream_variables()
 
@@ -1082,9 +1202,27 @@ def ideal_gas_heat_capacity(component: str, temperature: float) -> float:
     """Ideal-gas heat capacity C_p0 [J/(mol K)] of ``component`` (CoolProp name) at
     ``temperature`` [K], from the NASA 7-coefficient polynomials (McBride, Gordon and
     Reno 1993, NASA TM-4513) that the default ``ideal_gas`` gas heat capacity mode
-    uses. Outside a polynomial's range the value at the nearer limit. ValueError for
+    uses (one coefficient set per component, to 1000 K). Outside a polynomial's range
+    the value at the nearer limit. ValueError for
     a component without a polynomial (Hexane)."""
     return _core.ideal_gas_heat_capacity(component, float(temperature))
+
+
+def ideal_gas_heat_capacity_reference() -> str:
+    """Literature reference of the ideal-gas heat-capacity polynomials (NASA TM-4513)."""
+    return _core.ideal_gas_heat_capacity_reference()
+
+
+def ideal_gas_heat_capacity_source(component: str) -> Dict[str, str]:
+    """Provenance of ``component``'s polynomial: ``{"species": TM-4513 species label,
+    "source": TM-4513 data-source code}`` (Air: its mixture and mixing note).
+    ValueError for a component without a polynomial (Hexane)."""
+    return dict(_core.ideal_gas_heat_capacity_source(component))
+
+
+def components_with_held_heat_capacity() -> List[str]:
+    """Components without a polynomial; they keep CoolProp's value held at the initial conditions."""
+    return list(_core.components_with_held_heat_capacity())
 
 
 # ---- isotherms -------------------------------------------------------------------

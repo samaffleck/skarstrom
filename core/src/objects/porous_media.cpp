@@ -61,6 +61,9 @@ namespace adsim {
 			if (it_mtc == mass_transfer_models_.end()) {
 				mass_transfer_models_[component] = std::make_unique<LinearDrivingForce>();
 			}
+			// A dual-rate model's slow site takes the fast site's coefficient kind.
+			if (auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(mass_transfer_models_[component].get()))
+				dual->SyncSlowSite();
 
 			if (isotherm_map_.find(component) == isotherm_map_.end()) {
 				SetIsothermType(component, IsothermType::INERT);
@@ -210,6 +213,20 @@ namespace adsim {
     model->UpdateMassTransferCoefficient(state, ads_id, fluid, component, layer, registry);
   }
 
+  void AdsorptionSource::UpdateSlowMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const std::string& component, const Fluid& fluid, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry, double solid_density) {
+    IMassTransferCoefficientModel* model = mass_transfer_models_.at(component)->SlowCoefficientModel();
+    auto slow_it = state.slow_mass_transfer_coefficient.find(ads_id);
+    if (!model || slow_it == state.slow_mass_transfer_coefficient.end()) return;
+    auto& k_slow = slow_it->second.at(component).var;
+    // The coefficient models write the state's (fast-site) coefficient field:
+    // swap the slow-site field in for the call (O(1), no copy) and back.
+    auto& k_fast = state.mass_transfer_coefficient.at(ads_id).at(component).var;
+    std::swap(k_fast, k_slow);
+    model->SetEquilibriumContext(GetIsotherm(component).get(), solid_density, this);
+    model->UpdateMassTransferCoefficient(state, ads_id, fluid, component, layer, registry);
+    std::swap(k_fast, k_slow);
+  }
+
 	std::unique_ptr<IIsotherm>& AdsorptionSource::GetIsotherm(const std::string& component) {
 		if (isotherm_map_.find(component) == isotherm_map_.end()) {
 			SetIsothermType(component, IsothermType::INERT);
@@ -317,6 +334,15 @@ namespace adsim {
 							kCoadsorbedWaterComponent + ", but the deck has no such component: the isotherm is"
 							" its dry form. Add the component " + kCoadsorbedWaterComponent + " with its own isotherm."});
 				}
+			}
+			// Dual-rate LDF: the fast-site fraction must lie in (0, 1].
+			for (const auto& [component, mtm] : dir.Get(id).adsorption_source_.mass_transfer_models_) {
+				if (!mtm || mtm->GetModelType() != MassTransferModelType::DUAL_RATE_LDF) continue;
+				const double phi = mtm->FastSiteFraction();
+				if (!(phi > 0.0 && phi <= 1.0))
+					issues.push_back({Severity::Error, "Error: adsorbent " + an + " gives " + component +
+						" a dual-rate LDF model with the fast-site fraction (split) " + number(phi) +
+						"; it must lie in (0, 1]."});
 			}
 			if (!(frac >= 0.0)) {
 				skip_sum = true;

@@ -606,6 +606,7 @@ Input decks, assumptions and known discrepancies: [`core/test/papers/ward_pini_2
 
 ## Reproducing this page
 
+<!-- no-run: builds the engine and runs the paper tests -->
 ```bash
 cmake --preset linux-release
 cmake --build --preset linux-release

@@ -11,8 +11,10 @@
 #include <cmath>
 #include <set>
 #include <sstream>
+#include <limits>
 #include <stdexcept>
 
+#include "adsim/math/constants.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/objects/porous_media.h"
 #include "adsim/objects/reactor.h"
@@ -147,6 +149,126 @@ namespace adsim {
 
   double Reaction::IntrinsicRate(const ReactionState& state) {
     return rate_ ? rate_->Rate(state, basis_, nu_) : 0.0;
+  }
+
+  std::string Reaction::KeyReactant() const {
+    auto it = nu_.find(effectiveness_.key_component_);
+    if (it != nu_.end() && it->second < 0.0) return it->first;
+    for (const auto& [c, v] : nu_)
+      if (v < 0.0) return c;
+    return {};
+  }
+
+  namespace {
+    // 8-point Gauss-Legendre nodes and weights on [-1, 1].
+    constexpr double kGaussNodes[8] = {-0.9602898564975363, -0.7966664774136267, -0.5255324099163290,
+                                       -0.1834346424956498, 0.1834346424956498,  0.5255324099163290,
+                                       0.7966664774136267,  0.9602898564975363};
+    constexpr double kGaussWeights[8] = {0.1012285362903763, 0.2223810344533745, 0.3137066458778873,
+                                         0.3626837833783620, 0.3626837833783620, 0.3137066458778873,
+                                         0.2223810344533745, 0.1012285362903763};
+
+    // eta of a sphere from its generalised modulus phi:
+    // (1/phi) (1/tanh(3 phi) - 1/(3 phi)), with its series near 0.
+    double SphereEffectiveness(double phi) {
+      if (!(phi > 0.0)) return 1.0;
+      if (phi < 1e-3) return 1.0 - 0.6 * phi * phi;
+      const double x = 3.0 * phi;
+      if (x > 40.0) return (1.0 - 1.0 / x) / phi;  // coth(x) = 1 to double precision
+      return (1.0 / std::tanh(x) - 1.0 / x) / phi;
+    }
+  }  // namespace
+
+  double Reaction::Effectiveness(const ReactionState& surface, double particle_radius, double particle_density,
+                                 double effective_diffusivity, double* warm_start) {
+    if (effectiveness_.mode_ != EffectivenessMode::Thiele) return effectiveness_.effectiveness_.Get();
+    const std::string key = KeyReactant();
+    if (key.empty() || !rate_ || !surface.y) return 1.0;
+    if (!(particle_radius > 0.0) || !(particle_density > 0.0) || !(effective_diffusivity > 0.0)) return 1.0;
+    const double nu_A = nu_.at(key);
+    const double T = std::max(surface.T, constants::kMinDenomTemperature);
+    const double C_total = surface.P / (constants::kIdealGasConstant * T);
+    if (!(C_total > 0.0) || !std::isfinite(C_total)) return 1.0;
+
+    // The gas inside the particle: the surface composition, with the
+    // stoichiometry's components moving with A.
+    std::map<std::string, double> y_line = *surface.y;
+    struct Line { double* y; double C_s; double ratio; };
+    std::vector<Line> line;
+    line.reserve(nu_.size());
+    double C_A_s = 0.0;
+    for (const auto& [c, v] : nu_) {
+      auto it = y_line.find(c);
+      const double y_s = it == y_line.end() ? 0.0 : it->second;
+      const double C_s = std::max(y_s, 0.0) * C_total;
+      line.push_back({&y_line[c], C_s, v / nu_A});
+      if (c == key) C_A_s = C_s;
+    }
+    ReactionState state = surface;
+    state.y = &y_line;
+    auto rate_at = [&](double C_A) {
+      for (const auto& l : line) *l.y = std::max(l.C_s + l.ratio * (C_A - C_A_s), 0.0) / C_total;
+      return rate_->Rate(state, basis_, nu_);
+    };
+
+    const double r_s = rate_at(C_A_s);
+    if (!(r_s != 0.0) || !std::isfinite(r_s)) return 1.0;
+    const double dir = r_s > 0.0 ? 1.0 : -1.0;
+
+    // Where every concentration on the line is >= 0.
+    double lo = 0.0, hi = std::numeric_limits<double>::infinity();
+    for (const auto& l : line) {
+      if (l.ratio > 0.0) lo = std::max(lo, C_A_s - l.C_s / l.ratio);
+      else if (l.ratio < 0.0) hi = std::min(hi, C_A_s - l.C_s / l.ratio);
+    }
+    // a: the surface side (rate of the surface's sign); b: the far bound.
+    double a = C_A_s;
+    double b = dir > 0.0 ? lo : hi;
+    if (!std::isfinite(b)) return 1.0;
+    double fa = r_s;
+    double fb = rate_at(b);
+    double C_eq = b;
+    if (fb * dir < 0.0) {
+      // The rate changes sign on [b, a]: the equilibrium concentration,
+      // warm-started from the previous root of this cell when it lies inside.
+      if (warm_start && std::isfinite(*warm_start) && (*warm_start - a) * (*warm_start - b) < 0.0) {
+        const double fw = rate_at(*warm_start);
+        if (fw * dir > 0.0) { a = *warm_start; fa = fw; }
+        else if (fw * dir < 0.0) { b = *warm_start; fb = fw; }
+        else { a = b = *warm_start; }
+      }
+      // Illinois regula falsi.
+      int side = 0;
+      const double tol = 1e-13 * std::max(std::abs(C_A_s), std::abs(b)) + 1e-300;
+      for (int it = 0; it < 100 && std::abs(a - b) > tol; ++it) {
+        const double c = (a * fb - b * fa) / (fb - fa);
+        if (!std::isfinite(c)) break;
+        const double fc = rate_at(c);
+        if (fc == 0.0) { a = b = c; break; }
+        if (fc * dir > 0.0) {
+          a = c; fa = fc;
+          if (side == 1) fb *= 0.5;
+          side = 1;
+        } else {
+          b = c; fb = fc;
+          if (side == -1) fa *= 0.5;
+          side = -1;
+        }
+      }
+      C_eq = 0.5 * (a + b);
+      if (warm_start) *warm_start = C_eq;
+    }
+
+    // integral_{C_eq}^{C_A,s} R_A dC (> 0 either way round).
+    const double scale = std::abs(nu_A) * particle_density;
+    const double half = 0.5 * (C_A_s - C_eq);
+    const double mid = 0.5 * (C_A_s + C_eq);
+    double integral = 0.0;
+    for (int k = 0; k < 8; ++k) integral += kGaussWeights[k] * rate_at(mid + half * kGaussNodes[k]);
+    integral *= half * scale;
+    if (!(integral > 0.0) || !std::isfinite(integral)) return 1.0;
+    const double phi = (particle_radius / 3.0) * scale * std::abs(r_s) / std::sqrt(2.0 * effective_diffusivity * integral);
+    return SphereEffectiveness(phi);
   }
 
   double Reaction::DeltaHeatCapacity(const std::map<std::string, double>& molar_cp) const {

@@ -838,20 +838,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 31.02391885948995,
-                                    "Average_Temperature": 303.0228045227614,
+                                    "Total_Moles": 31.02392115072866,
+                                    "Average_Temperature": 303.0227654214335,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.005730276491708409
+                                            "value": 0.005730273341843519
                                         },
                                         {
                                             "key": "Methane",
-                                            "value": 0.524006515469862
+                                            "value": 0.5240064484174759
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.47026320803842949
+                                            "value": 0.4702632782406806
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -934,8 +934,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 33.0988910714823,
-                                                        "Average_Temperature": 298.0,
+                                                        "Total_Moles": 33.09889107127158,
+                                                        "Average_Temperature": 298.0000000000004,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
@@ -1139,14 +1139,18 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 1,
+                "cereal_class_version": 2,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
                 "Vacuum": true,
                 "Design_Temperature": true,
                 "Fluidisation": true,
-                "Channel_Reynolds": true
+                "Channel_Reynolds": true,
+                "Mole_Fraction_Sum": true,
+                "Mass_Balance_Stuck": true,
+                "Step_Retries": true,
+                "History_Truncated": true
             },
             "Valve_Bed_Pressure": 0
         },

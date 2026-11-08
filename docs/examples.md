@@ -1,6 +1,6 @@
 # Examples
 
-Skarstrom ships 40 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
+Skarstrom ships 42 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
 
 Every paper-based deck is also an automated validation test; the [Validation](validation.md) page lists the simulated and published values and the error metric for each case, including where Skarstrom and the paper disagree, and why.
 
@@ -8,6 +8,7 @@ Every paper-based deck is also an automated validation test; the [Validation](va
 
 `examples/` has one runnable script per deck family. Each **builds its cases from scratch in code** (fluid, adsorbents, column, every step and boundary condition, KPIs and solver settings, each value with its unit; `build(case)` returns the simulation), runs them, prints the KPIs or the cyclic-steady-state status, compares the result with the paper's published values (`core/test/papers/*/reference_values.csv`) or digitised curves (`core/data/`) when run from a repository checkout, and saves a plot to `examples/output/` when matplotlib is installed (`--no-plot` to skip). Common options: `--case NAME` (repeatable) to run a subset, `--cycles N` for a quick look.
 
+<!-- no-run: installs the package; the example scripts are in the repository -->
 ```bash
 pip install "skarstrom[examples]"        # or pip install . && pip install matplotlib
 python examples/ward_2022.py --case 100  # the fastest: about a second
@@ -27,6 +28,7 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 | [`vysyaraju_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/vysyaraju_2024.py) | `Vysyaraju2024_PSA_exp1` | He/N₂ 5-step PSA on binderless 5A, to CSS | measured and paper-model He purity/recovery (Table 3) | 30 s |
 | [`ward_pini_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 80 s |
 | [`tsa_illustrative.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA with heater and cooler, to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
+| [`illustrative_dac_breakthrough.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/illustrative_dac_breakthrough.py) | `Illustrative_DAC_Breakthrough` | Illustrative 400 ppm CO₂ breakthrough on Lewatit VP OC 1065 with dual-rate LDF and series-resistance kinetics | — (outlet times to 5, 50 and 95 % of the feed) | 2 s |
 | [`five_step_product_purge.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/five_step_product_purge.py) | `FiveStepProductPurge` | CO₂/N₂ VSA template with product purge | — (CSS status, integrator statistics) | 4 s |
 | [`optimise_nsga2.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/optimise_nsga2.py) | `Perez2019_A` | NSGA-II search (pymoo) of feed time and evacuation pressure, each candidate run to CSS in a process pool | — (the CO₂ purity / recovery Pareto front) | about 10 min (estimated: 60 runs of about 30 s, 4 cores) |
 
@@ -56,6 +58,8 @@ Three executed notebooks are in `examples/notebooks/`: a parametric study of the
 | **Ward (2022)** | `Ward2022_Q50ccm`, `Ward2022_Q100ccm`, `Ward2022_Q200ccm` | CO₂ breakthrough on activated carbon at three feed flow rates |
 | **Ward (2024)** | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74 (Table 4) |
 | **Illustrative** | `Illustrative_TSA_13X` | **Not a reproduction.** A four-step indirectly heated TSA for CO₂ on zeolite 13X, built for the [TSA tutorial](tsa-regeneration.md) |
+| **Illustrative** | `Illustrative_DAC_Breakthrough` | **Not a reproduction.** An isothermal breakthrough of 400 ppm CO₂ in N₂ on the Lewatit VP OC 1065 library adsorbent, with the [dual-rate LDF and series-resistance kinetics](kinetic-models.md#which-to-use-for-direct-air-capture) |
+| **Illustrative** | `Illustrative_Diluted_Bed` | **Not a reproduction.** The Ward 2022 100 ccm CO₂ breakthrough on activated carbon with the adsorbent diluted by 30 % glass beads by mass in a [mixed layer](mixed-layers.md) |
 | **Other** | `FiveStepProductPurge` | A CO₂/N₂ VSA cycle with feed, blowdown, evacuation, pressurisation and product purge on a 13X-type isotherm; the feed is split into two sub-steps so that one light-product connection pressurises and the other purges (six steps in the deck). It comes from an integration test, has no KPI configuration and no literature source; use it as a template, not as data |
 
 Several decks also carry the experimental curves digitised from their paper (the deck's experimental-data section), the same data as `core/data/`.

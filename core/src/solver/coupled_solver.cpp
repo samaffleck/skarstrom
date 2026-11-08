@@ -11,6 +11,8 @@
 #include "adsim/solver/ida_settings.h"
 #include "adsim/solver/deck_warnings.h"
 #include "adsim/solver/operating_limits.h"
+#include "adsim/solver/kpi_quadrature.h"
+#include <idas/idas.h>
 #include <chrono>
 #include <optional>
 #include <sstream>
@@ -120,6 +122,62 @@ namespace adsim {
     }
   }
 
+  namespace {
+    // IDAS quadrature right-hand side: the KPI integrands at IDA's corrected
+    // solution (kpi_quadrature.h). It loads (t, y, y') into the state as
+    // logging does; the residual reloads the state on every call, so the
+    // solution path is unchanged. It never fails the run: an integrand that
+    // cannot be evaluated is NaN, which marks the step's quadrature KPIs
+    // undefined (error control is off by default, so NaN quadratures do not
+    // reach IDA's step control).
+    int KpiQuadratureRhs(sunrealtype t, N_Vector y, N_Vector yp, N_Vector rhs_q, void* user_data) {
+      auto* udata = static_cast<UserData*>(user_data);
+      sunrealtype* q = N_VGetArrayPointer(rhs_q);
+      const sunindextype n = N_VGetLength(rhs_q);
+      try {
+        auto& state = udata->state;
+        state.UnpackBanded(N_VGetArrayPointer(y), N_VGetArrayPointer(yp));
+        state.UpdateIndependentEquations(udata);
+        state.UpdateDiagnosticEquations(udata);
+        KpiQuadratureLayout layout;
+        layout.n_components = static_cast<int>(udata->fluid.components_.size());
+        layout.max_endpoints = static_cast<int>((n - 2 * layout.n_components) / layout.BlockSize());
+        if (layout.Size() != n) throw std::runtime_error("KPI quadrature layout mismatch");
+        EvaluateKpiQuadratureIntegrands(*udata, t - udata->step_start_time_, layout, q);
+      } catch (...) {
+        std::fill(q, q + n, std::numeric_limits<double>::quiet_NaN());
+      }
+      return 0;
+    }
+
+    // Writes the step's quadrature integrals into its endpoints' stream logs
+    // (before BoundaryLog::LogEndOfStep copies them) and returns the step's
+    // mole balance. The state must hold the step's end (its last Log).
+    StepBalance FinishStepQuadratures(SolverData& solver_data, UserData& user_data, Step& step,
+                                      std::vector<double> inventory_start, bool step_ok) {
+      StepBalance balance;
+      if (!solver_data.QuadraturesActive()) return balance;
+      std::vector<double> q;
+      const bool ok = step_ok && solver_data.StepQuadratures(q);
+      balance.inventory_start = std::move(inventory_start);
+      balance.inventory_end = ColumnInventory(user_data);
+      DistributeKpiQuadratures(step, solver_data.QuadratureLayout(), user_data.fluid.components_, q, ok, balance);
+      return balance;
+    }
+
+    // The step-balance diagnostic line (HIGH): for a step with one open end,
+    // the inventory-difference cross-check of that end's flow.
+    std::string DescribeStepBalance(const Step& step, const StepBalance& b) {
+      std::ostringstream ss;
+      ss << std::scientific << std::setprecision(3) << "  Step \"" << step.step_name_ << "\" mole balance";
+      if (b.open_ends == 1) ss << " (one open end)";
+      ss << ": moles in " << b.TotalEndpointNetIn() << " mol, inventory change " << b.TotalInventoryChange()
+         << " mol, discrepancy " << b.EndpointDiscrepancy() << " mol (" << b.RelativeEndpointDiscrepancy()
+         << " relative); face flux discrepancy " << b.FaceDiscrepancy() << " mol.";
+      return ss.str();
+    }
+  }
+
   CoupledSolver::CoupledSolver(UserData& data) : user_data_(data) {}
 
   void CoupledSolver::LogMessage(LogLevel level, const std::string& msg) {
@@ -138,8 +196,11 @@ namespace adsim {
     user_data_.Initialise();
     equation_log_.Initialise(user_data_);
     equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
+    solver_data_.SetMessageSink([this](const std::string& msg) { LogMessage(LogLevel::HIGH, "  IDA: " + msg); });
     boundary_log_.Initialise(user_data_);
     kpi_history_.Clear();
+    css_history_.Clear();
+    run_health_.Begin(user_data_);
     jump_cycles_.clear();
     
     // Set current step for initial conditions
@@ -185,6 +246,7 @@ namespace adsim {
     // Fresh IDA history for the new boundary conditions (see
     // SolverData::RestartForNewStep).
     solver_data_.RestartForNewStep();
+    solver_data_.BeginQuadratureStep();
 
     double t_curr = t_start;
     
@@ -200,6 +262,9 @@ namespace adsim {
       double t_relative = t_curr - user_data_.step_start_time_;
       step.LogOutletConditions(user_data_.state, t_relative);
     }
+    // Column inventory at the step start, for the step's mole balance.
+    std::vector<double> inventory_start;
+    if (solver_data_.QuadraturesActive()) inventory_start = ColumnInventory(user_data_);
   
     if (verbose) {
       std::cout << "Solving Step: " << step.step_name_ << " (from t=" << t_start << " to t=" << t_final << ", step time: 0 to " << step.step_time_ << ")" << std::endl;
@@ -265,6 +330,11 @@ namespace adsim {
              || flag == IDA_LSOLVE_FAIL // linear solver solve failure
              || flag == IDA_TOO_MUCH_WORK);
 
+        // IDA's own message for this failure (its error handler sent it to
+        // the log at HIGH); quoted in the recovered or failed step's line.
+        // Taken before PrepareStepRetry, whose restart may raise its own.
+        const std::string ida_message = solver_data_.TakeLastMessage();
+
         SolverData::StepRetry retry;
         if (recoverable && retry_count < kMaxStepRetries)
           retry = solver_data_.PrepareStepRetry(flag, min_step);
@@ -272,12 +342,13 @@ namespace adsim {
         if (retry.retry) {
           ++retry_count;
           std::ostringstream ss;
-          ss << "  Step \"" << step.step_name_ << "\" IDA failure (code " << flag
+          ss << "  Step \"" << step.step_name_ << "\" recovered step: IDA failure (code " << flag
              << ") at t=" << t_curr << "; retry " << retry_count << "/" << kMaxStepRetries
              << (retry.consistent_ic ? " restarting from a consistent initial condition"
                  : retry.restarted ? " restarting at step " : " continuing from IDA's step ");
           if (!retry.consistent_ic) ss << retry.h << "s";
           ss << ".";
+          if (!ida_message.empty()) ss << " IDA: " << ida_message;
           LogMessage(LogLevel::MEDIUM, ss.str());
           continue;
         }
@@ -291,7 +362,10 @@ namespace adsim {
              << retry_count << " retr" << (retry_count == 1 ? "y" : "ies")
              << " (last IDA code " << flag << ", min step " << min_step << "s) at t="
              << t_curr << ".";
+          if (!ida_message.empty()) ss << " IDA: " << ida_message;
           LogMessage(LogLevel::LOW, ss.str());
+        } else if (!ida_message.empty()) {
+          LogMessage(LogLevel::LOW, "  Step \"" + step.step_name_ + "\" IDA: " + ida_message);
         }
         break;
       }
@@ -354,7 +428,13 @@ namespace adsim {
 
     {
       ProfileTimer log_timer(profile.enabled, profile.log_ns);
+      const bool step_ok = flag >= 0 && flag != 99;
+      StepBalance balance = FinishStepQuadratures(solver_data_, user_data_, step, std::move(inventory_start), step_ok);
       boundary_log_.LogEndOfStep(step, cycle_index, step_index);
+      if (balance.valid) {
+        LogMessage(LogLevel::HIGH, DescribeStepBalance(step, balance));
+        boundary_log_.LogStepBalance(cycle_index, step_index, std::move(balance));
+      }
     }
 
     // Snapshot the just-finished step's outlet aggregates so any downstream
@@ -455,6 +535,8 @@ namespace adsim {
       LogMessage(LogLevel::LOW, w);
     for (const auto& w : FilmCorrelationWarnings(user_data_.bed))
       LogMessage(LogLevel::LOW, w);
+    for (const auto& w : ReactionWarnings(user_data_.adsorbent_directory, user_data_.bed))
+      LogMessage(LogLevel::LOW, w);
 
     stop_requested_ = false;
 
@@ -466,6 +548,7 @@ namespace adsim {
       cycle_index = i - 1; // Convert to 0-based index
 
       LogMessage(LogLevel::LOW, "Cycle " + std::to_string(i) + " of " + std::to_string(total_cycles));
+      const IntegrationStats cycle_stats_start = solver_data_.GetStatistics();
 
       int step_index = 0;
       for (auto& step : cycle.step_list_) {
@@ -521,6 +604,8 @@ namespace adsim {
 
       // The cycle is complete: keep its KPIs before the log evicts it.
       kpi_history_.Record(user_data_.kpi_config, cycle.step_list_, equation_log_, boundary_log_, cycle_index);
+      run_health_.OnCycle(user_data_, equation_log_, boundary_log_, cycle_index, cycle_stats_start,
+                          solver_data_.GetStatistics());
 
       std::optional<ProfileTimer> css_timer;  // CSS check + acceleration
       css_timer.emplace(user_data_.profile_.enabled, user_data_.profile_.css_ns);
@@ -528,6 +613,7 @@ namespace adsim {
       auto& css = user_data_.settings.css;
       CSSResult css_result = css.CheckCSS(equation_log_, cycle_index,
                                           [this](int c) { return jump_cycles_.count(c) > 0; });
+      css_history_.Record(cycle_index, css_result);
 
       if (css_result.converged) {
         LogMessage(LogLevel::LOW, "CSS reached at cycle " + std::to_string(i)
@@ -588,6 +674,10 @@ namespace adsim {
       // fluidisation (see operating_limits.h).
       for (const auto& w : CheckOperatingLimits(user_data_, equation_log_).warnings)
         LogMessage(LogLevel::LOW, w.message);
+      // Run health (run_health.h): the warnings of every cycle, once.
+      run_health_.Finish(user_data_, equation_log_);
+      for (const auto& w : run_health_.Report().warnings)
+        LogMessage(LogLevel::LOW, w.message);
     } else {
       std::ostringstream ss;
       ss << "Solver failed after " << std::fixed << std::setprecision(2) << wall_secs << " s";
@@ -615,6 +705,9 @@ namespace adsim {
          << wall_secs << " s)";
       LogMessage(LogLevel::LOW, ss.str());
       for (const auto& w : CheckOperatingLimits(user_data_, equation_log_).warnings)
+        LogMessage(LogLevel::LOW, w.message);
+      run_health_.Finish(user_data_, equation_log_);
+      for (const auto& w : run_health_.Report().warnings)
         LogMessage(LogLevel::LOW, w.message);
     } else {
       std::ostringstream ss;
@@ -646,8 +739,11 @@ namespace adsim {
       user_data_.Initialise();
       equation_log_.Initialise(user_data_);
       equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
+      solver_data_.SetMessageSink([this](const std::string& msg) { LogMessage(LogLevel::HIGH, "  IDA: " + msg); });
       boundary_log_.Initialise(user_data_);
       kpi_history_.Clear();
+      css_history_.Clear();
+      run_health_.Begin(user_data_);
       jump_cycles_.clear();
 
       // Clear stream_data_ for every step so connected boundary streams don't
@@ -672,6 +768,7 @@ namespace adsim {
         return;
       }
 
+      cycle_stats_start_ = solver_data_.GetStatistics();
       // Set activate to true
       status_.Activate();
       run_wall_start_ = std::chrono::steady_clock::now();
@@ -700,6 +797,8 @@ namespace adsim {
         LogMessage(LogLevel::LOW, w);
       for (const auto& w : FilmCorrelationWarnings(user_data_.bed))
         LogMessage(LogLevel::LOW, w);
+      for (const auto& w : ReactionWarnings(user_data_.adsorbent_directory, user_data_.bed))
+        LogMessage(LogLevel::LOW, w);
     }
   }
 
@@ -727,10 +826,15 @@ namespace adsim {
         // The cycle is complete: keep its KPIs before the log evicts it.
         kpi_history_.Record(user_data_.kpi_config, step_list, equation_log_, boundary_log_,
                             status_.GetCycleIndex());
+        const IntegrationStats cycle_stats_end = solver_data_.GetStatistics();
+        run_health_.OnCycle(user_data_, equation_log_, boundary_log_, status_.GetCycleIndex(), cycle_stats_start_,
+                            cycle_stats_end);
+        cycle_stats_start_ = cycle_stats_end;
 
         // Check for cyclic steady state before moving to next cycle
         const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex(),
                                                   [this](int c) { return jump_cycles_.count(c) > 0; });
+        css_history_.Record(status_.GetCycleIndex(), css_result);
         if (css_result.converged) {
           LogMessage(LogLevel::LOW, "CSS reached at cycle "
                      + std::to_string(status_.GetCycleIndex() + 1)
@@ -834,7 +938,14 @@ namespace adsim {
       LogMessage(LogLevel::HIGH, ss.str());
 
       status_.StepComplete();
+      StepBalance balance = FinishStepQuadratures(solver_data_, user_data_, step,
+                                                  std::move(step_inventory_start_), true);
+      step_inventory_start_.clear();
       boundary_log_.LogEndOfStep(step, cycle_index, step_index);
+      if (balance.valid) {
+        LogMessage(LogLevel::HIGH, DescribeStepBalance(step, balance));
+        boundary_log_.LogStepBalance(cycle_index, step_index, std::move(balance));
+      }
 
       // Snapshot the just-finished step's outlet aggregates for any
       // downstream BufferTankSource consumer (mirrors
@@ -872,9 +983,15 @@ namespace adsim {
              || flag == IDA_REP_RES_ERR || flag == IDA_LSETUP_FAIL
              || flag == IDA_LSOLVE_FAIL || flag == IDA_TOO_MUCH_WORK);
 
+        const std::string ida_message = solver_data_.TakeLastMessage();
         if (recoverable && retry_count < kMaxStepRetries
             && solver_data_.PrepareStepRetry(flag, min_step).retry) {
           ++retry_count;
+          std::ostringstream ss;
+          ss << "  Step \"" << step.step_name_ << "\" recovered step: IDA failure (code " << flag
+             << ") at t=" << t_curr << "; retry " << retry_count << "/" << kMaxStepRetries << ".";
+          if (!ida_message.empty()) ss << " IDA: " << ida_message;
+          LogMessage(LogLevel::MEDIUM, ss.str());
           continue;
         }
 
@@ -884,7 +1001,7 @@ namespace adsim {
         LogMessage(LogLevel::LOW, "  Step \"" + step.step_name_ + "\" failed: "
                    + temp_status.GetFlagMessage() + " Largest local error: "
                    + solver_data_.DescribeLargestLocalError(user_data_.state) + "."
-                   + residual_error);
+                   + residual_error + (ida_message.empty() ? "" : " IDA: " + ida_message));
         status_.Failed(
             (recoverable
                 ? ("IDASolve failed to converge after " + std::to_string(retry_count)
@@ -966,12 +1083,15 @@ namespace adsim {
     // Fresh IDA history for the new boundary conditions (see
     // SolverData::RestartForNewStep).
     solver_data_.RestartForNewStep();
+    solver_data_.BeginQuadratureStep();
 
     // Clear logs for this step ??
     step.ClearOutletConditions();
 
     // Log initial state
     Log(step, t_start, step_index, cycle_index);
+    step_inventory_start_.clear();
+    if (solver_data_.QuadraturesActive()) step_inventory_start_ = ColumnInventory(user_data_);
     
     status_.StepInitialised(t_start, t_final);
     return true;
@@ -1007,7 +1127,32 @@ namespace adsim {
     step.LogOutletConditions(user_data_.state, t_relative);
   }
 
-  SolverData::SolverData() = default;
+  SolverData::SolverData() {
+    // Route SUNDIALS errors to the engine log instead of stderr. SUNDIALS calls
+    // every handler on the context's stack, so the default one (which writes to
+    // stderr through the SUNDIALS logger) is removed first.
+    if (sunctx_) {
+      SUNContext_ClearErrHandlers(sunctx_);
+      SUNContext_PushErrHandler(sunctx_, &SolverData::OnSundialsError, this);
+    }
+  }
+
+  void SolverData::OnSundialsError(int /*line*/, const char* func, const char* /*file*/, const char* msg,
+                                   SUNErrCode code, void* data, SUNContext /*ctx*/) {
+    auto* self = static_cast<SolverData*>(data);
+    if (!self) return;
+    std::string text = func ? std::string(func) + ": " : std::string();
+    text += msg ? msg : SUNGetErrMsg(code);
+    while (!text.empty() && (text.back() == '\n' || text.back() == ' ')) text.pop_back();
+    self->last_message_ = text;
+    if (self->message_sink_) self->message_sink_(text);
+  }
+
+  std::string SolverData::TakeLastMessage() {
+    std::string m;
+    m.swap(last_message_);
+    return m;
+  }
 
   SolverData::~SolverData() {
     Free();
@@ -1052,12 +1197,14 @@ namespace adsim {
       N_VDestroy_Serial(ele_);
       ele_ = nullptr;
     }
-    for (N_Vector* v : { &y_interp_, &yp_interp_ }) {
+    for (N_Vector* v : { &y_interp_, &yp_interp_, &yQ_, &yQ_tmp_ }) {
       if (*v) {
         N_VDestroy_Serial(*v);
         *v = nullptr;
       }
     }
+    quad_carry_.clear();
+    quad_layout_ = KpiQuadratureLayout{};
   }
 
   int SolverData::Initialise(UserData& user_data, std::string& error_message) {
@@ -1065,6 +1212,8 @@ namespace adsim {
     // same SolverData on every call (e.g. once per optimiser evaluation).
     Free();
     stats_carry_ = IntegrationStats{};
+    recovered_steps_ = 0;
+    last_message_.clear();
 
     auto& state = user_data.state;
     auto& settings = user_data.settings;
@@ -1193,6 +1342,37 @@ namespace adsim {
       return retval;
     }
 
+    // KPI quadratures (kpi_quadrature.h). Optional extras: if IDAS cannot set
+    // them up, the run goes on without them.
+    if (settings.kpi_quadratures_) {
+      quad_layout_ = KpiQuadratureLayout::For(user_data);
+      const int nq = quad_layout_.Size();
+      if (nq > 0) {
+        yQ_ = N_VNew_Serial(nq, sunctx_);
+        yQ_tmp_ = N_VNew_Serial(nq, sunctx_);
+        bool ok = yQ_ && yQ_tmp_;
+        if (ok) {
+          N_VConst(0.0, yQ_);
+          ok = IDAQuadInit(ida_mem_, KpiQuadratureRhs, yQ_) == IDA_SUCCESS;
+        }
+        if (ok) ok = IDASetQuadErrCon(ida_mem_, settings.quadrature_error_control_ ? SUNTRUE : SUNFALSE) == IDA_SUCCESS;
+        if (ok && settings.quadrature_error_control_)
+          ok = IDAQuadSStolerances(ida_mem_, settings.reltol, settings.quadrature_abstol_) == IDA_SUCCESS;
+        if (!ok) {
+          // IDAFree releases the quadrature memory with the rest; just stop
+          // using it. IDAS integrates quadratures only after IDAQuadInit
+          // succeeded, and IDASetQuadErrCon(false) leaves them out of the
+          // error test, so a half set-up is harmless.
+          if (ida_mem_) IDASetQuadErrCon(ida_mem_, SUNFALSE);
+          for (N_Vector* v : { &yQ_, &yQ_tmp_ }) {
+            if (*v) { N_VDestroy_Serial(*v); *v = nullptr; }
+          }
+        } else {
+          quad_carry_.assign(nq, 0.0);
+        }
+      }
+    }
+
     // Compute consistent initial conditions
     retval = IDACalcIC(ida_mem_, IDA_YA_YDP_INIT, 1e-9);
     if (retval != IDA_SUCCESS) {
@@ -1276,6 +1456,7 @@ namespace adsim {
       if (ReInit(GetTime()) != IDA_SUCCESS) return StepRetry{};
       r.retry = true;
       r.restarted = true;
+      ++recovered_steps_;
       return r;
     }
 
@@ -1297,10 +1478,12 @@ namespace adsim {
       r.restarted = true;
       r.consistent_ic = true;
       r.h = GetInitStepSetting();
+      ++recovered_steps_;
       return r;
     }
     r.retry = true;
     r.h = h_cur;
+    ++recovered_steps_;
     return r;
   }
 
@@ -1637,6 +1820,7 @@ namespace adsim {
     stats.num_jac_evals += stats_carry_.num_jac_evals;
     stats.num_lin_setups += stats_carry_.num_lin_setups;
     if (ida_mem_ && custom_jacobian_) stats.num_lin_res_evals += jacobian_.NumResidualEvals();
+    stats.recovered_steps = recovered_steps_;
     return stats;
   }
 
@@ -1650,11 +1834,50 @@ namespace adsim {
     stats_carry_.num_lin_res_evals += c.num_lin_res_evals;
     stats_carry_.num_jac_evals += c.num_jac_evals;
     stats_carry_.num_lin_setups += c.num_lin_setups;
-    if (!reinit_observer_) return IDAReInit(ida_mem_, t, y_, yp_);
-    reinit_observer_->BeforeReInit(ida_mem_, t);
+    // KPI quadratures: keep what was integrated up to t, then restart IDAS's
+    // quadrature history from zero along with the solution's.
+    if (yQ_) {
+      std::vector<double> current;
+      CurrentQuadratures(t, current);
+      for (size_t i = 0; i < quad_carry_.size() && i < current.size(); ++i) quad_carry_[i] += current[i];
+    }
+    if (reinit_observer_) reinit_observer_->BeforeReInit(ida_mem_, t);
     int flag = IDAReInit(ida_mem_, t, y_, yp_);
-    if (flag == IDA_SUCCESS) flag = reinit_observer_->AfterReInit(ida_mem_, t);
+    if (flag == IDA_SUCCESS && yQ_) {
+      N_VConst(0.0, yQ_);
+      flag = IDAQuadReInit(ida_mem_, yQ_);
+    }
+    if (flag == IDA_SUCCESS && reinit_observer_) flag = reinit_observer_->AfterReInit(ida_mem_, t);
     return flag;
+  }
+
+  void SolverData::CurrentQuadratures(double t, std::vector<double>& out) const {
+    out.assign(quad_carry_.size(), 0.0);
+    if (!yQ_ || !ida_mem_ || out.empty()) return;
+    long int nst = 0;
+    IDAGetNumSteps(ida_mem_, &nst);
+    if (nst == 0) return;  // no step since IDAQuadInit / IDAQuadReInit: still zero
+    if (IDAGetQuadDky(ida_mem_, t, 0, yQ_tmp_) != IDA_SUCCESS) {
+      std::fill(out.begin(), out.end(), std::numeric_limits<double>::quiet_NaN());
+      return;
+    }
+    const sunrealtype* q = N_VGetArrayPointer(yQ_tmp_);
+    for (size_t i = 0; i < out.size(); ++i) out[i] = q[i];
+  }
+
+  void SolverData::BeginQuadratureStep() {
+    if (!yQ_) return;
+    // Usually RestartForNewStep has just re-initialised IDAS (current = 0);
+    // otherwise subtract what is there.
+    CurrentQuadratures(GetTime(), quad_carry_);
+    for (double& v : quad_carry_) v = -v;
+  }
+
+  bool SolverData::StepQuadratures(std::vector<double>& out) const {
+    if (!yQ_) return false;
+    CurrentQuadratures(GetTime(), out);
+    for (size_t i = 0; i < out.size() && i < quad_carry_.size(); ++i) out[i] += quad_carry_[i];
+    return true;
   }
 
   double SolverData::GetLastStep() const {
@@ -1707,6 +1930,7 @@ namespace adsim {
     std::cout << "  Number of Jacobian evals: " << stats.num_jac_evals << std::endl;
     std::cout << "  Number of linear solver setups: " << stats.num_lin_setups << std::endl;
     std::cout << "  Number of Jacobian (DQ) residual evals: " << stats.num_lin_res_evals << std::endl;
+    std::cout << "  Number of recovered steps: " << stats.recovered_steps << std::endl;
   }
 
 } // end adsim namespace

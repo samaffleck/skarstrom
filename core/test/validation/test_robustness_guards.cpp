@@ -62,8 +62,8 @@ namespace adsim {
 
     UserData data;
     Build(data, c);
-    // The 1e-12 bounds below are upwind's (monotone). With WENO the cells, and
-    // so the unclamped bed-end faces, overshoot [0, 1] by 3.9e-12 here.
+    // The bounds below are upwind's (monotone). With WENO the cells, and so
+    // the unclamped bed-end faces, overshoot [0, 1] by 3.9e-12 here.
     data.settings.advection_scheme_ = AdvectionScheme::Upwind;
 
     CoupledSolver solver{data};
@@ -99,10 +99,14 @@ namespace adsim {
           worst_high = std::max(worst_high, yf - 1.0);
         }
       }
-      // The clamp is exact, so the only slack allowed is floating-point noise.
-      EXPECT_LT(worst_low, 1e-12)
+      // The clamp is exact and upwind is monotone, so the only slack is the
+      // cells' integration round-off at reltol 1e-8: observed 3.5e-12 here
+      // (3.9e-12 with WENO). It moves with the integrator's step sequence
+      // (IDA's WRMS error norm is taken over the unknowns, which an inert
+      // loading no longer is), so the bound is 1e-11, not 1e-12.
+      EXPECT_LT(worst_low, 1e-11)
         << "Face " << component << " went negative by " << worst_low;
-      EXPECT_LT(worst_high, 1e-12)
+      EXPECT_LT(worst_high, 1e-11)
         << "Face " << component << " exceeded 1 by " << worst_high;
     }
   }

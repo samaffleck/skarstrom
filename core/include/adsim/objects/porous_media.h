@@ -107,6 +107,9 @@ namespace adsim {
     // solid_density [kg/m3] is the owning adsorbent's particle density, which
     // the capacity-factor coefficient needs (0 when unknown).
     void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const std::string& component, const Fluid& fluid, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry, double solid_density = 0.0);
+    // The slow-site coefficient of a dual-rate LDF component, into
+    // state.slow_mass_transfer_coefficient (no-op without a slow site).
+    void UpdateSlowMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const std::string& component, const Fluid& fluid, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry, double solid_density = 0.0);
     std::unique_ptr<IIsotherm>& GetIsotherm(const std::string& component);
 
     std::unordered_map<std::string, std::unique_ptr<IMassTransferModel>> mass_transfer_models_{};

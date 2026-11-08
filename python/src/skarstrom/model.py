@@ -52,6 +52,8 @@ from typing import (
     overload,
 )
 
+from .manifests import component_aliases
+
 if TYPE_CHECKING:
     from . import Parameter, Simulation
 
@@ -85,30 +87,6 @@ __all__ = [
 #: What a field accepts: a number (SI), a pint Quantity, or a string (an
 #: expression such as "2*feed_time", or a deck-syntax quantity such as "2 [min]").
 Value = Union[float, int, str, Any]
-
-# Formula-style names for the CoolProp components decks use most.
-_COMPONENT_ALIASES = {
-    "CO2": "CarbonDioxide",
-    "N2": "Nitrogen",
-    "O2": "Oxygen",
-    "H2": "Hydrogen",
-    "CH4": "Methane",
-    "He": "Helium",
-    "Ar": "Argon",
-    "H2O": "Water",
-    "CO": "CarbonMonoxide",
-    "C2H6": "Ethane",
-    "C2H4": "Ethylene",
-    "C3H8": "n-Propane",
-    "C3H6": "Propylene",
-    "H2S": "HydrogenSulfide",
-    "SO2": "SulfurDioxide",
-    "NH3": "Ammonia",
-    "Kr": "Krypton",
-    "Xe": "Xenon",
-    "Ne": "Neon",
-}
-
 
 # ---------------------------------------------------------------------------
 # The registry, as a tree
@@ -523,7 +501,7 @@ def _apply(node: "_Node", values: Dict[str, Any]) -> None:
 def _resolve_key(key: str, keys: List[str], what: str) -> str:
     if key in keys:
         return key
-    alias = _COMPONENT_ALIASES.get(key)
+    alias = component_aliases().get(key)
     if alias in keys:
         return alias  # type: ignore[return-value]
     folded = [k for k in keys if k.lower() == str(key).lower()]
@@ -790,6 +768,14 @@ class Settings(_Node):
     """Warn when the last cycle's approach to fluidisation passes 1."""
     warn_channel_reynolds = Boolean()
     """Warn when the last cycle's channel Reynolds number in a structured layer passes 2000."""
+    warn_mole_fraction_sum = Boolean()
+    """Run health: warn when the gas mole fractions do not sum to 1 (MOLE_FRACTION_SUM)."""
+    warn_mass_balance_stuck = Boolean()
+    """Run health: warn when a cycle mole balance stays open as the run settles (MASS_BALANCE_STUCK)."""
+    warn_step_retries = Boolean()
+    """Run health: warn on many rejected integrator attempts in a cycle (STEP_RETRIES)."""
+    warn_history_truncated = Boolean()
+    """Run health: warn when the log keeps fewer cycles than the diagnostics read (HISTORY_TRUNCATED)."""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation) or "anderson"."""
 
@@ -1463,6 +1449,60 @@ class Wall(_Node):
         return wall
 
 
+class CostData(_Node):
+    """The deck's cost estimate (levelised cost of the product): plant, finance and operating
+    values; ``.vessel``, ``.heat_exchanger``, ``.compressor[1]``, ``.vacuum_pump[1]`` and
+    ``.adsorbent[ID]`` hold the equipment's. Money is in the deck's currency (GBP)."""
+
+    vessel_count = Integer()
+    """Vessels per train."""
+    train_count = Integer()
+    """Trains."""
+    operating_days_per_year = Integer()
+    """Operating days per year."""
+    plant_life_years = Real()
+    """Plant life in years [-]."""
+    discount_rate = Real()
+    """Discount rate [-]."""
+    electricity_cost_per_kWh = Real()
+    """Electricity cost per kWh [GBP]."""
+    maintenance_fraction = Real()
+    """Maintenance cost per year as a fraction of the CAPEX [-]."""
+    overhead_fraction = Real()
+    """Overhead cost per year as a fraction of the CAPEX [-]."""
+    labour_cost_per_year = Real()
+    """Labour cost per year [GBP]."""
+    adsorbent_replacement_years = Real()
+    """Years between full adsorbent replacements [-]."""
+
+
+class StudySettings(_Node):
+    """Settings of the deck's sensitivity study (its inputs and outputs: :mod:`skarstrom.sensitivity`)."""
+
+    seed = Integer()
+    """Random seed."""
+    trajectories = Integer()
+    """Morris trajectories."""
+    levels = Integer()
+    """Morris grid levels (even, at least 2)."""
+    threshold = Real()
+    """Inputs propagated after screening: mu* at least this fraction of the largest [-]."""
+    runs = Integer()
+    """Monte Carlo runs of the first batch."""
+    batch = Integer()
+    """Monte Carlo runs added per batch."""
+    max_runs = Integer()
+    """Monte Carlo run limit."""
+    rel_tol = Real()
+    """Percentile tolerance as a fraction of each output's 5-95 % band [-]."""
+    bootstrap = Integer()
+    """Bootstrap resamples."""
+    require_css = Boolean()
+    """Runs must reach cyclic steady state to count."""
+    cycles = Integer()
+    """Cycles per run (0: the deck's number of cycles)."""
+
+
 class InitialConditions(_Node):
     """The state of the bed at the start of the first cycle."""
 
@@ -1669,6 +1709,44 @@ class Kinetics(_Node):
     """Constant molecular diffusivity D_m of the macropore coefficients (``macropore``, ``macropore_capacity``,
     ``macropore_knudsen``) [m2/s]; 0 (the default) uses the binary-diffusion value from the local T and P,
     which scales as 1/P. Haghpanah et al. (2013) and Estupinan Perez et al. (2019) use a constant 1.6e-5 m2/s."""
+    film_resistance_factor = Real()
+    """Multiplier of the external-film resistance of the ``series_resistance`` coefficient [-]; 0 drops the film term, 1 (the default) keeps the correlation's value."""
+    crystal_radius = Real()
+    """Crystal (micropore) radius r_c of the ``series_resistance`` coefficient [m]; 0 drops the micropore term."""
+    micropore_diffusivity = Real()
+    """Micropore diffusivity pre-exponential D_c0 of the ``series_resistance`` coefficient [m2/s]; 0 drops the micropore term."""
+    micropore_activation_energy = Real()
+    """Activation energy E_a of the micropore diffusivity D_c = D_c0 exp(-E_a / R T) [J/mol]."""
+    capacity_factor = Real()
+    """Fixed capacity factor K of the ``series_resistance`` coefficient [-]; 0 (the default) takes it from the isotherm slope."""
+    split = Real()
+    """Fast-site fraction phi of the equilibrium loading in the ``dual_rate_ldf`` model [-]; 1 is the plain LDF."""
+    slow_k = Real()
+    """Slow-site value of ``k`` in the ``dual_rate_ldf`` model: mass transfer coefficient [1/s]."""
+    slow_pre_exp_factor = Real()
+    """Slow-site value of ``pre_exp_factor`` in the ``dual_rate_ldf`` model: arrhenius pre-exponential factor [1/s]."""
+    slow_activation_energy = Real()
+    """Slow-site value of ``activation_energy`` in the ``dual_rate_ldf`` model: arrhenius activation energy [J/mol]."""
+    slow_tortuosity = Real()
+    """Slow-site value of ``tortuosity`` in the ``dual_rate_ldf`` model: particle tortuosity [-]."""
+    slow_macropore_void_fraction = Real()
+    """Slow-site value of ``macropore_void_fraction`` in the ``dual_rate_ldf`` model: macropore void fraction [-]."""
+    slow_concentration_floor = Real()
+    """Slow-site value of ``concentration_floor`` in the ``dual_rate_ldf`` model: capacity-factor concentration floor [mol/m3]."""
+    slow_pore_radius = Real()
+    """Slow-site value of ``pore_radius`` in the ``dual_rate_ldf`` model: mean pore radius [m]."""
+    slow_molecular_diffusion_coefficient = Real()
+    """Slow-site value of ``molecular_diffusion_coefficient`` in the ``dual_rate_ldf`` model: constant molecular diffusivity D_m [m2/s]."""
+    slow_film_resistance_factor = Real()
+    """Slow-site value of ``film_resistance_factor`` in the ``dual_rate_ldf`` model: film-resistance multiplier [-]."""
+    slow_crystal_radius = Real()
+    """Slow-site value of ``crystal_radius`` in the ``dual_rate_ldf`` model: crystal radius r_c [m]."""
+    slow_micropore_diffusivity = Real()
+    """Slow-site value of ``micropore_diffusivity`` in the ``dual_rate_ldf`` model: micropore diffusivity D_c0 [m2/s]."""
+    slow_micropore_activation_energy = Real()
+    """Slow-site value of ``micropore_activation_energy`` in the ``dual_rate_ldf`` model: micropore activation energy E_a [J/mol]."""
+    slow_capacity_factor = Real()
+    """Slow-site value of ``capacity_factor`` in the ``dual_rate_ldf`` model: fixed capacity factor K [-]."""
 
 
 class Adsorbent(_Node):
@@ -1758,14 +1836,18 @@ class Adsorbent(_Node):
 
     def set_rate_model(self, component: str, model: str = "ldf", coefficient: str = "constant",
                        **values: Value) -> "Adsorbent":
-        """The mass-transfer model of one component: ``model`` ``"ldf"`` or ``"ldf2"``, with a
-        ``coefficient`` model ``"constant"`` (k), ``"arrhenius"`` (pre_exp_factor, activation_energy),
-        ``"macropore"`` / ``"haynes"`` (tortuosity, macropore_void_fraction),
-        ``"macropore_knudsen"`` (+ pore_radius) or ``"macropore_capacity"`` (the macropore
-        coefficient times the capacity factor c / (rho_p q*) of Haghpanah et al. 2013;
-        + concentration_floor). The three macropore kinds also take
-        molecular_diffusion_coefficient, a constant D_m [m2/s] in place of the
-        (T, P)-dependent binary-diffusion value (0, the default, keeps the latter)."""
+        """The mass-transfer model of one component: ``model`` ``"ldf"``, ``"ldf2"`` or
+        ``"dual_rate_ldf"`` (two parallel LDF sites; split, and slow_<name> for the slow site's
+        coefficient), with a ``coefficient`` model ``"constant"`` (k), ``"arrhenius"``
+        (pre_exp_factor, activation_energy), ``"macropore"`` / ``"haynes"`` (tortuosity,
+        macropore_void_fraction), ``"macropore_knudsen"`` (+ pore_radius), ``"macropore_capacity"``
+        (the macropore coefficient times the capacity factor c / (rho_p q*) of Haghpanah et al. 2013;
+        + concentration_floor) or ``"series_resistance"`` (film + macropore + micropore resistances in
+        series, the first two times the isotherm-slope capacity factor; film_resistance_factor,
+        tortuosity, macropore_void_fraction, crystal_radius, micropore_diffusivity,
+        micropore_activation_energy, capacity_factor, concentration_floor). The three macropore kinds
+        and series_resistance also take molecular_diffusion_coefficient, a constant D_m [m2/s] in place
+        of the (T, P)-dependent binary-diffusion value (0, the default, keeps the latter)."""
         name = self._sim._component(component)
         self._sim._build("set_rate_model", self._id, name, model, coefficient)
         ads = self._fresh()
@@ -1781,7 +1863,13 @@ class Adsorbent(_Node):
 # ---------------------------------------------------------------------------
 
 # The deck-wide groups (sim.bed, sim.cycle...), read again by name when stale.
-_TOP_LEVEL = (Info, Settings, CSS, EnergyBalance, Cycle, Bed, Wall, InitialConditions, Fluid)
+_TOP_LEVEL = (Info, Settings, CSS, EnergyBalance, Cycle, Bed, Wall, InitialConditions, Fluid, CostData,
+              StudySettings)
+
+
+def _kpi_tracked(sim: "Simulation") -> ValueMap:
+    trees = sim._index().root.keyed.get("kpi", {})
+    return ValueMap(sim, {c: t.leaves["tracked"] for c, t in trees.items() if "tracked" in t.leaves}, "kpi_tracked")
 
 
 def _group(sim: "Simulation", cls: Callable[..., N], name: str) -> N:

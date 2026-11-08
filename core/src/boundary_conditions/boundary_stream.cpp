@@ -16,6 +16,10 @@
 namespace adsim {
 
   void IBoundaryStream::Log(const Equations& state, double time, BoundaryLocation location) {
+    stream_data_.Log(Sample(state, time, location), time);
+  }
+
+  EndpointSample IBoundaryStream::Sample(const Equations& state, double time, BoundaryLocation location) {
     auto& component_mole_fractions = state.mole_fraction;
     auto& T = state.fluid_temperature.var;
     auto& P = state.pressure.var;
@@ -78,19 +82,16 @@ namespace adsim {
       }
     }
 
-    double power = GetPower(boundary_pressure, molar_flow, time);
-
-    stream_data_.Log(
-      molar_flow,
-      enthalpy_flow,
-      temperature,
-      boundary_pressure,
-      power,
-      time,
-      component_molar_flow,
-      logged_mole_fraction
-    );
-    stream_data_.LogEndCellPressure(P[i + d]);
+    EndpointSample sample;
+    sample.power = GetPower(boundary_pressure, molar_flow, time);
+    sample.molar_flow = molar_flow;
+    sample.enthalpy_flow = enthalpy_flow;
+    sample.temperature = temperature;
+    sample.pressure = boundary_pressure;
+    sample.end_cell_pressure = P[i + d];
+    sample.component_molar_flow = std::move(component_molar_flow);
+    sample.mole_fraction = std::move(logged_mole_fraction);
+    return sample;
   }
 
   bool IBoundaryStream::PerformChecks(std::string& error_msg, const Fluid& fluid) {
@@ -151,7 +152,7 @@ namespace adsim {
   }
 
   ValveBoundaryStream::ValveBoundaryStream() {
-    boundary_value_ = std::make_unique<ConstantBoundaryValue>(101325.0);
+    boundary_value_ = std::make_unique<ConstantBoundaryValue>(constants::kStandardAtmosphere);
   }
 
   // void ValveBoundaryStream::Initialise(double step_time) {}
@@ -473,6 +474,13 @@ namespace adsim {
     time_series_.clear();
     component_molar_flow_.clear();
     mole_fraction_boundary_.clear();
+    integrals_ = EndpointIntegrals{};
+  }
+
+  void StreamData::Log(const EndpointSample& sample, double time) {
+    Log(sample.molar_flow, sample.enthalpy_flow, sample.temperature, sample.pressure, sample.power, time,
+        sample.component_molar_flow, sample.mole_fraction);
+    LogEndCellPressure(sample.end_cell_pressure);
   }
 
   void StreamData::Log(

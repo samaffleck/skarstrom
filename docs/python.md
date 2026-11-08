@@ -1,5 +1,15 @@
 # Python and the command line
 
+<!-- doc-setup
+import numpy as np
+time_s = np.linspace(0, 99, 50)
+temperature_K = 298 + 5 * np.exp(-time_s / 30)
+open("outlet_CO2.csv", "w").write("time [s],outlet_CO2\n" + "".join(f"{t},{0.01 * t / 99}\n" for t in time_s))
+p_pa = np.array([0.1, 0.25, 0.5, 1.0, 2.0, 4.0]) * 1e5
+q_molkg = np.array([1.06, 1.94, 2.76, 3.47, 4.01, 4.36])
+T_K = 298.15
+-->
+
 The `skarstrom` Python package wraps the C++ engine (`adsim`) and runs deck files. Use it for parametric studies, sensitivity analysis, isotherm fitting, your own cost functions and your own plots, or run decks from a terminal with the `skarstrom` command.
 
 ## Install
@@ -13,6 +23,7 @@ pip install "skarstrom[examples]"   # also pandas, matplotlib, scipy and Jupyter
 
 For the development version, build it from a checkout (Python 3.10+, CMake 3.15+, a C++20 compiler):
 
+<!-- no-run: builds from source -->
 ```bash
 git clone --recursive https://github.com/samaffleck/skarstrom.git
 cd skarstrom
@@ -159,6 +170,7 @@ A field also accepts text, which is how decks store values: an expression (`"t_f
 
 To make units mandatory, create the simulation with `require_units=True`. A bare number for a dimensional field then raises `TypeError` (dimensionless values, counts and switches still take plain numbers):
 
+<!-- no-run: shows the error -->
 ```python
 from skarstrom import ureg as u
 sim = skarstrom.Simulation(skarstrom.examples.Perez2019_A, require_units=True)
@@ -220,7 +232,58 @@ ads = sim.add_library_adsorbent("zeolite_13x_streb2021")   # or one entry (a var
 
 A library adsorbent is added to the deck's adsorbent directory; it is used (and its values appear in `sim.parameters()`) once a layer contains it — automatically for a layer that had no adsorbent yet.
 
-Every other structural change (models, steps, boundary types, layers, connections) is made with the builder methods of the next section, which work on a loaded deck as well as on a new one.
+`sim.edit` holds the rest of the engine's cascades: the edits a front end makes, each keeping connections, KPI references, buffer tanks and mole fractions consistent. A kind switch keeps every parameter the old and new kinds share (the same name and unit, from the kind descriptors `skarstrom.model_kinds()` lists) and gives the rest the new kind's defaults. Objects are given by ID or as objects; a refused edit raises `ValueError` and changes nothing.
+
+```python
+layer = sim.edit.add_layer()                   # "Layer 2" (a taken name is made unique), composition seeded
+sim.edit.move_layer(layer, -1)                 # one place towards the feed end
+step = sim.edit.add_step()                     # a one-stream flow inlet at the bottom, a pressure outlet at the top
+copy = sim.edit.duplicate_step(step); sim.edit.move_step(copy, -1); sim.edit.remove_step(copy)
+valve = sim.edit.add_stream(step, "bottom", "valve")     # returns the endpoint ID
+sim.edit.set_stream_kind(step, "bottom", 0, "pump")      # keeps the endpoint ID, name, temperature, composition
+sim.edit.set_boundary_kind(step, "top", "flow")          # pressure / flow / closed
+sim.edit.set_profile_kind(valve, "pressure", "exponential")   # a constant's value becomes the ramp's end
+sim.edit.set_isotherm_kind("13X", "CarbonDioxide", "extended_dual_site_langmuir_p")  # keeps m1, b1, q1, ...
+sim.edit.set_mass_transfer_kind("13X", "CarbonDioxide", "ldf", "macropore_knudsen")  # keeps the tortuosity, ...
+sim.edit.set_dispersion_kind(layer, "ruthven"); sim.edit.set_pump_kind(4, "none")      # a pressure boundary's pump (endpoint 4 of Perez2019_A)
+sim.edit.connect(valve, 3); sim.edit.ensure_ids(); sim.edit.repair_connections(); sim.edit.fill_gaps()
+```
+
+`ensure_ids()` numbers steps, endpoints and layers by first appearance and renumbers the connection pair ids 1..N, so two decks of the same structure save the same IDs. `fill_gaps()` fills every entry the run would otherwise fill in (a mole fraction per component everywhere, heat capacities, default physics on every adsorbent, empty layer compositions, KPI entries); a deck edited only through these methods already has them.
+
+The builder methods of the next section also work on a loaded deck as well as on a new one.
+
+## Views and manifests
+
+The engine describes a deck and the things around it (KPIs, units, warnings, components, example decks) as JSON, and the package returns that JSON as it is. Nothing here is a Python copy: a front end, a script and the CLI read the same data. The page [Deck View and Manifests](deck-view.md) defines the shapes.
+
+```python
+import skarstrom as sk
+
+sim = sk.examples.Perez2019_A.load()
+view = sim.deck_view()                   # structure plus every editable value, as plain dicts
+schema = sk.deck_view_schema()           # JSON Schema of the view (validate it with jsonschema if you like)
+
+feed = view["steps"][0]                  # steps, layers, adsorbents, cycle, kpis, variables ...
+time = next(v for v in feed["values"] if v["key"] == "time")
+print(time["path"], time["text"], time["unit"], time["lower"], time["upper"])   # step[1].time 99 s 0.0 1000.0
+
+sim[time["path"]] = 2 * sk.ureg.min      # every value in the view is a registry path: edit by path
+sim.save("modified.json")
+```
+
+Each value carries its `path`, `alias`, `label`, `value` (SI), `text` (the expression), `unit`, bounds and, for a choice, its `choices`. Setting every value back by its path leaves the deck unchanged, which the test suite checks for every bundled deck. After a structural edit (`sim.edit`) call `sim.deck_view()` again: the view always describes the deck as it is.
+
+The manifests are read once per process:
+
+```python
+sk.kpi_manifest()          # KPI key, label, unit, family, description (the KPIRecord fields)
+sk.unit_manifest()         # unit categories and suggested units; sk.check_unit("kPa", "pressure")
+sk.warning_manifest()      # advisory warnings; each one's switch is a settings.warn_* path
+sk.component_manifest()    # formula, molar mass, CAS, heat-capacity source, aliases
+sk.component_aliases()     # {"CO2": "CarbonDioxide", ...}: the names the typed objects accept
+sk.example_manifest()      # the bundled decks: title, family, summary
+```
 
 ## Building a simulation in Python
 
@@ -288,7 +351,7 @@ What each part takes:
 | `sim.add_adsorbent(name, **values)` | `solid_density`, `heat_capacity`, `thermal_conductivity`, `particle_void_fraction`; new components get an inert isotherm and a constant LDF rate |
 | `ads.set_isotherm(kind, {component: {param: value}}, components=None)` | `build_kinds()["isotherm"]`; the parameters are those of `skarstrom.isotherm_parameters(kind)`. Components given together share one (competitive) isotherm |
 | `ads.set_mixing_rule(kind)` | `none` (each isotherm on its own) or `iast` (Ideal Adsorbed Solution Theory over the pure isotherms; see [Isotherms](isotherms.md#mixture-loadings-the-mixing-rule-and-iast)); also the field `ads.mixing_rule` |
-| `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf` or `ldf2`; coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity` |
+| `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf`, `ldf2` or `dual_rate_ldf` (`split`, slow-site `slow_<name>` values); coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity` or `series_resistance` |
 | `sim.bed.set_shape(kind, **values)` | `cylinder` (diameter), `square` (width), `rectangle` (width, length) |
 | `sim.bed.set_thermal_equilibrium(kind)`, `sim.bed.set_particle_heat_transfer("constant", particle_htc=...)` | `lte` or `ltne` |
 | `sim.wall.set_material(kind, **values)`, `sim.wall.set_boundary(kind, **values)` | a library material or `custom`; `zero_flux` or `fixed` |
@@ -356,6 +419,7 @@ What the builder does not create: cost data. Load a deck that has it, or add it 
 After a run:
 
 ```python
+sim.run()                  # the results below are those of the last run: run again after an edit
 sim.cycles                 # logged cycles, e.g. [0, 1, ..., 13]
 sim.kpis()                 # KPIRecord per tracked component per cycle (every cycle run)
 sim.kpi_table()            # the same as a pandas DataFrame
@@ -377,9 +441,10 @@ for s in sim.streams():                                              # every end
 - **Bed ends.** `"bottom"` ($z = 0$) and `"top"` ($z = L$) are the physical boundary values, not the value of a cell. For pressure, temperature and mole fraction they are the logged values of the step's endpoint at that end, the same numbers as `stream_series`: at an inlet the value the boundary imposes (the feed composition, the feed temperature after any compressor, the set pressure), at an outlet the value at the bed-end face. A closed end, and every other variable, gives the face value; for face variables (velocity, flow rates) that is the boundary face itself. Between a bed end and the centre of the end cell, `z=` interpolates between the two.
 - **Positions.** The solver stores cell variables at the cell centres and velocity, volumetric and molar flow rate and the approach to fluidisation at the cell faces; each end of the column also has a ghost cell that only carries the boundary condition. `profile(...).z` is `sim.positions` (cell centres, no ghost cells) for a cell variable and `sim.face_positions` (from 0 to the column length, `profile(...).faces` is `True`) for a face variable. Void regions are cells too, so positions run from the bottom of the bottom void.
 - **Variable names**: `skarstrom.bulk_variables()` (pressure, temperature, velocity, ...) and `skarstrom.component_variables()` (mole_fraction, adsorbed_concentration, ...) list what `series` and `profile` accept. `stream_series` accepts `temperature`, `molar_flow_rate`, `compressor_power` and `pressure` (the bed-end face pressure; a pressure boundary's set value), or `mole_fraction` and `molar_flow` with a component.
+- **Mixed layers.** In a layer of several solids, `adsorbed_concentration` (and the other `skarstrom.per_adsorbent_variables()`) is the mass-weighted sum over the solids, per kg of solid. `adsorbent="13X"` (a name, deck ID or `sim.adsorbents[...]`) gives one solid's own loading per kg of it, 0 where it is absent; `sim.series_adsorbents()` lists the names. When the bed has a mixed layer, the log and `save_logs` also hold these series, as `"<component> Adsorbed Concentration (<adsorbent>)"`.
 - `sim.save_logs("out")` writes the full solver log as CSV files.
 
-The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles, stream series and CSS history cover those. KPIs are recorded at the end of every cycle, so `sim.kpis()` covers the whole run.
+The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles and stream series cover those. KPIs and the CSS check are recorded at the end of every cycle, so `sim.kpis()`, `sim.kpi_table()` and `sim.css_history()` cover the whole run (a few hundred bytes per cycle: a 2000-cycle run adds well under 1 MB).
 
 ## Optimisation
 
@@ -440,6 +505,7 @@ The GAB water kinds (`gab`, `gab_young`) take `component="Ethanol"` (a CoolProp 
 
 ## Command line
 
+<!-- no-run: command synopsis, not a command -->
 ```bash
 skarstrom run deck.json [--cycles N] [--set PATH=VALUE ...] [--csv DIR] [--json] [--log low|medium|high] [-q]
 skarstrom params deck.json [--all] [--search TEXT] [--json]

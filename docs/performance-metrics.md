@@ -1,5 +1,11 @@
 # Performance Metrics
 
+<!-- doc-setup
+import skarstrom
+sim = skarstrom.examples.Perez2019_A.load()
+sim.run()
+-->
+
 Skarstrom computes the standard PSA/TSA key performance indicators (KPIs) — purity, recovery, productivity, specific electrical energy, and production rate — for a chosen product component over a chosen cycle. These are what you use to compare designs and to drive the [parametric study](parameterisation.md) and the [optimiser](parameterisation.md).
 
 > KPIs are only meaningful at [cyclic steady state](cyclic-steady-state.md). Evaluate them on a converged cycle.
@@ -118,3 +124,24 @@ plt.plot([k.cycle + 1 for k in rows], [k.purity for k in rows])
 ```
 
 In C++ the same numbers come from `adsim::Simulation::KPIs` (adsim/simulation.h) or the lower-level `KPIParams` (adsim/solver/kpis.h).
+
+## Quadrature KPIs and the mole balance
+
+The reported KPIs integrate each endpoint's logged flow and pump power over time with the trapezoid rule, so they carry the error of the log's sampling (at least `settings.max_log_points_per_step`, 200 by default, points per step plus every solver step). The solver also integrates the same quantities as **quadrature states** alongside the solution (IDAS `IDAQuadInit`): at every solver step it evaluates what the stream log would record (each endpoint's molar flow in and out per component, its pump or compressor power, and the flow-weighted temperature a buffer tank uses) and the species flux through the two bed faces, and integrates them with the integrator's own BDF formulas. Each step starts the integrals from zero.
+
+The KPIs from these integrals are reported **beside** the trapezoid ones, which stay the reported values:
+
+| Field | Same KPI as |
+|---|---|
+| `quadrature_purity` | `purity` |
+| `quadrature_recovery` | `recovery` |
+| `quadrature_productivity_mass` | `productivity_mass` |
+| `quadrature_productivity_volume` | `productivity_volume` |
+| `quadrature_energy_consumption` | `energy_consumption` (electrical energy) |
+| `quadrature_production_rate` | `production_rate` |
+
+Two more fields give the **cycle mole balance** of the component: `mass_balance_error` (trapezoid flows) and `quadrature_mass_balance_error` (quadrature flows), each the net moles that entered through every endpoint of every step, minus the change of the column's gas and adsorbed inventory over the cycle, over the moles that entered. Zero is exact conservation; the per-step balance of Glover, Papathanasiou & Pini (2026) is the benchmark for this kind of check. All eight fields are in `sim.kpis()`, `kpi_table()` and the CLI's `--json` output (not in `kpis.csv`); they are `nan` (`null`) when the quadratures were not integrated.
+
+The quadratures do not change the run: their error control is off, so they take no part in the integrator's error test or step-size choice, and the solution, the logs and the reported KPIs are the same as without them. Per step, the solver also compares the moles that crossed the endpoints with the change of the column inventory (the per-step accumulation form). For a step with one open end that is a cross-check of that end's flow; the discrepancy is in the solver log at the `High` level and, in C++, in `BoundaryLog::GetStepBalance` (adsim/solver/kpi_quadrature.h).
+
+The C++ switches are transient solver settings (not saved with the deck): `IDASettings::kpi_quadratures_` (on) and `IDASettings::quadrature_error_control_` (off; on, the quadratures join the error test with `reltol` and `quadrature_abstol_`). `KPIParams::integration_ = KPIIntegration::QUADRATURE` evaluates any KPI function of adsim/solver/kpis.h from the quadratures.

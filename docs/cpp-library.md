@@ -7,7 +7,8 @@ The engine is the static library `adsim` (CMake target `Adsim::adsim`), written 
 | `adsim/simulation.h` | `adsim::Simulation`: load a deck, get/set parameters, run (blocking or in slices), read KPIs, the CSS history, time series and axial profiles. The Python package wraps exactly this class. |
 | `adsim/objects/user_data.h` | `adsim::UserData`, the whole deck (fluid, adsorbents, bed, cycle, settings), and `LoadFromJson` / `SaveToJson` / `SaveToString` / `LoadFromString`. |
 | `adsim/objects/deck_io.h` | `LoadDeckFlexible`: load deck JSON text with either root shape (`"simulation"` or cereal's default `"value0"`). |
-| `adsim/objects/deck_edit.h` | Structural edits that keep a deck consistent: add/remove a component (with every mole-fraction map and adsorbent), add/remove adsorbents, add a library adsorbent, disconnect connection pairs. |
+| `adsim/objects/deck_edit.h` | Structural edits that keep a deck consistent: add/remove a component (with every mole-fraction map and adsorbent), add/remove adsorbents and library adsorbents, add/remove/move layers, steps and streams, switch any model to another kind keeping the parameters the two share, connect and disconnect endpoints, stable IDs, connection repair, filling the gaps run-time initialisation would fill. With the parameter registry it is the whole editing API of a deck. |
+| `adsim/objects/model_kinds.h` | One descriptor per model kind (tag, label, ordered parameters with unit, default, bounds and tunable flag; for isotherms the IAST family and fitter flags), and `ModelFields` binding a live model's parameters to those names. |
 | `adsim/parameters/parameter_registry.h` | The parameter registry: every settable deck value by stable path (`step[2].time`, `adsorbent[1].isotherm[CarbonDioxide].b1`, ...). |
 | `adsim/objects/adsorbent_library.h` | Read the curated adsorbent catalogue (`data/adsorbents/library.json`). |
 | `adsim/objects/porous_media.h` | `adsim::Adsorbent` and `SaveAdsorbentToJSON` / `LoadAdsorbentFromJSON`, one adsorbent per file (the library entry format). The save is atomic (a temporary file renamed over the target) and throws `std::runtime_error` naming the file and the reason when it cannot write it. |
@@ -32,6 +33,7 @@ int main() {
 
 ## As an installed package (`find_package`)
 
+<!-- no-run: builds the C++ library -->
 ```bash
 cmake --preset linux-release -DCMAKE_INSTALL_PREFIX=$HOME/.local
 cmake --build --preset linux-release
@@ -75,6 +77,7 @@ The engine compiles with Emscripten, as a subproject of a front end configured w
 
 Every object in a module must use the same scheme, so the whole engine tree is compiled with the chosen flag and `Adsim::adsim` passes it to your target's compile and link. Do not add your own exception flags; in particular, `-sNO_DISABLE_EXCEPTION_CATCHING=1` cannot be combined with `wasm`. The front end chooses everything else (threads, memory growth, the file system, exported functions). For a browser, drive the solver with `CoupledSolverChuncked` (or `Simulation::Start` / `Advance(max_time_ms)`) so the host stays responsive; see [Numerics](numerics.md#the-chunked-solver-for-cooperative-front-ends).
 
+<!-- no-run: builds the C++ library -->
 ```bash
 source /path/to/emsdk/emsdk_env.sh
 bash scripts/test_subproject_consumer.sh --emscripten   # builds adsim + a tiny module, runs it under Node.js

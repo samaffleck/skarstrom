@@ -45,6 +45,7 @@
 #include "adsim/solver/kpi_history.h"  // KPIRecord
 #include "adsim/solver/log.h"
 #include "adsim/solver/operating_limits.h"
+#include "adsim/solver/run_health.h"
 #include "adsim/objects/wall_design.h"
 
 namespace adsim {
@@ -110,11 +111,15 @@ namespace adsim {
     int cycles_run = 0;        // cycles that completed
     double wall_time_s = 0.0;
     IntegrationStats stats{};  // IDA counters (blocking runs)
+    // Run-health checks (run_health.h): false when any fired. They never change
+    // the status or the results; the warnings say what to look at.
+    bool healthy = true;
+    std::vector<RunHealthWarning> health_warnings;
 
     bool Ok() const { return status == RunStatus::Completed || status == RunStatus::ReachedCSS; }
   };
 
-  // Cyclic-steady-state check for one logged cycle (the deck's CSS method).
+  // Cyclic-steady-state check for one cycle (the deck's CSS method).
   struct CSSRecord {
     int cycle = 0;
     bool converged = false;
@@ -143,6 +148,7 @@ namespace adsim {
   struct TimeSeries {
     std::string variable;
     std::string component;  // empty for a bulk variable
+    std::string adsorbent;  // the adsorbent's label for a per-adsorbent series, else empty
     std::string unit;
     std::vector<double> time;    // [s]
     std::vector<double> values;
@@ -157,6 +163,7 @@ namespace adsim {
   struct AxialProfile {
     std::string variable;
     std::string component;
+    std::string adsorbent;  // the adsorbent's label for a per-adsorbent profile, else empty
     std::string unit;
     int cycle = 0;
     int step = 0;
@@ -189,6 +196,24 @@ namespace adsim {
   std::vector<std::string> ComponentVariableNames();
   std::vector<std::string> StreamVariableNames();
   std::vector<std::string> StreamComponentVariableNames();
+  // The component variables Series / Profile also give per adsorbent (their
+  // `adsorbent` argument): "adsorbed_concentration",
+  // "equilibrium_adsorbed_concentration", "mass_transfer_coefficient",
+  // "slow_adsorbed_concentration". The aggregate (no adsorbent) is the
+  // mass-weighted sum over the solids of each cell; a per-adsorbent series is
+  // one solid's own value [per kg of it], 0 in the cells without it.
+  std::vector<std::string> PerAdsorbentVariableNames();
+
+  // One adsorbent of the last run's bed, as the per-adsorbent series name it.
+  struct SeriesAdsorbent {
+    size_t id = 0;       // the adsorbent's deck ID
+    std::string label;   // its name (" #<id>" added when two share a name): the
+                         // `adsorbent` argument of Series / Profile and the
+                         // bracket in the log names, "<component> Adsorbed
+                         // Concentration (<label>)"
+    bool logged = false; // per-adsorbent series are in the log (the bed has a
+                         // mixed layer); otherwise they are read off the aggregate
+  };
 
   // Loads a deck from JSON text in either root shape ("simulation", written by
   // SaveToString, or cereal's default "value0", written by SaveToJson). Throws
@@ -353,6 +378,9 @@ namespace adsim {
     // last) with the warnings where it leaves the wall design or lifts the bed
     // (operating_limits.h). Empty (cycle -1) without results.
     OperatingLimitsReport OperatingLimits(int cycle = -1) const;
+    // The run-health measures of every completed cycle of the last run and its
+    // warnings (run_health.h). Empty without a run.
+    const RunHealthReport& RunHealth() const;
     // The wall's minimum thickness for its pressure design (wall_design.h).
     // Evaluates the deck's expressions first.
     WallDesignResult WallDesign();
@@ -367,11 +395,18 @@ namespace adsim {
     // that end (at an inlet, the feed composition and temperature or the set
     // pressure; at an outlet, the bed-end face value; the same as
     // StreamSeries), otherwise, and for every other variable, the face value.
+    // `adsorbent` (a label of SeriesAdsorbents(), or a deck ID as text) gives
+    // that adsorbent's own series of a PerAdsorbentVariableNames() variable;
+    // empty gives the aggregate.
     TimeSeries Series(const std::string& variable, const std::string& component = {},
-                      SeriesLocation where = SeriesLocation::Top, double z = 0.0, int cycle = -1) const;
+                      SeriesLocation where = SeriesLocation::Top, double z = 0.0, int cycle = -1,
+                      const std::string& adsorbent = {}) const;
     // Axial profiles of a log variable over one step of one cycle (-1 = last).
     AxialProfile Profile(const std::string& variable, const std::string& component = {},
-                         int cycle = -1, int step = 0) const;
+                         int cycle = -1, int step = 0, const std::string& adsorbent = {}) const;
+    // The adsorbents of the last run's bed with their series labels (empty
+    // without results).
+    std::vector<SeriesAdsorbent> SeriesAdsorbents() const;
     // A boundary-stream log variable over one step of one cycle (-1 = last).
     // Time is measured from the start of the step.
     TimeSeries StreamSeries(int step, const std::string& stream, const std::string& variable,
@@ -388,6 +423,9 @@ namespace adsim {
     // Run from `start` (nullptr: initial conditions).
     RunResult RunFrom(const RunOptions& options, const CycleState* start);
     int ResolveCycle(int cycle) const;
+    // The adsorbent ID named by `adsorbent` (a label of SeriesAdsorbents() or
+    // a deck ID); throws std::invalid_argument when it names none.
+    size_t ResolveAdsorbent(const std::string& adsorbent) const;
 
     std::unique_ptr<UserData> data_;
     std::unique_ptr<ParameterRegistry> registry_;

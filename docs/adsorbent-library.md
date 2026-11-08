@@ -38,6 +38,7 @@ lib = skarstrom.adsorbent_library()               # the catalogue as a dict
 list(lib["materials"])                             # material ids
 path = skarstrom.adsorbent_path("zeolite-13x")      # the recommended 13X entry
 path = skarstrom.adsorbent_path("zeolite_13x_streb2021")  # one variant, by its key
+sim = skarstrom.Simulation.new(title="Library demo")
 sim.add_library_adsorbent("zeolite-13x")           # add the recommended entry to a deck
 ```
 
@@ -68,7 +69,7 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue (`AdsorbentLibra
 | [TIFSIX-3-Ni](#material-tifsix-3-ni) | `tifsix-3-ni` | MOF | [TIFSIX-3-Ni](#tifsix-3-ni-low2024) | CarbonDioxide, Nitrogen | [10.1021/acs.energyfuels.4c01368](https://doi.org/10.1021/acs.energyfuels.4c01368) | — |
 | [Lewatit VP OC 1065](#material-lewatit-vp-oc-1065) | `lewatit-vp-oc-1065` | amine | [Lewatit VP OC 1065](#lewatit-vp-oc-1065-low2023) | CarbonDioxide, Nitrogen | [10.1021/acs.jced.3c00401](https://doi.org/10.1021/acs.jced.3c00401) | — |
 | [Purolite A110](#material-purolite-a110) | `purolite-a110` | amine | [Purolite A110](#purolite-a110-low2023) | CarbonDioxide, Nitrogen | [10.1021/acs.jced.3c00401](https://doi.org/10.1021/acs.jced.3c00401) | — |
-| [APDES-NFC](#material-apdes-nfc) | `apdes-nfc` | amine | [APDES-NFC](#apdes-nfc-stampi2020) | CarbonDioxide | [10.1007/s10450-020-00249-w](https://doi.org/10.1007/s10450-020-00249-w), [10.1007/s10450-021-00351-7](https://doi.org/10.1007/s10450-021-00351-7) | — |
+| [APDES-NFC](#material-apdes-nfc) | `apdes-nfc` | amine | [APDES-NFC](#apdes-nfc-stampi2020) | CarbonDioxide, Water | [10.1007/s10450-020-00249-w](https://doi.org/10.1007/s10450-020-00249-w), [10.1007/s10450-021-00351-7](https://doi.org/10.1007/s10450-021-00351-7) | — |
 | [Triamine-grafted alumina](#material-triamine-alumina) | `triamine-alumina` | amine | [Triamine-grafted alumina](#triamine-alumina-grossmann2025) | CarbonDioxide | [10.1021/acs.iecr.4c04581](https://doi.org/10.1021/acs.iecr.4c04581) | — |
 | [Cordierite](#material-cordierite) | `cordierite` | support | [Cordierite](#cordierite-robie1995) | none (inert) | [10.3133/b2131](https://doi.org/10.3133/b2131), [10.3133/ofr88690](https://doi.org/10.3133/ofr88690) | — |
 | [Aluminium](#material-aluminium) | `aluminium` | support | [Aluminium](#aluminium-ho1972) | none (inert) | [10.1063/1.3253100](https://doi.org/10.1063/1.3253100), [10.3133/b2131](https://doi.org/10.3133/b2131) | — |
@@ -1313,18 +1314,22 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue (`AdsorbentLibra
 
 **Sources**
 
-- Stampi-Bombelli, V., van der Spek, M., Mazzotti, M. (2020). Analysis of direct capture of CO2 from ambient air via steam-assisted temperature-vacuum swing adsorption. Adsorption 26, 1183-1197. [doi:10.1007/s10450-020-00249-w](https://doi.org/10.1007/s10450-020-00249-w) — Table 2 (temperature-dependent Toth, dry CO2), Table 1 (densities, particle size, Cs, dH, k), Eqs. 7-10, Section 2.2.1
-- Stampi-Bombelli, V., van der Spek, M., Mazzotti, M. (2022). Correction to: Analysis of direct capture of CO2 from ambient air via steam-assisted temperature-vacuum swing adsorption. Adsorption 28, 105. [doi:10.1007/s10450-021-00351-7](https://doi.org/10.1007/s10450-021-00351-7) — corrected b0 = 70.7 kPa^-1 (replaces the value printed in Table 2)
+- Stampi-Bombelli, V., van der Spek, M., Mazzotti, M. (2020). Analysis of direct capture of CO2 from ambient air via steam-assisted temperature-vacuum swing adsorption. Adsorption 26, 1183-1197. [doi:10.1007/s10450-020-00249-w](https://doi.org/10.1007/s10450-020-00249-w) — Table 2 (temperature-dependent Toth, dry CO2; GAB water constants), Table 1 (densities, particle size, Cs, dH, k\_CO2, k\_H2O, dH\_H2O), Eqs. 6-10 (GAB, dry Toth), Eqs. 11-14 (humid modified Toth), Section 2.2.1, p. 1187 (water uptake independent of CO2), p. 1188
+- Stampi-Bombelli, V., van der Spek, M., Mazzotti, M. (2022). Correction to: Analysis of direct capture of CO2 from ambient air via steam-assisted temperature-vacuum swing adsorption. Adsorption 28, 105. [doi:10.1007/s10450-021-00351-7](https://doi.org/10.1007/s10450-021-00351-7) — corrected b0 = 70.7 kPa^-1, gamma = 0.0016 kg/mol and beta = 59.1 kg/mol (replace Table 2: b0 as printed, gamma = 0.0061, beta = 28.907); the correction states its values were used for all simulations of the paper
 
 | Component | Isotherm | Parameters | T range of fit | P range of fit | Data quality | Ref. |
 |---|---|---|---|---|---|---|
-| CarbonDioxide | Toth 2 | q\_sat = 2.38; x = 0; T\_0 = 296; b0 = 0.0707; dH0 = 57047; w0 = 0.4148; alpha = -1.606 | 296–343 K | not stated | fitted to other authors' data | Table 2 + correction |
+| CarbonDioxide | Toth humid (CO2 with water, Stampi-Bombelli 2020) | q\_sat = 2.38; x = 0; T\_0 = 296; b0 = 0.0707; dH0 = 57047; w0 = 0.4148; alpha = -1.606; gamma = 0.0016; beta = 59.1 | 296–343 K | not stated | fitted to other authors' data | Table 2 + correction (dry part, Eqs. 7-10); Eqs. 11-14 with gamma, beta of the correction (humid) |
+| Water | GAB | q\_m0 = 36.48; dH\_m = 0; C0 = 0.1489; dH\_C = 0; K0 = 0.5751; dH\_K = 0 | not stated | not stated | not yet checked | Table 2, Eq. 6 (GAB in relative humidity, temperature-independent constants) |
 
-*Fit ranges.* CarbonDioxide: P range: Not stated in source (checked: Stampi-Bombelli 2020 Section 2.2.1 and Table 2; the CO2 partial-pressure range of the Gebald et al. 2014 data is shown only in Fig. 1b) CarbonDioxide: Dry CO2 data of Gebald et al. 2014 at 296-343 K (Section 2.2.1); the partial-pressure range is shown only in Fig. 1b.
+*Data quality.* Water: Not checked: whether the water isotherm data were measured by the cited authors or taken from earlier work.
+
+*Fit ranges.* CarbonDioxide: P range: Not stated in source (checked: Stampi-Bombelli 2020 Section 2.2.1 and Table 2; the CO2 partial-pressure range of the Gebald et al. 2014 data is shown only in Fig. 1b) CarbonDioxide: Dry CO2 data of Gebald et al. 2014 at 296-343 K (Section 2.2.1); the partial-pressure range is shown only in Fig. 1b. Water: T range: Not stated in source (checked: Eq. 6 and Table 2 of Stampi-Bombelli 2020 as transcribed for this entry; the temperature range of the water data is not among them) Water: P range: Not stated in source (checked: Eq. 6 and Table 2 of Stampi-Bombelli 2020 as transcribed for this entry; the range of the water data is not among them) Water: Relative humidity is the variable; p\_sat(T) comes from CoolProp in the engine, the paper does not state its correlation.
 
 | Quantity | Value | Provenance | Reference |
 |---|---|---|---|
 | Heat of adsorption, CarbonDioxide | 57 kJ/mol | source | Table 1, dH\_CO2 = -57 kJ/mol |
+| Heat of adsorption, Water | 49 kJ/mol | source | Table 1, dH\_H2O = -49 kJ/mol (p. 1188; stored as a positive heat released, like dH\_CO2) |
 | Particle density | 61 kg/m3 | source | Table 1 |
 | Skeletal density | 1590 kg/m3 | source | Table 1, material density |
 | Heat capacity | 2070 J/(kg K) | source | Table 1 |
@@ -1338,8 +1343,10 @@ In C++, `adsim/objects/adsorbent_library.h` reads the catalogue (`AdsorbentLibra
 
 - Engine kind 'Toth 2' implements Eqs. 7-10 exactly: n\_s0 = 2.38 mol/kg, chi = 0, T0 = 296 K, b0 = 0.0707 1/Pa (corrected 70.7 kPa^-1), t0 = 0.4148, alpha = -1.606.
 - Table 2 prints dH0 = -57.047 kJ/mol; Eq. 9 needs the magnitude for the affinity to fall with temperature, so the entry stores dH0 = +57047 J/mol (interpretation of the sign convention).
-- Dry-gas fit only: the water GAB isotherm and the humid modified-Toth model of the paper are not available in the engine.
-- Includes the Table 1 LDF constant k\_CO2 = 2e-4 1/s.
+- CO2 uses the engine kind 'toth\_humid', which is Eqs. 11-14: n\_s = n\_s(T)/(1 - gamma q\_H2O) and b = b(T) (1 + beta q\_H2O), t(T) unmodified, with q\_H2O the adsorbed water loading (the Water component's actual loading). gamma = 0.0016 kg/mol and beta = 59.1 kg/mol are the values of the 2022 correction (Table 2 printed 0.0061 and 28.907), which states they were used for all simulations. At zero water loading it reduces to the dry Toth fit (Eqs. 7-10), so one entry holds both; the entry replaces the dry-only isotherm.
+- Water uses engine kind 'gab' (Eq. 6, Table 2): q\_m0 = c\_m = 36.48 mol/kg, C0 = c\_G = 0.1489, K0 = K\_ads = 0.5751 in relative humidity, with dH\_m = dH\_C = dH\_K = 0 (temperature-independent constants). Water uptake is independent of CO2 (p. 1187). The paper does not state the saturation-pressure correlation; the engine takes p\_sat(T) from CoolProp.
+- Includes the Table 1 LDF constants k\_CO2 = 2e-4 1/s and k\_H2O = 2e-3 1/s (p. 1188).
+- Open point: Table 1 prints heat capacities C\_CO2 = 42.46 and C\_H2O = 73.1 J/(K mol) without saying whether they are gas or adsorbed-phase values; they are not stored.
 
 ---
 

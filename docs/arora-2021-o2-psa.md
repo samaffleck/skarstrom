@@ -1,5 +1,11 @@
 # Tutorial: O₂ PSA (Arora 2021)
 
+<!-- doc-setup
+import skarstrom
+sim = skarstrom.examples.Arora2021_LiLSX_PSA.load()
+production, purge, pressurization = sim.steps["Production"], sim.steps["Purge"], sim.steps["Pressurization"]
+-->
+
 Reference: [Arora, A., Hasan, M.M.F. Flexible oxygen concentrators for medical applications. *Scientific Reports* 11, 14317 (2021).](https://doi.org/10.1038/s41598-021-93796-3)
 
 **Goal.** Run a four-step Skarstrom cycle that makes oxygen from air on a LiLSX zeolite, learn how each step is wired, and read purity and recovery correctly when part of the product is sent back into the bed. The deck reproduces the PSA column of Table 4 in the paper (the case with at least 5 L/min and at least 85 % O₂).

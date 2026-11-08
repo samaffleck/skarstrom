@@ -45,6 +45,8 @@ namespace adsim {
   void UpdatePressure(UserData* udata);
   void UpdateMolarConcentration(UserData* udata, Component component);
   void UpdateAdsorbedConcentration(UserData* udata, AdsorbentID ads_id, Component component);
+  void UpdateSlowAdsorbedConcentration(UserData* udata, AdsorbentID ads_id, Component component);
+  void UpdateSlowMassTransferCoefficient(UserData* udata, AdsorbentID ads_id, Component component);
   void UpdateEquilibriumAdsorbedConcentration(UserData* udata, AdsorbentID ads_id, Component component);
   void UpdateMoleFraction(UserData* udata, Component component);
   void UpdateMoleFractionFaceUpwind(UserData* udata, Component component);
@@ -75,5 +77,12 @@ namespace adsim {
   void UpdateComponentMassSource(UserData* udata, Component component);
   void UpdateComponentEnergySource(UserData* udata, Component component);
   void UpdateAxialDispersionCoefficient(UserData* udata);
+  // The reaction fields of the state (Equations::reaction_heat and its
+  // siblings): per interior non-void cell, per solid present, per reaction,
+  // the intrinsic rate at the cell's gas composition and pressure and the
+  // catalyst temperature (T in LTE and isothermal runs, Ts in LTNE) times the
+  // effectiveness factor, accumulated into the component sources and the
+  // heat of reaction. Registered only for a deck with reactions.
+  void UpdateReactions(UserData* udata);
 
 } // end adsim namespace

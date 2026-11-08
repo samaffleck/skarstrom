@@ -73,6 +73,7 @@ namespace adsim {
       {"axial_dispersion_coefficient", VariableType::AXIAL_DISPERSION_COEFFICIENT},
       {"solid_temperature", VariableType::SOLID_TEMPERATURE},
       {"particle_heat_transfer_coefficient", VariableType::PARTICLE_HEAT_TRANSFER_COEFFICIENT},
+      {"reaction_heat", VariableType::REACTION_HEAT},
     };
     static_assert(std::size(kBulk) == std::size(VariableTypeList),
                   "kBulk must name every VariableType (keep it in VariableTypeList order)");
@@ -86,6 +87,8 @@ namespace adsim {
       {"component_molar_concentration", ComponentVariableType::COMPONENT_MOLAR_CONCENTRATION},
       {"mass_transfer_coefficient", ComponentVariableType::MASS_TRANSFER_COEFFICIENT},
       {"molecular_diffusion", ComponentVariableType::MOLECULAR_DIFFUSION},
+      {"slow_adsorbed_concentration", ComponentVariableType::SLOW_ADSORBED_CONCENTRATION},
+      {"reaction_source", ComponentVariableType::REACTION_SOURCE},
     };
     static_assert(std::size(kComponent) == std::size(ComponentVariableTypeList),
                   "kComponent must name every ComponentVariableType");
@@ -136,6 +139,12 @@ namespace adsim {
   std::vector<std::string> ComponentVariableNames() { return Names(kComponent); }
   std::vector<std::string> StreamVariableNames() { return Names(kStream); }
   std::vector<std::string> StreamComponentVariableNames() { return Names(kStreamComponent); }
+  std::vector<std::string> PerAdsorbentVariableNames() {
+    std::vector<std::string> out;
+    for (const auto& e : kComponent)
+      if (IsPerAdsorbentVariable(e.type)) out.emplace_back(e.name);
+    return out;
+  }
 
   // -------------------------------------------------------------------------
   // Loading
@@ -471,6 +480,8 @@ namespace adsim {
     solver.SetMetricsCallback({});
     result_.return_code = rc;
     result_.stats = solver.GetStatistics();
+    result_.health_warnings = solver.GetRunHealth().warnings;
+    result_.healthy = result_.health_warnings.empty();
     result_.css_cycle = solver.GetCSSCycleIndex();
     result_.css_reached = solver.ReachedCSS();
     const auto& cycles = solver.GetLog().sys_data.cycle_index_set_;
@@ -547,6 +558,8 @@ namespace adsim {
     const auto st = chunked_->GetStatus();
     const auto& cycles = chunked_->GetLog().sys_data.cycle_index_set_;
     result_.cycles_run = cycles.empty() ? 0 : *cycles.rbegin() + 1;
+    result_.health_warnings = chunked_->GetRunHealth().warnings;
+    result_.healthy = result_.health_warnings.empty();
     switch (st.GetStatus()) {
       case SolverStatus::IN_PROGRESS:
         result_.status = RunStatus::Running;
@@ -635,6 +648,36 @@ namespace adsim {
     return c;
   }
 
+  std::vector<SeriesAdsorbent> Simulation::SeriesAdsorbents() const {
+    std::vector<SeriesAdsorbent> out;
+    if (!HasResults()) return out;
+    for (const auto& [id, label] : Log().AdsorbentLabels()) {
+      // Only the adsorbents packed in some cell of the bed.
+      bool packed = false;
+      for (const auto& cell : Log().GetDomain().cell_adsorbents)
+        for (const auto& ca : cell)
+          if (ca.id == id) packed = true;
+      if (packed) out.push_back({id, label, Log().LogsPerAdsorbent()});
+    }
+    return out;
+  }
+
+  size_t Simulation::ResolveAdsorbent(const std::string& adsorbent) const {
+    const auto list = SeriesAdsorbents();
+    for (const auto& a : list)
+      if (a.label == adsorbent) return a.id;
+    if (!adsorbent.empty() && std::all_of(adsorbent.begin(), adsorbent.end(),
+                                          [](unsigned char c) { return std::isdigit(c) != 0; })) {
+      const size_t id = static_cast<size_t>(std::stoull(adsorbent));
+      for (const auto& a : list)
+        if (a.id == id) return id;
+    }
+    std::vector<std::string> labels;
+    for (const auto& a : list) labels.push_back(a.label);
+    throw std::invalid_argument("unknown adsorbent '" + adsorbent + "'. The bed holds: " +
+                                (labels.empty() ? std::string("none (run the simulation first)") : Join(labels)));
+  }
+
   std::vector<std::string> Simulation::Components() const { return data_->fluid.components_; }
 
   std::vector<std::string> Simulation::StepNames() const {
@@ -702,16 +745,33 @@ namespace adsim {
     // Cycles that started from an accelerated state (a committed re-seed) are
     // left out of the distance diagnostic's window.
     static const std::set<int> kNone{};
+    static const ::adsim::CSSHistory kNoCSS{};
     const std::set<int>& jumps = solver_ ? solver_->GetJumpCycles()
                                : chunked_ ? chunked_->GetJumpCycles() : kNone;
     auto started_from_jump = [&jumps](int c) { return jumps.count(c) > 0; };
-    for (int c : Cycles()) {
-      CSSResult r = data_->settings.css.CheckCSS(Log(), c, started_from_jump);
+    const ::adsim::CSSHistory& recorded = solver_ ? solver_->GetCSSHistory()
+                               : chunked_ ? chunked_->GetCSSHistory() : kNoCSS;
+    // Every cycle of the run, from the check the solver made as each completed.
+    std::set<int> cycles;
+    for (const auto& kv : recorded.Records()) cycles.insert(kv.first);
+    for (int c : Cycles()) cycles.insert(c);
+    for (int c : cycles) {
+      // The check made when the cycle completed (it saw the earlier cycles the log
+      // has since evicted); a cycle with no record is checked against the log.
+      CSSResult r = recorded.Has(c) ? recorded.Cycle(c)
+                                    : data_->settings.css.CheckCSS(Log(), c, started_from_jump);
       out.push_back({c, r.converged, r.error, r.tolerance, r.method_name, r.state_change,
                      r.state_tolerance, r.passing_cycles, r.required_cycles, r.distance_estimated,
                      r.convergence_rate, r.distance, r.distance_ratio, r.distance_note});
     }
     return out;
+  }
+
+  const RunHealthReport& Simulation::RunHealth() const {
+    static const RunHealthReport kEmpty{};
+    if (chunked_) return chunked_->GetRunHealth();
+    if (solver_) return solver_->GetRunHealth();
+    return kEmpty;
   }
 
   OperatingLimitsReport Simulation::OperatingLimits(int cycle) const {
@@ -724,8 +784,17 @@ namespace adsim {
     return DesignBedWall(data_->bed);
   }
 
+  namespace {
+    // The per-adsorbent check of Series / Profile.
+    void CheckPerAdsorbent(const std::string& variable, ComponentVariableType type) {
+      if (!IsPerAdsorbentVariable(type))
+        throw std::invalid_argument("'" + variable + "' is not logged per adsorbent; pass an adsorbent only with " +
+                                    Join(PerAdsorbentVariableNames()));
+    }
+  }  // namespace
+
   TimeSeries Simulation::Series(const std::string& variable, const std::string& component,
-                                SeriesLocation where, double z, int cycle) const {
+                                SeriesLocation where, double z, int cycle, const std::string& adsorbent) const {
     const int c = ResolveCycle(cycle);
     const ParamSpatialLoc loc = where == SeriesLocation::Top      ? ParamSpatialLoc::Top
                               : where == SeriesLocation::Bottom   ? ParamSpatialLoc::Bottom
@@ -739,12 +808,22 @@ namespace adsim {
     if (auto bulk = Lookup(kBulk, variable)) {
       if (!component.empty())
         throw std::invalid_argument("'" + variable + "' is a bulk variable; do not pass a component");
+      if (!adsorbent.empty())
+        throw std::invalid_argument("'" + variable + "' is a bulk variable; do not pass an adsorbent");
       ExtractBulkTimeSeries(Log(), *bulk, loc, z, ts.time, ts.values, c, sources);
       ts.unit = StripBrackets(GetVariableUnits(*bulk));
     } else if (auto comp = Lookup(kComponent, variable)) {
       if (component.empty())
         throw std::invalid_argument("'" + variable + "' is a component variable; pass a component");
-      ExtractComponentTimeSeries(Log(), *comp, component, loc, z, ts.time, ts.values, c, sources);
+      if (adsorbent.empty()) {
+        ExtractComponentTimeSeries(Log(), *comp, component, loc, z, ts.time, ts.values, c, sources);
+      } else {
+        CheckPerAdsorbent(variable, *comp);
+        const size_t id = ResolveAdsorbent(adsorbent);
+        ExtractBedTimeSeries(Log(), BedVariable::AdsorbentComponent(*comp, component, id), loc, z, ts.time,
+                             ts.values, c, sources);
+        ts.adsorbent = Log().AdsorbentLabels().at(id);
+      }
       ts.unit = StripBrackets(GetComponentVariableUnits(*comp));
     } else {
       throw std::invalid_argument("unknown variable '" + variable + "'. Bulk: " + Join(BulkVariableNames()) +
@@ -754,19 +833,28 @@ namespace adsim {
   }
 
   AxialProfile Simulation::Profile(const std::string& variable, const std::string& component,
-                                   int cycle, int step) const {
+                                   int cycle, int step, const std::string& adsorbent) const {
     const int c = ResolveCycle(cycle);
     VariableLogEntry e;
     AxialProfile p;
     if (auto bulk = Lookup(kBulk, variable)) {
       if (!component.empty())
         throw std::invalid_argument("'" + variable + "' is a bulk variable; do not pass a component");
+      if (!adsorbent.empty())
+        throw std::invalid_argument("'" + variable + "' is a bulk variable; do not pass an adsorbent");
       e = Log().GetVariable(c, step, *bulk);
       p.unit = StripBrackets(GetVariableUnits(*bulk));
     } else if (auto comp = Lookup(kComponent, variable)) {
       if (component.empty())
         throw std::invalid_argument("'" + variable + "' is a component variable; pass a component");
-      e = Log().GetComponentVariable(c, step, *comp, component);
+      if (adsorbent.empty()) {
+        e = Log().GetComponentVariable(c, step, *comp, component);
+      } else {
+        CheckPerAdsorbent(variable, *comp);
+        const size_t id = ResolveAdsorbent(adsorbent);
+        e = Log().GetAdsorbentComponentVariable(c, step, *comp, component, id);
+        p.adsorbent = Log().AdsorbentLabels().at(id);
+      }
       p.unit = StripBrackets(GetComponentVariableUnits(*comp));
     } else {
       throw std::invalid_argument("unknown variable '" + variable + "'. Bulk: " + Join(BulkVariableNames()) +

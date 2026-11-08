@@ -11,7 +11,8 @@
 namespace adsim {
 
   namespace constants {
-    constexpr double kIdealGasConstant = 8.31446261815324;
+    constexpr double kIdealGasConstant = 8.31446261815324; // [J/(mol K)]
+    constexpr double kStandardAtmosphere = 101325.0;       // [Pa]
     constexpr double kGravity = 9.80665;
     constexpr double kPI = 3.14159265358979;
 

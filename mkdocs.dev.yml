@@ -1,0 +1,10 @@
+# Development preview of main, built into /dev/ of the Pages site by
+# .github/workflows/docs.yml (scripts/docs/build_site.sh). The released docs live at the root.
+INHERIT: mkdocs.yml
+site_url: https://samaffleck.github.io/skarstrom/dev/
+theme:
+  custom_dir: overrides
+extra:
+  dev_banner: true
+  dev_version: !ENV [DEV_VERSION, "main"]
+  released_url: https://samaffleck.github.io/skarstrom/

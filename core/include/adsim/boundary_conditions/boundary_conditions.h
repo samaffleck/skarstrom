@@ -87,6 +87,9 @@ namespace adsim {
 		void Apply(Equations& state, double time) override;
     bool PerformChecks(std::string& error_msg, const Fluid& fluid) override;
 		void Log(const Equations& state, double time) override;
+		// The values Log records at `time` (seconds since the step start),
+		// without recording them.
+		EndpointSample Sample(const Equations& state, double time) const;
 		void ClearLog() override;
 		BoundaryType GetType() override { return BoundaryType::PRESSURE; }
 

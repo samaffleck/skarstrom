@@ -1,5 +1,6 @@
 #include "adsim/math/expression_param.h"
 #include "adsim/math/unit_parser.h"
+#include "adsim/math/constants.h"
 
 #include <muParser.h>
 
@@ -58,7 +59,7 @@ bool ExpressionParam::UsesStateVariables() const {
     if (!HasExpression()) return false;
     try {
         mu::Parser p;
-        p.DefineConst("R",  8.31446261815324);
+        p.DefineConst("R",  constants::kIdealGasConstant);
         p.DefineConst("PI", 3.14159265358979);
         std::string math_expr = expr_str_;
         UnitXform xform;
@@ -108,7 +109,7 @@ bool ExpressionParam::Evaluate(const EvalContext& ctx) {
         mu::Parser p;
 
         // Built-in physical constants
-        p.DefineConst("R",  8.31446261815324);
+        p.DefineConst("R",  constants::kIdealGasConstant);
         p.DefineConst("PI", 3.14159265358979);
 
         // Simulation state variables — local copies so p can take their address
@@ -202,7 +203,7 @@ void ExpressionParam::CompileForRun(const UserVariableRegistry* registry) {
     if (UsesStateVariables()) {
         try {
             auto p = std::make_unique<mu::Parser>();
-            p->DefineConst("R",  8.31446261815324);
+            p->DefineConst("R",  constants::kIdealGasConstant);
             p->DefineConst("PI", 3.14159265358979);
             p->DefineVar("T", &cache->T);
             p->DefineVar("P", &cache->P);

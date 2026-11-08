@@ -108,7 +108,7 @@ namespace adsim {
 
   // Pressure Boundary Conditions
   PressureBoundaryCondition::PressureBoundaryCondition() {
-    pressure_ = std::make_unique<ConstantBoundaryValue>(101325.0);
+    pressure_ = std::make_unique<ConstantBoundaryValue>(constants::kStandardAtmosphere);
     pump_ = CreatePump(PumpType::COMPRESSOR);
   }
 
@@ -265,6 +265,15 @@ namespace adsim {
   }
 
   void PressureBoundaryCondition::Log(const Equations& state, double time) {
+    EndpointSample sample = Sample(state, time);
+    // Record the bed end, as IBoundaryStream::Log does: GetOutflow (what a
+    // connected stream replays) turns the axial flow into flow out of the bed
+    // by it, and the default (TOP) has the wrong sign at the bottom.
+    stream_data_.location_ = location_;
+    stream_data_.Log(sample, time);
+  }
+
+  EndpointSample PressureBoundaryCondition::Sample(const Equations& state, double time) const {
     auto& molar_flowrate = state.molar_flow_rate.var;
     auto& component_mole_fractions = state.mole_fraction;
     auto& T = state.fluid_temperature.var;
@@ -347,12 +356,16 @@ namespace adsim {
       power = pump_->CalculatePower(pressure, molar_flow, suction_temperature);
     }
 
-    // Record the bed end, as IBoundaryStream::Log does: GetOutflow (what a
-    // connected stream replays) turns the axial flow into flow out of the bed
-    // by it, and the default (TOP) has the wrong sign at the bottom.
-    stream_data_.location_ = location_;
-    stream_data_.Log(molar_flow, enthalpy_flow, temperature, pressure, power, time, component_molar_flow, mole_fraction);
-    stream_data_.LogEndCellPressure(P[i + d]);
+    EndpointSample sample;
+    sample.molar_flow = molar_flow;
+    sample.enthalpy_flow = enthalpy_flow;
+    sample.temperature = temperature;
+    sample.pressure = pressure;
+    sample.power = power;
+    sample.end_cell_pressure = P[i + d];
+    sample.component_molar_flow = std::move(component_molar_flow);
+    sample.mole_fraction = std::move(mole_fraction);
+    return sample;
   }
 
   void PressureBoundaryCondition::ClearLog() {

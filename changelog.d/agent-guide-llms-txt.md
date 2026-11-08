@@ -1,0 +1,3 @@
+### Added
+- Agent guide at the top of the "Using Skarstrom" half of `AGENTS.md`: check `skarstrom --version` and read the matching docs, prefer the wheel, run a few cycles first, treat run-health warnings as wrong answers, read "Matching Another Model" before comparing with another model, and where the machine-readable pointers are.
+- The docs site publishes `llms.txt` (an index of the pages by nav section) and `llms-full.txt` (every page's Markdown in nav order), generated from the MkDocs nav by `scripts/docs/llms_txt_hook.py`. URLs follow `site_url`, so the released root and `/dev/` each point at themselves.

@@ -748,16 +748,16 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.3165550481856243,
-                                    "Average_Temperature": 292.4326041079992,
+                                    "Total_Moles": 0.3165548784865569,
+                                    "Average_Temperature": 292.43259970258137,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.004770562172369793
+                                            "value": 0.004770563082199345
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.9952294378276303
+                                            "value": 0.9952294369178006
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -832,8 +832,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.41049616316050299,
-                                                        "Average_Temperature": 292.99999999999985,
+                                                        "Total_Moles": 0.4104961631590806,
+                                                        "Average_Temperature": 293.0000000000002,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "CarbonDioxide",
@@ -1033,14 +1033,18 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 1,
+                "cereal_class_version": 2,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
                 "Vacuum": true,
                 "Design_Temperature": true,
                 "Fluidisation": true,
-                "Channel_Reynolds": true
+                "Channel_Reynolds": true,
+                "Mole_Fraction_Sum": true,
+                "Mass_Balance_Stuck": true,
+                "Step_Retries": true,
+                "History_Truncated": true
             },
             "Valve_Bed_Pressure": 0
         },

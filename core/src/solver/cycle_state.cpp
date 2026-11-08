@@ -12,6 +12,7 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <set>
 #include <unordered_map>
 
 #include "adsim/objects/user_data.h"
@@ -31,6 +32,8 @@ namespace adsim {
       std::unordered_map<const Equation*, std::pair<std::string, size_t>> owner;
       for (const auto& [component, eq] : state.mole_fraction) owner[&eq] = {component, 0};
       for (const auto& [ads, comp_map] : state.ads_concentration)
+        for (const auto& [component, eq] : comp_map) owner[&eq] = {component, ads};
+      for (const auto& [ads, comp_map] : state.ads_concentration_slow)
         for (const auto& [component, eq] : comp_map) owner[&eq] = {component, ads};
 
       std::vector<CycleStateField> fields(equations.size());
@@ -78,6 +81,31 @@ namespace adsim {
         s.steps.push_back({step.id_, step.step_name_, step.step_time_.Get(), {}});
       for (const auto& h : data.cycle.Endpoints())
         s.steps[h.step_index].endpoint_ids.push_back(h.id);
+    }
+
+    // The equation name of a slow-site loading (Equations::Initialise).
+    std::string SlowLoadingName(const std::string& component) { return component + " Slow Adsorbed Concentration"; }
+
+    // The (adsorbent, component) pairs with a slow-site loading: in the deck
+    // (adsorbents in a layer whose rate model has a slow site) and in a state.
+    std::set<std::pair<size_t, std::string>> DeckSlowSites(const UserData& data) {
+      std::set<std::pair<size_t, std::string>> out;
+      for (const auto& layer : data.bed.layers_.layers_)
+        for (const auto& [ads, frac] : layer.composition_) {
+          if (!data.adsorbent_directory.Contains(ads)) continue;
+          const auto& models = data.adsorbent_directory.Get(ads).adsorption_source_.mass_transfer_models_;
+          for (const auto& c : data.fluid.components_) {
+            auto m = models.find(c);
+            if (m != models.end() && m->second && m->second->HasSlowSite()) out.insert({ads, c});
+          }
+        }
+      return out;
+    }
+    std::set<std::pair<size_t, std::string>> StateSlowSites(const CycleState& state) {
+      std::set<std::pair<size_t, std::string>> out;
+      for (const auto& f : state.fields)
+        if (!f.component.empty() && f.name == SlowLoadingName(f.component)) out.insert({f.adsorbent, f.component});
+      return out;
     }
 
     std::string Join(const std::vector<std::string>& v) {
@@ -359,7 +387,11 @@ namespace adsim {
     if (state.layers.size() != layers.size()) return false;
     for (size_t i = 0; i < layers.size(); ++i)
       if (state.layers[i].cells != layers[i].domain_.n_cells) return true;
-    return false;
+    return CycleStateSlowSitesDiffer(state, data);
+  }
+
+  bool CycleStateSlowSitesDiffer(const CycleState& state, const UserData& data) {
+    return StateSlowSites(state) != DeckSlowSites(data);
   }
 
   CycleState RemapCycleState(const CycleState& state, UserData& data) {
@@ -401,6 +433,26 @@ namespace adsim {
         Write(t, cells_y[k], out.y);
         Write(t, RemapCells(CellArray(*f, state.yp, from_n), from, to), out.yp);
       }
+    }
+
+    // A slow-site loading the state does not have (a dual-rate component whose
+    // split was 1, or that was single-site, when the state was taken): the
+    // slow site takes its share (1 - phi) of the remapped total loading, so
+    // the inventory is kept. A slow site the state has and the deck does not
+    // is dropped; the total loading carries it.
+    for (size_t k = 0; k < out.fields.size(); ++k) {
+      const CycleStateField& t = out.fields[k];
+      if (t.component.empty() || t.name != SlowLoadingName(t.component) || Match(state.fields, t)) continue;
+      const CycleStateField* total = Match(out.fields, CycleStateField{t.component + " Adsorbed Concentration", t.component, t.adsorbent});
+      if (!total) continue;
+      const size_t slot = static_cast<size_t>(total - out.fields.data());
+      if (cells_y[slot].empty()) continue;
+      const double share = 1.0 - data.state.FastSiteFraction(t.adsorbent, t.component);
+      std::vector<double> values(cells_y[slot].size(), std::numeric_limits<double>::quiet_NaN());
+      for (size_t c = 0; c < values.size(); ++c) values[c] = share * cells_y[slot][c];
+      Write(t, values, out.y);
+      std::vector<double> zero(values.size(), 0.0);
+      Write(t, zero, out.yp);
     }
 
     // The gas, on the layers whose cell count changed: remap the component
@@ -541,8 +593,15 @@ namespace adsim {
       for (size_t i = 0; i < out.layers.size(); ++i)
         grid += (i ? ", " : "") + std::to_string(out.layers[i].cells) + " -> "
                 + std::to_string(data.bed.layers_.layers_[i].domain_.n_cells);
+      const bool grid_changed = [&] {
+        for (size_t i = 0; i < out.layers.size(); ++i)
+          if (out.layers[i].cells != data.bed.layers_.layers_[i].domain_.n_cells) return true;
+        return false;
+      }();
+      const bool slow_changed = CycleStateSlowSitesDiffer(out, data);
       out = RemapCycleState(out, data);
-      notes.push_back("remapped onto the deck's grid (cells per layer " + grid + ")");
+      if (grid_changed) notes.push_back("remapped onto the deck's grid (cells per layer " + grid + ")");
+      if (slow_changed) notes.push_back("slow-site loadings of the dual-rate LDF components added or dropped");
     }
     if (note) {
       note->clear();

@@ -52,7 +52,7 @@ pip install skarstrom
 ```
 
 
-The best place to start is one of the 40 bundled [examples](https://samaffleck.github.io/skarstrom/examples/), each of which reproduces a published study.
+The best place to start is one of the 42 bundled [examples](https://samaffleck.github.io/skarstrom/examples/), each of which reproduces a published study.
 ## Documentation
 
 The full documentation is at <https://samaffleck.github.io/skarstrom/>: getting started, the Python API and command line, tutorials, the model equations, the adsorbent library and the validation results.

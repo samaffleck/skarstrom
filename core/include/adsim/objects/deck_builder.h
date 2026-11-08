@@ -21,8 +21,9 @@
 // Kinds (in enum order):
 //   isotherm             IsothermKindString names (isotherm_kinds.h), e.g.
 //                        "extended_dual_site_langmuir_c", "sips", "inert"
-//   rate model           "ldf", "ldf2"
-//   rate coefficient     "constant", "macropore", "macropore_knudsen", "haynes", "arrhenius"
+//   rate model           "ldf", "ldf2", "dual_rate_ldf"
+//   rate coefficient     "constant", "macropore", "macropore_knudsen", "haynes", "arrhenius",
+//                        "macropore_capacity", "series_resistance"
 //   reaction rate        "power_law", "reversible_power_law", "lhhw", "expression"
 //                        (ReactionRateKindString, equations/reaction_kinds.h)
 //   reaction basis       "partial_pressure", "concentration"

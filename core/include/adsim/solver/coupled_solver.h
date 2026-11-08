@@ -17,7 +17,9 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpi_history.h"
+#include "adsim/solver/run_health.h"
 #include "adsim/solver/cycle_state.h"
+#include "adsim/solver/kpi_quadrature.h"
 
 // SUNDIALS includes
 #include <ida/ida.h>
@@ -51,6 +53,10 @@ namespace adsim {
     long int num_lin_res_evals = 0; // residual evals spent building the DQ Jacobian
     long int num_jac_evals = 0;
     long int num_lin_setups = 0;
+    // Recoverable IDA failures (error-test, convergence, residual or linear
+    // solver failures, too much work) that the engine's step retry absorbed:
+    // one per retry, so a step retried twice counts 2. Not an IDA counter.
+    long int recovered_steps = 0;
   };
 
   enum class SolverStatus {
@@ -288,7 +294,18 @@ namespace adsim {
     // instead restarts the integrator from a consistent initial condition at
     // the last accepted point (RestartFromConsistentIC), with hin = init_step,
     // which discards a history that cannot cross a discontinuity.
+    // Every offered retry (retry == true) counts one recovered step in
+    // GetStatistics().recovered_steps.
     StepRetry PrepareStepRetry(int flag, double min_step);
+
+    // SUNDIALS error messages. The constructor replaces the context's default
+    // error handler (which prints to stderr) with one that hands each message
+    // to the sink, formatted "<function>: <message>", and keeps the latest one.
+    // The solvers point the sink at their log (LogLevel::HIGH) and quote the
+    // latest message when they report a recovered or failed step.
+    void SetMessageSink(std::function<void(const std::string&)> sink) { message_sink_ = std::move(sink); }
+    // The latest SUNDIALS message since the last call (empty if none); clears it.
+    std::string TakeLastMessage();
     // Step size IDA used for its first step since the last IDAInit/IDAReInit.
     double GetActualInitStep() const;
     // Notifies the custom Jacobian (if any) that a new cycle step begins.
@@ -350,6 +367,18 @@ namespace adsim {
     // and IDAGetConsistentIC into y_ / yp_ and the state. Returns false (the
     // integrator is then unusable) if any of these fail.
     bool RestartFromConsistentIC();
+    // ---- KPI quadratures (kpi_quadrature.h) ----
+    // True when the integrator carries the KPI quadrature states
+    // (IDASettings::kpi_quadratures_).
+    bool QuadraturesActive() const { return yQ_ != nullptr; }
+    const KpiQuadratureLayout& QuadratureLayout() const { return quad_layout_; }
+    // Starts the integrals of a new cycle step from zero at the current point.
+    // Call right after RestartForNewStep.
+    void BeginQuadratureStep();
+    // The integrals since the last BeginQuadratureStep, at IDA's current time,
+    // into `out` (resized to the layout). False when the quadratures are off.
+    bool StepQuadratures(std::vector<double>& out) const;
+
     // Raw integrator handles, for the same prototype only.
     void* IdaMemory() const { return ida_mem_; }
     N_Vector StateVector() const { return y_; }
@@ -372,6 +401,9 @@ namespace adsim {
     int ReInit(double t);
     // IDA's own counters since the last IDAInit / IDAReInit.
     IntegrationStats IdaCounters() const;
+    // KPI quadratures: integrals since the last IDAQuadInit / IDAQuadReInit
+    // at time t (zero before the first step since then).
+    void CurrentQuadratures(double t, std::vector<double>& out) const;
 
     // Owns the SUNContext. Declared first so it is destroyed last: every
     // SUNDIALS object below (including those held by jacobian_) is created
@@ -406,7 +438,20 @@ namespace adsim {
     bool fail_next_reseed_commit_for_testing_ = false;
     // IDA's counters accumulated over the re-initialisations of this run.
     IntegrationStats stats_carry_{};
+    long int recovered_steps_ = 0;   // retries offered by PrepareStepRetry this run
+    std::function<void(const std::string&)> message_sink_;
+    std::string last_message_;
+    static void OnSundialsError(int line, const char* func, const char* file, const char* msg,
+                                SUNErrCode code, void* data, SUNContext ctx);
     ReInitObserver* reinit_observer_ = nullptr;
+    // KPI quadratures. IDAReInit restarts IDAS's quadrature history too, so
+    // ReInit folds the integrals reached so far into quad_carry_ and restarts
+    // them from zero (IDAQuadReInit); a step's integrals are quad_carry_ plus
+    // IDAS's current ones.
+    N_Vector yQ_ = nullptr;
+    mutable N_Vector yQ_tmp_ = nullptr;
+    KpiQuadratureLayout quad_layout_{};
+    std::vector<double> quad_carry_;
 
   };
 
@@ -456,6 +501,9 @@ namespace adsim {
     // KPIs of every completed cycle of the run (the logs keep only the last
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
+    const CSSHistory& GetCSSHistory() const { return css_history_; }
+    // Run-health measures and warnings of the most recent run (run_health.h).
+    const RunHealthReport& GetRunHealth() const { return run_health_.Report(); }
     // Cycles that started from a state moved by CSS acceleration (a committed
     // re-seed) in the most recent run. The CSS distance diagnostic leaves them
     // out of its window (CyclicSteadyState::EstimateDistance).
@@ -474,6 +522,8 @@ namespace adsim {
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
     KPIHistory kpi_history_;
+    CSSHistory css_history_;  // the CSS check of every cycle (the log keeps only the last few)
+    RunHealthMonitor run_health_;
     std::set<int> jump_cycles_;
     SolverProgressCallback progress_callback_;
     SolverMessageCallback message_callback_;
@@ -505,6 +555,9 @@ namespace adsim {
     // KPIs of every completed cycle of the run (the logs keep only the last
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
+    const CSSHistory& GetCSSHistory() const { return css_history_; }
+    // Run-health measures and warnings of the most recent run (run_health.h).
+    const RunHealthReport& GetRunHealth() const { return run_health_.Report(); }
     // Cycles that started from a state moved by CSS acceleration (a committed
     // re-seed) in the most recent run. The CSS distance diagnostic leaves them
     // out of its window (CyclicSteadyState::EstimateDistance).
@@ -528,6 +581,9 @@ namespace adsim {
     EquationLog equation_log_;
     BoundaryLog boundary_log_;
     KPIHistory kpi_history_;
+    CSSHistory css_history_;  // the CSS check of every cycle (the log keeps only the last few)
+    RunHealthMonitor run_health_;
+    IntegrationStats cycle_stats_start_{};
     std::set<int> jump_cycles_;
     ChunkStatus status_;
 
@@ -540,6 +596,8 @@ namespace adsim {
     std::chrono::steady_clock::time_point run_wall_start_{};
     std::chrono::steady_clock::time_point step_wall_start_{};
     long int ida_steps_before_step_ = 0;
+    // Column inventory at the start of the current step (step mole balance).
+    std::vector<double> step_inventory_start_;
   };
 
 } // end adsim namespace

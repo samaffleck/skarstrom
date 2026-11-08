@@ -38,6 +38,8 @@ __all__ = [
     "Haghpanah2013_PL007",
     "Haghpanah2013_PL010",
     "Haghpanah2013_Sec61",
+    "Illustrative_DAC_Breakthrough",
+    "Illustrative_Diluted_Bed",
     "Illustrative_TSA_13X",
     "Nguyen2022_Fig4",
     "Nguyen2022_Fig5",
@@ -153,6 +155,27 @@ Haghpanah2013_Sec61 = Example('Haghpanah2013_Sec61', 'Haghpanah 2013 - Sect. 6.1
 
 Four-step CO2/N2 PVSA on zeolite 13X, reference design of Haghpanah et al. (2013), Sect.
 6.1 / Table 4: pressurisation, adsorption, forward blowdown, reverse evacuation."""
+
+Illustrative_DAC_Breakthrough = Example('Illustrative_DAC_Breakthrough', 'Illustrative DAC breakthrough - 400 ppm CO2 on Lewatit VP OC 1065', 'ILLUSTRATIVE, not a validated reproduction. Isothermal breakthrough of 400 ppm CO2 in N2 on the library adsorbent Lewatit VP OC 1065, with the dual-rate LDF (fast and slow site) and the series-resistance coefficient (film, macropore and micropore resistances with the capacity factor). Rate parameters are round numbers chosen to show an early front and a slow tail.')
+"""Illustrative DAC breakthrough - 400 ppm CO2 on Lewatit VP OC 1065
+
+ILLUSTRATIVE, not a validated reproduction. Isothermal breakthrough of 400 ppm CO2 in N2
+on the library adsorbent Lewatit VP OC 1065, with the dual-rate LDF (fast and slow site)
+and the series-resistance coefficient (film, macropore and micropore resistances with
+the capacity factor). Rate parameters are round numbers chosen to show an early front
+and a slow tail."""
+
+Illustrative_Diluted_Bed = Example('Illustrative_Diluted_Bed', 'Illustrative diluted bed - CO2 breakthrough on activated carbon mixed with glass beads', "ILLUSTRATIVE, not a validated reproduction. The Ward 2022 100 ccm CO2/He breakthrough on activated carbon (same bed, isotherm, kinetics and feed), with the adsorbent diluted by 30 % inert glass beads by mass in a single mixed layer (70/30 carbon/beads). The beads are an adsorbent whose components all have the inert isotherm. Their density (2500 kg/m3), heat capacity (840 J/kg/K) and conductivity (1.0 W/m/K) are nominal soda-lime glass values, not measured. The layer holds less carbon per bed volume than the Ward deck, so the breakthrough comes earlier; each solid's loading is logged separately (sim.series(..., adsorbent=...)).")
+"""Illustrative diluted bed - CO2 breakthrough on activated carbon mixed with glass beads
+
+ILLUSTRATIVE, not a validated reproduction. The Ward 2022 100 ccm CO2/He breakthrough on
+activated carbon (same bed, isotherm, kinetics and feed), with the adsorbent diluted by
+30 % inert glass beads by mass in a single mixed layer (70/30 carbon/beads). The beads
+are an adsorbent whose components all have the inert isotherm. Their density (2500
+kg/m3), heat capacity (840 J/kg/K) and conductivity (1.0 W/m/K) are nominal soda-lime
+glass values, not measured. The layer holds less carbon per bed volume than the Ward
+deck, so the breakthrough comes earlier; each solid's loading is logged separately
+(sim.series(..., adsorbent=...))."""
 
 Illustrative_TSA_13X = Example('Illustrative_TSA_13X', 'Illustrative TSA - CO2/N2 on 13X', "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.")
 """Illustrative TSA - CO2/N2 on 13X
@@ -387,6 +410,8 @@ ALL: Tuple[Example, ...] = (
     Haghpanah2013_PL007,
     Haghpanah2013_PL010,
     Haghpanah2013_Sec61,
+    Illustrative_DAC_Breakthrough,
+    Illustrative_Diluted_Bed,
     Illustrative_TSA_13X,
     Nguyen2022_Fig4,
     Nguyen2022_Fig5,

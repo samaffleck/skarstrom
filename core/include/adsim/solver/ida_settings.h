@@ -133,6 +133,15 @@ namespace adsim {
     // instead of algebraic: with suppress_alg_ it then stays in the error test
     // while the ghost cells and the face velocity leave it.
     bool pressure_differential_ = true;
+    // KPI quadratures (transient, not serialised; kpi_quadrature.h): integrate
+    // the endpoint flows, pump energy and face fluxes as IDAS quadrature
+    // states, reported beside the trapezoid KPIs. Error control is off by
+    // default, so the quadratures leave the step sequence (and every other
+    // result) unchanged; on, they join IDA's error test with reltol and
+    // quadrature_abstol_ [mol or J].
+    bool kpi_quadratures_ = true;
+    bool quadrature_error_control_ = false;
+    double quadrature_abstol_ = 1e-10;
 
     CyclicSteadyState css{};
     AccelerateCyclicSteadyState acc_css{};

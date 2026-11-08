@@ -75,4 +75,35 @@ namespace adsim {
     return summary;
   }
 
+  CycleEndpointSummary ComputeQuadratureSummary(const EndpointIntegrals& q, BoundaryLocation location,
+                                                int cycle_index) {
+    CycleEndpointSummary summary;
+    summary.source_cycle_index = cycle_index;
+    if (!q.valid) return summary;
+    // ComputeSummary integrates the axial (positive upwards) flow: entering
+    // the bed is upwards at the bottom and downwards at the top.
+    const double sign = (location == BoundaryLocation::BOTTOM) ? 1.0 : -1.0;
+    summary.total_moles = sign * q.NetMolesIn();
+    if (q.abs_axial_moles > 1e-30) summary.avg_temperature = q.temperature_weighted_moles / q.abs_axial_moles;
+    double sum_y = 0.0;
+    for (const auto& [comp, in] : q.component_in) {
+      double y = 0.0;
+      if (std::abs(summary.total_moles) > 1e-30) {
+        y = sign * q.NetComponentMolesIn(comp) / summary.total_moles;
+      } else {
+        const auto out = q.component_out.find(comp);
+        const double gross = q.moles_in + q.moles_out;
+        if (gross > 1e-30) y = (in + (out == q.component_out.end() ? 0.0 : out->second)) / gross;
+      }
+      if (!std::isfinite(y) || y < 0.0) y = 0.0;
+      summary.avg_mole_fraction[comp] = y;
+      sum_y += y;
+    }
+    if (sum_y > 0.0) {
+      for (auto& [c, y] : summary.avg_mole_fraction) { (void)c; y /= sum_y; }
+    }
+    summary.is_valid = true;
+    return summary;
+  }
+
 } // end adsim namespace

@@ -29,6 +29,8 @@
 #include "adsim/math/unit_parser.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_edit.h"
+#include "adsim/objects/deck_view.h"
+#include "adsim/objects/manifests.h"
 #include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/isotherm_fit.h"
 #include "adsim/solver/optimisation.h"
@@ -401,6 +403,54 @@ PYBIND11_MODULE(_core, m) {
   m.attr("CSS_DISTANCE_WARNING_RATIO") = adsim::CyclicSteadyState::kDistanceWarningRatio;
 
   // ---- run status / records ---------------------------------------------
+  py::class_<adsim::RunHealthWarning>(m, "RunHealthWarning")
+      .def_readonly("code", &adsim::RunHealthWarning::code)
+      .def_readonly("value", &adsim::RunHealthWarning::value)
+      .def_readonly("threshold", &adsim::RunHealthWarning::threshold)
+      .def_readonly("cycle", &adsim::RunHealthWarning::cycle)
+      .def_readonly("step", &adsim::RunHealthWarning::step)
+      .def_readonly("step_name", &adsim::RunHealthWarning::step_name)
+      .def_readonly("component", &adsim::RunHealthWarning::component)
+      .def_readonly("suspects", &adsim::RunHealthWarning::suspects)
+      .def_readonly("hint", &adsim::RunHealthWarning::hint)
+      .def_readonly("message", &adsim::RunHealthWarning::message)
+      .def("as_dict", [](const adsim::RunHealthWarning& w) {
+        py::dict d;
+        d["code"] = w.code;
+        d["value"] = w.value;
+        d["threshold"] = w.threshold;
+        d["cycle"] = w.cycle;
+        d["step"] = w.step;
+        d["step_name"] = w.step_name;
+        d["component"] = w.component;
+        d["suspects"] = w.suspects;
+        d["hint"] = w.hint;
+        d["message"] = w.message;
+        return d;
+      })
+      .def("__repr__", [](const adsim::RunHealthWarning& w) { return w.message; });
+
+  py::class_<adsim::RunHealthCycle>(m, "RunHealthCycle")
+      .def_readonly("cycle", &adsim::RunHealthCycle::cycle)
+      .def_readonly("mole_fraction_sum_error", &adsim::RunHealthCycle::mole_fraction_sum_error)
+      .def_readonly("mole_fraction_sum_step", &adsim::RunHealthCycle::mole_fraction_sum_step)
+      .def_readonly("state_change", &adsim::RunHealthCycle::state_change)
+      .def_readonly("mass_balance_error", &adsim::RunHealthCycle::mass_balance_error)
+      .def_readonly("steps", &adsim::RunHealthCycle::steps)
+      .def_readonly("rejected", &adsim::RunHealthCycle::rejected);
+
+  py::class_<adsim::RunHealthReport>(m, "RunHealthReport")
+      .def_readonly("components", &adsim::RunHealthReport::components)
+      .def_readonly("cycles", &adsim::RunHealthReport::cycles)
+      .def_readonly("warnings", &adsim::RunHealthReport::warnings)
+      .def_property_readonly("healthy", &adsim::RunHealthReport::Healthy);
+
+  m.attr("RUN_HEALTH_CODES") = [] {
+    std::vector<std::string> codes;
+    for (const char* c : adsim::kRunHealthCodeList) codes.emplace_back(c);
+    return codes;
+  }();
+
   py::class_<adsim::RunResult>(m, "RunResult")
       .def_property_readonly("status", [](const adsim::RunResult& r) { return adsim::RunStatusName(r.status); })
       .def_readonly("message", &adsim::RunResult::message)
@@ -410,6 +460,10 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("cycles_run", &adsim::RunResult::cycles_run)
       .def_readonly("wall_time_s", &adsim::RunResult::wall_time_s)
       .def_property_readonly("ok", &adsim::RunResult::Ok)
+      .def_readonly("healthy", &adsim::RunResult::healthy,
+                    "False when a run-health check fired (the status and results are unchanged)")
+      .def_readonly("warnings", &adsim::RunResult::health_warnings,
+                    "The run-health warnings (RunHealthWarning: code, value, threshold, cycle, step, suspects, hint)")
       .def_property_readonly("stats", [](const adsim::RunResult& r) {
         py::dict d;
         d["steps"] = r.stats.num_steps;
@@ -420,6 +474,7 @@ PYBIND11_MODULE(_core, m) {
         d["jacobian_residual_evaluations"] = r.stats.num_lin_res_evals;
         d["jacobian_evaluations"] = r.stats.num_jac_evals;
         d["linear_setups"] = r.stats.num_lin_setups;
+        d["recovered_steps"] = r.stats.recovered_steps;
         return d;
       })
       .def("__repr__", [](const adsim::RunResult& r) {
@@ -441,6 +496,14 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("cooling_duty", &adsim::KPIRecord::cooling_duty)
       .def_readonly("step_thermal_energy", &adsim::KPIRecord::step_thermal_energy)
       .def_readonly("step_cooling_duty", &adsim::KPIRecord::step_cooling_duty)
+      .def_readonly("quadrature_purity", &adsim::KPIRecord::quadrature_purity)
+      .def_readonly("quadrature_recovery", &adsim::KPIRecord::quadrature_recovery)
+      .def_readonly("quadrature_productivity_mass", &adsim::KPIRecord::quadrature_productivity_mass)
+      .def_readonly("quadrature_productivity_volume", &adsim::KPIRecord::quadrature_productivity_volume)
+      .def_readonly("quadrature_energy_consumption", &adsim::KPIRecord::quadrature_energy_consumption)
+      .def_readonly("quadrature_production_rate", &adsim::KPIRecord::quadrature_production_rate)
+      .def_readonly("mass_balance_error", &adsim::KPIRecord::mass_balance_error)
+      .def_readonly("quadrature_mass_balance_error", &adsim::KPIRecord::quadrature_mass_balance_error)
       .def("as_dict", [](const adsim::KPIRecord& k) {
         py::dict d;
         d["cycle"] = k.cycle;
@@ -457,6 +520,14 @@ PYBIND11_MODULE(_core, m) {
         d["cooling_duty"] = k.cooling_duty;
         d["step_thermal_energy"] = k.step_thermal_energy;
         d["step_cooling_duty"] = k.step_cooling_duty;
+        d["quadrature_purity"] = k.quadrature_purity;
+        d["quadrature_recovery"] = k.quadrature_recovery;
+        d["quadrature_productivity_mass"] = k.quadrature_productivity_mass;
+        d["quadrature_productivity_volume"] = k.quadrature_productivity_volume;
+        d["quadrature_energy_consumption"] = k.quadrature_energy_consumption;
+        d["quadrature_production_rate"] = k.quadrature_production_rate;
+        d["mass_balance_error"] = k.mass_balance_error;
+        d["quadrature_mass_balance_error"] = k.quadrature_mass_balance_error;
         return d;
       })
       .def("__repr__", [](const adsim::KPIRecord& k) {
@@ -533,18 +604,21 @@ PYBIND11_MODULE(_core, m) {
   py::class_<adsim::TimeSeries>(m, "TimeSeries")
       .def_readonly("variable", &adsim::TimeSeries::variable)
       .def_readonly("component", &adsim::TimeSeries::component)
+      .def_readonly("adsorbent", &adsim::TimeSeries::adsorbent)
       .def_readonly("unit", &adsim::TimeSeries::unit)
       .def_property_readonly("time", [](const adsim::TimeSeries& t) { return ToArray(t.time); })
       .def_property_readonly("values", [](const adsim::TimeSeries& t) { return ToArray(t.values); })
       .def("__len__", [](const adsim::TimeSeries& t) { return t.time.size(); })
       .def("__repr__", [](const adsim::TimeSeries& t) {
-        return "<TimeSeries " + t.variable + (t.component.empty() ? "" : "[" + t.component + "]") + " [" +
+        return "<TimeSeries " + t.variable + (t.component.empty() ? "" : "[" + t.component + "]") +
+               (t.adsorbent.empty() ? "" : " (" + t.adsorbent + ")") + " [" +
                t.unit + "], " + std::to_string(t.time.size()) + " points>";
       });
 
   py::class_<adsim::AxialProfile>(m, "AxialProfile")
       .def_readonly("variable", &adsim::AxialProfile::variable)
       .def_readonly("component", &adsim::AxialProfile::component)
+      .def_readonly("adsorbent", &adsim::AxialProfile::adsorbent)
       .def_readonly("unit", &adsim::AxialProfile::unit)
       .def_readonly("cycle", &adsim::AxialProfile::cycle)
       .def_readonly("step", &adsim::AxialProfile::step)
@@ -554,7 +628,8 @@ PYBIND11_MODULE(_core, m) {
       .def_property_readonly("values",
                              [](const adsim::AxialProfile& p) { return ToArray2D(p.values, p.rows, p.cols); })
       .def("__repr__", [](const adsim::AxialProfile& p) {
-        return "<AxialProfile " + p.variable + (p.component.empty() ? "" : "[" + p.component + "]") + " [" +
+        return "<AxialProfile " + p.variable + (p.component.empty() ? "" : "[" + p.component + "]") +
+               (p.adsorbent.empty() ? "" : " (" + p.adsorbent + ")") + " [" +
                p.unit + "], cycle " + std::to_string(p.cycle) + " step " + std::to_string(p.step) + ", " +
                std::to_string(p.rows) + " x " + std::to_string(p.cols) + ">";
       });
@@ -767,14 +842,26 @@ PYBIND11_MODULE(_core, m) {
       }, py::arg("cycle") = py::none())
       .def("css_history", &adsim::Simulation::CSSHistory)
       .def("operating_limits", &adsim::Simulation::OperatingLimits, py::arg("cycle") = -1)
+      .def("run_health", &adsim::Simulation::RunHealth, py::return_value_policy::copy)
       .def("wall_design", &adsim::Simulation::WallDesign)
       .def("series", [](const adsim::Simulation& s, const std::string& variable, const std::string& component,
-                        const std::string& location, double z, int cycle) {
-        return s.Series(variable, component, ParseLocation(location), z, cycle);
+                        const std::string& location, double z, int cycle, const std::string& adsorbent) {
+        return s.Series(variable, component, ParseLocation(location), z, cycle, adsorbent);
       }, py::arg("variable"), py::arg("component") = "", py::arg("location") = "top", py::arg("z") = 0.0,
-         py::arg("cycle") = -1)
+         py::arg("cycle") = -1, py::arg("adsorbent") = "")
       .def("profile", &adsim::Simulation::Profile, py::arg("variable"), py::arg("component") = "",
-           py::arg("cycle") = -1, py::arg("step") = 0)
+           py::arg("cycle") = -1, py::arg("step") = 0, py::arg("adsorbent") = "")
+      .def("series_adsorbents", [](const adsim::Simulation& s) {
+        py::list out;
+        for (const auto& a : s.SeriesAdsorbents()) {
+          py::dict d;
+          d["id"] = a.id;
+          d["label"] = a.label;
+          d["logged"] = a.logged;
+          out.append(d);
+        }
+        return out;
+      })
       .def("stream_series", &adsim::Simulation::StreamSeries, py::arg("step"), py::arg("stream"),
            py::arg("variable"), py::arg("component") = "", py::arg("cycle") = -1)
       .def("endpoint_series", &adsim::Simulation::EndpointSeries, py::arg("endpoint_id"), py::arg("variable"),
@@ -874,9 +961,105 @@ PYBIND11_MODULE(_core, m) {
         s.RefreshParameters();
         return out;
       }, py::arg("op"), py::arg("args"))
+      // ---- structural cascades (adsim/objects/deck_edit.h) -------------------
+      // Kinds are named by their tags (adsim/objects/model_kinds.h), sides
+      // "bottom" / "top". Refused edits raise ValueError with the engine's
+      // message and leave the deck unchanged.
+      .def("edit", [](adsim::Simulation& s, const std::string& op, const py::list& args) -> py::object {
+        using namespace adsim;
+        auto& d = s.Data();
+        auto str = [&](size_t i) { return args[i].cast<std::string>(); };
+        auto id = [&](size_t i) { return args[i].cast<size_t>(); };
+        auto side = [&](size_t i) {
+          const std::string v = str(i);
+          if (v == "bottom") return BoundaryLocation::BOTTOM;
+          if (v == "top") return BoundaryLocation::TOP;
+          throw py::value_error("unknown side '" + v + "'; one of: bottom, top");
+        };
+        auto kind = [&](ModelFamily family, size_t i) {
+          const std::string tag = str(i);
+          const auto& tags = KindTags(family);
+          for (size_t k = 0; k < tags.size(); ++k)
+            if (tags[k] == tag) return k;
+          std::string valid;
+          for (const auto& t : tags) valid += (valid.empty() ? "" : ", ") + t;
+          throw py::value_error(std::string("unknown ") + ModelFamilyName(family) + " kind '" + tag + "'; one of: " + valid);
+        };
+        std::string err;
+        bool ok = true;
+        py::object out = py::none();
+        size_t new_id = 0;  // set by the call, read after it (not as a second argument)
+        auto ret_id = [&](bool good) { ok = good; if (good) out = py::int_(new_id); };
+        if (op == "add_layer") out = py::int_(AddLayer(d, str(0)));
+        else if (op == "remove_layer") ok = RemoveLayer(d, id(0), err);
+        else if (op == "move_layer") ok = MoveLayer(d, id(0), args[1].cast<int>(), err);
+        else if (op == "add_step") out = py::int_(AddStep(d, str(0)));
+        else if (op == "remove_step") ok = RemoveStep(d, id(0), err);
+        else if (op == "duplicate_step") ret_id(DuplicateStep(d, id(0), new_id, err));
+        else if (op == "move_step") ok = MoveStep(d, id(0), args[1].cast<int>(), err);
+        else if (op == "add_stream")
+          ret_id(AddStream(d, id(0), side(1), static_cast<BoundaryStreamType>(kind(ModelFamily::Stream, 2)), new_id, err));
+        else if (op == "remove_stream") ok = RemoveStream(d, id(0), side(1), id(2), err);
+        else if (op == "connect") ok = ConnectEndpoints(d, id(0), id(1), err);
+        else if (op == "ensure_ids") EnsureIds(d);
+        else if (op == "repair_connections") out = py::int_(RepairConnections(d));
+        else if (op == "prune_buffer_tanks") out = py::int_(PruneBufferTanks(d));
+        else if (op == "sync_kpi_config") { SyncKpiConfigToComponents(d); PruneKpiConfig(d); }
+        else if (op == "fill_gaps") FillDeckGaps(d);
+        else if (op == "set_isotherm_kind") {
+          IsothermType t{};
+          if (!KindFromString(str(2), t)) throw py::value_error("unknown isotherm kind '" + str(2) + "'");
+          ok = SetIsothermKind(d, id(0), str(1), t, err);
+        }
+        else if (op == "set_mass_transfer_kind")
+          ok = SetMassTransferKind(d, id(0), str(1), static_cast<MassTransferModelType>(kind(ModelFamily::RateModel, 2)),
+                                   static_cast<MassTransferCoefficientType>(kind(ModelFamily::RateCoefficient, 3)), err);
+        else if (op == "set_dispersion_kind")
+          ok = SetDispersionKind(d, id(0), static_cast<AxialDispersionType>(kind(ModelFamily::Dispersion, 1)), err);
+        else if (op == "set_heat_dispersion_kind")
+          ok = SetHeatDispersionKind(d, id(0), static_cast<AxialHeatDispersionType>(kind(ModelFamily::HeatDispersion, 1)), err);
+        else if (op == "set_internal_heat_transfer_kind")
+          ok = SetInternalHeatTransferKind(d, id(0),
+                                           static_cast<InternalHeatTransferType>(kind(ModelFamily::InternalHeatTransfer, 1)), err);
+        else if (op == "set_external_heat_transfer_kind")
+          ok = SetExternalHeatTransferKind(d, id(0),
+                                           static_cast<ExternalHeatTransferType>(kind(ModelFamily::ExternalHeatTransfer, 1)), err);
+        else if (op == "set_particle_heat_transfer_kind")
+          ok = SetParticleHeatTransferKind(d, static_cast<ParticleHeatTransferType>(kind(ModelFamily::ParticleHeatTransfer, 0)), err);
+        else if (op == "set_boundary_kind")
+          ok = SetBoundaryConditionKind(d, id(0), side(1), static_cast<BoundaryType>(kind(ModelFamily::Boundary, 2)), err);
+        else if (op == "set_stream_kind")
+          ok = SetStreamKind(d, id(0), side(1), id(2), static_cast<BoundaryStreamType>(kind(ModelFamily::Stream, 3)), err);
+        else if (op == "set_flow_kind")
+          ok = SetFlowKind(d, id(0), static_cast<FlowType>(kind(ModelFamily::Flow, 1)), err);
+        else if (op == "set_profile_kind") {
+          const std::string t = str(1);
+          ProfileTarget target;
+          if (t == "pressure") target = ProfileTarget::Pressure;
+          else if (t == "flow") target = ProfileTarget::Flow;
+          else if (t == "temperature") target = ProfileTarget::Temperature;
+          else throw py::value_error("unknown profile target '" + t + "'; one of: pressure, flow, temperature");
+          ok = SetProfileKind(d, id(0), target, static_cast<BoundaryValueType>(kind(ModelFamily::Profile, 2)), err);
+        }
+        else if (op == "set_pump_kind") ok = SetPumpKind(d, id(0), kind(ModelFamily::Pump, 1), err);
+        else if (op == "set_pump_efficiency_kind")
+          ok = SetPumpEfficiencyKind(d, id(0), static_cast<PumpEfficiencyType>(kind(ModelFamily::PumpEfficiency, 1)), err);
+        else if (op == "set_pump_power_kind")
+          ok = SetPumpPowerKind(d, id(0), static_cast<PumpPowerType>(kind(ModelFamily::PumpPower, 1)), err);
+        else throw py::value_error("unknown edit operation '" + op + "'");
+        s.RefreshParameters();
+        if (!ok) throw py::value_error(err);
+        return out;
+      }, py::arg("op"), py::arg("args"))
       // The deck's structure in builder vocabulary: which model kind each
       // object uses, how the steps' ends are set up, the connections and the
       // KPI configuration. Values are read from the parameter registry.
+      // The deck view (adsim/objects/deck_view.h) as JSON text.
+      .def("deck_view", [](adsim::Simulation& s, bool pretty) {
+        adsim::DeckViewOptions o;
+        o.pretty = pretty;
+        return adsim::DeckView(s.Data(), o);
+      }, py::arg("pretty") = false)
       .def("describe", [](adsim::Simulation& s) {
         namespace b = adsim::build;
         using namespace adsim;
@@ -1089,6 +1272,54 @@ PYBIND11_MODULE(_core, m) {
         return out;
       });
 
+  // Every model kind's descriptor (adsim/objects/model_kinds.h): family ->
+  // [{tag, label, parameters: [{name, unit, default, lower, upper, tunable,
+  // label}]}], isotherms under "isotherm" with their extra flags.
+  m.def("model_kinds", []() {
+    auto params = [](const adsim::KindDescriptor& k) {
+      py::list ps;
+      for (const auto& p : k.parameters) {
+        py::dict d;
+        d["name"] = p.name;
+        d["unit"] = p.unit;
+        d["default"] = p.default_value;
+        d["lower"] = p.lower;
+        d["upper"] = p.upper;
+        d["tunable"] = p.tunable;
+        d["label"] = p.Label();
+        ps.append(d);
+      }
+      return ps;
+    };
+    py::dict out;
+    for (adsim::ModelFamily f : adsim::AllModelFamilies()) {
+      py::list kinds;
+      for (const auto& k : adsim::KindDescriptors(f)) {
+        py::dict d;
+        d["tag"] = k.tag;
+        d["label"] = k.label;
+        d["parameters"] = params(k);
+        kinds.append(d);
+      }
+      out[adsim::ModelFamilyName(f)] = kinds;
+    }
+    py::list isotherms;
+    for (const auto& k : adsim::IsothermKindDescriptors()) {
+      py::dict d;
+      d["tag"] = k.tag;
+      d["label"] = k.label;
+      d["parameters"] = params(k);
+      d["competitive"] = k.competitive;
+      d["water_coupled"] = k.water_coupled;
+      d["fittable"] = k.fittable;
+      d["iast"] = k.iast != adsim::IastFamily::None;
+      d["paired"] = k.has_pair ? py::object(py::str(adsim::IsothermKindString(k.pair))) : py::object(py::none());
+      isotherms.append(d);
+    }
+    out["isotherm"] = isotherms;
+    return out;
+  });
+
   m.def("build_kinds", []() {
     namespace b = adsim::build;
     py::dict k;
@@ -1139,10 +1370,33 @@ PYBIND11_MODULE(_core, m) {
     return py::make_tuple(number, unit);
   }, py::arg("text"));
 
+  // Deck view schema and display manifests (adsim/objects/manifests.h), as JSON text.
+  m.def("deck_view_schema", []() { return adsim::DeckViewSchema(); });
+  m.def("kpi_manifest", []() { return adsim::KpiManifest(); });
+  m.def("unit_manifest", []() { return adsim::UnitManifest(); });
+  m.def("warning_manifest", []() { return adsim::WarningManifest(); });
+  m.def("component_manifest", []() { return adsim::ComponentManifest(); });
+  m.def("series_manifest", []() { return adsim::SeriesManifest(); });
+  m.def("example_deck_manifest", [](const std::string& manifest, const std::string& decks) {
+    return adsim::ExampleDeckManifest(manifest, decks);
+  }, py::arg("manifest_path"), py::arg("decks_dir"));
+  m.def("check_unit", [](const std::string& text, const std::string& category) {
+    const adsim::UnitCheck c = adsim::CheckUnit(text, category);
+    py::dict d;
+    d["ok"] = c.ok;
+    d["category"] = c.category;
+    d["dimension"] = c.dimension;
+    d["factor"] = c.factor;
+    d["offset"] = c.offset;
+    d["message"] = c.message;
+    return d;
+  }, py::arg("unit"), py::arg("category") = "");
+
   m.def("bulk_variables", &adsim::BulkVariableNames);
   m.def("component_variables", &adsim::ComponentVariableNames);
   m.def("stream_variables", &adsim::StreamVariableNames);
   m.def("stream_component_variables", &adsim::StreamComponentVariableNames);
+  m.def("per_adsorbent_variables", &adsim::PerAdsorbentVariableNames);
 
   // ---- gas properties -------------------------------------------------------
   // Ideal-gas heat capacity C_p0(T) [J/(mol K)] of the NASA polynomials
@@ -1152,6 +1406,23 @@ PYBIND11_MODULE(_core, m) {
     if (!p) throw py::value_error("no ideal-gas heat capacity polynomial for '" + component + "'");
     return adsim::Fluid::EvalIdealGasHeatCapacity(*p, temperature);
   }, py::arg("component"), py::arg("temperature"));
+  // Provenance of the polynomials: the table's reference and, per component, the
+  // TM-4513 species label and data-source code (or Air's mixing note).
+  m.def("ideal_gas_heat_capacity_reference", []() { return std::string(adsim::kIdealGasHeatCapacityReference); });
+  m.def("ideal_gas_heat_capacity_source", [](const std::string& component) {
+    const adsim::NasaPolynomial* p = adsim::Fluid::IdealGasCoeffs(component);
+    if (!p) throw py::value_error("no ideal-gas heat capacity polynomial for '" + component + "'");
+    py::dict d;
+    d["species"] = std::string(p->species);
+    d["source"] = std::string(p->source);
+    return d;
+  }, py::arg("component"));
+  m.def("components_with_held_heat_capacity", []() {
+    std::vector<std::string> out;
+    for (const auto& c : adsim::Components::componentNames)
+      if (!adsim::Fluid::IdealGasCoeffs(c)) out.push_back(c);
+    return out;
+  });
 
   // ---- isotherms -------------------------------------------------------------
   m.def("isotherm_kinds", []() {

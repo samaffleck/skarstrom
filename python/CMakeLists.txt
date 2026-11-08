@@ -29,6 +29,9 @@ install(FILES
 install(DIRECTORY ${ADSIM_SOURCE_DIR}/examples/decks/
     DESTINATION skarstrom/data/decks COMPONENT python
     FILES_MATCHING PATTERN "*.json")
+# The example-deck manifest (skarstrom.example_manifest()).
+install(FILES ${ADSIM_SOURCE_DIR}/examples/example_decks.json
+    DESTINATION skarstrom/data COMPONENT python)
 install(DIRECTORY ${ADSIM_SOURCE_DIR}/data/adsorbents/
     DESTINATION skarstrom/data/adsorbents COMPONENT python
     FILES_MATCHING PATTERN "*.json")

@@ -81,7 +81,7 @@ Production rate is 5.76 × 10⁻⁵ mol/s and the mass productivity 1.57 × 10�
 
 The model is 3.3 points low on purity and 3.7 points high on recovery against D1, and within 0.7 and 6.4 points of the repeat D2. The deck uses the paper's model forms (the test README traces every value and attributes the remaining error): for the four-step cycles A and B the same decks are within 0.7 points of purity and 1.0 point of recovery of the experiments. The remaining LPP excess is the composition-coupled light-product connection, an open item.
 
-**Approach to CSS.** Plot the KPI against the cycle number (KPIs are kept for every cycle, although only the last `settings.max_cycles_to_keep` = 10 cycles are logged):
+**Approach to CSS.** Plot the KPI against the cycle number (KPIs and the CSS history are kept for every cycle, although only the last `settings.max_cycles_to_keep` = 10 cycles are logged):
 
 ```python
 import matplotlib.pyplot as plt
@@ -107,4 +107,4 @@ In our run the bed sat at 1.000–1.001 bar during the feed steps, reached 8.1�
 - **Accelerate CSS.** Switch on the Aitken (Graves-Morris) extrapolation: `sim["settings.acceleration_method"] = 1`. In our run CSS came at cycle 48 instead of 94, with purity within 1.3×10⁻⁵ and recovery within 5.7×10⁻⁵ of the plain run's. See [Numerics](numerics.md#cyclic-steady-state-detection-and-acceleration).
 - **Add the vacuum pump energy.** Pump power is calculated on boundaries that have a pump model. The Python registry exposes the pump settings of boundaries that already have one (`endpoint[N].pump.*`); switching power calculation on for the Evacuation and Blowdown boundaries is a deck edit (in C++, or in the deck JSON). With a discharge pressure of 1 bar, the default constant efficiency of 0.7 and a polytropic constant of 1.4, the specific energy came out at about **0.51 MJ per kg of CO₂**; purity and recovery do not change, because power calculation is post-processing only.
 - **Switch off LPP** by disconnecting the pair (`adsim::DisconnectPair` in `adsim/objects/deck_edit.h`), and compare with the four-step decks *Perez2019_A* to *C1*.
-- **Map the trade-off.** Sweep the Feed 2 time (`step[Feed 2].time`) or the evacuation end pressure (`step[Evacuation].bottom.pressure_exponential_end`) in a [parametric study](parameterisation.md), or [optimise](parameterisation.md#optimisation) recovery subject to purity ≥ 0.95, as the paper does with its multi-objective optimiser.
+- **Map the trade-off.** Sweep the Feed 2 time (`step[Feed 2].time`) or the evacuation end pressure (`step[Evacuation].bottom.pressure_double_exponential_end`) in a [parametric study](parameterisation.md), or [optimise](parameterisation.md#optimisation) recovery subject to purity ≥ 0.95, as the paper does with its multi-objective optimiser.
