@@ -83,7 +83,7 @@ namespace adsim {
     static constexpr double kStuckBalance = 2e-3;         // |cycle mole balance| [mol/mol]
     static constexpr double kStuckStateChange = 1e-3;     // end-of-cycle state change [-]
     static constexpr double kStuckRate = 0.9;             // per-cycle ratio of |balance|
-    static constexpr double kStepRetryRatio = 0.5;        // rejected attempts per accepted step
+    static constexpr double kStepRetryRatio = 0.25;        // rejected attempts per accepted step
     static constexpr long kStepRetryMinSteps = 50;        // accepted steps in the cycle
     // Cycles the diagnostics read back: the CSS distance window (6 cycles)
     // and the balance window.

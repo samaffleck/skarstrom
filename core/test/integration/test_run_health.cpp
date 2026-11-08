@@ -3,7 +3,7 @@
 // Run-health checks (run_health.h): a healthy two-step cycle is silent, and
 // deliberately broken runs raise each warning: a component source with no
 // matching overall source (MOLE_FRACTION_SUM), a leak of one component
-// (MASS_BALANCE_STUCK), an absurd tolerance (STEP_RETRIES) and a log shorter
+// (MASS_BALANCE_STUCK), an absurd nonlinear tolerance (STEP_RETRIES) and a log shorter
 // than the diagnostics read (HISTORY_TRUNCATED). The broken runs use the
 // manufactured-source verification hook (manufactured_sources.h), which no
 // deck can set.
@@ -165,10 +165,13 @@ namespace adsim {
     EXPECT_LE(report.cycles[w->cycle].state_change, RunHealthThresholds::kStuckStateChange);
   }
 
-  TEST_F(RunHealthTest, AbsurdToleranceRaisesStepRetries) {
-    // A relative tolerance far below what double precision can hold: the
-    // error test keeps failing.
-    data.settings.reltol = ExpressionParam{1e-15};
+  TEST_F(RunHealthTest, AbsurdNonlinearToleranceRaisesStepRetries) {
+    // An absurd nonlinear tolerance (1e-6 of the error-test tolerance) with
+    // at most two Newton iterations per step: most attempts fail to
+    // converge, yet the run finishes. (A tight or loose relative tolerance
+    // alone does not do it: IDA adapts its step and stays below 0.15.)
+    data.settings.nonlin_conv_coef = ExpressionParam{1e-6};
+    data.settings.max_nonlin_iters = 2;
     ConfigureCycle(1);
     CoupledSolver solver{ data };
     std::string error;
