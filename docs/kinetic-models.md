@@ -135,6 +135,39 @@ $$
 
 where $r_p = d_p/2$ and the film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ of the layer's film correlation (default Wakao and Funazkri; [Transport Correlations](transport-correlations.md#packed-bed-film-correlations)). For a slab (structured layer) the same series form uses the slab's $V/S = \ell$ and Glueckauf's factor 3: $k_i = \left(\ell/k_f + \tau\thinspace \ell^2/(3\thinspace \epsilon_p D_m)\right)^{-1}$, with $k_f = \mathrm{Sh}\thinspace D_m/D_h$ and the channel Sh ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$. $D_m$ is always the value from $T$ and $P$: the Sherwood number comes from the Schmidt number of that same $D_m$, so a constant $D_m$ is not offered here.
 
+### Series resistance (film + macropore + micropore)
+
+The general series-resistance (Glueckauf) form of the LDF coefficient: the external film, macropore and micropore (crystal) resistances added in series, the first two scaled by the local **capacity factor** $K$, as used for direct-air-capture breakthrough curves on amine sorbents (Stampi-Bombelli et al., 2024, *Ind. Eng. Chem. Res.* 63, 11637, doi:[10.1021/acs.iecr.4c01392](https://doi.org/10.1021/acs.iecr.4c01392); the form is Ruthven's, *Principles of Adsorption and Adsorption Processes*, 1984). For packed spheres
+
+$$
+\frac{1}{k_i} = f_\text{film}\thinspace \frac{K\thinspace r_p}{3 k_f} + \frac{K\thinspace \tau\thinspace r_p^2}{15\thinspace \epsilon_p D_m} + \frac{r_c^2}{15\thinspace D_c},
+\qquad k_f = \frac{\mathrm{Sh}\thinspace D_m}{d_p},
+\qquad D_c = D_{c,0}\thinspace \exp\negthinspace\left(-\frac{E_a}{R T}\right)
+$$
+
+with $r_p = d_p/2$, the pore diffusivity $D_p = D_m/\tau$ and $k_f$ from the layer's film correlation, exactly as in [Haynes](#haynes-1973). For a slab (structured layer) the film and macropore terms take the Haynes slab form, $K\thinspace\ell/k_f$ and $K\thinspace\tau\thinspace\ell^2/(3\thinspace\epsilon_p D_m)$; the micropore term stays the spherical-crystal one.
+
+**Capacity factor.** $K = \rho_p\thinspace \partial q_i^*/\partial c_i$ [-], the slope of the isotherm, with $q^*$ in mol kg⁻¹, $c_i = y_i P/(R T)$ in mol per m³ of gas and $\rho_p$ the particle density (`solid_density`), so that it is dimensionless and the film and macropore resistances are those of a solid-phase driving force. The engine uses the **slope**, not the secant $\rho_p q_i^*/c_i$ of the [capacity-factor macropore](#macropore-diffusion-with-the-capacity-factor) kind: for a linear isotherm the two agree, and for a favourable one the slope is the local value the Glueckauf derivation calls for. It is a forward difference of the isotherm in $c_i$ (relative step 10⁻⁶) at $\max(c_i, c_\text{floor})$, every other component at its actual value (under the IAST mixing rule, the IAST mixture loading). Where the slope is not positive (a flat or non-adsorbing isotherm) the secant is used, and $K$ is floored at 1, so the coefficient never exceeds the $K = 1$ (Haynes) value, as the capacity-factor kind caps its ratio. A **capacity factor** above 0 replaces all of this with that fixed $K$ (for example a published Henry constant).
+
+**Switching terms off.** Each term has a parameter that drops it:
+
+| Term | Off when | Parameters |
+| --- | --- | --- |
+| Film | `film_resistance_factor` = 0 | $f_\text{film}$ [-] multiplies the correlation's resistance (default 1) |
+| Macropore | `tortuosity` = 0 ($D_p = D_m/\tau \to \infty$) | $\tau$ [-], $\epsilon_p$ [-], optionally a constant $D_m$ [m² s⁻¹] |
+| Micropore | `crystal_radius` = 0 or `micropore_diffusivity` = 0 (the defaults) | $r_c$ [m], $D_{c,0}$ [m² s⁻¹], $E_a$ [J mol⁻¹] |
+
+At least one term must be on. The constant $D_m$ (`molecular_diffusion_coefficient` above 0) applies to the macropore term only; the film term uses the local $D_m$, as its Sherwood number does.
+
+**Reduction cases.** With the micropore term off and $K = 1$ (`capacity_factor` = 1) the coefficient is the Haynes coefficient, to the last bit. With the film term off it is the macropore-controlled LDF with the capacity factor, $k_i = 15\thinspace\epsilon_p D_m/(K\thinspace\tau\thinspace r_p^2)$; with only the micropore term, $k_i = 15\thinspace D_c/r_c^2$, an Arrhenius coefficient.
+
+Inputs: **Film resistance factor**, **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$, **Molecular diffusion coefficient** $D_m$ (0: local value), **Crystal radius** $r_c$, **Micropore diffusivity** $D_{c,0}$, **Micropore activation energy** $E_a$, **Capacity factor** $K$ (0: from the isotherm), **Concentration floor** $c_\text{floor}$ [mol m⁻³] (default 10⁻³).
+
+```python
+ads.set_rate_model("CO2", "ldf", "series_resistance", tortuosity=3, macropore_void_fraction=0.35,
+                   crystal_radius=1e-6, micropore_diffusivity=2e-12, micropore_activation_energy=2e4)
+```
+
 ### Arrhenius
 
 An activation-energy form for temperature-dependent kinetics:
