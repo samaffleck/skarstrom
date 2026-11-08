@@ -296,8 +296,8 @@ namespace adsim {
 
   // Source of the pure-component gas heat capacities C_p,i.
   //   IDEAL_GAS - the ideal-gas C_p0,i(T) of the NASA 7-coefficient polynomials
-  //               (ideal_gas_heat_capacity.h), evaluated at the local gas
-  //               temperature in every cell (default). A component without a
+  //               (ideal_gas_heat_capacity.h, one set to 1000 K), evaluated at
+  //               the local gas temperature in every cell (default). A component without a
   //               polynomial keeps the CoolProp value at the initial-condition
   //               pressure and temperature, held for the run (the run-start
   //               warnings name it). Engines up to 0.8 held the CoolProp value
@@ -314,7 +314,7 @@ namespace adsim {
   // Display names (front ends); the registry names are "ideal_gas,constant"
   // ("coolprop" is still accepted for ideal_gas).
   static const char* GasHeatCapacityModeList[] = {
-    "Ideal gas Cp(T)",
+    "Ideal gas",
     "User defined"
   };
 
@@ -415,7 +415,7 @@ namespace adsim {
     // (no extrapolation of the polynomial).
     static double EvalIdealGasHeatCapacity(const NasaPolynomial& p, double T) {
       const double Tc = T < p.t_min ? p.t_min : (T > p.t_max ? p.t_max : T);
-      const auto& a = Tc < p.t_mid ? p.low : p.high;
+      const auto& a = p.a;
       return constants::kIdealGasConstant * (a[0] + Tc * (a[1] + Tc * (a[2] + Tc * (a[3] + Tc * a[4]))));
     }
     // Ideal-gas enthalpy H0(T) [J/mol] on the polynomial's datum (TM-4513: the
@@ -424,7 +424,7 @@ namespace adsim {
     // with the clamped C_p0, so dH0/dT = C_p0 everywhere. Use differences.
     static double EvalIdealGasEnthalpy(const NasaPolynomial& p, double T) {
       auto h = [&p](double t) {
-        const auto& a = t < p.t_mid ? p.low : p.high;
+        const auto& a = p.a;
         return constants::kIdealGasConstant *
                (t * (a[0] + t * (a[1] / 2 + t * (a[2] / 3 + t * (a[3] / 4 + t * a[4] / 5)))) + a[5]);
       };

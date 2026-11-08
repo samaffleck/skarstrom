@@ -911,14 +911,17 @@
       "material_id": "apdes-nfc",
       "status": "sourced",
       "applications": ["direct air capture"],
-      "components": ["CarbonDioxide"],
+      "components": ["CarbonDioxide", "Water"],
       "sources": [
-        {"id": "stampi2020", "refs": "Table 2 (temperature-dependent Toth, dry CO2), Table 1 (densities, particle size, Cs, dH, k), Eqs. 7-10, Section 2.2.1"},
-        {"id": "stampi2021corr", "refs": "corrected b0 = 70.7 kPa^-1 (replaces the value printed in Table 2)"}
+        {"id": "stampi2020", "refs": "Table 2 (temperature-dependent Toth, dry CO2; GAB water constants), Table 1 (densities, particle size, Cs, dH, k_CO2, k_H2O, dH_H2O), Eqs. 6-10 (GAB, dry Toth), Eqs. 11-14 (humid modified Toth), Section 2.2.1, p. 1187 (water uptake independent of CO2), p. 1188"},
+        {"id": "stampi2021corr", "refs": "corrected b0 = 70.7 kPa^-1, gamma = 0.0016 kg/mol and beta = 59.1 kg/mol (replace Table 2: b0 as printed, gamma = 0.0061, beta = 28.907); the correction states its values were used for all simulations of the paper"}
       ],
-      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2 + correction", "data_quality": "refit", "T_range_K": [296, 343], "P_range_Pa": null, "range_note": "Dry CO2 data of Gebald et al. 2014 at 296-343 K (Section 2.2.1); the partial-pressure range is shown only in Fig. 1b.", "P_range_not_stated": "Not stated in source (checked: Stampi-Bombelli 2020 Section 2.2.1 and Table 2; the CO2 partial-pressure range of the Gebald et al. 2014 data is shown only in Fig. 1b)"}],
+      "isotherms": [{"component": "CarbonDioxide", "ref": "Table 2 + correction (dry part, Eqs. 7-10); Eqs. 11-14 with gamma, beta of the correction (humid)", "data_quality": "refit", "T_range_K": [296, 343], "P_range_Pa": null, "range_note": "Dry CO2 data of Gebald et al. 2014 at 296-343 K (Section 2.2.1); the partial-pressure range is shown only in Fig. 1b.", "P_range_not_stated": "Not stated in source (checked: Stampi-Bombelli 2020 Section 2.2.1 and Table 2; the CO2 partial-pressure range of the Gebald et al. 2014 data is shown only in Fig. 1b)"},
+        {"component": "Water", "ref": "Table 2, Eq. 6 (GAB in relative humidity, temperature-independent constants)", "data_quality": "not_checked", "data_quality_note": "Not checked: whether the water isotherm data were measured by the cited authors or taken from earlier work.", "T_range_K": null, "P_range_Pa": null, "range_note": "Relative humidity is the variable; p_sat(T) comes from CoolProp in the engine, the paper does not state its correlation.", "T_range_not_stated": "Not stated in source (checked: Eq. 6 and Table 2 of Stampi-Bombelli 2020 as transcribed for this entry; the temperature range of the water data is not among them)", "P_range_not_stated": "Not stated in source (checked: Eq. 6 and Table 2 of Stampi-Bombelli 2020 as transcribed for this entry; the range of the water data is not among them)"}
+      ],
       "heat_of_adsorption": {
-        "CarbonDioxide": {"value": 57000.0, "provenance": "source", "ref": "Table 1, dH_CO2 = -57 kJ/mol"}
+        "CarbonDioxide": {"value": 57000.0, "provenance": "source", "ref": "Table 1, dH_CO2 = -57 kJ/mol"},
+        "Water": {"value": 49000.0, "provenance": "source", "ref": "Table 1, dH_H2O = -49 kJ/mol (p. 1188; stored as a positive heat released, like dH_CO2)"}
       },
       "properties": {
         "particle_density": {"value": 61.0, "provenance": "source", "ref": "Table 1"},
@@ -933,8 +936,10 @@
       "notes": [
         "Engine kind 'Toth 2' implements Eqs. 7-10 exactly: n_s0 = 2.38 mol/kg, chi = 0, T0 = 296 K, b0 = 0.0707 1/Pa (corrected 70.7 kPa^-1), t0 = 0.4148, alpha = -1.606.",
         "Table 2 prints dH0 = -57.047 kJ/mol; Eq. 9 needs the magnitude for the affinity to fall with temperature, so the entry stores dH0 = +57047 J/mol (interpretation of the sign convention).",
-        "Dry-gas fit only: the water GAB isotherm and the humid modified-Toth model of the paper are not available in the engine.",
-        "Includes the Table 1 LDF constant k_CO2 = 2e-4 1/s."
+        "CO2 uses the engine kind 'toth_humid', which is Eqs. 11-14: n_s = n_s(T)/(1 - gamma q_H2O) and b = b(T) (1 + beta q_H2O), t(T) unmodified, with q_H2O the adsorbed water loading (the Water component's actual loading). gamma = 0.0016 kg/mol and beta = 59.1 kg/mol are the values of the 2022 correction (Table 2 printed 0.0061 and 28.907), which states they were used for all simulations. At zero water loading it reduces to the dry Toth fit (Eqs. 7-10), so one entry holds both; the entry replaces the dry-only isotherm.",
+        "Water uses engine kind 'gab' (Eq. 6, Table 2): q_m0 = c_m = 36.48 mol/kg, C0 = c_G = 0.1489, K0 = K_ads = 0.5751 in relative humidity, with dH_m = dH_C = dH_K = 0 (temperature-independent constants). Water uptake is independent of CO2 (p. 1187). The paper does not state the saturation-pressure correlation; the engine takes p_sat(T) from CoolProp.",
+        "Includes the Table 1 LDF constants k_CO2 = 2e-4 1/s and k_H2O = 2e-3 1/s (p. 1188).",
+        "Open point: Table 1 prints heat capacities C_CO2 = 42.46 and C_H2O = 73.1 J/(K mol) without saying whether they are gas or adsorbed-phase values; they are not stored."
       ],
       "example_deck_note": "No bundled example deck uses this entry."
     },
