@@ -117,4 +117,4 @@ In the last cycle the product starts at 85 % O₂, rises to 93 % after about 2.9
 - **Shorten production** to stop before the nitrogen front breaks through, and watch the production-step purity.
 - **Connect the recycle streams.** Replace the typed-in 85 % O₂ purge and pressurisation gas with [connections](connecting-beds.md) to the production outlet (the [light reflux](light-reflux-recycle.md) and [light product pressurisation](light-product-pressurization.md) pages show how), so the recycled gas has the composition the bed really produces.
 - **Swap the adsorbent.** Change the layer's composition to *LiX Zeolite* or *Zeolite 5A* (a deck edit: `MixedAdsorbentLayer::composition_` in C++) and compare.
-- **Try the vacuum cycle.** *Arora2021_LiLSX_PVSA* desorbs at 0.5 bar. The validation test reports a production purity of 93.84 % and a net recovery of 18.95 % for it (100 cells), against 89.97 % and 65.51 % in the paper.
+- **Try the vacuum cycle.** *Arora2021_LiLSX_PVSA* desorbs at 0.5 bar. The validation test reports a production purity of 93.84 % and a net recovery of 18.94 % for it (100 cells), against 89.97 % and 65.51 % in the paper.
