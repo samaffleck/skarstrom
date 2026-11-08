@@ -50,7 +50,7 @@ namespace adsim {
   // with WENO): the total balance was off by 3.45e-2 mol with WENO (1.1e-5
   // of the 3.1e3 mol throughput) and the CO2 balance by 1.2e-6 mol with WENO
   // and van Leer (1.9e-6 of the CO2 fed).
-  static void RunDAC(UserDataTest& t, AdvectionScheme scheme, const std::string& save_name) {
+  static void RunDAC(UserDataTest& t, AdvectionScheme scheme) {
     auto& data = t.data;
     data.info.title = "DAC example";
     data.info.description = "Direct air capture CO2 battery.";
@@ -143,8 +143,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    if (!save_name.empty()) t.SaveTest(save_name, solver);
-
     EXPECT_TRUE(t.IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
     EXPECT_TRUE(t.IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(t.IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
@@ -170,15 +168,15 @@ namespace adsim {
   }
 
   TEST_F(UserDataTest, DAC) {
-    RunDAC(*this, AdvectionScheme::Upwind, "DAC");
+    RunDAC(*this, AdvectionScheme::Upwind);
   }
 
   TEST_F(UserDataTest, DACWENO) {
-    RunDAC(*this, AdvectionScheme::WENO, "");
+    RunDAC(*this, AdvectionScheme::WENO);
   }
 
   TEST_F(UserDataTest, DACVanLeer) {
-    RunDAC(*this, AdvectionScheme::VanLeer, "");
+    RunDAC(*this, AdvectionScheme::VanLeer);
   }
 
 } // end adsim namespace

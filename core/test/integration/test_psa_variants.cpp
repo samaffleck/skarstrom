@@ -133,8 +133,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("ExtendedLangmuirIsothermBreakthrough1", solver);
-
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
@@ -161,7 +159,7 @@ namespace adsim {
   // integrated the cell's value: with van Leer the log had 2.4e-5 mol of N2
   // crossing the top that the bed never lost, and the O2 balance was off by
   // 1.9e-5 mol.
-  static void RunTemperaturePurge(UserDataTest& t, AdvectionScheme scheme, const std::string& save_name) {
+  static void RunTemperaturePurge(UserDataTest& t, AdvectionScheme scheme) {
     auto& data = t.data;
     data.info.title = "Temperature Purge";
     data.info.description = "Temperature swing adsorption with purge step";
@@ -237,8 +235,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    if (!save_name.empty()) t.SaveTest(save_name, solver);
-
     EXPECT_TRUE(t.IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
     EXPECT_TRUE(t.IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(t.IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
@@ -267,15 +263,15 @@ namespace adsim {
   }
 
   TEST_F(UserDataTest, TemperaturePurge) {
-    RunTemperaturePurge(*this, AdvectionScheme::Upwind, "TemperaturePurge");
+    RunTemperaturePurge(*this, AdvectionScheme::Upwind);
   }
 
   TEST_F(UserDataTest, TemperaturePurgeWENO) {
-    RunTemperaturePurge(*this, AdvectionScheme::WENO, "");
+    RunTemperaturePurge(*this, AdvectionScheme::WENO);
   }
 
   TEST_F(UserDataTest, TemperaturePurgeVanLeer) {
-    RunTemperaturePurge(*this, AdvectionScheme::VanLeer, "");
+    RunTemperaturePurge(*this, AdvectionScheme::VanLeer);
   }
   
   TEST_F(UserDataTest, BreakthroughTest1) {
@@ -359,8 +355,6 @@ namespace adsim {
     } while (solver.IsActive());
     
     EXPECT_EQ(status.GetStatus(), SolverStatus::COMPLETED) << "Solver did not complete successfully";
-    
-    SaveTest("BreakthroughTest1", solver);
     
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
@@ -527,8 +521,6 @@ namespace adsim {
     
     EXPECT_EQ(status.GetStatus(), SolverStatus::COMPLETED) << "Solver did not complete successfully";
 
-    SaveTest("FourStepLPP", solver);
-
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
@@ -554,8 +546,6 @@ namespace adsim {
     bool verbose = false;
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
-
-    SaveTest("FourStepLPP_LoadFromJSON", solver);
 
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
@@ -584,8 +574,6 @@ namespace adsim {
     bool verbose = false;
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
-    
-    SaveTest("FourStepLPP_10Cycle", solver);
     
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
@@ -978,18 +966,18 @@ namespace adsim {
   // may need a solver retry).
   class BiogasPSATest : public UserDataTest {
   protected:
-    void RunBiogas8Step(MomentumModel momentum, const std::string& save_name);
+    void RunBiogas8Step(MomentumModel momentum);
   };
 
   TEST_F(BiogasPSATest, BiogasPSA_8Step_Skarstrom) {
-    RunBiogas8Step(MomentumModel::KarmenCozeny, "BiogasPSA_8Step_Skarstrom");
+    RunBiogas8Step(MomentumModel::KarmenCozeny);
   }
 
   TEST_F(BiogasPSATest, BiogasPSA_8Step_Skarstrom_Ergun) {
-    RunBiogas8Step(MomentumModel::Ergun, "BiogasPSA_8Step_Skarstrom_Ergun");
+    RunBiogas8Step(MomentumModel::Ergun);
   }
 
-  void BiogasPSATest::RunBiogas8Step(MomentumModel momentum, const std::string& save_name) {
+  void BiogasPSATest::RunBiogas8Step(MomentumModel momentum) {
     data.info.title = "Biogas PSA - 8-Step Skarstrom";
     data.info.description = "Eight step PSA cycle for biogas upgrading (CO2/CH4 separation) using Zeolite 13X.";
     data.info.author = "Sam Affleck";
@@ -1309,8 +1297,6 @@ namespace adsim {
     // streams (Purge 1 / CH4 Purge, Press 1 / LPP) carry specified compositions that
     // differ slightly from the actual bed outlet, which is inherent to single-bed
     // modelling of a multi-bed cycle and introduces a small systematic mismatch.
-
-    SaveTest(save_name, solver);
   }
 
 } // end adsim namespace

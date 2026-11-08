@@ -176,9 +176,9 @@ TEST(DacKineticsBreakthrough, FastFrontAndSlowTailWithClosedBalances) {
   const auto kpis = sim.KPIs();
   ASSERT_FALSE(kpis.empty());
   for (const auto& k : kpis) {
-    ASSERT_TRUE(std::isfinite(k.quadrature_mass_balance_error));
-    EXPECT_LT(std::abs(k.quadrature_mass_balance_error), 1e-4);
-    EXPECT_LT(std::abs(k.mass_balance_error), 1e-3);
+    ASSERT_TRUE(std::isfinite(k.mass_balance_error));
+    EXPECT_LT(std::abs(k.mass_balance_error), 1e-4);
+    EXPECT_LT(std::abs(k.trapezoid_mass_balance_error), 1e-3);
   }
   const StepBalance* b = sim.Boundaries().GetStepBalance(sim.LastCycle(), 0);
   ASSERT_NE(b, nullptr);

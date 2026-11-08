@@ -221,8 +221,6 @@ namespace adsim {
         if (dc.check_temp)
           report.CheckAbs("peak bed temperature", t_peak, Reference("vysyarajua_2024", id, "peak_temperature"), dc.t_tol);
       }
-
-      t.SaveTest("Vysyaraju2024_DCB_" + dc.name, solver);
     }
 
     // Fig. 4: 500 sccm through A = pi*rin^2 = 9.08e-4 m2 at 0.95 bar / 295 K ->
@@ -475,7 +473,6 @@ namespace adsim {
       EXPECT_GT(re_he, 10.0) << "He recovery outside the expected regime for " << pc.name;
       EXPECT_LT(n2_ads, 1.5) << "Bed flooded (N2 front reached the top) for " << pc.name;
 
-      t.SaveTest("Vysyaraju2024_PSA_" + pc.name, solver);
       t.SaveResultsAsExample("Vysyaraju2024_PSA_" + pc.name, solver);
     }
 

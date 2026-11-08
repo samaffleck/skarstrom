@@ -314,7 +314,6 @@ cmake --build --preset linux-release
 ctest --preset linux-release -j3        # full suite ~10 min; core/ is the working directory
 ctest --preset linux-release -j3 -LE "paper|slow"   # fast tier (what pull-request CI runs), ~1 min
 ctest --preset linux-release -L slow    # slow verification tier (main and nightly CI)
-rm -rf core/Results                    # the suite writes ~4 GB there
 pip install . && pytest python/tests    # Python package + example smoke tests
 pip install -r requirements-docs.txt && mkdocs build --strict
 ```

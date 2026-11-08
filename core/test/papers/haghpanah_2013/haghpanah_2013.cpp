@@ -154,7 +154,6 @@ namespace adsim {
           kTolSec61Purity, false);
     Check(report, "CO2 recovery", 100 * k.recovery, Reference("haghpanah_2013", "Sec61", "CO2_recovery"),
           kTolSec61Recovery, false);
-    SaveTest("Haghpanah2013_Sec61", solver);
     SaveResultsAsExample("Haghpanah2013_Sec61", solver);
   }
 
@@ -198,7 +197,6 @@ namespace adsim {
             "per adsorbent volume (1 - eps) A L");
     }
     const std::string deck = "Haghpanah2013_" + id;
-    SaveTest(deck, solver);
     SaveResultsAsExample(deck, solver);
   }
 

@@ -238,7 +238,7 @@ def render(summary: dict, manifest: list) -> str:
     out("python scripts/docs/gen_validation_page.py --merge build/linux-release/validation")
     out("```")
     out("")
-    out("Each test writes `<build>/validation/<paper>__<case>.json`; the script merges them into `core/test/papers/validation_summary.json` and regenerates this page. The test suite also writes about 4 GB of results to `core/Results/`; delete it afterwards.")
+    out("Each test writes `<build>/validation/<paper>__<case>.json`; the script merges them into `core/test/papers/validation_summary.json` and regenerates this page.")
     out("")
     return "\n".join(L)
 

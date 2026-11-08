@@ -273,9 +273,9 @@ TEST(DualRateLdf, SlowSiteIsAStateAndTheMoleBalanceCloses) {
   ASSERT_FALSE(kpis.empty());
   for (const auto& k : kpis) {
     SCOPED_TRACE("cycle " + std::to_string(k.cycle));
-    ASSERT_TRUE(std::isfinite(k.quadrature_mass_balance_error));
-    EXPECT_LT(std::abs(k.quadrature_mass_balance_error), 1e-4);
-    EXPECT_LT(std::abs(k.mass_balance_error), 1e-3);
+    ASSERT_TRUE(std::isfinite(k.mass_balance_error));
+    EXPECT_LT(std::abs(k.mass_balance_error), 1e-4);
+    EXPECT_LT(std::abs(k.trapezoid_mass_balance_error), 1e-3);
   }
   const BoundaryLog& b_log = sim.Boundaries();
   for (int st = 0; st < static_cast<int>(sim.Data().cycle.step_list_.size()); ++st) {

@@ -531,46 +531,6 @@ namespace adsim {
       test::SaveToJsonAtomically(data, json_path);
     }
 
-    void SaveTest(const std::string& test_name, CoupledSolver& solver) {
-      // Create directory structure: Results/test_name/
-      std::filesystem::path results_dir = test_path; // Already "Results"
-      std::filesystem::path test_dir = results_dir / test_name;
-      std::filesystem::path csv_results_dir = test_dir / "Results";
-      
-      std::filesystem::create_directories(results_dir);
-      std::filesystem::create_directories(test_dir);
-      std::filesystem::create_directories(csv_results_dir);
-      
-      // Save JSON file: Results/test_name/test_name.json
-      std::string json_filename = test_name + ".json";
-      std::filesystem::path json_path = test_dir / json_filename;
-      
-      SaveToJson(data, json_path.string());
-
-      // Save CSV files: Results/test_name/Results/*.csv
-      solver.SaveLogs(csv_results_dir.string());
-    }
-
-    void SaveTest(const std::string& test_name, CoupledSolverChuncked& solver) {
-      // Create directory structure: Results/test_name/
-      std::filesystem::path results_dir = test_path; // Already "Results"
-      std::filesystem::path test_dir = results_dir / test_name;
-      std::filesystem::path csv_results_dir = test_dir / "Results";
-      
-      std::filesystem::create_directories(results_dir);
-      std::filesystem::create_directories(test_dir);
-      std::filesystem::create_directories(csv_results_dir);
-      
-      // Save JSON file: Results/test_name/test_name.json
-      std::string json_filename = test_name + ".json";
-      std::filesystem::path json_path = test_dir / json_filename;
-      
-      SaveToJson(data, json_path.string());
-
-      // Save CSV files: Results/test_name/Results/*.csv
-      solver.SaveLogs(csv_results_dir.string());
-    }
-
     // Save only the UserData configuration to Results/test_name/test_name.json
     // (the same path LoadSimulation reads), without any solver logs. Tests
     // must only ever load files saved under their own test_name — sharing

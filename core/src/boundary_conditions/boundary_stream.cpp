@@ -51,15 +51,27 @@ namespace adsim {
 
     std::unordered_map<std::string, double> component_molar_flow{};
     std::unordered_map<std::string, double> logged_mole_fraction{};
+    // Gas leaving the bed through an inlet stream (a back-flow) carries the
+    // bed-end face gas, as the species balance convects it, not the stream's
+    // composition; at an outlet GetComponentMolarFlow uses the face already.
+    const bool leaving = (location == BoundaryLocation::BOTTOM) ? molar_flow < 0.0 : molar_flow > 0.0;
     for (const auto& [component, yi] : component_mole_fractions) {
-      const double n_i = GetComponentMolarFlow(state, time, location, component);
+      const double n_i = (direction_ == BoundaryDirection::INLET && leaving)
+                             ? molar_flow * BedEndFaceMoleFraction(state, location, component)
+                             : GetComponentMolarFlow(state, time, location, component);
       component_molar_flow[component] = n_i;
 
+      // The logged composition: the stream's at an inlet (its flow ratio,
+      // which carries the imposed composition), the bed-end gas (ghost and
+      // end cell average) at an outlet. The outlet's component flow above is
+      // on the face basis instead (GetComponentMolarFlow); the logged
+      // composition keeps the bed-end sampling, which connected streams
+      // replay, so a connection's inlet gas does not change with the KPI basis.
       double y = 0.0;
-      if (std::abs(molar_flow) > kTinyFlow) {
-        y = n_i / molar_flow;
+      if (direction_ == BoundaryDirection::INLET && !leaving) {
+        y = std::abs(molar_flow) > kTinyFlow ? n_i / molar_flow : InletMoleFraction(time, component);
       } else if (direction_ == BoundaryDirection::INLET) {
-        y = InletMoleFraction(time, component);
+        y = InletMoleFraction(time, component);  // the logged series of a back-flowing inlet, as before
       } else {
         y = 0.5 * (yi.var[i] + yi.var[i + d]);
       }
@@ -139,10 +151,19 @@ namespace adsim {
     }
   }
 
+  double BedEndFaceMoleFraction(const Equations& state, BoundaryLocation loc, const std::string& component) {
+    const auto face = state.mole_fraction_face.find(component);
+    if (face != state.mole_fraction_face.end() && !face->second.var.empty()) {
+      const auto& y = face->second.var;
+      return loc == BoundaryLocation::TOP ? y.back() : y.front();
+    }
+    return BedEndValue(state.mole_fraction.at(component).var, loc);
+  }
+
   double IBoundaryStream::GetComponentMolarFlow(const Equations& state, double time, BoundaryLocation loc, const std::string& component) {
     const double n = GetMolarFlow(state, time, loc);
     if (direction_ == BoundaryDirection::INLET) return n * InletMoleFraction(time, component);
-    return n * BedEndValue(state.mole_fraction.at(component).var, loc);
+    return n * BedEndFaceMoleFraction(state, loc, component);
   }
 
   double IBoundaryStream::GetEnthalpyFlow(const Equations& state, double time, BoundaryLocation loc) {
