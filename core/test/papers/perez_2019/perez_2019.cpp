@@ -44,13 +44,14 @@ namespace adsim {
       // evacuation exponential, wall ends at T_a, Blake-Kozeny / Ergun,
       // capacity-factor LDF. Measured at the CSS of the state-test rule, from a
       // feed-loaded bed, with WENO on 80 cells (grid-converged; README.md "Grid" has the upwind
-      // 30-cell errors these bounds were set from before).
-      { "ConfigA",  { 0.3, 1.2, 0.3, 0.43 } },  // measured 0.193, 0.952, 0.207, 0.348 pp
-      { "ConfigB",  { 0.7, 0.2, 1.8, 4.3 } },  // measured 0.692, 0.139, 1.592, 2.439 pp
-      { "ConfigC1", { 0.2, 2.9, 4.8, 9.7 } },  // measured 0.147, 2.370, 4.553, 5.970 pp
-      { "ConfigD1", { 3.9, 4.5, 2.7, 3.7 } },  // measured 3.308, 3.735, 2.308, 3.035 pp
-      { "ConfigE",  { 2.1, 3.2, 4.3, 4.0 } },  // measured 1.854, 2.668, 3.754, 3.268 pp
-      { "ConfigF",  { 2.6, 2.6, 4.4, 3.8 } },  // measured 2.053, 2.087, 4.253, 3.087 pp
+      // 30-cell errors these bounds were set from before). Gas held in the bed
+      // voids only, as in SI Eqs. S1, S2, S6 (README.md "Gas holdup").
+      { "ConfigA",  { 0.3, 1.5, 0.3, 0.43 } },  // measured 0.149, 1.443, 0.251, 0.143 pp
+      { "ConfigB",  { 0.9, 0.3, 1.8, 4.3 } },  // measured 0.861, 0.235, 1.761, 2.065 pp
+      { "ConfigC1", { 0.4, 2.9, 5.1, 9.7 } },  // measured 0.325, 2.209, 5.025, 5.809 pp
+      { "ConfigD1", { 3.9, 4.5, 2.7, 3.7 } },  // measured 3.016, 3.385, 2.016, 2.685 pp
+      { "ConfigE",  { 2.1, 3.2, 4.3, 4.0 } },  // measured 1.250, 2.216, 3.150, 2.816 pp
+      { "ConfigF",  { 2.6, 2.6, 4.4, 3.8 } },  // measured 0.916, 1.606, 3.116, 2.606 pp
     };
 
     void ValidatePerez(const std::string& id, double purity, double recovery) {

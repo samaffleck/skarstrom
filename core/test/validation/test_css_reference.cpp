@@ -58,8 +58,12 @@ namespace adsim {
     // the reference then resolves the bound with a factor of 100 to spare. A
     // stop closer to the reference than the drift is at the reference's
     // resolution (Anderson on Perez 2019 E: c_kpi 0.5 against a drift of 0.3).
-    // Measured drifts: 0.003-0.34 (state, histories and KPIs).
-    constexpr double kMaxReferenceDrift = 1.0;
+    // Measured drifts: 0.003-0.34 (state, histories and KPIs), except the KPI
+    // drift of Perez 2019 E, 1.28 since its decks hold the gas in the bed
+    // voids only (its recovery approaches CSS slowly; state 0.20, histories
+    // 0.27). This bound is a regression guard on the reference, not a paper
+    // tolerance: 1.5 covers that deck and still resolves kBound 65-fold.
+    constexpr double kMaxReferenceDrift = 1.5;
     constexpr int kMinSegment = 100;   // cycles per reference segment, at least
     constexpr int kMaxCycles = 600;    // cap on any run to CSS
 

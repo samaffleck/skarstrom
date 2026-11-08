@@ -34,9 +34,9 @@ namespace adsim {
   // relative), set from the measured error with WENO on 100 cells (upwind on
   // 30 cells: 2.286 pp, 1.973 pp, 0.00938; README.md "Grid").
   namespace {
-    constexpr double kTolPurity = 2.7;  // measured 2.415596 pp
-    constexpr double kTolRecovery = 3.4;  // measured 2.829703 pp
-    constexpr double kTolProductivity = 0.027;  // measured 0.022288 (relative)
+    constexpr double kTolPurity = 2.7;  // measured 2.336840 pp
+    constexpr double kTolRecovery = 3.4;  // measured 2.826648 pp
+    constexpr double kTolProductivity = 0.027;  // measured 0.018567 (relative)
   }
 
   TEST_F(WardPini2024Test, FourStepPSA) {
@@ -73,7 +73,11 @@ namespace adsim {
     double bulk_density = 437.0;
     double solid_density = bulk_density / (1 - eb);
     mof.solid_density_ = solid_density;
-    mof.ep_ = 0.35;
+    // The balances (Ward & Pini 2022, Eqs. A1, A2, A4, on which the 2024 model
+    // builds) hold the gas in the bed voids only (rho_b / eps): no macropore
+    // holdup, so eps_t = eps_b. Same for the unused activated carbon.
+    mof.ep_ = 0.0;
+    data.adsorbent_directory.Get(ac_id).ep_ = 0.0;
     mof.heat_capacity_ = 900.0;
     mof.thermal_conductivity_ = 0.5;
 

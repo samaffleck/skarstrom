@@ -63,7 +63,10 @@ namespace adsim {
       _13X_ads.solid_density_ = solid_density;
       _13X_ads.heat_capacity_ = 900;
       _13X_ads.thermal_conductivity_ = 0.63;
-      _13X_ads.ep_ = 0.35;
+      // SI Eqs. S1, S2, S6 hold the gas in the bed voids only ((1-eps)/eps,
+      // eps = 0.41): no macropore holdup, so eps_t = eps_b. The particle
+      // voidage 0.35 enters only the macropore LDF coefficient (Eq. S4, below).
+      _13X_ads.ep_ = 0.0;
       data.bed.wall_.heat_capacity_ = 502;
       data.bed.wall_.density_ = 7800;
       data.bed.wall_.thermal_conductivity_ = 16;

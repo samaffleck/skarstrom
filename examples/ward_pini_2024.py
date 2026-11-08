@@ -38,7 +38,8 @@ def add_mg_mof_74(sim: sk.Simulation) -> sk.Adsorbent:
         solid_density=910.4166666666667 * u.kg / u.m**3,       # particle density
         heat_capacity=900 * u.J / (u.kg * u.K),
         thermal_conductivity=0.5 * u.W / (u.m * u.K),
-        particle_void_fraction=0.35,
+        # The balances hold gas in the bed voids only (rho_b / eps): no macropore holdup.
+        particle_void_fraction=0.0,
     )
     ads.set_isotherm("extended_dual_site_langmuir_c", {
         "CarbonDioxide": {"m1": 6.8 * u.mol / u.kg, "b1": 1.81e-7 * u.m**3 / u.mol, "q1": 39.3 * u.kJ / u.mol,
@@ -62,7 +63,7 @@ def add_activated_carbon(sim: sk.Simulation) -> sk.Adsorbent:
         solid_density=1200 * u.kg / u.m**3,
         heat_capacity=500 * u.J / (u.kg * u.K),
         thermal_conductivity=0.5 * u.W / (u.m * u.K),
-        particle_void_fraction=0.35,
+        particle_void_fraction=0.0,
     )
 
 
