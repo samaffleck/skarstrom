@@ -346,12 +346,14 @@ namespace adsim {
       }
     }
 
-    // Component flows: the stream's composition at an inlet; at an outlet the
-    // bed-end face composition the species balance convects (the logged
-    // composition above keeps the bed-end sampling), so the KPIs count the
-    // moles the balance removes.
+    // Component flows: gas entering through an inlet carries the inlet
+    // composition; gas leaving the bed (at an outlet, or back-flowing through
+    // an inlet) carries the bed-end face composition the species balance
+    // convects (the logged composition above keeps its sampling), so the KPIs
+    // count the moles the balance moves.
+    const bool leaving = (location_ == BoundaryLocation::BOTTOM) ? molar_flow < 0.0 : molar_flow > 0.0;
     for (const auto& [component, y] : mole_fraction) {
-      component_molar_flow[component] = direction_ == BoundaryDirection::INLET
+      component_molar_flow[component] = (direction_ == BoundaryDirection::INLET && !leaving)
                                             ? molar_flow * y
                                             : molar_flow * BedEndFaceMoleFraction(state, location_, component);
     }
