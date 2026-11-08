@@ -49,7 +49,8 @@ def paper_dispersion(feed_flow) -> float:
     Dm, rp, Di, eb = 0.605e-5, 1.5e-3, 0.0189, 0.456
     q = feed_flow.to("m**3/s").magnitude
     vF = q / (math.pi / 4 * Di**2) / eb
-    return 4.0 * (0.7 * Dm + vF * rp)
+    # To the 15 significant digits a deck stores, so a built case and its shipped deck have the same inputs.
+    return float(f"{4.0 * (0.7 * Dm + vF * rp):.15g}")
 
 
 def add_activated_carbon(sim: sk.Simulation) -> sk.Adsorbent:
@@ -114,7 +115,7 @@ def build(case: str) -> sk.Simulation:
     # Aluminium tube: pure aluminium's properties (not a preset alloy), so a custom material.
     sim.wall.set_material("custom", density=2700 * u.kg / u.m**3, heat_capacity=902 * u.J / (u.kg * u.K),
                           thermal_conductivity=205 * u.W / (u.m * u.K))
-    sim.wall.thickness = 3.25 * u.mm
+    sim.wall.thickness = 0.00325   # 3.25 mm, in m as the deck stores it (3.25 * u.mm converts to 0.0032500000000000003)
     sim.wall.set_boundary("fixed", fixed_temperature=291.4 * u.K)   # Table 4: wall ends at T_a
 
     layer = sim.add_layer("Activated Carbon", composition={"Activated Carbon": 1.0}, momentum="ergun",

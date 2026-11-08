@@ -704,9 +704,13 @@ namespace adsim {
   // A Henry isotherm with k = 0 for the tracer, and a large heat of adsorption
   // (which must have no effect, since nothing adsorbs), must reproduce the
   // inert-tracer run: the loading stays at zero (to its absolute tolerance)
-  // and the end-of-run profile matches to within 2E + w, as in
-  // test_metamorphic_relations.cpp (E: the inert run's error, measured by
-  // tightening reltol 100x; w: one error-test weight).
+  // and the end-of-run profile matches to within E_inert + E_zero + w, as in
+  // test_metamorphic_relations.cpp (E: each run's error, measured by
+  // tightening its reltol 100x; w: one error-test weight). The two runs do
+  // not share their unknowns (an Inert loading is not a DAE unknown, a Henry
+  // k = 0 loading is), so their integration errors are not correlated and
+  // each is measured; the bound is the same metamorphic argument as 2E + w
+  // for two runs with one layout, not a looser constant.
 
   TEST(DegenerateMixtures, ZeroAffinityComponentBehavesAsAnInert) {
     const double reltol = 1e-6;
@@ -724,40 +728,51 @@ namespace adsim {
     const Curve inert = inert_run(reltol);
     const Curve inert_fine = inert_run(reltol * 1e-2);
 
-    c.adsorbing = true;
-    UserData zero;
-    Build(zero, c);
-    auto& source = PackingOf(zero).adsorption_source_;
-    auto henry = std::make_unique<HenryIsotherm>();
-    henry->params_["Oxygen"].k = 0.0;
-    henry->params_["Oxygen"].Q = kCaseHenryQ;
-    source.AddIsotherm({"Oxygen"}, std::move(henry));
-    source.heat_of_adsorption_["Oxygen"] = 40000.0;
-    std::string error;
-    ASSERT_TRUE(zero.PerformChecks(error)) << error;
-    CoupledSolver solver{zero};
-    ASSERT_GE(solver.IntegrateCycle(zero.cycle, false), 0);
-    double q_max = 0.0;
-    for (const auto& s : solver.GetLog().GetComponentVariable(0, 0, ComponentVariableType::ADSORBED_CONCENTRATION, "Oxygen").values)
-      for (size_t i = 1; i + 1 < s.size(); ++i) q_max = std::max(q_max, std::abs(s[i]));
-    const auto y = solver.GetLog().GetComponentVariable(0, 0, ComponentVariableType::MOLE_FRACTION, "Oxygen").values.back();
-    const std::vector<double> y_zero(y.begin() + 1, y.end() - 1);
+    // The zero-affinity run at a relative tolerance: its final Oxygen
+    // profile (interior cells) and its largest |q| over the run.
+    auto zero_run = [&](double rt, double& q_max) {
+      BreakthroughCase cz = c;
+      cz.adsorbing = true;
+      cz.reltol = rt;
+      UserData zero;
+      Build(zero, cz);
+      auto& source = PackingOf(zero).adsorption_source_;
+      auto henry = std::make_unique<HenryIsotherm>();
+      henry->params_["Oxygen"].k = 0.0;
+      henry->params_["Oxygen"].Q = kCaseHenryQ;
+      source.AddIsotherm({"Oxygen"}, std::move(henry));
+      source.heat_of_adsorption_["Oxygen"] = 40000.0;
+      std::string error;
+      EXPECT_TRUE(zero.PerformChecks(error)) << error;
+      CoupledSolver solver{zero};
+      EXPECT_GE(solver.IntegrateCycle(zero.cycle, false), 0);
+      q_max = 0.0;
+      for (const auto& s : solver.GetLog().GetComponentVariable(0, 0, ComponentVariableType::ADSORBED_CONCENTRATION, "Oxygen").values)
+        for (size_t i = 1; i + 1 < s.size(); ++i) q_max = std::max(q_max, std::abs(s[i]));
+      const auto y = solver.GetLog().GetComponentVariable(0, 0, ComponentVariableType::MOLE_FRACTION, "Oxygen").values.back();
+      return std::vector<double>(y.begin() + 1, y.end() - 1);
+    };
+    double q_max = 0.0, q_max_fine = 0.0;
+    const std::vector<double> y_zero = zero_run(reltol, q_max);
+    const std::vector<double> y_zero_fine = zero_run(reltol * 1e-2, q_max_fine);
 
     ASSERT_EQ(y_zero.size(), inert.final_y.size());
-    double discrepancy = 0.0, E = 0.0, y_hi = 0.0, y_lo = 1.0;
+    ASSERT_EQ(y_zero_fine.size(), inert.final_y.size());
+    double discrepancy = 0.0, E = 0.0, E_zero = 0.0, y_hi = 0.0, y_lo = 1.0;
     for (size_t i = 0; i < y_zero.size(); ++i) {
       discrepancy = std::max(discrepancy, std::abs(y_zero[i] - inert.final_y[i]));
       E = std::max(E, std::abs(inert.final_y[i] - inert_fine.final_y[i]));
+      E_zero = std::max(E_zero, std::abs(y_zero[i] - y_zero_fine[i]));
       y_hi = std::max(y_hi, inert.final_y[i]);
       y_lo = std::min(y_lo, inert.final_y[i]);
     }
     const double w = reltol * y_hi + 1e-8;
     std::cout << "[zero affinity] max |q| " << q_max << " mol/kg; profile discrepancy " << discrepancy
-              << ", inert run's integration error " << E << ", w " << w << "\n";
+              << ", integration errors: inert run " << E << ", zero-affinity run " << E_zero << ", w " << w << "\n";
     ASSERT_GT(y_hi, 0.9 * c.y_feed) << "Front has not entered the bed";
     ASSERT_LT(y_lo, 0.1 * c.y_feed) << "Front has left the bed";
     EXPECT_LE(q_max, 1e-8) << "A component with no affinity was adsorbed";
-    EXPECT_LE(discrepancy, 2.0 * E + w) << "A zero-affinity component does not behave as an inert";
+    EXPECT_LE(discrepancy, E + E_zero + w) << "A zero-affinity component does not behave as an inert";
   }
 
 } // namespace adsim
