@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 4,
+        "cereal_class_version": 5,
         "Name": "Activated Carbon (Ward 2022)",
         "Density": {
             "cereal_class_version": 2,
@@ -19,7 +19,7 @@
             "DisplayUnitIndex": 0
         },
         "Adsorption_Source": {
-            "cereal_class_version": 0,
+            "cereal_class_version": 1,
             "Mass_Transfer_Models": [
                 {
                     "key": "CarbonDioxide",
@@ -33,12 +33,17 @@
                                 "value0": {
                                     "Mass_Transfer_Coefficient_Model": {
                                         "polymorphic_id": 2147483650,
-                                        "polymorphic_name": "adsim::MassTransferCoefficient_Haynes",
+                                        "polymorphic_name": "adsim::MassTransferCoefficientSeriesResistance",
                                         "ptr_wrapper": {
                                             "valid": 1,
                                             "data": {
                                                 "cereal_class_version": 2,
                                                 "value0": {},
+                                                "Film_Resistance_Factor": {
+                                                    "Value": 1.0,
+                                                    "Expression": "1",
+                                                    "DisplayUnitIndex": 0
+                                                },
                                                 "Tortuosity": {
                                                     "Value": 3.0,
                                                     "Expression": "3",
@@ -47,6 +52,60 @@
                                                 "Macropore_Void_Fraction": {
                                                     "Value": 0.59,
                                                     "Expression": "0.59",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Molecular_Diffusion_Coefficient": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Crystal_Radius": {
+                                                    "Value": 0.000001,
+                                                    "Expression": "1e-06",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Diffusivity": {
+                                                    "Value": 1e-13,
+                                                    "Expression": "1e-13",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Micropore_Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Capacity_Factor": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Concentration_Floor": {
+                                                    "Value": 0.001,
+                                                    "Expression": "0.001",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Resistances": {
+                                                    "cereal_class_version": 1,
+                                                    "Film": true,
+                                                    "Macropore": true,
+                                                    "Knudsen": false,
+                                                    "Micropore": false,
+                                                    "Lumped": false
+                                                },
+                                                "Capacity_Factor_Mode": 0,
+                                                "Mass_Transfer_Coefficient": {
+                                                    "Value": 0.5,
+                                                    "Expression": "0.5",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Activation_Energy": {
+                                                    "Value": 0.0,
+                                                    "Expression": "0",
+                                                    "DisplayUnitIndex": 0
+                                                },
+                                                "Pore_Radius": {
+                                                    "Value": 1e-9,
+                                                    "Expression": "1e-09",
                                                     "DisplayUnitIndex": 0
                                                 }
                                             }
@@ -70,9 +129,24 @@
             ],
             "Isotherms": [
                 {
-                    "key": 5,
+                    "key": 2,
                     "value": {
                         "polymorphic_id": 2147483651,
+                        "polymorphic_name": "adsim::InertIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "ISO_Params": []
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 5,
+                    "value": {
+                        "polymorphic_id": 2147483652,
                         "polymorphic_name": "adsim::DualSiteLangmuirIsotherm_Concentration",
                         "ptr_wrapper": {
                             "valid": 1,
@@ -120,21 +194,6 @@
                             }
                         }
                     }
-                },
-                {
-                    "key": 2,
-                    "value": {
-                        "polymorphic_id": 2147483652,
-                        "polymorphic_name": "adsim::InertIsotherm",
-                        "ptr_wrapper": {
-                            "valid": 1,
-                            "data": {
-                                "cereal_class_version": 2,
-                                "value0": {},
-                                "ISO_Params": []
-                            }
-                        }
-                    }
                 }
             ],
             "Isotherm_Map": [
@@ -142,12 +201,18 @@
                     "key": "CarbonDioxide",
                     "value": 5
                 }
-            ]
+            ],
+            "Mixing_Rule": 0
         },
         "Particle_Void_Fraction": {
             "Value": 0.59,
             "Expression": "0.59",
             "DisplayUnitIndex": 0
+        },
+        "Reaction_Source": {
+            "cereal_class_version": 1,
+            "Reactions": [],
+            "Next_Reaction_ID": 0
         }
     }
 }

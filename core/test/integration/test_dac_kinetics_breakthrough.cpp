@@ -118,7 +118,7 @@ struct DacDeck : UserDataTest {
       auto h = std::make_unique<MassTransferCoefficient_Haynes>();
       h->tortuosity_ = 3.0;
       h->macropore_void_fraction_ = 0.338;
-      ldf->mtc_model_ = std::move(h);
+      ldf->mtc_model_ = ToResistances(std::move(h));
       models["CarbonDioxide"] = std::move(ldf);
       return;
     }

@@ -23,10 +23,10 @@
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
-                    "key": "Nitrogen",
+                    "key": "Methane",
                     "value": {
-                        "Value": 19100.0,
-                        "Expression": "1.91e+04",
+                        "Value": 20600.0,
+                        "Expression": "2.06e+04",
                         "DisplayUnitIndex": 0
                     }
                 },
@@ -39,10 +39,10 @@
                     }
                 },
                 {
-                    "key": "Methane",
+                    "key": "Nitrogen",
                     "value": {
-                        "Value": 20600.0,
-                        "Expression": "2.06e+04",
+                        "Value": 19100.0,
+                        "Expression": "1.91e+04",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -128,7 +128,7 @@
             ],
             "Isotherm_Map": [
                 {
-                    "key": "Nitrogen",
+                    "key": "Methane",
                     "value": 12
                 },
                 {
@@ -136,7 +136,7 @@
                     "value": 12
                 },
                 {
-                    "key": "Methane",
+                    "key": "Nitrogen",
                     "value": 12
                 }
             ],

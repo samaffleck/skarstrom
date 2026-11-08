@@ -29,10 +29,10 @@
                             "cereal_class_version": 1,
                             "Mass_Transfer_Models": [
                                 {
-                                    "key": "CarbonDioxide",
+                                    "key": "Nitrogen",
                                     "value": {
                                         "polymorphic_id": 2147483649,
-                                        "polymorphic_name": "adsim::DualRateLinearDrivingForce",
+                                        "polymorphic_name": "adsim::LinearDrivingForce",
                                         "ptr_wrapper": {
                                             "valid": 1,
                                             "data": {
@@ -44,7 +44,100 @@
                                                         "ptr_wrapper": {
                                                             "valid": 1,
                                                             "data": {
-                                                                "cereal_class_version": 1,
+                                                                "cereal_class_version": 2,
+                                                                "value0": {},
+                                                                "Film_Resistance_Factor": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Tortuosity": {
+                                                                    "Value": 3.0,
+                                                                    "Expression": "3",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Macropore_Void_Fraction": {
+                                                                    "Value": 0.35,
+                                                                    "Expression": "0.35",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Molecular_Diffusion_Coefficient": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Crystal_Radius": {
+                                                                    "Value": 0.000001,
+                                                                    "Expression": "1e-06",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Diffusivity": {
+                                                                    "Value": 1e-13,
+                                                                    "Expression": "1e-13",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Capacity_Factor": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Concentration_Floor": {
+                                                                    "Value": 0.001,
+                                                                    "Expression": "0.001",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Resistances": {
+                                                                    "cereal_class_version": 1,
+                                                                    "Film": false,
+                                                                    "Macropore": false,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": false,
+                                                                    "Lumped": true
+                                                                },
+                                                                "Capacity_Factor_Mode": 0,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 0.1,
+                                                                    "Expression": "0.1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
+                                                                    "DisplayUnitIndex": 0
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": "CarbonDioxide",
+                                    "value": {
+                                        "polymorphic_id": 2147483651,
+                                        "polymorphic_name": "adsim::DualRateLinearDrivingForce",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 1,
+                                                "value0": {
+                                                    "Mass_Transfer_Coefficient_Model": {
+                                                        "polymorphic_id": 2,
+                                                        "ptr_wrapper": {
+                                                            "valid": 1,
+                                                            "data": {
                                                                 "value0": {},
                                                                 "Film_Resistance_Factor": {
                                                                     "Value": 1.0,
@@ -89,6 +182,29 @@
                                                                 "Concentration_Floor": {
                                                                     "Value": 0.001,
                                                                     "Expression": "0.001",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Resistances": {
+                                                                    "Film": true,
+                                                                    "Macropore": true,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": true,
+                                                                    "Lumped": false
+                                                                },
+                                                                "Capacity_Factor_Mode": 1,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 0.5,
+                                                                    "Expression": "0.5",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
                                                                     "DisplayUnitIndex": 0
                                                                 }
                                                             }
@@ -150,37 +266,29 @@
                                                                 "Value": 0.001,
                                                                 "Expression": "0.001",
                                                                 "DisplayUnitIndex": 0
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                {
-                                    "key": "Nitrogen",
-                                    "value": {
-                                        "polymorphic_id": 2147483651,
-                                        "polymorphic_name": "adsim::LinearDrivingForce",
-                                        "ptr_wrapper": {
-                                            "valid": 1,
-                                            "data": {
-                                                "cereal_class_version": 1,
-                                                "value0": {
-                                                    "Mass_Transfer_Coefficient_Model": {
-                                                        "polymorphic_id": 2147483652,
-                                                        "polymorphic_name": "adsim::MassTransferCoefficientConstant",
-                                                        "ptr_wrapper": {
-                                                            "valid": 1,
-                                                            "data": {
-                                                                "cereal_class_version": 3,
-                                                                "value0": {},
-                                                                "Mass_Transfer_Coefficient": {
-                                                                    "Value": 0.1,
-                                                                    "Expression": "0.1",
-                                                                    "DisplayUnitIndex": 0
-                                                                }
+                                                            },
+                                                            "Resistances": {
+                                                                "Film": true,
+                                                                "Macropore": true,
+                                                                "Knudsen": false,
+                                                                "Micropore": true,
+                                                                "Lumped": false
+                                                            },
+                                                            "Capacity_Factor_Mode": 1,
+                                                            "Mass_Transfer_Coefficient": {
+                                                                "Value": 0.5,
+                                                                "Expression": "0.5",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "Activation_Energy": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "Pore_Radius": {
+                                                                "Value": 1e-9,
+                                                                "Expression": "1e-09",
+                                                                "DisplayUnitIndex": 0
                                                             }
                                                         }
                                                     }
@@ -192,23 +300,60 @@
                             ],
                             "Heat_Of_Adsorption": [
                                 {
-                                    "key": "CarbonDioxide",
-                                    "value": {
-                                        "Value": 70100.0,
-                                        "Expression": "7.01e+04",
-                                        "DisplayUnitIndex": 0
-                                    }
-                                },
-                                {
                                     "key": "Nitrogen",
                                     "value": {
                                         "Value": 20300.0,
                                         "Expression": "2.03e+04",
                                         "DisplayUnitIndex": 0
                                     }
+                                },
+                                {
+                                    "key": "CarbonDioxide",
+                                    "value": {
+                                        "Value": 70100.0,
+                                        "Expression": "7.01e+04",
+                                        "DisplayUnitIndex": 0
+                                    }
                                 }
                             ],
                             "Isotherms": [
+                                {
+                                    "key": 0,
+                                    "value": {
+                                        "polymorphic_id": 2147483652,
+                                        "polymorphic_name": "adsim::LangmuirIsotherm",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 2,
+                                                "value0": {},
+                                                "Isotherm_Params": [
+                                                    {
+                                                        "key": "Nitrogen",
+                                                        "value": {
+                                                            "cereal_class_version": 0,
+                                                            "IP_m1": {
+                                                                "Value": 0.315,
+                                                                "Expression": "0.315",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_b1": {
+                                                                "Value": 5.0600000000000008e-11,
+                                                                "Expression": "5.0600000000000005e-11",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "IP_q1": {
+                                                                "Value": 20300.0,
+                                                                "Expression": "2.03e+04",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
                                 {
                                     "key": 23,
                                     "value": {
@@ -300,53 +445,16 @@
                                             }
                                         }
                                     }
-                                },
-                                {
-                                    "key": 0,
-                                    "value": {
-                                        "polymorphic_id": 2147483654,
-                                        "polymorphic_name": "adsim::LangmuirIsotherm",
-                                        "ptr_wrapper": {
-                                            "valid": 1,
-                                            "data": {
-                                                "cereal_class_version": 2,
-                                                "value0": {},
-                                                "Isotherm_Params": [
-                                                    {
-                                                        "key": "Nitrogen",
-                                                        "value": {
-                                                            "cereal_class_version": 0,
-                                                            "IP_m1": {
-                                                                "Value": 0.315,
-                                                                "Expression": "0.315",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_b1": {
-                                                                "Value": 5.0600000000000008e-11,
-                                                                "Expression": "5.0600000000000005e-11",
-                                                                "DisplayUnitIndex": 0
-                                                            },
-                                                            "IP_q1": {
-                                                                "Value": 20300.0,
-                                                                "Expression": "2.03e+04",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    }
                                 }
                             ],
                             "Isotherm_Map": [
                                 {
-                                    "key": "CarbonDioxide",
-                                    "value": 23
-                                },
-                                {
                                     "key": "Nitrogen",
                                     "value": 0
+                                },
+                                {
+                                    "key": "CarbonDioxide",
+                                    "value": 23
                                 }
                             ],
                             "Mixing_Rule": 0
@@ -454,7 +562,7 @@
                         "Layer_Equations": {
                             "cereal_class_version": 1,
                             "Dispersion_Model": {
-                                "polymorphic_id": 2147483655,
+                                "polymorphic_id": 2147483654,
                                 "polymorphic_name": "adsim::DispersionModelConstant",
                                 "ptr_wrapper": {
                                     "valid": 1,
@@ -472,7 +580,7 @@
                                 }
                             },
                             "Heat_Dispersion_Model": {
-                                "polymorphic_id": 2147483656,
+                                "polymorphic_id": 2147483655,
                                 "polymorphic_name": "adsim::HeatDispersionModelConstant",
                                 "ptr_wrapper": {
                                     "valid": 1,
@@ -490,7 +598,7 @@
                                 }
                             },
                             "Internal_Heat_Transfer_Model": {
-                                "polymorphic_id": 2147483657,
+                                "polymorphic_id": 2147483656,
                                 "polymorphic_name": "adsim::ConstantInternalHeatTransferModel",
                                 "ptr_wrapper": {
                                     "valid": 1,
@@ -508,7 +616,7 @@
                                 }
                             },
                             "External_Heat_Transfer_Model": {
-                                "polymorphic_id": 2147483658,
+                                "polymorphic_id": 2147483657,
                                 "polymorphic_name": "adsim::ConstantExternalHeatTransferModel",
                                 "ptr_wrapper": {
                                     "valid": 1,
@@ -580,7 +688,7 @@
             "Equations": {
                 "cereal_class_version": 2,
                 "Wall_Temperature_Boundary_Condition": {
-                    "polymorphic_id": 2147483659,
+                    "polymorphic_id": 2147483658,
                     "polymorphic_name": "adsim::WallTemperatureBoundaryConditionZeroFlux",
                     "ptr_wrapper": {
                         "valid": 1,
@@ -594,7 +702,7 @@
                 },
                 "Thermal_Equilibrium_Mode": 0,
                 "Particle_Heat_Transfer_Model": {
-                    "polymorphic_id": 2147483660,
+                    "polymorphic_id": 2147483659,
                     "polymorphic_name": "adsim::ConstantParticleHeatTransferModel",
                     "ptr_wrapper": {
                         "valid": 1,
@@ -662,7 +770,24 @@
             "Adsorbed_Heat_Capacity_Mode": 0,
             "Heat_Of_Adsorption_Convention": 0,
             "Gas_Heat_Capacity_Mode": 0,
-            "Gas_Heat_Capacity": [],
+            "Gas_Heat_Capacity": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 29.1,
+                        "Expression": "29.1",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 29.1,
+                        "Expression": "29.1",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
             "Viscosity_Mode": 0,
             "Viscosity": {
                 "Value": 0.000018,
@@ -694,18 +819,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 1.0,
-                        "Expression": "1",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": {
                         "Value": 0.0,
                         "Expression": "0",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 1.0,
+                        "Expression": "1",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -724,7 +849,7 @@
                         "DisplayUnitIndex": 0
                     },
                     "Top_Boundary_Condition": {
-                        "polymorphic_id": 2147483661,
+                        "polymorphic_id": 2147483660,
                         "polymorphic_name": "adsim::PressureBoundaryCondition",
                         "ptr_wrapper": {
                             "id": 2147483649,
@@ -742,7 +867,7 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "CarbonDioxide",
+                                        "key": "Nitrogen",
                                         "value": {
                                             "Value": 0.0,
                                             "Expression": "0",
@@ -750,7 +875,7 @@
                                         }
                                     },
                                     {
-                                        "key": "Nitrogen",
+                                        "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.0,
                                             "Expression": "0",
@@ -759,7 +884,7 @@
                                     }
                                 ],
                                 "Boundary_Pressure": {
-                                    "polymorphic_id": 2147483662,
+                                    "polymorphic_id": 2147483661,
                                     "polymorphic_name": "adsim::ConstantBoundaryValue",
                                     "ptr_wrapper": {
                                         "valid": 1,
@@ -780,7 +905,7 @@
                                     "Pair_ID": 0
                                 },
                                 "Pump": {
-                                    "polymorphic_id": 2147483663,
+                                    "polymorphic_id": 2147483662,
                                     "polymorphic_name": "adsim::Compressor",
                                     "ptr_wrapper": {
                                         "valid": 1,
@@ -795,7 +920,7 @@
                                                     "DisplayUnitIndex": 0
                                                 },
                                                 "Energy_Equation": {
-                                                    "polymorphic_id": 2147483664,
+                                                    "polymorphic_id": 2147483663,
                                                     "polymorphic_name": "adsim::IsothermalCompressorEnergyModel",
                                                     "ptr_wrapper": {
                                                         "valid": 1,
@@ -808,7 +933,7 @@
                                                     }
                                                 },
                                                 "Efficiency_Model": {
-                                                    "polymorphic_id": 2147483665,
+                                                    "polymorphic_id": 2147483664,
                                                     "polymorphic_name": "adsim::ConstantPumpEfficiencyModel",
                                                     "ptr_wrapper": {
                                                         "valid": 1,
@@ -863,7 +988,7 @@
                         }
                     },
                     "Bottom_Boundary_Condition": {
-                        "polymorphic_id": 2147483666,
+                        "polymorphic_id": 2147483665,
                         "polymorphic_name": "adsim::FlowBoundaryCondition",
                         "ptr_wrapper": {
                             "id": 2147483650,
@@ -875,7 +1000,7 @@
                                 },
                                 "Boundary_Stream_List": [
                                     {
-                                        "polymorphic_id": 2147483667,
+                                        "polymorphic_id": 2147483666,
                                         "polymorphic_name": "adsim::BoundaryStream",
                                         "ptr_wrapper": {
                                             "valid": 1,
@@ -891,18 +1016,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.9996,
-                                                                "Expression": "0.9996",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0004,
                                                                 "Expression": "0.0004",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.9996,
+                                                                "Expression": "0.9996",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -936,7 +1061,7 @@
                                                     "Endpoint_ID": 1
                                                 },
                                                 "Boundary_Flow": {
-                                                    "polymorphic_id": 2147483668,
+                                                    "polymorphic_id": 2147483667,
                                                     "polymorphic_name": "adsim::VelocityBoundaryValue",
                                                     "ptr_wrapper": {
                                                         "valid": 1,
@@ -944,7 +1069,7 @@
                                                             "cereal_class_version": 2,
                                                             "value0": {},
                                                             "Profile": {
-                                                                "polymorphic_id": 14,
+                                                                "polymorphic_id": 13,
                                                                 "ptr_wrapper": {
                                                                     "valid": 1,
                                                                     "data": {
@@ -961,7 +1086,7 @@
                                                     }
                                                 },
                                                 "Pump": {
-                                                    "polymorphic_id": 15,
+                                                    "polymorphic_id": 14,
                                                     "ptr_wrapper": {
                                                         "valid": 1,
                                                         "data": {
@@ -973,7 +1098,7 @@
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "Energy_Equation": {
-                                                                    "polymorphic_id": 16,
+                                                                    "polymorphic_id": 15,
                                                                     "ptr_wrapper": {
                                                                         "valid": 1,
                                                                         "data": {
@@ -982,7 +1107,7 @@
                                                                     }
                                                                 },
                                                                 "Efficiency_Model": {
-                                                                    "polymorphic_id": 17,
+                                                                    "polymorphic_id": 16,
                                                                     "ptr_wrapper": {
                                                                         "valid": 1,
                                                                         "data": {
@@ -1163,8 +1288,8 @@
                             "Step": 0,
                             "Endpoint": "Air",
                             "Location": 1,
-                            "Step_ID": 0,
-                            "Endpoint_ID": 0
+                            "Step_ID": 1,
+                            "Endpoint_ID": 1
                         }
                     ],
                     "Product_Endpoints": [
@@ -1172,8 +1297,8 @@
                             "Step": 0,
                             "Endpoint": "Feed Pressure Boundary Top",
                             "Location": 0,
-                            "Step_ID": 0,
-                            "Endpoint_ID": 0
+                            "Step_ID": 1,
+                            "Endpoint_ID": 2
                         }
                     ],
                     "Recycle_Endpoints": []

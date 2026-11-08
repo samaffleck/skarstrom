@@ -29,7 +29,7 @@
                             "cereal_class_version": 1,
                             "Mass_Transfer_Models": [
                                 {
-                                    "key": "Nitrogen",
+                                    "key": "CarbonDioxide",
                                     "value": {
                                         "polymorphic_id": 2147483649,
                                         "polymorphic_name": "adsim::LinearDrivingForce",
@@ -40,12 +40,17 @@
                                                 "value0": {
                                                     "Mass_Transfer_Coefficient_Model": {
                                                         "polymorphic_id": 2147483650,
-                                                        "polymorphic_name": "adsim::MassTransferCoefficientMacroporeCapacity",
+                                                        "polymorphic_name": "adsim::MassTransferCoefficientSeriesResistance",
                                                         "ptr_wrapper": {
                                                             "valid": 1,
                                                             "data": {
                                                                 "cereal_class_version": 2,
                                                                 "value0": {},
+                                                                "Film_Resistance_Factor": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
                                                                 "Tortuosity": {
                                                                     "Value": 3.0,
                                                                     "Expression": "3",
@@ -56,14 +61,58 @@
                                                                     "Expression": "0.35",
                                                                     "DisplayUnitIndex": 0
                                                                 },
+                                                                "Molecular_Diffusion_Coefficient": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Crystal_Radius": {
+                                                                    "Value": 0.000001,
+                                                                    "Expression": "1e-06",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Diffusivity": {
+                                                                    "Value": 1e-13,
+                                                                    "Expression": "1e-13",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Capacity_Factor": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
                                                                 "Concentration_Floor": {
                                                                     "Value": 0.001,
                                                                     "Expression": "0.001",
                                                                     "DisplayUnitIndex": 0
                                                                 },
-                                                                "Molecular_Diffusion_Coefficient": {
+                                                                "Resistances": {
+                                                                    "cereal_class_version": 1,
+                                                                    "Film": false,
+                                                                    "Macropore": true,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": false,
+                                                                    "Lumped": false
+                                                                },
+                                                                "Capacity_Factor_Mode": 2,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 0.5,
+                                                                    "Expression": "0.5",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
                                                                     "Value": 0.0,
                                                                     "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
                                                                     "DisplayUnitIndex": 0
                                                                 }
                                                             }
@@ -75,7 +124,7 @@
                                     }
                                 },
                                 {
-                                    "key": "CarbonDioxide",
+                                    "key": "Nitrogen",
                                     "value": {
                                         "polymorphic_id": 1,
                                         "ptr_wrapper": {
@@ -88,6 +137,11 @@
                                                             "valid": 1,
                                                             "data": {
                                                                 "value0": {},
+                                                                "Film_Resistance_Factor": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
                                                                 "Tortuosity": {
                                                                     "Value": 3.0,
                                                                     "Expression": "3",
@@ -98,14 +152,57 @@
                                                                     "Expression": "0.35",
                                                                     "DisplayUnitIndex": 0
                                                                 },
+                                                                "Molecular_Diffusion_Coefficient": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Crystal_Radius": {
+                                                                    "Value": 0.000001,
+                                                                    "Expression": "1e-06",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Diffusivity": {
+                                                                    "Value": 1e-13,
+                                                                    "Expression": "1e-13",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Capacity_Factor": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
                                                                 "Concentration_Floor": {
                                                                     "Value": 0.001,
                                                                     "Expression": "0.001",
                                                                     "DisplayUnitIndex": 0
                                                                 },
-                                                                "Molecular_Diffusion_Coefficient": {
+                                                                "Resistances": {
+                                                                    "Film": false,
+                                                                    "Macropore": true,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": false,
+                                                                    "Lumped": false
+                                                                },
+                                                                "Capacity_Factor_Mode": 2,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 0.5,
+                                                                    "Expression": "0.5",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
                                                                     "Value": 0.0,
                                                                     "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
                                                                     "DisplayUnitIndex": 0
                                                                 }
                                                             }
@@ -119,18 +216,18 @@
                             ],
                             "Heat_Of_Adsorption": [
                                 {
-                                    "key": "Nitrogen",
-                                    "value": {
-                                        "Value": 15930.0,
-                                        "Expression": "1.593e+04",
-                                        "DisplayUnitIndex": 0
-                                    }
-                                },
-                                {
                                     "key": "CarbonDioxide",
                                     "value": {
                                         "Value": 30850.0,
                                         "Expression": "3.085e+04",
+                                        "DisplayUnitIndex": 0
+                                    }
+                                },
+                                {
+                                    "key": "Nitrogen",
+                                    "value": {
+                                        "Value": 15930.0,
+                                        "Expression": "1.593e+04",
                                         "DisplayUnitIndex": 0
                                     }
                                 }
@@ -226,11 +323,11 @@
                             ],
                             "Isotherm_Map": [
                                 {
-                                    "key": "Nitrogen",
+                                    "key": "CarbonDioxide",
                                     "value": 9
                                 },
                                 {
-                                    "key": "CarbonDioxide",
+                                    "key": "Nitrogen",
                                     "value": 9
                                 }
                             ],
@@ -550,7 +647,7 @@
             ],
             "Adsorbed_Heat_Capacity": [
                 {
-                    "key": "Nitrogen",
+                    "key": "CarbonDioxide",
                     "value": {
                         "Value": 30.7,
                         "Expression": "30.7",
@@ -558,7 +655,7 @@
                     }
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Nitrogen",
                     "value": {
                         "Value": 30.7,
                         "Expression": "30.7",
@@ -571,7 +668,7 @@
             "Gas_Heat_Capacity_Mode": 1,
             "Gas_Heat_Capacity": [
                 {
-                    "key": "Nitrogen",
+                    "key": "CarbonDioxide",
                     "value": {
                         "Value": 30.7,
                         "Expression": "30.7",
@@ -579,7 +676,7 @@
                     }
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Nitrogen",
                     "value": {
                         "Value": 30.7,
                         "Expression": "30.7",
@@ -618,18 +715,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "CarbonDioxide",
-                    "value": {
-                        "Value": 0.15,
-                        "Expression": "0.15",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Nitrogen",
                     "value": {
                         "Value": 0.85,
                         "Expression": "0.85",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 0.15,
+                        "Expression": "0.15",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -677,7 +774,7 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
+                                                            "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -685,7 +782,7 @@
                                                             }
                                                         },
                                                         {
-                                                            "key": "CarbonDioxide",
+                                                            "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -718,12 +815,12 @@
                                                         "Average_Temperature": 293.0042549516875,
                                                         "Average_Mole_Fraction": [
                                                             {
-                                                                "key": "CarbonDioxide",
-                                                                "value": 0.010506301956650115
-                                                            },
-                                                            {
                                                                 "key": "Nitrogen",
                                                                 "value": 0.9894936980433499
+                                                            },
+                                                            {
+                                                                "key": "CarbonDioxide",
+                                                                "value": 0.010506301956650115
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 91
@@ -781,7 +878,7 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
+                                                            "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -789,7 +886,7 @@
                                                             }
                                                         },
                                                         {
-                                                            "key": "CarbonDioxide",
+                                                            "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -819,12 +916,12 @@
                                                         "Average_Temperature": 293.04096623480947,
                                                         "Average_Mole_Fraction": [
                                                             {
-                                                                "key": "CarbonDioxide",
-                                                                "value": 0.01062280617584456
-                                                            },
-                                                            {
                                                                 "key": "Nitrogen",
                                                                 "value": 0.9893771938241553
+                                                            },
+                                                            {
+                                                                "key": "CarbonDioxide",
+                                                                "value": 0.01062280617584456
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 91
@@ -945,18 +1042,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "CarbonDioxide",
-                                                            "value": {
-                                                                "Value": 0.15,
-                                                                "Expression": "0.15",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.85,
                                                                 "Expression": "0.85",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "CarbonDioxide",
+                                                            "value": {
+                                                                "Value": 0.15,
+                                                                "Expression": "0.15",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -983,12 +1080,12 @@
                                                         "Average_Temperature": 297.9999999999999,
                                                         "Average_Mole_Fraction": [
                                                             {
-                                                                "key": "CarbonDioxide",
-                                                                "value": 0.15000000000000006
-                                                            },
-                                                            {
                                                                 "key": "Nitrogen",
                                                                 "value": 0.85
+                                                            },
+                                                            {
+                                                                "key": "CarbonDioxide",
+                                                                "value": 0.15000000000000006
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 91
@@ -1138,7 +1235,7 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
+                                                            "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -1146,7 +1243,7 @@
                                                             }
                                                         },
                                                         {
-                                                            "key": "CarbonDioxide",
+                                                            "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -1176,12 +1273,12 @@
                                                         "Average_Temperature": 294.3659844529332,
                                                         "Average_Mole_Fraction": [
                                                             {
-                                                                "key": "CarbonDioxide",
-                                                                "value": 0.01244739615642633
-                                                            },
-                                                            {
                                                                 "key": "Nitrogen",
                                                                 "value": 0.9875526038435737
+                                                            },
+                                                            {
+                                                                "key": "CarbonDioxide",
+                                                                "value": 0.01244739615642633
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 91
@@ -1248,18 +1345,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "CarbonDioxide",
-                                                            "value": {
-                                                                "Value": 0.15,
-                                                                "Expression": "0.15",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.85,
                                                                 "Expression": "0.85",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "CarbonDioxide",
+                                                            "value": {
+                                                                "Value": 0.15,
+                                                                "Expression": "0.15",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1286,12 +1383,12 @@
                                                         "Average_Temperature": 298.0000000000002,
                                                         "Average_Mole_Fraction": [
                                                             {
-                                                                "key": "CarbonDioxide",
-                                                                "value": 0.15
-                                                            },
-                                                            {
                                                                 "key": "Nitrogen",
                                                                 "value": 0.8500000000000001
+                                                            },
+                                                            {
+                                                                "key": "CarbonDioxide",
+                                                                "value": 0.15
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 91
@@ -1434,18 +1531,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
-                                        "value": {
-                                            "Value": 1.0,
-                                            "Expression": "1",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.0,
                                             "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "Value": 1.0,
+                                            "Expression": "1",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1549,12 +1646,12 @@
                                     "Average_Temperature": 294.0372950112108,
                                     "Average_Mole_Fraction": [
                                         {
-                                            "key": "Nitrogen",
-                                            "value": 0.9617835214921146
-                                        },
-                                        {
                                             "key": "CarbonDioxide",
                                             "value": 0.03821647850788535
+                                        },
+                                        {
+                                            "key": "Nitrogen",
+                                            "value": 0.9617835214921146
                                         }
                                     ],
                                     "Source_Cycle_Index": 91
@@ -1649,18 +1746,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
-                                        "value": {
-                                            "Value": 1.0,
-                                            "Expression": "1",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.0,
                                             "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "Value": 1.0,
+                                            "Expression": "1",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1767,12 +1864,12 @@
                                     "Average_Temperature": 288.1588600409647,
                                     "Average_Mole_Fraction": [
                                         {
-                                            "key": "Nitrogen",
-                                            "value": 0.059160622454012667
-                                        },
-                                        {
                                             "key": "CarbonDioxide",
                                             "value": 0.9408393775459873
+                                        },
+                                        {
+                                            "key": "Nitrogen",
+                                            "value": 0.059160622454012667
                                         }
                                     ],
                                     "Source_Cycle_Index": 91
@@ -1841,18 +1938,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "CarbonDioxide",
-                                        "value": {
-                                            "Value": 0.0,
-                                            "Expression": "0",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "Nitrogen",
                                         "value": {
                                             "Value": 1.0,
                                             "Expression": "1",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1950,12 +2047,12 @@
                                     "Average_Temperature": 293.0409662105552,
                                     "Average_Mole_Fraction": [
                                         {
-                                            "key": "Nitrogen",
-                                            "value": 0.9893771871513367
-                                        },
-                                        {
                                             "key": "CarbonDioxide",
                                             "value": 0.010622812848663219
+                                        },
+                                        {
+                                            "key": "Nitrogen",
+                                            "value": 0.9893771871513367
                                         }
                                     ],
                                     "Source_Cycle_Index": 91
@@ -2123,15 +2220,15 @@
                             "Step": 0,
                             "Endpoint": "Feed 1 inlet",
                             "Location": 1,
-                            "Step_ID": 0,
-                            "Endpoint_ID": 0
+                            "Step_ID": 1,
+                            "Endpoint_ID": 1
                         },
                         {
                             "Step": 1,
                             "Endpoint": "Feed 2 inlet",
                             "Location": 1,
-                            "Step_ID": 0,
-                            "Endpoint_ID": 0
+                            "Step_ID": 2,
+                            "Endpoint_ID": 4
                         }
                     ],
                     "Product_Endpoints": [
@@ -2139,8 +2236,8 @@
                             "Step": 3,
                             "Endpoint": "Evacuation Pressure Boundary Bottom",
                             "Location": 1,
-                            "Step_ID": 0,
-                            "Endpoint_ID": 0
+                            "Step_ID": 4,
+                            "Endpoint_ID": 7
                         }
                     ],
                     "Recycle_Endpoints": []
