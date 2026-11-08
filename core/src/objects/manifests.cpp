@@ -61,6 +61,29 @@ namespace adsim {
        "Each step's share of the thermal energy, in the deck's step order.", true, true},
       {"step_cooling_duty", "Cooling duty by step", "step cooling duty", "J/kg", "thermal",
        "Each step's share of the cooling duty, in the deck's step order.", true, true},
+      // Reaction KPIs (KPIConfig::reaction): only on the key reactant's and the products' records.
+      {"conversion", "Conversion", "conversion", "mol/mol", "reaction",
+       "Moles of the key reactant the reactions consumed per mole of it fed, over the cycle (key reactant's "
+       "record).", true, false, false, true},
+      {"selectivity", "Selectivity", "selectivity", "mol/mol", "reaction",
+       "Moles of the product the reactions made per mole of key reactant they consumed, over the cycle; no "
+       "stoichiometric normalisation.", true, false, false, true},
+      {"reaction_yield", "Yield", "yield", "mol/mol", "reaction",
+       "Moles of the product the reactions made per mole of key reactant fed, over the cycle; no stoichiometric "
+       "normalisation.", true, false, false, true},
+      {"space_time_yield", "Space-time yield", "space-time yield", "kg/(kg s)", "reaction",
+       "Mass of the product the reactions made per second of cycle per kilogram of catalyst (the solids that "
+       "carry the reactions), or per cubic metre of bed (kg/(m3 s), space_time_yield_unit) with the bed-volume "
+       "basis.", true, false, false, true},
+      {"peak_temperature", "Peak temperature", "peak T", "K", "reaction",
+       "Highest bed temperature over the cycle (the solid temperature in an LTNE run).", true, false, false, true},
+      {"peak_temperature_position", "Peak temperature position", "peak T position", "m", "reaction",
+       "Centre of the cell of the peak temperature, from the bottom of the column.", true, false, false, true},
+      {"peak_temperature_time", "Peak temperature time", "peak T time", "s", "reaction",
+       "Time of the peak temperature from the start of the cycle.", true, false, false, true},
+      {"reaction_generation", "Reaction generation", "generated", "mol", "reaction",
+       "Moles of the component the reactions made in the bed over the cycle (negative when consumed).", true,
+       false, false, true},
       // Diagnostics: the same KPIs from the quadratures, and the cycle mole balance.
       {"quadrature_purity", "Purity (quadrature)", "purity (quad.)", "mol/mol", "purity",
        "Purity from the KPI quadratures instead of the trapezoid over the logged samples; NaN when the quadratures "
@@ -101,6 +124,7 @@ namespace adsim {
       Set(v, "display", k.display, a);
       Set(v, "per_step", k.per_step, a);
       Set(v, "diagnostic", k.diagnostic, a);
+      Set(v, "reaction", k.reaction, a);
       list.PushBack(v, a);
     }
     return Write(list, options.pretty);
@@ -564,6 +588,7 @@ namespace adsim {
       unit = unit.substr(1, unit.size() - 2);
       Set(v, "unit", unit, a);
       Set(v, "kind", "reaction", a);
+      Set(v, "argument", "reaction", a);  // Series / Profile take reaction= (and adsorbent= to pick the solid)
       Set(v, "porous_only", true, a);
       Set(v, "description",
           "effectiveness factor times the intrinsic rate of one reaction, per kg of the solid that carries it, "

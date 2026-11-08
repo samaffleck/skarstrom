@@ -11,7 +11,7 @@
 //
 //   KpiManifest()        the KPIs the engine reports (KPIRecord fields, in the
 //                        order of sensitivity::KPINames()): key, label, unit,
-//                        description, family
+//                        description, family, and the reaction KPIs
 //   UnitManifest()       the unit categories with their SI unit and suggested
 //                        display units, each resolved by the unit parser
 //                        (factor, offset), the parser's own symbol overrides
@@ -27,7 +27,9 @@
 //   SeriesManifest()     the bed series variables (Simulation::Series and
 //                        Profile, the solver log): key, log name pattern,
 //                        unit, bulk or per component, and which are also
-//                        logged per adsorbent in a bed with a mixed layer
+//                        logged per adsorbent in a bed with a mixed layer;
+//                        the per-reaction series (Series / Profile with a
+//                        reaction) in their own reaction_variables list
 //
 // The results variables (series and profiles) are listed by
 // BulkVariableNames() and its siblings in simulation.h (SeriesManifest
@@ -56,11 +58,16 @@ namespace adsim {
     bool display = true;      // shown in summary tables (false for a duplicate kept for compatibility)
     bool per_step = false;    // one value per step (a list), not one per cycle
     bool diagnostic = false;  // not a reported KPI: a cross-check (quadrature value, mole balance error)
+    // A reaction KPI (KPIConfig::reaction): on the records with
+    // KPIRecord::reaction_kpis only, absent from the others' as_dict and from
+    // a kpis.csv without reactions.
+    bool reaction = false;
   };
 
   // Every KPI, the per-cycle scalars first, in sensitivity::KPINames() order,
-  // then the per-step lists, then the diagnostics (diagnostic = true; the
-  // quadrature values and mole balance errors of KPIRecord).
+  // then the per-step lists, then the reaction KPIs (reaction = true), then
+  // the diagnostics (diagnostic = true; the quadrature values and mole
+  // balance errors of KPIRecord).
   const std::vector<KpiDefinition>& KpiDefinitions();
   std::string KpiManifest(const ManifestOptions& options = {});
 

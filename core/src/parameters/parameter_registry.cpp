@@ -382,8 +382,18 @@ namespace adsim {
             if (std::isspace(static_cast<unsigned char>(c))) continue;
             key += (c == '-' || c == ' ') ? '_' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
           }
+          // Choices are compared normalised the same way (a component name
+          // such as "CarbonDioxide" is a choice of kpi.reaction.key_reactant).
+          auto normalised = [](const std::string& name) {
+            std::string n;
+            for (char c : name) {
+              if (std::isspace(static_cast<unsigned char>(c))) continue;
+              n += (c == '-') ? '_' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            return n;
+          };
           for (size_t i = 0; i < info_.choices.size(); ++i) {
-            if (key == info_.choices[i]) {
+            if (key == normalised(info_.choices[i])) {
               set_int_(static_cast<long long>(i));
               return;
             }
@@ -1178,6 +1188,41 @@ namespace adsim {
         EmplaceBool("kpi[" + c.product_component + "].tracked", "", "kpi", c.product_component,
                     c.product_component + " KPIs tracked", c.tracked);
       }
+
+      // Reaction KPIs: kpi.reaction.key_reactant (a choice: "none" or a component),
+      // kpi.reaction.product[C] and kpi.reaction.basis.
+      ReactionKPIConfig* rx = &kpi.reaction;
+      std::vector<std::string> names;
+      for (const auto& c : kpi.per_component)
+        if (!c.product_component.empty()) names.push_back(c.product_component);
+      {
+        constexpr double nan = std::numeric_limits<double>::quiet_NaN();
+        auto& p = Add(Info("kpi.reaction.key_reactant", "", "kpi", "reaction", "reaction KPIs key reactant", "-",
+                           ParameterKind::Integer, nan, nan));
+        p.info_.choices = {"none"};
+        for (const auto& n : names) p.info_.choices.push_back(n);
+        p.info_.tunable = false;
+        p.get_int_ = [rx, names] {
+          for (size_t i = 0; i < names.size(); ++i)
+            if (names[i] == rx->key_reactant) return static_cast<long long>(i + 1);
+          return 0LL;
+        };
+        p.set_int_ = [rx, names](long long x) {
+          rx->key_reactant = (x >= 1 && x <= static_cast<long long>(names.size()))
+                                 ? names[static_cast<size_t>(x - 1)] : std::string{};
+        };
+      }
+      for (const auto& n : names) {
+        constexpr double nan = std::numeric_limits<double>::quiet_NaN();
+        auto& p = Add(Info("kpi.reaction.product[" + n + "]", "", "kpi", "reaction", n + " is a reaction product",
+                           "-", ParameterKind::Boolean, nan, nan));
+        p.info_.tunable = false;
+        p.get_bool_ = [rx, n] { return rx->IsProduct(n); };
+        p.set_bool_ = [rx, n](bool b) { rx->SetProduct(n, b); };
+      }
+      EmplaceEnum("kpi.reaction.basis", "", "kpi", "reaction", "space-time yield basis", rx->basis,
+                  "catalyst_mass,bed_volume");
+      out.back().info_.tunable = false;
     }
 
     // The cost estimate (solver/cost_estimator.h): cost.*. Money in the

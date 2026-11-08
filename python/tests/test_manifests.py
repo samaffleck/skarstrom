@@ -57,7 +57,7 @@ def test_deck_view_schema_names_the_kinds():
 
 def test_kpi_manifest_matches_kpi_records():
     kpis = sk.kpi_manifest()
-    scalar = [k["key"] for k in kpis if not k["per_step"] and not k["diagnostic"]]
+    scalar = [k["key"] for k in kpis if not k["per_step"] and not k["diagnostic"] and not k["reaction"]]
     assert scalar == list(sk.sensitivity.kpi_names())
     # Reported KPIs first, then the diagnostics.
     flags = [k["diagnostic"] for k in kpis]
@@ -174,7 +174,7 @@ def test_component_aliases_come_from_the_component_manifest():
 
 def test_python_keeps_no_copy_of_the_manifests():
     # The CLI's KPI columns and the sensitivity outputs are the manifest's, in its order.
-    scalar = [k["key"] for k in sk.kpi_manifest() if not k["per_step"] and not k["diagnostic"]]
+    scalar = [k["key"] for k in sk.kpi_manifest() if not k["per_step"] and not k["diagnostic"] and not k["reaction"]]
     assert [f for f, _ in cli.KPI_CSV_FIELDS] == scalar
     from skarstrom import model
     assert not hasattr(model, "_COMPONENT_ALIASES")

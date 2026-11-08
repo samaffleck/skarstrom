@@ -104,6 +104,7 @@ bool RemoveComponentFromDeck(UserData& data, const std::string& name, std::strin
   ReconcileMoleFractions(data, name, false);
   data.fluid.adsorbed_heat_capacity_.erase(name);
   data.fluid.gas_heat_capacity_.erase(name);
+  data.kpi_config.reaction.RemoveComponent(name);
   return true;
 }
 
