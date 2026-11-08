@@ -127,7 +127,7 @@ namespace adsim {
       auto ldf = std::make_unique<LinearDrivingForce>();
       auto ldf_mtc = std::make_unique<MassTransferCoefficientConstant>();
       ldf_mtc->constant_mtc_ = mtc;
-      ldf->mtc_model_ = std::move(ldf_mtc);
+      ldf->mtc_model_ = ToResistances(std::move(ldf_mtc));  // stored on the generic model
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
     }
 
@@ -136,7 +136,7 @@ namespace adsim {
       auto ldf_mtc = std::make_unique<MassTransferCoefficientArrhenius>();
       ldf_mtc->pre_exp_factor_ = pre_exp_factor;
       ldf_mtc->activation_energy_ = activation_energy;
-      ldf->mtc_model_ = std::move(ldf_mtc);
+      ldf->mtc_model_ = ToResistances(std::move(ldf_mtc));  // stored on the generic model
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
     }
 
@@ -146,7 +146,7 @@ namespace adsim {
       auto ldf_mtc = std::make_unique<MassTransferCoefficient_Haynes>();
       ldf_mtc->tortuosity_ = tortuosity;
       ldf_mtc->macropore_void_fraction_ = ep;
-      ldf->mtc_model_ = std::move(ldf_mtc);
+      ldf->mtc_model_ = ToResistances(std::move(ldf_mtc));  // stored on the generic model
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
     }
 
@@ -154,7 +154,7 @@ namespace adsim {
       auto ldf = std::make_unique<LinearDrivingForceSecondOrder>();
       auto ldf_mtc = std::make_unique<MassTransferCoefficientConstant>();
       ldf_mtc->constant_mtc_ = mtc;
-      ldf->mtc_model_ = std::move(ldf_mtc);
+      ldf->mtc_model_ = ToResistances(std::move(ldf_mtc));  // stored on the generic model
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
     }
 
@@ -165,7 +165,7 @@ namespace adsim {
       ldf_mtc->pore_radius_ = pore_radius;
       ldf_mtc->tortuosity_ = tortuosity;
       ldf_mtc->macropore_void_fraction_ = ep;
-      ldf->mtc_model_ = std::move(ldf_mtc);
+      ldf->mtc_model_ = ToResistances(std::move(ldf_mtc));  // stored on the generic model
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
     }
 
@@ -175,7 +175,7 @@ namespace adsim {
       auto ldf_mtc = std::make_unique<MassTransferCoefficientMacroporeCapacity>();
       ldf_mtc->tortuosity_ = tortuosity;
       ldf_mtc->macropore_void_fraction_ = ep;
-      ldf->mtc_model_ = std::move(ldf_mtc);
+      ldf->mtc_model_ = ToResistances(std::move(ldf_mtc));  // stored on the generic model
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
     }
 
@@ -185,7 +185,7 @@ namespace adsim {
       auto ldf_mtc = std::make_unique<MassTransferCoefficientMacropore>();
       ldf_mtc->tortuosity_ = tortuosity;
       ldf_mtc->macropore_void_fraction_ = ep;
-      ldf->mtc_model_ = std::move(ldf_mtc);
+      ldf->mtc_model_ = ToResistances(std::move(ldf_mtc));  // stored on the generic model
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
     }
 

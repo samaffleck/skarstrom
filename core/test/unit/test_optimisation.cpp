@@ -304,9 +304,9 @@ TEST_F(AvailableParametersTest, LDF2RateCoefficientUsesKgPerMolSecond) {
   // Still writes through to the model's ExpressionParam.
   k_ldf2->SetValue(2.0);
   auto* mt = GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_.at(N2).get();
-  auto* c = dynamic_cast<MassTransferCoefficientConstant*>(mt->mtc_model_.get());
+  auto* c = dynamic_cast<MassTransferCoefficientSeriesResistance*>(mt->mtc_model_.get());
   ASSERT_NE(c, nullptr);
-  EXPECT_DOUBLE_EQ(c->constant_mtc_.Get(), 2.0);
+  EXPECT_DOUBLE_EQ(c->k_.Get(), 2.0);
 }
 
 // ---------------------------------------------------------------------------
