@@ -1,5 +1,15 @@
 # Python and the command line
 
+<!-- doc-setup
+import numpy as np
+time_s = np.linspace(0, 99, 50)
+temperature_K = 298 + 5 * np.exp(-time_s / 30)
+open("outlet_CO2.csv", "w").write("time [s],outlet_CO2\n" + "".join(f"{t},{0.01 * t / 99}\n" for t in time_s))
+p_pa = np.array([0.1, 0.25, 0.5, 1.0, 2.0, 4.0]) * 1e5
+q_molkg = np.array([1.06, 1.94, 2.76, 3.47, 4.01, 4.36])
+T_K = 298.15
+-->
+
 The `skarstrom` Python package wraps the C++ engine (`adsim`) and runs deck files. Use it for parametric studies, sensitivity analysis, isotherm fitting, your own cost functions and your own plots, or run decks from a terminal with the `skarstrom` command.
 
 ## Install
@@ -13,6 +23,7 @@ pip install "skarstrom[examples]"   # also pandas, matplotlib, scipy and Jupyter
 
 For the development version, build it from a checkout (Python 3.10+, CMake 3.15+, a C++20 compiler):
 
+<!-- no-run: builds from source -->
 ```bash
 git clone --recursive https://github.com/samaffleck/skarstrom.git
 cd skarstrom
@@ -159,6 +170,7 @@ A field also accepts text, which is how decks store values: an expression (`"t_f
 
 To make units mandatory, create the simulation with `require_units=True`. A bare number for a dimensional field then raises `TypeError` (dimensionless values, counts and switches still take plain numbers):
 
+<!-- no-run: shows the error -->
 ```python
 from skarstrom import ureg as u
 sim = skarstrom.Simulation(skarstrom.examples.Perez2019_A, require_units=True)
@@ -233,8 +245,8 @@ sim.edit.set_boundary_kind(step, "top", "flow")          # pressure / flow / clo
 sim.edit.set_profile_kind(valve, "pressure", "exponential")   # a constant's value becomes the ramp's end
 sim.edit.set_isotherm_kind("13X", "CarbonDioxide", "extended_dual_site_langmuir_p")  # keeps m1, b1, q1, ...
 sim.edit.set_mass_transfer_kind("13X", "CarbonDioxide", "ldf", "macropore_knudsen")  # keeps the tortuosity, ...
-sim.edit.set_dispersion_kind(layer, "ruthven"); sim.edit.set_pump_kind(valve, "none")
-sim.edit.connect(a, b); sim.edit.ensure_ids(); sim.edit.repair_connections(); sim.edit.fill_gaps()
+sim.edit.set_dispersion_kind(layer, "ruthven"); sim.edit.set_pump_kind(4, "none")      # a pressure boundary's pump (endpoint 4 of Perez2019_A)
+sim.edit.connect(valve, 3); sim.edit.ensure_ids(); sim.edit.repair_connections(); sim.edit.fill_gaps()
 ```
 
 `ensure_ids()` numbers steps, endpoints and layers by first appearance and renumbers the connection pair ids 1..N, so two decks of the same structure save the same IDs. `fill_gaps()` fills every entry the run would otherwise fill in (a mole fraction per component everywhere, heat capacities, default physics on every adsorbent, empty layer compositions, KPI entries); a deck edited only through these methods already has them.
@@ -407,6 +419,7 @@ What the builder does not create: cost data. Load a deck that has it, or add it 
 After a run:
 
 ```python
+sim.run()                  # the results below are those of the last run: run again after an edit
 sim.cycles                 # logged cycles, e.g. [0, 1, ..., 13]
 sim.kpis()                 # KPIRecord per tracked component per cycle (every cycle run)
 sim.kpi_table()            # the same as a pandas DataFrame
@@ -491,6 +504,7 @@ The GAB water kinds (`gab`, `gab_young`) take `component="Ethanol"` (a CoolProp 
 
 ## Command line
 
+<!-- no-run: command synopsis, not a command -->
 ```bash
 skarstrom run deck.json [--cycles N] [--set PATH=VALUE ...] [--csv DIR] [--json] [--log low|medium|high] [-q]
 skarstrom params deck.json [--all] [--search TEXT] [--json]

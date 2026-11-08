@@ -1,5 +1,11 @@
 # Performance Metrics
 
+<!-- doc-setup
+import skarstrom
+sim = skarstrom.examples.Perez2019_A.load()
+sim.run()
+-->
+
 Skarstrom computes the standard PSA/TSA key performance indicators (KPIs) — purity, recovery, productivity, specific electrical energy, and production rate — for a chosen product component over a chosen cycle. These are what you use to compare designs and to drive the [parametric study](parameterisation.md) and the [optimiser](parameterisation.md).
 
 > KPIs are only meaningful at [cyclic steady state](cyclic-steady-state.md). Evaluate them on a converged cycle.

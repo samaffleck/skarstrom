@@ -1,5 +1,11 @@
 ## Kinetic Rate Models
 
+<!-- doc-setup
+import skarstrom
+sim = skarstrom.examples.Perez2019_A.load()
+ads = sim.adsorbents["13X"]
+-->
+
 The **isotherm** sets the equilibrium loading $q_i^*$; the **rate model** governs how fast the actual adsorbed loading $q_i$ moves towards that equilibrium. Together they form the adsorption source term that appears in the [mass](mass-balance.md) and [energy](energy-balance.md) balances.
 
 Each component of each adsorbent has a **rate model**. The rate model exposes a **Mass Transfer Coefficient Type** which determines how the coefficient $k$ is obtained — either entered directly or computed from a diffusion correlation.

@@ -8,6 +8,7 @@ Every paper-based deck is also an automated validation test; the [Validation](va
 
 `examples/` has one runnable script per deck family. Each **builds its cases from scratch in code** (fluid, adsorbents, column, every step and boundary condition, KPIs and solver settings, each value with its unit; `build(case)` returns the simulation), runs them, prints the KPIs or the cyclic-steady-state status, compares the result with the paper's published values (`core/test/papers/*/reference_values.csv`) or digitised curves (`core/data/`) when run from a repository checkout, and saves a plot to `examples/output/` when matplotlib is installed (`--no-plot` to skip). Common options: `--case NAME` (repeatable) to run a subset, `--cycles N` for a quick look.
 
+<!-- no-run: installs the package; the example scripts are in the repository -->
 ```bash
 pip install "skarstrom[examples]"        # or pip install . && pip install matplotlib
 python examples/ward_2022.py --case 100  # the fastest: about a second

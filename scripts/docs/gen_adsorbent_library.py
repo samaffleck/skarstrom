@@ -684,6 +684,7 @@ def render_docs(entries) -> str:
     out('list(lib["materials"])                             # material ids')
     out('path = skarstrom.adsorbent_path("zeolite-13x")      # the recommended 13X entry')
     out('path = skarstrom.adsorbent_path("zeolite_13x_streb2021")  # one variant, by its key')
+    out('sim = skarstrom.Simulation.new(title="Library demo")')
     out('sim.add_library_adsorbent("zeolite-13x")           # add the recommended entry to a deck')
     out("```")
     out("")

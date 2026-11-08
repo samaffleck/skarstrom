@@ -1,5 +1,14 @@
 # Matching Another Model
 
+<!-- doc-setup
+import skarstrom as sk
+sim = sk.examples.Perez2019_A.load()
+step = sim.steps["Blowdown"]
+sim.add_adsorbent("Glass beads", solid_density=2500, heat_capacity=840, thermal_conductivity=1.0, particle_void_fraction=0.0)
+sim.layers[0].set_composition({"13X": 0.7, "Glass beads": 0.3})
+sim.save("blend.json")
+-->
+
 This page is for anyone reproducing a result from another simulator or from the model in a paper, and for coding agents doing the same. It lists the conventions Skarstrom uses where codes commonly differ, with the formula the engine evaluates and the parameter you set. Python names (`sim.adsorbents[0].solid_density`) and registry paths (`adsorbent[1].solid_density`) are given side by side; see [Python and the Command Line](python.md) for how to set them.
 
 All values are SI unless a unit is given (`2 * u.min`, `"2 [min]"`).
@@ -52,6 +61,7 @@ for x in (0.6, 0.7, 0.8, 0.9):
 
 The same through the parameter paths: `sim["layer[1].mass_fraction[2]"] = "1 - x"` (the IDs are those of `skarstrom params blend.json --search mass_fraction`). From the command line, once the deck has the variable and the expressions:
 
+<!-- long: the sensitivity study runs 50 or more cycle simulations -->
 ```bash
 skarstrom run blend_x.json --set "variable[x]=0.8" --json -q
 skarstrom sensitivity blend_x.json --input "variable[x]=0.6:0.9" --json

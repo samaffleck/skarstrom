@@ -38,6 +38,7 @@ lib = skarstrom.adsorbent_library()               # the catalogue as a dict
 list(lib["materials"])                             # material ids
 path = skarstrom.adsorbent_path("zeolite-13x")      # the recommended 13X entry
 path = skarstrom.adsorbent_path("zeolite_13x_streb2021")  # one variant, by its key
+sim = skarstrom.Simulation.new(title="Library demo")
 sim.add_library_adsorbent("zeolite-13x")           # add the recommended entry to a deck
 ```
 

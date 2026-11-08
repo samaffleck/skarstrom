@@ -1,5 +1,11 @@
 # Getting Started
 
+<!-- doc-setup
+import skarstrom
+skarstrom.examples.Ward2022_Q100ccm.copy_to("my_deck.json")
+skarstrom.examples.Perez2019_A.copy_to("Perez2019_A.json")
+-->
+
 Skarstrom has two layers: the C++ engine (`adsim`), and the `skarstrom` Python package and command-line tool that wrap it. Most users only need the Python package.
 
 ---
@@ -8,6 +14,7 @@ Skarstrom has two layers: the C++ engine (`adsim`), and the `skarstrom` Python p
 
 Install a pre-built wheel from PyPI (Linux x86_64/aarch64, macOS 13.3+ arm64/x86_64, Windows x64; Python 3.10–3.15):
 
+<!-- no-run: installs the package -->
 ```bash
 pip install skarstrom
 pip install "skarstrom[examples]"     # also pandas, matplotlib, scipy and Jupyter
@@ -17,6 +24,7 @@ pip install "skarstrom[examples]"     # also pandas, matplotlib, scipy and Jupyt
 
 To use the development version, or on a platform without a wheel, build it from a checkout. You need Python 3.10 or newer, CMake 3.15 or newer, a C++20 compiler (GCC 11+, Clang 14+, Apple clang from Xcode 15+, or MSVC 2022) and, recommended, Ninja:
 
+<!-- no-run: builds from source -->
 ```bash
 git clone --recursive https://github.com/samaffleck/skarstrom.git
 cd skarstrom
@@ -82,6 +90,7 @@ The Ward (2022) deck is a single breakthrough experiment: pure CO₂ fed at 100 
 
 The engine, its GoogleTest suite and the `bench_solver` timing tool build with CMake. The presets in `CMakePresets.json` cover Linux (GCC or Clang), macOS (Apple clang) and Windows (Visual Studio 2022):
 
+<!-- no-run: builds and tests the engine -->
 ```bash
 git clone --recursive https://github.com/samaffleck/skarstrom.git
 cd skarstrom
