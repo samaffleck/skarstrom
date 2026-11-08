@@ -255,7 +255,7 @@ jobs:
         uses: ./.github/actions/install-and-run
         with:
           package: dist/*.whl
-          extra-packages: matplotlib pint
+          extra-packages: matplotlib pint jsonschema
       - name: Test the installed wheel
         run: |
           cd /tmp && /tmp/venv/bin/skarstrom examples | head -3
