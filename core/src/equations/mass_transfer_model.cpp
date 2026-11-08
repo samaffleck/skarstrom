@@ -441,7 +441,22 @@ namespace adsim {
       return false;
     }
     MakeSwitchesExplicit();
+    const bool first_enable = on && !Enabled(tag);
     resistances_ = next;
+    if (first_enable) {
+      // Out-of-range values of the term just switched on take its defaults.
+      if (tag == "film" && !(film_resistance_factor_.Get() > 0.0)) film_resistance_factor_ = 1.0;
+      if (tag == "macropore") {
+        if (!(tortuosity_.Get() > 0.0)) tortuosity_ = 3.0;
+        const double ep = macropore_void_fraction_.Get();
+        if (!(ep > 0.0 && ep <= 1.0)) macropore_void_fraction_ = 0.35;
+      }
+      if (tag == "knudsen" && !(pore_radius_.Get() > 0.0)) pore_radius_ = 1e-9;
+      if (tag == "micropore") {
+        if (!(crystal_radius_.Get() > 0.0)) crystal_radius_ = 1e-6;
+        if (!(micropore_diffusivity_.Get() > 0.0)) micropore_diffusivity_ = 1e-13;
+      }
+    }
     return true;
   }
 
@@ -470,13 +485,14 @@ namespace adsim {
     return none;
   }
 
-  void MassTransferCoefficientSeriesResistance::MakeSwitchesExplicit() {
+  void MassTransferCoefficientSeriesResistance::MakeSwitchesExplicit(bool replace_sentinels) {
     if (!sentinel_switches_) return;
     const MassTransferResistances r = Resistances();
     const CapacityFactorMode mode = CapacityMode();
     sentinel_switches_ = false;
     resistances_ = r;
     capacity_mode_ = static_cast<int>(mode);
+    if (!replace_sentinels) return;
     // A switched-off term's zero sentinels become its defaults.
     if (!r.film && !(film_resistance_factor_.Get() > 0.0)) film_resistance_factor_ = 1.0;
     if (!r.macropore && !(tortuosity_.Get() > 0.0)) tortuosity_ = 3.0;
@@ -927,7 +943,7 @@ namespace adsim {
       g->capacity_factor_ = c->capacity_factor_;
       g->concentration_floor_ = c->concentration_floor_;
       g->ApplyPreset(T::SERIES_RESISTANCE);
-      g->MakeSwitchesExplicit();
+      g->MakeSwitchesExplicit(true);
     } else {
       return model;  // not a coefficient class this function knows: left as it is
     }

@@ -36,7 +36,12 @@ def test_set_rate_model_accepts_each_tag(tag, rate):
     for p in sk.model_kinds()["rate_coefficient"][TAGS.index(tag)]["parameters"]:
         assert p["name"] in names, (tag, p["name"], sorted(names))
     back = sk.Simulation(sim.to_json())
-    assert back.to_json() == sk.Simulation(back.to_json()).to_json()
+    assert _values(back) == _values(sim)
+    assert _values(sk.Simulation(back.to_json())) == _values(back)
+
+
+def _values(sim):
+    return {p.path: sim.get_text(p.path) for p in sim.parameters() if not p.path.startswith("info.")}
 
 
 def test_old_parameter_names_keep_working():

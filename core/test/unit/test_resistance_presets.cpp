@@ -561,7 +561,10 @@ TEST(DeckEdit, ResistanceSwitchCascade) {
   EXPECT_FALSE(model().SentinelSwitches());
   EXPECT_TRUE(model().Enabled("film") && model().Enabled("micropore") && model().Enabled("lumped"));
   EXPECT_FALSE(model().Enabled("macropore"));
-  EXPECT_EQ(model().tortuosity_.Get(), 3.0) << "the sentinel zero became the default";
+  EXPECT_EQ(model().tortuosity_.Get(), 0.0) << "values are kept when the switches become explicit";
+  ASSERT_TRUE(set("macropore", true));
+  EXPECT_EQ(model().tortuosity_.Get(), 3.0) << "a first enable replaces the zero by the default";
+  ASSERT_TRUE(set("macropore", false));
 
   // Dual rate: the slow site starts as a copy, then its switches are its own.
   ASSERT_TRUE(SetMassTransferKind(d, a, kCO2, MassTransferModelType::DUAL_RATE_LDF, T::MACROPORE, err)) << err;

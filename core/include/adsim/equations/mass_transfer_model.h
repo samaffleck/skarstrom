@@ -211,7 +211,9 @@ namespace adsim {
 		bool& Switch(const std::string& tag);
 		// Sets one switch with the model's rules: at least one of film,
 		// macropore, micropore and lumped stays on; knudsen needs macropore,
-		// and switching macropore off clears it. Parameter values are kept.
+		// and switching macropore off clears it. Parameter values are kept,
+		// except that switching a term on replaces those of its parameters
+		// that are out of range (a version-1 zero, say) by the term's defaults.
 		// Returns false (err set) when refused.
 		bool SetResistance(const std::string& tag, bool on, std::string& err);
 		CapacityFactorMode CapacityMode() const;
@@ -229,10 +231,12 @@ namespace adsim {
 		// True while the switches and mode are derived from the version-1 zero
 		// sentinels (see the class comment).
 		bool SentinelSwitches() const { return sentinel_switches_; }
-		// Ends the sentinel derivation: stores the derived switches and mode,
-		// and replaces a switched-off term's zero sentinels by that term's
-		// defaults (which cannot change results: the term is off).
-		void MakeSwitchesExplicit();
+		// Ends the sentinel derivation: stores the derived switches and mode.
+		// With replace_sentinels (loading a version-1 archive), a switched-off
+		// term's zero sentinels become that term's defaults, which cannot change
+		// results: the term is off. Otherwise every value is kept, so a save and
+		// reload shows the same parameters.
+		void MakeSwitchesExplicit(bool replace_sentinels = false);
 		// Sets the switches, mode and the values the preset fixes (constant:
 		// activation_energy = 0; haynes: film_resistance_factor = 1,
 		// molecular_diffusion_coefficient = 0). SERIES_RESISTANCE starts the
@@ -328,7 +332,7 @@ namespace adsim {
 			Fields(ar, *this, version);
 			// v1: the switches and mode follow from the zero sentinels.
 			sentinel_switches_ = version < 2;
-			MakeSwitchesExplicit();
+			MakeSwitchesExplicit(true);
 		}
 	};
 
