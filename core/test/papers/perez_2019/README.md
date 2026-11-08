@@ -48,6 +48,7 @@ CO₂/N₂ separation reported by Perez et al. (2019).
 |---|---|---|---|
 | Column length, inner radius, outer radius | 0.3 m, 0.016 m, 0.0191 m | Table 1 | wall thickness 3.1 mm (derived) |
 | Bed voidage, particle voidage, tortuosity | 0.41, 0.35, 3 | Table 1 ("assumed") | |
+| Gas holdup | bed voids only, ε_t = ε_b = 0.41 | SI Table S1, Eqs. S1, S2, S6: (1 − ε)/ε with ε = 0.41; ε_p appears only in the LDF coefficient (Eq. S4) | `adsorbent[13X].particle_void_fraction` = 0; `kinetics[C].macropore_void_fraction` = 0.35 and tortuosity 3 keep the rate (total voidage 0.6165 before 2026-11-07) |
 | Particle radius | 7.5 × 10⁻⁴ m | Table 1 ("measured") | |
 | Adsorbent mass | 0.162 kg per column | abstract, Sect. 2 | particle density derived: m / (V (1 − ε)) = 1138 kg/m³ |
 | Heats of adsorption | 30.85 (CO₂), 15.93 (N₂) kJ/mol | Table 1 ("measured", Clausius–Clapeyron average) | |
@@ -136,10 +137,73 @@ value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#perez-2019)
 (generated from `../validation_summary.json`).
 
-- Four-step cycles (A, B, C1): CO2 purity within 0.15-0.69 pp of the experiments and recovery within 0.14-2.4 pp. LPP cycles (D1, E, F): purity 1.9-3.3 pp low and recovery 2.1-3.7 pp high, at cyclic steady state (per-component balance plus the end-of-cycle state test; from the feed-loaded start A to F stop after 49, 57, 65, 94, 207 and 517 cycles).
+- Four-step cycles (A, B, C1): CO2 purity within 0.15-0.86 pp of the experiments and recovery within 0.24-2.2 pp. LPP cycles (D1, E, F): purity 0.9-3.0 pp low and recovery 1.6-3.4 pp high (gas held in the bed voids only since 2026-11-07, see below), at cyclic steady state (per-component balance plus the end-of-cycle state test; from the feed-loaded start A to F stop after 49, 57, 65, 94, 207 and 517 cycles).
 - 2026-11-04, grid and advection scheme: see the subsection below; the decks now run WENO on 80 cells, and every recovery rose by 0.6-2.6 pp.
 - 2026-11-02, CSS rule: the balance-only test used before stopped 26 to 166 cycles short of CSS (A to F after 44, 55, 71, 155, 352 and 674 cycles), while purity and recovery were still moving by up to 0.17 pp (F). Every number on the validation page moved by that much; the only bound crossed was A's recovery against the experiment (0.294 → 0.417 pp, bound 0.4 → 0.5). The bound follows the measured error at CSS; nothing in the model changed.
 - adsim's macropore LDF coefficient omits the c/q* capacity factor used in the paper (much faster kinetics), and its Carman-Kozeny constant is 180 against the paper's 150. The decks now use the competitive DSL (Sect. 4.1) and the paper's K_z = 0.0903 W/(m K).
+
+### Gas holdup in the bed voids only (2026-11-07)
+
+The paper's balances hold the gas in the bed voids only: SI Table S1, Eqs.
+S1, S2 and S6 use (1 − ε)/ε with ε = 0.41, and the particle voidage ε_p = 0.35
+enters only the macropore LDF coefficient (Eq. S4). The decks held gas in the
+total voidage ε_t = ε_b + (1 − ε_b) ε_p = 0.6165 (the engine's convention,
+[model conventions](../../../../docs/model-conventions.md#total-voidage)). They
+now set the adsorbent's `particle_void_fraction` to 0, so ε_t = ε_b = 0.41,
+and keep `macropore_void_fraction` = 0.35 and tortuosity 3 in the LDF
+coefficient, so the rate is unchanged (as the Haghpanah 2013 decks do).
+
+Every result moves by at most 1.13 pp (F's purity). Purity rises in every
+case; recovery rises in the four-step cycles (A 0.50, B 0.37, C1 0.16 pp) and
+falls in the LPP cycles (0.35-0.48 pp), which brings D1, E and F closer to the
+experiments and to the paper's model. Five bounds were crossed and are
+loosened to the measured error rounded up (bold); no bound was tightened.
+Before: total voidage; after: bed voids only; WENO on 80 cells, at CSS in both.
+
+| Case | Quantity | Reference | Before | After | Error before → after | Bound before → after |
+|---|---|---|---|---|---|---|
+| ConfigA | CO2 purity vs experiment | 99.70 | 99.51 | 99.55 | 0.192 → 0.149 | 0.3 |
+| ConfigA | CO2 recovery vs experiment | 58.70 | 59.64 | 60.14 | 0.944 → 1.443 | **1.2 → 1.5** |
+| ConfigA | CO2 purity vs paper model | 99.30 | 99.51 | 99.55 | 0.208 → 0.251 | 0.3 |
+| ConfigA | CO2 recovery vs paper model | 60.00 | 59.64 | 60.14 | 0.356 → 0.143 | 0.43 |
+| ConfigB | CO2 purity vs experiment | 96.10 | 96.79 | 96.96 | 0.693 → 0.861 | **0.7 → 0.9** |
+| ConfigB | CO2 recovery vs experiment | 61.80 | 61.66 | 62.03 | 0.144 → 0.235 | **0.2 → 0.3** |
+| ConfigB | CO2 purity vs paper model | 95.20 | 96.79 | 96.96 | 1.593 → 1.761 | 1.8 |
+| ConfigB | CO2 recovery vs paper model | 64.10 | 61.66 | 62.03 | 2.444 → 2.065 | 4.3 |
+| ConfigC1 | CO2 purity vs experiment | 88.10 | 87.95 | 88.43 | 0.147 → 0.325 | **0.2 → 0.4** |
+| ConfigC1 | CO2 recovery vs experiment | 64.60 | 62.23 | 62.39 | 2.370 → 2.209 | 2.9 |
+| ConfigC1 | CO2 purity vs paper model | 83.40 | 87.95 | 88.43 | 4.553 → 5.025 | **4.8 → 5.1** |
+| ConfigC1 | CO2 recovery vs paper model | 68.20 | 62.23 | 62.39 | 5.970 → 5.809 | 9.7 |
+| ConfigC1 | CO2 purity vs repeat experiment C2 | 86.90 | 87.95 | 88.43 | 1.053 → 1.525 | – |
+| ConfigC1 | CO2 recovery vs repeat experiment C2 | 71.90 | 62.23 | 62.39 | 9.670 → 9.509 | – |
+| ConfigD1 | CO2 purity vs experiment | 97.10 | 93.79 | 94.08 | 3.306 → 3.016 | 3.9 |
+| ConfigD1 | CO2 recovery vs experiment | 86.10 | 89.83 | 89.49 | 3.732 → 3.385 | 4.5 |
+| ConfigD1 | CO2 purity vs paper model | 96.10 | 93.79 | 94.08 | 2.306 → 2.016 | 2.7 |
+| ConfigD1 | CO2 recovery vs paper model | 86.80 | 89.83 | 89.49 | 3.032 → 2.685 | 3.7 |
+| ConfigD1 | CO2 purity vs repeat experiment D2 | 94.50 | 93.79 | 94.08 | 0.706 → 0.416 | – |
+| ConfigD1 | CO2 recovery vs repeat experiment D2 | 83.40 | 89.83 | 89.49 | 6.432 → 6.085 | – |
+| ConfigE | CO2 purity vs experiment | 88.50 | 86.65 | 87.25 | 1.852 → 1.250 | 2.1 |
+| ConfigE | CO2 recovery vs experiment | 91.70 | 94.36 | 93.92 | 2.663 → 2.216 | 3.2 |
+| ConfigE | CO2 purity vs paper model | 90.40 | 86.65 | 87.25 | 3.752 → 3.150 | 4.3 |
+| ConfigE | CO2 recovery vs paper model | 91.10 | 94.36 | 93.92 | 3.263 → 2.816 | 4 |
+| ConfigF | CO2 purity vs experiment | 77.70 | 75.65 | 76.78 | 2.051 → 0.916 | 2.6 |
+| ConfigF | CO2 recovery vs experiment | 95.60 | 97.69 | 97.21 | 2.087 → 1.606 | 2.6 |
+| ConfigF | CO2 purity vs paper model | 79.90 | 75.65 | 76.78 | 4.251 → 3.116 | 4.4 |
+| ConfigF | CO2 recovery vs paper model | 94.60 | 97.69 | 97.21 | 3.087 → 2.606 | 3.8 |
+
+Note (not applied here): with the new holdup several bounds are well above the
+measured error and could be tightened in a separate change: A purity vs
+experiment (0.149 pp, bound 0.3) and recovery vs paper model (0.143, 0.43);
+B recovery vs paper model (2.07, 4.3); C1 recovery vs experiment (2.21, 2.9)
+and vs paper model (5.81, 9.7); D1 all four (3.02 / 3.39 / 2.02 / 2.69 against
+3.9 / 4.5 / 2.7 / 3.7); E all four (1.25 / 2.22 / 3.15 / 2.82 against
+2.1 / 3.2 / 4.3 / 4.0); F all four (0.92 / 1.61 / 3.12 / 2.61 against
+2.6 / 2.6 / 4.4 / 3.8).
+
+Open: the four-step decks' equal split (weight 0.5) of the two evacuation
+terms was chosen on A under the old (total-voidage) holdup (see "Attribution
+runs"); it has not been re-checked with the gas in the bed voids only. The
+decks keep 0.5 until that is done.
 
 ### Gas heat capacity as in the paper (2026-11)
 

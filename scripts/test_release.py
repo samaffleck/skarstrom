@@ -1,5 +1,6 @@
 """Tests for scripts/release.py (python -m unittest discover -s scripts -p 'test_release.py')."""
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -74,6 +75,65 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(r.read_version(cmake), ("0.4.0", "rc1"))
         self.assertEqual(r.check_ready("0.4.0rc1", cmake, changelog("### Added\n- x\n\n"),
                                        CITATION), [])
+
+    def test_dev_versions(self):
+        dev = CMAKE.replace('0.3.0)', '0.3.1)').replace('""', '".dev0"')
+        self.assertEqual(r.read_version(dev), ("0.3.1", ".dev0"))
+        self.assertEqual(r.read_version(CMAKE.replace('""', '"rc2.dev0"')), ("0.3.0", "rc2.dev0"))
+        self.assertEqual(r.dev_version("0.3.0"), "0.3.1.dev0")
+        self.assertEqual(r.dev_version("0.4.0rc1"), "0.4.0rc2.dev0")
+        self.assertEqual(r.dev_version("1.0.0b3"), "1.0.0b4.dev0")
+        with self.assertRaises(r.ReleaseError):
+            r.dev_version("0.3.1.dev0")  # already a development version
+        self.assertEqual(r.read_version(r.set_cmake_version(CMAKE, "0.3.1.dev0")), ("0.3.1", ".dev0"))
+        self.assertEqual(r.read_version(r.set_cmake_version(dev, "0.4.0")), ("0.4.0", ""))
+        self.assertTrue(r.is_dev("0.3.1.dev0") and r.is_dev("0.4.0rc2.dev0"))
+        self.assertFalse(r.is_dev("0.3.1") or r.is_dev("0.4.0rc2"))
+
+    def test_bump_from_dev_floor(self):
+        # 0.3.1.dev0 follows 0.3.0: the dev version is the floor, never skipped over.
+        self.assertEqual(r.next_version("0.3.1", ".dev0", "auto", "", ["fixed"]), "0.3.1")
+        self.assertEqual(r.next_version("0.3.1", ".dev0", "auto", "", ["added", "fixed"]), "0.4.0")
+        self.assertEqual(r.next_version("0.3.1", ".dev0", "major", "", []), "1.0.0")
+        self.assertEqual(r.next_version("0.3.1", ".dev0", "auto", "rc1", ["added"]), "0.4.0rc1")
+        self.assertEqual(r.next_version("0.4.0", ".dev0", "minor", "", []), "0.4.0")
+        self.assertEqual(r.next_version("1.0.0", ".dev0", "major", "", []), "1.0.0")
+        self.assertEqual(r.next_version("0.3.1", ".dev0", "patch", "", []), "0.3.1")
+        with self.assertRaises(r.ReleaseError):
+            r.next_version("0.3.1", ".dev0", "auto", "", [])  # nothing to release
+        # A pre-release line: 0.4.0rc2.dev0 follows 0.4.0rc1.
+        self.assertEqual(r.next_version("0.4.0", "rc2.dev0", "auto", "", ["added"]), "0.4.0")
+        self.assertEqual(r.next_version("0.4.0", "rc2.dev0", "auto", "rc2", []), "0.4.0rc2")
+        self.assertEqual(r.next_version("0.4.0", "rc2.dev0", "auto", "rc3", []), "0.4.0rc3")
+        with self.assertRaises(r.ReleaseError):
+            r.next_version("0.4.0", "rc2.dev0", "auto", "rc1", [])  # already out
+        with self.assertRaises(r.ReleaseError):
+            r.next_version("0.4.0", "rc2.dev0", "auto", "b1", [])
+
+    def test_check_dev(self):
+        tags = {"v0.3.0", "v0.4.0rc1"}
+        self.assertEqual(r.check_dev("0.3.1.dev0", tags), [])
+        self.assertEqual(r.check_dev("0.4.0rc2.dev0", tags), [])
+        self.assertEqual(r.check_dev("0.3.1", tags), [])  # a release being cut by hand
+        problems = r.check_dev("0.3.0", tags)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("0.3.1.dev0", problems[0])
+        self.assertTrue(r.check_dev("0.4.0rc1", tags))
+        # Development versions are never published.
+        dev = r.set_cmake_version(CMAKE, "0.3.1.dev0")
+        self.assertTrue(r.check_ready("0.3.1.dev0", dev, changelog(""), CITATION))
+
+    def test_pyproject_regex_reads_dev_versions(self):
+        # scikit-build-core reads the Python version with this regex; it must
+        # accept every form release.py writes and give the same string.
+        text = (r.ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        m = re.search(r"^regex = '(.*)'$", text, re.MULTILINE)
+        self.assertIsNotNone(m, "pyproject.toml: [tool.scikit-build.metadata.version] regex")
+        rx = re.compile(m.group(1), re.MULTILINE)
+        for full in ("0.3.0", "0.4.0rc1", "0.3.1.dev0", "0.4.0rc2.dev0"):
+            g = rx.search(r.set_cmake_version(CMAKE, full))
+            self.assertIsNotNone(g, full)
+            self.assertEqual(g["value"] + g["suffix"], full)
 
     def test_fragments(self):
         log = changelog("### Fixed\n- old fix\n\n")

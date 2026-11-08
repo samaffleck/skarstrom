@@ -22,7 +22,7 @@ Two pull requests never add the same new file, so they cannot conflict
 fragment.
 
 `scripts/release.py` treats the fragments as part of *Unreleased* (newest
-first, the order git added them). The release pull request moves them into
+first, the order git added them). The release commit (made by the Daily release workflow) moves them into
 `CHANGELOG.md` under the new version and deletes them;
 `python scripts/release.py collect` does the same without a release, and
 `python scripts/release.py fragments` checks them (CI runs it through

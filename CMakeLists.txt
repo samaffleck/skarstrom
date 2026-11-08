@@ -4,10 +4,15 @@ cmake_minimum_required(VERSION 3.15)
 # package version (find_package(Adsim)) and the Python package version (read
 # from these two lines by pyproject.toml; keep them adjacent).
 # ADSIM_VERSION_SUFFIX marks a pre-release ("rc1", "a1", "b2"; empty for a
-# final release). It is appended to ADSIM_VERSION_STRING and the Python
-# version, and must match the tag (v0.2.0rc1). See RELEASING.md.
-set(ADSIM_PROJECT_VERSION 0.8.0)
-set(ADSIM_VERSION_SUFFIX "")
+# final release) and/or a development version (".dev0"). Between releases
+# main is a development version (PEP 440): after releasing 0.9.0 it is 0.9.1
+# with ".dev0", so a build of main reports 0.9.1.dev0, never a released
+# version. The release workflow sets and strips the marker
+# (scripts/release.py); do not edit these lines by hand. The suffix is
+# appended to ADSIM_VERSION_STRING and the Python version, and a released one
+# must match the tag (v0.2.0rc1). See RELEASING.md.
+set(ADSIM_PROJECT_VERSION 0.8.1)
+set(ADSIM_VERSION_SUFFIX ".dev0")
 
 # Minimum macOS version. It must be set before project(). 13.3 is the lowest
 # release whose system libc++ ships floating-point std::to_chars, which
@@ -26,6 +31,36 @@ if(CMAKE_HOST_APPLE AND NOT CMAKE_SYSTEM_NAME
 endif()
 
 project(AdSim VERSION ${ADSIM_PROJECT_VERSION} LANGUAGES C CXX)
+
+# Development builds name their commit: ADSIM_VERSION_LOCAL is a PEP 440 local
+# version ("+g0a19084", from `git rev-parse --short HEAD` at configure time)
+# appended to ADSIM_VERSION_STRING, so adsim::kVersionString, skarstrom
+# --version and skarstrom.__version__ read 0.9.1.dev0+g0a19084. Only a
+# development version (".devN" suffix) built from a git checkout gets one: a
+# released version (the release build at its tag) is always clean, and a
+# development build without git (a source tarball) has no local part. The
+# commit is read when CMake configures, so re-run CMake to refresh it. Pass
+# -DADSIM_VERSION_LOCAL=... to override (empty for none).
+if(NOT DEFINED ADSIM_VERSION_LOCAL)
+    set(ADSIM_VERSION_LOCAL "")
+    if(ADSIM_VERSION_SUFFIX MATCHES "\\.dev[0-9]+$" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+        find_package(Git QUIET)
+        if(GIT_FOUND)
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" rev-parse --short HEAD
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                OUTPUT_VARIABLE _adsim_git_sha
+                RESULT_VARIABLE _adsim_git_rc
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET)
+            if(_adsim_git_rc EQUAL 0 AND _adsim_git_sha MATCHES "^[0-9a-f]+$")
+                set(ADSIM_VERSION_LOCAL "+g${_adsim_git_sha}")
+            endif()
+        endif()
+    endif()
+endif()
+set(ADSIM_VERSION_STRING "${ADSIM_PROJECT_VERSION}${ADSIM_VERSION_SUFFIX}${ADSIM_VERSION_LOCAL}")
+message(STATUS "Skarstrom (adsim) version ${ADSIM_VERSION_STRING}")
 
 # Paths of this project, valid whether it is the top-level project or added to
 # a front end with add_subdirectory(). Never use CMAKE_SOURCE_DIR /

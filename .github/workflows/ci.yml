@@ -361,6 +361,11 @@ jobs:
           python-version: "3.12"
       - name: Release helper tests (scripts/release.py)
         run: python -m unittest discover -s scripts -p 'test_release.py' -v
+      # Between releases the version carries a dev marker (0.9.1.dev0), so a
+      # source build never reports a released version: fail if CMakeLists.txt
+      # has a version that is already tagged (v*) without one.
+      - name: Version is not a released one (scripts/release.py check-dev)
+        run: python scripts/release.py check-dev
       - name: Examples module is up to date
         run: python scripts/gen_examples_module.py --check
       - uses: ./.github/actions/docs-checks
