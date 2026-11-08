@@ -23,6 +23,14 @@
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
+                    "key": "Water",
+                    "value": {
+                        "Value": 49000.0,
+                        "Expression": "4.9e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
                     "key": "Nitrogen",
                     "value": {
                         "Value": 20300.0,
@@ -41,9 +49,66 @@
             ],
             "Isotherms": [
                 {
-                    "key": 0,
+                    "key": 22,
                     "value": {
                         "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::GabYoungIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Water",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_q_m": {
+                                                "Value": 3.23,
+                                                "Expression": "3.23",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_C_E": {
+                                                "Value": 46830.0,
+                                                "Expression": "4.683e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_D": {
+                                                "Value": 0.02446,
+                                                "Expression": "0.02446",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_F": {
+                                                "Value": 53310.0,
+                                                "Expression": "5.331e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_G": {
+                                                "Value": -32.68,
+                                                "Expression": "-32.68",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_E10_A": {
+                                                "Value": 57220.0,
+                                                "Expression": "5.722e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_E10_B": {
+                                                "Value": -44.38,
+                                                "Expression": "-44.38",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 0,
+                    "value": {
+                        "polymorphic_id": 2147483650,
                         "polymorphic_name": "adsim::LangmuirIsotherm",
                         "ptr_wrapper": {
                             "valid": 1,
@@ -78,53 +143,88 @@
                     }
                 },
                 {
-                    "key": 18,
+                    "key": 23,
                     "value": {
-                        "polymorphic_id": 2147483650,
-                        "polymorphic_name": "adsim::Toth2Isotherm",
+                        "polymorphic_id": 2147483651,
+                        "polymorphic_name": "adsim::TothWadstIsotherm",
                         "ptr_wrapper": {
                             "valid": 1,
                             "data": {
-                                "cereal_class_version": 2,
+                                "cereal_class_version": 1,
                                 "value0": {},
                                 "Isotherm_Params": [
                                     {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "cereal_class_version": 0,
-                                            "IP_q_sat": {
-                                                "Value": 3.0,
-                                                "Expression": "3",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_x": {
-                                                "Value": 0.7,
-                                                "Expression": "0.7",
-                                                "DisplayUnitIndex": 0
-                                            },
                                             "IP_T_0": {
                                                 "Value": 298.15,
                                                 "Expression": "298.15",
                                                 "DisplayUnitIndex": 0
                                             },
-                                            "IP_b0": {
-                                                "Value": 0.03819606824313664,
-                                                "Expression": "0.03819606824313664",
+                                            "IP_q_inf_dry": {
+                                                "Value": 4.86,
+                                                "Expression": "4.86",
                                                 "DisplayUnitIndex": 0
                                             },
-                                            "IP_dH0": {
-                                                "Value": 70100.0,
-                                                "Expression": "7.01e+04",
+                                            "IP_chi_dry": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
                                                 "DisplayUnitIndex": 0
                                             },
-                                            "IP_w0": {
-                                                "Value": 0.431,
-                                                "Expression": "0.431",
+                                            "IP_b0_dry": {
+                                                "Value": 2.85e-21,
+                                                "Expression": "2.85e-21",
                                                 "DisplayUnitIndex": 0
                                             },
-                                            "IP_alpha": {
-                                                "Value": 1.4e-10,
-                                                "Expression": "1.4e-10",
+                                            "IP_dH_dry": {
+                                                "Value": 117798.0,
+                                                "Expression": "117798",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_tau0_dry": {
+                                                "Value": 0.209,
+                                                "Expression": "0.209",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_alpha_dry": {
+                                                "Value": 0.523,
+                                                "Expression": "0.523",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q_inf_wet": {
+                                                "Value": 9.035,
+                                                "Expression": "9.035",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_chi_wet": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b0_wet": {
+                                                "Value": 1.23e-18,
+                                                "Expression": "1.23e-18",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH_wet": {
+                                                "Value": 203687.0,
+                                                "Expression": "203687",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_tau0_wet": {
+                                                "Value": 0.053,
+                                                "Expression": "0.053",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_alpha_wet": {
+                                                "Value": 0.053,
+                                                "Expression": "0.053",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_A": {
+                                                "Value": 1.532,
+                                                "Expression": "1.532",
                                                 "DisplayUnitIndex": 0
                                             }
                                         }
@@ -137,12 +237,16 @@
             ],
             "Isotherm_Map": [
                 {
+                    "key": "Water",
+                    "value": 22
+                },
+                {
                     "key": "Nitrogen",
                     "value": 0
                 },
                 {
                     "key": "CarbonDioxide",
-                    "value": 18
+                    "value": 23
                 }
             ],
             "Mixing_Rule": 0

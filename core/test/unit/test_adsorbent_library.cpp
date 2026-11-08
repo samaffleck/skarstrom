@@ -441,9 +441,14 @@ TEST(AdsorbentLibraryTest, SourcePointsLoadConvertAndGiveFiniteFitStatistics) {
   EXPECT_GE(blocks, 15);
   EXPECT_GE(stats, 13);
   // Unit conversion spot checks against the source files.
-  const auto& lew = cat.RawEntry("lewatit_vp_oc_1065_low2023")["isotherms"][0]["source_points"];
-  EXPECT_STREQ(lew["units"]["p"].GetString(), "kPa");  // AIF _units_pressure kPa
-  EXPECT_DOUBLE_EQ(lew["p"][0].GetDouble() * 1e3, 9.670951621180774);  // Lewatit_CO2_288K.aif, first point
+  const rapidjson::Value* lew = nullptr;  // the water block (the CO2 block is the WADST fit, without points)
+  for (const auto& im : cat.RawEntry("lewatit_vp_oc_1065_low2023")["isotherms"].GetArray())
+    if (std::string(im["component"].GetString()) == "Water") lew = &im["source_points"];
+  ASSERT_NE(lew, nullptr);
+  EXPECT_STREQ((*lew)["units"]["p"].GetString(), "kPa");  // SI isotherm data, pressure in kPa
+  EXPECT_DOUBLE_EQ((*lew)["p"][0].GetDouble() * 1e3, 24.216);  // Lewatit_isothermdata, H2O, first point (288.25 K)
+  EXPECT_DOUBLE_EQ((*lew)["T"][0].GetDouble(), 288.25);
+  EXPECT_EQ((*lew)["p"].Size(), 138u);
   const auto& tif = cat.RawEntry("tifsix_3_ni_low2024")["isotherms"][0]["source_points"];
   EXPECT_STREQ(tif["units"]["T"].GetString(), "C");  // AIF _units_temperature degC
   EXPECT_DOUBLE_EQ(tif["T"][0].GetDouble() + 273.15, 288.15);
