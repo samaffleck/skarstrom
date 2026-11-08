@@ -36,8 +36,8 @@ every file (see [step 4](#4-data)).
   (e.g. `Perez2019Test`), deriving from `UserDataTest`.
 - **Case name**: the figure / table / configuration reproduced
   (e.g. `ConfigD1`, `Fig5_TernaryBreakthrough`, `Q100ccm`).
-- **`SaveTest(...)` / `SaveResultsAsExample(...)` labels are stable** so the
-  on-disk result artifacts and the bundled example decks (`examples/decks/`) keep their names.
+- **`SaveResultsAsExample(...)` labels are stable** so the bundled example
+  decks (`examples/decks/`) keep their names.
 
 ## Validation protocol
 

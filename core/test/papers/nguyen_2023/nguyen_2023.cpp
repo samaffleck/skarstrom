@@ -264,7 +264,6 @@ namespace adsim {
       ValidateNguyen2023(experiment_name, test_fixture.data, kpi, purity, recovery);
     }
 
-    test_fixture.SaveTest(experiment_name, solver);
     test_fixture.SaveResultsAsExample(experiment_name, solver);
   }
 
@@ -488,7 +487,6 @@ namespace adsim {
       ValidateNguyen2023(experiment_name, test_fixture.data, kpi, purity, recovery);
     }
 
-    test_fixture.SaveTest(experiment_name, solver);
     test_fixture.SaveResultsAsExample(experiment_name, solver);
   }
   TEST_F(Nguyen2023Test, ExperimentI) {

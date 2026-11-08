@@ -272,7 +272,6 @@ namespace adsim {
     PrintAttribution("Config" + save_name.substr(save_name.rfind('_') + 1), kpi, last_cycle + 1, purity, recovery);
 
     if (!EvacuationWeightOverridden()) {
-      SaveTest(save_name, solver);
       SaveResultsAsExample(save_name, solver);
     }
   }
@@ -431,7 +430,6 @@ namespace adsim {
     PrintAttribution("Config" + save_name.substr(save_name.rfind('_') + 1), kpi, last_cycle + 1, purity, recovery);
 
     if (!EvacuationWeightOverridden()) {
-      SaveTest(save_name, solver);
       SaveResultsAsExample(save_name, solver);
     }
     if (!EvacuationWeightOverridden()) {
@@ -898,7 +896,6 @@ namespace adsim {
     }
 
     if (!EvacuationWeightOverridden()) {
-      SaveTest("Perez2019_D1", solver);
       SaveResultsAsExample("Perez2019_D1", solver);
     }
     if (!EvacuationWeightOverridden()) {
@@ -1069,7 +1066,6 @@ namespace adsim {
     }
 
     if (!EvacuationWeightOverridden()) {
-      SaveTest("Perez2019_C1", solver);
       SaveResultsAsExample("Perez2019_C1", solver);
     }
   }

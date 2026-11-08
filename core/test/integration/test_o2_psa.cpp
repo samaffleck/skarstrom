@@ -100,8 +100,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("PressurisationTest1", solver);
-
     AvailableParameters available_parameters;
     available_parameters.UpdateParameterList(data);
     available_parameters.Print();
@@ -247,8 +245,6 @@ namespace adsim {
     int retval = solver.IntegrateCycle(data.cycle, verbose);
     EXPECT_GE(retval, 0) << "Solver did not complete";
 
-    SaveTest("IsothermalMassSource", solver);
-
     const double expected_breakthrough_time = sat_moles / flow_rate;
 
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
@@ -318,7 +314,6 @@ namespace adsim {
       bool verbose = false;
       int retval = solver.IntegrateCycle(data.cycle, verbose);
       EXPECT_GE(retval, 0) << "Solver did not complete";  
-      SaveTest("NoMassOrHeatTransfer", solver);
       EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Total mole fraction is less than 1.";
       EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
       EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
@@ -433,8 +428,6 @@ namespace adsim {
     EXPECT_TRUE(IsMassConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsMolesConserved(solver.GetLog())) << "Mass is not conserved.";
     EXPECT_TRUE(IsComponentMolesConserved(solver.GetLog())) << "Component moles not conserved.";
-
-    SaveTest("TwoLayerTest1", solver);
   }
 
   TEST_F(UserDataTest, PressurisationTest_FractionMode) {
