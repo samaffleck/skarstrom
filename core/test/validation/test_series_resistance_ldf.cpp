@@ -8,7 +8,7 @@
 // Series-resistance LDF coefficient (MassTransferCoefficientType::SERIES_RESISTANCE):
 //
 //   1/k = f K r_p / (3 k_f) + K tau r_p^2 / (15 eps_p D_m) + r_c^2 / (15 D_c),
-//   D_c = D_c0 exp(-E_a / (R T)),   K = rho_p dq*/dc (floored at 1).
+//   D_c = D_c0 exp(-E_a / (kGasR T)),   K = rho_p dq*/dc (floored at 1).
 //
 // Checked here:
 //   * the descriptor, the registry leaves and the deck round trip;
@@ -48,15 +48,15 @@ constexpr double kTau = 3.0;     // tortuosity [-]
 constexpr double kDm = 1.6e-5;   // state molecular diffusivity [m2/s]
 constexpr double kSh = 4.0;      // state Sherwood number [-]
 constexpr double kRho = 1100.0;  // particle density [kg/m3]
-const double R = constants::kIdealGasConstant;
+const double kGasR = constants::kIdealGasConstant;
 
 // A uniform state at (T, P, y) with the transport properties the coefficient reads.
-struct State {
+struct CellState {
   Equations eq;
   MixedAdsorbentLayer layer{"bed"};
   Fluid fluid;
 
-  State(double T, double P, double y) {
+  CellState(double T, double P, double y) {
     eq.fluid_temperature.var.assign(kCells, T);
     eq.solid_temperature.var.assign(kCells, T);
     eq.pressure.var.assign(kCells, P);
@@ -95,7 +95,7 @@ struct State {
 // The three resistances [s], written out independently of the model.
 double Film(double K, double f = 1.0) { return f * K * kRp / (3.0 * (kSh * kDm / kDp)); }
 double Macro(double K, double tau = kTau) { return K * tau * kRp * kRp / (15.0 * kEp * kDm); }
-double Micro(double rc, double Dc0, double Ea, double T) { return rc * rc / (15.0 * Dc0 * std::exp(-Ea / (R * T))); }
+double Micro(double rc, double Dc0, double Ea, double T) { return rc * rc / (15.0 * Dc0 * std::exp(-Ea / (kGasR * T))); }
 
 MassTransferCoefficientSeriesResistance Series() {
   MassTransferCoefficientSeriesResistance m;
@@ -186,7 +186,7 @@ TEST(SeriesResistanceLdf, KindSwitchFromHaynesKeepsTheSharedValues) {
 // ---------------------------------------------------------------------------
 
 TEST(SeriesResistanceLdf, TermsAndSumMatchTheHandCalculation) {
-  // Henry isotherm q* = k e^(Q/RT) y P: K = rho_p dq*/dc = rho_p k e^(Q/RT) R T,
+  // Henry isotherm q* = k e^(Q/RT) y P: K = rho_p dq*/dc = rho_p k e^(Q/RT) kGasR T,
   // independent of P and y.
   HenryIsotherm iso(kCO2);
   iso.params_[kCO2].k = 2.0e-9;
@@ -196,9 +196,9 @@ TEST(SeriesResistanceLdf, TermsAndSumMatchTheHandCalculation) {
     for (double P : {1.0e5, 2.0e4}) {
       for (double y : {4e-4, 0.15}) {
         SCOPED_TRACE("T " + std::to_string(T) + " P " + std::to_string(P) + " y " + std::to_string(y));
-        const double K = kRho * 2.0e-9 * std::exp(2.5e4 / (R * T)) * R * T;
+        const double K = kRho * 2.0e-9 * std::exp(2.5e4 / (kGasR * T)) * kGasR * T;
         ASSERT_GT(K, 1.0);
-        State s(T, P, y);
+        CellState s(T, P, y);
         auto m = Series();
         m.SetEquilibriumContext(&iso, kRho, nullptr);
         const double tol = 1e-5;  // the forward-difference slope
@@ -233,20 +233,20 @@ TEST(SeriesResistanceLdf, TermsAndSumMatchTheHandCalculation) {
 }
 
 TEST(SeriesResistanceLdf, CapacityFactorIsTheLangmuirSlope) {
-  // q* = m b' p / (1 + b' p), b' = b e^(Q/RT): dq*/dc = m b' R T / (1 + b' p)^2,
-  // which is below the secant m b' R T / (1 + b' p).
+  // q* = m b' p / (1 + b' p), b' = b e^(Q/RT): dq*/dc = m b' kGasR T / (1 + b' p)^2,
+  // which is below the secant m b' kGasR T / (1 + b' p).
   LangmuirIsotherm iso(kCO2);
   iso.params_[kCO2].m1 = 3.0;
   iso.params_[kCO2].b1 = 1e-10;
   iso.params_[kCO2].q1 = 3.0e4;
   const double T = 300.0;
-  const double bp = 1e-10 * std::exp(3.0e4 / (R * T));
+  const double bp = 1e-10 * std::exp(3.0e4 / (kGasR * T));
   for (double p : {10.0, 1e3, 1e4, 5e4}) {
-    State s(T, 1e5, p / 1e5);
+    CellState s(T, 1e5, p / 1e5);
     auto m = Series();
     m.film_resistance_factor_ = 0.0;  // macropore only: k = 1 / Macro(K)
     m.SetEquilibriumContext(&iso, kRho, nullptr);
-    const double slope = kRho * 3.0 * bp * R * T / ((1 + bp * p) * (1 + bp * p));
+    const double slope = kRho * 3.0 * bp * kGasR * T / ((1 + bp * p) * (1 + bp * p));
     ASSERT_GT(slope, 1.0) << p;
     EXPECT_NEAR(s.Update(m) * Macro(slope), 1.0, 1e-5) << p;
   }
@@ -258,14 +258,14 @@ TEST(SeriesResistanceLdf, CapacityFactorFloorAndConcentrationFloor) {
   HenryIsotherm none(kCO2);
   none.params_[kCO2].k = 0.0;
   {
-    State s(T, 1e5, 0.1);
+    CellState s(T, 1e5, 0.1);
     auto m = Series();
     m.SetEquilibriumContext(&none, kRho, nullptr);
     EXPECT_NEAR(s.Update(m) * (Film(1.0) + Macro(1.0)), 1.0, 1e-14);
   }
   // No isotherm context at all: K = 1 as well.
   {
-    State s(T, 1e5, 0.1);
+    CellState s(T, 1e5, 0.1);
     auto m = Series();
     EXPECT_NEAR(s.Update(m) * (Film(1.0) + Macro(1.0)), 1.0, 1e-14);
   }
@@ -274,16 +274,16 @@ TEST(SeriesResistanceLdf, CapacityFactorFloorAndConcentrationFloor) {
   HenryIsotherm iso(kCO2);
   iso.params_[kCO2].k = 2.0e-9;
   iso.params_[kCO2].Q = 2.5e4;
-  const double K = kRho * 2.0e-9 * std::exp(2.5e4 / (R * T)) * R * T;
-  State s(T, 1e5, 0.0);
+  const double K = kRho * 2.0e-9 * std::exp(2.5e4 / (kGasR * T)) * kGasR * T;
+  CellState s(T, 1e5, 0.0);
   auto m = Series();
   m.SetEquilibriumContext(&iso, kRho, nullptr);
   EXPECT_NEAR(s.Update(m) * (Film(K) + Macro(K)), 1.0, 1e-5);
 }
 
 TEST(SeriesResistanceLdf, MicroporeTermFollowsArrhenius) {
-  // Micropore only: k = 15 D_c0 e^(-E_a / R T) / r_c^2, so
-  // ln(k(T2) / k(T1)) = -(E_a / R)(1/T2 - 1/T1).
+  // Micropore only: k = 15 D_c0 e^(-E_a / kGasR T) / r_c^2, so
+  // ln(k(T2) / k(T1)) = -(E_a / kGasR)(1/T2 - 1/T1).
   const double rc = 2.0e-6, Dc0 = 5.0e-11, Ea = 3.0e4;
   auto m = Series();
   m.film_resistance_factor_ = 0.0;
@@ -294,17 +294,17 @@ TEST(SeriesResistanceLdf, MicroporeTermFollowsArrhenius) {
   std::vector<double> T{280.0, 300.0, 330.0, 373.15};
   std::vector<double> k;
   for (double t : T) {
-    State s(t, 1e5, 0.1);
+    CellState s(t, 1e5, 0.1);
     k.push_back(s.Update(m));
-    EXPECT_NEAR(k.back(), 15.0 * Dc0 * std::exp(-Ea / (R * t)) / (rc * rc), 1e-13 * k.back()) << t;
+    EXPECT_NEAR(k.back(), 15.0 * Dc0 * std::exp(-Ea / (kGasR * t)) / (rc * rc), 1e-13 * k.back()) << t;
   }
   for (size_t i = 1; i < T.size(); ++i) {
     EXPECT_GT(k[i], k[i - 1]);
-    EXPECT_NEAR(std::log(k[i] / k[0]), -(Ea / R) * (1.0 / T[i] - 1.0 / T[0]), 1e-12);
+    EXPECT_NEAR(std::log(k[i] / k[0]), -(Ea / kGasR) * (1.0 / T[i] - 1.0 / T[0]), 1e-12);
   }
   // E_a = 0: temperature independent.
   m.micropore_activation_energy_ = 0.0;
-  State a(280.0, 1e5, 0.1), b(373.15, 1e5, 0.1);
+  CellState a(280.0, 1e5, 0.1), b(373.15, 1e5, 0.1);
   EXPECT_EQ(a.Update(m), b.Update(m));
   // r_c = 0 or D_c0 = 0 drops the term: back to film + macropore.
   m.film_resistance_factor_ = 1.0;
@@ -326,7 +326,7 @@ TEST(SeriesResistanceLdf, UnitCapacityAndNoMicroporeIsHaynesPerCell) {
   iso.params_[kCO2].k = 2.0e-9;
   for (bool structured : {false, true}) {
     for (double T : {280.0, 298.15, 350.0}) {
-      State s(T, 1e5, 0.15);
+      CellState s(T, 1e5, 0.15);
       if (structured) {  // a laminate: slab of half-thickness l, channel k_f
         s.layer.kind_ = LayerKind::Laminate;
         s.layer.structured_.sheet_thickness_ = 4e-4;
