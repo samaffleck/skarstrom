@@ -93,6 +93,28 @@ fig.savefig("sweep.png", dpi=150)
 
 A deeper vacuum is the strongest lever on recovery. The feed time trades purity against recovery. For a 99 % purity target, the best of these 18 runs is a 2 kPa vacuum with a 120 s feed: 99.5 % purity at 70 % recovery. That is 10 points more recovery than the published cycle. All 18 runs reached cyclic steady state; the sweep took about 5 minutes on 4 cores. (The figure is a styled version of the plot above, drawn by [`scripts/docs/readme_figures.py`](scripts/docs/readme_figures.py).)
 
+**5. Or let the optimiser search.** *New in 0.9.* `skarstrom.optimisation` searches the same two variables with a global optimiser (dlib's MaxLIPO with a trust region). It starts each candidate from the converged state of the nearest earlier candidate, so most runs need far fewer cycles:
+
+```python
+import skarstrom
+from skarstrom import ureg as u
+from skarstrom import optimisation as opt
+
+sim = skarstrom.examples.Perez2019_A.load()
+result = opt.optimise(
+    sim,
+    {"step[Feed].time": (60 * u.s, 160 * u.s),
+     "step[Evacuation].bottom.pressure_double_exponential_end": (2 * u.kPa, 6 * u.kPa)},
+    objectives=[opt.maximise("CarbonDioxide", "recovery")],
+    constraints=[opt.at_least("CarbonDioxide", "purity", 0.95, penalty=10)],
+    evaluations=20,
+)
+print(result.x)                       # feed 60 s, evacuation 2000 Pa
+print(result.kpis["CarbonDioxide"])   # purity 0.964, recovery 0.726
+```
+
+The 20 candidates took about 10 minutes on one core. The warm-started candidates needed 33 cycles on average, against 73 for the cold re-run of the optimum. With a 95 % purity target, the best point is on the corner of the search box (the shortest feed and the deepest vacuum), so the next step is to widen the bounds.
+
 ## Use Skarstrom with AI agents
 
 Skarstrom is built to be driven by AI coding agents (Claude Code, Codex, Cursor, Copilot and others) as well as by people:
