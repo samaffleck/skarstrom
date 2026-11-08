@@ -146,6 +146,8 @@ namespace adsim {
     return out;
   }
 
+  std::vector<std::string> ReactionVariableNames() { return {"reaction_rate"}; }
+
   // -------------------------------------------------------------------------
   // Loading
   // -------------------------------------------------------------------------
@@ -678,6 +680,42 @@ namespace adsim {
                                 (labels.empty() ? std::string("none (run the simulation first)") : Join(labels)));
   }
 
+  std::vector<SeriesReaction> Simulation::SeriesReactions() const {
+    std::vector<SeriesReaction> out;
+    if (!HasResults()) return out;
+    for (const auto& r : Log().Reactions())
+      out.push_back({r.reaction, r.reaction_name, r.adsorbent, r.adsorbent_label,
+                     ReactionRateVariableName(r.reaction_name, r.adsorbent_label)});
+    return out;
+  }
+
+  SeriesReaction Simulation::ResolveReaction(const std::string& reaction, const std::string& adsorbent) const {
+    const auto list = SeriesReactions();
+    const bool numeric = !reaction.empty() && std::all_of(reaction.begin(), reaction.end(),
+                                                          [](unsigned char c) { return std::isdigit(c) != 0; });
+    std::vector<SeriesReaction> hits;
+    for (const auto& r : list)
+      if (r.name == reaction || (numeric && r.id == static_cast<size_t>(std::stoull(reaction)))) hits.push_back(r);
+    if (!adsorbent.empty() && !hits.empty()) {
+      const size_t id = ResolveAdsorbent(adsorbent);
+      std::vector<SeriesReaction> on;
+      for (const auto& r : hits)
+        if (r.adsorbent_id == id) on.push_back(r);
+      if (on.empty())
+        throw std::invalid_argument("reaction '" + reaction + "' is not on adsorbent '" + adsorbent + "'");
+      hits = std::move(on);
+    }
+    if (hits.size() == 1) return hits.front();
+    std::vector<std::string> names;
+    for (const auto& r : (hits.empty() ? list : hits)) names.push_back(r.name + " (" + r.adsorbent + ")");
+    if (hits.empty())
+      throw std::invalid_argument("unknown reaction '" + reaction + "'. The run logged: " +
+                                  (names.empty() ? std::string("none (no reactions, or run the simulation first)")
+                                                 : Join(names)));
+    throw std::invalid_argument("reaction '" + reaction + "' is on more than one adsorbent (" + Join(names) +
+                                "); pass an adsorbent");
+  }
+
   std::vector<std::string> Simulation::Components() const { return data_->fluid.components_; }
 
   std::vector<std::string> Simulation::StepNames() const {
@@ -793,9 +831,79 @@ namespace adsim {
     }
   }  // namespace
 
+  namespace {
+    bool IsReactionVariable(const std::string& variable) {
+      const auto names = ReactionVariableNames();
+      return std::find(names.begin(), names.end(), variable) != names.end();
+    }
+  }  // namespace
+
   TimeSeries Simulation::Series(const std::string& variable, const std::string& component,
-                                SeriesLocation where, double z, int cycle, const std::string& adsorbent) const {
+                                SeriesLocation where, double z, int cycle, const std::string& adsorbent,
+                                const std::string& reaction) const {
     const int c = ResolveCycle(cycle);
+    if (!reaction.empty() && !IsReactionVariable(variable))
+      throw std::invalid_argument("'" + variable + "' is not a reaction variable; pass a reaction only with " +
+                                  Join(ReactionVariableNames()));
+    if (IsReactionVariable(variable)) {
+      if (reaction.empty())
+        throw std::invalid_argument("'" + variable + "' is a reaction variable; pass a reaction");
+      if (!component.empty())
+        throw std::invalid_argument("'" + variable + "' is a reaction variable; do not pass a component");
+      const SeriesReaction r = ResolveReaction(reaction, adsorbent);
+      TimeSeries ts;
+      ts.variable = variable;
+      ts.reaction = r.name;
+      ts.adsorbent = r.adsorbent;
+      ts.unit = StripBrackets(kReactionRateUnits);
+      // A cell variable (ghost cells hold 0): the packed end cells at the bed
+      // ends, linear between cell centres inside, clamped to the end cells.
+      const DomainVectors& domain = Log().GetDomain();
+      const std::vector<double> centres = CellCentrePositions(domain);
+      size_t first = 1, last = centres.size();
+      if (!domain.bed_cell_indices.empty()) {
+        first = static_cast<size_t>(std::max(1, domain.bed_cell_indices.front()));
+        last = static_cast<size_t>(std::max(1, domain.bed_cell_indices.back()));
+      }
+      const auto& cycle_log = Log().GetSimulationLog().at(c);
+      // Logged times are absolute: re-base them on the cycle's first log.
+      double cycle_start = 0.0;
+      for (const auto& [step, log] : cycle_log) {
+        (void)step;
+        if (!log.step_data.times.empty()) {
+          cycle_start = log.step_data.times.front();
+          break;
+        }
+      }
+      for (const auto& [step, log] : cycle_log) {
+        (void)log;
+        const VariableLogEntry e = Log().GetReactionRate(c, step, r.adsorbent_id, r.id);
+        if (e.times.empty()) continue;
+        for (size_t t = 0; t < e.times.size() && t < e.values.size(); ++t) {
+          const auto& row = e.values[t];
+          double v = std::numeric_limits<double>::quiet_NaN();
+          if (row.size() == centres.size() + 2 && !centres.empty()) {
+            if (where == SeriesLocation::Bottom) {
+              v = row[first];
+            } else if (where == SeriesLocation::Top) {
+              v = row[last];
+            } else if (z <= centres.front()) {
+              v = row[1];
+            } else if (z >= centres.back()) {
+              v = row[centres.size()];
+            } else {
+              const size_t k = static_cast<size_t>(std::upper_bound(centres.begin(), centres.end(), z) -
+                                                   centres.begin());  // centres[k-1] < z <= centres[k]
+              const double w = (z - centres[k - 1]) / (centres[k] - centres[k - 1]);
+              v = row[k] * (1.0 - w) + row[k + 1] * w;
+            }
+          }
+          ts.time.push_back(e.times[t] - cycle_start);
+          ts.values.push_back(v);
+        }
+      }
+      return ts;
+    }
     const ParamSpatialLoc loc = where == SeriesLocation::Top      ? ParamSpatialLoc::Top
                               : where == SeriesLocation::Bottom   ? ParamSpatialLoc::Bottom
                                                                   : ParamSpatialLoc::Position;
@@ -827,17 +935,32 @@ namespace adsim {
       ts.unit = StripBrackets(GetComponentVariableUnits(*comp));
     } else {
       throw std::invalid_argument("unknown variable '" + variable + "'. Bulk: " + Join(BulkVariableNames()) +
-                                  ". Component: " + Join(ComponentVariableNames()));
+                                  ". Component: " + Join(ComponentVariableNames()) +
+                                  ". Per reaction: " + Join(ReactionVariableNames()));
     }
     return ts;
   }
 
   AxialProfile Simulation::Profile(const std::string& variable, const std::string& component,
-                                   int cycle, int step, const std::string& adsorbent) const {
+                                   int cycle, int step, const std::string& adsorbent,
+                                   const std::string& reaction) const {
     const int c = ResolveCycle(cycle);
     VariableLogEntry e;
     AxialProfile p;
-    if (auto bulk = Lookup(kBulk, variable)) {
+    if (!reaction.empty() && !IsReactionVariable(variable))
+      throw std::invalid_argument("'" + variable + "' is not a reaction variable; pass a reaction only with " +
+                                  Join(ReactionVariableNames()));
+    if (IsReactionVariable(variable)) {
+      if (reaction.empty())
+        throw std::invalid_argument("'" + variable + "' is a reaction variable; pass a reaction");
+      if (!component.empty())
+        throw std::invalid_argument("'" + variable + "' is a reaction variable; do not pass a component");
+      const SeriesReaction r = ResolveReaction(reaction, adsorbent);
+      e = Log().GetReactionRate(c, step, r.adsorbent_id, r.id);
+      p.unit = StripBrackets(kReactionRateUnits);
+      p.reaction = r.name;
+      p.adsorbent = r.adsorbent;
+    } else if (auto bulk = Lookup(kBulk, variable)) {
       if (!component.empty())
         throw std::invalid_argument("'" + variable + "' is a bulk variable; do not pass a component");
       if (!adsorbent.empty())
@@ -858,7 +981,8 @@ namespace adsim {
       p.unit = StripBrackets(GetComponentVariableUnits(*comp));
     } else {
       throw std::invalid_argument("unknown variable '" + variable + "'. Bulk: " + Join(BulkVariableNames()) +
-                                  ". Component: " + Join(ComponentVariableNames()));
+                                  ". Component: " + Join(ComponentVariableNames()) +
+                                  ". Per reaction: " + Join(ReactionVariableNames()));
     }
     if (e.times.empty())
       throw std::out_of_range("no log data for '" + variable + "' at cycle " + std::to_string(c) + ", step " +

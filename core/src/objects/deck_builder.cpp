@@ -699,6 +699,27 @@ void SetKPI(UserData& data, const std::string& component, const std::vector<size
   kpi->recycle_endpoints = refs(recycle_endpoints);
 }
 
+void SetReactionKPI(UserData& data, const std::string& key_reactant, const std::vector<std::string>& products,
+                    const std::string& basis) {
+  ReactionKPIConfig rx;
+  if (basis == "catalyst_mass") rx.basis = SpaceTimeYieldBasis::CATALYST_MASS;
+  else if (basis == "bed_volume") rx.basis = SpaceTimeYieldBasis::BED_VOLUME;
+  else throw std::invalid_argument("unknown space-time yield basis '" + basis + "' (catalyst_mass, bed_volume)");
+  if (!key_reactant.empty()) {
+    CheckComponent(data, key_reactant);
+    rx.key_reactant = key_reactant;
+  } else if (!products.empty()) {
+    throw std::invalid_argument("reaction KPI products need a key reactant");
+  }
+  for (const auto& p : products) {
+    CheckComponent(data, p);
+    if (p == key_reactant) throw std::invalid_argument("'" + p + "' is the key reactant; it cannot be a product too");
+    rx.SetProduct(p, true);
+  }
+  data.kpi_config.SyncToComponents(data.fluid.components_);
+  data.kpi_config.reaction = std::move(rx);
+}
+
 // ---- user variables -----------------------------------------------------------------
 
 void AddVariable(UserData& data, const std::string& name, const std::string& category,

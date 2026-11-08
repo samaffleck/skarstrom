@@ -111,6 +111,39 @@ print(f"electrical {k.electrical_energy / 1e6:.3f} GJ/t, thermal {k.thermal_ener
       f"cooling {k.cooling_duty / 1e6:.3f} GJ/t")
 ```
 
+## Reaction KPIs
+
+!!! note "New in 0.9"
+
+For a deck with reactions (`adsorbent[ID].reaction[ID].*`), the KPI configuration also takes a **key reactant** A, the **products** P to report, and the **space-time yield basis**. In Python, `sim.kpi.track_reaction("Methane", products=["Hydrogen", "CarbonDioxide"], basis="catalyst_mass")`; through the registry, `kpi.reaction.key_reactant` (a choice: `none` or a component name), `kpi.reaction.product[C]` (true or false per component) and `kpi.reaction.basis` (`catalyst_mass` or `bed_volume`). In C++, `build::SetReactionKPI` (adsim/objects/deck_builder.h).
+
+From the moles $G_i$ the reactions made of each component in the bed over the cycle (negative when consumed; the same generation the [mole balance](#quadrature-kpis-and-the-mole-balance) and the [CSS check](cyclic-steady-state.md) count) and the moles of A fed, $F_{A,\text{in}}$:
+
+| KPI | Field | Definition | Unit |
+|---|---|---|---|
+| Conversion | `conversion` | $X_A = -G_A / F_{A,\text{in}}$ | mol/mol |
+| Selectivity | `selectivity` | $S_P = G_P / (-G_A)$ | mol/mol |
+| Yield | `reaction_yield` | $Y_P = G_P / F_{A,\text{in}}$ | mol/mol |
+| Space-time yield | `space_time_yield` | $G_P M_P / (t_{\text{cycle}}\thinspace m_{\text{cat}})$, or $/ (t_{\text{cycle}}\thinspace V_{\text{bed}})$ with the `bed_volume` basis | kg/(kg s) or kg/(m³ s) (`space_time_yield_unit`) |
+| Peak temperature | `peak_temperature`, `peak_temperature_position`, `peak_temperature_time` | the highest bed temperature over the cycle (the solid temperature in an LTNE run), the centre of its cell from the bottom of the column and its time from the start of the cycle | K, m, s |
+| Generation | `reaction_generation` | $G_i$ | mol per cycle |
+
+- $F_{A,\text{in}}$ is the key reactant's **Feed** endpoints when it has a KPI configuration with some; otherwise every endpoint's inflow of A over the cycle (all streams that carry A into the bed, recycles included).
+- The conversion uses the reactions' own consumption, so it equals $(F_{\text{in}} - F_{\text{out}}) / F_{\text{in}}$ at cyclic steady state and is meaningful before it.
+- **No stoichiometric normalisation.** Selectivity and yield are plain molar ratios: moles of P made per mole of A consumed or fed. For a single main reaction A → ν_P P, multiply by $|\nu_A / \nu_P|$ to get the normalised figures (1 for complete selectivity).
+- $m_{\text{cat}}$ is the mass of the solids that carry the reactions (in a mixed layer, the catalyst's mass fraction of it); $V_{\text{bed}}$ is the volume of the packed bed. The figures use the reported (trapezoid) stream integrals; there are no quadrature variants.
+- The key reactant gets `conversion`, each product `selectivity`, `reaction_yield` and `space_time_yield`; both get `reaction_generation` and the peak temperature. These records exist even when the components are not tracked (their `valid` then says whether purity and recovery are configured), and they have `reaction_kpis` true. Every other record, and every record of a deck without reactions or without a key reactant, has `reaction_kpis` false and `nan` reaction fields.
+- **Purity and recovery still apply.** A product that is not fed has no recovery: with $F_{\text{in}} = 0$ it is `nan` (not applicable), never a number.
+
+```python
+sim.kpi.track_reaction("CarbonDioxide", products=["Nitrogen"])
+print(sim.describe()["reaction_kpi"])                 # key_reactant, products, basis
+print([k.reaction_kpis for k in sim.kpis(cycle=-1)])  # [False]: this deck has no reactions
+sim.kpi.track_reaction(None)                          # clear
+```
+
+The reaction KPIs are in `sim.kpis()`, `kpi_table()` (as columns, only when some record has them), the CLI's `--json` output (only on the records that carry them) and `kpis.csv`, whose reaction columns are appended only for a deck that has them, so the file of a deck without reactions is unchanged. The rate of each reaction along the bed is a [series](python.md#results): `sim.series("reaction_rate", reaction="SMR")`.
+
 ## Reading the results
 
 After a run, `sim.kpis()` returns one record per tracked component per cycle of the run (every cycle, not only the logged ones: the solver records the KPIs when each cycle completes) with **purity**, **recovery**, **productivity_mass**, **productivity_volume**, **energy_consumption**, **production_rate**, **electrical_energy** (the same value as energy_consumption), **thermal_energy**, **cooling_duty**, **step_thermal_energy** and **step_cooling_duty**; `sim.kpis(cycle=-1)` keeps the last cycle and `sim.kpi_table()` returns a pandas DataFrame. `skarstrom run deck.json` prints the KPIs of the last cycle, and `--csv DIR` writes every cycle to `kpis.csv` (its `energy [J/kg]` column is the electrical energy; `electrical energy [J/kg]`, `thermal energy [J/kg]` and `cooling duty [J/kg]` columns are appended). Cycles are numbered from 0, so cycle 49 is the 50th, while the solver log counts from 1 (*CSS reached at cycle 50*). A KPI that is undefined for the run, for example a purity with no product drawn, is `nan` (`null` in JSON output).

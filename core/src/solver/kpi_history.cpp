@@ -9,11 +9,107 @@
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
+#include "adsim/solver/bed_series.h"
 #include "adsim/solver/kpis.h"
 #include "adsim/solver/log.h"
 
 namespace adsim {
+
+  namespace {
+    constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+
+    // Moles of `component` that entered the bed over the cycle through every
+    // endpoint of every step (the inflow only), trapezoid.
+    double AllEndpointInflow(const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
+                             const std::string& component) {
+      const auto& steps = eq_log.sys_data.step_list_;
+      double entered = 0.0;
+      for (int s = 0; s < static_cast<int>(steps.size()); ++s) {
+        const auto names = b_log.stream_names.find(steps[s]);
+        if (names == b_log.stream_names.end()) continue;
+        for (const auto& name : names->second) {
+          const StreamData* d = b_log.GetStreamData(cycle, s, name);
+          if (!d) return kNaN;
+          KPIEndpointRef ref;
+          ref.step_index = s;
+          ref.endpoint_name = name;
+          ref.location = d->location_;
+          entered += std::max(EndpointComponentMolesIn(b_log, cycle, ref, component), 0.0);
+        }
+      }
+      return entered;
+    }
+
+    // Mass [kg] of the solids that carry the logged reactions.
+    double CatalystMass(const EquationLog& eq_log) {
+      const DomainVectors& domain = eq_log.GetDomain();
+      std::set<AdsorbentID> catalysts;
+      for (const auto& r : eq_log.Reactions()) catalysts.insert(r.adsorbent);
+      double mass = 0.0;
+      for (size_t i = 0; i < domain.cell_adsorbents.size() && i < domain.volume.size(); ++i)
+        for (const auto& ca : domain.cell_adsorbents[i])
+          if (catalysts.count(ca.id)) mass += ca.bulk_density * domain.volume[i];
+      return mass;
+    }
+
+    // Volume [m3] of the packed bed: its cells, without the ghost cells (and
+    // without void end cells).
+    double BedVolume(const EquationLog& eq_log) {
+      const DomainVectors& domain = eq_log.GetDomain();
+      double volume = 0.0;
+      if (!domain.bed_cell_indices.empty()) {
+        for (int i : domain.bed_cell_indices)
+          if (i >= 0 && static_cast<size_t>(i) < domain.volume.size()) volume += domain.volume[static_cast<size_t>(i)];
+      } else {
+        for (size_t i = 1; i + 1 < domain.volume.size(); ++i) volume += domain.volume[i];
+      }
+      return volume;
+    }
+
+    double RatioOrNaN(double num, double den) {
+      bool ok = true;
+      const double r = KPIRatio(num, den, ok);
+      return ok ? r : kNaN;
+    }
+  }  // namespace
+
+  PeakTemperature CyclePeakTemperature(const EquationLog& eq_log, int cycle) {
+    PeakTemperature peak;
+    const auto& sim_log = eq_log.GetSimulationLog();
+    const auto it = sim_log.find(cycle);
+    if (it == sim_log.end()) return peak;
+    const DomainVectors& domain = eq_log.GetDomain();
+    const std::vector<double> centres = CellCentrePositions(domain);
+    const VariableType type = eq_log.NonLocal() ? VariableType::SOLID_TEMPERATURE : VariableType::TEMPERATURE;
+    // The packed cells; every interior cell when the domain lists none.
+    std::vector<size_t> cells;
+    for (int i : domain.bed_cell_indices)
+      if (i > 0) cells.push_back(static_cast<size_t>(i));
+    if (cells.empty())
+      for (size_t i = 1; i <= centres.size(); ++i) cells.push_back(i);
+    double cycle_start = kNaN;
+    for (const auto& [step, log] : it->second) {
+      const VariableLogEntry e = eq_log.GetVariable(cycle, step, type);
+      if (e.times.empty()) continue;
+      if (!std::isfinite(cycle_start)) cycle_start = e.times.front();
+      for (size_t t = 0; t < e.values.size() && t < e.times.size(); ++t) {
+        const auto& row = e.values[t];
+        for (size_t i : cells) {
+          // Row index i is cell i (ghost cell 0 first); its centre is centres[i - 1].
+          if (i >= row.size() || i - 1 >= centres.size()) continue;
+          if (!std::isfinite(row[i])) continue;
+          if (!(row[i] <= peak.temperature)) {  // also takes the first (NaN) comparison
+            peak.temperature = row[i];
+            peak.position = centres[i - 1];
+            peak.time = e.times[t] - cycle_start;
+          }
+        }
+      }
+    }
+    return peak;
+  }
 
   double CycleMassBalanceError(const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
                                const std::string& component, KPIIntegration integration) {
@@ -63,8 +159,33 @@ namespace adsim {
     std::vector<KPIRecord> out;
     KPIConfig config = config_in;
     config.ResolveIds(steps);
+    // Reaction KPIs: only for a deck with reactions and a key reactant.
+    const ReactionKPIConfig& rx = config.reaction;
+    const bool reactive = rx.IsSet() && !eq_log.Reactions().empty();
+    double g_key = kNaN, f_key = kNaN, sty_denominator = kNaN;
+    PeakTemperature peak;
+    if (reactive) {
+      g_key = 0.0;
+      for (int s = 0; s < static_cast<int>(eq_log.sys_data.step_list_.size()); ++s)
+        g_key += eq_log.ReactionGeneration(cycle, s, rx.key_reactant);
+      // F_A,in: the key reactant's KPI feed endpoints, else every endpoint's inflow of it.
+      const ComponentKPIConfig* key_cfg = config.FindByComponent(rx.key_reactant);
+      if (key_cfg && key_cfg->HasAnyFeed()) {
+        f_key = 0.0;
+        for (const auto& ep : key_cfg->feed_endpoints)
+          f_key += EndpointComponentMolesIn(b_log, cycle, ep, rx.key_reactant);
+      } else {
+        f_key = AllEndpointInflow(eq_log, b_log, cycle, rx.key_reactant);
+      }
+      const double extent = rx.basis == SpaceTimeYieldBasis::BED_VOLUME ? BedVolume(eq_log) : CatalystMass(eq_log);
+      sty_denominator = eq_log.sys_data.total_cycle_time * extent;
+      peak = CyclePeakTemperature(eq_log, cycle);
+    }
+
     for (const auto& cfg : config.per_component) {
-      if (!cfg.tracked) continue;
+      const bool is_key = reactive && cfg.product_component == rx.key_reactant;
+      const bool is_product = reactive && rx.IsProduct(cfg.product_component);
+      if (!cfg.tracked && !is_key && !is_product) continue;
       KPIParams p(eq_log, b_log);
       p.cycle_index_ = cycle;
       p.product_comp_ = cfg.product_component;
@@ -115,6 +236,25 @@ namespace adsim {
           CycleMassBalanceError(eq_log, b_log, cycle, cfg.product_component, KPIIntegration::TRAPEZOID);
       r.quadrature_mass_balance_error =
           CycleMassBalanceError(eq_log, b_log, cycle, cfg.product_component, KPIIntegration::QUADRATURE);
+      if (is_key || is_product) {
+        r.reaction_kpis = true;
+        double g = 0.0;
+        for (int s = 0; s < static_cast<int>(eq_log.sys_data.step_list_.size()); ++s)
+          g += eq_log.ReactionGeneration(cycle, s, cfg.product_component);
+        r.reaction_generation = g;
+        if (is_key) r.conversion = RatioOrNaN(-g_key, f_key);
+        if (is_product) {
+          r.selectivity = RatioOrNaN(g, -g_key);
+          r.reaction_yield = RatioOrNaN(g, f_key);
+          const auto& mr = eq_log.sys_data.molar_mass;
+          const auto m = mr.find(cfg.product_component);
+          if (m != mr.end()) r.space_time_yield = RatioOrNaN(g * m->second, sty_denominator);
+          r.space_time_yield_unit = rx.basis == SpaceTimeYieldBasis::BED_VOLUME ? "kg/(m3 s)" : "kg/(kg s)";
+        }
+        r.peak_temperature = peak.temperature;
+        r.peak_temperature_position = peak.position;
+        r.peak_temperature_time = peak.time;
+      }
       out.push_back(std::move(r));
     }
     return out;

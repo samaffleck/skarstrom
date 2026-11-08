@@ -231,6 +231,12 @@ void SetEnergySource(UserData& data, size_t step, size_t layer, bool enabled);
 // from the product): recovery and productivity count product minus recycle.
 void SetKPI(UserData& data, const std::string& component, const std::vector<size_t>& feed_endpoints,
             const std::vector<size_t>& product_endpoints, const std::vector<size_t>& recycle_endpoints = {});
+// Reaction KPIs (KPIRecord::conversion, selectivity, reaction_yield,
+// space_time_yield, peak_temperature): the key reactant, the products and the
+// space-time-yield basis ("catalyst_mass" or "bed_volume"). An empty key
+// reactant clears them.
+void SetReactionKPI(UserData& data, const std::string& key_reactant, const std::vector<std::string>& products,
+                    const std::string& basis = "catalyst_mass");
 
 // ---- user variables -----------------------------------------------------------------
 // A named value other values' expressions can use ("2 * t_feed"). `formula`

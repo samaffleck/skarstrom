@@ -168,6 +168,7 @@ namespace adsim {
         Set(root, "steps", Steps(), a_);
         Set(root, "connections", Connections(), a_);
         Set(root, "kpis", Kpis(), a_);
+        Set(root, "reaction_kpi", ReactionKpi(), a_);
         Set(root, "variables", Variables(), a_);
         Set(root, "cost", Node("cost."), a_);
         Set(root, "sensitivity", Node("sensitivity."), a_);
@@ -505,6 +506,20 @@ namespace adsim {
         return list;
       }
 
+      // The reaction KPIs: key reactant ("" when unset), products, basis and
+      // their registry entries (kpi.reaction.*).
+      Value ReactionKpi() {
+        const ReactionKPIConfig& rx = d_.kpi_config.reaction;
+        Value k(rapidjson::kObjectType);
+        Set(k, "key_reactant", rx.key_reactant, a_);
+        Value products(rapidjson::kArrayType);
+        for (const auto& p : rx.products) products.PushBack(Value(p.c_str(), a_), a_);
+        Set(k, "products", std::move(products), a_);
+        Set(k, "basis", ChoiceOf("kpi.reaction.basis"), a_);
+        Set(k, "values", Values("kpi.reaction."), a_);
+        return k;
+      }
+
       Value Variables() {
         Value list(rapidjson::kArrayType);
         for (const auto& var : d_.variable_registry.GetAll()) {
@@ -588,6 +603,7 @@ namespace adsim {
     "steps": {"type": "array", "items": {"$ref": "#/definitions/Step"}},
     "connections": {"type": "array", "items": {"$ref": "#/definitions/Connection"}},
     "kpis": {"type": "array", "items": {"$ref": "#/definitions/KpiConfig"}},
+    "reaction_kpi": {"$ref": "#/definitions/ReactionKpiConfig"},
     "variables": {"type": "array", "items": {"$ref": "#/definitions/Variable"}},
     "cost": {"$ref": "#/definitions/Node"},
     "sensitivity": {"$ref": "#/definitions/Node"},
@@ -831,6 +847,15 @@ namespace adsim {
         "feed": {"type": "array", "items": {"type": "integer"}},
         "product": {"type": "array", "items": {"type": "integer"}},
         "recycle": {"type": "array", "items": {"type": "integer"}},
+        "values": {"$ref": "#/definitions/ValueList"}
+      }
+    },
+    "ReactionKpiConfig": {
+      "type": "object", "additionalProperties": false, "required": ["key_reactant", "products", "basis", "values"],
+      "properties": {
+        "key_reactant": {"type": "string"},
+        "products": {"type": "array", "items": {"type": "string"}},
+        "basis": {"type": "string", "enum": ["catalyst_mass", "bed_volume"]},
         "values": {"$ref": "#/definitions/ValueList"}
       }
     },

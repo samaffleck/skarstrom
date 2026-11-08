@@ -132,13 +132,32 @@ def _print_table(rows: List[List[str]], header: List[str], out=None) -> None:
 # its duplicate energy_consumption); kpis.csv has every per-cycle KPI in the
 # engine's order, so its original columns keep their order and headers
 # (scripts read them) and new KPIs are appended.
-def _kpi_columns(display_only: bool) -> List[Tuple[str, str]]:
+def _kpi_columns(display_only: bool, reaction: bool = False) -> List[Tuple[str, str]]:
     return [(k["key"], f"{k['short_label']} [{k['unit']}]") for k in manifests.kpi_manifest()
-            if not k["per_step"] and not k["diagnostic"] and (k["display"] or not display_only)]
+            if not k["per_step"] and not k["diagnostic"] and k.get("reaction", False) == reaction
+            and (k["display"] or not display_only)]
 
 
 KPI_FIELDS = _kpi_columns(display_only=True)
 KPI_CSV_FIELDS = _kpi_columns(display_only=False)
+# The reaction KPIs (conversion, selectivity, yield, ...): appended to kpis.csv only when some
+# record carries them (a deck with reactions and a key reactant), so other decks keep their file.
+KPI_REACTION_CSV_FIELDS = _kpi_columns(display_only=False, reaction=True)
+
+
+def _reaction_csv_fields(kpis) -> List[Tuple[str, str]]:
+    """The reaction columns of kpis.csv: none without reaction KPIs; the space-time yield's
+    unit follows the deck's basis."""
+    rx = [k for k in kpis if k.reaction_kpis]
+    if not rx:
+        return []
+    unit = next((k.space_time_yield_unit for k in rx if k.space_time_yield_unit), "")
+    out = []
+    for key, head in KPI_REACTION_CSV_FIELDS:
+        if key == "space_time_yield" and unit:
+            head = head[:head.rindex("[")] + f"[{unit}]"
+        out.append((key, head))
+    return out
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -240,6 +259,13 @@ def cmd_run(args: argparse.Namespace) -> int:
                 rows.append([k.component] + ([_fmt(getattr(k, f)) for f, _ in KPI_FIELDS] if k.valid
                                              else ["(no feed/product endpoints)"] + [""] * (len(KPI_FIELDS) - 1)))
             _print_table(rows, ["component"] + [h for _, h in KPI_FIELDS])
+            reaction = [k for k in final if k.reaction_kpis]
+            if reaction:
+                columns = [c for c in _reaction_csv_fields(reaction)
+                           if c[0] not in ("peak_temperature_position", "peak_temperature_time")]
+                print(f"\nReaction KPIs at cycle {last + 1}:")
+                _print_table([[k.component] + [_fmt(getattr(k, f)) for f, _ in columns] for k in reaction],
+                             ["component"] + [h for _, h in columns])
         elif sim.has_results:
             print("\nKPIs:    none (no component is tracked in the deck's KPI configuration)")
         for w in warnings:
@@ -249,9 +275,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         os.makedirs(args.csv, exist_ok=True)
         with open(os.path.join(args.csv, "kpis.csv"), "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["cycle", "component", "valid"] + [h for _, h in KPI_CSV_FIELDS])
+            columns = KPI_CSV_FIELDS + _reaction_csv_fields(kpis)
+            w.writerow(["cycle", "component", "valid"] + [h for _, h in columns])
             for k in kpis:
-                w.writerow([k.cycle + 1, k.component, k.valid] + [getattr(k, fld) for fld, _ in KPI_CSV_FIELDS])
+                w.writerow([k.cycle + 1, k.component, k.valid] + [getattr(k, fld) for fld, _ in columns])
         with open(os.path.join(args.csv, "css.csv"), "w", newline="") as f:
             w = csv.writer(f)
             w.writerow(["cycle", "method", "converged", "error", "tolerance", "state_change", "state_tolerance",

@@ -314,10 +314,64 @@ namespace adsim {
     }
   };
 
+  // Basis of the space-time yield of a reaction product: per kilogram of the
+  // solids that carry the reactions (the catalyst), or per cubic metre of bed.
+  enum class SpaceTimeYieldBasis { CATALYST_MASS = 0, BED_VOLUME = 1 };
+
+  // Reaction KPIs (conversion, selectivity, yield, space-time yield, peak
+  // temperature): a key reactant A and the products P whose selectivity,
+  // yield and space-time yield are reported. Unset (no key reactant) means no
+  // reaction KPIs. Components are referred to by name; a component removed
+  // from the fluid is dropped (the key reactant is cleared, a product leaves
+  // the list).
+  struct ReactionKPIConfig {
+    std::string key_reactant{};
+    std::vector<std::string> products{};
+    SpaceTimeYieldBasis basis = SpaceTimeYieldBasis::CATALYST_MASS;
+
+    bool IsSet() const { return !key_reactant.empty(); }
+    bool IsProduct(const std::string& name) const {
+      return std::find(products.begin(), products.end(), name) != products.end();
+    }
+    void SetProduct(const std::string& name, bool on) {
+      auto it = std::find(products.begin(), products.end(), name);
+      if (on && it == products.end()) products.push_back(name);
+      else if (!on && it != products.end()) products.erase(it);
+    }
+    // Drop the references to `name` (a component that left the fluid).
+    void RemoveComponent(const std::string& name) {
+      if (key_reactant == name) key_reactant.clear();
+      SetProduct(name, false);
+    }
+    // Keep only the components in `components` (in the products' own order).
+    void SyncToComponents(const std::vector<std::string>& components) {
+      auto present = [&](const std::string& c) {
+        return std::find(components.begin(), components.end(), c) != components.end();
+      };
+      if (!key_reactant.empty() && !present(key_reactant)) key_reactant.clear();
+      products.erase(std::remove_if(products.begin(), products.end(),
+                                    [&](const std::string& c) { return !present(c); }),
+                     products.end());
+    }
+
+  private:
+    friend class ::cereal::access;
+    template<class Archive>
+    void serialize(Archive& ar, std::uint32_t const /*version*/) {
+      ar(
+        cereal::make_nvp("Key_Reactant", key_reactant),
+        cereal::make_nvp("Products", products),
+        cereal::make_nvp("Space_Time_Yield_Basis", basis)
+      );
+    }
+  };
+
   // KPI configuration container: one ComponentKPIConfig per fluid component the
-  // user may track. Synchronised with the fluid component list on demand.
+  // user may track, and the reaction KPIs. Synchronised with the fluid
+  // component list on demand.
   struct KPIConfig {
     std::vector<ComponentKPIConfig> per_component;
+    ReactionKPIConfig reaction{};
 
     // Ensure there is exactly one entry per component name (in the given order),
     // creating missing entries (tracked=false by default) and removing entries
@@ -339,6 +393,7 @@ namespace adsim {
         }
       }
       per_component = std::move(rebuilt);
+      reaction.SyncToComponents(components);
     }
 
     // Drop endpoint refs that no longer resolve against the current cycle and
@@ -397,12 +452,16 @@ namespace adsim {
     template<class Archive>
     void save(Archive& ar, std::uint32_t const /*version*/) const {
       ar(cereal::make_nvp("Per_Component", per_component));
+      ar(cereal::make_nvp("Reaction", reaction));
     }
 
     template<class Archive>
     void load(Archive& ar, std::uint32_t const version) {
       if (version >= 2) {
         ar(cereal::make_nvp("Per_Component", per_component));
+        // Version 4 added the reaction KPIs; older decks have none.
+        if (version >= 4) ar(cereal::make_nvp("Reaction", reaction));
+        else reaction = ReactionKPIConfig{};
         return;
       }
 
@@ -444,4 +503,5 @@ namespace adsim {
 
 CEREAL_CLASS_VERSION(adsim::KPIEndpointRef, 1);
 CEREAL_CLASS_VERSION(adsim::ComponentKPIConfig, 2);
-CEREAL_CLASS_VERSION(adsim::KPIConfig, 3);
+CEREAL_CLASS_VERSION(adsim::ReactionKPIConfig, 0);
+CEREAL_CLASS_VERSION(adsim::KPIConfig, 4);

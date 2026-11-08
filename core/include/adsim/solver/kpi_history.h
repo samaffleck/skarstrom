@@ -79,7 +79,48 @@ namespace adsim {
     // (the inventory is recorded with them).
     double mass_balance_error = std::numeric_limits<double>::quiet_NaN();
     double quadrature_mass_balance_error = std::numeric_limits<double>::quiet_NaN();
+
+    // ---- Reaction KPIs (KPIConfig::reaction) ------------------------------
+    // Set on the records of the key reactant A and of each product P when
+    // the deck has reactions and a key reactant is configured; otherwise
+    // `reaction_kpis` is false and every field below is NaN (empty unit).
+    // The key reactant and the products get a record even when their
+    // separation KPIs are not tracked (`valid` then says whether those are
+    // configured). From the moles G each component's reactions made in the
+    // bed over the cycle (EquationLog::ReactionGeneration) and the moles of A
+    // fed, F_A,in (A's KPI feed endpoints, or, when it has none, every
+    // endpoint's inflow of A):
+    //   conversion        X_A = -G_A / F_A,in           (A's record)
+    //   selectivity       S_P = G_P / (-G_A)            (P's record)
+    //   reaction_yield    Y_P = G_P / F_A,in            (P's record)
+    //   space_time_yield  G_P M_P / (t_cycle m_cat), or / (t_cycle V_bed) with
+    //                     the bed-volume basis           (P's record)
+    // Plain molar ratios, with no stoichiometric normalisation.
+    bool reaction_kpis = false;
+    double reaction_generation = std::numeric_limits<double>::quiet_NaN();  // G [mol per cycle]
+    double conversion = std::numeric_limits<double>::quiet_NaN();           // [mol/mol]
+    double selectivity = std::numeric_limits<double>::quiet_NaN();          // [mol/mol]
+    double reaction_yield = std::numeric_limits<double>::quiet_NaN();       // [mol/mol]
+    double space_time_yield = std::numeric_limits<double>::quiet_NaN();     // [kg/(kg s)] or [kg/(m3 s)]
+    std::string space_time_yield_unit;  // "kg/(kg s)" or "kg/(m3 s)" (the basis); empty without
+    // Highest bed temperature over the cycle (the solid temperature in an
+    // LTNE run), with the centre of its cell [m from the bottom] and the time
+    // from the start of the cycle [s]. The same on every reaction record of
+    // the cycle.
+    double peak_temperature = std::numeric_limits<double>::quiet_NaN();           // [K]
+    double peak_temperature_position = std::numeric_limits<double>::quiet_NaN();  // [m]
+    double peak_temperature_time = std::numeric_limits<double>::quiet_NaN();      // [s]
   };
+
+  // Highest bed temperature of one logged cycle: the fluid temperature (the
+  // solid temperature in an LTNE run) over the packed cells and every logged
+  // point of every step. NaN fields when the cycle is not logged.
+  struct PeakTemperature {
+    double temperature = std::numeric_limits<double>::quiet_NaN();  // [K]
+    double position = std::numeric_limits<double>::quiet_NaN();     // [m] cell centre, from the bottom
+    double time = std::numeric_limits<double>::quiet_NaN();         // [s] from the start of the cycle
+  };
+  PeakTemperature CyclePeakTemperature(const EquationLog& eq_log, int cycle);
 
   enum class KPIIntegration;
   // Cycle mole balance of one component at one logged cycle [-]
@@ -93,7 +134,8 @@ namespace adsim {
                                const std::string& component, KPIIntegration integration);
 
   // KPIs of every tracked component of `config` at one logged cycle, computed
-  // from the logs. The endpoint references are re-bound by ID against `steps`
+  // from the logs, plus the records of the reaction KPIs' key reactant and
+  // products (KPIRecord::reaction_kpis). The endpoint references are re-bound by ID against `steps`
   // first (on a copy), so a step or stream renamed since they were resolved
   // still counts. Empty when no component is tracked.
   std::vector<KPIRecord> ComputeCycleKPIs(const KPIConfig& config, const std::vector<Step>& steps,

@@ -504,6 +504,16 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("quadrature_production_rate", &adsim::KPIRecord::quadrature_production_rate)
       .def_readonly("mass_balance_error", &adsim::KPIRecord::mass_balance_error)
       .def_readonly("quadrature_mass_balance_error", &adsim::KPIRecord::quadrature_mass_balance_error)
+      .def_readonly("reaction_kpis", &adsim::KPIRecord::reaction_kpis)
+      .def_readonly("reaction_generation", &adsim::KPIRecord::reaction_generation)
+      .def_readonly("conversion", &adsim::KPIRecord::conversion)
+      .def_readonly("selectivity", &adsim::KPIRecord::selectivity)
+      .def_readonly("reaction_yield", &adsim::KPIRecord::reaction_yield)
+      .def_readonly("space_time_yield", &adsim::KPIRecord::space_time_yield)
+      .def_readonly("space_time_yield_unit", &adsim::KPIRecord::space_time_yield_unit)
+      .def_readonly("peak_temperature", &adsim::KPIRecord::peak_temperature)
+      .def_readonly("peak_temperature_position", &adsim::KPIRecord::peak_temperature_position)
+      .def_readonly("peak_temperature_time", &adsim::KPIRecord::peak_temperature_time)
       .def("as_dict", [](const adsim::KPIRecord& k) {
         py::dict d;
         d["cycle"] = k.cycle;
@@ -528,6 +538,20 @@ PYBIND11_MODULE(_core, m) {
         d["quadrature_production_rate"] = k.quadrature_production_rate;
         d["mass_balance_error"] = k.mass_balance_error;
         d["quadrature_mass_balance_error"] = k.quadrature_mass_balance_error;
+        // The reaction KPIs only on the records that carry them, so a deck
+        // without reactions keeps its keys.
+        if (k.reaction_kpis) {
+          d["reaction_kpis"] = k.reaction_kpis;
+          d["reaction_generation"] = k.reaction_generation;
+          d["conversion"] = k.conversion;
+          d["selectivity"] = k.selectivity;
+          d["reaction_yield"] = k.reaction_yield;
+          d["space_time_yield"] = k.space_time_yield;
+          d["space_time_yield_unit"] = k.space_time_yield_unit;
+          d["peak_temperature"] = k.peak_temperature;
+          d["peak_temperature_position"] = k.peak_temperature_position;
+          d["peak_temperature_time"] = k.peak_temperature_time;
+        }
         return d;
       })
       .def("__repr__", [](const adsim::KPIRecord& k) {
@@ -605,12 +629,14 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("variable", &adsim::TimeSeries::variable)
       .def_readonly("component", &adsim::TimeSeries::component)
       .def_readonly("adsorbent", &adsim::TimeSeries::adsorbent)
+      .def_readonly("reaction", &adsim::TimeSeries::reaction)
       .def_readonly("unit", &adsim::TimeSeries::unit)
       .def_property_readonly("time", [](const adsim::TimeSeries& t) { return ToArray(t.time); })
       .def_property_readonly("values", [](const adsim::TimeSeries& t) { return ToArray(t.values); })
       .def("__len__", [](const adsim::TimeSeries& t) { return t.time.size(); })
       .def("__repr__", [](const adsim::TimeSeries& t) {
         return "<TimeSeries " + t.variable + (t.component.empty() ? "" : "[" + t.component + "]") +
+               (t.reaction.empty() ? "" : " " + t.reaction) +
                (t.adsorbent.empty() ? "" : " (" + t.adsorbent + ")") + " [" +
                t.unit + "], " + std::to_string(t.time.size()) + " points>";
       });
@@ -619,6 +645,7 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("variable", &adsim::AxialProfile::variable)
       .def_readonly("component", &adsim::AxialProfile::component)
       .def_readonly("adsorbent", &adsim::AxialProfile::adsorbent)
+      .def_readonly("reaction", &adsim::AxialProfile::reaction)
       .def_readonly("unit", &adsim::AxialProfile::unit)
       .def_readonly("cycle", &adsim::AxialProfile::cycle)
       .def_readonly("step", &adsim::AxialProfile::step)
@@ -629,6 +656,7 @@ PYBIND11_MODULE(_core, m) {
                              [](const adsim::AxialProfile& p) { return ToArray2D(p.values, p.rows, p.cols); })
       .def("__repr__", [](const adsim::AxialProfile& p) {
         return "<AxialProfile " + p.variable + (p.component.empty() ? "" : "[" + p.component + "]") +
+               (p.reaction.empty() ? "" : " " + p.reaction) +
                (p.adsorbent.empty() ? "" : " (" + p.adsorbent + ")") + " [" +
                p.unit + "], cycle " + std::to_string(p.cycle) + " step " + std::to_string(p.step) + ", " +
                std::to_string(p.rows) + " x " + std::to_string(p.cols) + ">";
@@ -845,12 +873,26 @@ PYBIND11_MODULE(_core, m) {
       .def("run_health", &adsim::Simulation::RunHealth, py::return_value_policy::copy)
       .def("wall_design", &adsim::Simulation::WallDesign)
       .def("series", [](const adsim::Simulation& s, const std::string& variable, const std::string& component,
-                        const std::string& location, double z, int cycle, const std::string& adsorbent) {
-        return s.Series(variable, component, ParseLocation(location), z, cycle, adsorbent);
+                        const std::string& location, double z, int cycle, const std::string& adsorbent,
+                        const std::string& reaction) {
+        return s.Series(variable, component, ParseLocation(location), z, cycle, adsorbent, reaction);
       }, py::arg("variable"), py::arg("component") = "", py::arg("location") = "top", py::arg("z") = 0.0,
-         py::arg("cycle") = -1, py::arg("adsorbent") = "")
+         py::arg("cycle") = -1, py::arg("adsorbent") = "", py::arg("reaction") = "")
       .def("profile", &adsim::Simulation::Profile, py::arg("variable"), py::arg("component") = "",
-           py::arg("cycle") = -1, py::arg("step") = 0, py::arg("adsorbent") = "")
+           py::arg("cycle") = -1, py::arg("step") = 0, py::arg("adsorbent") = "", py::arg("reaction") = "")
+      .def("series_reactions", [](const adsim::Simulation& s) {
+        py::list out;
+        for (const auto& r : s.SeriesReactions()) {
+          py::dict d;
+          d["id"] = r.id;
+          d["name"] = r.name;
+          d["adsorbent_id"] = r.adsorbent_id;
+          d["adsorbent"] = r.adsorbent;
+          d["variable_name"] = r.variable_name;
+          out.append(d);
+        }
+        return out;
+      })
       .def("series_adsorbents", [](const adsim::Simulation& s) {
         py::list out;
         for (const auto& a : s.SeriesAdsorbents()) {
@@ -956,6 +998,13 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "set_kpi")
           b::SetKPI(d, str(0), args[1].cast<std::vector<size_t>>(), args[2].cast<std::vector<size_t>>(),
                     args.size() > 3 ? args[3].cast<std::vector<size_t>>() : std::vector<size_t>{});
+        else if (op == "add_reaction")  // structure only; values through the registry
+          out = py::int_(b::AddReaction(d, id(0), str(1), args[2].cast<std::map<std::string, double>>(),
+                                        args.size() > 3 ? str(3) : "power_law"));
+        else if (op == "set_reaction_basis") b::SetReactionBasis(d, id(0), id(1), str(2));
+        else if (op == "set_reaction_kpi")
+          b::SetReactionKPI(d, str(0), args[1].cast<std::vector<std::string>>(), args.size() > 2 ? str(2)
+                                                                                                 : "catalyst_mass");
         else if (op == "add_variable") b::AddVariable(d, str(0), str(1), str(2), str(3));
         else throw py::value_error("unknown build operation '" + op + "'");
         s.RefreshParameters();
@@ -1258,6 +1307,14 @@ PYBIND11_MODULE(_core, m) {
           kpis.append(k);
         }
         out["kpis"] = kpis;
+        {
+          const auto& rx = d.kpi_config.reaction;
+          py::dict r;
+          r["key_reactant"] = rx.key_reactant;
+          r["products"] = rx.products;
+          r["basis"] = rx.basis == SpaceTimeYieldBasis::BED_VOLUME ? "bed_volume" : "catalyst_mass";
+          out["reaction_kpi"] = r;
+        }
 
         py::list variables;
         for (const auto& v : d.variable_registry.GetAll()) {
@@ -1397,6 +1454,7 @@ PYBIND11_MODULE(_core, m) {
   m.def("stream_variables", &adsim::StreamVariableNames);
   m.def("stream_component_variables", &adsim::StreamComponentVariableNames);
   m.def("per_adsorbent_variables", &adsim::PerAdsorbentVariableNames);
+  m.def("reaction_variables", &adsim::ReactionVariableNames);
 
   // ---- gas properties -------------------------------------------------------
   // Ideal-gas heat capacity C_p0(T) [J/(mol K)] of the NASA polynomials
