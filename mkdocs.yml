@@ -59,6 +59,9 @@ validation:
   unrecognized_links: warn
   anchors: warn
 
+hooks:
+  - scripts/docs/llms_txt_hook.py
+
 nav:
   - Home: index.md
   - Getting started:
