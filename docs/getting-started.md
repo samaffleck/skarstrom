@@ -33,6 +33,8 @@ pip install .                 # compiles the engine: several minutes the first t
 
 Forgot `--recursive`? Run `git submodule update --init --recursive` before building. A source distribution (`skarstrom-<version>.tar.gz`, attached to every GitHub release) contains the submodule sources too, so `pip install skarstrom-<version>.tar.gz` builds offline.
 
+A build of `main` reports a development version with its commit, for example `skarstrom 0.9.1.dev0+g0a19084`: on its way to the release after 0.9.0, not 0.9.0 itself. Releases are cut from `main` automatically, at most once a day, so PyPI is never more than a day behind (`RELEASING.md` in the repository). *New in 0.9.*
+
 Check the install:
 
 ```bash

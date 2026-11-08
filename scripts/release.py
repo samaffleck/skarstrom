@@ -3,14 +3,16 @@
 
 The version lives in the root CMakeLists.txt (ADSIM_PROJECT_VERSION plus
 ADSIM_VERSION_SUFFIX); CHANGELOG.md and CITATION.cff follow it. Used by
-.github/workflows/prepare-release.yml (which opens the release pull request)
-and .github/workflows/release.yml (which publishes a version once it reaches
-main). See RELEASING.md. Standard library only.
+.github/workflows/daily-release.yml (which cuts and starts the release) and
+.github/workflows/release.yml (which builds and publishes it). See
+RELEASING.md. Standard library only.
 
-  python scripts/release.py current             # 0.3.0
+  python scripts/release.py current             # 0.3.1.dev0
   python scripts/release.py next [--bump B] [--suffix rc1]
   python scripts/release.py prepare [--bump B] [--suffix rc1] [--date D]
+  python scripts/release.py develop             # after a release: 0.3.0 -> 0.3.1.dev0
   python scripts/release.py check VERSION       # ready to publish VERSION?
+  python scripts/release.py check-dev           # main must not claim a released version
   python scripts/release.py notes VERSION       # CHANGELOG section of VERSION
   python scripts/release.py fragments           # check the changelog.d/ fragments
   python scripts/release.py collect             # fold them into CHANGELOG.md
@@ -21,6 +23,14 @@ changelog.d/README.md), so parallel pull requests never conflict on the top
 of Unreleased. Every command here reads the fragments as part of Unreleased
 (newest first, the order git added them), and `prepare` (a final release) and
 `collect` move them into CHANGELOG.md and delete the files.
+
+Development versions: between releases main carries a PEP 440 dev marker in
+ADSIM_VERSION_SUFFIX, ".dev0" after the next patch version (0.3.0 is followed by
+0.3.1.dev0; a pre-release 0.4.0rc1 by 0.4.0rc2.dev0), so a source build never
+reports a released version. `develop` sets it, `prepare` strips it, and
+`check-dev` fails if main has no dev marker but its version is already tagged.
+A dev version is a floor, not a release: from 0.3.1.dev0 a patch release is
+0.3.1 and a minor one 0.4.0 (from 0.4.0.dev0 both give 0.4.0).
 
 --bump is auto (default), patch, minor or major. auto reads the subsections
 under "## [Unreleased]" in CHANGELOG.md: Added, Changed, Removed or Deprecated
@@ -44,11 +54,14 @@ ROOT = Path(__file__).resolve().parent.parent
 
 VERSION_RE = re.compile(
     r'^set\(ADSIM_PROJECT_VERSION (?P<value>[0-9]+\.[0-9]+\.[0-9]+)\)\s*\n'
-    r'set\(ADSIM_VERSION_SUFFIX "(?P<suffix>(?:(?:a|b|rc)[0-9]+)?)"\)',
+    r'set\(ADSIM_VERSION_SUFFIX "(?P<suffix>(?:(?:a|b|rc)[0-9]+)?(?:\.dev[0-9]+)?)"\)',
     re.MULTILINE,
 )
-SUFFIX_RE = re.compile(r"^(?:(?:a|b|rc)[0-9]+)?$")
+SUFFIX_RE = re.compile(r"^(?:(?:a|b|rc)[0-9]+)?$")  # what may be released
+PRE_RE = re.compile(r"^(?P<letter>a|b|rc)(?P<number>[0-9]+)$")
 FULL_RE = re.compile(r"^(?P<value>[0-9]+\.[0-9]+\.[0-9]+)(?P<suffix>(?:a|b|rc)[0-9]+)?$")
+DEV_RE = re.compile(r"^(?P<value>[0-9]+\.[0-9]+\.[0-9]+)(?P<pre>(?:a|b|rc)[0-9]+)?"
+                    r"(?P<dev>\.dev[0-9]+)?$")
 UNRELEASED = "## [Unreleased]"
 FRAGMENTS = ROOT / "changelog.d"
 FRAGMENT_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*\.md$")
@@ -71,6 +84,17 @@ def read_version(cmake_text: str) -> tuple[str, str]:
             "CMakeLists.txt: the adjacent ADSIM_PROJECT_VERSION / ADSIM_VERSION_SUFFIX "
             "lines were not found")
     return m["value"], m["suffix"]
+
+
+def split_suffix(suffix: str) -> tuple[str, str]:
+    """('rc2', '.dev0') from 'rc2.dev0'; either part may be empty."""
+    i = suffix.find(".dev")
+    return (suffix, "") if i < 0 else (suffix[:i], suffix[i:])
+
+
+def is_dev(version: str) -> bool:
+    m = DEV_RE.match(version)
+    return bool(m and m["dev"])
 
 
 def split_changelog(text: str) -> tuple[str, str, str]:
@@ -178,6 +202,14 @@ def next_version(value: str, suffix: str, bump: str, new_suffix: str,
     if not SUFFIX_RE.match(new_suffix):
         raise ReleaseError(f"suffix {new_suffix!r} must be empty or aN, bN, rcN")
     major, minor, patch = (int(x) for x in value.split("."))
+    suffix, dev = split_suffix(suffix)
+    if dev and suffix and bump == "auto":
+        # A pre-release line, e.g. 0.4.0rc2.dev0 after 0.4.0rc1: finish it
+        # (0.4.0) or continue it (rc2 or later; an earlier one is already out).
+        if new_suffix and _pre_key(new_suffix) < _pre_key(suffix):
+            raise ReleaseError(f"{value}{new_suffix} is older than the development "
+                               f"version {value}{suffix}{dev}")
+        return f"{value}{new_suffix}"
     if suffix and bump == "auto":
         # Finishing (or continuing) a pre-release: 0.4.0rc1 -> 0.4.0 / 0.4.0rc2.
         if new_suffix == suffix:
@@ -188,6 +220,20 @@ def next_version(value: str, suffix: str, bump: str, new_suffix: str,
         if kind is None:
             raise ReleaseError("nothing to release: Unreleased in CHANGELOG.md is empty")
         bump = kind
+    if dev and not suffix:
+        # value is the floor (0.3.1 in 0.3.1.dev0): the release is the smallest
+        # version of the requested kind that is not below it.
+        if bump == "patch":
+            pass
+        elif bump == "minor":
+            if patch:
+                minor, patch = minor + 1, 0
+        elif bump == "major":
+            if minor or patch:
+                major, minor, patch = major + 1, 0, 0
+        else:
+            raise ReleaseError(f"unknown bump {bump!r}")
+        return f"{major}.{minor}.{patch}{new_suffix}"
     if bump == "major":
         major, minor, patch = major + 1, 0, 0
     elif bump == "minor":
@@ -199,15 +245,60 @@ def next_version(value: str, suffix: str, bump: str, new_suffix: str,
     return f"{major}.{minor}.{patch}{new_suffix}"
 
 
+def _pre_key(pre: str) -> tuple[int, int]:
+    m = PRE_RE.match(pre)
+    if not m:
+        raise ReleaseError(f"bad pre-release suffix {pre!r}")
+    return ("a", "b", "rc").index(m["letter"]), int(m["number"])
+
+
+def dev_version(full: str) -> str:
+    """The development version that follows the release `full`."""
+    m = FULL_RE.match(full)
+    if not m:
+        raise ReleaseError(f"bad version {full!r} (a released version, no dev marker)")
+    if m["suffix"]:
+        pm = PRE_RE.match(m["suffix"])
+        return f'{m["value"]}{pm["letter"]}{int(pm["number"]) + 1}.dev0'
+    major, minor, patch = (int(x) for x in m["value"].split("."))
+    return f"{major}.{minor}.{patch + 1}.dev0"
+
+
+def check_dev(full: str, tags: set[str]) -> list[str]:
+    """Problems if main's version `full` claims a release it is not."""
+    if is_dev(full):
+        return []
+    if f"v{full}" in tags:
+        return [f"CMakeLists.txt has {full}, which is already released (tag v{full}), "
+                "without a dev marker: a build of this tree would claim to be "
+                f"{full}. Set it to {dev_version(full)} (python scripts/release.py develop)."]
+    return []
+
+
+def git_tags(root: Path = ROOT) -> set[str]:
+    """v* tags, local and on origin (when reachable)."""
+    tags: set[str] = set()
+    for cmd in (["git", "tag", "-l", "v*"], ["git", "ls-remote", "--tags", "--refs", "origin", "v*"]):
+        try:
+            out = subprocess.run(cmd, cwd=root, capture_output=True, text=True, check=True,
+                                 timeout=60).stdout
+        except (OSError, subprocess.SubprocessError):
+            continue
+        for line in out.splitlines():
+            name = line.split()[-1] if line.split() else ""
+            tags.add(name.removeprefix("refs/tags/"))
+    return tags
+
+
 # --- writing -----------------------------------------------------------------
 
 def set_cmake_version(cmake_text: str, full: str) -> str:
-    m = FULL_RE.match(full)
+    m = DEV_RE.match(full)
     if not m:
         raise ReleaseError(f"bad version {full!r}")
     out, n = VERSION_RE.subn(
         f'set(ADSIM_PROJECT_VERSION {m["value"]})\n'
-        f'set(ADSIM_VERSION_SUFFIX "{m["suffix"] or ""}")',
+        f'set(ADSIM_VERSION_SUFFIX "{(m["pre"] or "") + (m["dev"] or "")}")',
         cmake_text, count=1)
     if n != 1:
         raise ReleaseError("CMakeLists.txt: version lines not found")
@@ -237,6 +328,9 @@ def check_ready(full: str, cmake_text: str, changelog_text: str,
                 citation_text: str) -> list[str]:
     """Problems that stop `full` from being published from this tree."""
     problems = []
+    if not FULL_RE.match(full):
+        return [f"{full} is not a releasable version (X.Y.Z or X.Y.Z{{a,b,rc}}N; "
+                "development versions are never published)"]
     value, suffix = read_version(cmake_text)
     if f"{value}{suffix}" != full:
         problems.append(f"CMakeLists.txt has {value}{suffix}, not {full}")
@@ -276,6 +370,10 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--date", default=_dt.date.today().isoformat())
     for name in ("check", "notes"):
         sub.add_parser(name).add_argument("version")
+    sub.add_parser("develop", help="set the development version that follows the "
+                   "released version in CMakeLists.txt (0.3.0 -> 0.3.1.dev0)")
+    sub.add_parser("check-dev", help="fail if CMakeLists.txt has a released (tagged) "
+                   "version without a dev marker")
     sub.add_parser("fragments", help="check the changelog.d/ fragments")
     sub.add_parser("collect", help="move the changelog.d/ fragments into CHANGELOG.md")
     args = ap.parse_args(argv)
@@ -319,6 +417,18 @@ def main(argv: list[str] | None = None) -> int:
                         f.unlink()
             print(full)
             return 0
+        if args.cmd == "develop":
+            full = dev_version(f"{value}{suffix}")
+            _write("CMakeLists.txt", set_cmake_version(cmake, full))
+            print(full)
+            return 0
+        if args.cmd == "check-dev":
+            problems = check_dev(f"{value}{suffix}", git_tags())
+            for p in problems:
+                print(f"error: {p}", file=sys.stderr)
+            if not problems:
+                print(f"{value}{suffix}: ok (a development version, or a release not tagged yet)")
+            return 1 if problems else 0
         if args.cmd == "check":
             problems = check_ready(args.version, cmake, changelog, _read("CITATION.cff"))
             for p in problems:

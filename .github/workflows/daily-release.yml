@@ -1,0 +1,207 @@
+# Daily release: release main automatically, at most once a day, when it has
+# something to release and its CI is green. No human merge. See RELEASING.md.
+#
+# Each run:
+#   1. Skips (with a notice) when the repository variable AUTO_RELEASE is
+#      "false" (scheduled runs only), when main's latest CI run is not a
+#      success, or, on a scheduled run, while main is on a pre-release line
+#      (X.Y.ZrcN.devM: finish or continue it by hand, below).
+#   2. Runs `scripts/release.py prepare`: the changelog fragments in
+#      changelog.d/ (and entries under Unreleased in CHANGELOG.md) decide the
+#      version (Added/Changed/Removed/Deprecated: minor; Fixed/Security only:
+#      patch; nothing: no release, the run stops here). It sets the version in
+#      CMakeLists.txt and CITATION.cff and moves the fragments under
+#      "## [X.Y.Z] — <date>" in CHANGELOG.md. `release.py check` must pass.
+#   3. Commits that as "Release X.Y.Z", then `release.py develop` as the
+#      next development version (X.Y.(Z+1).dev0), and pushes both to main.
+#   4. Dispatches the Release workflow (release.yml) on main with
+#      publish=true and ref=<the release commit>: it builds and tests the
+#      wheels, tags vX.Y.Z at the release commit, creates the GitHub Release
+#      (notes: the changelog section) and publishes to PyPI (or TestPyPI for a
+#      pre-release). Pushes made with the workflow token start no workflow,
+#      but a workflow_dispatch does (actions: write). Release stays a
+#      top-level workflow because PyPI trusted publishing does not work from
+#      a reusable workflow, so its trusted publisher (release.yml), its
+#      environments (deployments from main) and the Docs refresh after it
+#      (docs.yml, workflow_run) are unchanged.
+#
+# By hand: Actions > Daily release > Run workflow (on main) releases now, with
+# an optional bump (patch, minor, major) and/or pre-release suffix (rc1, b1,
+# a1). A manual run also finishes a pre-release line (no suffix) or continues
+# it (rc2, ...). dry_run does everything except push, dispatch and delete, on
+# any branch, and writes the release commit's diff to the run summary.
+#
+# It also deletes the branch bot/release left by the retired Prepare release
+# workflow (which closes its pull request).
+name: Daily release
+
+on:
+  schedule:
+    # Daily, away from the nightly CI (03:17) and the front end's engine bump (02:41).
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (auto: from the changelog fragments)"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+      suffix:
+        description: "Pre-release suffix (rc1, b1, a1); empty for a final release"
+        type: string
+        default: ""
+      dry_run:
+        description: "Dry run: prepare and check the release, but push, tag and publish nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Cut and start the release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write  # push the release commits to main, delete bot/release
+      actions: write   # dispatch release.yml; read CI runs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # history for the CI check, tags for check-dev
+      - name: Cut the release
+        id: cut
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          BUMP: ${{ inputs.bump || 'auto' }}
+          SUFFIX: ${{ inputs.suffix }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          AUTO_RELEASE: ${{ vars.AUTO_RELEASE }}
+        run: |
+          set -euo pipefail
+          summary() { echo "$*" | tee -a "$GITHUB_STEP_SUMMARY"; }
+          stop() { summary "$*"; echo "release=" >> "$GITHUB_OUTPUT"; exit 0; }
+          bot_email="41898299+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "$bot_email"
+          branch="${GITHUB_REF_NAME}"
+          [ "$DRY_RUN" = true ] && summary "**Dry run** on \`${branch}\`: nothing is pushed, tagged or published."
+          if [ "$DRY_RUN" != true ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::a release runs on main only (this run is on ${GITHUB_REF}); use dry_run elsewhere"
+            exit 1
+          fi
+          if [ "$EVENT" = schedule ] && [ "${AUTO_RELEASE}" = false ]; then
+            stop "Automatic releases are paused (repository variable AUTO_RELEASE=false)."
+          fi
+
+          # The retired Prepare release workflow's branch: deleting it closes its pull request.
+          if git ls-remote --exit-code --heads origin bot/release > /dev/null; then
+            if [ "$DRY_RUN" = true ]; then
+              summary "Would delete the leftover branch bot/release."
+            else
+              git push origin --delete bot/release && summary "Deleted the leftover branch bot/release."
+            fi
+          fi
+
+          # CI: the newest commit that is not one of this workflow's own
+          # release commits (they change only the version files and start no CI).
+          sha=""
+          while read -r h email; do
+            files="$(git diff-tree --no-commit-id --name-only -r "$h")"
+            if [ "$email" = "$bot_email" ] && [ -n "$files" ] && \
+               ! grep -qvE '^(CMakeLists\.txt|CHANGELOG\.md|CITATION\.cff|changelog\.d/.*)$' <<< "$files"; then
+              continue
+            fi
+            sha="$h"
+            break
+          done < <(git log -n 50 --format='%H %ae' HEAD)
+          [ -n "$sha" ] || { echo "::error::no commit to check CI for"; exit 1; }
+          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${sha}&per_page=20" \
+                   --jq '.workflow_runs | sort_by(.created_at) | last // empty | "\(.status) \(.conclusion) \(.html_url)"')"
+          read -r ci_status ci_conclusion ci_url <<< "${run:-none none -}"
+          summary "CI for ${sha::7}: ${ci_status}/${ci_conclusion} ${ci_url}"
+          if [ "$ci_status" != completed ] || [ "$ci_conclusion" != success ]; then
+            if [ "$DRY_RUN" = true ]; then
+              summary "(A real run would stop here: CI is not green.)"
+            else
+              echo "::notice::CI for ${sha::7} is ${ci_status}/${ci_conclusion}: no release today."
+              stop "No release: main's latest CI run (${sha::7}) is ${ci_status}/${ci_conclusion}."
+            fi
+          fi
+
+          current="$(python3 scripts/release.py current)"
+          if [ "$EVENT" = schedule ] && [[ "$current" =~ (a|b|rc)[0-9]+\.dev[0-9]+$ ]]; then
+            stop "main is on the pre-release line ${current}: automatic releases wait until it is finished or continued by hand (Run workflow)."
+          fi
+
+          set +e
+          version="$(python3 scripts/release.py prepare --bump "$BUMP" --suffix "$SUFFIX")"
+          rc=$?
+          set -e
+          [ "$rc" = 3 ] && stop "Nothing to release: no changelog fragments (main is ${current})."
+          [ "$rc" = 0 ] || exit "$rc"
+          python3 scripts/release.py check "$version"
+          git add CMakeLists.txt CHANGELOG.md CITATION.cff
+          git add -A -- changelog.d  # the fragments the release moved into CHANGELOG.md
+          git commit --quiet -F - <<EOF
+          Release ${version}
+
+          Cut by the Daily release workflow from the changelog fragments
+          (${current} -> ${version}, bump ${BUMP}${SUFFIX:+, suffix ${SUFFIX}}).
+          The Release workflow tags this commit v${version} and publishes it.
+          EOF
+          release_sha="$(git rev-parse HEAD)"
+          dev="$(python3 scripts/release.py develop)"
+          git add CMakeLists.txt
+          git commit --quiet -m "Development version ${dev}" -m "Set after releasing ${version}, so that builds of main never report a released version."
+
+          {
+            echo "### Release ${version}"
+            echo
+            echo "main: ${current} -> **${version}** (\`${release_sha::7}\`) -> ${dev}"
+            echo
+            echo "<details><summary>Release commit</summary>"
+            echo
+            echo '```diff'
+            git show --stat --format='%s' "$release_sha" | head -n 60
+            echo
+            git diff "${release_sha}^" "$release_sha" -- CMakeLists.txt CITATION.cff
+            echo '```'
+            echo
+            echo "</details>"
+            echo
+            echo "#### Release notes"
+            echo
+            python3 scripts/release.py notes "$version" | head -n 200
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          {
+            echo "release=${version}"
+            echo "sha=${release_sha}"
+          } >> "$GITHUB_OUTPUT"
+          if [ "$DRY_RUN" = true ]; then
+            summary "Dry run: would push ${release_sha::7} and the ${dev} commit to main, then run: gh workflow run release.yml --ref main -f publish=true -f ref=${release_sha}"
+            exit 0
+          fi
+          # Not forced: if main moved during this run, the push fails and the
+          # next run releases from the new main.
+          git push origin HEAD:refs/heads/main
+          summary "Pushed the release commit and ${dev} to main."
+
+      - name: Start the Release workflow
+        if: steps.cut.outputs.release != '' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.cut.outputs.release }}
+          SHA: ${{ steps.cut.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref main -f publish=true -f ref="$SHA"
+          echo "Started the Release workflow for ${VERSION} at ${SHA::7}: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/release.yml" \
+            | tee -a "$GITHUB_STEP_SUMMARY"

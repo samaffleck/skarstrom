@@ -4,16 +4,23 @@
 # TestPyPI (pre-releases) with trusted publishing (OpenID Connect, no tokens).
 #
 # What starts a release (see RELEASING.md):
-#   * A push to main that changes the version in CMakeLists.txt
-#     (ADSIM_PROJECT_VERSION + ADSIM_VERSION_SUFFIX) to one that has no tag
-#     yet. This is the normal route: merging the release pull request that
-#     prepare-release.yml keeps open. The workflow creates the tag v<version>.
+#   * The Daily release workflow (daily-release.yml), the normal route. It
+#     pushes the release commit "Release X.Y.Z" and the development version
+#     after it to main, then dispatches this workflow on main with publish=true
+#     and ref=<the release commit>. (Its pushes, made with the workflow token,
+#     start no workflow; a workflow_dispatch does. This workflow stays a
+#     top-level one because PyPI trusted publishing does not work from a
+#     reusable workflow.) The workflow creates the tag v<version> there.
+#   * Actions > Release > Run workflow on main with "publish" ticked: releases
+#     the version in CMakeLists.txt at "ref" (default: main's head) if it has
+#     no tag yet, e.g. to retry a failed release; "ref" must be on main.
 #   * A pushed tag v<version> (the manual route; the tag must equal the version
 #     in CMakeLists.txt at that commit).
-#   * Actions > Release > Run workflow on main with "publish" ticked: releases
-#     the version in CMakeLists.txt if it has no tag yet (e.g. to retry).
+#   * A push to main that changes the version in CMakeLists.txt to a released
+#     form (no dev marker) that has no tag yet: a release commit made by hand.
 # Any other run (a manual run without "publish", a main push that leaves the
-# version alone) only builds the artefacts. A final version is published only
+# version alone or sets a development version X.Y.Z.devN) only builds the
+# artefacts; a development version is never released. A final version is published only
 # if CHANGELOG.md has its section, nothing is left under Unreleased and
 # CITATION.cff carries it (`python scripts/release.py check <version>`), so
 # main is never published under a version whose changelog does not list it.
@@ -37,6 +44,10 @@ on:
         description: "Release the version in CMakeLists.txt if it has no tag yet (main only)"
         type: boolean
         default: false
+      ref:
+        description: "Commit on main to build (and release); empty for the head of the branch"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -54,26 +65,42 @@ jobs:
       prerelease: ${{ steps.v.outputs.prerelease }}
       release: ${{ steps.v.outputs.release }}
       tag: ${{ steps.v.outputs.tag }}
+      sha: ${{ steps.v.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - id: v
         name: Read the version and decide whether this run releases it
         env:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
           PUBLISH: ${{ inputs.publish }}
+          REF: ${{ inputs.ref }}
         run: |
           set -euo pipefail
           read_version() {  # CMakeLists.txt text on stdin -> version + suffix
             local text version suffix
             text="$(cat)"
             version="$(sed -n 's/^set(ADSIM_PROJECT_VERSION \([0-9.]*\)).*/\1/p' <<< "$text")"
-            suffix="$(sed -n 's/^set(ADSIM_VERSION_SUFFIX "\([a-z0-9]*\)").*/\1/p' <<< "$text")"
+            suffix="$(sed -n 's/^set(ADSIM_VERSION_SUFFIX "\([a-z0-9.]*\)").*/\1/p' <<< "$text")"
             echo "${version}${suffix}"
           }
           full="$(read_version < CMakeLists.txt)"
           [ -n "$full" ] || { echo "::error::no version found in CMakeLists.txt"; exit 1; }
+          sha="$(git rev-parse HEAD)"
+          if [[ "$full" =~ \.dev[0-9]+$ ]]; then dev=true; else dev=false; fi
           if [[ "$full" =~ (a|b|rc)[0-9]+$ ]]; then prerelease=true; else prerelease=false; fi
+          if [ -n "$REF" ]; then
+            git fetch --quiet origin main
+            if ! git merge-base --is-ancestor "$sha" FETCH_HEAD; then
+              if [ "$PUBLISH" = "true" ]; then
+                echo "::error::ref ${REF} (${sha}) is not on main; only commits on main are released"
+                exit 1
+              fi
+              echo "::notice::ref ${REF} is not on main: build only."
+            fi
+          fi
           tag_exists() { git ls-remote --exit-code --tags origin "refs/tags/v${full}" > /dev/null; }
 
           release=false
@@ -82,8 +109,18 @@ jobs:
               echo "::error::tag $GITHUB_REF_NAME does not match the version in CMakeLists.txt (v${full})"
               exit 1
             fi
+            if [ "$dev" = true ]; then
+              echo "::error::${full} is a development version: it is never released"
+              exit 1
+            fi
             python3 scripts/release.py check "$full" || echo "::warning::released from a tag although the check above failed"
             release=true
+          elif [ "$dev" = true ]; then
+            if [ "$PUBLISH" = "true" ]; then
+              echo "::error::${full} is a development version: it is never released. Release with the Daily release workflow, or pass the release commit as ref."
+              exit 1
+            fi
+            echo "${full} is a development version: build only."
           elif [ "$GITHUB_REF" = "refs/heads/main" ] && { [ "$EVENT" = "push" ] || [ "$PUBLISH" = "true" ]; }; then
             if [ "$EVENT" = "push" ]; then
               previous=""
@@ -106,7 +143,7 @@ jobs:
               release=true
             fi
             if [ "$release" = true ] && ! python3 scripts/release.py check "$full"; then
-              echo "::error::${full} is not ready to publish (see above). Prepare the release with the Prepare release workflow or scripts/release.py prepare."
+              echo "::error::${full} is not ready to publish (see above). Prepare the release with the Daily release workflow or scripts/release.py prepare."
               exit 1
             fi
           elif [ "$PUBLISH" = "true" ]; then
@@ -118,8 +155,9 @@ jobs:
             echo "prerelease=${prerelease}"
             echo "release=${release}"
             echo "tag=v${full}"
+            echo "sha=${sha}"
           } >> "$GITHUB_OUTPUT"
-          echo "version ${full} (pre-release: ${prerelease}, release: ${release})" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "version ${full} at ${sha} (pre-release: ${prerelease}, release: ${release})" | tee -a "$GITHUB_STEP_SUMMARY"
 
   wheels:
     name: Wheels ${{ matrix.name }}
@@ -142,6 +180,7 @@ jobs:
         run: git config --global core.longpaths true
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.version.outputs.sha }}
           submodules: recursive
       # Build settings (Python versions, manylinux image, macOS deployment
       # target 13.3, tests) live in [tool.cibuildwheel] in pyproject.toml.
@@ -167,6 +206,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.version.outputs.sha }}
           submodules: recursive
       - uses: actions/setup-python@v5
         with:
@@ -200,6 +240,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.version.outputs.sha }}
           submodules: recursive
       - name: Create the tarball
         run: bash scripts/make_source_tarball.sh "${{ needs.version.outputs.version }}" source
@@ -218,6 +259,8 @@ jobs:
       contents: write  # create the tag and the release, upload its assets
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
       - name: Release notes from CHANGELOG.md
         run: python3 scripts/release.py notes "${{ needs.version.outputs.version }}" > "$RUNNER_TEMP/notes.md"
       - uses: actions/download-artifact@v4
@@ -234,7 +277,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ needs.version.outputs.sha }}
           name: Skarstrom ${{ needs.version.outputs.version }}
           body_path: ${{ runner.temp }}/notes.md
           prerelease: ${{ needs.version.outputs.prerelease == 'true' }}

@@ -10,7 +10,8 @@
 TEST(Version, StringMatchesComponents) {
   const std::string expected = std::to_string(ADSIM_VERSION_MAJOR) + "." +
                                std::to_string(ADSIM_VERSION_MINOR) + "." +
-                               std::to_string(ADSIM_VERSION_PATCH) + ADSIM_VERSION_SUFFIX;
+                               std::to_string(ADSIM_VERSION_PATCH) + ADSIM_VERSION_SUFFIX +
+                               ADSIM_VERSION_LOCAL;
   EXPECT_EQ(std::string(ADSIM_VERSION_STRING), expected);
   EXPECT_EQ(std::string(adsim::kVersionString), expected);
 }
