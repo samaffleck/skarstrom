@@ -8,21 +8,20 @@
 // (data/adsorbents/apdes_nfc_stampi2020.json, loaded unchanged): GAB water,
 // humid Toth CO2 (Stampi-Bombelli, Storione and Mazzotti, Adsorption 26 (2020)
 // 1183, corrected 2022), LDF k_CO2 = 2e-4 and k_H2O = 2e-3 1/s, heats of
-// adsorption 57 and 49 kJ/mol. The feed composition and state are the
-// paper's: 400 ppm CO2, y_H2O = 0.0115 (49 % RH at 20 degC), balance N2,
-// 20 degC, 1 bar. The column (0.2 m, 25 cells, the paper's 5.03 cm2 cross
-// section), bed voidage, the superficial velocity of 0.01 m/s and the step time
-// are ours: the paper does not run a breakthrough on this geometry. At the
-// paper's 50 cm3/s (0.1 m/s) the slow LDF (k_CO2 = 2e-4 1/s) would smear both
-// fronts over a bed this short; at 0.01 m/s the rate groups k L / u times the
-// capacity ratio are about 10 for both components and the fronts are sharp.
+// adsorption 57 and 49 kJ/mol. The feed is the paper's: 400 ppm CO2,
+// y_H2O = 0.0115 (49 % RH at 20 degC), balance N2, 20 degC, 1 bar, 50 cm3/s
+// through its 8 cm column (50.3 cm2), a superficial velocity of 0.01 m/s.
 // Bed-to-wall and wall-to-ambient coefficients are the paper's 3 and
-// 26 W/(m2 K).
+// 26 W/(m2 K). The bed length (0.2 m, 25 cells), voidage, wall thickness and
+// the step time are ours: the paper does not run a breakthrough on this
+// column. With the slow LDF (k_CO2 = 2e-4 1/s) the rate groups k L / u times
+// the capacity ratio are about 10 for both components at this length, so the
+// fronts are sharp.
 //
-// Measured (Linux, release): t50 water 3.16e3 s, t50 CO2 8.92e4 s, t95 CO2
-// 1.02e5 s (dry feed: t50 CO2 3.43e4 s); mid-bed temperature peak 295.8 K at
-// 705 s; end of step, last cell: q_H2O 2.819 mol/kg (GAB 2.819), q_CO2
-// 2.067 mol/kg (humid Toth 2.070; dry run 0.822).
+// Measured (Linux, release): t50 water 2.67e3 s, t50 CO2 8.98e4 s, t95 CO2
+// 1.03e5 s (dry feed: t50 CO2 3.45e4 s); mid-bed temperature peak 300.1 K at
+// 681 s; end of step, last cell: q_H2O 2.819 mol/kg (GAB 2.819), q_CO2
+// 2.066 mol/kg (humid Toth 2.070; dry run 0.822).
 //
 // Checks (fast tier, two runs of one step on 25 cells):
 //   * the run completes, is healthy, and the step and KPI mole balances close
@@ -58,8 +57,8 @@ constexpr double kFeedCO2 = 400e-6;    // [-]
 constexpr double kFeedH2O = 0.0115;    // [-] 49 % RH at 20 degC and 1 bar
 constexpr double kTemperature = 293.15;
 constexpr double kPressure = 1.0e5;
-constexpr double kFeedVelocity = 0.01;  // [m/s] superficial
-constexpr double kStepTime = 1.2e5;  // [s] a first run gave t95(CO2) = 1.02e5 s at the outlet
+constexpr double kFeedVelocity = 50e-6 / 5.03e-3;  // [m/s] 50 cm3/s through 50.3 cm2 (0.00994)
+constexpr double kStepTime = 1.2e5;  // [s] a first run gave t95(CO2) = 1.03e5 s at the outlet
 
 struct HumidDacDeck : UserDataTest {
   void TestBody() override {}
@@ -71,9 +70,9 @@ struct HumidDacDeck : UserDataTest {
         "ILLUSTRATIVE, not a validated reproduction. Non-isothermal breakthrough of 400 ppm CO2 in humid N2 "
         "(y_H2O = 0.0115, 49 % RH at 20 degC, 1 bar) on the library adsorbent APDES-NFC: GAB water isotherm, "
         "humid Toth CO2 isotherm that reads the adsorbed water loading, LDF kinetics and heats of adsorption "
-        "from the entry (Stampi-Bombelli et al. 2020, corrected 2022). Feed composition and wall heat transfer "
-        "as in that paper; the column, the 0.01 m/s superficial velocity and the step time are chosen for the "
-        "example. Water saturates the bed first and releases its heat of sorption; the CO2 front follows with "
+        "from the entry (Stampi-Bombelli et al. 2020, corrected 2022). Feed (50 cm3/s through an 8 cm column, "
+        "0.01 m/s), column diameter and wall heat transfer as in that paper; the bed length and the step time "
+        "are chosen for the example. Water saturates the bed first and releases its heat of sorption; the CO2 front follows with "
         "the humid capacity.";
     data.info.author = "Skarstrom examples";
     AddComponents({kN2, kCO2, kH2O});
@@ -91,7 +90,7 @@ struct HumidDacDeck : UserDataTest {
     layer.particle_diameter_ = 7.5e-3;  // the entry's (Table 1 of the paper)
     layer.composition_[ads_id] = 1.0;
     layer.momentum_model_ = MomentumModel::Ergun;
-    std::get<CylinderBed>(data.bed.shape_).diameter = 0.0253;  // 5.03 cm2
+    std::get<CylinderBed>(data.bed.shape_).diameter = 0.08;  // the paper's column
     data.bed.wall_.ApplyMaterial(WallMaterial::SS316L);
     data.bed.wall_.thickness_ = 2.0e-3;
     data.bed.ambient_temperature_ = kTemperature;
@@ -218,7 +217,7 @@ TEST(HumidDacBreakthrough, WaterFirstHumidCo2CapacityAndClosedBalances) {
   // measured 0.001 K). The relative humidity, and with it the GAB loading,
   // moves by about 6 % per kelvin through p_sat(T), so 0.05 K allows 0.3 %
   // between the local and the feed-state GAB value: 1 % against the feed state.
-  // The CO2 LDF (2e-4 1/s) leaves the loading 0.14 % below its equilibrium
+  // The CO2 LDF (2e-4 1/s) leaves the loading 0.16 % below its equilibrium
   // value at the end of the step: 1 %.
   const AxialProfile T = sim.Profile("temperature", "", -1, 0);
   const AxialProfile P = sim.Profile("pressure", "", -1, 0);

@@ -178,17 +178,17 @@ glass values, not measured. The layer holds less carbon per bed volume than the 
 deck, so the breakthrough comes earlier; each solid's loading is logged separately
 (sim.series(..., adsorbent=...))."""
 
-Illustrative_Humid_DAC_Breakthrough = Example('Illustrative_Humid_DAC_Breakthrough', 'Illustrative humid DAC breakthrough - 400 ppm CO2 and 49 % RH on APDES-NFC', 'ILLUSTRATIVE, not a validated reproduction. Non-isothermal breakthrough of 400 ppm CO2 in humid N2 (y_H2O = 0.0115, 49 % RH at 20 degC, 1 bar) on the library adsorbent APDES-NFC: GAB water isotherm, humid Toth CO2 isotherm that reads the adsorbed water loading, LDF kinetics and heats of adsorption from the entry (Stampi-Bombelli et al. 2020, corrected 2022). Feed composition and wall heat transfer as in that paper; the column, the 0.01 m/s superficial velocity and the step time are chosen for the example. Water saturates the bed first and releases its heat of sorption; the CO2 front follows with the humid capacity.')
+Illustrative_Humid_DAC_Breakthrough = Example('Illustrative_Humid_DAC_Breakthrough', 'Illustrative humid DAC breakthrough - 400 ppm CO2 and 49 % RH on APDES-NFC', 'ILLUSTRATIVE, not a validated reproduction. Non-isothermal breakthrough of 400 ppm CO2 in humid N2 (y_H2O = 0.0115, 49 % RH at 20 degC, 1 bar) on the library adsorbent APDES-NFC: GAB water isotherm, humid Toth CO2 isotherm that reads the adsorbed water loading, LDF kinetics and heats of adsorption from the entry (Stampi-Bombelli et al. 2020, corrected 2022). Feed (50 cm3/s through an 8 cm column, 0.01 m/s), column diameter and wall heat transfer as in that paper; the bed length and the step time are chosen for the example. Water saturates the bed first and releases its heat of sorption; the CO2 front follows with the humid capacity.')
 """Illustrative humid DAC breakthrough - 400 ppm CO2 and 49 % RH on APDES-NFC
 
 ILLUSTRATIVE, not a validated reproduction. Non-isothermal breakthrough of 400 ppm CO2
 in humid N2 (y_H2O = 0.0115, 49 % RH at 20 degC, 1 bar) on the library adsorbent
 APDES-NFC: GAB water isotherm, humid Toth CO2 isotherm that reads the adsorbed water
 loading, LDF kinetics and heats of adsorption from the entry (Stampi-Bombelli et al.
-2020, corrected 2022). Feed composition and wall heat transfer as in that paper; the
-column, the 0.01 m/s superficial velocity and the step time are chosen for the example.
-Water saturates the bed first and releases its heat of sorption; the CO2 front follows
-with the humid capacity."""
+2020, corrected 2022). Feed (50 cm3/s through an 8 cm column, 0.01 m/s), column diameter
+and wall heat transfer as in that paper; the bed length and the step time are chosen for
+the example. Water saturates the bed first and releases its heat of sorption; the CO2
+front follows with the humid capacity."""
 
 Illustrative_TSA_13X = Example('Illustrative_TSA_13X', 'Illustrative TSA - CO2/N2 on 13X', "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.")
 """Illustrative TSA - CO2/N2 on 13X

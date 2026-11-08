@@ -151,7 +151,7 @@ Ambient air carries far more water than CO₂: at 20 °C and 49 % relative humid
 - **Pick a coupled kind for CO₂.** `toth_humid` or `toth_wadst` read the water actually adsorbed in the same cell ([CO₂ with adsorbed water](isotherms.md#co2-with-adsorbed-water-toth-wadst-and-humid-toth)); keep the mixing rule `none`.
 - **Energy balance.** Water needs its own `heat_of_adsorption["Water"]`, usually near the heat of condensation plus a few kJ/mol. With a feed 30 times richer in water than in CO₂, the water heat dominates the temperature trace of the adsorption step, and on heating the water desorbs too, so the thermal energy KPI pays for it.
 
-The library entry [APDES-NFC](adsorbent-library.md#apdes-nfc-stampi2020) has all of this. The illustrative deck `Illustrative_Humid_DAC_Breakthrough` (built by `core/test/integration/test_humid_dac_breakthrough.cpp`; **not a validated reproduction**) feeds humid air at 0.01 m/s through a 0.2 m column of it for 33 h. Water leaves the bed first (half the feed water at the outlet after about 53 min); the bed warms by about 2.7 K as the water front passes and is back at ambient long before CO₂ breaks through (50 % after about 25 h). Behind the fronts the CO₂ loading is the humid 2.07 mol/kg; the same deck with a dry feed holds 0.82 mol/kg and the CO₂ breaks through after about 9.5 h.
+The library entry [APDES-NFC](adsorbent-library.md#apdes-nfc-stampi2020) has all of this. The illustrative deck `Illustrative_Humid_DAC_Breakthrough` (built by `core/test/integration/test_humid_dac_breakthrough.cpp`; **not a validated reproduction**) feeds humid air at the paper's 0.01 m/s through a 0.2 m long, 8 cm column of it for 33 h. Water leaves the bed first (half the feed water at the outlet after about 45 min); the middle of the bed warms by about 7 K as the water front passes and is back at ambient long before CO₂ breaks through (50 % after about 25 h). Behind the fronts the CO₂ loading is the humid 2.07 mol/kg; the same deck with a dry feed holds 0.82 mol/kg and the CO₂ breaks through after about 9.6 h.
 
 ```python
 import skarstrom
@@ -167,7 +167,7 @@ print(f"mid-bed temperature peak {T.values.max():.1f} K at {T.time[T.values.argm
 # completed True
 # Water: outlet y = 0.0115 at t = 33 h
 # CarbonDioxide: outlet y = 0.000399 at t = 33 h
-# mid-bed temperature peak 295.8 K at 12 min
+# mid-bed temperature peak 300.1 K at 11 min
 ```
 
 To try the dry case, set the feed's water to zero and the nitrogen to the balance (`sim.steps[0].bottom.y["Water"] = 0` and `sim.steps[0].bottom.y["Nitrogen"] = 0.9996`).

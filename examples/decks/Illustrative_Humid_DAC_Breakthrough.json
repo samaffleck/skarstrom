@@ -321,8 +321,8 @@
                 "data": {
                     "cereal_class_version": 0,
                     "Diameter": {
-                        "Value": 0.0253,
-                        "Expression": "0.0253",
+                        "Value": 0.08,
+                        "Expression": "0.08",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -923,8 +923,8 @@
                                                                     "data": {
                                                                         "value0": {},
                                                                         "Constant_Value": {
-                                                                            "Value": 0.01,
-                                                                            "Expression": "0.01",
+                                                                            "Value": 0.009940357852882704,
+                                                                            "Expression": "0.009940357852882704",
                                                                             "DisplayUnitIndex": 0
                                                                         }
                                                                     }
@@ -1112,12 +1112,12 @@
         "System_Information": {
             "cereal_class_version": 0,
             "Title": "Illustrative humid DAC breakthrough - 400 ppm CO2 and 49 % RH on APDES-NFC",
-            "Description": "ILLUSTRATIVE, not a validated reproduction. Non-isothermal breakthrough of 400 ppm CO2 in humid N2 (y_H2O = 0.0115, 49 % RH at 20 degC, 1 bar) on the library adsorbent APDES-NFC: GAB water isotherm, humid Toth CO2 isotherm that reads the adsorbed water loading, LDF kinetics and heats of adsorption from the entry (Stampi-Bombelli et al. 2020, corrected 2022). Feed composition and wall heat transfer as in that paper; the column, the 0.01 m/s superficial velocity and the step time are chosen for the example. Water saturates the bed first and releases its heat of sorption; the CO2 front follows with the humid capacity.",
+            "Description": "ILLUSTRATIVE, not a validated reproduction. Non-isothermal breakthrough of 400 ppm CO2 in humid N2 (y_H2O = 0.0115, 49 % RH at 20 degC, 1 bar) on the library adsorbent APDES-NFC: GAB water isotherm, humid Toth CO2 isotherm that reads the adsorbed water loading, LDF kinetics and heats of adsorption from the entry (Stampi-Bombelli et al. 2020, corrected 2022). Feed (50 cm3/s through an 8 cm column, 0.01 m/s), column diameter and wall heat transfer as in that paper; the bed length and the step time are chosen for the example. Water saturates the bed first and releases its heat of sorption; the CO2 front follows with the humid capacity.",
             "Author": "Skarstrom examples",
             "Version": 3
         },
         "KPI_Config": {
-            "cereal_class_version": 3,
+            "cereal_class_version": 4,
             "Per_Component": [
                 {
                     "cereal_class_version": 2,
@@ -1190,7 +1190,13 @@
                     ],
                     "Recycle_Endpoints": []
                 }
-            ]
+            ],
+            "Reaction": {
+                "cereal_class_version": 0,
+                "Key_Reactant": "",
+                "Products": [],
+                "Space_Time_Yield_Basis": 0
+            }
         },
         "Variable_Registry": {
             "cereal_class_version": 1,
