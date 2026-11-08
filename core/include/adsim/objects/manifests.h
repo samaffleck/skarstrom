@@ -85,6 +85,10 @@ namespace adsim {
     std::string setting;   // registry path of its switch (settings.warn_<key>), "" when always on
     bool default_on = true;
     std::string message;   // message template; {name} placeholders
+    // Run-health checks (run_health.h; phase "end", checked after every cycle
+    // and reported at the end of the run): the structured warning's code, e.g.
+    // "MOLE_FRACTION_SUM". Empty for the other warnings.
+    std::string code = {};
   };
 
   const std::vector<WarningDefinition>& WarningDefinitions();

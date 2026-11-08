@@ -208,6 +208,19 @@ namespace adsim {
       BoolField("settings", "warn_channel_reynolds", "warn when the channel Reynolds number of a structured layer passes 2000",
                 [](const UserData& u) { return u.settings.warnings_.channel_reynolds; },
                 [](UserData& u, bool b) { u.settings.warnings_.channel_reynolds = b; }),
+      // Run health, after every cycle (run_health.h).
+      BoolField("settings", "warn_mole_fraction_sum", "warn when the gas mole fractions do not sum to 1 (MOLE_FRACTION_SUM)",
+                [](const UserData& u) { return u.settings.warnings_.mole_fraction_sum; },
+                [](UserData& u, bool b) { u.settings.warnings_.mole_fraction_sum = b; }),
+      BoolField("settings", "warn_mass_balance_stuck", "warn when a cycle mole balance stays open as the run settles (MASS_BALANCE_STUCK)",
+                [](const UserData& u) { return u.settings.warnings_.mass_balance_stuck; },
+                [](UserData& u, bool b) { u.settings.warnings_.mass_balance_stuck = b; }),
+      BoolField("settings", "warn_step_retries", "warn on many rejected integrator attempts in a cycle (STEP_RETRIES)",
+                [](const UserData& u) { return u.settings.warnings_.step_retries; },
+                [](UserData& u, bool b) { u.settings.warnings_.step_retries = b; }),
+      BoolField("settings", "warn_history_truncated", "warn when the log keeps fewer cycles than the diagnostics read (HISTORY_TRUNCATED)",
+                [](const UserData& u) { return u.settings.warnings_.history_truncated; },
+                [](UserData& u, bool b) { u.settings.warnings_.history_truncated = b; }),
 
       // css (cyclic steady state)
       IntField("css", "method", "CSS method",
