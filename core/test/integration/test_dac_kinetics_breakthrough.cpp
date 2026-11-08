@@ -72,6 +72,8 @@ struct DacDeck : UserDataTest {
     layer.composition_[ads_id] = 1.0;
     layer.momentum_model_ = MomentumModel::Ergun;
     std::get<CylinderBed>(data.bed.shape_).diameter = 0.02;
+    data.bed.wall_.ApplyMaterial(WallMaterial::SS316L);
+    data.bed.wall_.thickness_ = 3.1e-3;
     AddConstantInternalHeatTransferCoefficientModel(0.0, layer_id);
     AddConstantExternalHeatTransferCoefficientModel(0.0, layer_id);
 

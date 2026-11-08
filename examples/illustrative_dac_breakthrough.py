@@ -62,6 +62,11 @@ def build(case: str = "DAC") -> sk.Simulation:
 
     # ---- column ---------------------------------------------------------------------------
     sim.bed.set_shape("cylinder", diameter=2 * u.cm)
+    # The wall does not matter in an isothermal run.
+    sim.wall.set_material("ss316l", density=7990 * u.kg / u.m**3, heat_capacity=500 * u.J / (u.kg * u.K),
+                          thermal_conductivity=16.3 * u.W / (u.m * u.K))
+    sim.wall.thickness = 3.1 * u.mm
+    sim.wall.set_boundary("zero_flux")
     layer = sim.add_layer("Lewatit", composition={ads.name: 1.0}, momentum="ergun", length=5 * u.cm, cells=20,
                           bed_void_fraction=0.4, particle_diameter=0.6 * u.mm)
     layer.set_internal_heat_transfer("constant", internal_htc=0 * u.W / (u.m**2 * u.K))

@@ -348,23 +348,23 @@
                 "cereal_class_version": 4,
                 "Material": 1,
                 "Density": {
-                    "Value": 7800.0,
-                    "Expression": "7.8e+03",
+                    "Value": 7990.0,
+                    "Expression": "7.99e+03",
                     "DisplayUnitIndex": 0
                 },
                 "Specific_Heat_Capacity": {
-                    "Value": 537.0,
-                    "Expression": "537",
+                    "Value": 500.0,
+                    "Expression": "5e+02",
                     "DisplayUnitIndex": 0
                 },
                 "Thermal_Conductivity": {
-                    "Value": 16.2,
-                    "Expression": "16.2",
+                    "Value": 16.3,
+                    "Expression": "16.3",
                     "DisplayUnitIndex": 0
                 },
                 "Wall_Thickness": {
-                    "Value": 0.0175,
-                    "Expression": "0.0175",
+                    "Value": 0.0031,
+                    "Expression": "0.0031",
                     "DisplayUnitIndex": 0
                 },
                 "Design_Pressure": {
