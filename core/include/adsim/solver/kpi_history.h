@@ -33,6 +33,14 @@ namespace adsim {
   // the run (no product drawn, zero denominator) is NaN, and so is every KPI
   // when the component's KPI configuration is incomplete (`valid` false: no
   // feed or no product endpoint).
+  //
+  // The time integrals behind the reported KPIs (endpoint moles in and out,
+  // pump and compressor energy) are the KPI quadratures, integrated by IDAS
+  // alongside the solution (kpi_quadrature.h, KPIIntegration::QUADRATURE);
+  // an endpoint without them (quadratures turned off) falls back to the
+  // trapezoid over its logged samples. The trapezoid values are kept beside
+  // them (trapezoid_*). Per-bed-volume KPIs divide by the packed bed's
+  // volume (PackedBedVolume: no ghost or void end cells).
   struct KPIRecord {
     int cycle = 0;
     std::string component;
@@ -60,25 +68,25 @@ namespace adsim {
     std::vector<double> step_thermal_energy;                                // [J/kg]
     std::vector<double> step_cooling_duty;                                  // [J/kg]
 
-    // The same KPIs from the KPI quadratures (endpoint flows and pump power
-    // integrated by IDAS alongside the solution, kpi_quadrature.h) instead of
-    // the trapezoid over the logged samples. Reported beside the KPIs above,
-    // which stay the reported values; NaN when the quadratures were off.
-    double quadrature_purity = std::numeric_limits<double>::quiet_NaN();
-    double quadrature_recovery = std::numeric_limits<double>::quiet_NaN();
-    double quadrature_productivity_mass = std::numeric_limits<double>::quiet_NaN();
-    double quadrature_productivity_volume = std::numeric_limits<double>::quiet_NaN();
-    double quadrature_energy_consumption = std::numeric_limits<double>::quiet_NaN();
-    double quadrature_production_rate = std::numeric_limits<double>::quiet_NaN();
+    // The same KPIs from the trapezoid over the logged endpoint samples
+    // (KPIIntegration::TRAPEZOID) instead of the quadratures: the reported
+    // KPIs before the quadratures became the default, kept for comparison.
+    // Equal to the KPIs above when the quadratures were off.
+    double trapezoid_purity = std::numeric_limits<double>::quiet_NaN();
+    double trapezoid_recovery = std::numeric_limits<double>::quiet_NaN();
+    double trapezoid_productivity_mass = std::numeric_limits<double>::quiet_NaN();
+    double trapezoid_productivity_volume = std::numeric_limits<double>::quiet_NaN();
+    double trapezoid_energy_consumption = std::numeric_limits<double>::quiet_NaN();
+    double trapezoid_production_rate = std::numeric_limits<double>::quiet_NaN();
 
     // Cycle mole balance of the component [-]: (moles that entered through
     // every endpoint of every step, net, minus the change of the column's gas
     // and adsorbed inventory over the cycle) over the moles that entered,
-    // with the endpoint flows from the trapezoid (mass_balance_error) or the
-    // quadratures. Zero for exact conservation; NaN without the quadratures
+    // with the endpoint flows from the quadratures (mass_balance_error) or the
+    // trapezoid. Zero for exact conservation; NaN without the quadratures
     // (the inventory is recorded with them).
     double mass_balance_error = std::numeric_limits<double>::quiet_NaN();
-    double quadrature_mass_balance_error = std::numeric_limits<double>::quiet_NaN();
+    double trapezoid_mass_balance_error = std::numeric_limits<double>::quiet_NaN();
 
     // ---- Reaction KPIs (KPIConfig::reaction) ------------------------------
     // Set on the records of the key reactant A and of each product P when
@@ -130,8 +138,13 @@ namespace adsim {
   // of the column inventory over the cycle, over the moles that entered. NaN when the cycle's step balances
   // (recorded with the KPI quadratures) or a stream log are missing, or when
   // the component's inflow is round-off (below 1e-12 of the column inventory).
+  // `integration` picks the endpoint integrals (kpis.h: QUADRATURE, which
+  // falls back to the trapezoid per endpoint, or TRAPEZOID).
   double CycleMassBalanceError(const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
                                const std::string& component, KPIIntegration integration);
+  // With the default integration (the quadratures).
+  double CycleMassBalanceError(const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
+                               const std::string& component);
 
   // KPIs of every tracked component of `config` at one logged cycle, computed
   // from the logs, plus the records of the reaction KPIs' key reactant and

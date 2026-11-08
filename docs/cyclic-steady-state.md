@@ -40,6 +40,8 @@ $$
 
 Components that are never fed are skipped. Together with the state test this is the safest choice when component-level purity and recovery are the outputs you care about.
 
+Both balance tests integrate the logged flux through the two bed faces (the species balance's own face flux) with the trapezoid rule over the logged points. They do not use the KPI integrals. The reported KPIs and their `mass_balance_error` use the quadratures the solver integrates alongside the solution, with the trapezoid as fallback ([Performance Metrics](performance-metrics.md#how-the-kpis-are-integrated-and-the-mole-balance)). The quadratures restart from zero at every step of every cycle.
+
 ### State test
 
 On its own, a closing balance is not a safe sign of CSS. On the way to CSS the bed alternately gains and loses a component over many cycles, so the balance error swings through zero, and a cycle near a crossing passes a 0.5 % band by accident. In a five-step CO₂/N₂ cycle on 13X (Yancy-Caballero et al., 2020) the CO₂ balance was inside 0.5 % from the fifth cycle on, while purity and recovery were still moving by up to 0.6 points; they settled only after 80 to 90 cycles. A much tighter balance tolerance is not the answer either: the balance carries small systematic errors (how the boundary fluxes are reconstructed and integrated over the logged points) that a tight band would never get past.

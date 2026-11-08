@@ -753,11 +753,11 @@
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.004770563082199345
+                                            "value": 0.00477056308219948
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.9952294369178006
+                                            "value": 0.9952294369178005
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -1289,8 +1289,14 @@
             "Version": 3
         },
         "KPI_Config": {
-            "cereal_class_version": 3,
-            "Per_Component": []
+            "cereal_class_version": 4,
+            "Per_Component": [],
+            "Reaction": {
+                "cereal_class_version": 0,
+                "Key_Reactant": "",
+                "Products": [],
+                "Space_Time_Yield_Basis": 0
+            }
         },
         "Variable_Registry": {
             "cereal_class_version": 1,

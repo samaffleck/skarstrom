@@ -12,15 +12,17 @@
 //
 //   deck          plain  Aitken  Anderson
 //   Perez2019_A      47       -        35
-//   Perez2019_E     194      59        46
+//   Perez2019_E     194      59        43
 //
 // The reference KPIs are those of a long plain run with the CSS check off
-// (cycle 499 for A, 999 for E). Over its last few hundred cycles the
-// reference itself wanders by about 1e-7 (A) and 5e-6 (E) in purity and 8e-6
-// (A) and 1e-4 (E) in recovery. The stops, references and errors were
-// measured on the decks with the gas held in the bed voids only
-// (particle_void_fraction 0; Aitken for A not re-measured); re-measure them
-// whenever the decks' inputs change. Each test runs Anderson
+// (cycle 499 for A, 999 for E). Over its last 300 cycles the reference
+// itself wanders by 3e-8 (A) and 4e-7 (E) in purity and 2e-6 (A) and 4e-6
+// (E) in recovery. The stops, references and errors were measured on the
+// decks with the gas held in the bed voids only (particle_void_fraction 0;
+// Aitken for A not re-measured), with the KPIs on the quadrature integrals
+// and outlet component flows on the face composition (the references moved
+// by up to 9e-5 when that became the reported basis); re-measure them
+// whenever the decks' inputs or the KPI basis change. Each test runs Anderson
 // only (a plain run of E takes 70 s) and checks that it stops well before the plain run, at KPIs no
 // further from the reference than the plain stop's or within 5e-5 of it (half
 // the 1e-4 to which CSSRobustDeck holds a plain run).
@@ -86,13 +88,13 @@ namespace adsim {
   }  // namespace
 
   TEST(CSSAndersonDecks, Perez2019AStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 35, purity error 7.0e-7, recovery error 3.1e-5.
-    CheckAnderson({"Perez2019_A", 47, 40, 0.99551196, 0.60140405, 4.4e-7, 2.6e-5});
+    // Measured: stop at 35, purity error 7.6e-7, recovery error 3.2e-5.
+    CheckAnderson({"Perez2019_A", 47, 40, 0.9955118911, 0.6014141775, 4.3e-7, 2.7e-5});
   }
 
   TEST(CSSAndersonDecks, Perez2019EStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 46, purity error 1.7e-7, recovery error 4.0e-5.
-    CheckAnderson({"Perez2019_E", 194, 70, 0.87243421, 0.93913562, 6.8e-5, 2.3e-5});
+    // Measured: stop at 43, purity error 2.2e-5, recovery error 9.1e-6.
+    CheckAnderson({"Perez2019_E", 194, 70, 0.8724318702, 0.9390793657, 6.8e-5, 3.1e-5});
   }
 
 }  // namespace adsim

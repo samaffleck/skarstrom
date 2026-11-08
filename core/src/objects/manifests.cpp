@@ -43,7 +43,8 @@ namespace adsim {
       {"productivity_mass", "Productivity (per adsorbent mass)", "productivity", "kg/(kg s)", "productivity",
        "Mass of the component in the net product per second per kilogram of adsorbent."},
       {"productivity_volume", "Productivity (per bed volume)", "productivity", "kg/(m3 s)", "productivity",
-       "Mass of the component in the net product per second per cubic metre of bed."},
+       "Mass of the component in the net product per second per cubic metre of packed bed (no ghost or void end "
+       "cells)."},
       {"energy_consumption", "Specific energy", "energy", "J/kg", "energy",
        "Compressor and vacuum-pump work per kilogram of net product (the original name of the electrical energy, "
        "which holds the same value).",
@@ -84,27 +85,29 @@ namespace adsim {
       {"reaction_generation", "Reaction generation", "generated", "mol", "reaction",
        "Moles of the component the reactions made in the bed over the cycle (negative when consumed).", true,
        false, false, true},
-      // Diagnostics: the same KPIs from the quadratures, and the cycle mole balance.
-      {"quadrature_purity", "Purity (quadrature)", "purity (quad.)", "mol/mol", "purity",
-       "Purity from the KPI quadratures instead of the trapezoid over the logged samples; NaN when the quadratures "
-       "were off.", false, false, true},
-      {"quadrature_recovery", "Recovery (quadrature)", "recovery (quad.)", "mol/mol", "recovery",
-       "Recovery from the KPI quadratures; NaN when the quadratures were off.", false, false, true},
-      {"quadrature_productivity_mass", "Productivity per adsorbent mass (quadrature)", "productivity mass (quad.)",
-       "kg/(kg s)", "productivity", "Productivity per kilogram of adsorbent from the KPI quadratures.", false, false,
-       true},
-      {"quadrature_productivity_volume", "Productivity per bed volume (quadrature)", "productivity volume (quad.)",
-       "kg/(m3 s)", "productivity", "Productivity per cubic metre of bed from the KPI quadratures.", false, false,
-       true},
-      {"quadrature_energy_consumption", "Specific energy (quadrature)", "energy (quad.)", "J/kg", "energy",
-       "Compressor and vacuum-pump work per kilogram of net product from the KPI quadratures.", false, false, true},
-      {"quadrature_production_rate", "Production rate (quadrature)", "production rate (quad.)", "mol/s",
-       "productivity", "Production rate from the KPI quadratures.", false, false, true},
+      // Diagnostics: the same KPIs from the trapezoid over the logged samples, and the cycle mole balance.
+      {"trapezoid_purity", "Purity (trapezoid)", "purity (trap.)", "mol/mol", "purity",
+       "Purity from the trapezoid over the logged endpoint samples instead of the KPI quadratures (the reported "
+       "basis); equal to purity when the quadratures were off.", false, false, true},
+      {"trapezoid_recovery", "Recovery (trapezoid)", "recovery (trap.)", "mol/mol", "recovery",
+       "Recovery from the trapezoid over the logged endpoint samples.", false, false, true},
+      {"trapezoid_productivity_mass", "Productivity per adsorbent mass (trapezoid)", "productivity mass (trap.)",
+       "kg/(kg s)", "productivity", "Productivity per kilogram of adsorbent from the trapezoid over the logged "
+       "samples.", false, false, true},
+      {"trapezoid_productivity_volume", "Productivity per bed volume (trapezoid)", "productivity volume (trap.)",
+       "kg/(m3 s)", "productivity", "Productivity per cubic metre of packed bed from the trapezoid over the logged "
+       "samples.", false, false, true},
+      {"trapezoid_energy_consumption", "Specific energy (trapezoid)", "energy (trap.)", "J/kg", "energy",
+       "Compressor and vacuum-pump work per kilogram of net product from the trapezoid over the logged samples.",
+       false, false, true},
+      {"trapezoid_production_rate", "Production rate (trapezoid)", "production rate (trap.)", "mol/s",
+       "productivity", "Production rate from the trapezoid over the logged samples.", false, false, true},
       {"mass_balance_error", "Mole balance error", "mass balance error", "mol/mol", "balance",
        "Cycle mole balance of the component as a fraction of the moles that entered (zero for exact conservation), "
-       "with the endpoint flows from the trapezoid; NaN without the quadratures.", false, false, true},
-      {"quadrature_mass_balance_error", "Mole balance error (quadrature)", "mass balance error (quad.)", "mol/mol",
-       "balance", "Cycle mole balance error with the endpoint flows from the KPI quadratures.", false, false, true},
+       "with the endpoint flows from the KPI quadratures; NaN without the quadratures.", false, false, true},
+      {"trapezoid_mass_balance_error", "Mole balance error (trapezoid)", "mass balance error (trap.)", "mol/mol",
+       "balance", "Cycle mole balance error with the endpoint flows from the trapezoid over the logged samples.",
+       false, false, true},
     };
     return kpis;
   }
