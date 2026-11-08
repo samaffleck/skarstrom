@@ -580,6 +580,21 @@ PYBIND11_MODULE(_core, m) {
                     "distance / state_tolerance (nan if not estimated or the state test is off)")
       .def_readonly("distance_note", &adsim::CSSRecord::distance_note,
                     "Why the distance was not estimated (empty when it was)")
+      .def_readonly("newton_iterations", &adsim::CSSRecord::newton_iterations,
+                    "Newton-Krylov acceleration: Newton steps of the solve made after this cycle "
+                    "(-1 when there was none)")
+      .def_readonly("newton_cycles", &adsim::CSSRecord::newton_cycles,
+                    "Newton-Krylov acceleration: extra cycles (cycle equivalents) that solve ran")
+      .def_readonly("newton_residuals", &adsim::CSSRecord::newton_residuals,
+                    "Newton-Krylov acceleration: the residual |G(x) - x| at each Newton iterate, the start "
+                    "first, in the norm of state_change")
+      .def_readonly("newton_krylov_vectors", &adsim::CSSRecord::newton_krylov_vectors,
+                    "Newton-Krylov acceleration: Krylov vectors (one cycle each) per Newton step")
+      .def_readonly("floquet_multiplier", &adsim::CSSRecord::floquet_multiplier,
+                    "Newton-Krylov acceleration: the dominant Floquet multiplier of the cycle map, estimated "
+                    "from the last Krylov basis (nan if not estimated)")
+      .def_readonly("newton_outcome", &adsim::CSSRecord::newton_outcome,
+                    "Newton-Krylov acceleration: why the solve ended")
       .def("__repr__", [](const adsim::CSSRecord& c) {
         return "<CSSRecord cycle=" + std::to_string(c.cycle) + (c.converged ? " converged" : "") +
                " error=" + std::to_string(c.error) + ">";

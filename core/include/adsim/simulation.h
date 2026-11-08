@@ -143,6 +143,17 @@ namespace adsim {
     double distance = std::numeric_limits<double>::quiet_NaN();
     double distance_ratio = std::numeric_limits<double>::quiet_NaN();
     std::string distance_note;
+    // Newton-Krylov acceleration only (settings.acceleration_method
+    // newton_krylov): the solve made after this cycle
+    // (AccelerateCyclicSteadyState::NewtonRecords). -1
+    // iterations: no solve. Residuals are in the state test's norm, the start
+    // first; newton_cycles are the extra cycles it ran.
+    int newton_iterations = -1;
+    int newton_cycles = 0;
+    std::vector<double> newton_residuals;
+    std::vector<int> newton_krylov_vectors;
+    double floquet_multiplier = std::numeric_limits<double>::quiet_NaN();
+    std::string newton_outcome;
   };
 
   struct TimeSeries {

@@ -777,7 +777,8 @@ class Settings(_Node):
     warn_history_truncated = Boolean()
     """Run health: warn when the log keeps fewer cycles than the diagnostics read (HISTORY_TRUNCATED)."""
     acceleration_method = Choice()
-    """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation) or "anderson"."""
+    """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation), "anderson" or
+    "newton_krylov" (Newton-Krylov with finite-difference Jacobian-vector products)."""
 
 
 class CSS(_Node):
