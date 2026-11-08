@@ -203,7 +203,80 @@ and vs paper model (5.81, 9.7); D1 all four (3.02 / 3.39 / 2.02 / 2.69 against
 Open: the four-step decks' equal split (weight 0.5) of the two evacuation
 terms was chosen on A under the old (total-voidage) holdup (see "Attribution
 runs"); it has not been re-checked with the gas in the bed voids only. The
-decks keep 0.5 until that is done.
+decks keep 0.5; the check is the next subsection.
+
+### Attribution runs after the holdup change (2026-11-08)
+
+The split of the two evacuation terms was chosen on A under the total-voidage
+holdup. This re-runs it on the decks that hold gas in the bed voids only: all
+six cases at weight 0.3 / 0.4 / 0.5 / 0.6 / 0.7 of the slow term, through the
+fixture itself (the environment variable `ADSIM_PEREZ_EVAC_WEIGHT` overrides the
+default 0.5 for one run; a run with it set prints an `[ATTRIB]` line and neither
+asserts the tolerances nor re-saves a deck; no deck and no default changed).
+[`perez_attribution.py`](perez_attribution.py) produces the table (run from
+`core/`, `--binary` the `AdsorptionSimulatorTests` executable). Differences are
+model minus reference in percentage points, against the experiment and the paper
+model of Table 3, at the CSS of the state-test rule (WENO, 80 cells, feed-loaded
+start). The 0.5 rows reproduce the bold errors of the bounds above. Wall time is
+one 4-core machine running four cases at once, so read it as relative.
+Productivity is the model's CO₂ mass productivity [kg/(kg adsorbent h)]; Table 3
+values for it are not in `reference_values.csv`, so it has no difference column.
+Energy is n/a: the decks have no pump or compressor model. The fixture does not
+compare the evacuation pressure trace (there is no digitised profile; see the
+open item above), so there is no trace error.
+
+| Case | split | CSS cycles | wall [s] | purity | recovery | productivity [kg/(kg h)] | energy [MJ/kg] | purity - exp | recovery - exp | purity - model | recovery - model |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| A | 0.3 | 50 | 36 | 99.33 | 64.05 | 0.1414 | n/a | -0.37 | +5.35 | +0.03 | +4.05 |
+| A | 0.4 | 49 | 36 | 99.44 | 62.13 | 0.1370 | n/a | -0.26 | +3.43 | +0.14 | +2.13 |
+| A | 0.5 | 48 | 35 | 99.55 | 60.14 | 0.1324 | n/a | -0.15 | +1.44 | +0.25 | +0.14 |
+| A | 0.6 | 48 | 34 | 99.65 | 58.07 | 0.1277 | n/a | -0.05 | -0.63 | +0.35 | -1.93 |
+| A | 0.7 | 47 | 33 | 99.75 | 55.91 | 0.1228 | n/a | +0.05 | -2.79 | +0.45 | -4.09 |
+| B | 0.3 | 59 | 33 | 96.63 | 65.75 | 0.1074 | n/a | +0.53 | +3.95 | +1.43 | +1.65 |
+| B | 0.4 | 58 | 33 | 96.80 | 63.90 | 0.1042 | n/a | +0.70 | +2.10 | +1.60 | -0.20 |
+| B | 0.5 | 57 | 33 | 96.96 | 62.03 | 0.1009 | n/a | +0.86 | +0.23 | +1.76 | -2.07 |
+| B | 0.6 | 56 | 34 | 97.12 | 60.14 | 0.0977 | n/a | +1.02 | -1.66 | +1.92 | -3.96 |
+| B | 0.7 | 55 | 33 | 97.28 | 58.21 | 0.0944 | n/a | +1.18 | -3.59 | +2.08 | -5.89 |
+| C1 | 0.3 | 68 | 29 | 88.01 | 67.19 | 0.0691 | n/a | -0.09 | +2.59 | +4.61 | -1.01 |
+| C1 | 0.4 | 66 | 28 | 88.22 | 64.79 | 0.0663 | n/a | +0.12 | +0.19 | +4.82 | -3.41 |
+| C1 | 0.5 | 65 | 28 | 88.43 | 62.39 | 0.0637 | n/a | +0.33 | -2.21 | +5.03 | -5.81 |
+| C1 | 0.6 | 63 | 27 | 88.62 | 59.99 | 0.0610 | n/a | +0.52 | -4.61 | +5.22 | -8.21 |
+| C1 | 0.7 | 62 | 27 | 88.82 | 57.59 | 0.0583 | n/a | +0.72 | -7.01 | +5.42 | -10.61 |
+| D1 | 0.3 | 94 | 36 | 93.98 | 89.77 | 0.0563 | n/a | -3.12 | +3.67 | -2.12 | +2.97 |
+| D1 | 0.4 | 93 | 37 | 94.03 | 89.63 | 0.0562 | n/a | -3.07 | +3.53 | -2.07 | +2.83 |
+| D1 | 0.5 | 92 | 35 | 94.08 | 89.48 | 0.0561 | n/a | -3.02 | +3.39 | -2.02 | +2.69 |
+| D1 | 0.6 | 91 | 35 | 94.13 | 89.34 | 0.0560 | n/a | -2.97 | +3.24 | -1.97 | +2.54 |
+| D1 | 0.7 | 90 | 35 | 94.18 | 89.19 | 0.0560 | n/a | -2.92 | +3.09 | -1.92 | +2.39 |
+| E | 0.3 | 203 | 66 | 87.07 | 94.20 | 0.0428 | n/a | -1.43 | +2.50 | -3.33 | +3.10 |
+| E | 0.4 | 199 | 64 | 87.16 | 94.06 | 0.0427 | n/a | -1.34 | +2.36 | -3.24 | +2.96 |
+| E | 0.5 | 195 | 62 | 87.25 | 93.92 | 0.0426 | n/a | -1.25 | +2.22 | -3.15 | +2.82 |
+| E | 0.6 | 192 | 61 | 87.34 | 93.77 | 0.0426 | n/a | -1.16 | +2.07 | -3.06 | +2.67 |
+| E | 0.7 | 188 | 60 | 87.43 | 93.63 | 0.0425 | n/a | -1.07 | +1.93 | -2.97 | +2.53 |
+| F | 0.3 | 489 | 144 | 76.38 | 97.52 | 0.0409 | n/a | -1.32 | +1.92 | -3.52 | +2.92 |
+| F | 0.4 | 463 | 137 | 76.59 | 97.36 | 0.0408 | n/a | -1.11 | +1.76 | -3.31 | +2.76 |
+| F | 0.5 | 438 | 128 | 76.78 | 97.21 | 0.0408 | n/a | -0.92 | +1.61 | -3.12 | +2.61 |
+| F | 0.6 | 416 | 121 | 76.98 | 97.04 | 0.0407 | n/a | -0.72 | +1.44 | -2.92 | +2.44 |
+| F | 0.7 | 396 | 112 | 77.17 | 96.88 | 0.0406 | n/a | -0.53 | +1.28 | -2.73 | +2.28 |
+
+**Reading.** 0.5 remains the best compromise. Recovery is linear in the split
+(about -2.0 pp per 0.1 on A and C1, -1.9 on B) and purity moves 0.1-0.2 pp per
+0.1, so the question is where each four-step case crosses its experiment: A at
+about 0.57 (recovery -0.63 pp at 0.6, +1.44 at 0.5), B at about 0.51 (+0.23 at
+0.5) and C1 at about 0.41 (+0.19 at 0.4, -2.21 at 0.5). The mean absolute
+recovery error against the experiment over A, B and C1 is 3.96 / 1.91 / 1.29 /
+2.30 / 4.46 pp at 0.3 / 0.4 / 0.5 / 0.6 / 0.7, so no split fits A better without
+worsening B or C1: 0.6 fixes A by 0.8 pp and costs B 1.4 pp and C1 2.4 pp, 0.4
+fixes C1 by 2.0 pp and costs A 2.0 pp and B 1.9 pp. Against the paper model's
+recovery 0.5 is not the minimum (mean 1.91 pp at 0.4 against 2.67 at 0.5), but
+that is C1's 68.2 % model value, which its own repeat experiment (71.9 %) does
+not support; purity prefers a higher split on A (+0.05 pp at 0.7) and a lower
+one on C1, by under 0.5 pp either way. The LPP cases D1, E and F barely respond
+(recovery and purity move by 0.2-0.8 pp over the whole range, towards the
+experiment as the split rises, and their 2.2-3.7 pp recovery excess stays), but
+the slow-term weight shortens their approach to CSS (F 489 cycles at 0.3, 396 at
+0.7). Recommendation: keep 0.5; the one case that would move a split is C1 (0.4
+or lower), whose experiment and repeat disagree by 7 pp, so digitising Fig. 6(c)
+remains the way to pin it.
 
 ### Gas heat capacity as in the paper (2026-11)
 
