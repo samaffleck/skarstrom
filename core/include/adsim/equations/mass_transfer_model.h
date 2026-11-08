@@ -38,12 +38,14 @@ namespace adsim {
 	
 	enum class MassTransferModelType {
 		LDF,
-		LDF2
+		LDF2,
+		DUAL_RATE_LDF  // appended: stored enum values never change
 	};
 
 	static const char* RateModelTypeList[] =  {
 		"Linear Driving Force (1st Order)",
-		"Linear Driving Force (2nd Order)"
+		"Linear Driving Force (2nd Order)",
+		"Dual-Rate Linear Driving Force"
 	};
 
 	enum class MassTransferCoefficientType {
@@ -293,12 +295,23 @@ namespace adsim {
 		// the resulting dq/dt, so they stay consistent automatically.
 		virtual double Rate(double q_star, double q, double k) const = 0;
 
-		void EvaluateExpressions(const EvalContext& ctx) {
+		virtual void EvaluateExpressions(const EvalContext& ctx) {
 			if (mtc_model_) mtc_model_->EvaluateExpressions(ctx);
 		}
-		void CompileForRun(const UserVariableRegistry* registry) {
+		virtual void CompileForRun(const UserVariableRegistry* registry) {
 			if (mtc_model_) mtc_model_->CompileForRun(registry);
 		}
+
+		// Dual-rate models: the fraction of the equilibrium loading held by the
+		// fast site (1 for the single-site models) and the slow site's
+		// coefficient model (null for the single-site models).
+		virtual double FastSiteFraction() const { return 1.0; }
+		virtual IMassTransferCoefficientModel* SlowCoefficientModel() { return nullptr; }
+		// True when the model carries a second (slow-site) loading in the state:
+		// a dual-rate model whose fast-site fraction is below 1. At a fraction
+		// of 1 the slow site holds nothing and the model is the plain LDF, with
+		// no extra unknown, so its results are those of the LDF exactly.
+		bool HasSlowSite() const { return FastSiteFraction() < 1.0; }
 
     std::unique_ptr<IMassTransferCoefficientModel> mtc_model_;
 
@@ -357,11 +370,78 @@ namespace adsim {
 		}
 	};
 
+	// Dual-rate linear driving force: two parallel LDF sites sharing the
+	// component's equilibrium loading q* (its isotherm). The fast site holds
+	// the fraction phi of it, the slow site the rest:
+	//   dq1/dt = k1 (phi q* - q1),   dq2/dt = k2 ((1 - phi) q* - q2),
+	// and the component's loading is q = q1 + q2. The state keeps the total q
+	// (what the mass and energy balances, the KPIs and the logs read) and the
+	// slow-site loading q2, so the total's rate is
+	//   dq/dt = k1 (phi q* - (q - q2)) + k2 ((1 - phi) q* - q2).
+	// k1 comes from mtc_model_, k2 from slow_mtc_model_, a coefficient model of
+	// the same kind with its own values (the kind switch keeps the two kinds
+	// equal). At phi = 1 the model is the first-order LDF with k = k1 and adds
+	// no unknown (HasSlowSite() is false). Used for the slow uptake tails of
+	// amine sorbents at direct-air-capture concentrations (Stampi-Bombelli et
+	// al. 2024, Ind. Eng. Chem. Res. 63, 11637, doi:10.1021/acs.iecr.4c01392).
+	class DualRateLinearDrivingForce : public IMassTransferModel {
+	public:
+		DualRateLinearDrivingForce();
+
+		MassTransferModelType GetModelType() override { return MassTransferModelType::DUAL_RATE_LDF; }
+
+		// The single-site rate (phi = 1): k (q* - q). With a slow site the
+		// residual uses FastRate and SlowRate instead.
+		double Rate(double q_star, double q, double k) const override { return k * (q_star - q); }
+		// Rates of the two sites for total loading q and slow-site loading q2.
+		static double FastRate(double phi, double q_star, double q, double q2, double k1) {
+			return k1 * (phi * q_star - (q - q2));
+		}
+		static double SlowRate(double phi, double q_star, double q2, double k2) {
+			return k2 * ((1.0 - phi) * q_star - q2);
+		}
+
+		double FastSiteFraction() const override { return split_.Get(); }
+		IMassTransferCoefficientModel* SlowCoefficientModel() override { return slow_mtc_model_.get(); }
+
+		void EvaluateExpressions(const EvalContext& ctx) override {
+			IMassTransferModel::EvaluateExpressions(ctx);
+			split_.Evaluate(ctx);
+			if (slow_mtc_model_) slow_mtc_model_->EvaluateExpressions(ctx);
+		}
+		void CompileForRun(const UserVariableRegistry* registry) override {
+			IMassTransferModel::CompileForRun(registry);
+			if (slow_mtc_model_) slow_mtc_model_->CompileForRun(registry);
+		}
+
+		// Makes the slow site's coefficient model the same kind as the fast
+		// site's: a missing one becomes a copy of the fast site's values, one of
+		// another kind is replaced keeping the parameters the two kinds share
+		// (name and unit), the rest from the fast site. Returns true when it
+		// changed anything.
+		bool SyncSlowSite();
+
+		ExpressionParam split_{1.0};  // phi, fast-site fraction of q*, in (0, 1]
+		std::unique_ptr<IMassTransferCoefficientModel> slow_mtc_model_;
+
+	private:
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const /*version*/) {
+			ar(
+				cereal::virtual_base_class<IMassTransferModel>(this),
+				cereal::make_nvp("Split", split_),
+				cereal::make_nvp("Slow_Mass_Transfer_Coefficient_Model", slow_mtc_model_)
+			);
+		}
+	};
+
 	// Factory functions
 	inline std::unique_ptr<IMassTransferModel> CreateMassTransferModel(MassTransferModelType type) {
 		switch (type) {
 		case MassTransferModelType::LDF: return std::make_unique<LinearDrivingForce>();
 		case MassTransferModelType::LDF2: return std::make_unique<LinearDrivingForceSecondOrder>();
+		case MassTransferModelType::DUAL_RATE_LDF: return std::make_unique<DualRateLinearDrivingForce>();
 		default: return nullptr;
 		}
 	}
@@ -390,3 +470,4 @@ CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeCapacity, 2);
 CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientArrhenius, 3);
 CEREAL_CLASS_VERSION(adsim::LinearDrivingForce, 1);
 CEREAL_CLASS_VERSION(adsim::LinearDrivingForceSecondOrder, 1);
+CEREAL_CLASS_VERSION(adsim::DualRateLinearDrivingForce, 1);

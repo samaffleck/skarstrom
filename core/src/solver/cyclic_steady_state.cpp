@@ -221,6 +221,11 @@ namespace adsim {
           last_row(component(prev, ComponentVariableType::ADSORBED_CONCENTRATION, name)), loading_scale);
       add(last_row(component(curr, ComponentVariableType::MOLE_FRACTION, name)),
           last_row(component(prev, ComponentVariableType::MOLE_FRACTION, name)), 1.0);
+      // The slow-site loading of a dual-rate LDF component: a state of its
+      // own, which can still drift while the total loading looks settled.
+      // Not logged (no-op) for decks without one.
+      add(last_row(component(curr, ComponentVariableType::SLOW_ADSORBED_CONCENTRATION, name)),
+          last_row(component(prev, ComponentVariableType::SLOW_ADSORBED_CONCENTRATION, name)), loading_scale);
     }
     return change;
   }

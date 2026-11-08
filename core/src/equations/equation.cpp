@@ -268,6 +268,37 @@ namespace adsim {
       }
     }
 
+    // Slow-site loadings of the dual-rate LDF components (only those whose
+    // fast-site fraction is below 1), after every total loading: a deck
+    // without one keeps its layout exactly.
+    ads_concentration_slow.clear();
+    fast_site_fraction_.clear();
+    for (AdsorbentID ads_id : adsorbent_ids_) {
+      if (!dir.Contains(ads_id)) continue;
+      const auto& models = dir.Get(ads_id).adsorption_source_.mass_transfer_models_;
+      const std::vector<bool>* mask = GetAdsorbentMask(ads_id);
+      for (const auto& component : fluid.components_) {
+        auto m = models.find(component);
+        if (m == models.end() || !m->second || !m->second->HasSlowSite()) continue;
+        auto& comp_map = ads_concentration_slow[ads_id];
+        auto [it, inserted] = comp_map.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(component),
+          std::forward_as_tuple(
+            component + " Slow Adsorbed Concentration",
+            CellType::CellCentre,
+            EquationType::Differential,
+            [ads_id, component](UserData* udata) { UpdateSlowAdsorbedConcentration(udata, ads_id, component); },
+            1e-8
+          )
+        );
+        it->second.SetDomain(EquationDomain::PorousMediaOnly);
+        it->second.SetActiveMask(mask);
+        equations_.emplace_back(&it->second);
+        fast_site_fraction_[ads_id][component] = m->second->FastSiteFraction();
+      }
+    }
+
     molar_concentration.clear();
     for (const auto& component : fluid.components_) {
       auto [it, inserted] = molar_concentration.emplace(
@@ -328,6 +359,24 @@ namespace adsim {
             component + " Mass Transfer Coefficient",
             CellType::CellCentre,
             [ads_id, component](UserData* udata) { UpdateMassTransferCoefficient(udata, ads_id, component); }
+          )
+        );
+        independent_equations_.emplace_back(&it->second);
+      }
+    }
+
+    slow_mass_transfer_coefficient.clear();
+    for (const auto& [ads_id, slow_map] : ads_concentration_slow) {
+      auto& comp_map = slow_mass_transfer_coefficient[ads_id];
+      for (const auto& component : fluid.components_) {
+        if (slow_map.find(component) == slow_map.end()) continue;
+        auto [it, inserted] = comp_map.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(component),
+          std::forward_as_tuple(
+            component + " Slow Mass Transfer Coefficient",
+            CellType::CellCentre,
+            [ads_id, component](UserData* udata) { UpdateSlowMassTransferCoefficient(udata, ads_id, component); }
           )
         );
         independent_equations_.emplace_back(&it->second);
@@ -543,6 +592,23 @@ namespace adsim {
         eq.SetInitialConditions(qi_0);
       }
     }
+    // The slow site holds (1 - phi) of the initial loading.
+    for (auto& [ads_id, comp_map] : ads_concentration_slow) {
+      for (auto& [component, eq] : comp_map) {
+        double qi_0 = 0.0;
+        if (ic.adsorbed_concentration.find(component) != ic.adsorbed_concentration.end()) {
+          qi_0 = ic.adsorbed_concentration.at(component);
+        }
+        eq.SetInitialConditions((1.0 - FastSiteFraction(ads_id, component)) * qi_0);
+      }
+    }
+  }
+
+  double Equations::FastSiteFraction(AdsorbentID id, const Component& component) const {
+    auto a = fast_site_fraction_.find(id);
+    if (a == fast_site_fraction_.end()) return 1.0;
+    auto c = a->second.find(component);
+    return c == a->second.end() ? 1.0 : c->second;
   }
 
   void Equations::SetAdsorbedPhaseInitialConditions() {
@@ -555,6 +621,17 @@ namespace adsim {
         for (size_t i = 0; i < qi_eq.size(); ++i) {
           qi_eq[i] = qi_sat_eq[i];
           ads_eq.ddt_var[i] = 0.0;  // Initial time derivative is zero
+        }
+      }
+    }
+    // Each site in equilibrium with its share of q*.
+    for (auto& [ads_id, comp_map] : ads_concentration_slow) {
+      for (auto& [component, slow_eq] : comp_map) {
+        const double share = 1.0 - FastSiteFraction(ads_id, component);
+        const auto& qi_sat_eq = eq_ads_concentration.at(ads_id).at(component).var;
+        for (size_t i = 0; i < slow_eq.var.size(); ++i) {
+          slow_eq.var[i] = share * qi_sat_eq[i];
+          slow_eq.ddt_var[i] = 0.0;
         }
       }
     }

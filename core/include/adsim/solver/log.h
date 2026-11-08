@@ -110,7 +110,10 @@ namespace adsim {
     COMPONENT_ENERGY_SOURCE,
     COMPONENT_MOLAR_CONCENTRATION,
     MASS_TRANSFER_COEFFICIENT,
-    MOLECULAR_DIFFUSION
+    MOLECULAR_DIFFUSION,
+    // Slow-site loading q2 of a dual-rate LDF component (logged only when the
+    // deck has one; 0 for the components without a slow site).
+    SLOW_ADSORBED_CONCENTRATION
   };
 
   // Variables that only have physical meaning in packed-bed cells; the plotter
@@ -123,6 +126,7 @@ namespace adsim {
   inline constexpr bool IsPorousOnlyComponentVariable(ComponentVariableType t) {
     return t == ComponentVariableType::ADSORBED_CONCENTRATION
         || t == ComponentVariableType::EQUILIBRIUM_ADSORBED_CONCENTRATION
+        || t == ComponentVariableType::SLOW_ADSORBED_CONCENTRATION
         || t == ComponentVariableType::MASS_TRANSFER_COEFFICIENT;
   }
 
@@ -164,13 +168,14 @@ namespace adsim {
     "Component Energy Source",
     "Component Molar Concentration",
     "Mass Transfer Coefficient",
-    "Molecular Diffusion"
+    "Molecular Diffusion",
+    "Slow Adsorbed Concentration"
   };
 
   // Indexed by ComponentVariableType: a spare name would show up in the UI as
   // an option that maps to no enum value.
   static_assert(std::size(ComponentVariableTypeList) ==
-                    static_cast<size_t>(ComponentVariableType::MOLECULAR_DIFFUSION) + 1,
+                    static_cast<size_t>(ComponentVariableType::SLOW_ADSORBED_CONCENTRATION) + 1,
                 "ComponentVariableTypeList must have one entry per ComponentVariableType");
 
   std::string GetVariableUnits(VariableType variable);

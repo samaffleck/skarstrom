@@ -185,6 +185,10 @@ namespace adsim {
       return isothermal_ ? std::optional<double>(isothermal_temperature_) : std::nullopt;
     }
     void SetAdsorbedPhaseInitialConditions();
+    // The fast-site fraction phi of a dual-rate pair with a slow site (1 for
+    // any other pair), as fixed when the layout was built.
+    double FastSiteFraction(AdsorbentID id, const Component& component) const;
+    bool HasSlowSites() const { return !ads_concentration_slow.empty(); }
     void SetID(sunrealtype* id);
     void Pack(sunrealtype* y_data, sunrealtype* yp_data) const;
     void PackResiduals(sunrealtype* res_data) const;
@@ -224,6 +228,11 @@ namespace adsim {
     Equation velocity{ "Velocity", CellType::CellFace, EquationType::Algebraic, UpdateVelocity, 1e-6 };
     ComponentEquation mole_fraction;
     AdsorbentComponentEquation ads_concentration; // Actual adsorbed conc (rate equation), per adsorbent
+    // Slow-site loading q2 of the dual-rate LDF components (rate equation), per
+    // adsorbent: only the (adsorbent, component) pairs whose model has a slow
+    // site (IMassTransferModel::HasSlowSite); empty for every other deck. The
+    // total loading stays in ads_concentration.
+    AdsorbentComponentEquation ads_concentration_slow;
 
     // Independent equations - not used in solver
     IndependentEquation total_mole_fraction{ "Total Mole Fraction", CellType::CellCentre, UpdateTotalMoleFraction };
@@ -248,6 +257,7 @@ namespace adsim {
     IndependentEquation axial_dispersion_coefficient{ "Axial Dispersion Coefficient", CellType::CellCentre, UpdateAxialDispersionCoefficient };
     ComponentIndependentEquation molar_concentration;
     AdsorbentComponentIndependentEquation mass_transfer_coefficient; // per adsorbent
+    AdsorbentComponentIndependentEquation slow_mass_transfer_coefficient; // slow-site k2, same pairs as ads_concentration_slow
     ComponentIndependentEquation molecular_diffusion;
     AdsorbentComponentIndependentEquation eq_ads_concentration; // Equilibrium adsorbed conc (from isotherm), per adsorbent
     ComponentIndependentEquation component_mass_source;
@@ -269,6 +279,8 @@ namespace adsim {
     // handed to the per-adsorbent loading equations via SetActiveMask().
     std::vector<AdsorbentID> adsorbent_ids_;
     std::unordered_map<AdsorbentID, std::vector<bool>> adsorbent_cell_mask_;
+    // phi of the pairs in ads_concentration_slow (see FastSiteFraction).
+    std::unordered_map<AdsorbentID, std::unordered_map<Component, double>> fast_site_fraction_;
     // Stable pointer tables for residual loops. They point to vector objects,
     // whose storage can resize without invalidating the table.
     std::unordered_map<AdsorbentID, size_t> adsorbent_slot_;

@@ -142,9 +142,17 @@ namespace adsim {
   // (RemapCycleState) and stretches its histories (ResampleCycleStateHistories).
   std::string CycleStateIncompatibility(const CycleState& state, UserData& data);
 
-  // True when the state's cells per layer differ from the deck's, i.e. the
-  // state must be remapped (RemapCycleState) before it can start a run.
+  // True when the state's cells per layer differ from the deck's, or its
+  // slow-site loadings (CycleStateSlowSitesDiffer), i.e. the state must be
+  // remapped (RemapCycleState) before it can start a run.
   bool CycleStateNeedsRemap(const CycleState& state, const UserData& data);
+
+  // True when the state's slow-site loadings (dual-rate LDF components with a
+  // fast-site fraction below 1) are not those the deck needs: a split moved to
+  // or from 1, or a rate model switched. RemapCycleState then gives a new slow
+  // site its share (1 - phi) of the total loading and drops one the deck no
+  // longer has (the total loading keeps the inventory).
+  bool CycleStateSlowSitesDiffer(const CycleState& state, const UserData& data);
 
   // The state transferred onto the deck's grid (its cells per layer), for a
   // state that passes CycleStateIncompatibility. Initialises data.state (as a

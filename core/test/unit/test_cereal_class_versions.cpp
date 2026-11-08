@@ -158,6 +158,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::MassTransferCoefficientArrhenius, 3),
       ADSIM_PIN(adsim::LinearDrivingForce, 1),
       ADSIM_PIN(adsim::LinearDrivingForceSecondOrder, 1),
+      ADSIM_PIN(adsim::DualRateLinearDrivingForce, 1),
       ADSIM_PIN(adsim::IReactionRate, 1),
       ADSIM_PIN(adsim::PowerLawRate, 1),
       ADSIM_PIN(adsim::ReversiblePowerLawRate, 1),

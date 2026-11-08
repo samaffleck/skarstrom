@@ -37,7 +37,13 @@ P MolecularDiffusivity() {
 
 const std::vector<K>& RateModels() {
   static const std::vector<K> k{{"ldf", "Linear Driving Force (1st Order)", {}},
-                                {"ldf2", "Linear Driving Force (2nd Order)", {}}};
+                                {"ldf2", "Linear Driving Force (2nd Order)", {}},
+                                // Two parallel LDF sites sharing q*: the fast one holds split * q*.
+                                // The slow site's coefficient is a second coefficient model of the
+                                // same kind (registry leaves "slow_<name>", SlowSiteParameter).
+                                {"dual_rate_ldf",
+                                 "Dual-Rate Linear Driving Force",
+                                 {{"split", "-", 1.0, 0.01, 1.0, true, "fast-site fraction"}}}};
   return k;
 }
 
@@ -541,6 +547,41 @@ const IsothermKindDescriptor& IsothermKind(IsothermType type) {
 }
 
 // ---- field bindings ---------------------------------------------------------------------
+
+ModelFieldList ModelFields(IMassTransferModel* m) {
+  ModelFieldList out;
+  if (auto* d = dynamic_cast<DualRateLinearDrivingForce*>(m)) out = {{"split", &d->split_}};
+  return out;
+}
+
+KindParameter SlowSiteParameter(const KindParameter& p) {
+  KindParameter out = p;
+  out.name = kSlowSitePrefix + p.name;
+  out.label = "slow-site " + p.Label();
+  return out;
+}
+
+const KindDescriptor* SlowSiteKind(IMassTransferModel* model) {
+  IMassTransferCoefficientModel* slow = model ? model->SlowCoefficientModel() : nullptr;
+  if (!slow) return nullptr;
+  // One renamed copy per coefficient kind, built on first use.
+  static const std::vector<K> renamed = [] {
+    std::vector<K> out = KindDescriptors(ModelFamily::RateCoefficient);
+    for (auto& k : out)
+      for (auto& p : k.parameters) p = SlowSiteParameter(p);
+    return out;
+  }();
+  const auto i = static_cast<std::size_t>(slow->GetModelType());
+  return i < renamed.size() ? &renamed[i] : nullptr;
+}
+
+ModelFieldList SlowSiteFields(IMassTransferModel* model) {
+  ModelFieldList out;
+  IMassTransferCoefficientModel* slow = model ? model->SlowCoefficientModel() : nullptr;
+  if (!slow) return out;
+  for (auto& [name, p] : ModelFields(slow)) out.emplace_back(kSlowSitePrefix + name, p);
+  return out;
+}
 
 ModelFieldList ModelFields(IMassTransferCoefficientModel* m) {
   ModelFieldList out;
