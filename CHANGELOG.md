@@ -8,6 +8,255 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-11-08
+
+### Added
+- Agent guide at the top of the "Using Skarstrom" half of `AGENTS.md`: check `skarstrom --version` and read the matching docs, prefer the wheel, run a few cycles first, treat run-health warnings as wrong answers, read "Matching Another Model" before comparing with another model, and where the machine-readable pointers are.
+- The docs site publishes `llms.txt` (an index of the pages by nav section) and `llms-full.txt` (every page's Markdown in nav order), generated from the MkDocs nav by `scripts/docs/llms_txt_hook.py`. URLs follow `site_url`, so the released root and `/dev/` each point at themselves.
+
+### Added — CO2 isotherms that depend on adsorbed water
+- Two isotherm kinds for CO2 on sorbents where adsorbed water raises the CO2 capacity. In both, the CO2 loading depends on the adsorbed loading of the component named `Water` on the same adsorbent, in the same cell. Water keeps its own isotherm (for example `gab` or `gab_young`) and its own rate model.
+  - `toth_wadst` is the weighted-average dual-site Toth of Young et al. (2021, Energy Environ. Sci. 14, 5377), a dry and a wet temperature-dependent Toth site weighted by exp(-A / q_w).
+  - `toth_humid` is the humid Toth of Stampi-Bombelli, Storione and Mazzotti (2020, Adsorption 26, 1183; corrected 2022): Toth 2, with the capacity divided by (1 - gamma q_w) and the affinity multiplied by (1 + beta q_w).
+  - The defaults are the papers' Lewatit VP OC 1065 and APDES-NFC values. With no water adsorbed, or no `Water` component, each kind is its dry Toth exactly.
+- Isotherms can read the adsorbent's actual loadings (`IsothermUpdateParams::q_map`); only the new kinds use them.
+- At the start of a run, a deck with these kinds takes one more equilibrium pass, so CO2 starts in equilibrium with the initial water loading.
+- The IAST mixing rule rejects these kinds with a deck-check error. A deck that uses them without a `Water` component gets a warning.
+- The isotherm fitter supports both kinds. A point's water loading is `isofit::Point::q_w`, or `water_loading=` in `skarstrom.fit_isotherm`. Dry points fit the dry Toth and humid points fit the water terms; a block the data cannot identify is held.
+- `skarstrom.evaluate_isotherm` takes `water_loading=`, and `adsim::EvalIsotherm` and `IsostericHeat` take `q_water`.
+- Existing kinds and decks are unchanged.
+
+### Added — estimated distance to cyclic steady state
+- Every CSS check now estimates how far the run still is from the cyclic steady state: the convergence rate ρ from the decay of the last few end-of-cycle state changes, and the remaining distance ≈ last change × ρ/(1−ρ), in the norm of `css.state_tolerance` and as a multiple of it. It is reported in the solver's CSS log lines, as `distance_estimated`, `convergence_rate`, `distance`, `distance_ratio` and `distance_note` on `sim.css_history()` records, in the `css` entries of `skarstrom run --json` and in `css.csv`. The cycles right after an acceleration jump, and windows that are not a monotone decay, report "not estimated" with the reason.
+- A run that stops at CSS more than 100 state tolerances from it (by this estimate) logs a warning. The stopping rule is unchanged: no result moves.
+
+### Changed — the engine links IDAS instead of IDA
+- The `adsim` library now links SUNDIALS IDAS only (it was linked against IDA and IDAS, with IDA's copies of the shared entry points winning). IDAS has every IDA entry point, so runs are unchanged (the end state and the integrator counters of six example decks are bit-identical), and its forward sensitivities can act on the solver's own integrator.
+
+### Added — prototype: cycle-map Jacobian-vector products by forward sensitivities
+- Internal, experimental `CycleJacobianVector` (`adsim/solver/cycle_sensitivity.h`): one cycle of a single-bed deck without connections with IDAS forward sensitivities along given directions of the initial differential state, returning the end-of-cycle state and Φ_x·v. The sensitivities restart with the integrator at every step switch. `SolverData` gains a re-initialisation observer for it (null by default). Not exposed in Python. The measured cost and accuracy, and where it fails (across the step switches of a PSA cycle), are in the Cyclic Steady State page, "Cycle-map Jacobian by forward sensitivities".
+
+### Added — DAC breakthrough example and kinetics documentation
+- Example deck `Illustrative_DAC_Breakthrough` (script `examples/illustrative_dac_breakthrough.py`): an
+  isothermal 400 ppm CO₂ breakthrough on the Lewatit VP OC 1065 library adsorbent using the dual-rate LDF
+  and the series-resistance coefficient together. An integration test checks its mole balances, the early
+  front and slow tail, and that split = 1 with unit capacity factor and no micropore term reproduces the
+  LDF + Haynes run bit for bit.
+- `docs/kinetic-models.md` has a "Which to use for direct air capture" section and one notation for both
+  kinetic sections; `docs/python.md` and the deck-builder kind list name `dual_rate_ldf`,
+  `series_resistance` and `macropore_capacity`.
+
+### Added — complete deck-editing API
+- `adsim/objects/deck_edit.h` covers every structural edit a front end makes, each with its cascade: `AddLayer` / `RemoveLayer` / `MoveLayer`, `AddStep` / `RemoveStep` / `DuplicateStep` / `MoveStep`, `AddStream` / `RemoveStream`, `ConnectEndpoints`, and kind switches that keep every parameter the old and new kinds share (same name and unit): `SetIsothermKind`, `SetMassTransferKind`, `SetDispersionKind`, `SetHeatDispersionKind`, `SetInternalHeatTransferKind`, `SetExternalHeatTransferKind`, `SetParticleHeatTransferKind`, `SetBoundaryConditionKind`, `SetStreamKind`, `SetFlowKind`, `SetProfileKind`, `SetPumpKind`, `SetPumpEfficiencyKind`, `SetPumpPowerKind`. Also `EnsureIds` (stable IDs by first appearance, connection pair ids 1..N), `RepairConnections`, `PruneBufferTanks`, `SyncKpiConfigToComponents` / `PruneKpiConfig` and `FillDeckGaps`.
+- `adsim/objects/model_kinds.h`: one descriptor per model kind (tag, label, ordered parameters with unit, default, bounds and tunable flag; isotherms also carry their IAST family and fitter flags) and `ModelFields`, which binds a live model's parameters to the descriptor names.
+- Python: `sim.edit` (`skarstrom.Editor`) exposes the cascades by kind tag, and `skarstrom.model_kinds()` lists the descriptors.
+
+### Changed
+- The builder's `Connect` gives a new connection a pair id no other connection of the deck uses.
+
+### Added — deck view, view schema and display manifests for integrators
+- `adsim::DeckView` (`adsim/objects/deck_view.h`; Python `Simulation.deck_view()`): a read-only JSON view of a deck's structure. Each node carries the parameter-registry entries that belong to it (path, value, text, unit, bounds, choices, label). `DeckViewSchema()` (Python `skarstrom.deck_view_schema()`) is its JSON Schema, with the builder's kind names as enumerations.
+- Display manifests in `adsim/objects/manifests.h` and the Python package: KPIs (`kpi_manifest`), unit categories with suggested units resolved by the unit parser, plus `check_unit` (`unit_manifest`, `check_unit`), advisory warnings (`warning_manifest`), example decks (`example_manifest`, declared in `examples/example_decks.json`) and components (`component_manifest`). The unit parser exposes `UnitCategoryOf` and `UnitOverrideSymbols`.
+- Docs page "Deck View and Manifests".
+
+### Changed — CLI reads KPI columns and example families from the engine
+- The `run` KPI table and `kpis.csv` take their columns from the KPI manifest. The `kpis.csv` headers and order are unchanged; the terminal table now shows production rate before the energies. `skarstrom examples --json` takes each deck's family from the example manifest.
+
+### Added — documentation code blocks run in CI
+- `scripts/docs/run_doc_blocks.py` executes every Python and shell code block of `docs/*.md` and
+  `AGENTS.md` against the installed package and reports each block's file, line, result and time; CI runs
+  it in the Python wheel job (about 35 s, each run capped at 3 cycles). `--full` runs the uncapped set,
+  including blocks marked `<!-- long -->`, for a nightly run. `<!-- no-run -->` excludes a block and a
+  hidden `<!-- doc-setup -->` block defines what a fragment assumes; the convention is in AGENTS.md.
+
+### Fixed — documentation examples the engine rejected
+- A call to `sim.edit.set_pump_kind` on a valve stream, `sim.stream_series` with a wrong argument list and
+  an `evaluate_iast` call with a pressure array (AGENTS.md); a `fit_isotherm` example whose data were
+  overwritten by the example before it, and one that wrote a fit of one isotherm kind into a deck of
+  another (isotherm fitting); `enumerate(sim.steps)` formatted as a name (TSA regeneration); a variable
+  and pressure path the example deck does not have (global variables); the evacuation pressure path of the
+  NSGA-II example (parameterisation, Perez 2019); and several fragments that used
+  names no earlier block defined.
+
+### Changed — documentation site shows the latest release
+- The GitHub Pages root is built from the latest `v<semver>` tag with that tag's own configuration, so it
+  describes the installable wheel. `main` is previewed under `/dev/` with a "not on PyPI yet" announcement bar.
+  The site is rebuilt on every push to `main` and after every release.
+- Convention: documented new names carry a "New in X.Y" note (AGENTS.md); applied to the run-health page and
+  the `recovered_steps` statistic.
+
+### Added — dual-rate LDF rate model
+- New rate model `dual_rate_ldf`: two parallel LDF sites share the component's equilibrium loading. The fast site holds the fraction `split` of q*, the slow site the rest, and each site has its own coefficient model of the same kind (registry leaves `adsorbent[A].kinetics[C].split` and `slow_<name>`, e.g. `slow_k`). The slow-site loading is a new state variable. It has its own initial condition, it is part of the CSS state test and the warm-start remap, and it is logged as `slow_adsorbed_concentration`. With `split = 1` the model is the first-order LDF exactly, with no extra unknown. Use it for the slow uptake tails of direct-air-capture breakthroughs (Stampi-Bombelli et al. 2024, doi:10.1021/acs.iecr.4c01392). Decks that do not use the new model load and run unchanged.
+
+### Added — packed-bed film correlations
+- Each packed layer has one gas-particle film correlation, `layer[ID].film_correlation` (Python `layer.film_correlation`, builder `set_film_correlation`): `wakao_funazkri` (default), `gunn` (Gunn 1978) or `ranz_marshall` (Ranz and Marshall 1952). By the heat-mass analogy the same correlation gives the particle Nusselt number of the Film gas-solid heat transfer model and the Sherwood number of the Haynes rate coefficient's film resistance. The default is the Sherwood number used before, so existing decks give the same results bit for bit. Ranz-Marshall is a single-sphere correlation and the run log warns when a layer selects it. Sources, validity ranges and the points still to be confirmed are in docs/transport-correlations.md.
+
+### Changed — deck format
+- `MixedAdsorbentLayer` is at cereal class version 6 (the film correlation); older decks load with the default, Wakao-Funazkri. The packed path of the Film gas-solid heat model now evaluates the Wakao-Kaguei-Funazkri cube root as the Sherwood number always has (`pow(Pr, 0.3333333)`), a relative change below 1e-7.
+
+### Changed — paper decks hold gas in the bed voids only
+- The Perez 2019 and Ward & Pini 2024 decks hold the gas in the bed voids only, as the papers do (Perez et al. 2019, SI Eqs. S1, S2, S6; Ward & Pini 2022, Eqs. A1, A2, A4): the adsorbent's `particle_void_fraction` is 0, and the particle voidage stays in the Perez decks' macropore LDF coefficient, so the rate is unchanged. Results move by up to 1.1 pp (Perez F purity 75.65 → 76.78 %); five Perez bounds are loosened to the new measured errors.
+
+### Added — Haghpanah et al. (2013) four-step 13X PVSA validation
+- New paper suite `Haghpanah2013Test` (`core/test/papers/haghpanah_2013/`) and seven bundled decks with their example script `examples/haghpanah_2013.py`: the four-step CO₂/N₂ PVSA on zeolite 13X of Haghpanah et al. (2013, doi:10.1021/ie302658y), with the paper's loading-dependent LDF coefficient, exponential pressure profiles and compressor/vacuum-pump energy. Cases: the Sect. 6.1 reference design, the five minimum-energy designs of Table 6 (compared with Haghpanah's energies and with Glover et al. 2026, arXiv:2606.21523, Table 4), and Glover's CSS benchmark design (dominant multiplier 0.9513 against 0.9509).
+- Purity, recovery and productivity of the Table 6 designs agree with Glover's runs within 1.6 pp and 3.4 %; the specific energy is 12 % above Table 6 at evacuation pressures of 0.02–0.03 bar and the Sect. 6.1 purity 9 pp below the paper (open; attribution in the paper README).
+
+### Added — humid DAC breakthrough example
+- Example deck `Illustrative_Humid_DAC_Breakthrough`: a non-isothermal breakthrough of 400 ppm CO₂ in humid
+  N₂ (y_H₂O = 0.0115, 49 % RH at 20 °C, 1 bar) on the APDES-NFC library adsorbent, with the GAB water
+  isotherm, the humid Toth CO₂ isotherm that reads the adsorbed water loading, LDF kinetics and the water
+  heat of sorption. An integration test checks that the run is healthy and the mole balances of all three
+  components close, that water breaks through first and the outlet loadings reach the GAB and humid Toth
+  values at the local state, that a dry feed reaches the lower dry CO₂ capacity, and that the temperature
+  peaks before the CO₂ front.
+- `docs/isotherms.md` evaluates the APDES-NFC dry and humid loadings at the feed state; the TSA tutorial
+  (`docs/tsa-regeneration.md`) has a "Humid feeds" section.
+
+### Changed — one ideal-gas heat capacity set per component, to 1000 K
+- Each component's ideal-gas heat capacity polynomial (`ideal_gas_heat_capacity.h`) now holds one NASA TM-4513 coefficient set, the low-temperature one, valid to 1000 K. The 1000–6000 K set is dropped: adsorption processes stay well below 1000 K. Above 1000 K the value at 1000 K is used (as below the lower limit). Results do not change below 1000 K.
+- C++: `NasaPolynomial` is `{t_min, t_max, a}` (a0..a6); `t_mid`, `low` and `high` are gone.
+- The display name of the default gas heat capacity mode is now "Ideal gas" (was "Ideal gas Cp(T)"); the registry name is unchanged (`ideal_gas`).
+
+### Changed — the gas heat capacity is the ideal-gas Cp0(T) at the local temperature
+- The default gas heat capacity is now each component's ideal-gas heat capacity C_p0,i(T), evaluated at the local gas temperature in every cell. It comes from the NASA 7-coefficient polynomials of McBride, Gordon and Reno (1993, NASA TM-4513), with the source of every species in `ideal_gas_heat_capacity.h`. It replaces CoolProp's value evaluated once at the initial-condition pressure and temperature and held for the run. The initial temperature is now only a start: editing it no longer changes the cyclic steady state (#145), and a TSA cycle's gas heat capacity follows its temperature.
+- The polynomials cover 33 of the engine's 34 components; Air is built from N2, O2 and Ar at CoolProp's air composition. Each one agrees with CoolProp's ideal-gas Cp0 within 1 % (light and permanent gases) or 2 % (others) from 200 to 800 K; the table is in the Equation of State page. Hexane, which has no TM-4513 entry, keeps the held CoolProp value, and a run-start warning says so.
+- **Results move** for every deck in the default mode. The example decks are re-saved.
+- The registry name of the mode is now `ideal_gas` (`fluid.gas_heat_capacity_mode`: `ideal_gas`, `constant`); `coolprop` is still accepted as its former name. In C++, `GasHeatCapacityMode::IDEAL_GAS`, with `COOLPROP` kept as an alias.
+- The *Gas phase* adsorbed-phase heat capacity follows the adsorbed phase's temperature. Kirchhoff heats of reaction integrate the heat capacities exactly.
+- `Fluid::MolarHeatCapacity`, `MixtureHeatCapacity` and `AdsorbedPhaseHeatCapacity` take the temperature; new `MolarEnthalpyChange`, `HeatCapacityPolynomial` and `ComponentsWithHeldHeatCapacity`. Python: `skarstrom.ideal_gas_heat_capacity(component, T)`.
+- `CSSStartIndependence` gains hot-deck and cold-deck starts: the deck's own initial temperatures edited by ±40 K.
+
+### Changed — every cycle's KPIs and CSS record are kept
+- `settings.max_cycles_to_keep` now limits only the logged series and profiles (the memory-heavy data).
+  `sim.kpis()`, `sim.kpi_table()`, `sim.css_history()` and the CLI's `kpis.csv` / `css.csv` cover every
+  cycle of the run: the solver records each cycle's CSS check (`CSSHistory`, `GetCSSHistory()`) when the
+  cycle completes, as it already did for the KPIs. One record is about 200 bytes, so a 2000-cycle run adds
+  well under 1 MB. Results are unchanged.
+- The `HISTORY_TRUNCATED` run-health warning now says only that series and profiles cover the logged cycles.
+
+### Added — KPI quadratures
+- The solver integrates each endpoint's molar flow in and out per component, its pump or compressor power, the buffer-tank summary integrals and the species flux through the bed faces as IDAS quadrature states alongside the solution. KPIs from these integrals are reported beside the trapezoid KPIs (which stay the reported values) as `quadrature_purity`, `quadrature_recovery`, `quadrature_productivity_mass`, `quadrature_productivity_volume`, `quadrature_energy_consumption` and `quadrature_production_rate`, with the cycle mole-balance error from either (`mass_balance_error`, `quadrature_mass_balance_error`), in `sim.kpis()`, `kpi_table()` and `--json`. Quadrature error control is off, so runs and reported results are unchanged.
+- Per-step mole balance (column inventory change against the integrated endpoint and face flows; for a step with one open end, the inventory-difference cross-check of its flow), in the solver log at the High level and in `BoundaryLog::GetStepBalance`.
+
+### Added — a layer's mass fractions can be expressions
+- A layer's mass fractions are expressions over the deck variables, like other deck values: a two-solid blend can be written as `x` and `1 - x` with a deck variable `x`, and a sweep or a sensitivity study varies `variable[x]`. The registry path `layer[ID].mass_fraction[ID]` is now an Expression parameter, so `--set`, `sim[...] = "1 - x"` and `layer.set_composition({"13X": "x", "Glass beads": "1 - x"})` accept text. The composition check uses the evaluated fractions, shows the formulas with their values when the sum is off, and reports a fraction whose formula does not evaluate. The blend edits (`AddSolidToLayer`, `SetLayerMassFraction`, `RemoveSolidFromLayer`) refuse a layer whose fractions include a formula, with nothing changed.
+- `MixedAdsorbentLayer` archive version 5: the fractions are written as expressions. Older decks load with their numbers unchanged, bit for bit.
+
+### Added — water and humid parameters in the adsorbent library
+- The APDES-NFC library entry (`apdes_nfc_stampi2020`) now includes water: the GAB isotherm of Stampi-Bombelli et al. (2020), the water rate constant and heat of adsorption, and the humid modified Toth for CO2 (`toth_humid`) with the corrected γ and β of the 2022 correction. At zero water loading it reduces to the dry fit.
+
+### Added — KPI diagnostics and Cp provenance in the display manifests
+- The KPI manifest lists the `KPIRecord` diagnostics (`quadrature_*` KPIs, `mass_balance_error`, `quadrature_mass_balance_error`) after the reported KPIs, with `diagnostic: true`. The reported set and `sensitivity::KPINames()` are unchanged, and the CLI tables and `kpis.csv` leave the diagnostics out.
+- The component manifest gives each component's `cp_species` and `cp_source` and a top-level `cp_reference`. **Changed:** `ComponentManifest()` / `skarstrom.component_manifest()` now return `{cp_reference, components}` instead of a bare list.
+
+### Added — mixed adsorbent layers documented, with an example deck
+- New documentation page [Mixed Adsorbent Layers](https://samaffleck.github.io/skarstrom/mixed-layers/): how a layer's composition is stored and checked, the mixing rules with their equations, the shared-temperature assumption, mixture versus thin layers, per-solid results, and how to set a composition from Python and the CLI (`layer[ID].mass_fraction[ID]`).
+- New bundled deck `Illustrative_Diluted_Bed`: the Ward 2022 100 ccm CO2 breakthrough on activated carbon diluted with 30 % glass beads by mass in a mixed layer (illustrative, not a validated reproduction).
+
+### Added — provenance of the ideal-gas heat-capacity table as data
+- `NasaPolynomial` gains `species` (the TM-4513 species label) and `source` (its data-source code, or Air's mixing note); new `kIdealGasHeatCapacityReference`. No numeric change.
+- Python: `skarstrom.ideal_gas_heat_capacity_reference()`, `ideal_gas_heat_capacity_source(component)` and `components_with_held_heat_capacity()`.
+
+### Changed — paper decks use their paper's gas heat capacity
+- The Casas 2012, Ferré 2026, Nguyen 2023, Estupiñan Perez 2019, Vysyaraju 2024, Ward & Pini 2022 and Ward & Pini 2024 decks now use the constant gas heat capacity mode with the paper's value: the printed constant where there is one (30.7 J/(mol K); per-kilogram NIST values converted with each component's molar mass; Ward & Pini 2022's single 840 J/(kg K) given to each component per kilogram, so every CO₂/He mixture has 840 J/(kg K)), and the mean of the ideal-gas Cp0 over 298–373 K for Casas 2012, which states that window but prints no value. Nguyen 2023 also takes the adsorbed-phase heat capacity from the gas, as the paper does. Arora & Hasan 2021 and Nguyen 2022 keep the default. The per-paper table is in `core/test/papers/README.md`.
+- **Results move** slightly for these decks (at most 0.06 pp in a purity or recovery); every validation bound holds. The example decks and the example scripts are updated.
+
+### Added — per-adsorbent series for mixed layers
+- In a bed with a layer of several solids, the solver log now also holds each solid's own adsorbed loading, equilibrium loading, mass-transfer coefficient and (with dual-rate LDF) slow-site loading, per kg of that solid, named `"<component> Adsorbed Concentration (<adsorbent>)"`. The mass-weighted aggregate series are unchanged. Beds without a mixed layer log nothing new.
+- `Simulation::Series` / `Profile` take an `adsorbent` (a name or deck ID); Python `sim.series(..., adsorbent=)` and `sim.profile(..., adsorbent=)` take a name, a deck ID or an adsorbent object. For a bed without a mixed layer the per-adsorbent series are read off the aggregate. `sim.series_adsorbents()` lists the adsorbents, `skarstrom.per_adsorbent_variables()` the variables. `save_logs` and the CLI's `--csv` logs write them as extra CSV files.
+- `SeriesManifest()` (`skarstrom.series_manifest()`) lists every bed series variable with its log name pattern, unit and whether it is also logged per adsorbent.
+
+### Fixed — slow-tier CSS tests on the Perez 2019 decks
+- `CSSAndersonDecks` and `CSSDistanceDecks.Perez2019EReportsTheRemainingDistance`
+  use stops and reference KPIs re-measured on the current `Perez2019_A` and
+  `Perez2019_E` decks. The decks' constant gas heat capacity moved the plain
+  stops (A: 48 → 47, E: 205 → 206) and the long-run reference KPIs, so the
+  tests' earlier constants no longer matched. No tolerance changed.
+
+### Changed — the Python package takes component formulas from the engine's component manifest
+- The formula → CoolProp name table behind `sim.steps[0].bottom.y["CO2"]` and the other typed mappings is read from the component manifest (once per process) instead of a copy in `model.py`. More formulas and CoolProp aliases are accepted than before.
+
+### Added — `skarstrom.component_aliases()` and reference-client tests
+- `skarstrom.component_aliases()` returns the formula and alias → CoolProp name table.
+- Tests that act as a reference client of the engine's views: for every bundled deck the deck view validates against its schema and every value sets back by its path; every `sim.edit` cascade and kind (read from `model_kinds()`) leaves a deck that passes `check()` and round-trips; the manifests are non-empty and consistent.
+- Docs: "Views and manifests" in the Python guide.
+
+### Changed — recovered integrator failures are quiet and counted
+- SUNDIALS error messages go to the engine log instead of stderr: the solver replaces the SUNDIALS
+  context's default error handler, so nothing from IDA is printed directly any more. Every IDA message
+  appears in the log at level *high* (`IDA: ...`).
+- A step that IDA fails but the engine's retry recovers is logged at *medium* as a "recovered step" with
+  IDA's message (the chunked solver now logs these too). Only a step whose retries run out is logged at
+  *low*, with IDA's last message. Results and retry behaviour are unchanged.
+
+### Added — `recovered_steps` run statistic
+- `IntegrationStats::recovered_steps` (C++ `RunResult.stats`), `result.stats["recovered_steps"]` (Python)
+  and `stats.recovered_steps` in the CLI `--json` summary and `run.json`: the integrator failures the
+  engine recovered by retrying. The run-health `STEP_RETRIES` measure reads the same count.
+- Docs: starting a flow inlet into a bed at low pressure (ramp it over about 1 s) and what a recovered step
+  means in the log (*Boundary conditions*).
+
+### Added — reaction KPIs and reaction-rate series
+- Reaction KPIs, configured by a key reactant, the products to report and a space-time-yield basis (`kpi.reaction.key_reactant`, `kpi.reaction.product[C]`, `kpi.reaction.basis`; `build::SetReactionKPI`; Python `sim.kpi.track_reaction(...)`). Per cycle, from the moles the reactions made in the bed and the key reactant's moles fed: `conversion` X_A = -G_A / F_A,in on the key reactant's record; `selectivity` G_P / (-G_A), `reaction_yield` G_P / F_A,in and `space_time_yield` (kg per kg of catalyst, or per m3 of bed, per second) on each product's record; the cycle's `peak_temperature` with its position and time, and `reaction_generation`, on both. Selectivity and yield are plain molar ratios, without stoichiometric normalisation. The key reactant's moles fed are its KPI feed endpoints, or every endpoint's inflow of it when it has none. The new `KPIRecord` fields are in `Simulation::KPIs()`, `sim.kpis()`, `kpi_table()`, the CLI's `--json` and `kpis.csv`, and the KPI manifest (flagged `reaction`); records of a deck without reactions are unchanged, and so is its `kpis.csv`. The deck view gains an optional `reaction_kpi` section (view version unchanged). A component removed from the deck leaves the reaction KPIs.
+- The rate of each reaction is reachable like the other logged series: `Simulation::Series` / `Profile` take a `reaction` (name or ID, with `adsorbent` to pick the solid), Python `sim.series("reaction_rate", reaction="SMR")` / `sim.profile(..., reaction=...)`, `sim.series_reactions()` and `skarstrom.reaction_variables()`.
+
+### Added — reactions enter the balances
+- The heterogeneous reactions on a solid (`adsorbent[ID].reaction[ID].*`) now act in a run. Per cell, each reaction's rate (at the gas composition and pressure and the catalyst temperature: the gas's in LTE and isothermal runs, the solid's in LTNE) times its effectiveness factor and the solid's bulk density gives the component sources S_i = sum nu_i rho_b eta r, which enter the component balances; their sum enters the total balance, so a reaction that changes the number of moles moves the velocity field. The heat of reaction (Kirchhoff by default) enters the bed energy balance in LTE and the solid's in LTNE; an isothermal run has no heat term. Reactions add no unknowns, and a deck without reactions gives the same results as before.
+- New logged series, only for a deck with reactions: `reaction_heat` (bulk, W/m3), `reaction_source` (per component, mol/(m3 s)) and the rate of each reaction on each solid (`"<reaction> Rate (<solid>)"`, mol/(kg s), `EquationLog::GetReactionRate`), listed in `SeriesManifest()` (`reaction_variables` for the rates). The adsorption source series `component_mass_source` and `energy_source` are unchanged.
+- The Thiele effectiveness model is evaluated: the generalised (Aris-Bischoff) modulus of the key reactant for a spherical, isothermal particle (radius from the layer's particle diameter, the solid's density, D_eff = eps_p / tau times the cell's molecular diffusivity), integrated along the stoichiometry with an 8-point Gauss-Legendre rule down to the equilibrium concentration of a reversible rate. For a first-order rate it is eta = 3 / phi^2 (phi coth phi - 1).
+- The mass-balance CSS methods, the cycle mole-balance diagnostic and its run-health check count the moles the reactions make, |in + G - out| / in, so a reactive deck can reach cyclic steady state. The reaction warnings are written to the run-start log.
+
+### Changed — inert loadings are no longer solved
+- The loading of a component on a solid where its isotherm is Inert is no longer a DAE unknown: it is held at exactly 0 (logged, in the KPIs and the per-adsorbent series as before). A pure catalyst or support solid no longer adds a loading unknown per component per cell. Decks with inert components solve a smaller system, so their results move by about the integrator tolerance (the re-saved example decks' embedded numbers change in the last digits), and a cycle state saved from such a deck before this change no longer fits its layout.
+
+### Added — registry paths for the cost estimate, the sensitivity study and KPI tracking
+- `kpi[Component].tracked`, `cost.*` (plant, finance and operating values, `cost.vessel.*`, `cost.heat_exchanger.*`, `cost.compressor[N].*`, `cost.vacuum_pump[N].*`, `cost.adsorbent[ID].cost_per_kg`) and `sensitivity.*` (the stored study's seed, Morris and Monte Carlo settings). Python: `sim.kpi_tracked`, `sim.cost`, `sim.study_settings`.
+- A test checks, leaf by leaf, that every editable value of every example deck and of a deck with every reaction kind has a registry path; the leaves that are structure (set through `deck_edit.h` / the builder), values of a variant not in use, legacy fields or run results are listed in the test with their reason.
+
+### Added — run-health warnings
+- Cheap checks after every cycle flag a run that completes but should not be trusted, as structured
+  warnings `{code, value, threshold, cycle, step, suspects, hint}`: `MOLE_FRACTION_SUM` (the gas mole
+  fractions drift from summing to 1), `MASS_BALANCE_STUCK` (a component's cycle mole balance stays open
+  while the end-of-cycle state has settled: a model error, not slow CSS), `STEP_RETRIES` (many rejected
+  integrator attempts per accepted step) and `HISTORY_TRUNCATED` (`settings.max_cycles_to_keep` kept fewer
+  cycles than the CSS diagnostics read back). Thresholds leave every example deck and paper case silent
+  with margin; the measured distribution is in the new docs page *Run health*.
+- `RunResult.healthy` and `RunResult.health_warnings` (C++), `result.healthy` and `result.warnings`
+  (Python), `Simulation::RunHealth()` / `sim.run_health()` with the per-cycle measures. The run status,
+  exit code and results are unchanged. The solver logs the warnings once at the end of the run (LOW).
+- CLI: the `--json` summary has `healthy` and `run_health` (structured; their messages are also appended
+  to `warnings`), the text summary a `Health:` line, and run-health warnings go to stderr even with `-q`.
+- Switches `settings.warn_mole_fraction_sum`, `warn_mass_balance_stuck`, `warn_step_retries` and
+  `warn_history_truncated` (on by default; `WarningSettings` class version 2), listed in the warning
+  manifest with their `code`.
+
+### Added — series-resistance LDF coefficient
+- A **series-resistance (Glueckauf) LDF coefficient** (`MassTransferCoefficientSeriesResistance`,
+  kind `series_resistance`): 1/k = f K r_p/(3 k_f) + K τ r_p²/(15 ε_p D_m) + r_c²/(15 D_c), external
+  film (k_f from the layer's film correlation, as `haynes`), macropore and micropore resistances in
+  series, with the local capacity factor K = ρ_p ∂q*/∂c from the isotherm slope (secant where the
+  slope is not positive, floored at 1; or a fixed `capacity_factor`) and an Arrhenius micropore
+  diffusivity D_c = D_c0 exp(−E_a/RT). Each term is switched off by its parameter. With the
+  micropore term off and K = 1 it equals `haynes` bit for bit. Defined once in `model_kinds`, so the
+  registry (`kinetics[C].crystal_radius`, `.micropore_diffusivity`, ...), the builder and Python
+  `model_kinds()` pick it up. Existing decks are unchanged.
+
+### Changed — one definition per model kind
+- The kind descriptors of `adsim/objects/model_kinds.h` are now the single source for each model kind. They provide the builder's kind lists, the registry's entries for each kind's parameters (units, bounds, labels, tunable flag), the isotherm kind tags and flags (`IsothermKindString`, `IsCompetitiveIsothermKind`, `IsWaterCoupledIsothermKind`, `PairedIsothermKind`), the IAST family table and the isotherm fitter's kind list. A test checks that the descriptors agree with the model classes (names, order, defaults), the registry and the fitter's default parameters.
+- The registry output of every example deck is unchanged. The one visible difference is a display label: the ramp time of an exponential temperature or flow profile is now named "exponential ramp time", as it already was for pressure profiles.
+
+### Changed — one definition of the gas constant and the standard atmosphere
+- `kIdealGasConstant` and the new `kStandardAtmosphere` (101325 Pa) in `adsim/math/constants.h` replace the literals in the expression parser, the boundary-condition defaults and the initial-condition pressure default. Results are unchanged.
+
+### Added — merged adsorbent library file
+- `scripts/docs/gen_adsorbent_library.py` also writes `data/adsorbents/library.merged.json`, the validated catalogue with every entry's provenance and serialised adsorbent in one file, in the order of the docs page; `--check` (run in CI) fails when it is out of date.
+
+### Added — warm-started optimisation and sensitivity studies
+- `CycleStateCache` and `RunWithStateCache` (`adsim/solver/state_cache.h`): a cache of cyclic steady states keyed by the decision vector, owned by the caller. Each run starts from the state of the **nearest** point evaluated so far (Euclidean distance in the variables scaled to [0, 1] by their bounds), through the ordinary warm-start path (grid remap, stretched histories). A state that does not fit the deck (another structure) is skipped with a note, a warm-started run that fails is repeated cold, and only runs that reached CSS are cached, so decks without a CSS check and fixed-cycle studies run cold as before. Python: `skarstrom.StateCache` and `skarstrom.optimisation.run_warm`.
+- `OptimizeSimulation` (`adsim/solver/optimisation.h`) and `skarstrom.optimisation.optimise`: the whole single-objective loop over registry paths (`GlobalOptimizer`, MaxLIPO with a trust region), the cost from the candidates' KPIs. Candidates are warm-started from the cache by default (`warm_start=False` turns it off); the optimum is re-run from the deck's initial conditions and that cold value is the reported cost, next to the search's own value (`search_cost`). Every evaluation reports whether it was warm, its cycles and wall time. `GlobalOptimizer` also takes plain bounds and an objective of the candidate vector, and exposes `CurrentPoint()` and `GetBestValue()`.
+- Sensitivity studies warm-start each run from the nearest earlier run's CSS, keyed by the run's probability coordinates (`sa::EvaluateSample` overload with a cache; Python `Study(warm_start=True)` by default, one cache per worker process; CLI `skarstrom sensitivity --no-warm-start`). Samples report `warm`, `cycles_run`, `css_reached` and `note`.
+- Measured savings and the agreement with cold runs are in the cyclic-steady-state documentation (*Warm-started optimisation and studies*). Runs outside optimisation and studies are unchanged.
+
 ## [0.8.0] — 2026-11-07
 
 ### Added — CSS stops verified against a long reference
