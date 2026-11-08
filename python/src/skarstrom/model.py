@@ -1701,6 +1701,44 @@ class Kinetics(_Node):
     """Constant molecular diffusivity D_m of the macropore coefficients (``macropore``, ``macropore_capacity``,
     ``macropore_knudsen``) [m2/s]; 0 (the default) uses the binary-diffusion value from the local T and P,
     which scales as 1/P. Haghpanah et al. (2013) and Estupinan Perez et al. (2019) use a constant 1.6e-5 m2/s."""
+    film_resistance_factor = Real()
+    """Multiplier of the external-film resistance of the ``series_resistance`` coefficient [-]; 0 drops the film term, 1 (the default) keeps the correlation's value."""
+    crystal_radius = Real()
+    """Crystal (micropore) radius r_c of the ``series_resistance`` coefficient [m]; 0 drops the micropore term."""
+    micropore_diffusivity = Real()
+    """Micropore diffusivity pre-exponential D_c0 of the ``series_resistance`` coefficient [m2/s]; 0 drops the micropore term."""
+    micropore_activation_energy = Real()
+    """Activation energy E_a of the micropore diffusivity D_c = D_c0 exp(-E_a / R T) [J/mol]."""
+    capacity_factor = Real()
+    """Fixed capacity factor K of the ``series_resistance`` coefficient [-]; 0 (the default) takes it from the isotherm slope."""
+    split = Real()
+    """Fast-site fraction phi of the equilibrium loading in the ``dual_rate_ldf`` model [-]; 1 is the plain LDF."""
+    slow_k = Real()
+    """Slow-site value of ``k`` in the ``dual_rate_ldf`` model: mass transfer coefficient [1/s]."""
+    slow_pre_exp_factor = Real()
+    """Slow-site value of ``pre_exp_factor`` in the ``dual_rate_ldf`` model: arrhenius pre-exponential factor [1/s]."""
+    slow_activation_energy = Real()
+    """Slow-site value of ``activation_energy`` in the ``dual_rate_ldf`` model: arrhenius activation energy [J/mol]."""
+    slow_tortuosity = Real()
+    """Slow-site value of ``tortuosity`` in the ``dual_rate_ldf`` model: particle tortuosity [-]."""
+    slow_macropore_void_fraction = Real()
+    """Slow-site value of ``macropore_void_fraction`` in the ``dual_rate_ldf`` model: macropore void fraction [-]."""
+    slow_concentration_floor = Real()
+    """Slow-site value of ``concentration_floor`` in the ``dual_rate_ldf`` model: capacity-factor concentration floor [mol/m3]."""
+    slow_pore_radius = Real()
+    """Slow-site value of ``pore_radius`` in the ``dual_rate_ldf`` model: mean pore radius [m]."""
+    slow_molecular_diffusion_coefficient = Real()
+    """Slow-site value of ``molecular_diffusion_coefficient`` in the ``dual_rate_ldf`` model: constant molecular diffusivity D_m [m2/s]."""
+    slow_film_resistance_factor = Real()
+    """Slow-site value of ``film_resistance_factor`` in the ``dual_rate_ldf`` model: film-resistance multiplier [-]."""
+    slow_crystal_radius = Real()
+    """Slow-site value of ``crystal_radius`` in the ``dual_rate_ldf`` model: crystal radius r_c [m]."""
+    slow_micropore_diffusivity = Real()
+    """Slow-site value of ``micropore_diffusivity`` in the ``dual_rate_ldf`` model: micropore diffusivity D_c0 [m2/s]."""
+    slow_micropore_activation_energy = Real()
+    """Slow-site value of ``micropore_activation_energy`` in the ``dual_rate_ldf`` model: micropore activation energy E_a [J/mol]."""
+    slow_capacity_factor = Real()
+    """Slow-site value of ``capacity_factor`` in the ``dual_rate_ldf`` model: fixed capacity factor K [-]."""
 
 
 class Adsorbent(_Node):
