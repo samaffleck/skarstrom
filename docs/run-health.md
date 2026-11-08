@@ -1,5 +1,10 @@
 # Run health
 
+<!-- doc-setup
+import skarstrom
+sim = skarstrom.examples.Perez2019_A.load()
+-->
+
 The engine's tests check the engine's own decks. Nothing in them checks *your* deck while it runs: a deck can
 be wrong in ways no test covers (too few cells, steps too short, a tolerance it cannot carry) and still finish
 with status `completed` and plausible KPIs. Run-health checks are cheap tests the solver makes after every

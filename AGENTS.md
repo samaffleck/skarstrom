@@ -4,10 +4,28 @@ Guidance for coding agents working **on** this repository and for agents **using
 
 Skarstrom simulates pressure, vacuum and temperature swing adsorption (PSA/VSA/TSA) cycles. The engine is the C++20 library `adsim`; the `skarstrom` Python package and CLI wrap it.
 
+
+<!-- doc-setup
+import numpy as np
+import skarstrom
+import skarstrom as sk
+sim = skarstrom.examples.Perez2019_A.load()
+sim.add_variable("t_feed", 60, category="time")
+sim.save("my_deck.json")
+node, ads, step = sim.steps[0], sim.adsorbents["13X"], sim.steps[0]
+name = "time"
+path, mean, sd, lo, mode, hi = "layer[1].bed_void_fraction", 0.41, 0.01, 0.39, 0.41, 0.43
+lower, upper, x, cand = [60], [150], [90], sim.copy()
+p_pa = np.array([0.1, 0.25, 0.5, 1.0, 2.0, 4.0]) * 1e5
+q_molkg = np.array([1.06, 1.94, 2.76, 3.47, 4.01, 4.36])
+T_K = 298.15
+-->
+
 ## Using Skarstrom
 
 ### Install
 
+<!-- no-run: installs the package -->
 ```bash
 pip install skarstrom                    # wheels for CPython 3.10–3.15
 # or, from a checkout (needs CMake >= 3.15 and a C++20 compiler; several minutes):
@@ -20,10 +38,11 @@ A **deck** is a JSON simulation file. 41 example decks ship with the package (`e
 
 CLI with machine-readable output (exit code 0 = completed or cyclic steady state reached, 1 = failed, 130 = interrupted):
 
+<!-- no-run: builds from source -->
 ```bash
 skarstrom examples --json                                   # [{name, family, path}, ...]
 skarstrom examples run "Ward2022_Q100ccm" --json -q     # run a bundled deck
-skarstrom run path/to/deck.json --cycles 20 --set "step[Feed].time=120" --json -q
+skarstrom run my_deck.json --cycles 20 --set "step[Feed].time=120" --json -q
 skarstrom run deck.json --csv out/                          # kpis.csv, css.csv, run.json, logs/
 ```
 
@@ -46,6 +65,7 @@ The deck's parts are typed objects over the parameter registry (`python/src/skar
 
 ```python
 from skarstrom import ureg as u
+sim.add_variable("t_feed", 60 * u.s, category="time")   # a user variable, usable in expressions
 sim.steps["Feed"].time = 2 * u.min             # steps by name or position; .by_id(n) by deck ID
 sim.steps[0].bottom.temperature = 298.15     # step end -> its stream/boundary (end[name|i] if several)
 sim.steps["Feed"].bottom.y["CO2"] = 0.15     # components: CoolProp names or formulas
@@ -88,6 +108,7 @@ Structural edits: `sim.edit.*` (the engine's `deck_edit.h` cascades: add/remove/
 
 Structure is created by kind name in C++ (`core/include/adsim/objects/deck_builder.h`, Python `sim._sim.build(op, args)`); values then go through the registry. `skarstrom.build_kinds()` lists every family's kinds; unknown kinds raise ValueError listing the valid ones.
 
+<!-- no-run: abbreviated sketch with placeholders; docs/python.md has the complete, executed version -->
 ```python
 sim = sk.Simulation.new(title="...")
 sim.add_component("CarbonDioxide")
@@ -121,7 +142,7 @@ sim.css_history()         # CSSRecord per cycle: converged, error, tolerance, me
 sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=-1)   # .time, .values (NumPy), .unit
 sim.series("temperature", z=0.15)                                        # at a position [m]
 sim.profile("pressure", cycle=-1, step=0)  # .z, .time, .values with shape (len(time), len(z))
-sim.streams(); sim.stream_series(step, name, "molar_flow", "CarbonDioxide")
+for s in sim.streams(): f = sim.stream_series(s["step"], s["name"], "molar_flow_rate")   # per stream: step, name, endpoint_id, location
 skarstrom.bulk_variables(); skarstrom.component_variables(); skarstrom.stream_variables()
 ```
 
@@ -129,6 +150,7 @@ KPIs exist only for components tracked in the deck's KPI configuration; some dec
 
 ### Sensitivity and error bars
 
+<!-- long: 50 + 100 or more cycle simulations -->
 ```python
 from skarstrom import sensitivity as sa
 study = sa.Study(sim, [sa.relative("step[1].time", 0.1), sa.uniform("layer[1].bed_void_fraction", 0.39, 0.43),
@@ -142,6 +164,7 @@ CLI: `skarstrom sensitivity deck.json --input "PATH=10%" --input "PATH=LO:HI" --
 
 ### Optimisation and warm starts
 
+<!-- long: 20 cycle simulations to the optimum -->
 ```python
 from skarstrom import optimisation as opt
 r = opt.optimise(sim, {"step[Feed].time": (60, 150)}, objectives=[opt.maximise("CarbonDioxide", "recovery")],
@@ -157,7 +180,7 @@ Candidates and study runs warm-start from the CSS of the nearest earlier point (
 ```python
 skarstrom.isotherm_kinds(); skarstrom.isotherm_parameters("sips")
 skarstrom.evaluate_isotherm("sips", {"q_sat": 5, "b": 1e-5, "v": 0.8}, pressure=p_pa, temperature=298.15)
-skarstrom.evaluate_iast(["sips", "toth"], [{...}, {...}], pressure=p_pa, temperature=298.15, mole_fraction=[0.3, 0.7])
+skarstrom.evaluate_iast(["sips", "toth"], [{"q_sat": 5, "b": 1e-5, "v": 0.8}, {"q_sat": 4, "b": 2e-5, "v": 0.6}], pressure=2e5, temperature=298.15, mole_fraction=[0.3, 0.7])
 ads.set_mixing_rule("iast")   # per adsorbent: "none" (default) or "iast" over the components' pure isotherms
 skarstrom.fit_isotherm("dual_site_langmuir_p", p_pa, q_molkg, temperature=T_K)   # params, std_errors, r2, rmse, ...
 skarstrom.adsorbent_library()["materials"]; skarstrom.adsorbent_library()["entries"]; skarstrom.adsorbent_path("zeolite-13x")
@@ -191,6 +214,7 @@ external/              submodules (sundials, CoolProp, cereal, muparser, dlib, g
 
 ### Build and test
 
+<!-- no-run: builds and tests the engine -->
 ```bash
 git submodule update --init --recursive
 cmake --preset linux-release            # macos-release, windows; tests are on in the presets
@@ -209,6 +233,7 @@ pip install -r requirements-docs.txt && mkdocs build --strict
 - **Keep generated docs generated.** `docs/validation.md` comes from `core/test/papers/validation_summary.json` (`python scripts/docs/gen_validation_page.py`, `--merge <build>/validation` after running the paper tests); `docs/adsorbent-library.md` from `data/adsorbents/library.json` (`python scripts/docs/gen_adsorbent_library.py`, which also validates the catalogue). Never edit the generated pages; CI runs both with `--check`.
 - **Cite every adsorbent parameter.** A library entry needs a DOI and table/figure reference for each value, or an explicit `Not stated in source (checked: ...)`.
 - **One recommended entry per material.** Every library entry belongs to a material (`materials` in `library.json`); each material has exactly one `recommended` entry, chosen on data quality (each isotherm's `data_quality`: measured with tabulated data > measured, fit only > refit of others' data > copied from an earlier paper). Add a second entry for a material only when it is a different product, form or data range that a user can name (its `variant`); otherwise replace the weaker entry and list its key in the material's `aliases`. Labels are the material name plus the variant in brackets, never author names. Paper reference values (`reference_values.csv`) must be numbers printed in the paper; never eyeball values off a plot, never commit PDFs or full-text extractions.
+- **Documentation code blocks run in CI.** Every ```` ```python ````, ```` ```bash ```` and ```` ```console ```` block in `docs/*.md` and `AGENTS.md` is executed against the built package by `python scripts/docs/run_doc_blocks.py` (the `Python wheel` CI job; locally, after `pip install .`), so a doc can not show a call the engine rejects. A page's Python blocks share one interpreter and one fresh temporary directory, in page order; each shell block is its own bash process in that directory, after the Python blocks. Runs are capped at 3 cycles (`--cycles N`). A block that only fragments a snippet gets what it assumes (`sim`, `ads`, a deck file, data arrays) from a hidden `<!-- doc-setup` ... `-->` comment of Python near the top of the page, which runs first. Markers go on the line before the fence: `<!-- no-run: reason -->` for a block that must not run (installs, builds, placeholders; for a known engine bug write `<!-- no-run: engine bug #N -->`), `<!-- long: reason -->` for a block too slow for pull requests that `--full` (the uncapped, nightly-style run, which needs `pymoo` too) still runs. Never edit a generated page (`validation.md`, `adsorbent-library.md`) to add a marker; change its generator. `--list` shows what runs.
 - **Keep the fast tier fast.** Pull-request CI runs `ctest -LE "paper|slow"` on three platforms, so a test there should answer "does it run, does the feature work": about 20-30 cells, at most about 30 cycles, CSS off unless CSS is what is tested, short steps. Only a test that compares with a closed-form solution, verifies a convergence order or tests CSS behaviour needs the grid or the cycles its assertion depends on; if it still takes more than a few seconds, add it to `ADSIM_SLOW_TESTS` in `core/test/CMakeLists.txt` (ctest label `slow`, run on main and nightly) with the reason in the test's comment. A new paper suite goes in `ADSIM_PAPER_TESTS` there (label `paper`).
 - **Tolerances in paper tests are regression bounds** set from the measured error; never loosen one to hide a disagreement — document it in the paper's README.
 - **Regenerated example decks are expected.** The test suite re-saves `examples/decks/*.json` and some `data/adsorbents/*.json`; embedded result numbers move in the last digits. Commit those changes with the code change that caused them.

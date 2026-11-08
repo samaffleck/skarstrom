@@ -33,6 +33,7 @@ int main() {
 
 ## As an installed package (`find_package`)
 
+<!-- no-run: builds the C++ library -->
 ```bash
 cmake --preset linux-release -DCMAKE_INSTALL_PREFIX=$HOME/.local
 cmake --build --preset linux-release
@@ -76,6 +77,7 @@ The engine compiles with Emscripten, as a subproject of a front end configured w
 
 Every object in a module must use the same scheme, so the whole engine tree is compiled with the chosen flag and `Adsim::adsim` passes it to your target's compile and link. Do not add your own exception flags; in particular, `-sNO_DISABLE_EXCEPTION_CATCHING=1` cannot be combined with `wasm`. The front end chooses everything else (threads, memory growth, the file system, exported functions). For a browser, drive the solver with `CoupledSolverChuncked` (or `Simulation::Start` / `Advance(max_time_ms)`) so the host stays responsive; see [Numerics](numerics.md#the-chunked-solver-for-cooperative-front-ends).
 
+<!-- no-run: builds the C++ library -->
 ```bash
 source /path/to/emsdk/emsdk_env.sh
 bash scripts/test_subproject_consumer.sh --emscripten   # builds adsim + a tiny module, runs it under Node.js
