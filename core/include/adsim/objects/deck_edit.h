@@ -68,7 +68,8 @@ bool AddComponentToDeck(UserData& data, const std::string& name, std::string& er
 // component (a nonzero coefficient, order or LHHW adsorption exponent; see
 // Reaction::UsesComponent), e.g. "Water is used by reactions SMR, WGS (on Ni
 // catalyst); remove them first". Exact-zero entries of the component are
-// dropped from the reactions.
+// dropped from the reactions. The reaction KPIs drop it too: a removed key
+// reactant clears them, a removed product leaves their product list.
 bool RemoveComponentFromDeck(UserData& data, const std::string& name, std::string& err);
 
 // As above for a deck whose reactions do not use the component (asserted;
@@ -222,7 +223,8 @@ size_t PruneBufferTanks(UserData& data);
 // ---- KPI configuration ------------------------------------------------------------
 
 // One KPI entry per fluid component, in fluid order (new ones untracked);
-// entries of removed components are dropped (KPIConfig::SyncToComponents).
+// entries of removed components are dropped, and the reaction KPIs forget
+// them (KPIConfig::SyncToComponents).
 void SyncKpiConfigToComponents(UserData& data);
 // Drop KPI endpoint references that no longer name an endpoint of the cycle
 // (KPIConfig::Prune).

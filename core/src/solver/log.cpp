@@ -61,6 +61,17 @@ namespace adsim {
       for (const auto& [id, ads] : user_data.adsorbent_directory.GetAll())
         adsorbent_labels_[id] = uses[ads.name_] > 1 ? ads.name_ + " #" + std::to_string(id) : ads.name_;
     }
+    // The reactions whose rates are logged (one per active reaction per solid).
+    reactions_.clear();
+    for (const auto& field : state.reaction_fields) {
+      LoggedReaction r;
+      r.adsorbent = field->adsorbent;
+      r.reaction = field->reaction;
+      r.reaction_name = field->reaction_name;
+      auto label = adsorbent_labels_.find(field->adsorbent);
+      r.adsorbent_label = label == adsorbent_labels_.end() ? std::to_string(field->adsorbent) : label->second;
+      reactions_.push_back(std::move(r));
+    }
     // Keep at least the cycles the CSS check reads (it is a function of the log).
     // When a cycle is checked the log holds it plus max_cycles_to_keep_ earlier
     // cycles (eviction happens when the next cycle starts), hence the - 1.

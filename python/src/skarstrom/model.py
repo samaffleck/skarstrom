@@ -1476,6 +1476,19 @@ class CostData(_Node):
     """Years between full adsorbent replacements [-]."""
 
 
+class ReactionKPI(_Node):
+    """The reaction KPIs' configuration (``kpi.reaction.*``): ``.product["Hydrogen"] = True``
+    marks a product. ``sim.kpi.track_reaction(...)`` sets all three at once."""
+
+    key_reactant = Choice()
+    """The key reactant A of the conversion, selectivity and yield ("none" for no reaction KPIs)."""
+    basis = Choice()
+    """Space-time yield basis: "catalyst_mass" (per kg of catalyst) or "bed_volume" (per m3 of bed)."""
+
+    def _refetch(self) -> Optional["_Node"]:
+        return _reaction_kpi(self._sim)
+
+
 class StudySettings(_Node):
     """Settings of the deck's sensitivity study (its inputs and outputs: :mod:`skarstrom.sensitivity`)."""
 
@@ -1870,6 +1883,11 @@ _TOP_LEVEL = (Info, Settings, CSS, EnergyBalance, Cycle, Bed, Wall, InitialCondi
 def _kpi_tracked(sim: "Simulation") -> ValueMap:
     trees = sim._index().root.keyed.get("kpi", {})
     return ValueMap(sim, {c: t.leaves["tracked"] for c, t in trees.items() if "tracked" in t.leaves}, "kpi_tracked")
+
+
+def _reaction_kpi(sim: "Simulation") -> ReactionKPI:
+    tree = sim._index().root.groups.get("kpi", _Tree()).groups.get("reaction", _Tree())
+    return ReactionKPI(sim, tree, "reaction_kpi")
 
 
 def _group(sim: "Simulation", cls: Callable[..., N], name: str) -> N:

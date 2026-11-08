@@ -45,7 +45,7 @@ import keyword
 import math
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence, Union
 
 from . import _core
 
@@ -403,6 +403,20 @@ class KPIConfig:
         self._sim._build("set_kpi", self._sim._component(component), _endpoint_ids(feed), _endpoint_ids(product),
                          _endpoint_ids(recycle))
 
+    def track_reaction(self, key_reactant: Optional[str], products: Sequence[str] = (),
+                       basis: str = "catalyst_mass") -> None:
+        """Report the reaction KPIs: the conversion of ``key_reactant`` and the selectivity,
+        yield and space-time yield of each of ``products``, with the cycle's peak temperature.
+
+        ``basis`` is the space-time yield's: ``"catalyst_mass"`` (per kg of the solids that
+        carry the reactions) or ``"bed_volume"`` (per m3 of bed). ``None`` clears them. The
+        key reactant's moles fed are its KPI feed endpoints (:meth:`track`), or, without
+        those, every stream's inflow of it. Registry paths: ``kpi.reaction.key_reactant``,
+        ``kpi.reaction.product[C]``, ``kpi.reaction.basis``.
+        """
+        key = self._sim._component(key_reactant) if key_reactant else ""
+        self._sim._build("set_reaction_kpi", key, [self._sim._component(p) for p in products], basis)
+
     def __repr__(self) -> str:
         rows = self._sim.describe()["kpis"]
         return "<kpi: " + (", ".join(r["component"] for r in rows) or "none tracked") + ">"
@@ -661,6 +675,10 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
         recycle = ", ".join(ep_expr.get(e, str(e)) for e in k.get("recycle", []))
         recycle = f", recycle=[{recycle}]" if recycle else ""
         w(f"{name}.kpi.track({k['component']!r}, feed={feed}, product={product}{recycle})")
+    rx = d.get("reaction_kpi", {})
+    if rx.get("key_reactant"):
+        basis = "" if rx["basis"] == "catalyst_mass" else f", basis={rx['basis']!r}"
+        w(f"{name}.kpi.track_reaction({rx['key_reactant']!r}, products={list(rx['products'])!r}{basis})")
 
     w("")
     w("# ---- solver, cyclic steady state, energy balance --------------------------------------")

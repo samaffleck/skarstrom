@@ -455,6 +455,18 @@ namespace adsim {
     // True when this run logs per-adsorbent series (some cell holds more than
     // one solid).
     bool LogsPerAdsorbent() const { return per_adsorbent_; }
+    // True for an LTNE run (separate solid temperature).
+    bool NonLocal() const { return non_local_; }
+
+    // One reaction on one solid whose rate the run logs (GetReactionRate),
+    // in the solver's order; set by Initialise, empty without reactions.
+    struct LoggedReaction {
+      AdsorbentID adsorbent = 0;
+      std::size_t reaction = 0;    // ReactionID
+      std::string reaction_name;
+      std::string adsorbent_label;  // AdsorbentLabels()
+    };
+    const std::vector<LoggedReaction>& Reactions() const { return reactions_; }
     VariableLogEntry GetComponentFaceVariable(int cycle_index, int step_index,
       ComponentVariableType type, const std::string& component) const;
 
@@ -498,6 +510,7 @@ namespace adsim {
     bool non_local_ = false;  // LTNE run (set in Initialise)
     bool per_adsorbent_ = false;  // some cell holds more than one solid (set in Initialise / per step)
     std::map<AdsorbentID, std::string> adsorbent_labels_;
+    std::vector<LoggedReaction> reactions_;
 
   };
 

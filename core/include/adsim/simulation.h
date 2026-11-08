@@ -149,6 +149,7 @@ namespace adsim {
     std::string variable;
     std::string component;  // empty for a bulk variable
     std::string adsorbent;  // the adsorbent's label for a per-adsorbent series, else empty
+    std::string reaction;   // the reaction's name for a reaction series, else empty
     std::string unit;
     std::vector<double> time;    // [s]
     std::vector<double> values;
@@ -164,6 +165,7 @@ namespace adsim {
     std::string variable;
     std::string component;
     std::string adsorbent;  // the adsorbent's label for a per-adsorbent profile, else empty
+    std::string reaction;   // the reaction's name for a reaction profile, else empty
     std::string unit;
     int cycle = 0;
     int step = 0;
@@ -203,6 +205,21 @@ namespace adsim {
   // mass-weighted sum over the solids of each cell; a per-adsorbent series is
   // one solid's own value [per kg of it], 0 in the cells without it.
   std::vector<std::string> PerAdsorbentVariableNames();
+  // The variables Series / Profile give per reaction (their `reaction`
+  // argument): "reaction_rate", eta r of one reaction on one solid
+  // [mol/(kg of that solid s)], 0 in the cells without the solid. The
+  // reactions' total effect is "reaction_heat" (bulk) and "reaction_source"
+  // (per component), which take no reaction.
+  std::vector<std::string> ReactionVariableNames();
+
+  // One reaction on one solid whose rate the last run logged.
+  struct SeriesReaction {
+    size_t id = 0;               // the reaction's ID (reaction[ID] paths)
+    std::string name;            // the reaction's name: the `reaction` argument of Series / Profile
+    size_t adsorbent_id = 0;     // the solid that carries it
+    std::string adsorbent;       // that solid's series label (SeriesAdsorbent::label)
+    std::string variable_name;   // the log name, "<reaction> Rate (<adsorbent>)"
+  };
 
   // One adsorbent of the last run's bed, as the per-adsorbent series name it.
   struct SeriesAdsorbent {
@@ -397,13 +414,21 @@ namespace adsim {
     // StreamSeries), otherwise, and for every other variable, the face value.
     // `adsorbent` (a label of SeriesAdsorbents(), or a deck ID as text) gives
     // that adsorbent's own series of a PerAdsorbentVariableNames() variable;
-    // empty gives the aggregate.
+    // empty gives the aggregate. `reaction` (a reaction's name or its ID as
+    // text, SeriesReactions()) is required for a ReactionVariableNames()
+    // variable and refused for the others; `adsorbent` then picks the solid
+    // when the reaction is on more than one. A reaction rate has no
+    // boundary value: Top and Bottom give the last and first packed cell.
     TimeSeries Series(const std::string& variable, const std::string& component = {},
                       SeriesLocation where = SeriesLocation::Top, double z = 0.0, int cycle = -1,
-                      const std::string& adsorbent = {}) const;
+                      const std::string& adsorbent = {}, const std::string& reaction = {}) const;
     // Axial profiles of a log variable over one step of one cycle (-1 = last).
     AxialProfile Profile(const std::string& variable, const std::string& component = {},
-                         int cycle = -1, int step = 0, const std::string& adsorbent = {}) const;
+                         int cycle = -1, int step = 0, const std::string& adsorbent = {},
+                         const std::string& reaction = {}) const;
+    // The reactions whose rates the last run logged (empty without results
+    // or without reactions).
+    std::vector<SeriesReaction> SeriesReactions() const;
     // The adsorbents of the last run's bed with their series labels (empty
     // without results).
     std::vector<SeriesAdsorbent> SeriesAdsorbents() const;
@@ -426,6 +451,9 @@ namespace adsim {
     // The adsorbent ID named by `adsorbent` (a label of SeriesAdsorbents() or
     // a deck ID); throws std::invalid_argument when it names none.
     size_t ResolveAdsorbent(const std::string& adsorbent) const;
+    // The logged reaction named by `reaction` (name or ID) on `adsorbent`
+    // (optional when only one solid carries it); throws std::invalid_argument.
+    SeriesReaction ResolveReaction(const std::string& reaction, const std::string& adsorbent) const;
 
     std::unique_ptr<UserData> data_;
     std::unique_ptr<ParameterRegistry> registry_;

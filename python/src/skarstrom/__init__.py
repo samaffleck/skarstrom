@@ -191,6 +191,7 @@ __all__ = [
     "warning_manifest",
     "component_variables",
     "per_adsorbent_variables",
+    "reaction_variables",
     "constant",
     "evaluate_iast",
     "evaluate_isotherm",
@@ -617,6 +618,12 @@ class Simulation:
     def kpi_tracked(self) -> "_model.ValueMap":
         """Whether each component's KPIs are computed: ``sim.kpi_tracked["CO2"] = True`` (``kpi[C].tracked``)."""
         return _model._kpi_tracked(self)
+
+    @property
+    def reaction_kpi(self) -> "_model.ReactionKPI":
+        """The reaction KPIs' configuration: ``sim.reaction_kpi.key_reactant = "Methane"``,
+        ``sim.reaction_kpi.product["Hydrogen"] = True``, ``sim.reaction_kpi.basis`` (``kpi.reaction.*``)."""
+        return _model._reaction_kpi(self)
 
     @property
     def info(self) -> Info:
@@ -1087,6 +1094,7 @@ class Simulation:
         z: Optional[float] = None,
         cycle: int = -1,
         adsorbent: Any = None,
+        reaction: Any = None,
     ) -> TimeSeries:
         """A log variable over one cycle at one point of the bed.
 
@@ -1108,11 +1116,19 @@ class Simulation:
         loading per kg of that solid, 0 where it is absent). Without it the
         series is the mass-weighted sum over the solids of each cell, which is
         the same for a layer of one solid.
+
+        ``reaction`` (a reaction's name or ID, :meth:`series_reactions`) is required for a
+        :func:`reaction_variables` variable (``"reaction_rate"``: eta r of that reaction on its
+        solid [mol/(kg s)], 0 where the solid is absent) and refused for the others;
+        ``adsorbent`` then picks the solid when the reaction is on more than one. The rate has
+        no boundary value: "top" and "bottom" give the last and first packed cell. The
+        reactions' totals are the bulk ``"reaction_heat"`` and the per-component
+        ``"reaction_source"``.
         """
         if z is not None:
             location = "position"
         return self._sim.series(variable, component or "", location, 0.0 if z is None else float(z), cycle,
-                                _adsorbent_arg(adsorbent))
+                                _adsorbent_arg(adsorbent), _reaction_arg(reaction))
 
     def series_adsorbents(self) -> List[Dict[str, Any]]:
         """The adsorbents packed in the last run's bed: ``id`` (deck ID), ``label`` (the name,
@@ -1122,8 +1138,22 @@ class Simulation:
         series; otherwise they are read off the aggregate). Empty without results."""
         return self._sim.series_adsorbents()
 
+    def series_reactions(self) -> List[Dict[str, Any]]:
+        """The reactions whose rates the last run logged, one per reaction per solid: ``id``
+        (the reaction's ID), ``name`` (the ``reaction=`` of :meth:`series` and :meth:`profile`),
+        ``adsorbent_id``, ``adsorbent`` (the solid's label) and ``variable_name`` (the log
+        name, ``"<reaction> Rate (<adsorbent>)"``, also the CSV file name of
+        :meth:`save_logs`). Empty without results or reactions."""
+        return self._sim.series_reactions()
+
     def profile(
-        self, variable: str, component: Optional[str] = None, cycle: int = -1, step: int = 0, adsorbent: Any = None
+        self,
+        variable: str,
+        component: Optional[str] = None,
+        cycle: int = -1,
+        step: int = 0,
+        adsorbent: Any = None,
+        reaction: Any = None,
     ) -> AxialProfile:
         """Axial profiles over one step: ``values`` has shape (len(time), len(z)).
 
@@ -1131,9 +1161,10 @@ class Simulation:
         and the faces (:attr:`face_positions`, ``faces`` True) for a face
         variable (velocity, volumetric and molar flow rate, approach to
         fluidisation). The bed-end values are :meth:`series` with
-        ``location="bottom"`` or ``"top"``. ``adsorbent`` as in :meth:`series`.
+        ``location="bottom"`` or ``"top"``. ``adsorbent`` and ``reaction`` as in :meth:`series`.
         """
-        return self._sim.profile(variable, component or "", cycle, step, _adsorbent_arg(adsorbent))
+        return self._sim.profile(variable, component or "", cycle, step, _adsorbent_arg(adsorbent),
+                                 _reaction_arg(reaction))
 
     def stream_series(
         self, step: int, stream: str, variable: str, component: Optional[str] = None, cycle: int = -1
@@ -1170,6 +1201,21 @@ def per_adsorbent_variables() -> List[str]:
     per adsorbent (``adsorbent=``): the adsorbed and equilibrium loading, the mass-transfer
     coefficient and the slow-site loading."""
     return _core.per_adsorbent_variables()
+
+
+def reaction_variables() -> List[str]:
+    """The variables :meth:`Simulation.series` / :meth:`Simulation.profile` give per reaction
+    (``reaction=``): ``"reaction_rate"``."""
+    return _core.reaction_variables()
+
+
+def _reaction_arg(reaction: Any) -> str:
+    """The ``reaction=`` of series/profile as the engine takes it: a name, or an ID as text."""
+    if reaction is None:
+        return ""
+    if isinstance(reaction, bool):
+        raise TypeError("reaction must be a reaction name or ID")
+    return str(reaction)
 
 
 def _adsorbent_arg(adsorbent: Any) -> str:

@@ -246,7 +246,8 @@ TEST(Manifests, KpisFollowTheEngineKpiList) {
     EXPECT_FALSE(k.label.empty()) << k.key;
     EXPECT_FALSE(k.description.empty()) << k.key;
     EXPECT_TRUE(CheckUnit(k.unit).ok) << k.key << " unit " << k.unit;
-    if (!k.per_step && !k.diagnostic) scalars.push_back(k.key);
+    if (!k.per_step && !k.diagnostic && !k.reaction) scalars.push_back(k.key);
+    EXPECT_FALSE(k.reaction && k.diagnostic) << k.key;
   }
   EXPECT_EQ(scalars, names);
   // Reported KPIs first, then the diagnostics.
