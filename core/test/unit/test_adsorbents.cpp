@@ -590,14 +590,14 @@ namespace adsim {
     adsorbent.adsorption_source_.heat_of_adsorption_[N2] = 25451.65;  // J/mol (-ΔH)
 
     auto ldf_o2 = std::make_unique<LinearDrivingForce>();
-    auto mtc_o2 = std::make_unique<MassTransferCoefficientConstant>();
-    mtc_o2->constant_mtc_ = 104.07;  // s^-1
+    auto mtc_o2 = std::make_unique<MassTransferCoefficientSeriesResistance>();
+    mtc_o2->k_ = 104.07;  // s^-1
     ldf_o2->mtc_model_ = std::move(mtc_o2);
     adsorbent.adsorption_source_.mass_transfer_models_[O2] = std::move(ldf_o2);
 
     auto ldf_n2 = std::make_unique<LinearDrivingForce>();
-    auto mtc_n2 = std::make_unique<MassTransferCoefficientConstant>();
-    mtc_n2->constant_mtc_ = 42.84;  // s^-1
+    auto mtc_n2 = std::make_unique<MassTransferCoefficientSeriesResistance>();
+    mtc_n2->k_ = 42.84;  // s^-1
     ldf_n2->mtc_model_ = std::move(mtc_n2);
     adsorbent.adsorption_source_.mass_transfer_models_[N2] = std::move(ldf_n2);
 
@@ -615,15 +615,15 @@ namespace adsim {
     EXPECT_DOUBLE_EQ(iso->params_.at(N2).m2, 0.6613);
     EXPECT_DOUBLE_EQ(iso->params_.at(N2).q1, 27923.9);
 
-    auto* mtm_o2 = dynamic_cast<MassTransferCoefficientConstant*>(
+    auto* mtm_o2 = dynamic_cast<MassTransferCoefficientSeriesResistance*>(
       adsorbent_cpy.adsorption_source_.mass_transfer_models_.at(O2)->mtc_model_.get());
     ASSERT_NE(mtm_o2, nullptr);
-    EXPECT_DOUBLE_EQ(mtm_o2->constant_mtc_, 104.07);
+    EXPECT_DOUBLE_EQ(mtm_o2->k_, 104.07);
 
-    auto* mtm_n2 = dynamic_cast<MassTransferCoefficientConstant*>(
+    auto* mtm_n2 = dynamic_cast<MassTransferCoefficientSeriesResistance*>(
       adsorbent_cpy.adsorption_source_.mass_transfer_models_.at(N2)->mtc_model_.get());
     ASSERT_NE(mtm_n2, nullptr);
-    EXPECT_DOUBLE_EQ(mtm_n2->constant_mtc_, 42.84);
+    EXPECT_DOUBLE_EQ(mtm_n2->k_, 42.84);
   }
 
   TEST(AdsorbentTest, Zeolite5A) {
@@ -656,14 +656,14 @@ namespace adsim {
     adsorbent.adsorption_source_.heat_of_adsorption_[N2] = 22886.48;  // J/mol (-ΔH)
 
     auto ldf_o2 = std::make_unique<LinearDrivingForce>();
-    auto mtc_o2 = std::make_unique<MassTransferCoefficientConstant>();
-    mtc_o2->constant_mtc_ = 12.07;  // s^-1
+    auto mtc_o2 = std::make_unique<MassTransferCoefficientSeriesResistance>();
+    mtc_o2->k_ = 12.07;  // s^-1
     ldf_o2->mtc_model_ = std::move(mtc_o2);
     adsorbent.adsorption_source_.mass_transfer_models_[O2] = std::move(ldf_o2);
 
     auto ldf_n2 = std::make_unique<LinearDrivingForce>();
-    auto mtc_n2 = std::make_unique<MassTransferCoefficientConstant>();
-    mtc_n2->constant_mtc_ = 4.02;  // s^-1
+    auto mtc_n2 = std::make_unique<MassTransferCoefficientSeriesResistance>();
+    mtc_n2->k_ = 4.02;  // s^-1
     ldf_n2->mtc_model_ = std::move(mtc_n2);
     adsorbent.adsorption_source_.mass_transfer_models_[N2] = std::move(ldf_n2);
 
@@ -681,15 +681,15 @@ namespace adsim {
     EXPECT_DOUBLE_EQ(iso->params_.at(N2).q1, 26140.8);
     EXPECT_DOUBLE_EQ(iso->params_.at(N2).q2, 23284.3);
 
-    auto* mtm_o2 = dynamic_cast<MassTransferCoefficientConstant*>(
+    auto* mtm_o2 = dynamic_cast<MassTransferCoefficientSeriesResistance*>(
       adsorbent_cpy.adsorption_source_.mass_transfer_models_.at(O2)->mtc_model_.get());
     ASSERT_NE(mtm_o2, nullptr);
-    EXPECT_DOUBLE_EQ(mtm_o2->constant_mtc_, 12.07);
+    EXPECT_DOUBLE_EQ(mtm_o2->k_, 12.07);
 
-    auto* mtm_n2 = dynamic_cast<MassTransferCoefficientConstant*>(
+    auto* mtm_n2 = dynamic_cast<MassTransferCoefficientSeriesResistance*>(
       adsorbent_cpy.adsorption_source_.mass_transfer_models_.at(N2)->mtc_model_.get());
     ASSERT_NE(mtm_n2, nullptr);
-    EXPECT_DOUBLE_EQ(mtm_n2->constant_mtc_, 4.02);
+    EXPECT_DOUBLE_EQ(mtm_n2->k_, 4.02);
   }
 
 }

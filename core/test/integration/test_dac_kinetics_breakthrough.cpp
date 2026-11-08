@@ -101,6 +101,7 @@ struct DacDeck : UserDataTest {
     AddLinearDrivingForceModel(ads_id, "Nitrogen", 0.1);
     auto series = [](double dc0, double rc, double capacity) {
       auto m = std::make_unique<MassTransferCoefficientSeriesResistance>();
+      m->ApplyPreset(MassTransferCoefficientType::SERIES_RESISTANCE);  // terms switched off by zero parameters
       m->tortuosity_ = 3.0;
       m->macropore_void_fraction_ = 0.338;
       m->crystal_radius_ = rc;

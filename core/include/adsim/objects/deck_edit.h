@@ -322,14 +322,37 @@ bool SetIsothermKind(UserData& data, AdsorbentID adsorbent, const std::string& c
                      std::string& err);
 
 // The rate model of one component and its coefficient model (an LDF model is
-// created when the component has none). The rate constant keeps its value only
-// while the rate model keeps its order (its unit is 1/s for LDF, kg/(mol s)
-// for LDF2). A dual-rate model's slow-site coefficient model takes the same
-// kind: a new dual-rate model starts with it a copy of the fast site's, an
-// existing one keeps the slow-site parameters the old and new kinds share.
+// created when the component has none). The coefficient kind is a preset of
+// the generic resistance model (mass_transfer_model.h): it sets the switches,
+// the capacity-factor mode and the parameters the preset shows, which take the
+// kind's defaults unless the old preset shared them (same name and unit); the
+// parameters it does not show keep their stored values. The rate constant
+// keeps its value only while the rate model keeps its order (its unit is 1/s
+// for LDF, kg/(mol s) for LDF2). A dual-rate model's slow site takes the same
+// preset: a new dual-rate model starts with it a copy of the fast site's, an
+// existing one keeps the slow-site parameters the old and new presets share.
 bool SetMassTransferKind(UserData& data, AdsorbentID adsorbent, const std::string& component,
                          MassTransferModelType rate_kind, MassTransferCoefficientType coefficient_kind,
                          std::string& err);
+
+// The site of a dual-rate model a resistance edit applies to (single-site
+// models have the fast site only).
+enum class MassTransferSite { Fast, Slow };
+
+// Switches one resistance ("film", "macropore", "knudsen", "micropore",
+// "lumped") of a component's coefficient model on or off, on the fast or the
+// slow site. Refused (false, err set): switching the last of film, macropore,
+// micropore and lumped off, and knudsen without macropore; switching macropore
+// off also switches knudsen off. Parameter values are kept, so switching a
+// term off and on again restores them. Each dual-rate site has its own
+// switches.
+bool SetMassTransferResistance(UserData& data, AdsorbentID adsorbent, const std::string& component,
+                               MassTransferSite site, const std::string& tag, bool on, std::string& err);
+
+// The capacity-factor mode of a component's coefficient model (fast or slow
+// site); the fixed mode with capacity_factor <= 0 sets it to 1.
+bool SetCapacityFactorMode(UserData& data, AdsorbentID adsorbent, const std::string& component, MassTransferSite site,
+                           CapacityFactorMode mode, std::string& err);
 
 // The transport models of a layer and the bed's gas-solid heat transfer.
 bool SetDispersionKind(UserData& data, LayerID layer, AxialDispersionType kind, std::string& err);

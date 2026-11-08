@@ -82,7 +82,11 @@ void Canonicalise(rj::Value& v, rj::Document::AllocatorType& a, std::map<uint64_
       if (!pairs.count(id)) pairs[id] = pairs.size() + 1;
       v["Pair_ID"].SetUint64(pairs[id]);
     }
-    for (const char* marker : {"polymorphic_id", "polymorphic_name", "cereal_class_version"}) v.RemoveMember(marker);
+    // EraseMember keeps the member order (RemoveMember moves the last member
+    // into the gap, so objects that differ only in which one carried the
+    // class version would compare unequal).
+    for (const char* marker : {"polymorphic_id", "polymorphic_name", "cereal_class_version"})
+      if (auto it = v.FindMember(marker); it != v.MemberEnd()) v.EraseMember(it);
     for (auto& m : v.GetObject()) Canonicalise(m.value, a, pairs);
   } else if (v.IsArray()) {
     bool map = !v.Empty();
@@ -411,13 +415,13 @@ TEST(DeckEditCascades, SetMassTransferKindCarriesSharedParameters) {
   std::string err;
   ASSERT_TRUE(SetMassTransferKind(f.d, f.ads, "CarbonDioxide", MassTransferModelType::LDF,
                                   MassTransferCoefficientType::MACROPORE, err)) << err;
-  auto* m = dynamic_cast<MassTransferCoefficientMacropore*>(mtm.at("CarbonDioxide")->mtc_model_.get());
+  auto* m = dynamic_cast<MassTransferCoefficientSeriesResistance*>(mtm.at("CarbonDioxide")->mtc_model_.get());
   ASSERT_TRUE(m);
   m->tortuosity_ = 4.2;
   m->macropore_void_fraction_.SetExpr("0.3");
   ASSERT_TRUE(SetMassTransferKind(f.d, f.ads, "CarbonDioxide", MassTransferModelType::LDF,
                                   MassTransferCoefficientType::MACROPORE_KNUDSEN, err)) << err;
-  auto* k = dynamic_cast<MassTransferCoefficientMacroporeKnudsen*>(mtm.at("CarbonDioxide")->mtc_model_.get());
+  auto* k = dynamic_cast<MassTransferCoefficientSeriesResistance*>(mtm.at("CarbonDioxide")->mtc_model_.get());
   ASSERT_TRUE(k);
   EXPECT_DOUBLE_EQ(k->tortuosity_.Get(), 4.2);
   EXPECT_EQ(k->macropore_void_fraction_.GetExpr(), "0.3") << "the expression text carries over";
@@ -425,11 +429,11 @@ TEST(DeckEditCascades, SetMassTransferKindCarriesSharedParameters) {
   // The rate constant does not survive a change of rate-model order.
   ASSERT_TRUE(SetMassTransferKind(f.d, f.ads, "Nitrogen", MassTransferModelType::LDF,
                                   MassTransferCoefficientType::CONSTANT, err)) << err;
-  dynamic_cast<MassTransferCoefficientConstant*>(mtm.at("Nitrogen")->mtc_model_.get())->constant_mtc_ = 0.07;
+  dynamic_cast<MassTransferCoefficientSeriesResistance*>(mtm.at("Nitrogen")->mtc_model_.get())->k_ = 0.07;
   ASSERT_TRUE(SetMassTransferKind(f.d, f.ads, "Nitrogen", MassTransferModelType::LDF2,
                                   MassTransferCoefficientType::CONSTANT, err)) << err;
   EXPECT_EQ(mtm.at("Nitrogen")->GetModelType(), MassTransferModelType::LDF2);
-  EXPECT_DOUBLE_EQ(dynamic_cast<MassTransferCoefficientConstant*>(mtm.at("Nitrogen")->mtc_model_.get())->constant_mtc_.Get(),
+  EXPECT_DOUBLE_EQ(dynamic_cast<MassTransferCoefficientSeriesResistance*>(mtm.at("Nitrogen")->mtc_model_.get())->k_.Get(),
                    0.5);
 }
 

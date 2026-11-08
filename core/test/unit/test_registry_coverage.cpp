@@ -161,6 +161,11 @@ const std::vector<Exception>& Exceptions() {
       {R"(.*/Pump/ptr_wrapper/data/(Suction_Pressure|Discharge_Pressure|value0/.*)$)", "pump of an endpoint whose pump is off (listed once SetPumpKind turns it on)"},
       {R"(.*/Reactions\[\]/Effectiveness/(Effectiveness|Tortuosity)$)", "the effectiveness value of the mode not in use (eta for constant, tortuosity for Thiele)"},
       {R"(.*/Buffer_Tank_Source/Percentage$)", "share drawn by an inactive buffer tank (listed once the tank is set)"},
+      {R"(.*Mass_Transfer_Coefficient_Model/ptr_wrapper/data/(Resistances/(Film|Macropore|Knudsen|Micropore|Lumped)|Capacity_Factor_Mode)$)",
+       "mass-transfer resistance switches and capacity-factor mode (SetMassTransferResistance, SetCapacityFactorMode)"},
+      {R"(.*Mass_Transfer_Coefficient_Model/ptr_wrapper/data/(Film_Resistance_Factor|Tortuosity|Macropore_Void_Fraction|Molecular_Diffusion_Coefficient|Crystal_Radius|Micropore_Diffusivity|Micropore_Activation_Energy|Capacity_Factor|Concentration_Floor|Mass_Transfer_Coefficient|Activation_Energy|Pore_Radius)$)",
+       "a coefficient parameter its preset does not show (every one is stored; the registry lists the preset's, "
+       "which ModelKinds.RegistryEntriesFollowTheDescriptors checks)"},
       // Legacy.
       {R"(.*/Boundary_Pressure/ptr_wrapper/data/Proportional_Gain$)", "unused field kept for the archive layout of the exponential profile"},
       {R"(^/simulation/Bed/Layers/Layers\[\]/Layer_Equations/Thermal_Equilibrium_Mode$)", "moved to the bed (bed.thermal_equilibrium_mode); discarded on load"},

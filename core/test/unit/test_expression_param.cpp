@@ -1002,11 +1002,12 @@ namespace {
         return *cyl;
     }
 
-    MassTransferCoefficientConstant& ConstantMtc(UserData& ud) {
+    MassTransferCoefficientSeriesResistance& ConstantMtc(UserData& ud) {
         for (auto& [id, ads] : ud.adsorbent_directory.GetAll()) {
             for (auto& [comp, mtm] : ads.adsorption_source_.mass_transfer_models_) {
                 if (!mtm) continue;
-                if (auto* m = dynamic_cast<MassTransferCoefficientConstant*>(mtm->mtc_model_.get()))
+                auto* m = dynamic_cast<MassTransferCoefficientSeriesResistance*>(mtm->mtc_model_.get());
+                if (m && m->PresetType() == MassTransferCoefficientType::CONSTANT)
                     return *m;
             }
         }
@@ -1081,7 +1082,7 @@ TEST(NonFiniteExpressions, InfiniteStepPressureNamesStepAndEnd) {
 TEST(NonFiniteExpressions, StateDependentExpressionNotFlagged) {
     for (const char* expr : {"1/y", "2/v", "1/(T-298.15)"}) {
         std::string err;
-        EXPECT_TRUE(EvaluateAndCheck([&](UserData& ud) { ConstantMtc(ud).constant_mtc_.SetExpr(expr); }, err))
+        EXPECT_TRUE(EvaluateAndCheck([&](UserData& ud) { ConstantMtc(ud).k_.SetExpr(expr); }, err))
             << expr << ": " << err;
     }
 }
@@ -1095,7 +1096,7 @@ TEST(NonFiniteExpressions, InfiniteUserVariableFlagged) {
         ud.variable_registry.Add(std::move(k));
         // A state-dependent MTC using k is not itself flagged, but k is (user
         // variables are resolved once, so the run would use k = inf).
-        ConstantMtc(ud).constant_mtc_.SetExpr("k*T");
+        ConstantMtc(ud).k_.SetExpr("k*T");
     }, err));
     EXPECT_NE(err.find("Variable 'k': \"1/0\" = inf"), std::string::npos) << err;
     EXPECT_EQ(err.find("mass transfer"), std::string::npos) << err;

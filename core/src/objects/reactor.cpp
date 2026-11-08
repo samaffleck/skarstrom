@@ -7,6 +7,9 @@
 #include "../pch.h"
 #include "adsim/objects/reactor.h"
 #include "adsim/equations/dispersion_model.h"
+#include "adsim/equations/mass_transfer_model.h"
+
+#include <set>
 
 
 namespace adsim {
@@ -90,6 +93,24 @@ namespace adsim {
                     " channels; use Ruthven dispersion or a constant coefficient.\n";
         return false;
       }
+    }
+
+    // The mass-transfer resistances of every solid a layer uses
+    // (CheckMassTransferModel, mass_transfer_model.h): every error reported;
+    // the warnings are run-start deck warnings (MassTransferWarnings).
+    {
+      std::set<AdsorbentID> in_layer;
+      for (const auto& layer : layers_.layers_)
+        for (const auto& [id, frac] : layer.composition_) in_layer.insert(id);
+      std::vector<std::string> errors, warnings;
+      for (AdsorbentID id : in_layer) {
+        if (!dir.Contains(id)) continue;
+        const Adsorbent& ads = dir.Get(id);
+        for (const auto& [component, model] : ads.adsorption_source_.mass_transfer_models_)
+          if (model) CheckMassTransferModel(*model, "the " + component + " kinetics of " + ads.name_, errors, warnings);
+      }
+      for (const auto& e : errors) errorMsg += e + "\n";
+      if (!errors.empty()) return false;
     }
 
     // Check that LTNE mode has a valid particle heat transfer model
