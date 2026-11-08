@@ -1,11 +1,17 @@
-# Build the documentation with MkDocs (Material) and deploy it to GitHub Pages
-# on every push to main. In the repository settings, set Pages > Source to
-# "GitHub Actions" once.
+# Build the documentation with MkDocs (Material) and deploy it to GitHub Pages.
+# The site root is the docs of the latest release tag (what the PyPI wheel has); main is previewed under
+# /dev/ behind a banner. In the repository settings, set Pages > Source to "GitHub Actions" once.
+#
+# release.yml creates the tag with the workflow token, which starts no other workflow, so a push-tags
+# trigger would never fire: the site is rebuilt when the Release workflow completes instead.
 name: Docs
 
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -17,16 +23,27 @@ concurrency:
 
 jobs:
   build:
+    # A Release run that failed or was skipped made no tag.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags: the latest release is built from its own tree
+      - run: git fetch --tags --force
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Banner version
+        run: echo "DEV_VERSION=$(scripts/docs/build_site.sh --dev-version)" >> "$GITHUB_ENV"
+      # Generated pages up to date, then main's --strict build with the banner (-> dev-site).
       - uses: ./.github/actions/docs-checks
         with:
-          site-dir: site
+          site-dir: dev-site
+          config-file: mkdocs.dev.yml
+      - name: Release docs at the root, main under dev/
+        run: scripts/docs/build_site.sh site dev-site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

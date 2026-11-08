@@ -145,7 +145,7 @@ When the integrator (IDA) fails a step (repeated error-test or convergence failu
 
 - it does not stop the run or change the results beyond the integration tolerance;
 - the log shows it at level *medium* as `Step "<name>" recovered step: IDA failure (code <n>) at t=... ; retry k/4 ...`, followed by IDA's own message;
-- it counts in the run statistics, `recovered_steps` (`result.stats["recovered_steps"]` in Python, `stats.recovered_steps` in the CLI `--json` summary), and in the [run-health](run-health.md) `STEP_RETRIES` measure, which reads the same count.
+- it counts in the run statistics, `recovered_steps` (*New in 0.9.* `result.stats["recovered_steps"]` in Python, `stats.recovered_steps` in the CLI `--json` summary), and in the [run-health](run-health.md) `STEP_RETRIES` measure, which reads the same count.
 
 Only a step whose retries run out is a failure: it is logged at level *low* with IDA's last message and the run stops. IDA's messages never go to stderr; at level *high* the log shows every one of them (`IDA: ...`).
 
