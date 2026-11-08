@@ -166,9 +166,9 @@ void ExpectBalancesClose(const Simulation& sim, bool humid) {
   ASSERT_EQ(kpis.size(), 3u);  // N2, CO2 and water, one cycle
   for (const auto& k : kpis) {
     if (!humid && k.component == kH2O) continue;  // no water enters: the relative error is undefined (NaN)
-    ASSERT_TRUE(std::isfinite(k.quadrature_mass_balance_error)) << k.component;
-    EXPECT_LT(std::abs(k.quadrature_mass_balance_error), 1e-4) << k.component;
-    EXPECT_LT(std::abs(k.mass_balance_error), 1e-3) << k.component;
+    ASSERT_TRUE(std::isfinite(k.mass_balance_error)) << k.component;  // the quadrature balance
+    EXPECT_LT(std::abs(k.mass_balance_error), 1e-4) << k.component;
+    EXPECT_LT(std::abs(k.trapezoid_mass_balance_error), 1e-3) << k.component;
   }
   const StepBalance* b = sim.Boundaries().GetStepBalance(sim.LastCycle(), 0);
   ASSERT_NE(b, nullptr);
