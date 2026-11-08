@@ -108,7 +108,7 @@ A 100 °C jacket alone mostly heats and cools the wall. The bed only reaches 354
 **Temperatures.** The axial temperature profile at the end of each step of the last cycle:
 
 ```python
-for i, name in enumerate(sim.steps):
+for i, name in enumerate(sim.steps.names):
     T = sim.profile("temperature", cycle=-1, step=i)
     print(f"{name:15s} {T.values[-1].min():6.1f} - {T.values[-1].max():6.1f} K")
 ```

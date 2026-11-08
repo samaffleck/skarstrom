@@ -1,5 +1,12 @@
 # Sensitivity Analysis and Error Bars
 
+<!-- doc-setup
+import skarstrom
+from skarstrom import sensitivity as sa
+sim = skarstrom.examples.Perez2019_A.load()
+study = sa.Study(sim, [sa.relative("step[1].time", 0.10), sa.uniform("layer[1].bed_void_fraction", 0.39, 0.43)])
+-->
+
 A sensitivity study answers two questions about a deck:
 
 1. **Which inputs matter?** Of the uncertain inputs (step times, flows, bed voidage, isotherm constants...), which ones move purity, recovery, productivity and energy, and which can be left alone?
@@ -31,6 +38,7 @@ The ranges decide the answer. Record where each came from, and remember that the
 
 ## Running a study in Python
 
+<!-- long: 50 + 100..400 cycle simulations -->
 ```python
 import skarstrom
 from skarstrom import sensitivity as sa
@@ -57,6 +65,7 @@ spread.save("perez_spread.json")             # study, every run and the results
 
 ## Running a study from the command line
 
+<!-- long: runs a full screening and propagation -->
 ```bash
 skarstrom sensitivity Perez2019_A \
     --input "step[1].time=10%" --input "layer[1].bed_void_fraction=0.39:0.43" \

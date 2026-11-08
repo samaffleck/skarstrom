@@ -1,5 +1,12 @@
 # Parametric Studies and Parameterisation
 
+<!-- doc-setup
+import os
+import skarstrom
+base = skarstrom.examples.Perez2019_A.load()
+os.symlink(os.environ["SKARSTROM_DOC_REPO"] + "/core", "core")   # the page reads the repository's measured data
+-->
+
 Every settable deck value is a parameter with a stable path ([Python and the Command Line](python.md#parameter-paths)), so studies are ordinary Python loops around `sim.set(...)` and `sim.run()`. This page shows the three common patterns: a **parametric study** (sweep one input and watch a KPI), an **optimisation** (search inputs for the best KPI), and a **parameterisation** (fit deck parameters to measured data). If you only need isotherm parameters from equilibrium uptake data, use [Isotherm Fitting](isotherm-fitting.md) instead: it fits the isotherm directly, with no column simulation, and is far faster.
 
 Each trial is a full cycle simulation. Start from a copy of the deck (`sim.copy()`) so every trial begins from the same inputs, and keep the number of trials small.
@@ -38,6 +45,7 @@ for t_feed in np.linspace(30, 90, 5):
 
 Maximise CO₂ recovery subject to a purity floor, varying two inputs, with SciPy (any optimiser that takes a Python objective works):
 
+<!-- long: 30 cycle simulations to optimum -->
 ```python
 from scipy.optimize import minimize
 
@@ -57,6 +65,7 @@ res = minimize(objective, x0=[60.0, 120.0], method="Nelder-Mead", options={"maxf
 
 Purity and recovery pull against each other, so a design study usually wants the whole trade-off (the Pareto front) rather than one optimum. `examples/optimise_nsga2.py` does this with [pymoo](https://pymoo.org)'s NSGA-II (`pip install pymoo`): two decision variables (feed time and evacuation pressure of `Perez2019_A`), two objectives (CO₂ purity and recovery at cyclic steady state), and every generation's candidates run in parallel processes. The core of it:
 
+<!-- long: needs pymoo; runs 20 generations of 24 cycle simulations -->
 ```python
 from concurrent.futures import ProcessPoolExecutor
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -66,7 +75,7 @@ from pymoo.optimize import minimize
 def evaluate(x):                                   # one candidate, in a worker process
     sim = base.copy()
     sim.set("step[Feed].time", x[0], unit="s")
-    sim.set("step[Evacuation].bottom.pressure_exponential_end", x[1], unit="kPa")
+    sim.set("step[Evacuation].bottom.pressure_double_exponential_end", x[1], unit="kPa")
     if not sim.run().ok:
         return [1.0, 1.0]                          # a failed run scores worst
     k = next(k for k in sim.kpis(cycle=-1) if k.component == "CarbonDioxide")

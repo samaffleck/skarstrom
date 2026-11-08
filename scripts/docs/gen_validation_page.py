@@ -230,6 +230,7 @@ def render(summary: dict, manifest: list) -> str:
 
     out("## Reproducing this page")
     out("")
+    out("<!-- no-run: builds the engine and runs the paper tests -->")
     out("```bash")
     out("cmake --preset linux-release")
     out("cmake --build --preset linux-release")

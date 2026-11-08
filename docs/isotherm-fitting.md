@@ -1,5 +1,19 @@
 # Isotherm Fitting
 
+<!-- doc-setup
+import numpy as np
+import skarstrom
+sim = skarstrom.examples.Perez2019_A.load()
+sim.edit.set_isotherm_kind("13X", "CarbonDioxide", "sips")
+sim.save("my_deck.json")
+p = np.array([0.1, 0.25, 0.5, 1.0, 2.0, 4.0]) * 1e5
+q = np.array([1.06, 1.94, 2.76, 3.47, 4.01, 4.36])
+T_all = np.repeat([298.15, 323.15], 6)
+p_all = np.tile([0.1, 0.25, 0.5, 1.0, 2.0, 4.0], 2) * 1e5
+q_all = np.array([1.06, 1.94, 2.76, 3.47, 4.01, 4.36, 0.5, 1.1, 1.8, 2.5, 3.1, 3.6])
+q_water = np.array([1.0, 2.1, 3.3, 4.2, 5.5])
+-->
+
 Skarstrom fits [isotherm models](isotherms.md) to measured equilibrium points with the engine's own isotherm code, so the fitted parameters mean exactly what they will mean in a simulation. It needs no column, cycle or deck: it is the quick way from a table of uptake data to model parameters. From Python the fitter is `skarstrom.fit_isotherm`; in C++ it is `adsim::isofit::Fit` (`adsim/solver/isotherm_fit.h`). The executed notebook `examples/notebooks/isotherm_fit.ipynb` walks through single- and multi-temperature fits.
 
 ## Data
@@ -35,7 +49,7 @@ fit = skarstrom.fit_isotherm("dual_site_langmuir_p", p_all, q_all, temperature=T
 ```python
 x = np.array([0.1, 0.2, 0.4, 0.6, 0.8])                 # relative humidity
 fit = skarstrom.fit_isotherm("gab", x * 3169.9, q_water, temperature=298.15)            # water at 25 degC
-q = skarstrom.evaluate_isotherm("gab", fit["params"], x * 7870.0, 298.15, component="Ethanol")
+q_ethanol = skarstrom.evaluate_isotherm("gab", fit["params"], x * 7870.0, 298.15, component="Ethanol")
 ```
 
 ## Starting values and bounds
@@ -78,7 +92,8 @@ The result dictionary holds:
 Write the fitted values into an adsorbent of a deck through its parameter paths (the component's isotherm must already be of the fitted kind):
 
 ```python
-sim = skarstrom.Simulation("my_deck.json")
+sim = skarstrom.Simulation("my_deck.json")                       # its CO2 isotherm is a Sips
+fit = skarstrom.fit_isotherm("sips", p, q, temperature=303.15)
 for name, value in fit["params"].items():
     sim[f"adsorbent[1].isotherm[CarbonDioxide].{name}"] = value
 sim.save("my_deck_fitted.json")

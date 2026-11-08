@@ -34,8 +34,10 @@
 # the PR's files, and the C++, Python wheel, Emscripten and subproject jobs run
 # only if one of them is not docs or repository metadata (Markdown files,
 # docs/, mkdocs.yml, requirements-docs.txt, .gitattributes, CITATION.cff, issue
-# templates). The docs and workflow-lint jobs always run. Exceptions that DO
-# count as code: docs/python.md (python/tests runs its example),
+# templates). The docs and workflow-lint jobs always run. The Python wheel
+# job also runs when a docs page or AGENTS.md changes, because it executes
+# their code blocks (scripts/docs/run_doc_blocks.py); the other builds do not.
+# Exceptions that DO count as code: docs/python.md (python/tests runs its example),
 # python/README.md and THIRD_PARTY_NOTICES.md (packaged in the wheel, as are
 # LICENSE and NOTICE). Pushes to main, nightly and manual runs build
 # everything.
@@ -73,6 +75,7 @@ jobs:
       pull-requests: read
     outputs:
       code: ${{ steps.files.outputs.code }}
+      wheel: ${{ steps.files.outputs.wheel }}
     steps:
       - name: Classify the pull request's files
         id: files
@@ -84,6 +87,7 @@ jobs:
           set -euo pipefail
           if [ "$EVENT" != "pull_request" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "wheel=true" >> "$GITHUB_OUTPUT"
             echo "Not a pull request: building everything." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -91,9 +95,12 @@ jobs:
           gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
             --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/files.txt"
           code=false
+          wheel=false
           if [ "$(wc -l < "$RUNNER_TEMP/files.txt")" -ge 3000 ]; then code=true; fi
           while IFS= read -r f; do
             case "$f" in
+              # Their code blocks run against the wheel.
+              docs/*.md|AGENTS.md) wheel=true; echo "wheel (doc code blocks): $f" ;;&
               # Read by the tests or packaged in the wheel.
               docs/python.md|python/README.md|THIRD_PARTY_NOTICES.md) code=true; echo "code: $f" ;;
               # Docs and repository metadata.
@@ -102,6 +109,8 @@ jobs:
             esac
           done < "$RUNNER_TEMP/files.txt"
           echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = true ]; then wheel=true; fi
+          echo "wheel=$wheel" >> "$GITHUB_OUTPUT"
           if [ "$code" = true ]; then
             echo "The pull request changes code: building everything." >> "$GITHUB_STEP_SUMMARY"
           else
@@ -227,7 +236,7 @@ jobs:
   python:
     name: Python wheel (Linux)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.wheel == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -260,6 +269,13 @@ jobs:
         run: |
           cd /tmp && /tmp/venv/bin/skarstrom examples | head -3
           cd "$GITHUB_WORKSPACE" && /tmp/venv/bin/python -m pytest python/tests -q
+      # The docs job has no built package, so the code blocks of docs/*.md and
+      # AGENTS.md run here, against the installed wheel, with each run capped
+      # at 3 cycles (the nightly full run is `--full`). About 35 s.
+      - name: Run the documentation code blocks
+        run: |
+          /tmp/venv/bin/pip install scipy pandas
+          /tmp/venv/bin/python scripts/docs/run_doc_blocks.py --jobs 2
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-linux-ci
