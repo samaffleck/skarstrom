@@ -207,6 +207,21 @@ namespace adsim {
     return warnings;
   }
 
+  std::vector<std::string> MassTransferWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed) {
+    std::set<AdsorbentID> in_layer;
+    for (const auto& layer : bed.layers_.layers_)
+      for (const auto& [id, frac] : layer.composition_) in_layer.insert(id);
+    std::vector<std::string> errors, warnings;
+    for (AdsorbentID id : in_layer) {
+      if (!adsorbents.Contains(id)) continue;
+      const Adsorbent& ads = adsorbents.Get(id);
+      for (const auto& [component, model] : ads.adsorption_source_.mass_transfer_models_)
+        if (model) CheckMassTransferModel(*model, "the " + component + " kinetics of " + ads.name_, errors, warnings);
+    }
+    for (auto& w : warnings) w = "Warning: " + w;
+    return warnings;
+  }
+
   std::vector<std::string> FilmCorrelationWarnings(const Bed& bed) {
     std::vector<std::string> warnings;
     for (const auto& layer : bed.layers_.layers_) {

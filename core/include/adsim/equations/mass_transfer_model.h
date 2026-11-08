@@ -65,7 +65,7 @@ namespace adsim {
 		"Haynes (1973)",
 		"Arrhenius",
 		"Macropore Diffusion (capacity factor)",
-		"Series Resistance (film + macropore + micropore)"
+		"Mass-transfer resistances"
 	};
 
 	class IMassTransferCoefficientModel {
@@ -93,278 +93,254 @@ namespace adsim {
 		void serialize(Archive& ar) {}
 	};
 
-	class MassTransferCoefficientConstant : public IMassTransferCoefficientModel {
-	public:
-		void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
-    MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::CONSTANT; }
-    unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
-    void EvaluateExpressions(const EvalContext& ctx) override { constant_mtc_.Evaluate(ctx); }
-    void CompileForRun(const UserVariableRegistry* registry) override { constant_mtc_.CompileForRun(registry); }
+	// How the generic coefficient model scales its gas-side resistances (film,
+	// macropore) by the capacity factor K, the ratio of the solid's to the
+	// gas's capacity for the component. Stored as its integer value.
+	enum class CapacityFactorMode {
+		NONE = 0,    // K = 1
+		SLOPE = 1,   // K = max(rho_p dq*/dc, 1) at max(c, c_floor); the secant where the slope is <= 0
+		SECANT = 2,  // K = max(rho_p q*/c, 1) at max(c, c_floor); 1 where rho_p q* <= 0
+		FIXED = 3    // K = capacity_factor (not floored)
+	};
 
-		ExpressionParam constant_mtc_{0.5};
+	static const char* CapacityFactorModeList[] = {"none", "slope", "secant", "fixed"};
 
-	private:
-		friend class cereal::access;
+	// One switch per resistance of the generic coefficient model. Knudsen
+	// diffusion refines the macropore term (Bosanquet: 1/D = 1/D_K + 1/D_m) and
+	// is on only with it.
+	struct MassTransferResistances {
+		bool film = false;
+		bool macropore = false;
+		bool knudsen = false;
+		bool micropore = false;
+		bool lumped = true;
+
+		bool operator==(const MassTransferResistances& o) const {
+			return film == o.film && macropore == o.macropore && knudsen == o.knudsen && micropore == o.micropore &&
+			       lumped == o.lumped;
+		}
+		bool operator!=(const MassTransferResistances& o) const { return !(*this == o); }
+
 		template <class Archive>
 		void serialize(Archive& ar, std::uint32_t const /*version*/) {
-			ar(cereal::virtual_base_class<IMassTransferCoefficientModel>(this),
-			   cereal::make_nvp("Mass_Transfer_Coefficient", constant_mtc_));
+			ar(cereal::make_nvp("Film", film), cereal::make_nvp("Macropore", macropore),
+			   cereal::make_nvp("Knudsen", knudsen), cereal::make_nvp("Micropore", micropore),
+			   cereal::make_nvp("Lumped", lumped));
 		}
 	};
 
-	class MassTransferCoefficientArrhenius : public IMassTransferCoefficientModel {
-	public:
-    void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
-		MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::ARRHENIUS; }
-		unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
-		void EvaluateExpressions(const EvalContext& ctx) override {
-			pre_exp_factor_.Evaluate(ctx); activation_energy_.Evaluate(ctx);
-		}
-		void CompileForRun(const UserVariableRegistry* registry) override {
-			pre_exp_factor_.CompileForRun(registry); activation_energy_.CompileForRun(registry);
-		}
+	// The resistance tags, in the fixed series order of the model.
+	inline const std::vector<std::string>& ResistanceTags() {
+		static const std::vector<std::string> tags{"film", "macropore", "knudsen", "micropore", "lumped"};
+		return tags;
+	}
 
-		ExpressionParam pre_exp_factor_{120.0};
-		ExpressionParam activation_energy_{1e4};
-
-	private:
-		friend class cereal::access;
-		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const /*version*/) {
-			ar(cereal::virtual_base_class<IMassTransferCoefficientModel>(this),
-			   cereal::make_nvp("Pre_Exponential_Factor", pre_exp_factor_),
-			   cereal::make_nvp("Activation_Energy", activation_energy_));
-		}
-	};
-
-	class MassTransferCoefficientMacroporeKnudsen : public IMassTransferCoefficientModel {
-	public:
-    void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
-		MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::MACROPORE_KNUDSEN; } // Macropore limited
-		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
-		void EvaluateExpressions(const EvalContext& ctx) override {
-			pore_radius_.Evaluate(ctx); tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx);
-			molecular_diffusion_coefficient_.Evaluate(ctx);
-		}
-
-		ExpressionParam pore_radius_{1e-9};              // [m]
-		ExpressionParam tortuosity_{3.0};                // particle tortuosity [-]
-		ExpressionParam macropore_void_fraction_{0.2};   // [-]
-		// Constant molecular diffusivity D_m [m2/s] used in place of the
-		// state's (T, P)-dependent one when > 0; 0 (the default) keeps the
-		// binary-diffusion model's value.
-		ExpressionParam molecular_diffusion_coefficient_{0.0};
-
-	private:
-		friend class cereal::access;
-		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(
-				cereal::virtual_base_class<IMassTransferCoefficientModel>(this),
-				cereal::make_nvp("Pore_Radius", pore_radius_),
-				cereal::make_nvp("Tortuosity", tortuosity_),
-				cereal::make_nvp("Macropore_Void_Fraction", macropore_void_fraction_)
-			);
-			// v3 added the optional constant D_m; older archives keep 0 (state D_m).
-			if (version >= 3) ar(cereal::make_nvp("Molecular_Diffusion_Coefficient", molecular_diffusion_coefficient_));
-		}
-	};
-
-	class MassTransferCoefficientMacropore : public IMassTransferCoefficientModel {
-	public:
-    void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
-		MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::MACROPORE; } // Macropore limited
-		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
-		void EvaluateExpressions(const EvalContext& ctx) override {
-			tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx);
-			molecular_diffusion_coefficient_.Evaluate(ctx);
-		}
-
-		ExpressionParam tortuosity_{3.0};                // particle tortuosity [-]
-		ExpressionParam macropore_void_fraction_{0.35};  // [-]
-		// Constant molecular diffusivity D_m [m2/s] used in place of the
-		// state's (T, P)-dependent one when > 0 (Haghpanah et al. 2013 and
-		// Estupinan Perez et al. 2019 use a constant 1.6e-5 m2/s); 0 (the
-		// default) keeps the binary-diffusion model's value.
-		ExpressionParam molecular_diffusion_coefficient_{0.0};
-
-	private:
-		friend class cereal::access;
-		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(
-				cereal::virtual_base_class<IMassTransferCoefficientModel>(this),
-				cereal::make_nvp("Tortuosity", tortuosity_),
-				cereal::make_nvp("Macropore_Void_Fraction", macropore_void_fraction_)
-			);
-			// v3 added the optional constant D_m; older archives keep 0 (state D_m).
-			if (version >= 3) ar(cereal::make_nvp("Molecular_Diffusion_Coefficient", molecular_diffusion_coefficient_));
-		}
-	};
-
-	// Macropore-diffusion LDF coefficient with the capacity factor of the
-	// Haghpanah et al. (2013) / Estupinan Perez et al. (2019, SI Eq. S4) model,
-	//   k_i = (15 eps_p D_m,i / (tau r_p^2)) * c_i / (rho_p q_i*),
-	// the macropore coefficient scaled by the ratio of the gas-phase to the
-	// adsorbed-phase capacity (mol per m3 of gas over mol per m3 of particle).
-	// For a strongly adsorbed component it is orders of magnitude below the plain
-	// macropore value. Evaluated per cell from the isotherm itself: as c -> 0 both
-	// c and q* vanish and their ratio tends to 1 / (rho_p K_H), so the ratio is
-	// taken at max(c_i, c_floor), with the isotherm re-evaluated at that
-	// concentration (every other component at its actual value), which stays
-	// finite and smooth where the state's own c / q* is 0 / 0. The ratio is
-	// capped at 1 (the plain macropore coefficient). Under the adsorbent's IAST
-	// mixing rule, q* is the IAST mixture loading at that state (all of the
-	// adsorbent's components solved together), not the component's own
-	// isotherm on its own.
-	class MassTransferCoefficientMacroporeCapacity : public IMassTransferCoefficientModel {
-	public:
-    void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
-		MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::MACROPORE_CAPACITY; }
-		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
-		void SetEquilibriumContext(IIsotherm* isotherm, double solid_density, AdsorptionSource* source) override {
-			isotherm_ = isotherm; solid_density_ = solid_density; source_ = source;
-		}
-		void EvaluateExpressions(const EvalContext& ctx) override {
-			tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx); concentration_floor_.Evaluate(ctx);
-			molecular_diffusion_coefficient_.Evaluate(ctx);
-		}
-
-		ExpressionParam tortuosity_{3.0};                // particle tortuosity [-]
-		ExpressionParam macropore_void_fraction_{0.35};  // [-]
-		ExpressionParam concentration_floor_{1e-3};      // [mol/m3] c below which the Henry-limit ratio is used
-		// Constant molecular diffusivity D_m [m2/s] used in place of the
-		// state's (T, P)-dependent one when > 0 (the papers above use a
-		// constant 1.6e-5 m2/s); 0 (the default) keeps the binary-diffusion
-		// model's value.
-		ExpressionParam molecular_diffusion_coefficient_{0.0};
-
-	private:
-		IIsotherm* isotherm_ = nullptr;   // transient, set by AdsorptionSource
-		AdsorptionSource* source_ = nullptr;  // transient: under IAST, q* comes from its UpdateIsothermAll
-		double solid_density_ = 0.0;      // transient [kg/m3]
-		std::vector<std::vector<double>> q_all_scratch_;  // transient: every component's q* before the IAST re-evaluation
-		std::vector<double> y_scratch_;   // transient: the mole fraction before flooring
-		std::vector<double> q_scratch_;   // transient: q* at the floored concentration
-
-		friend class cereal::access;
-		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(
-				cereal::virtual_base_class<IMassTransferCoefficientModel>(this),
-				cereal::make_nvp("Tortuosity", tortuosity_),
-				cereal::make_nvp("Macropore_Void_Fraction", macropore_void_fraction_),
-				cereal::make_nvp("Concentration_Floor", concentration_floor_)
-			);
-			// v2 added the optional constant D_m; older archives keep 0 (state D_m).
-			if (version >= 2) ar(cereal::make_nvp("Molecular_Diffusion_Coefficient", molecular_diffusion_coefficient_));
-		}
-	};
-
-	class MassTransferCoefficient_Haynes : public IMassTransferCoefficientModel {
-	public:
-    void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
-		MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::HAYNES_1973; } // Macropore limited
-		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion | kSherwoodNumber; }
-		void EvaluateExpressions(const EvalContext& ctx) override {
-			tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx);
-		}
-
-		ExpressionParam tortuosity_{3.0};                // particle tortuosity [-]
-		ExpressionParam macropore_void_fraction_{0.2};   // [-]
-
-	private:
-		friend class cereal::access;
-		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(
-				cereal::virtual_base_class<IMassTransferCoefficientModel>(this),
-				cereal::make_nvp("Tortuosity", tortuosity_),
-				cereal::make_nvp("Macropore_Void_Fraction", macropore_void_fraction_)
-			);
-		}
-	};
-
-	// Series-resistance (Glueckauf) LDF coefficient: external film, macropore
-	// and micropore resistances added in series, the first two scaled by the
-	// local capacity factor K (Ruthven 1984; as used for direct-air-capture
-	// breakthrough curves by Stampi-Bombelli et al. 2024, Ind. Eng. Chem. Res.
-	// 63, 11637, doi:10.1021/acs.iecr.4c01392). For packed spheres
-	//   1/k = f_film K r_p / (3 k_f) + K tau r_p^2 / (15 eps_p D_m)
-	//         + r_c^2 / (15 D_c),        D_c = D_c0 exp(-E_a / (R T)),
-	// with k_f = Sh D_m / d_p from the layer's film correlation (as haynes),
-	// and for a structured layer (slab of half-thickness l) the haynes slab
-	// form: (V/S) / k_f and tau l^2 / (3 eps_p D_m). K = rho_p dq*/dc, the
-	// slope of the isotherm (q* per kg, c in mol per m3 of gas, rho_p the
-	// particle density), by a forward difference at max(c, c_floor); where the
-	// slope is not positive the secant rho_p q*/c is used, and K is floored at
-	// 1 (the haynes coefficient), as macropore_capacity caps its ratio. A
-	// capacity_factor > 0 fixes K instead. Each term is switched off by its
-	// parameter: film_resistance_factor = 0, tortuosity = 0 (D_p = D_m / tau
-	// infinite), crystal_radius = 0 or micropore_diffusivity = 0. With the
-	// micropore term off and K = 1 the coefficient equals haynes exactly.
+	// The generic LDF coefficient: resistances in series, each switched on or
+	// off on its own (Glueckauf 1955; Ruthven 1984):
+	//   1/k = (f_film K) R_film + K R_macro + R_micro + R_lumped,
+	// a switched-off term contributing nothing. For packed spheres (radius r_p)
+	// and a slab of half-thickness l (structured layer):
+	//   R_film  = r_p / (3 k_f)  |  l / k_f,   k_f = Sh D_m / d_p  |  Sh D_m / D_h
+	//             (the layer's film correlation; the state's D_m);
+	//   R_macro = tau r_p^2 / (15 eps_p D)  |  tau l^2 / (3 eps_p D),
+	//             D the constant molecular_diffusion_coefficient when > 0, else
+	//             the state's D_m; with Knudsen diffusion D -> 1/(1/D_K + 1/D),
+	//             D_K = (2/3) r_pore sqrt(8 R T / (pi M));
+	//   R_micro = r_c^2 / (15 D_c),  D_c = D_c0 exp(-E_a,c / (R T));
+	//   R_lumped = 1 / k_L,  k_L = k exp(-E_a / (R T)) (k when E_a = 0).
+	// K multiplies the gas-side terms (film, macropore) only; how it is taken
+	// is the capacity-factor mode (CapacityFactorMode). As in
+	// Stampi-Bombelli et al. 2024 (Ind. Eng. Chem. Res. 63, 11637,
+	// doi:10.1021/acs.iecr.4c01392) for direct-air-capture breakthrough curves.
+	//
+	// Every older coefficient kind is a preset of this model (PresetType): a
+	// switch set, a mode and its parameter values. The single-term presets
+	// are evaluated in the operation order of the classes they replace
+	// (mass_transfer_legacy.h), so each gives the same double as before:
+	//   lumped only:                         k = k_L (constant: k)
+	//   macropore (+ knudsen), mode none:    k = c D_eff / l^2 (Glueckauf c = 60 on d_p, 3 on l)
+	//   macropore, mode secant:              that times min(c / (rho_p q*), 1)
+	//   anything else:                       the series sum above.
+	// Every parameter is stored whatever its switch, so switching a term off
+	// and on again restores its values.
+	//
+	// The tag "series_resistance" and the cereal name are those of the first
+	// version, in which a term was switched off by a zero parameter
+	// (film_resistance_factor, tortuosity, crystal_radius or
+	// micropore_diffusivity) and K came from the isotherm slope unless
+	// capacity_factor > 0. A version-1 archive loads with the switches and
+	// mode derived from those zeros, and a model created from the tag keeps
+	// deriving them from its current values (so setting crystal_radius and
+	// micropore_diffusivity after creation turns the micropore term on, as
+	// before) until a switch or the mode is set explicitly or it is saved.
 	class MassTransferCoefficientSeriesResistance : public IMassTransferCoefficientModel {
 	public:
-    void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
-		MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::SERIES_RESISTANCE; }
-		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion | kSherwoodNumber; }
+		// The preset the switches, mode and values match (SERIES_RESISTANCE
+		// when none does): what the deck's kind readers (registry, deck view,
+		// builder scripts) show. The class itself is always this one.
+		// INTERIM: until the registry has a leaf per switch, reporting the
+		// preset keeps every kind reader and its parameter names unchanged;
+		// the same holds for the in-memory sentinel derivation of a model
+		// created from "series_resistance" (sentinel_switches_). Both go once
+		// the switches can be set by path: then this returns SERIES_RESISTANCE
+		// and the preset is read from PresetType().
+		MassTransferCoefficientType GetModelType() override { return PresetType(); }
+		MassTransferCoefficientType PresetType() const;
+		// The preset's tag, or "custom" when no older kind matches.
+		std::string PresetTag() const;
+
+		unsigned ReadsTransportProperties() const override;
+		void UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) override;
 		void SetEquilibriumContext(IIsotherm* isotherm, double solid_density, AdsorptionSource* source) override {
 			isotherm_ = isotherm; solid_density_ = solid_density; source_ = source;
 		}
-		void EvaluateExpressions(const EvalContext& ctx) override {
-			film_resistance_factor_.Evaluate(ctx); tortuosity_.Evaluate(ctx); macropore_void_fraction_.Evaluate(ctx);
-			molecular_diffusion_coefficient_.Evaluate(ctx); crystal_radius_.Evaluate(ctx);
-			micropore_diffusivity_.Evaluate(ctx); micropore_activation_energy_.Evaluate(ctx);
-			capacity_factor_.Evaluate(ctx); concentration_floor_.Evaluate(ctx);
+		void EvaluateExpressions(const EvalContext& ctx) override;
+		void CompileForRun(const UserVariableRegistry* registry) override {
+			k_.CompileForRun(registry); activation_energy_.CompileForRun(registry);
 		}
 
-		// The capacity factor K at each cell of [start, end] (written into k_out),
-		// from the isotherm as described above. Public for the unit tests.
+		// ---- switches and capacity factor ----
+		// Whether a resistance ("film", "macropore", "knudsen", "micropore",
+		// "lumped") is on; false for an unknown tag.
+		bool Enabled(const std::string& tag) const;
+		// The effective switch set (derived from the parameters while
+		// SentinelSwitches()).
+		MassTransferResistances Resistances() const;
+		// The stored switch of a resistance, for binding (the switches are made
+		// explicit first); throws std::out_of_range for an unknown tag.
+		bool& Switch(const std::string& tag);
+		// Sets one switch with the model's rules: at least one of film,
+		// macropore, micropore and lumped stays on; knudsen needs macropore,
+		// and switching macropore off clears it. Parameter values are kept,
+		// except that switching a term on replaces those of its parameters
+		// that are out of range (a version-1 zero, say) by the term's defaults.
+		// Returns false (err set) when refused.
+		bool SetResistance(const std::string& tag, bool on, std::string& err);
+		CapacityFactorMode CapacityMode() const;
+		// Sets the mode; fixed with capacity_factor <= 0 sets it to 1.
+		void SetCapacityMode(CapacityFactorMode mode);
+		// K matters only with a gas-side term (film or macropore) on.
+		bool UsesCapacityFactor() const { const auto r = Resistances(); return r.film || r.macropore; }
+		// The parameters of the current mode: concentration_floor (slope,
+		// secant), capacity_factor (fixed), none (none); empty without a
+		// gas-side term.
+		std::vector<std::string> CapacityParameters() const;
+		// The parameters of one resistance, in display order (empty for an
+		// unknown tag).
+		static const std::vector<std::string>& ResistanceParameters(const std::string& tag);
+		// True while the switches and mode are derived from the version-1 zero
+		// sentinels (see the class comment).
+		bool SentinelSwitches() const { return sentinel_switches_; }
+		// Ends the sentinel derivation: stores the derived switches and mode.
+		// With replace_sentinels (loading a version-1 archive), a switched-off
+		// term's zero sentinels become that term's defaults, which cannot change
+		// results: the term is off. Otherwise every value is kept, so a save and
+		// reload shows the same parameters.
+		void MakeSwitchesExplicit(bool replace_sentinels = false);
+		// Sets the switches, mode and the values the preset fixes (constant:
+		// activation_energy = 0; haynes: film_resistance_factor = 1,
+		// molecular_diffusion_coefficient = 0). SERIES_RESISTANCE starts the
+		// sentinel derivation. Other parameters are left as they are.
+		void ApplyPreset(MassTransferCoefficientType preset);
+
+		// The capacity factor K at each cell of [start, end] (written into k_out)
+		// for the current mode. Public for the unit tests.
 		void CapacityFactor(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component,
 		                    int start, int end, const UserVariableRegistry* registry, std::vector<double>& k_out);
 
-		ExpressionParam film_resistance_factor_{1.0};       // [-] multiplies the film term; 0 drops it
-		ExpressionParam tortuosity_{3.0};                   // particle tortuosity [-]; 0 drops the macropore term
-		ExpressionParam macropore_void_fraction_{0.35};     // [-]
-		// Constant molecular diffusivity D_m [m2/s] of the macropore term when
+		// Defaults (also used for a first enable). A new model has the lumped
+		// term only, k = 0.5 1/s (the former constant kind's default).
+		ExpressionParam film_resistance_factor_{1.0};       // f_film [-], multiplies the film term
+		ExpressionParam tortuosity_{3.0};                   // particle tortuosity [-]
+		ExpressionParam macropore_void_fraction_{0.35};     // eps_p [-], the macropore term's own
+		// Constant molecular diffusivity D [m2/s] of the macropore term when
 		// > 0; 0 (the default) keeps the state's binary-diffusion value. The
 		// film term always uses the state's D_m, as the film correlation does.
 		ExpressionParam molecular_diffusion_coefficient_{0.0};
-		ExpressionParam crystal_radius_{0.0};               // r_c [m]; 0 drops the micropore term
-		ExpressionParam micropore_diffusivity_{0.0};        // D_c0 [m2/s]; 0 drops the micropore term
-		ExpressionParam micropore_activation_energy_{0.0};  // E_a [J/mol]
-		ExpressionParam capacity_factor_{0.0};              // K [-] when > 0; 0: from the isotherm
-		ExpressionParam concentration_floor_{1e-3};         // [mol/m3] c below which K is taken at c_floor
+		ExpressionParam crystal_radius_{1e-6};              // r_c [m]
+		ExpressionParam micropore_diffusivity_{1e-13};      // D_c0 [m2/s]
+		ExpressionParam micropore_activation_energy_{0.0};  // E_a,c [J/mol]
+		ExpressionParam capacity_factor_{0.0};              // K [-] in the fixed mode
+		ExpressionParam concentration_floor_{1e-3};         // c_floor [mol/m3] of the slope and secant modes
+		ExpressionParam k_{0.5};                            // lumped k [1/s] (LDF2: kg/(mol s))
+		ExpressionParam activation_energy_{0.0};            // lumped E_a [J/mol]; 0: k_L = k
+		ExpressionParam pore_radius_{1e-9};                 // Knudsen pore radius [m]
+
+		MassTransferResistances resistances_;               // the stored switches
+		int capacity_mode_ = static_cast<int>(CapacityFactorMode::NONE);  // CapacityFactorMode
 
 	private:
 		// q* of this component at the state's current mole fractions into out;
 		// the state's q* (every component) is left as it was.
 		void EvaluateLoading(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component,
 		                     int start, int end, const UserVariableRegistry* registry, std::vector<double>& out);
+		// The evaluation forms (see the class comment).
+		void UpdateLumped(Equations& state, AdsorbentID ads_id, const std::string& component, MixedAdsorbentLayer& layer,
+		                  const UserVariableRegistry* registry);
+		void UpdateMacropore(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component,
+		                     MixedAdsorbentLayer& layer, bool knudsen);
+		void UpdateMacroporeSecant(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component,
+		                           MixedAdsorbentLayer& layer, const UserVariableRegistry* registry);
+		void UpdateSeries(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component,
+		                  MixedAdsorbentLayer& layer, const UserVariableRegistry* registry);
+		// True when the lumped term's activation energy is the number 0.
+		bool ActivationEnergyIsZero() const;
 
+		bool sentinel_switches_ = false;      // transient: derive the switches from the version-1 zeros
 		IIsotherm* isotherm_ = nullptr;       // transient, set by AdsorptionSource
 		AdsorptionSource* source_ = nullptr;  // transient: under IAST, q* comes from its UpdateIsothermAll
 		double solid_density_ = 0.0;          // transient [kg/m3]
 		std::vector<std::vector<double>> q_all_scratch_;  // transient
 		std::vector<double> y_scratch_, q_base_, q_pert_, capacity_;  // transient
 
+		template <class Archive, class Self>
+		static void Fields(Archive& ar, Self& s, std::uint32_t const version) {
+			ar(
+				cereal::virtual_base_class<IMassTransferCoefficientModel>(&s),
+				cereal::make_nvp("Film_Resistance_Factor", s.film_resistance_factor_),
+				cereal::make_nvp("Tortuosity", s.tortuosity_),
+				cereal::make_nvp("Macropore_Void_Fraction", s.macropore_void_fraction_),
+				cereal::make_nvp("Molecular_Diffusion_Coefficient", s.molecular_diffusion_coefficient_),
+				cereal::make_nvp("Crystal_Radius", s.crystal_radius_),
+				cereal::make_nvp("Micropore_Diffusivity", s.micropore_diffusivity_),
+				cereal::make_nvp("Micropore_Activation_Energy", s.micropore_activation_energy_),
+				cereal::make_nvp("Capacity_Factor", s.capacity_factor_),
+				cereal::make_nvp("Concentration_Floor", s.concentration_floor_)
+			);
+			// v2: explicit switches and mode, the lumped and Knudsen parameters.
+			if (version >= 2)
+				ar(cereal::make_nvp("Resistances", s.resistances_),
+				   cereal::make_nvp("Capacity_Factor_Mode", s.capacity_mode_),
+				   cereal::make_nvp("Mass_Transfer_Coefficient", s.k_),
+				   cereal::make_nvp("Activation_Energy", s.activation_energy_),
+				   cereal::make_nvp("Pore_Radius", s.pore_radius_));
+		}
+
 		friend class cereal::access;
 		template <class Archive>
-		void serialize(Archive& ar, std::uint32_t const /*version*/) {
-			ar(
-				cereal::virtual_base_class<IMassTransferCoefficientModel>(this),
-				cereal::make_nvp("Film_Resistance_Factor", film_resistance_factor_),
-				cereal::make_nvp("Tortuosity", tortuosity_),
-				cereal::make_nvp("Macropore_Void_Fraction", macropore_void_fraction_),
-				cereal::make_nvp("Molecular_Diffusion_Coefficient", molecular_diffusion_coefficient_),
-				cereal::make_nvp("Crystal_Radius", crystal_radius_),
-				cereal::make_nvp("Micropore_Diffusivity", micropore_diffusivity_),
-				cereal::make_nvp("Micropore_Activation_Energy", micropore_activation_energy_),
-				cereal::make_nvp("Capacity_Factor", capacity_factor_),
-				cereal::make_nvp("Concentration_Floor", concentration_floor_)
-			);
+		void save(Archive& ar, std::uint32_t const version) const {
+			if (sentinel_switches_) {
+				MassTransferCoefficientSeriesResistance explicit_copy(*this);
+				explicit_copy.MakeSwitchesExplicit();
+				Fields(ar, explicit_copy, version);
+				return;
+			}
+			Fields(ar, *this, version);
+		}
+		template <class Archive>
+		void load(Archive& ar, std::uint32_t const version) {
+			Fields(ar, *this, version);
+			// v1: the switches and mode follow from the zero sentinels.
+			sentinel_switches_ = version < 2;
+			MakeSwitchesExplicit(true);
 		}
 	};
+
+	// The generic coefficient model equivalent to `model`: the model itself
+	// when it already is one (or null), else a MassTransferCoefficientSeriesResistance
+	// with the switches, mode and values of the old class's preset, which
+	// gives the same coefficient bit for bit (mass_transfer_legacy.h).
+	std::unique_ptr<IMassTransferCoefficientModel> ToResistances(std::unique_ptr<IMassTransferCoefficientModel> model);
 
 	class IMassTransferModel {
 	public:
@@ -405,6 +381,8 @@ namespace adsim {
       ar(
 				cereal::make_nvp("Mass_Transfer_Coefficient_Model", mtc_model_)
       );
+			// Decks that store an old coefficient class load as the generic model.
+			if constexpr (Archive::is_loading::value) mtc_model_ = ToResistances(std::move(mtc_model_));
     }
 	};
 
@@ -461,9 +439,8 @@ namespace adsim {
 	// (what the mass and energy balances, the KPIs and the logs read) and the
 	// slow-site loading q2, so the total's rate is
 	//   dq/dt = k1 (phi q* - (q - q2)) + k2 ((1 - phi) q* - q2).
-	// k1 comes from mtc_model_, k2 from slow_mtc_model_, a coefficient model of
-	// the same kind with its own values (the kind switch keeps the two kinds
-	// equal). At phi = 1 the model is the first-order LDF with k = k1 and adds
+	// k1 comes from mtc_model_, k2 from slow_mtc_model_, a second generic
+	// coefficient model with its own switches and values. At phi = 1 the model is the first-order LDF with k = k1 and adds
 	// no unknown (HasSlowSite() is false). Used for the slow uptake tails of
 	// amine sorbents at direct-air-capture concentrations (Stampi-Bombelli et
 	// al. 2024, Ind. Eng. Chem. Res. 63, 11637, doi:10.1021/acs.iecr.4c01392).
@@ -497,11 +474,10 @@ namespace adsim {
 			if (slow_mtc_model_) slow_mtc_model_->CompileForRun(registry);
 		}
 
-		// Makes the slow site's coefficient model the same kind as the fast
-		// site's: a missing one becomes a copy of the fast site's values, one of
-		// another kind is replaced keeping the parameters the two kinds share
-		// (name and unit), the rest from the fast site. Returns true when it
-		// changed anything.
+		// Gives the dual-rate model a slow-site coefficient model when it has
+		// none: a copy of the fast site's (switches, mode and values). An
+		// existing slow site is left as it is: each site has its own switches.
+		// Returns true when it changed anything.
 		bool SyncSlowSite();
 
 		ExpressionParam split_{1.0};  // phi, fast-site fraction of q*, in (0, 1]
@@ -516,6 +492,7 @@ namespace adsim {
 				cereal::make_nvp("Split", split_),
 				cereal::make_nvp("Slow_Mass_Transfer_Coefficient_Model", slow_mtc_model_)
 			);
+			if constexpr (Archive::is_loading::value) slow_mtc_model_ = ToResistances(std::move(slow_mtc_model_));
 		}
 	};
 
@@ -529,30 +506,36 @@ namespace adsim {
 		}
 	}
 
-	inline std::unique_ptr<IMassTransferCoefficientModel> CreateMassTransferCoefficientModel(MassTransferCoefficientType type) {
-		switch (type) {
-		case MassTransferCoefficientType::CONSTANT: return std::make_unique<MassTransferCoefficientConstant>();
-		case MassTransferCoefficientType::MACROPORE: return std::make_unique<MassTransferCoefficientMacropore>();
-		case MassTransferCoefficientType::MACROPORE_KNUDSEN: return std::make_unique<MassTransferCoefficientMacroporeKnudsen>();
-		case MassTransferCoefficientType::HAYNES_1973: return std::make_unique<MassTransferCoefficient_Haynes>();
-		case MassTransferCoefficientType::ARRHENIUS: return std::make_unique<MassTransferCoefficientArrhenius>();
-		case MassTransferCoefficientType::MACROPORE_CAPACITY: return std::make_unique<MassTransferCoefficientMacroporeCapacity>();
-		case MassTransferCoefficientType::SERIES_RESISTANCE: return std::make_unique<MassTransferCoefficientSeriesResistance>();
-		default: return nullptr;
-		}
-	}
+	// The deck checks of one component's mass-transfer model (both sites of a
+	// dual-rate model), each message starting with `where`. Errors (a run
+	// would be meaningless): no resistance on; an enabled term with a
+	// parameter out of range (tortuosity <= 0, macropore void fraction outside
+	// (0, 1], pore radius, crystal radius or micropore diffusivity <= 0,
+	// lumped k < 0, film_resistance_factor < 0); the fixed capacity-factor
+	// mode with capacity_factor <= 0. A lumped k = 0 is allowed (no uptake).
+	// Warnings: film on with film_resistance_factor = 0; a second-order LDF
+	// with a physical resistance on (its coefficient is in 1/s, while the
+	// LDF2 rate constant is in kg/(mol s)).
+	void CheckMassTransferModel(const IMassTransferModel& model, const std::string& where,
+	                            std::vector<std::string>& errors, std::vector<std::string>& warnings);
+
+	// A new coefficient model of a kind: always the generic model, with the
+	// kind's preset and the old kind's default values (SERIES_RESISTANCE: the
+	// version-1 defaults, switches derived from them; see the class comment).
+	std::unique_ptr<IMassTransferCoefficientModel> CreateMassTransferCoefficientModel(MassTransferCoefficientType type);
 
 } // end adsim namespace
 
 // Class versions live next to the inline serialize templates: every
 // translation unit that saves or loads a deck must see the same numbers.
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientConstant, 3);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeKnudsen, 3);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacropore, 3);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficient_Haynes, 2);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientMacroporeCapacity, 2);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientArrhenius, 3);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientSeriesResistance, 1);
+CEREAL_CLASS_VERSION(adsim::MassTransferResistances, 1);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientSeriesResistance, 2);
+// Its save/load pair, not the serialize it inherits from the interface.
+CEREAL_SPECIALIZE_FOR_ALL_ARCHIVES(adsim::MassTransferCoefficientSeriesResistance,
+                                   cereal::specialization::member_load_save);
 CEREAL_CLASS_VERSION(adsim::LinearDrivingForce, 1);
 CEREAL_CLASS_VERSION(adsim::LinearDrivingForceSecondOrder, 1);
 CEREAL_CLASS_VERSION(adsim::DualRateLinearDrivingForce, 1);
+
+// The load-only old coefficient classes.
+#include "adsim/equations/mass_transfer_legacy.h"

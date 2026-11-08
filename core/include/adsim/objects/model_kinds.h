@@ -38,6 +38,7 @@ namespace adsim {
 
 class IMassTransferModel;
 class IMassTransferCoefficientModel;
+class MassTransferCoefficientSeriesResistance;
 class IDispersionModel;
 class IHeatDispersionModel;
 class IInternalHeatTransferModel;
@@ -150,7 +151,11 @@ using ModelFieldList = std::vector<std::pair<std::string, ExpressionParam*>>;
 // null model or a kind with no parameters). Profile names are the plain
 // descriptor names ("start", "end", "time", "value", ...).
 ModelFieldList ModelFields(IMassTransferModel* model);  // the rate model's own (dual_rate_ldf: split)
+// The generic coefficient model (MassTransferCoefficientSeriesResistance)
+// binds the parameters of the preset it matches under that kind's names; every
+// parameter of it, under the series_resistance names, is ResistanceFields.
 ModelFieldList ModelFields(IMassTransferCoefficientModel* model);
+ModelFieldList ResistanceFields(MassTransferCoefficientSeriesResistance* model);
 ModelFieldList ModelFields(IDispersionModel* model);
 ModelFieldList ModelFields(IHeatDispersionModel* model);
 ModelFieldList ModelFields(IInternalHeatTransferModel* model);

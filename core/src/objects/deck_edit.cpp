@@ -793,6 +793,73 @@ bool SetIsothermKind(UserData& data, AdsorbentID adsorbent, const std::string& c
   return true;
 }
 
+namespace {
+
+// Applies a coefficient preset to one site's coefficient model, as a kind
+// switch did before the generic model: the parameters the new preset shows
+// (under its kind's names) take its defaults, except those the old preset
+// shared with it (same name and unit, the rate model's unit for k); the
+// parameters it does not show keep their stored values. `fresh` is the new
+// preset's model with its defaults.
+void ApplyCoefficientPreset(std::unique_ptr<IMassTransferCoefficientModel>& site,
+                            std::unique_ptr<IMassTransferCoefficientModel> fresh, MassTransferModelType old_rate,
+                            MassTransferCoefficientType coefficient_kind, MassTransferModelType rate_kind) {
+  auto* g_new = dynamic_cast<MassTransferCoefficientSeriesResistance*>(fresh.get());
+  if (site && g_new) {
+    if (auto* g_old = dynamic_cast<MassTransferCoefficientSeriesResistance*>(site.get())) {
+      // Hidden parameters: the stored values. Shown ones and those the preset
+      // fixes: the preset's.
+      std::vector<const ExpressionParam*> fixed;
+      for (const auto& [name, p] : ModelFields(fresh.get())) fixed.push_back(p);
+      if (coefficient_kind == MassTransferCoefficientType::CONSTANT) fixed.push_back(&g_new->activation_energy_);
+      if (coefficient_kind == MassTransferCoefficientType::HAYNES_1973) {
+        fixed.push_back(&g_new->film_resistance_factor_);
+        fixed.push_back(&g_new->molecular_diffusion_coefficient_);
+      }
+      const ModelFieldList from_all = ResistanceFields(g_old);
+      const ModelFieldList to_all = ResistanceFields(g_new);
+      for (std::size_t i = 0; i < to_all.size() && i < from_all.size(); ++i)
+        if (std::find(fixed.begin(), fixed.end(), to_all[i].second) == fixed.end()) *to_all[i].second = *from_all[i].second;
+    }
+  }
+  if (site) {
+    const KindDescriptor from = CoefficientKind(site->GetModelType(), old_rate);
+    const KindDescriptor to = CoefficientKind(coefficient_kind, rate_kind);
+    CarryOverParameters(from, ModelFields(site.get()), to, ModelFields(fresh.get()));
+  }
+  site = std::move(fresh);
+}
+
+MassTransferCoefficientSeriesResistance* ResistanceSite(UserData& data, AdsorbentID adsorbent,
+                                                        const std::string& component, MassTransferSite site,
+                                                        std::string& err) {
+  Adsorbent* ads = AdsorbentOrError(data, adsorbent, err);
+  if (!ads || !HasComponent(data, component, err)) return nullptr;
+  auto& models = ads->adsorption_source_.mass_transfer_models_;
+  auto it = models.find(component);
+  if (it == models.end() || !it->second) {
+    err = "component '" + component + "' has no mass-transfer model";
+    return nullptr;
+  }
+  IMassTransferModel& rate = *it->second;
+  std::unique_ptr<IMassTransferCoefficientModel>* slot = &rate.mtc_model_;
+  if (site == MassTransferSite::Slow) {
+    auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(&rate);
+    if (!dual) {
+      err = "the mass-transfer model of '" + component + "' has no slow site (only dual_rate_ldf has one)";
+      return nullptr;
+    }
+    slot = &dual->slow_mtc_model_;
+  }
+  if (!*slot) *slot = CreateMassTransferCoefficientModel(MassTransferCoefficientType::CONSTANT);
+  *slot = ToResistances(std::move(*slot));
+  auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(slot->get());
+  if (!g) err = "the coefficient model of '" + component + "' is not a resistance model";
+  return g;
+}
+
+}  // namespace
+
 bool SetMassTransferKind(UserData& data, AdsorbentID adsorbent, const std::string& component,
                          MassTransferModelType rate_kind, MassTransferCoefficientType coefficient_kind,
                          std::string& err) {
@@ -806,27 +873,53 @@ bool SetMassTransferKind(UserData& data, AdsorbentID adsorbent, const std::strin
   if (!slot) slot = std::make_unique<LinearDrivingForce>();
   const MassTransferModelType old_rate = slot->GetModelType();
   std::unique_ptr<IMassTransferCoefficientModel> old_coeff = std::move(slot->mtc_model_);
+  std::unique_ptr<IMassTransferCoefficientModel> old_slow;
+  if (auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(slot.get())) old_slow = std::move(dual->slow_mtc_model_);
   if (old_rate != rate_kind) slot = CreateMassTransferModel(rate_kind);
+  auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(slot.get());
 
   if (old_coeff && old_coeff->GetModelType() == coefficient_kind && old_rate == rate_kind) {
     slot->mtc_model_ = std::move(old_coeff);
+    if (dual) dual->slow_mtc_model_ = std::move(old_slow);
+    if (dual) dual->SyncSlowSite();
     return true;
   }
-  auto fresh = CreateMassTransferCoefficientModel(coefficient_kind);
-  if (old_coeff) {
-    const KindDescriptor from = CoefficientKind(old_coeff->GetModelType(), old_rate);
-    const KindDescriptor to = CoefficientKind(coefficient_kind, rate_kind);
-    CarryOverParameters(from, ModelFields(old_coeff.get()), to, ModelFields(fresh.get()));
+  // The coefficient kind is a preset of the generic model (mass_transfer_model.h).
+  slot->mtc_model_ = std::move(old_coeff);
+  ApplyCoefficientPreset(slot->mtc_model_, CreateMassTransferCoefficientModel(coefficient_kind), old_rate,
+                         coefficient_kind, rate_kind);
+  // A dual-rate model's slow site takes the preset too: a new dual-rate model
+  // starts with the slow site a copy of the fast one (so it behaves as the LDF
+  // until split or the slow coefficient changes); an existing one keeps the
+  // slow-site values the old and new presets share, the rest from the fast
+  // site. After that the two sites' switches are independent.
+  if (dual) {
+    dual->slow_mtc_model_.reset();
+    if (old_rate == rate_kind && old_slow) {
+      dual->SyncSlowSite();  // a copy of the new fast site
+      auto fresh = std::move(dual->slow_mtc_model_);
+      dual->slow_mtc_model_ = std::move(old_slow);
+      ApplyCoefficientPreset(dual->slow_mtc_model_, std::move(fresh), old_rate, coefficient_kind, rate_kind);
+    } else {
+      dual->SyncSlowSite();
+    }
   }
-  slot->mtc_model_ = std::move(fresh);
-  // A dual-rate model's slow site follows the fast site's kind: a new dual-rate
-  // model starts with the slow site a copy of the fast one (so it behaves as
-  // the LDF until split or the slow coefficient changes); an existing one keeps
-  // the slow-site values the two coefficient kinds share.
-  if (auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(slot.get())) {
-    if (old_rate != rate_kind) dual->slow_mtc_model_.reset();
-    dual->SyncSlowSite();
-  }
+  return true;
+}
+
+bool SetMassTransferResistance(UserData& data, AdsorbentID adsorbent, const std::string& component,
+                               MassTransferSite site, const std::string& tag, bool on, std::string& err) {
+  MassTransferCoefficientSeriesResistance* g = ResistanceSite(data, adsorbent, component, site, err);
+  return g && g->SetResistance(tag, on, err);
+}
+
+bool SetCapacityFactorMode(UserData& data, AdsorbentID adsorbent, const std::string& component, MassTransferSite site,
+                           CapacityFactorMode mode, std::string& err) {
+  MassTransferCoefficientSeriesResistance* g = ResistanceSite(data, adsorbent, component, site, err);
+  if (!g) return false;
+  if (static_cast<int>(mode) < 0 || mode > CapacityFactorMode::FIXED)
+    return BadKind(err, "capacity-factor mode", static_cast<int>(mode));
+  g->SetCapacityMode(mode);
   return true;
 }
 

@@ -98,7 +98,12 @@ double Macro(double K, double tau = kTau) { return K * tau * kRp * kRp / (15.0 *
 double Micro(double rc, double Dc0, double Ea, double T) { return rc * rc / (15.0 * Dc0 * std::exp(-Ea / (kGasR * T))); }
 
 MassTransferCoefficientSeriesResistance Series() {
+  // As created from the "series_resistance" tag: terms switched off by zero
+  // parameters (version-1 semantics), micropore off.
   MassTransferCoefficientSeriesResistance m;
+  m.crystal_radius_ = 0.0;
+  m.micropore_diffusivity_ = 0.0;
+  m.ApplyPreset(MassTransferCoefficientType::SERIES_RESISTANCE);
   m.tortuosity_ = kTau;
   m.macropore_void_fraction_ = kEp;
   return m;
@@ -465,7 +470,7 @@ struct SeriesBreakthroughDeck : UserDataTest {
     AddIsotherm({"CarbonDioxide"}, ads_id, std::move(isotherm));
     SetHOA(ads_id, "CarbonDioxide", 0.0);
     auto ldf = std::make_unique<LinearDrivingForce>();
-    auto mtc = std::make_unique<MassTransferCoefficientSeriesResistance>();
+    auto mtc = std::make_unique<MassTransferCoefficientSeriesResistance>(Series());
     mtc->tortuosity_ = 3.0;
     mtc->macropore_void_fraction_ = 0.35;
     mtc->molecular_diffusion_coefficient_ = 1.6e-5;

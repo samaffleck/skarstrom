@@ -429,8 +429,8 @@ TEST_F(DualRateRelaxationTest, LoadingFollowsTheTwoExponentials) {
   AddIsotherm({"Oxygen"}, ads_id, std::move(isotherm));
   {
     auto m = std::make_unique<DualRateLinearDrivingForce>();
-    static_cast<MassTransferCoefficientConstant&>(*m->mtc_model_).constant_mtc_ = k1;
-    static_cast<MassTransferCoefficientConstant&>(*m->slow_mtc_model_).constant_mtc_ = k2;
+    static_cast<MassTransferCoefficientSeriesResistance&>(*m->mtc_model_).k_ = k1;
+    static_cast<MassTransferCoefficientSeriesResistance&>(*m->slow_mtc_model_).k_ = k2;
     m->split_ = phi;
     GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_["Oxygen"] = std::move(m);
   }
@@ -529,8 +529,8 @@ struct BreakthroughDeck : UserDataTest {
     const double k1 = 0.01;
     if (dual) {
       auto m = std::make_unique<DualRateLinearDrivingForce>();
-      static_cast<MassTransferCoefficientConstant&>(*m->mtc_model_).constant_mtc_ = k1;
-      static_cast<MassTransferCoefficientConstant&>(*m->slow_mtc_model_).constant_mtc_ = k1 / 20.0;
+      static_cast<MassTransferCoefficientSeriesResistance&>(*m->mtc_model_).k_ = k1;
+      static_cast<MassTransferCoefficientSeriesResistance&>(*m->slow_mtc_model_).k_ = k1 / 20.0;
       m->split_ = 0.6;
       GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_["CarbonDioxide"] = std::move(m);
     } else {
