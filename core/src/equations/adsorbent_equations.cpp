@@ -8,11 +8,13 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/boundary_conditions/step.h"
 #include "adsim/math/constants.h"  // kMinDenomPressure/Temperature, detail::DenomFloor
+#include "adsim/objects/reaction.h"
 
 // STL includes
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <map>
 
 // SUNDIALS includes
 #include <ida/ida.h>
@@ -344,6 +346,7 @@ namespace adsim {
 
     // Manufactured overall-balance source [mol/(m3 s)] (verification hook).
     const auto& mms_total = udata->manufactured_sources_.total;
+    const std::vector<double>* S_tot = state.HasReactions() ? &state.reaction_total_source : nullptr;
 
     int N = P.size(); // Includes ghost cells
     for (int n = 1; n < N - 1; ++n) { // Interior
@@ -388,6 +391,11 @@ namespace adsim {
       // The residual is the balance times R T dx / P, as S above.
       if (mms_total)
         res_P[n] -= R * T[n] * dx[n] * mms_total(CellCentre(domain_vectors, n), udata->residual_time_) / Pc;
+
+      // Net moles made by the reactions, S_tot = sum_i S_i [mol/(m3 s)]: a
+      // mole-changing reaction drives the velocity field as adsorption does.
+      if (S_tot)
+        res_P[n] -= R * T[n] * dx[n] * (*S_tot)[n] / Pc;
     }
   }
 
@@ -450,6 +458,7 @@ namespace adsim {
 
     // Manufactured energy source [W/m3] (verification hook).
     const auto& mms_energy = udata->manufactured_sources_.energy;
+    const std::vector<double>* Q_rxn = state.HasReactions() ? &state.reaction_heat.var : nullptr;
 
     // The step's internal heat exchanger (medium -> bed), in bed cells only.
     const InternalExchanger exchanger = ActiveInternalExchanger(udata);
@@ -518,6 +527,10 @@ namespace adsim {
       // A volumetric source, as the heater's power.
       if (mms_energy)
         res_T[i] -= dV[i] * mms_energy(CellCentre(state.domain_vectors, i), udata->residual_time_);
+
+      // Heat of reaction [W/m3] (0 in void cells; no energy balance when isothermal).
+      if (Q_rxn)
+        res_T[i] -= dV[i] * (*Q_rxn)[i];
 
       // Internal exchanger: a_x h_x (T_m - T) per bed volume.
       if (exchanger.ua > 0.0 && !(i < (int)is_void.size() && is_void[i]))
@@ -682,6 +695,7 @@ namespace adsim {
     // Solid share (1 - eb) of the step's internal heat exchanger; the gas
     // takes the eb share in UpdateFluidTemperature.
     const InternalExchanger exchanger = ActiveInternalExchanger(udata);
+    const std::vector<double>* Q_rxn = state.HasReactions() ? &state.reaction_heat.var : nullptr;
 
     const auto& is_void = state.domain_vectors.is_void_cell;
     const int first_bed = bed.GetFirstBedCellIndex();
@@ -748,6 +762,10 @@ namespace adsim {
 
       if (exchanger.ua > 0.0)
         res_Ts[i] -= (1.0 - eb[i]) * exchanger.ua * dV[i] * (exchanger.T_m - Ts[i]);
+
+      // The heat of reaction is released on the catalyst [W/m3].
+      if (Q_rxn)
+        res_Ts[i] -= dV[i] * (*Q_rxn)[i];
     }
 
     // Ghost cells mirror the first/last *bed* cell. When voids are disabled
@@ -1057,6 +1075,9 @@ namespace adsim {
     // Manufactured component-balance source [mol/(m3 s)] (verification hook).
     const auto* mms_species = SourceOf(udata->manufactured_sources_.species, component);
 
+    // Reaction source of this component (null without reactions).
+    const std::vector<double>* S_rxn = state.HasReactions() ? &state.component_reaction_source.at(component).var : nullptr;
+
     int N = yi.size();
     for (int n = 1; n < N - 1; ++n) { // Interior cells
       // Floor pressure/temperature denominators against a transient non-positive
@@ -1120,6 +1141,10 @@ namespace adsim {
       // adsorption source above.
       if (mms_species)
         res_yi[n] += R * Tc * dx[n] * (*mms_species)(CellCentre(domain_vectors, n), udata->residual_time_) / Pc;
+
+      // Reaction source S_i [mol/(m3 s)] (UpdateReactions), the same scaling.
+      if (S_rxn)
+        res_yi[n] += R * Tc * dx[n] * (*S_rxn)[n] / Pc;
     }
   }
 
@@ -2076,6 +2101,99 @@ namespace adsim {
         s += heat * ca.bulk_density * (*t.ddt_q)[n];
       }
       Sei[n] = s;
+    }
+  }
+
+  void UpdateReactions(UserData* udata) {
+    auto& state = udata->state;
+    if (!state.HasReactions()) return;
+    const auto& fluid = udata->fluid;
+    const auto& dv = state.domain_vectors;
+    const auto& P = state.pressure.var;
+    const bool isothermal = state.IsIsothermal();
+    // The catalyst temperature: the solid's in LTNE, the gas's otherwise
+    // (an isothermal run holds both at T_iso).
+    const bool ltne = !isothermal && udata->bed.equations_.thermal_equilibrium_mode_ == ThermalEquilibriumMode::NON_LOCAL;
+    const auto& T_cat = ltne ? state.solid_temperature.var : state.fluid_temperature.var;
+
+    auto& Q = state.reaction_heat.var;
+    auto& S_tot = state.reaction_total_source;
+    std::fill(Q.begin(), Q.end(), 0.0);
+    std::fill(S_tot.begin(), S_tot.end(), 0.0);
+    for (auto& [component, eq] : state.component_reaction_source) std::fill(eq.var.begin(), eq.var.end(), 0.0);
+
+    // The cell's gas composition, in the map the rate laws read.
+    static thread_local std::map<std::string, double> y;
+    static thread_local std::vector<std::pair<double*, const std::vector<double>*>> y_slots;
+    y.clear();
+    y_slots.clear();
+    for (const auto& component : fluid.components_)
+      y_slots.emplace_back(&y[component], &state.mole_fraction.at(component).var);
+
+    struct Target { std::vector<double>* S; double nu; };
+    static thread_local std::vector<Target> targets;
+
+    const int N = static_cast<int>(Q.size());
+    for (auto& field : state.reaction_fields) {
+      auto& rate = field->rate.var;
+      auto& extent = field->extent_rate.var;
+      std::fill(rate.begin(), rate.end(), 0.0);
+      std::fill(extent.begin(), extent.end(), 0.0);
+      Adsorbent& ads = udata->adsorbent_directory.Get(field->adsorbent);
+      Reaction* r = ads.reaction_source_.Find(field->reaction);
+      if (!r) continue;
+
+      targets.clear();
+      double sum_nu = 0.0;
+      for (const auto& [component, nu] : r->nu_) {
+        auto it = state.component_reaction_source.find(component);
+        if (it == state.component_reaction_source.end()) continue;
+        targets.push_back({&it->second.var, nu});
+        sum_nu += nu;
+      }
+
+      // Thiele: the key reactant's effective diffusivity in the particle,
+      // D_eff = (eps_p / tau) D_m,A, with the cell's molecular diffusivity.
+      const bool thiele = r->effectiveness_.mode_ == EffectivenessMode::Thiele;
+      const std::vector<double>* Dm = nullptr;
+      double diffusivity_factor = 0.0;
+      if (thiele) {
+        const std::string key = r->KeyReactant();
+        auto it = state.molecular_diffusion.find(key);
+        if (it != state.molecular_diffusion.end()) Dm = &it->second.var;
+        const double tau = r->effectiveness_.tortuosity_.Get();
+        diffusivity_factor = tau > 0.0 ? ads.ep_.Get() / tau : 0.0;
+      }
+      const double particle_density = ads.solid_density_.Get();
+
+      ReactionState rs;
+      rs.y = &y;
+      rs.registry = &udata->variable_registry;
+      for (int n = 1; n < N - 1; ++n) {
+        if (dv.IsVoidCell(n)) continue;
+        double rho_b = -1.0;
+        for (const auto& ca : dv.cell_adsorbents[n])
+          if (ca.id == field->adsorbent) { rho_b = ca.bulk_density; break; }
+        if (rho_b < 0.0) continue;  // solid absent here
+
+        for (auto& [slot, yi] : y_slots) *slot = (*yi)[n];
+        rs.T = T_cat[n];
+        rs.P = P[n];
+        double eta = 1.0;
+        if (thiele) {
+          const double d_eff = Dm ? diffusivity_factor * (*Dm)[n] : 0.0;
+          eta = r->Effectiveness(rs, 0.5 * dv.dp[n], particle_density, d_eff, &field->equilibrium_guess[n]);
+        } else {
+          eta = r->effectiveness_.effectiveness_.Get();
+        }
+        const double rate_n = eta * r->IntrinsicRate(rs);  // [mol/(kg s)]
+        const double ext = rho_b * rate_n;                 // [mol/(m3 s)]
+        rate[n] = rate_n;
+        extent[n] = ext;
+        for (const auto& t : targets) (*t.S)[n] += t.nu * ext;
+        S_tot[n] += sum_nu * ext;
+        if (!isothermal) Q[n] -= r->HeatOfReaction(T_cat[n], fluid) * ext;
+      }
     }
   }
 

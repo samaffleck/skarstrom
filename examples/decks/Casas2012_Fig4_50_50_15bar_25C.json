@@ -863,20 +863,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 9.497540566141347,
-                                    "Average_Temperature": 305.12985667895898,
+                                    "Total_Moles": 9.49754717254505,
+                                    "Average_Temperature": 305.1298305898187,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "Helium",
-                                            "value": 0.027861704301213185
+                                            "value": 0.02786164528254359
                                         },
                                         {
                                             "key": "Hydrogen",
-                                            "value": 0.5558176018595059
+                                            "value": 0.5558171633267645
                                         },
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.41632069383928096
+                                            "value": 0.41632119139069198
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -959,7 +959,7 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 10.891900483713535,
+                                                        "Total_Moles": 10.891900483743607,
                                                         "Average_Temperature": 298.14999999999989,
                                                         "Average_Mole_Fraction": [
                                                             {

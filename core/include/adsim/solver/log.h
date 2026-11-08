@@ -99,7 +99,10 @@ namespace adsim {
     EXTERNAL_HEAT_TRANSFER_COEFFICIENT,
     AXIAL_DISPERSION_COEFFICIENT,
     SOLID_TEMPERATURE,
-    PARTICLE_HEAT_TRANSFER_COEFFICIENT
+    PARTICLE_HEAT_TRANSFER_COEFFICIENT,
+    // Heat of reaction released per bed volume, Q_rxn (logged only when the
+    // deck has reactions; Equations::reaction_heat).
+    REACTION_HEAT
   };
 
   enum class ComponentVariableType {
@@ -113,7 +116,11 @@ namespace adsim {
     MOLECULAR_DIFFUSION,
     // Slow-site loading q2 of a dual-rate LDF component (logged only when the
     // deck has one; 0 for the components without a slow site).
-    SLOW_ADSORBED_CONCENTRATION
+    SLOW_ADSORBED_CONCENTRATION,
+    // Moles of the component made by the reactions per bed volume and time,
+    // S_i (logged only when the deck has reactions). Not part of
+    // COMPONENT_MASS_SOURCE, which stays the adsorption source.
+    REACTION_SOURCE
   };
 
   // Variables that only have physical meaning in packed-bed cells; the plotter
@@ -157,8 +164,12 @@ namespace adsim {
     "External Heat Transfer Coefficient",
     "Axial Dispersion Coefficient",
     "Solid Temperature",
-    "Particle Heat Transfer Coefficient"
+    "Particle Heat Transfer Coefficient",
+    "Reaction Heat"
   };
+
+  static_assert(std::size(VariableTypeList) == static_cast<size_t>(VariableType::REACTION_HEAT) + 1,
+                "VariableTypeList must have one entry per VariableType");
 
   static const char* ComponentVariableTypeList[] = {
     "Mole Fraction",
@@ -169,13 +180,14 @@ namespace adsim {
     "Component Molar Concentration",
     "Mass Transfer Coefficient",
     "Molecular Diffusion",
-    "Slow Adsorbed Concentration"
+    "Slow Adsorbed Concentration",
+    "Reaction Source"
   };
 
   // Indexed by ComponentVariableType: a spare name would show up in the UI as
   // an option that maps to no enum value.
   static_assert(std::size(ComponentVariableTypeList) ==
-                    static_cast<size_t>(ComponentVariableType::SLOW_ADSORBED_CONCENTRATION) + 1,
+                    static_cast<size_t>(ComponentVariableType::REACTION_SOURCE) + 1,
                 "ComponentVariableTypeList must have one entry per ComponentVariableType");
 
   std::string GetVariableUnits(VariableType variable);
@@ -377,10 +389,27 @@ namespace adsim {
   };
   MediumHeatFlow HeatingMediumHeatFlow(const Equations& state, double time_in_step, bool non_local);
 
+  // Rate of one reaction on one solid, keyed (adsorbent id, reaction id).
+  using ReactionVariableKey = std::pair<AdsorbentID, std::size_t>;
+  using ReactionVariableLog = std::map<ReactionVariableKey, VariableData>;
+
+  // Display name of a reaction's rate series, "SMR Rate (Ni catalyst)": the
+  // reaction's name, then the label of the solid that carries it.
+  std::string ReactionRateVariableName(const std::string& reaction, const std::string& adsorbent_label);
+  inline constexpr const char* kReactionRateUnits = "[mol/(kg.s)]";
+
   struct Log {
     StepData step_data;  // Shared metadata including times
     VariableLog variables;
     ComponentVariableLog component_variables;
+    // Logged only for a deck with reactions: eta r of each reaction on each
+    // solid in every cell [mol/(kg of that solid s)], 0 where it is absent.
+    ReactionVariableLog reaction_variables;
+    // Moles of each component made by the reactions in the bed over the step,
+    // integral of sum_n dV_n S_i,n dt [mol] (trapezoidal rule over every
+    // logged point, as the log is written; empty without reactions). The
+    // mass-balance CSS tests count it as generation.
+    std::map<std::string, double> reaction_generation;
     // Logged only when some cell holds more than one solid (a mixed layer):
     // otherwise each cell's aggregate in component_variables already is the
     // loading of its one solid.
@@ -412,6 +441,13 @@ namespace adsim {
     VariableLogEntry GetAdsorbentComponentVariable(int cycle_index, int step_index, ComponentVariableType type,
       const std::string& component, AdsorbentID adsorbent) const;
     VariableLogEntry GetFaceVariable(int cycle_index, int step_index, VariableType type) const;
+    // eta r of reaction `reaction` on adsorbent `adsorbent` (Log::
+    // reaction_variables); empty when not logged.
+    VariableLogEntry GetReactionRate(int cycle_index, int step_index, AdsorbentID adsorbent,
+                                     std::size_t reaction) const;
+    // Moles of `component` made by the reactions over one step [mol]
+    // (Log::reaction_generation); 0 when none or not logged.
+    double ReactionGeneration(int cycle_index, int step_index, const std::string& component) const;
 
     // The adsorbents of the bed (id -> label, the adsorbent's name, made
     // unique with " #<id>" when two share one), set by Initialise.
@@ -456,6 +492,9 @@ namespace adsim {
     // Previous logged point of the current step, for integrating the medium duty.
     double medium_prev_t_ = 0.0;
     MediumHeatFlow medium_prev_flow_{};
+    // sum_n dV_n S_i,n at the previous logged point of the current step
+    // (reaction_generation's trapezoid), per component.
+    std::map<std::string, double> reaction_prev_rate_;
     bool non_local_ = false;  // LTNE run (set in Initialise)
     bool per_adsorbent_ = false;  // some cell holds more than one solid (set in Initialise / per step)
     std::map<AdsorbentID, std::string> adsorbent_labels_;

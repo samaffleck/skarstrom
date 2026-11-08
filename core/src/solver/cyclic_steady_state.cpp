@@ -285,6 +285,7 @@ namespace adsim {
 
     double total_moles_in = 0.0;
     double total_moles_out = 0.0;
+    double generated = 0.0;
 
     for (int step_index : step_indices) {
       double bottom = GetTotalMolesIn(logger, cycle_index, step_index, BoundaryLocation::BOTTOM);
@@ -295,11 +296,16 @@ namespace adsim {
 
       if (top > 0.0) total_moles_in += top;
       else total_moles_out += std::abs(top);
+
+      // Net moles the reactions made in the bed over the step (0 without).
+      for (const auto& component : logger.sys_data.components_)
+        generated += logger.ReactionGeneration(cycle_index, step_index, component);
     }
 
     if (total_moles_in < 1e-30) return result;
 
-    result.error = std::abs(total_moles_in - total_moles_out) / total_moles_in;
+    // At cyclic steady state, in + generated = out.
+    result.error = std::abs(total_moles_in + generated - total_moles_out) / total_moles_in;
     result.converged = (result.error <= result.tolerance);
     ApplyStateTest(logger, cycle_index, result);
     return result;
@@ -318,6 +324,7 @@ namespace adsim {
     for (const auto& component : components) {
       double total_moles_in = 0.0;
       double total_moles_out = 0.0;
+      double generated = 0.0;  // by the reactions (0 without)
 
       for (int step_index : step_indices) {
         double bottom = GetTotalComponentMolesIn(logger, cycle_index, step_index, BoundaryLocation::BOTTOM, component);
@@ -328,6 +335,8 @@ namespace adsim {
 
         if (top > 0.0) total_moles_in += top;
         else total_moles_out += std::abs(top);
+
+        generated += logger.ReactionGeneration(cycle_index, step_index, component);
       }
 
       // A component that is never fed (trace species, inert, product-only) has
@@ -335,7 +344,7 @@ namespace adsim {
       // check, which would leave result.converged false for every cycle.
       if (total_moles_in < 1e-30) continue;
 
-      double comp_error = std::abs(total_moles_in - total_moles_out) / total_moles_in;
+      double comp_error = std::abs(total_moles_in + generated - total_moles_out) / total_moles_in;
       max_error = std::max(max_error, comp_error);
     }
 

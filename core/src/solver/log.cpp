@@ -35,6 +35,10 @@ namespace adsim {
     return component + " " + ComponentVariableTypeList[static_cast<size_t>(type)] + " (" + adsorbent_label + ")";
   }
 
+  std::string ReactionRateVariableName(const std::string& reaction, const std::string& adsorbent_label) {
+    return reaction + " Rate (" + adsorbent_label + ")";
+  }
+
   void EquationLog::Initialise(UserData& user_data) {
     auto& settings = user_data.settings;
     auto& fluid = user_data.fluid;
@@ -179,6 +183,22 @@ namespace adsim {
           sim_log.heat_duty.exchanger_heat_out += 0.5 * (medium_prev_flow_.exchanger_out + flow.exchanger_out) * dt;
         }
       }
+      // The reactions' generation, integrated the same way (the previous
+      // point's time is medium_prev_t_, read before it is updated).
+      if (state.HasReactions()) {
+        const auto& dV = state.domain_vectors.volume;
+        for (const auto& [component, eq] : state.component_reaction_source) {
+          double rate = 0.0;  // [mol/s]
+          const size_t n = std::min(eq.var.size(), dV.size());
+          for (size_t i = 0; i < n; ++i) rate += dV[i] * eq.var[i];
+          double& total = sim_log.reaction_generation[component];
+          if (!is_new_step) {
+            const double dt = t - medium_prev_t_;
+            if (dt > 0.0) total += 0.5 * (reaction_prev_rate_[component] + rate) * dt;
+          }
+          reaction_prev_rate_[component] = rate;
+        }
+      }
       medium_prev_t_ = t;
       medium_prev_flow_ = flow;
     }
@@ -251,6 +271,24 @@ namespace adsim {
     log_comp_var(ComponentVariableType::MOLECULAR_DIFFUSION, state.molecular_diffusion);
     log_comp_var(ComponentVariableType::COMPONENT_MASS_SOURCE, state.component_mass_source);
     log_comp_var(ComponentVariableType::COMPONENT_ENERGY_SOURCE, state.component_energy_source);
+
+    // Reactions: the heat, each component's source and each reaction's rate
+    // on each solid (only for a deck with reactions).
+    if (state.HasReactions()) {
+      log_var(VariableType::REACTION_HEAT, state.reaction_heat.var);
+      log_comp_var(ComponentVariableType::REACTION_SOURCE, state.component_reaction_source);
+      for (const auto& field : state.reaction_fields) {
+        auto& entry = sim_log.reaction_variables[{field->adsorbent, field->reaction}];
+        if (entry.values.empty()) {
+          auto label = adsorbent_labels_.find(field->adsorbent);
+          entry.variable_name = ReactionRateVariableName(
+              field->reaction_name, label == adsorbent_labels_.end() ? std::to_string(field->adsorbent) : label->second);
+          entry.units = kReactionRateUnits;
+          entry.step_name = step_name;
+        }
+        entry.values.push_back(CopyRow(field->rate.var));
+      }
+    }
 
     // Adsorbed-phase quantities are tracked per adsorbent internally. Log the
     // mass-fraction-weighted aggregate per component (sum_k w_k * x_{k,comp}),
@@ -406,6 +444,7 @@ namespace adsim {
       for (auto& [id, comps] : log.adsorbent_variables)
         for (auto& [component, vars] : comps)
           for (auto& [type, data] : vars) f(data.values);
+      for (auto& [key, data] : log.reaction_variables) f(data.values);
     };
     if (sd.row_bytes == 0) {
       std::size_t doubles = 1;  // the time
@@ -593,6 +632,21 @@ namespace adsim {
             }
           }
         }
+
+        // Reaction rates, named like "SMR_Rate__Ni_catalyst_.csv"
+        for (const auto& [key, entry] : step_data.reaction_variables) {
+          if (step_data.step_data.times.empty() || entry.values.empty()) continue;
+          const std::string filename = SanitizeFilename(entry.variable_name) + ".csv";
+          if (files.find(filename) == files.end()) {
+            files[filename].open(out_dir / filename);
+            if (files[filename].is_open()) {
+              files[filename] << "Cycle Index,Step Index,time";
+              const size_t num_cells = entry.values[0].size();
+              for (size_t i = 0; i < num_cells; ++i) files[filename] << ",cell_" << i;
+              files[filename] << "\n";
+            }
+          }
+        }
       }
     }
 
@@ -638,6 +692,14 @@ namespace adsim {
             }
           }
         }
+
+        // Reaction rates
+        for (const auto& [key, entry] : step_data.reaction_variables) {
+          if (shared_times.empty() || entry.values.empty()) continue;
+          auto& file = files[SanitizeFilename(entry.variable_name) + ".csv"];
+          if (!file.is_open()) continue;
+          WriteCsvRows(file, cycle_index, step_index, shared_times, entry.values, max_log_points_per_step_);
+        }
       }
     }
   }
@@ -666,6 +728,7 @@ namespace adsim {
     for (auto& [id, comps] : log.adsorbent_variables)
       for (auto& [component, vars] : comps)
         for (auto& [type, data] : vars) recycle(data);
+    for (auto& [key, data] : log.reaction_variables) recycle(data);
   }
 
   void EquationLog::Clear() {
@@ -781,6 +844,20 @@ namespace adsim {
     auto var_it = log.variables.find(type);
     if (var_it == log.variables.end()) return VariableLogEntry{};
     return MakeEntry(log.step_data, var_it->second);
+  }
+
+  VariableLogEntry EquationLog::GetReactionRate(int cycle_index, int step_index, AdsorbentID adsorbent,
+                                              std::size_t reaction) const {
+    const Log& log = GetLog(cycle_index, step_index);
+    auto it = log.reaction_variables.find({adsorbent, reaction});
+    if (it == log.reaction_variables.end()) return VariableLogEntry{};
+    return MakeEntry(log.step_data, it->second);
+  }
+
+  double EquationLog::ReactionGeneration(int cycle_index, int step_index, const std::string& component) const {
+    const Log& log = GetLog(cycle_index, step_index);
+    auto it = log.reaction_generation.find(component);
+    return it == log.reaction_generation.end() ? 0.0 : it->second;
   }
 
   VariableLogEntry EquationLog::GetComponentVariable(int cycle_index, int step_index,
@@ -1076,6 +1153,7 @@ namespace adsim {
       case VariableType::AXIAL_DISPERSION_COEFFICIENT: return "[m^2/s]";
       case VariableType::SOLID_TEMPERATURE: return "[K]";
       case VariableType::PARTICLE_HEAT_TRANSFER_COEFFICIENT: return "[W/(m^3.K)]";
+      case VariableType::REACTION_HEAT: return "[J/(m^3.s)]";
       default: return "[-]";
     }
   }
@@ -1091,6 +1169,7 @@ namespace adsim {
       case ComponentVariableType::MASS_TRANSFER_COEFFICIENT: return "[1/s]";
       case ComponentVariableType::MOLECULAR_DIFFUSION: return "[m^2/s]";
       case ComponentVariableType::SLOW_ADSORBED_CONCENTRATION: return "[mol/kg]";
+      case ComponentVariableType::REACTION_SOURCE: return "[mol/(m^3.s)]";
       default: return "[-]";
     }
   }
