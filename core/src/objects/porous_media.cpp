@@ -86,6 +86,14 @@ namespace adsim {
 		for (auto& [type, isotherm] : isotherms_) {
 			if (isotherm) isotherm->RemoveComponent(component);
 		}
+		// Drop isotherm objects that no component maps to any more (as AssignIsotherm does),
+		// so a removed component leaves no empty isotherm behind.
+		for (auto it = isotherms_.begin(); it != isotherms_.end();) {
+			const IsothermType t = it->first;
+			const bool used = std::any_of(isotherm_map_.begin(), isotherm_map_.end(),
+			                              [t](const auto& m) { return m.second == t; });
+			it = used ? std::next(it) : isotherms_.erase(it);
+		}
 	}
 
 	void AdsorptionSource::SetIsothermType(const std::string& component, IsothermType isotherm_type) {

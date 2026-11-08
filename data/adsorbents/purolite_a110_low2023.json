@@ -23,6 +23,14 @@
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
+                    "key": "Water",
+                    "value": {
+                        "Value": 50000.0,
+                        "Expression": "5e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
                     "key": "Nitrogen",
                     "value": {
                         "Value": 18650.0,
@@ -41,9 +49,66 @@
             ],
             "Isotherms": [
                 {
-                    "key": 0,
+                    "key": 22,
                     "value": {
                         "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::GabYoungIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Water",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_q_m": {
+                                                "Value": 7.75,
+                                                "Expression": "7.75",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_C_E": {
+                                                "Value": 45790.0,
+                                                "Expression": "4.579e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_D": {
+                                                "Value": 0.02441,
+                                                "Expression": "0.02441",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_F": {
+                                                "Value": 52520.0,
+                                                "Expression": "5.252e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_G": {
+                                                "Value": -31.08,
+                                                "Expression": "-31.08",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_E10_A": {
+                                                "Value": 57220.0,
+                                                "Expression": "5.722e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_E10_B": {
+                                                "Value": -44.38,
+                                                "Expression": "-44.38",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 0,
+                    "value": {
+                        "polymorphic_id": 2147483650,
                         "polymorphic_name": "adsim::LangmuirIsotherm",
                         "ptr_wrapper": {
                             "valid": 1,
@@ -80,7 +145,7 @@
                 {
                     "key": 18,
                     "value": {
-                        "polymorphic_id": 2147483650,
+                        "polymorphic_id": 2147483651,
                         "polymorphic_name": "adsim::Toth2Isotherm",
                         "ptr_wrapper": {
                             "valid": 1,
@@ -136,6 +201,10 @@
                 }
             ],
             "Isotherm_Map": [
+                {
+                    "key": "Water",
+                    "value": 22
+                },
                 {
                     "key": "Nitrogen",
                     "value": 0
