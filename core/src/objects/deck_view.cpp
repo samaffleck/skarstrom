@@ -731,7 +731,9 @@ namespace adsim {
       "type": "object", "additionalProperties": false, "required": ["component", "nu"],
       "properties": {"component": {"type": "string"}, "nu": {"type": ["number", "null"]}}
     },
-    "Reaction": {
+)JSON"
+        // Split: MSVC limits one string literal to 16 KB.
+        R"JSON(    "Reaction": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "name", "kind", "basis", "stoichiometry", "effectiveness", "key_component", "values"],
       "properties": {
