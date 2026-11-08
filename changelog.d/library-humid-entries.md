@@ -4,3 +4,6 @@
 
 ### Changed — Lewatit VP OC 1065 CO2 isotherm is now the humid WADST fit
 - The CO2 isotherm of `lewatit_vp_oc_1065_low2023` is the `toth_wadst` fit of Young et al. (2021) instead of the dry td-Toth fit of Low et al. (2023). At zero water loading it is the dry site of that fit, which differs from the earlier dry isotherm. The dry td-Toth parameters stay in the entry notes.
+
+### Fixed — removing a component left an empty isotherm object
+- Removing a component from an adsorbent (including loading a library adsorbent into a deck that lacks one of its components) now also drops an isotherm object that no component uses any more. Before, a library adsorbent with a Water isotherm loaded into a deck without Water left an empty isotherm in the deck, which the deck-to-script round trip could not reproduce. Results do not change: the empty isotherm was never evaluated.

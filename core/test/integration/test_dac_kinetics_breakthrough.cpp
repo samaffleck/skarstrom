@@ -7,7 +7,9 @@
 // ILLUSTRATIVE ONLY. The sorbent is the library entry "Lewatit VP OC 1065"
 // (data/adsorbents/lewatit_vp_oc_1065_low2023.json, loaded unchanged;
 // CO2 isotherm: the dry site of the Young et al. (2021) WADST fit, doi:10.1039/D1EE01272J,
-// because the deck has no Water component; N2 from doi:10.1021/acs.jced.3c00401); the feed is 400 ppm CO2 in N2 at 1 bar and
+// because the deck has no Water component; N2 from doi:10.1021/acs.jced.3c00401). With
+// the earlier dry td-Toth fit of Low et al. the outlet reaches 5/50/95 % of the feed at
+// 6409/7393/27311 s; with the Young dry site at 7445/8188/29287 s. The feed is 400 ppm CO2 in N2 at 1 bar and
 // 298.15 K, isothermal. The rate parameters (split, tortuosity, particle and
 // micropore data) are round numbers chosen to show the two-rate behaviour of
 // DAC breakthrough curves (Stampi-Bombelli et al. 2024,
@@ -62,10 +64,6 @@ struct DacDeck : UserDataTest {
     const AdsorbentID ads_id = data.adsorbent_directory.Add("Lewatit VP OC 1065");
     auto& ads = data.adsorbent_directory.Get(ads_id);
     LoadAdsorbentFromJSON("../data/adsorbents/lewatit_vp_oc_1065_low2023.json", ads);
-    // The entry also describes water; this isothermal deck has no Water component.
-    ads.adsorption_source_.RemoveComponent("Water");
-    // Re-assigning CO2's own kind drops the now empty water isotherm object (no other change).
-    ads.adsorption_source_.AssignIsotherm({"CarbonDioxide"}, IsothermType::TOTH_WADST);
     ads.adsorption_source_.Initialise(data.fluid);
 
     const LayerID layer_id = data.bed.layers_.Add("Lewatit");

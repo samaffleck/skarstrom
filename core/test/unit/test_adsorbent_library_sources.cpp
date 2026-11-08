@@ -18,6 +18,8 @@
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,6 +28,7 @@
 
 #include "adsim/equations/isotherm.h"
 #include "adsim/math/constants.h"
+#include "adsim/objects/fluid.h"
 #include "adsim/objects/porous_media.h"
 #include "../fixtures/atomic_write.h"
 
@@ -240,6 +243,25 @@ TEST(AdsorbentLibrarySources, TriamineGraftedAlumina_Grossmann2025) {
   Adsorbent b;
   SaveAndReload(a, "triamine_alumina_grossmann2025", b);
   ExpectSameScalars(a, b);
+}
+
+// A library adsorbent with a Water isotherm, loaded into a deck without Water,
+// must not leave an empty isotherm object of the water kind behind (it broke
+// the deck -> script round trip). Initialise removes the stale component.
+TEST(AdsorbentLibrarySources, StaleWaterIsothermLeavesNoEmptyIsothermObject) {
+  Adsorbent a;
+  LoadAdsorbentFromJSON((kLibDir / "lewatit_vp_oc_1065_low2023.json").string(), a);
+  Fluid fluid;
+  fluid.components_ = {N2, CO2};
+  a.adsorption_source_.Initialise(fluid);
+  const auto path = std::filesystem::temp_directory_path() / "adsim_stale_water_isotherm.json";
+  test::SaveAdsorbentToJsonAtomically(a, path);
+  std::ifstream ifs(path);
+  const std::string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+  std::filesystem::remove(path);
+  EXPECT_EQ(text.find("GabYoungIsotherm"), std::string::npos);
+  EXPECT_NE(text.find("TothWadstIsotherm"), std::string::npos);
+  EXPECT_NE(text.find("LangmuirIsotherm"), std::string::npos);
 }
 
 // The humid library entries reproduce the numbers worked independently from the
