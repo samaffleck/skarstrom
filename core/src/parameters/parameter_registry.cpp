@@ -17,6 +17,7 @@
 #include "adsim/equations/reaction_kinds.h"
 #include "adsim/math/unit_parser.h"
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/objects/deck_edit.h"
 #include "adsim/objects/model_kinds.h"
 #include "adsim/objects/reaction.h"
 #include "adsim/objects/user_data.h"
@@ -583,6 +584,7 @@ namespace adsim {
 
     // ---- cycle -----------------------------------------------------------
     const Bed* bed_ = nullptr;  // layer names for energy-source aliases
+    UserData* data_ = nullptr;  // the deck, for the leaves that set through a deck-edit cascade
 
     void AddCycle(Cycle& cycle) {
       cycle.EnsureIds();
@@ -1014,6 +1016,84 @@ namespace adsim {
       }
     }
 
+    // One coefficient model of a component (fast site, or the slow site of a
+    // dual-rate model, whose leaves take the prefix slow_). The generic model
+    // (series_resistance) lists, from its kind descriptor: a Boolean switch
+    // per resistance (resistances.<tag>; knudsen only with macropore on), the
+    // capacity-factor mode while a gas-side term is on, then the parameters of
+    // each enabled term and of the mode under their flat names. The switches
+    // and the mode set through the deck-edit cascades (SetMassTransferResistance,
+    // SetCapacityFactorMode), never by a raw field write. An older coefficient
+    // class (built by hand) lists its own kind's parameters.
+    void AddCoefficient(IMassTransferCoefficientModel* mtc, AdsorbentID id, const std::string& component,
+                        MassTransferSite site, bool ldf2, const std::string& head, const std::string& ahead,
+                        const std::string& sub) {
+      const bool slow = site == MassTransferSite::Slow;
+      const std::string pre = slow ? kSlowSitePrefix : "";
+      auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(mtc);
+      if (!g) {
+        const KindDescriptor* kind = KindAt(ModelFamily::RateCoefficient, static_cast<size_t>(mtc->GetModelType()));
+        ModelFieldList fields = ModelFields(mtc);
+        if (slow) {
+          for (auto& f : fields) f.first = pre + f.first;
+        }
+        static const std::vector<KindDescriptor> renamed = [] {
+          std::vector<KindDescriptor> out = KindDescriptors(ModelFamily::RateCoefficient);
+          for (auto& k : out)
+            for (auto& p : k.parameters) p = SlowSiteParameter(p);
+          return out;
+        }();
+        if (slow && kind) kind = &renamed[static_cast<size_t>(mtc->GetModelType())];
+        EmplaceKind(kind, fields, head, ahead, "adsorbent", sub, ldf2 ? &Ldf2RateConstant : nullptr);
+        return;
+      }
+      const KindDescriptor& kind = ResistanceKind();
+      const ModelFieldList all = ResistanceFields(g);
+      auto emit_params = [&](const std::vector<std::string>& names) {
+        for (const std::string& name : names) {
+          const KindParameter* d = kind.Find(name);
+          if (!d) continue;
+          for (const auto& [field, param] : all) {
+            if (field != name || !param) continue;
+            KindParameter p = ldf2 ? Ldf2RateConstant(*d) : *d;
+            if (slow) p = SlowSiteParameter(p);
+            Emplace(head + pre + name, ahead + pre + name, "adsorbent", sub, p.Label(), p.unit, *param, p.lower,
+                    p.upper);
+            if (!p.tunable) out.back().info_.tunable = false;
+          }
+        }
+      };
+      UserData* data = data_;
+      const std::string label_pre = slow ? "slow-site " : "";
+      for (const ResistanceDescriptor& r : kind.resistances) {
+        if (!r.parent.empty() && !g->Enabled(r.parent)) continue;
+        auto& p = Add(Info(head + pre + "resistances." + r.tag, ahead + pre + "resistances." + r.tag, "adsorbent", sub,
+                           label_pre + r.label + " resistance", "-", ParameterKind::Boolean,
+                           std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+        const std::string tag = r.tag;
+        p.get_bool_ = [g, tag] { return g->Enabled(tag); };
+        p.set_bool_ = [data, id, component, site, tag](bool on) {
+          std::string err;
+          if (!data || !SetMassTransferResistance(*data, id, component, site, tag, on, err))
+            throw std::invalid_argument(err.empty() ? "cannot set the " + tag + " resistance" : err);
+        };
+        if (g->Enabled(r.tag)) emit_params(r.parameters);
+      }
+      if (g->UsesCapacityFactor()) {
+        auto& p = Add(Info(head + pre + "capacity_factor_mode", ahead + pre + "capacity_factor_mode", "adsorbent", sub,
+                           label_pre + "capacity factor mode", "-", ParameterKind::Integer,
+                           std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+        for (const auto& m : kind.capacity_modes) p.info_.choices.push_back(m.tag);
+        p.get_int_ = [g] { return static_cast<long long>(g->CapacityMode()); };
+        p.set_int_ = [data, id, component, site](long long x) {
+          std::string err;
+          if (!data || !SetCapacityFactorMode(*data, id, component, site, static_cast<CapacityFactorMode>(x), err))
+            throw std::invalid_argument(err.empty() ? "cannot set the capacity-factor mode" : err);
+        };
+      }
+      emit_params(g->CapacityParameters());
+    }
+
     void AddAdsorbent(AdsorbentID id, Adsorbent& ads, const std::string& layer_name) {
       const std::string ap = Bracket("adsorbent", std::to_string(id));
       const std::string aa = Bracket("adsorbent", ads.name_);
@@ -1048,15 +1128,13 @@ namespace adsim {
         // with |q* - q| typically 0.1-10 mol/kg, so its bounds are a decade
         // wider than the LDF ones on each side.
         const bool ldf2 = mtm->GetModelType() == MassTransferModelType::LDF2;
-        EmplaceKind(KindAt(ModelFamily::RateCoefficient, static_cast<size_t>(mtc->GetModelType())),
-                    ModelFields(mtc), ap + "." + kp, aa + "." + kp, "adsorbent", sub,
-                    ldf2 ? &Ldf2RateConstant : nullptr);
+        AddCoefficient(mtc, id, component, MassTransferSite::Fast, ldf2, ap + "." + kp, aa + "." + kp, sub);
         // The rate model's own parameters (dual_rate_ldf: split) and the slow
         // site's coefficient model (dual_rate_ldf: slow_<name>).
         EmplaceKind(KindAt(ModelFamily::RateModel, static_cast<size_t>(mtm->GetModelType())),
                     ModelFields(mtm.get()), ap + "." + kp, aa + "." + kp, "adsorbent", sub);
-        EmplaceKind(SlowSiteKind(mtm.get()), SlowSiteFields(mtm.get()), ap + "." + kp, aa + "." + kp, "adsorbent",
-                    sub);
+        if (IMassTransferCoefficientModel* slow = mtm->SlowCoefficientModel())
+          AddCoefficient(slow, id, component, MassTransferSite::Slow, ldf2, ap + "." + kp, aa + "." + kp, sub);
       }
 
       AddIsotherms(source, ap, aa, an);
@@ -1341,6 +1419,7 @@ namespace adsim {
     ParameterBuilder b{parameters_};
     b.AddStatic(data_);
     b.bed_ = &data_.bed;
+    b.data_ = &data_;
     b.AddCycle(data_.cycle);
     b.AddBed(data_.bed, data_.adsorbent_directory);
     b.AddInitialConditions(data_.ic);
@@ -1360,7 +1439,31 @@ namespace adsim {
     }
   }
 
+  namespace {
+    // The former arrhenius coefficient kind named the lumped coefficient
+    // "pre_exp_factor": kinetics[C].pre_exp_factor and slow_pre_exp_factor
+    // resolve to kinetics[C].k and slow_k (shown while the lumped term is on).
+    // Empty when the path has no such leaf.
+    std::string LumpedAlias(std::string_view path) {
+      for (const char* old_leaf : {"].slow_pre_exp_factor", "].pre_exp_factor"}) {
+        const std::string_view leaf(old_leaf);
+        if (path.size() <= leaf.size() || path.substr(path.size() - leaf.size()) != leaf) continue;
+        const std::string head(path.substr(0, path.size() - leaf.size()));
+        if (head.find(".kinetics[") == std::string::npos) return {};
+        return head + (leaf.find("slow_") != std::string_view::npos ? "].slow_k" : "].k");
+      }
+      return {};
+    }
+  }  // namespace
+
   Parameter* ParameterRegistry::Find(std::string_view path) {
+    Parameter* p = FindExact(path);
+    if (p) return p;
+    const std::string alias = LumpedAlias(path);
+    return alias.empty() ? nullptr : FindExact(alias);
+  }
+
+  Parameter* ParameterRegistry::FindExact(std::string_view path) {
     for (auto& p : parameters_)
       if (p.info_.path == path) return &p;
     Parameter* match = nullptr;

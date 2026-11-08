@@ -164,7 +164,23 @@ std::vector<std::string> IsothermKinds() {
 }
 
 const std::vector<std::string>& RateModelKinds() { return KindTags(ModelFamily::RateModel); }
-const std::vector<std::string>& RateCoefficientKinds() { return KindTags(ModelFamily::RateCoefficient); }
+const std::vector<std::string>& RateCoefficientKinds() {
+  static const std::vector<std::string> k = [] {
+    std::vector<std::string> out;
+    for (const auto& d : KindDescriptors(ModelFamily::RateCoefficient))
+      if (!d.legacy) out.push_back(d.tag);
+    return out;
+  }();
+  return k;
+}
+const std::vector<std::string>& RateCoefficientPresets() {
+  static const std::vector<std::string> k = [] {
+    std::vector<std::string> out;
+    for (const auto& p : ResistanceKind().presets) out.push_back(p.tag);
+    return out;
+  }();
+  return k;
+}
 const std::vector<std::string>& MixingRuleKinds() {
   static const std::vector<std::string> k{"none", "iast"};
   return k;
@@ -293,12 +309,25 @@ void SetMixingRule(UserData& data, AdsorbentID adsorbent, const std::string& kin
       KindEnum<MixingRule>(MixingRuleKinds(), kind, "mixing rule");
 }
 
+namespace {
+// A coefficient kind tag (series_resistance) or a preset tag (a former kind).
+MassTransferCoefficientType CoefficientKindOrPreset(const std::string& tag) {
+  const auto& tags = KindTags(ModelFamily::RateCoefficient);
+  const auto it = std::find(tags.begin(), tags.end(), tag);
+  if (it != tags.end()) return static_cast<MassTransferCoefficientType>(it - tags.begin());
+  std::string valid;
+  for (const auto& k : RateCoefficientKinds()) valid += (valid.empty() ? "" : ", ") + k;
+  for (const auto& k : RateCoefficientPresets()) valid += ", " + k;
+  throw std::invalid_argument("unknown rate coefficient kind '" + tag + "'; one of: " + valid);
+}
+}  // namespace
+
 void SetRateModel(UserData& data, AdsorbentID adsorbent, const std::string& component, const std::string& model,
                   const std::string& coefficient) {
   CheckComponent(data, component);
   auto m = CreateMassTransferModel(KindEnum<MassTransferModelType>(RateModelKinds(), model, "rate model"));
   m->mtc_model_ = CreateMassTransferCoefficientModel(
-      KindEnum<MassTransferCoefficientType>(RateCoefficientKinds(), coefficient, "rate coefficient"));
+      CoefficientKindOrPreset(coefficient));
   // A dual-rate model's slow site: the same coefficient kind, a copy of the
   // fast site's values until set (registry leaves slow_<name>).
   if (auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(m.get())) {

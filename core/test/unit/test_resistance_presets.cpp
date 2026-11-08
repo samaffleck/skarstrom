@@ -170,7 +170,8 @@ void ExpectSameCoefficient(const Factory& make, Geometry g, bool t_zero, Sorbent
   ASSERT_NE(dynamic_cast<Generic*>(generic.get()), nullptr);
   // The preset matches the old kind (an arrhenius coefficient with E_a = 0 is the constant preset).
   auto* arrhenius = dynamic_cast<MassTransferCoefficientArrhenius*>(legacy.get());
-  EXPECT_EQ(generic->GetModelType(), arrhenius && arrhenius->activation_energy_.Get() == 0.0
+  EXPECT_EQ(generic->GetModelType(), MassTransferCoefficientType::SERIES_RESISTANCE);
+  EXPECT_EQ(CoefficientPreset(generic.get()), arrhenius && arrhenius->activation_energy_.Get() == 0.0
                                          ? MassTransferCoefficientType::CONSTANT
                                          : legacy->GetModelType());
   CellState a(g, t_zero), b(g, t_zero);
@@ -364,7 +365,6 @@ TEST(ResistancePresets, SeriesV1LoadsUnchanged) {
     auto loaded = Load(VersionOne(v1));
     auto* g = dynamic_cast<Generic*>(loaded.get());
     ASSERT_NE(g, nullptr);
-    EXPECT_FALSE(g->SentinelSwitches());
     EXPECT_EQ(g->resistances_.film, p.film);
     EXPECT_EQ(g->resistances_.macropore, p.macro);
     EXPECT_EQ(g->resistances_.micropore, p.micro);
@@ -415,7 +415,7 @@ TEST(ResistancePresets, RoundTrip) {
     EXPECT_EQ(old.find("SeriesResistance"), std::string::npos);
     auto loaded = Load(old);
     ASSERT_NE(dynamic_cast<Generic*>(loaded.get()), nullptr);
-    EXPECT_EQ(loaded->GetModelType(), type);
+    EXPECT_EQ(CoefficientPreset(loaded.get()), type);
     const std::string a = Save(loaded);
     EXPECT_EQ(a, Save(Load(a)));
   }
@@ -459,12 +459,14 @@ TEST(ResistancePresets, RoundTrip) {
       build::SetRateModel(d, a, kCO2, rate, tag);
       auto& m = d.adsorbent_directory.Get(a).adsorption_source_.mass_transfer_models_.at(kCO2);
       ASSERT_NE(dynamic_cast<Generic*>(m->mtc_model_.get()), nullptr);
-      EXPECT_EQ(m->mtc_model_->GetModelType(), type);
+      EXPECT_EQ(m->mtc_model_->GetModelType(), T::SERIES_RESISTANCE);
+      // The tag of the generic model gives its defaults: the lumped term only.
+      EXPECT_EQ(CoefficientPreset(m->mtc_model_.get()), type == T::SERIES_RESISTANCE ? T::CONSTANT : type);
     }
     std::string err;
     ASSERT_TRUE(SetMassTransferKind(d, a, kCO2, MassTransferModelType::LDF, type, err)) << err;
-    EXPECT_EQ(d.adsorbent_directory.Get(a).adsorption_source_.mass_transfer_models_.at(kCO2)->mtc_model_->GetModelType(),
-              type);
+    EXPECT_EQ(CoefficientPreset(d.adsorbent_directory.Get(a).adsorption_source_.mass_transfer_models_.at(kCO2)->mtc_model_.get()),
+              type == T::SERIES_RESISTANCE ? T::CONSTANT : type);
   }
 }
 
@@ -504,7 +506,8 @@ TEST(DeckEdit, ResistanceSwitchCascade) {
   EXPECT_EQ(model().PresetTag(), "custom");
   ASSERT_TRUE(set("lumped", false));
   EXPECT_EQ(model().PresetTag(), "macropore");
-  EXPECT_EQ(model().GetModelType(), T::MACROPORE);
+  EXPECT_EQ(model().PresetType(), T::MACROPORE);
+  EXPECT_EQ(model().GetModelType(), T::SERIES_RESISTANCE);
   ASSERT_TRUE(set("knudsen", true));
   EXPECT_EQ(model().PresetTag(), "macropore_knudsen");
   ASSERT_TRUE(set("knudsen", false));
@@ -547,24 +550,18 @@ TEST(DeckEdit, ResistanceSwitchCascade) {
   EXPECT_EQ(model().crystal_radius_.Get(), 3e-6);
   EXPECT_EQ(model().tortuosity_.Get(), 4.2);
 
-  // A model created from series_resistance follows its zero sentinels until
-  // a switch is set explicitly.
+  // series_resistance (custom) keeps the switches, mode and values.
   ASSERT_TRUE(SetMassTransferKind(d, a, kCO2, MassTransferModelType::LDF, T::SERIES_RESISTANCE, err)) << err;
-  EXPECT_TRUE(model().SentinelSwitches());
-  EXPECT_FALSE(model().Enabled("micropore"));
-  model().crystal_radius_ = 1e-6;
-  model().micropore_diffusivity_ = 1e-12;
-  EXPECT_TRUE(model().Enabled("micropore"));
+  EXPECT_EQ(model().PresetTag(), "constant");
+  EXPECT_EQ(model().crystal_radius_.Get(), 3e-6);
+  // A first enable replaces an out-of-range value by the term's default; the
+  // values of a term switched off are kept.
   model().tortuosity_ = 0.0;
   EXPECT_FALSE(model().Enabled("macropore"));
-  ASSERT_TRUE(set("lumped", true));
-  EXPECT_FALSE(model().SentinelSwitches());
-  EXPECT_TRUE(model().Enabled("film") && model().Enabled("micropore") && model().Enabled("lumped"));
-  EXPECT_FALSE(model().Enabled("macropore"));
-  EXPECT_EQ(model().tortuosity_.Get(), 0.0) << "values are kept when the switches become explicit";
   ASSERT_TRUE(set("macropore", true));
   EXPECT_EQ(model().tortuosity_.Get(), 3.0) << "a first enable replaces the zero by the default";
   ASSERT_TRUE(set("macropore", false));
+  EXPECT_EQ(model().tortuosity_.Get(), 3.0);
 
   // Dual rate: the slow site starts as a copy, then its switches are its own.
   ASSERT_TRUE(SetMassTransferKind(d, a, kCO2, MassTransferModelType::DUAL_RATE_LDF, T::MACROPORE, err)) << err;

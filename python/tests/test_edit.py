@@ -29,7 +29,8 @@ def test_model_kinds_lists_every_family_with_parameters():
     # The builder's tag lists are the descriptors' tags.
     build = skarstrom.build_kinds()
     for family in ("rate_coefficient", "dispersion", "flow", "pump", "pump_efficiency", "pump_power", "profile"):
-        assert build[family] == [k["tag"] for k in kinds[family]], family
+        # Legacy kinds (the former rate coefficients, now presets) are not offered.
+        assert build[family] == [k["tag"] for k in kinds[family] if not k.get("legacy")], family
 
 
 def test_layers_and_steps(perez):

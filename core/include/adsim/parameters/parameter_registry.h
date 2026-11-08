@@ -220,6 +220,8 @@ namespace adsim {
 
     // Looks a parameter up by path or alias; nullptr if absent. Throws
     // std::invalid_argument when `path` is an alias shared by several entries.
+    // The former arrhenius leaf kinetics[C].pre_exp_factor (slow_pre_exp_factor)
+    // resolves to the lumped coefficient kinetics[C].k (slow_k).
     Parameter* Find(std::string_view path);
     const Parameter* Find(std::string_view path) const;
     // As Find, but throws std::out_of_range naming the path when it is absent.
@@ -231,6 +233,7 @@ namespace adsim {
     UserData& Data() { return data_; }
 
   private:
+    Parameter* FindExact(std::string_view path);  // path or alias, no renamed leaves
     UserData& data_;
     std::vector<Parameter> parameters_;
   };

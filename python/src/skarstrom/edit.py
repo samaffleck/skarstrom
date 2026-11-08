@@ -33,8 +33,12 @@ __all__ = ["Editor", "model_kinds"]
 def model_kinds() -> Dict[str, List[Dict[str, Any]]]:
     """Every model kind's descriptor, by family.
 
-    Each kind is ``{"tag", "label", "parameters": [{"name", "unit", "default",
-    "lower", "upper", "tunable", "label"}]}`` in its family's stored order.
+    Each kind is ``{"tag", "label", "legacy", "parameters": [{"name", "unit",
+    "default", "lower", "upper", "tunable", "label"}]}`` in its family's stored
+    order. A legacy kind is not offered (the former rate coefficients, now
+    presets). The rate-coefficient kind ``series_resistance`` also has
+    ``resistances`` (tag, label, parent, scaled_by_capacity, parameters, LaTeX
+    ``fragments`` per shape, source), ``capacity_modes`` and ``presets``.
     Families: rate_model, rate_coefficient, momentum, dispersion,
     heat_dispersion, internal_heat_transfer, external_heat_transfer,
     particle_heat_transfer, boundary, stream, profile, flow, pump,
@@ -133,9 +137,26 @@ class Editor:
         self._do("set_isotherm_kind", self._adsorbent(adsorbent), self._sim._component(component), kind)
 
     def set_mass_transfer_kind(self, adsorbent: Any, component: str, model: str, coefficient: str) -> None:
-        """The rate model (``"ldf"``, ``"ldf2"``) and coefficient model of one component."""
+        """The rate model (``"ldf"``, ``"ldf2"``, ``"dual_rate_ldf"``) of one component and a coefficient
+        preset (``"constant"``, ``"arrhenius"``, ``"macropore"``, ``"macropore_knudsen"``, ``"haynes"``,
+        ``"macropore_capacity"``) or ``"series_resistance"``, which keeps the current switches."""
         self._do("set_mass_transfer_kind", self._adsorbent(adsorbent), self._sim._component(component), model,
                  coefficient)
+
+    def set_mass_transfer_resistance(self, adsorbent: Any, component: str, tag: str, on: bool,
+                                     site: str = "fast") -> None:
+        """Switch one resistance (``"film"``, ``"macropore"``, ``"knudsen"``, ``"micropore"``,
+        ``"lumped"``) of a component's coefficient on or off, on the ``"fast"`` or ``"slow"`` site.
+        Refused (ValueError): the last of film, macropore, micropore and lumped off, knudsen without
+        macropore."""
+        self._do("set_mass_transfer_resistance", self._adsorbent(adsorbent), self._sim._component(component),
+                 site, tag, bool(on))
+
+    def set_capacity_factor_mode(self, adsorbent: Any, component: str, mode: str, site: str = "fast") -> None:
+        """The capacity-factor mode (``"none"``, ``"slope"``, ``"secant"``, ``"fixed"``) of a
+        component's coefficient, on the ``"fast"`` or ``"slow"`` site."""
+        self._do("set_capacity_factor_mode", self._adsorbent(adsorbent), self._sim._component(component),
+                 site, mode)
 
     def set_dispersion_kind(self, layer: Any, kind: str) -> None:
         self._do("set_dispersion_kind", self._layer(layer), kind)

@@ -112,12 +112,12 @@ The names `T`, `P`, `c`, `y` and `v` stand for the local temperature [K], pressu
 
 | Field | Re-evaluated | Values supplied |
 |---|---|---|
-| **Constant** mass-transfer coefficient (Adsorbent → rate model) | in every cell, at every residual evaluation | `T` = gas temperature of the cell, `P` = cell pressure, `y` = mole fraction of the component the coefficient belongs to; `c` = 0 and `v` = 0 |
-| **Arrhenius** mass-transfer coefficient: pre-exponential factor and activation energy | same | same |
+| **Lumped** mass-transfer coefficient `k` (Adsorbent → rate model; the `constant` and `arrhenius` presets) | in every cell, at every residual evaluation | `T` = gas temperature of the cell, `P` = cell pressure, `y` = mole fraction of the component the coefficient belongs to; `c` = 0 and `v` = 0 |
+| Activation energy `activation_energy` of the lumped coefficient | same | same |
 
-So `0.05*(P/1e5)^0.5` is a valid pressure-dependent constant-LDF coefficient, but `c` and `v` evaluate to zero there. (`MassTransferCoefficientConstant` and `MassTransferCoefficientArrhenius` in `core/src/equations/mass_transfer_model.cpp`.)
+So `0.05*(P/1e5)^0.5` is a valid pressure-dependent lumped LDF coefficient, but `c` and `v` evaluate to zero there. The other [resistance](kinetic-models.md#resistances) parameters are evaluated once. (`MassTransferCoefficientSeriesResistance`, the lumped term, in `core/src/equations/mass_transfer_model.cpp`.)
 
-**Everywhere else**, including inside global variables, a state variable is evaluated **once** with placeholder values, `T` = 298.15 K, `P` = 10⁵ Pa, `c` = 40 mol/m³, `y` = 0 and `v` = 0, and the result is used as a constant for the whole run. For example a variable `A = T*2` is 596.3, whatever the bed temperature. Use the dedicated models (temperature-dependent isotherms, the Arrhenius coefficient, transport correlations, inlet temperature profiles) for real state dependence.
+**Everywhere else**, including inside global variables, a state variable is evaluated **once** with placeholder values, `T` = 298.15 K, `P` = 10⁵ Pa, `c` = 40 mol/m³, `y` = 0 and `v` = 0, and the result is used as a constant for the whole run. For example a variable `A = T*2` is 596.3, whatever the bed temperature. Use the dedicated models (temperature-dependent isotherms, the lumped coefficient's activation energy, transport correlations, inlet temperature profiles) for real state dependence.
 
 ## Global variables in studies
 
