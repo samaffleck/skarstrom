@@ -138,6 +138,6 @@ $$
 
 ### Other gas properties
 
-- **Molecular diffusivities** come from the Chapman–Enskog binary-diffusion model with the Lennard-Jones energy and length of each component (Poling, Prausnitz and O'Connell, *The Properties of Gases and Liquids*, 5th ed.). They feed the dispersion and film mass-transfer correlations; see [Transport Correlations](transport-correlations.md).
+- **Molecular diffusivities** come from the Chapman–Enskog binary-diffusion model with the Lennard-Jones energy and length of each component (Svehla, NASA TR R-132, 1962, Table I(a); octane and toluene use CoolProp's viscosity-fit pairs, isopentane uses the n-pentane row). They feed the dispersion and film mass-transfer correlations; see [Transport Correlations](transport-correlations.md).
 - **Adsorbed-phase heat capacity** is either a constant per component or, with the *Gas phase* option of the energy balance, $C_{p,i}\thinspace M_i$ from the same gas heat capacity at the adsorbed phase's temperature; see [Energy Balance](energy-balance.md#adsorbed-phase-heat-capacity).
 - **Isothermal runs** evaluate all of the above at the fixed temperature $T_{\text{iso}}$; see [Isothermal mode](energy-balance.md#isothermal-mode).
