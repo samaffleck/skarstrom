@@ -73,6 +73,10 @@ def test_reaction_kpi_fields(reactor):
     assert set(d) - {"cycle", "component", "valid", "reaction_kpis", "space_time_yield_unit"} <= keys
     reaction = [k["key"] for k in sk.kpi_manifest() if k["reaction"]]
     assert {"conversion", "selectivity", "reaction_yield", "space_time_yield"} <= set(reaction)
+
+
+def test_kpi_table_has_the_reaction_columns(reactor):
+    pytest.importorskip("pandas")
     table = reactor.kpi_table(cycle=1)
     assert "conversion" in table.columns and "selectivity" in table.columns
 
