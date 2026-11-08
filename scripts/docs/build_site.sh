@@ -6,7 +6,8 @@
 # action) it is moved to SITE_DIR/dev instead of building main again.
 # The release is built from its own tree (its mkdocs.yml, requirements and pages) in a worktree;
 # main is built from this checkout through mkdocs.dev.yml (banner, site_url .../dev/).
-# The released root gets a footer note through a throwaway config that sets theme.custom_dir; the tag is not edited.
+# The released root gets a footer note and llms.txt / llms-full.txt (main's hook) through a throwaway config
+# that sets theme.custom_dir and hooks; the tag is not edited.
 # SKIP_INSTALL=1 skips pip install (local runs).
 set -euo pipefail
 
@@ -43,6 +44,8 @@ theme:
   custom_dir: $root/overrides
 extra:
   dev_url: $base/dev/
+hooks:
+  - $root/scripts/docs/llms_txt_hook.py
 YML
 (cd "$src" && mkdocs build --strict -f mkdocs.root.yml --site-dir "$site")
 
