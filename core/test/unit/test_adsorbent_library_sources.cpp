@@ -256,8 +256,11 @@ TEST(AdsorbentLibrarySources, StaleWaterIsothermLeavesNoEmptyIsothermObject) {
   a.adsorption_source_.Initialise(fluid);
   const auto path = std::filesystem::temp_directory_path() / "adsim_stale_water_isotherm.json";
   test::SaveAdsorbentToJsonAtomically(a, path);
-  std::ifstream ifs(path);
-  const std::string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+  std::string text;
+  {
+    std::ifstream ifs(path);  // closed before the file is removed (Windows refuses otherwise)
+    text.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+  }
   std::filesystem::remove(path);
   EXPECT_EQ(text.find("GabYoungIsotherm"), std::string::npos);
   EXPECT_NE(text.find("TothWadstIsotherm"), std::string::npos);
