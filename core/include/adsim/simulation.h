@@ -45,6 +45,7 @@
 #include "adsim/solver/kpi_history.h"  // KPIRecord
 #include "adsim/solver/log.h"
 #include "adsim/solver/operating_limits.h"
+#include "adsim/solver/run_health.h"
 #include "adsim/objects/wall_design.h"
 
 namespace adsim {
@@ -110,6 +111,10 @@ namespace adsim {
     int cycles_run = 0;        // cycles that completed
     double wall_time_s = 0.0;
     IntegrationStats stats{};  // IDA counters (blocking runs)
+    // Run-health checks (run_health.h): false when any fired. They never change
+    // the status or the results; the warnings say what to look at.
+    bool healthy = true;
+    std::vector<RunHealthWarning> health_warnings;
 
     bool Ok() const { return status == RunStatus::Completed || status == RunStatus::ReachedCSS; }
   };
@@ -353,6 +358,9 @@ namespace adsim {
     // last) with the warnings where it leaves the wall design or lifts the bed
     // (operating_limits.h). Empty (cycle -1) without results.
     OperatingLimitsReport OperatingLimits(int cycle = -1) const;
+    // The run-health measures of every completed cycle of the last run and its
+    // warnings (run_health.h). Empty without a run.
+    const RunHealthReport& RunHealth() const;
     // The wall's minimum thickness for its pressure design (wall_design.h).
     // Evaluates the deck's expressions first.
     WallDesignResult WallDesign();

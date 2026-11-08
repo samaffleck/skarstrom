@@ -472,6 +472,8 @@ namespace adsim {
     solver.SetMetricsCallback({});
     result_.return_code = rc;
     result_.stats = solver.GetStatistics();
+    result_.health_warnings = solver.GetRunHealth().warnings;
+    result_.healthy = result_.health_warnings.empty();
     result_.css_cycle = solver.GetCSSCycleIndex();
     result_.css_reached = solver.ReachedCSS();
     const auto& cycles = solver.GetLog().sys_data.cycle_index_set_;
@@ -548,6 +550,8 @@ namespace adsim {
     const auto st = chunked_->GetStatus();
     const auto& cycles = chunked_->GetLog().sys_data.cycle_index_set_;
     result_.cycles_run = cycles.empty() ? 0 : *cycles.rbegin() + 1;
+    result_.health_warnings = chunked_->GetRunHealth().warnings;
+    result_.healthy = result_.health_warnings.empty();
     switch (st.GetStatus()) {
       case SolverStatus::IN_PROGRESS:
         result_.status = RunStatus::Running;
@@ -713,6 +717,13 @@ namespace adsim {
                      r.convergence_rate, r.distance, r.distance_ratio, r.distance_note});
     }
     return out;
+  }
+
+  const RunHealthReport& Simulation::RunHealth() const {
+    static const RunHealthReport kEmpty{};
+    if (chunked_) return chunked_->GetRunHealth();
+    if (solver_) return solver_->GetRunHealth();
+    return kEmpty;
   }
 
   OperatingLimitsReport Simulation::OperatingLimits(int cycle) const {

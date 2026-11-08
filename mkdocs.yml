@@ -93,6 +93,7 @@ nav:
       - Solver Settings: solver-settings.md
       - Numerics: numerics.md
       - Cyclic Steady State: cyclic-steady-state.md
+      - Run Health: run-health.md
       - Performance Metrics: performance-metrics.md
       - Global Variables and Units: global-variables.md
   - Studies and data:

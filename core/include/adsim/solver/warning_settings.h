@@ -7,7 +7,8 @@
 #pragma once
 
 // Which advisory warnings a run reports. None of them stops a run; a switched-
-// off warning is neither logged nor listed in the operating-limit report.
+// off warning is neither logged nor listed in the operating-limit or run-health
+// report.
 // Saved with the deck (IDASettings, "Warnings"); registry paths
 // settings.warn_<name>.
 
@@ -28,6 +29,11 @@ namespace adsim {
     bool design_temperature = true;    // wall temperature above the design temperature
     bool fluidisation = true;          // approach to fluidisation above 1
     bool channel_reynolds = true;      // channel Re above 2000 in a structured layer (laminar closures)
+    // Run health, after every cycle (run_health.h).
+    bool mole_fraction_sum = true;     // MOLE_FRACTION_SUM: the gas mole fractions do not sum to 1
+    bool mass_balance_stuck = true;    // MASS_BALANCE_STUCK: a cycle mole balance stays open as the run settles
+    bool step_retries = true;          // STEP_RETRIES: many rejected integrator attempts in a cycle
+    bool history_truncated = true;     // HISTORY_TRUNCATED: the log kept fewer cycles than the diagnostics read
 
   private:
     friend class ::cereal::access;
@@ -44,9 +50,18 @@ namespace adsim {
       // v1: the channel Reynolds number warning (on for older decks).
       if (version >= 1) ar(cereal::make_nvp("Channel_Reynolds", channel_reynolds));
       else channel_reynolds = true;
+      // v2: the run-health warnings (on for older decks).
+      if (version >= 2) {
+        ar(cereal::make_nvp("Mole_Fraction_Sum", mole_fraction_sum),
+           cereal::make_nvp("Mass_Balance_Stuck", mass_balance_stuck),
+           cereal::make_nvp("Step_Retries", step_retries),
+           cereal::make_nvp("History_Truncated", history_truncated));
+      } else {
+        mole_fraction_sum = mass_balance_stuck = step_retries = history_truncated = true;
+      }
     }
   };
 
 } // namespace adsim
 
-CEREAL_CLASS_VERSION(adsim::WarningSettings, 1);
+CEREAL_CLASS_VERSION(adsim::WarningSettings, 2);

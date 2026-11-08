@@ -512,6 +512,12 @@ namespace adsim {
         ADD_FAILURE() << "example deck name '" << test_name << "' is not a Python identifier";
         return;
       }
+      // Every example deck and paper case runs without a run-health warning
+      // (run_health.h): the thresholds are set so the engine's own decks are
+      // silent with margin.
+      for (const auto& w : solver.GetRunHealth().warnings)
+        ADD_FAILURE() << test_name << ": run-health warning " << w.code << " (value " << w.value
+                      << ", threshold " << w.threshold << "): " << w.message;
       std::filesystem::path dir_path = test_path / test_name;
       std::filesystem::path examples_path = std::filesystem::current_path() / "../examples/decks";
       

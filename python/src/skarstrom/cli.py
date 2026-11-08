@@ -40,6 +40,13 @@ def _css_entry(c) -> dict:
             "distance_note": c.distance_note}
 
 
+def _health_entry(w) -> dict:
+    """One run-health warning for the --json summary."""
+    return {"code": w.code, "value": _num(w.value), "threshold": w.threshold,
+            "cycle": w.cycle, "step": w.step, "step_name": w.step_name, "component": w.component,
+            "suspects": list(w.suspects), "hint": w.hint, "message": w.message}
+
+
 def _css_distance_text(c) -> str:
     """The remaining-distance diagnostic of one CSS check, in words."""
     if not c.distance_estimated:
@@ -170,6 +177,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     kpis = sim.kpis() if sim.has_results else []
     css = sim.css_history() if sim.has_results else []
     warnings = [w.message for w in sim.operating_limits().warnings] if sim.has_results else []
+    # Run-health warnings go to stderr even with -q (and beside --json), so a script or an agent cannot
+    # miss them; the exit code and the status are unchanged. The text summary lists them on stdout.
+    health = list(result.warnings)
+    warnings += [w.message for w in health]
+    if args.quiet or args.json:
+        for w in health:
+            print(f"skarstrom: run health: {w.message}", file=sys.stderr)
     last = sim.last_cycle
 
     if args.json:
@@ -186,6 +200,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                      for r in kpis],
             "css": [_css_entry(c) for c in css],
             "warnings": warnings,
+            "healthy": result.healthy,
+            "run_health": [_health_entry(w) for w in health],
         }
         print(json.dumps(payload, indent=2))
     else:
@@ -212,6 +228,10 @@ def cmd_run(args: argparse.Namespace) -> int:
                 print(f"CSS:     not reached ({c.method}: error {c.error:.3e}, tolerance {c.tolerance:.3e})")
         else:
             print("CSS:     not checked (the deck's CSS method is None)")
+        if result.ok:
+            print("Health:  " + ("no run-health warnings" if result.healthy else
+                                 f"{len(health)} run-health warning(s): "
+                                 + ", ".join(w.code for w in health)))
         final = [k for k in kpis if k.cycle == last]
         if final:
             print(f"\nKPIs at cycle {last + 1}:")

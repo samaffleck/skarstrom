@@ -198,6 +198,8 @@ namespace adsim {
     equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
     boundary_log_.Initialise(user_data_);
     kpi_history_.Clear();
+    run_health_.Begin(user_data_);
+    step_recoveries_ = 0;
     jump_cycles_.clear();
     
     // Set current step for initial conditions
@@ -333,6 +335,7 @@ namespace adsim {
 
         if (retry.retry) {
           ++retry_count;
+          ++step_recoveries_;
           std::ostringstream ss;
           ss << "  Step \"" << step.step_name_ << "\" IDA failure (code " << flag
              << ") at t=" << t_curr << "; retry " << retry_count << "/" << kMaxStepRetries
@@ -534,6 +537,8 @@ namespace adsim {
       cycle_index = i - 1; // Convert to 0-based index
 
       LogMessage(LogLevel::LOW, "Cycle " + std::to_string(i) + " of " + std::to_string(total_cycles));
+      const IntegrationStats cycle_stats_start = solver_data_.GetStatistics();
+      const long cycle_recoveries_start = step_recoveries_;
 
       int step_index = 0;
       for (auto& step : cycle.step_list_) {
@@ -589,6 +594,8 @@ namespace adsim {
 
       // The cycle is complete: keep its KPIs before the log evicts it.
       kpi_history_.Record(user_data_.kpi_config, cycle.step_list_, equation_log_, boundary_log_, cycle_index);
+      run_health_.OnCycle(user_data_, equation_log_, boundary_log_, cycle_index, cycle_stats_start,
+                          solver_data_.GetStatistics(), step_recoveries_ - cycle_recoveries_start);
 
       std::optional<ProfileTimer> css_timer;  // CSS check + acceleration
       css_timer.emplace(user_data_.profile_.enabled, user_data_.profile_.css_ns);
@@ -656,6 +663,10 @@ namespace adsim {
       // fluidisation (see operating_limits.h).
       for (const auto& w : CheckOperatingLimits(user_data_, equation_log_).warnings)
         LogMessage(LogLevel::LOW, w.message);
+      // Run health (run_health.h): the warnings of every cycle, once.
+      run_health_.Finish(user_data_, equation_log_);
+      for (const auto& w : run_health_.Report().warnings)
+        LogMessage(LogLevel::LOW, w.message);
     } else {
       std::ostringstream ss;
       ss << "Solver failed after " << std::fixed << std::setprecision(2) << wall_secs << " s";
@@ -683,6 +694,9 @@ namespace adsim {
          << wall_secs << " s)";
       LogMessage(LogLevel::LOW, ss.str());
       for (const auto& w : CheckOperatingLimits(user_data_, equation_log_).warnings)
+        LogMessage(LogLevel::LOW, w.message);
+      run_health_.Finish(user_data_, equation_log_);
+      for (const auto& w : run_health_.Report().warnings)
         LogMessage(LogLevel::LOW, w.message);
     } else {
       std::ostringstream ss;
@@ -716,6 +730,9 @@ namespace adsim {
       equation_log_.message_sink_ = [this](const std::string& msg) { LogMessage(LogLevel::LOW, msg); };
       boundary_log_.Initialise(user_data_);
       kpi_history_.Clear();
+      run_health_.Begin(user_data_);
+      step_recoveries_ = 0;
+      cycle_recoveries_start_ = 0;
       jump_cycles_.clear();
 
       // Clear stream_data_ for every step so connected boundary streams don't
@@ -740,6 +757,7 @@ namespace adsim {
         return;
       }
 
+      cycle_stats_start_ = solver_data_.GetStatistics();
       // Set activate to true
       status_.Activate();
       run_wall_start_ = std::chrono::steady_clock::now();
@@ -795,6 +813,11 @@ namespace adsim {
         // The cycle is complete: keep its KPIs before the log evicts it.
         kpi_history_.Record(user_data_.kpi_config, step_list, equation_log_, boundary_log_,
                             status_.GetCycleIndex());
+        const IntegrationStats cycle_stats_end = solver_data_.GetStatistics();
+        run_health_.OnCycle(user_data_, equation_log_, boundary_log_, status_.GetCycleIndex(), cycle_stats_start_,
+                            cycle_stats_end, step_recoveries_ - cycle_recoveries_start_);
+        cycle_stats_start_ = cycle_stats_end;
+        cycle_recoveries_start_ = step_recoveries_;
 
         // Check for cyclic steady state before moving to next cycle
         const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex(),
@@ -950,6 +973,7 @@ namespace adsim {
         if (recoverable && retry_count < kMaxStepRetries
             && solver_data_.PrepareStepRetry(flag, min_step).retry) {
           ++retry_count;
+          ++step_recoveries_;
           continue;
         }
 
