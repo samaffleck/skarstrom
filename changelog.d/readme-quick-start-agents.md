@@ -1,0 +1,3 @@
+### Changed — README quick start and AI agents section
+- The README opens with a quick start that optimises the `Perez2019_A` VSA cycle from the command line: install, run the example, find parameter paths with `skarstrom params`, sweep the feed time and vacuum level with `--set`/`--json`, and plot the results. The figure is drawn by `scripts/docs/readme_figures.py` from the sweep's JSON summaries.
+- A new README section, *Use Skarstrom with AI agents*, lists what makes the package agent friendly (`AGENTS.md`, `llms.txt`, JSON output, the parameter registry, run-health checks, documentation that runs in CI), gives a starter prompt to paste into any coding agent, and shows a real agent session that used it.
