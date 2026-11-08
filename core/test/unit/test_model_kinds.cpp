@@ -157,7 +157,7 @@ TEST(ModelKinds, DescriptorsMatchTheModelClasses) {
     ASSERT_NE(rate, nullptr);
     ExpectMatches(*KindAt(F::RateModel, k), ModelFields(rate.get()), "rate." + KindAt(F::RateModel, k)->tag);
   }
-  EXPECT_EQ(KindDescriptors(F::RateCoefficient).size(), static_cast<size_t>(MassTransferCoefficientType::MACROPORE_CAPACITY) + 1);
+  EXPECT_EQ(KindDescriptors(F::RateCoefficient).size(), static_cast<size_t>(MassTransferCoefficientType::SERIES_RESISTANCE) + 1);
   EXPECT_EQ(KindDescriptors(F::Boundary).size(), static_cast<size_t>(BoundaryType::CLOSED) + 1);
   EXPECT_EQ(KindDescriptors(F::Stream).size(), static_cast<size_t>(BoundaryStreamType::PUMP) + 1);
   EXPECT_EQ(KindDescriptors(F::Profile).size(), static_cast<size_t>(BoundaryValueType::DOUBLE_EXPONENTIAL) + 1);

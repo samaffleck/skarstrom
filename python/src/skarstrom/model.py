@@ -1790,14 +1790,18 @@ class Adsorbent(_Node):
 
     def set_rate_model(self, component: str, model: str = "ldf", coefficient: str = "constant",
                        **values: Value) -> "Adsorbent":
-        """The mass-transfer model of one component: ``model`` ``"ldf"`` or ``"ldf2"``, with a
-        ``coefficient`` model ``"constant"`` (k), ``"arrhenius"`` (pre_exp_factor, activation_energy),
-        ``"macropore"`` / ``"haynes"`` (tortuosity, macropore_void_fraction),
-        ``"macropore_knudsen"`` (+ pore_radius) or ``"macropore_capacity"`` (the macropore
-        coefficient times the capacity factor c / (rho_p q*) of Haghpanah et al. 2013;
-        + concentration_floor). The three macropore kinds also take
-        molecular_diffusion_coefficient, a constant D_m [m2/s] in place of the
-        (T, P)-dependent binary-diffusion value (0, the default, keeps the latter)."""
+        """The mass-transfer model of one component: ``model`` ``"ldf"``, ``"ldf2"`` or
+        ``"dual_rate_ldf"`` (two parallel LDF sites; split, and slow_<name> for the slow site's
+        coefficient), with a ``coefficient`` model ``"constant"`` (k), ``"arrhenius"``
+        (pre_exp_factor, activation_energy), ``"macropore"`` / ``"haynes"`` (tortuosity,
+        macropore_void_fraction), ``"macropore_knudsen"`` (+ pore_radius), ``"macropore_capacity"``
+        (the macropore coefficient times the capacity factor c / (rho_p q*) of Haghpanah et al. 2013;
+        + concentration_floor) or ``"series_resistance"`` (film + macropore + micropore resistances in
+        series, the first two times the isotherm-slope capacity factor; film_resistance_factor,
+        tortuosity, macropore_void_fraction, crystal_radius, micropore_diffusivity,
+        micropore_activation_energy, capacity_factor, concentration_floor). The three macropore kinds
+        and series_resistance also take molecular_diffusion_coefficient, a constant D_m [m2/s] in place
+        of the (T, P)-dependent binary-diffusion value (0, the default, keeps the latter)."""
         name = self._sim._component(component)
         self._sim._build("set_rate_model", self._id, name, model, coefficient)
         ads = self._fresh()

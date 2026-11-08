@@ -228,6 +228,136 @@ namespace adsim {
     }
   }
 
+  void MassTransferCoefficientSeriesResistance::EvaluateLoading(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, int start, int end, const UserVariableRegistry* registry, std::vector<double>& out) {
+    auto& qi_sat = state.eq_ads_concentration.at(ads_id).at(component).var;
+    out.assign(qi_sat.begin(), qi_sat.end());
+    if (source_ && source_->mixing_rule_ == MixingRule::IAST) {
+      // IAST couples the components: solve the whole adsorbent, keep this
+      // component's loading, restore every other one.
+      auto& q_map = state.eq_ads_concentration.at(ads_id);
+      const auto& components = fluid.components_;
+      q_all_scratch_.resize(components.size());
+      for (size_t i = 0; i < components.size(); ++i) {
+        const auto& q = q_map.at(components[i]).var;
+        q_all_scratch_[i].assign(q.begin(), q.end());
+      }
+      source_->UpdateIsothermAll(state, ads_id, components, start, end, registry);
+      std::swap(out, qi_sat);  // out = the new q*; qi_sat = the original, restored
+      for (size_t i = 0; i < components.size(); ++i) {
+        auto& q = q_map.at(components[i]).var;
+        if (&q == &qi_sat) continue;
+        std::copy(q_all_scratch_[i].begin(), q_all_scratch_[i].end(), q.begin());
+      }
+      return;
+    }
+    const auto q_it = state.ads_concentration.find(ads_id);
+    IsothermUpdateParams params(state.mole_fraction, state.eq_ads_concentration.at(ads_id),
+                                state.solid_temperature.var, state.pressure.var, component, start, end, registry,
+                                q_it == state.ads_concentration.end() ? nullptr : &q_it->second);
+    isotherm_->Update(params);
+    std::swap(out, qi_sat);  // out = the new q*; qi_sat = the original, restored
+  }
+
+  void MassTransferCoefficientSeriesResistance::CapacityFactor(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, int start, int end, const UserVariableRegistry* registry, std::vector<double>& k_out) {
+    auto& yi = state.mole_fraction.at(component).var;
+    const auto& T = state.fluid_temperature.var;
+    const auto& P = state.pressure.var;
+    const double R = constants::kIdealGasConstant;
+    k_out.assign(yi.size(), 1.0);
+
+    const double fixed = capacity_factor_.Get();
+    if (fixed > 0.0) {
+      std::fill(k_out.begin() + start, k_out.begin() + end + 1, fixed);
+      return;
+    }
+    const double rho_p = solid_density_;
+    if (!isotherm_ || !(rho_p > 0.0)) return;  // no isotherm context: K = 1
+
+    // Forward difference of q* in c at c_eff = max(c, c_floor): this
+    // component's mole fraction floored, then raised by the relative step h,
+    // every other component at its actual value. Both vectors restored.
+    constexpr double h = 1e-6;
+    const double c_floor = std::max(concentration_floor_.Get(), 0.0);
+    auto valid = [&](int n) { return T[n] > 0.0 && P[n] > 0.0; };
+    auto floored = [&](int n) {
+      const double y_floor = c_floor * R * T[n] / P[n];
+      return yi[n] < y_floor ? y_floor : yi[n];
+    };
+    y_scratch_.assign(yi.begin(), yi.end());
+    for (int n = start; n <= end; ++n)
+      if (valid(n)) yi[n] = floored(n);
+    EvaluateLoading(state, ads_id, fluid, component, start, end, registry, q_base_);
+    for (int n = start; n <= end; ++n)
+      if (valid(n)) yi[n] = yi[n] * (1.0 + h);
+    EvaluateLoading(state, ads_id, fluid, component, start, end, registry, q_pert_);
+    std::copy(y_scratch_.begin(), y_scratch_.end(), yi.begin());
+
+    for (int n = start; n <= end; ++n) {
+      if (!valid(n)) continue;
+      const double y_eff = floored(n);
+      const double y_pert = y_eff * (1.0 + h);
+      const double to_c = P[n] / (R * T[n]);
+      const double c_eff = y_eff * to_c;
+      const double dc = (y_pert - y_eff) * to_c;
+      double K = dc > 0.0 ? rho_p * (q_pert_[n] - q_base_[n]) / dc : 0.0;    // slope
+      if (!(K > 0.0) || !std::isfinite(K)) K = c_eff > 0.0 ? rho_p * q_base_[n] / c_eff : 0.0;  // secant
+      if (!(K >= 1.0) || !std::isfinite(K)) K = 1.0;  // floor: never above the K = 1 coefficient
+      k_out[n] = K;
+    }
+  }
+
+  void MassTransferCoefficientSeriesResistance::UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) {
+    auto& mtc = state.mass_transfer_coefficient.at(ads_id).at(component).var;
+    const auto& T = state.fluid_temperature.var;
+    const auto& Dmi = state.molecular_diffusion.at(component).var;
+    const auto& Sh = state.sherwood_number.var;
+    const double R = constants::kIdealGasConstant;
+    const int start = layer.domain_.start_index, end = layer.domain_.end_index;
+
+    CapacityFactor(state, ads_id, fluid, component, start, end, registry, capacity_);
+
+    const double f_film = film_resistance_factor_;
+    const double tau = tortuosity_;
+    const double ep = macropore_void_fraction_;
+    const double Dm_const = molecular_diffusion_coefficient_;  // > 0: constant D_m in the macropore term
+    const double rc = crystal_radius_;
+    const double Dc0 = micropore_diffusivity_;
+    const double Ea = micropore_activation_energy_;
+    const bool film_on = f_film > 0.0;
+    const bool macro_on = tau > 0.0;
+    const bool micro_on = rc > 0.0 && Dc0 > 0.0;
+
+    // The terms are written as in MassTransferCoefficient_Haynes so that with
+    // f_film = 1, K = 1 and no micropore term the result is the same double.
+    const bool structured = layer.IsStructured();
+    const auto geo = layer.GetDiffusionGeometry();
+    const double l = geo.length;
+    const double dh = structured ? layer.GetHydraulicDiameter() : 0.0;
+    const double dp = layer.particle_diameter_;
+    const double rp = dp / 2.0;
+    for (int n = start; n <= end; ++n) {
+      if (micro_on && !(T[n] > 0.0)) continue;  // Newton iterates can probe T < 0; skip the cell
+      const double K = capacity_[n];
+      const double Dp = Dm_const > 0.0 ? Dm_const : Dmi[n];
+      double film = 0.0, macro = 0.0, micro = 0.0;
+      if (structured) {
+        if (film_on) {
+          const double kf = Sh[n] * Dmi[n] / dh;
+          film = geo.volume_to_surface / kf;
+        }
+        if (macro_on) macro = tau * l * l / (3.0 * ep * Dp);
+      } else {
+        if (film_on) {
+          const double kf = Sh[n] * Dmi[n] / dp;
+          film = rp / (3.0 * kf);
+        }
+        if (macro_on) macro = tau * rp * rp / (15.0 * ep * Dp);
+      }
+      if (micro_on) micro = rc * rc / (15.0 * Dc0 * std::exp(-Ea / (R * T[n])));
+      mtc[n] = 1.0 / ((f_film * K) * film + K * macro + micro);
+    }
+  }
+
   LinearDrivingForce::LinearDrivingForce() {
     mtc_model_ = std::make_unique<MassTransferCoefficientConstant>();
   }
@@ -269,12 +399,14 @@ CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientMacropore)
 CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficient_Haynes)
 CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientMacroporeCapacity)
 CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientArrhenius)
+CEREAL_REGISTER_TYPE(adsim::MassTransferCoefficientSeriesResistance)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientConstant)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientMacroporeKnudsen)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientMacropore)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficient_Haynes)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientMacroporeCapacity)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientArrhenius)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IMassTransferCoefficientModel, adsim::MassTransferCoefficientSeriesResistance)
 
 CEREAL_REGISTER_TYPE(adsim::LinearDrivingForce)
 CEREAL_REGISTER_TYPE(adsim::LinearDrivingForceSecondOrder)

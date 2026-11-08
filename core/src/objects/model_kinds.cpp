@@ -65,6 +65,19 @@ const std::vector<K>& RateCoefficients() {
        {Tortuosity(), MacroporeVoid(0.35),
         {"concentration_floor", "mol/m3", 1e-3, 0.0, 10.0, true, "capacity-factor concentration floor"},
         MolecularDiffusivity()}},
+      // Film + macropore + micropore resistances in series, the first two
+      // times the capacity factor K (isotherm slope unless capacity_factor > 0).
+      // film_resistance_factor = 0, tortuosity = 0, crystal_radius = 0 or
+      // micropore_diffusivity = 0 drop a term.
+      {"series_resistance",
+       "Series Resistance (film + macropore + micropore)",
+       {{"film_resistance_factor", "-", 1.0, 0.0, 10.0, true, "film resistance factor"}, Tortuosity(),
+        MacroporeVoid(0.35), MolecularDiffusivity(),
+        {"crystal_radius", "m", 0.0, 0.0, 1e-4, true, "micropore (crystal) radius"},
+        {"micropore_diffusivity", "m2/s", 0.0, 0.0, 1e-8, true, "micropore diffusivity pre-exponential factor"},
+        {"micropore_activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "micropore diffusion activation energy"},
+        {"capacity_factor", "-", 0.0, 0.0, 1e5, true, "fixed capacity factor (0: isotherm slope)"},
+        {"concentration_floor", "mol/m3", 1e-3, 0.0, 10.0, true, "capacity-factor concentration floor"}}},
   };
   return k;
 }
@@ -605,6 +618,16 @@ ModelFieldList ModelFields(IMassTransferCoefficientModel* m) {
            {"macropore_void_fraction", &c->macropore_void_fraction_},
            {"concentration_floor", &c->concentration_floor_},
            {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_}};
+  } else if (auto* c = dynamic_cast<MassTransferCoefficientSeriesResistance*>(m)) {
+    out = {{"film_resistance_factor", &c->film_resistance_factor_},
+           {"tortuosity", &c->tortuosity_},
+           {"macropore_void_fraction", &c->macropore_void_fraction_},
+           {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_},
+           {"crystal_radius", &c->crystal_radius_},
+           {"micropore_diffusivity", &c->micropore_diffusivity_},
+           {"micropore_activation_energy", &c->micropore_activation_energy_},
+           {"capacity_factor", &c->capacity_factor_},
+           {"concentration_floor", &c->concentration_floor_}};
   }
   return out;
 }
