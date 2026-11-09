@@ -559,6 +559,34 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                 for f in kn.fields:
                     if f.startswith("slow_") and f != "slow_capacity_factor_mode":
                         w(f"{v}.kinetics[{c!r}].{f} = {_literal(sim, kn.path(f))}")
+        for rx in a.get("reactions", []):
+            rn = node.reactions.by_id(rx["id"])
+            rkw = [f"kind={rx['kind']!r}"]
+            if rx["basis"] != "partial_pressure":
+                rkw.append(f"basis={rx['basis']!r}")
+            if rx["adsorption_terms"]:
+                rkw.append(f"adsorption_terms={rx['adsorption_terms']}")
+            if rx["effectiveness"] != "constant":
+                rkw.append(f"effectiveness={rx['effectiveness']!r}, key_component={rx['key_component']!r}")
+            rv = _var(f"{a['name']}_{rx['name']}", taken)
+            w(f"{rv} = {v}.add_reaction({rx['name']!r}, {rx['nu']!r}, {', '.join(rkw)})")
+            for f in rn.fields:
+                if f != "basis":
+                    w(f"{rv}.{f} = {_literal(sim, rn.path(f))}")
+            tree = rn._tree_or_raise()
+            rate = tree.groups.get("rate")
+            if rate is not None:
+                for f, path in rate.leaves.items():
+                    w(f"{rv}.rate.{f} = {_literal(sim, path)}")
+                for m, entries in rate.maps.items():
+                    for c, path in entries.items():
+                        w(f"{rv}.rate.{m}[{c!r}] = {_literal(sim, path)}")
+                for j, jt in sorted(rate.keyed.get("adsorption", {}).items(), key=lambda kv: int(kv[0])):
+                    for f, path in jt.leaves.items():
+                        w(f"{rv}.rate.adsorption[{j}].{f} = {_literal(sim, path)}")
+                    for m, entries in jt.maps.items():
+                        for c, path in entries.items():
+                            w(f"{rv}.rate.adsorption[{j}].{m}[{c!r}] = {_literal(sim, path)}")
         try:
             heats = node.heat_of_adsorption._paths
         except AttributeError:  # an adsorbent no component has been set up on
