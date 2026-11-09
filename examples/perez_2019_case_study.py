@@ -248,8 +248,12 @@ def description(case: str) -> str:
              "header through a valve")
     return (f"Case-study base deck: configuration {cfg['configuration']} of Estupinan Perez et al. (2019), "
             f"CO2/N2 VSA on 13X, run by devices on a {'6' if cfg['lpp'] else '4'}-step n-bed schedule "
-            f"(fraction mode, n_beds = 3): {cycle}. Feed by a blower, vent valve to the atmosphere, Ergun "
-            f"momentum. Settings the case study varies: " + ", ".join(CONSTRAINT_PATHS)
+            f"(fraction mode, n_beds = 3): {cycle}. Feed by a blower, vent valve to the atmosphere. Ergun momentum "
+            f"(the validated Perez2019 decks use Kozeny-Carman). The pump and valves are sized to reach the "
+            f"step-end pressures the validated deck {REFERENCE[case]['deck']} reaches at cyclic steady state "
+            f"(blowdown {REFERENCE[case]['blowdown'][1] / 1e3:.1f} kPa, evacuation "
+            f"{REFERENCE[case]['evacuation'][1] / 1e3:.1f} kPa), not the nominal end values of its imposed "
+            f"profiles, which it does not reach in the step time. Settings the case study varies: " + ", ".join(CONSTRAINT_PATHS)
             + (", variable[cv_lpp], variable[feed1_share]" if cfg["lpp"] else
                ", variable[cv_pressurisation], variable[p_feed_header]")
             + ". p_evac_floor, purity_target and recovery_target are constraint values, not used by the run.")
