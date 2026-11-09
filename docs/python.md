@@ -447,7 +447,7 @@ for s in sim.streams():                                              # every end
 - **Reactions.** *New in 0.9.* `sim.series("reaction_rate", reaction="SMR")` and `sim.profile("reaction_rate", reaction="SMR", step=0)` give the rate of one reaction on its solid, eta r in mol/(kg of that solid s), 0 where the solid is absent (`reaction=` takes the reaction's name or ID; add `adsorbent=` when the reaction is on more than one solid). `sim.series_reactions()` lists them and `skarstrom.reaction_variables()` the names. The rate has no boundary value: `"top"` and `"bottom"` are the last and first packed cell. The reactions' totals are `reaction_heat` (bulk, W/m³) and `reaction_source` (per component, mol/(m³ s)). `save_logs` and the CLI's `--csv` logs write one CSV per reaction and solid, `"<reaction> Rate (<solid>)"`.
 - `sim.save_logs("out")` writes the full solver log as CSV files.
 
-The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles and stream series cover those. KPIs and the CSS check are recorded at the end of every cycle, so `sim.kpis()`, `sim.kpi_table()` and `sim.css_history()` cover the whole run (a few hundred bytes per cycle: a 2000-cycle run adds well under 1 MB).
+The solver keeps the last `settings.max_cycles_to_keep` cycles (1 by default; the log always keeps the cycles the CSS check reads) in memory: the series, profiles and stream series cover those. KPIs and the CSS check are recorded at the end of every cycle, so `sim.kpis()`, `sim.kpi_table()` and `sim.css_history()` cover the whole run (a few hundred bytes per cycle: a 2000-cycle run adds well under 1 MB).
 
 ## Optimisation
 

@@ -71,13 +71,6 @@ solver's own step recoveries) per accepted internal step, over a cycle of at lea
 rejections mean the integrator is fighting the deck: a tolerance it cannot meet, an abrupt boundary condition,
 a grid too coarse for a front.
 
-### `HISTORY_TRUNCATED`
-
-The run outlived its log (`settings.max_cycles_to_keep`) and the log kept fewer cycles than the diagnostics
-read back (6: the window of the CSS remaining-distance estimate). The series and profiles read after the run
-then cover only the logged cycles. KPIs and the CSS history are kept for every cycle, and the checks above run
-as each cycle completes, so none of them is affected.
-
 ## Thresholds
 
 The thresholds come from the engine's own decks: every one of the 40 bundled example decks (which include
@@ -91,7 +84,6 @@ ratio.
 | `MASS_BALANCE_STUCK` | $\lvert e\rvert$ of a component, any cycle | $2.2 \times 10^{-4}$ (Perez2019_C1, an early cycle) | $2 \times 10^{-3}$ | 9 |
 | | $\lvert e\rvert$ once the state change is $\le 10^{-3}$ | $2.3 \times 10^{-5}$ (Nguyen2023_Exp_IX) | $2 \times 10^{-3}$ | 87 |
 | `STEP_RETRIES` | rejected attempts per accepted step, per cycle | 0.078 (Perez2019_B) | 0.25 | 3.2 |
-| `HISTORY_TRUNCATED` | cycles logged | every deck keeps 10 or more | 6, or the cycles run if fewer | |
 
 Distribution over the decks (the largest value of each deck):
 

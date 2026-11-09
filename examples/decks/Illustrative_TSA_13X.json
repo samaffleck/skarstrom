@@ -1550,7 +1550,7 @@
                 },
                 "consecutive_cycles": 3
             },
-            "max_cycles_to_keep": 10,
+            "max_cycles_to_keep": 1,
             "Maximum_Iterations_Per_Step": 50000,
             "Advection_Scheme": 1,
             "Accelerate_Cyclic_Steady_State": {

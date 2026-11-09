@@ -34,7 +34,6 @@ namespace adsim {
     bool mole_fraction_sum = true;     // MOLE_FRACTION_SUM: the gas mole fractions do not sum to 1
     bool mass_balance_stuck = true;    // MASS_BALANCE_STUCK: a cycle mole balance stays open as the run settles
     bool step_retries = true;          // STEP_RETRIES: many rejected integrator attempts in a cycle
-    bool history_truncated = true;     // HISTORY_TRUNCATED: the log kept fewer cycles than the diagnostics read
 
   private:
     friend class ::cereal::access;
@@ -55,10 +54,15 @@ namespace adsim {
       if (version >= 2) {
         ar(cereal::make_nvp("Mole_Fraction_Sum", mole_fraction_sum),
            cereal::make_nvp("Mass_Balance_Stuck", mass_balance_stuck),
-           cereal::make_nvp("Step_Retries", step_retries),
-           cereal::make_nvp("History_Truncated", history_truncated));
+           cereal::make_nvp("Step_Retries", step_retries));
       } else {
-        mole_fraction_sum = mass_balance_stuck = step_retries = history_truncated = true;
+        mole_fraction_sum = mass_balance_stuck = step_retries = true;
+      }
+      // v4 removed the HISTORY_TRUNCATED warning: the switch of a v2 or v3
+      // deck is read and ignored.
+      if (version == 2 || version == 3) {
+        bool history_truncated = true;
+        ar(cereal::make_nvp("History_Truncated", history_truncated));
       }
       // v3: the outlet backflow warning (on for older decks).
       if (version >= 3) ar(cereal::make_nvp("Outlet_Backflow", outlet_backflow));
@@ -68,4 +72,4 @@ namespace adsim {
 
 } // namespace adsim
 
-CEREAL_CLASS_VERSION(adsim::WarningSettings, 3);
+CEREAL_CLASS_VERSION(adsim::WarningSettings, 4);

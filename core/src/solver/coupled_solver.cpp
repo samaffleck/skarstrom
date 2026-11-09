@@ -676,7 +676,6 @@ namespace adsim {
       for (const auto& w : CheckOperatingLimits(user_data_, equation_log_).warnings)
         LogMessage(LogLevel::LOW, w.message);
       // Run health (run_health.h): the warnings of every cycle, once.
-      run_health_.Finish(user_data_, equation_log_);
       for (const auto& w : run_health_.Report().warnings)
         LogMessage(LogLevel::LOW, w.message);
     } else {
@@ -707,7 +706,6 @@ namespace adsim {
       LogMessage(LogLevel::LOW, ss.str());
       for (const auto& w : CheckOperatingLimits(user_data_, equation_log_).warnings)
         LogMessage(LogLevel::LOW, w.message);
-      run_health_.Finish(user_data_, equation_log_);
       for (const auto& w : run_health_.Report().warnings)
         LogMessage(LogLevel::LOW, w.message);
     } else {

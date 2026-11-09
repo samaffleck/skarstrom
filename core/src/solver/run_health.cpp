@@ -54,7 +54,6 @@ namespace adsim {
         case RunHealthCheck::MoleFractionSum:  return on.mole_fraction_sum;
         case RunHealthCheck::MassBalanceStuck: return on.mass_balance_stuck;
         case RunHealthCheck::StepRetries:      return on.step_retries;
-        case RunHealthCheck::HistoryTruncated: return on.history_truncated;
       }
       return true;
     }
@@ -93,7 +92,6 @@ namespace adsim {
   void RunHealthMonitor::Begin(const UserData& data) {
     report_ = {};
     report_.components = data.fluid.components_;
-    finished_ = false;
   }
 
   void RunHealthMonitor::Offer(RunHealthWarning w) {
@@ -204,29 +202,6 @@ namespace adsim {
                     + Num(ratio) + " per step, more than " + Num(w.threshold) + "). " + w.hint;
         Offer(std::move(w));
       }
-    }
-  }
-
-  void RunHealthMonitor::Finish(const UserData& data, const EquationLog& eq_log) {
-    if (finished_) return;
-    finished_ = true;
-    // (d) The log kept fewer cycles than the diagnostics read back.
-    const int run = static_cast<int>(report_.cycles.size());
-    const int kept = static_cast<int>(eq_log.GetSimulationLog().size());
-    const int needed = std::min(run, T::kHistoryCycles);
-    if (Enabled(data.settings.warnings_, RunHealthCheck::HistoryTruncated) && kept < needed) {
-      RunHealthWarning w;
-      w.check = RunHealthCheck::HistoryTruncated;
-      w.value = kept;
-      w.threshold = needed;
-      w.suspects = { "settings.max_cycles_to_keep = " + std::to_string(data.settings.max_cycles_to_keep_) };
-      w.hint = "Set settings.max_cycles_to_keep to at least " + std::to_string(T::kHistoryCycles)
-               + " (default 10) to plot or inspect more of the run. KPIs and the CSS history are kept for every "
-                 "cycle; only the logged series and profiles are limited.";
-      w.message = "Warning: the log kept " + std::to_string(kept) + " of the " + std::to_string(run)
-                  + " cycles run, fewer than " + std::to_string(needed)
-                  + ": series and profiles read after the run cover only the logged cycles. " + w.hint;
-      Offer(std::move(w));
     }
   }
 

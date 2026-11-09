@@ -781,8 +781,6 @@ class Settings(_Node):
     """Run health: warn when a cycle mole balance stays open as the run settles (MASS_BALANCE_STUCK)."""
     warn_step_retries = Boolean()
     """Run health: warn on many rejected integrator attempts in a cycle (STEP_RETRIES)."""
-    warn_history_truncated = Boolean()
-    """Run health: warn when the log keeps fewer cycles than the diagnostics read (HISTORY_TRUNCATED)."""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation), "anderson" or
     "newton_krylov" (Newton-Krylov with finite-difference Jacobian-vector products)."""

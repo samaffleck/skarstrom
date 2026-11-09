@@ -8,10 +8,10 @@
 
 // Run-health checks: cheap tests after every cycle of a run for symptoms of a
 // run that completes but should not be trusted (a model or numerics error, a
-// grid or tolerance the deck cannot carry, history the diagnostics need that
-// was not kept). They never stop a run or change its status or results; they
-// add structured warnings (RunResult::health_warnings, RunResult::healthy) and
-// the solver logs each once at the end of the run (LogLevel::LOW).
+// grid or tolerance the deck cannot carry). They never stop a run or change
+// its status or results; they add structured warnings
+// (RunResult::health_warnings, RunResult::healthy) and the solver logs each
+// once at the end of the run (LogLevel::LOW).
 //
 //  * MOLE_FRACTION_SUM: the largest |sum_i y_i - 1| over the cycle's logged
 //    times and the column's cells (packed and void cells; the logged total
@@ -37,12 +37,9 @@
 //    step recoveries, IntegrationStats::recovered_steps) / accepted internal
 //    steps above kStepRetryRatio, over a cycle of at least kStepRetryMinSteps
 //    accepted steps.
-//  * HISTORY_TRUNCATED: the run outlived its log (settings.max_cycles_to_keep)
-//    and the log kept fewer cycles than the diagnostics read back
-//    (kHistoryCycles: the CSS distance estimate's window, and this check's
-//    own balance window), so the series and profiles read after the run cover
-//    only the logged cycles. KPIs and the CSS history are kept for every cycle.
-//    The checks above run as each cycle completes and are not affected.
+//
+// The checks run as each cycle completes, so settings.max_cycles_to_keep (how
+// many cycles of series and profiles the log keeps) does not affect them.
 //
 // Each code gives at most one warning per run, at the cycle where its value
 // was largest. The thresholds come from the engine's own decks (every example
@@ -65,16 +62,14 @@ namespace adsim {
   enum class RunHealthCheck {
     MoleFractionSum,
     MassBalanceStuck,
-    StepRetries,
-    HistoryTruncated
+    StepRetries
   };
 
   // The codes, in RunHealthCheck order.
   inline constexpr const char* kRunHealthCodeList[] = {
     "MOLE_FRACTION_SUM",
     "MASS_BALANCE_STUCK",
-    "STEP_RETRIES",
-    "HISTORY_TRUNCATED"
+    "STEP_RETRIES"
   };
   const char* RunHealthCode(RunHealthCheck check);
 
@@ -87,9 +82,6 @@ namespace adsim {
     static constexpr double kStuckRate = 0.9;             // per-cycle ratio of |balance|
     static constexpr double kStepRetryRatio = 0.25;        // rejected attempts per accepted step
     static constexpr long kStepRetryMinSteps = 50;        // accepted steps in the cycle
-    // Cycles the diagnostics read back: the CSS distance window (6 cycles)
-    // and the balance window.
-    static constexpr int kHistoryCycles = 6;
   };
 
   struct RunHealthWarning {
@@ -137,15 +129,11 @@ namespace adsim {
     // is the run statistics' count, so the warning and the stats agree).
     void OnCycle(const UserData& data, const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
                  const IntegrationStats& at_start, const IntegrationStats& at_end);
-    // At the end of a run that completed (or reached CSS): the run-level
-    // checks. Idempotent.
-    void Finish(const UserData& data, const EquationLog& eq_log);
     const RunHealthReport& Report() const { return report_; }
 
   private:
     void Offer(RunHealthWarning w);
     RunHealthReport report_;
-    bool finished_ = false;
   };
 
 } // namespace adsim

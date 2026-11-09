@@ -4,4 +4,3 @@
   cycle of the run: the solver records each cycle's CSS check (`CSSHistory`, `GetCSSHistory()`) when the
   cycle completes, as it already did for the KPIs. One record is about 200 bytes, so a 2000-cycle run adds
   well under 1 MB. Results are unchanged.
-- The `HISTORY_TRUNCATED` run-health warning now says only that series and profiles cover the logged cycles.

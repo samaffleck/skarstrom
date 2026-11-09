@@ -352,11 +352,6 @@ namespace adsim {
          defaults.step_retries,
          "the integrator rejected {value} attempts per accepted step in cycle {cycle} (more than {limit}).",
          "STEP_RETRIES"},
-        {"history_truncated", "Log shorter than the diagnostics need", "end", "settings.warn_history_truncated",
-         defaults.history_truncated,
-         "the log kept {value} cycles, fewer than {limit}: series and profiles cover only the logged cycles "
-         "(settings.max_cycles_to_keep).",
-         "HISTORY_TRUNCATED"},
       };
       return w;
     }();

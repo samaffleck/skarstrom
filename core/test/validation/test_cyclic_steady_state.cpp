@@ -70,6 +70,7 @@ namespace adsim {
     // 15%-of-first-gap contraction bound checked below.
     const int n_cycles = 12;
     data.cycle.number_of_cycles_ = n_cycles;
+    data.settings.max_cycles_to_keep_ = n_cycles;  // every end-of-cycle profile is read below
     data.settings.reltol = 1e-8;
     data.settings.max_step = 2.0;
 
