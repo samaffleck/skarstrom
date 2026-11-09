@@ -6,6 +6,8 @@
  */
 #include "../pch.h"
 #include "adsim/solver/run_health.h"
+#include "adsim/equations/reaction_kinds.h"
+#include "adsim/objects/reaction.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/coupled_solver.h"
 #include "adsim/solver/cyclic_steady_state.h"
@@ -55,6 +57,7 @@ namespace adsim {
         case RunHealthCheck::MassBalanceStuck: return on.mass_balance_stuck;
         case RunHealthCheck::StepRetries:      return on.step_retries;
         case RunHealthCheck::HistoryTruncated: return on.history_truncated;
+        case RunHealthCheck::ReactionStiff:    return true;  // no switch yet
       }
       return true;
     }
@@ -82,6 +85,78 @@ namespace adsim {
           }
       }
       out.mole_fraction_sum_error = worst;
+    }
+
+    // REACTION_STIFF: which reaction and component of `cell` to name (see the
+    // header comment). False when no reaction is active in the cell.
+    struct ReactionSuspect {
+      std::string reaction, solid, component;
+      double y = 0.0;          // the component's smallest mole fraction over the reaction's cells
+      int cell = -1;           // where
+      double exponent = 0.0;   // its smallest power in the reaction's rate
+    };
+    bool SuspectReaction(const UserData& data, int cell, const std::string& error_component,
+                         ReactionSuspect& out) {
+      const auto& state = data.state;
+      if (cell < 0 || cell >= static_cast<int>(state.domain_vectors.cell_adsorbents.size())) return false;
+      const auto& here = state.domain_vectors.cell_adsorbents[cell];
+      struct Candidate { const Reaction* r; AdsorbentID solid_id; std::string solid; double extent; std::string c; double y, m; };
+      std::vector<Candidate> all;
+      for (const auto& field : state.reaction_fields) {
+        bool present = false;
+        for (const auto& ca : here)
+          if (ca.id == field->adsorbent) { present = true; break; }
+        if (!present) continue;
+        const Adsorbent& ads = data.adsorbent_directory.Get(field->adsorbent);
+        const Reaction* r = ads.reaction_source_.Find(field->reaction);
+        if (!r || !r->rate_) continue;
+        const auto& ext = field->extent_rate.var;
+        const double extent = cell < static_cast<int>(ext.size()) ? std::abs(ext[cell]) : 0.0;
+        for (const auto& c : data.fluid.components_) {
+          const double m = r->rate_->MinExponent(c, r->nu_);
+          if (!std::isfinite(m) && r->nu_.count(c) == 0) continue;
+          auto it = state.mole_fraction.find(c);
+          if (it == state.mole_fraction.end() || cell >= static_cast<int>(it->second.var.size())) continue;
+          all.push_back({r, field->adsorbent, ads.name_, extent, c, it->second.var[cell], m});
+        }
+      }
+      if (all.empty()) return false;
+      // The component: the error's own if a power below 1 involves it, else
+      // the smallest mole fraction among the powers below 1, else among all.
+      auto pick_component = [&](auto keep) -> std::string {
+        const Candidate* best = nullptr;
+        for (const auto& k : all)
+          if (keep(k) && (!best || k.y < best->y)) best = &k;
+        return best ? best->c : std::string{};
+      };
+      std::string c;
+      for (const auto& k : all)
+        if (k.c == error_component && k.m < 1.0) c = k.c;
+      if (c.empty()) c = pick_component([](const Candidate& k) { return k.m < 1.0; });
+      if (c.empty()) c = pick_component([](const Candidate&) { return true; });
+      // The reaction: of those involving c, the largest rate in the cell.
+      const Candidate* best = nullptr;
+      for (const auto& k : all)
+        if (k.c == c && (!best || k.extent > best->extent)) best = &k;
+      out.reaction = best->r->name_;
+      out.solid = best->solid;
+      out.component = c;
+      out.exponent = best->m;
+      // Where it is nearest zero: the smallest mole fraction over the cells
+      // that carry the reaction (the front ahead of the largest error).
+      out.y = best->y;
+      out.cell = cell;
+      const AdsorbentID solid_id = best->solid_id;
+      const auto& y = state.mole_fraction.at(c).var;
+      const auto& cells = state.domain_vectors.cell_adsorbents;
+      for (int n = 0; n < static_cast<int>(std::min(y.size(), cells.size())); ++n) {
+        bool present = false;
+        for (const auto& ca : cells[n])
+          if (ca.id == solid_id) { present = true; break; }
+        if (present && y[n] < out.y) { out.y = y[n]; out.cell = n; }
+      }
+      out.y = std::max(out.y, 0.0);  // an iterate can sit a round-off below 0
+      return true;
     }
 
   } // namespace
@@ -205,6 +280,61 @@ namespace adsim {
         Offer(std::move(w));
       }
     }
+  }
+
+  void RunHealthMonitor::OnStepStart() {
+    short_steps_ = 0;
+    reaction_named_ = false;
+  }
+
+  void RunHealthMonitor::OnShortStep(const UserData& data, int cycle, int step, double t, double h, int cell,
+                                     const std::string& component, bool failed) {
+    if (!Enabled(data.settings.warnings_, RunHealthCheck::ReactionStiff)) return;
+    if (!(std::abs(h) < T::kReactionStiffStep)) return;
+    ReactionSuspect suspect;
+    if (!SuspectReaction(data, cell, component, suspect)) return;
+    if (!failed) ++short_steps_;
+    if (reaction_named_) {
+      // Named at the threshold (the suspect as the collapse sets in); later
+      // short steps of the same cycle step only raise its count.
+      for (auto& w : report_.warnings)
+        if (w.check == RunHealthCheck::ReactionStiff && w.cycle == cycle && w.step == step)
+          w.value = std::max(w.value, static_cast<double>(short_steps_));
+      return;
+    }
+    if (!failed && short_steps_ < T::kReactionStiffMinSteps) return;
+    reaction_named_ = true;
+
+    RunHealthWarning w;
+    w.check = RunHealthCheck::ReactionStiff;
+    w.value = static_cast<double>(short_steps_);
+    w.threshold = static_cast<double>(T::kReactionStiffMinSteps);
+    w.cycle = cycle;
+    w.step = step;
+    w.step_name = StepName(data, step);
+    w.component = suspect.component;
+    w.reaction = suspect.reaction;
+    const std::string power = suspect.exponent < 0.0 ? "a negative power (" + Num(suspect.exponent) + ")"
+                            : suspect.exponent < 1.0 ? "a power below 1 (" + Num(suspect.exponent) + ")"
+                                                     : "power " + Num(suspect.exponent);
+    w.suspects = { "reaction \"" + suspect.reaction + "\" on \"" + suspect.solid + "\" (its rate raises "
+                       + suspect.component + " to " + power + ")",
+                   "the mole fraction of " + suspect.component + " in the reacting cells (down to "
+                       + Num(suspect.y) + ", cell " + std::to_string(suspect.cell) + ")",
+                   "the initial gas composition (initial.y) and step \"" + w.step_name + "\"" };
+    w.hint = "A reaction that relaxes much faster than the flow holds the step at its own time scale, typically "
+             "where the gas holds almost no " + suspect.component + " yet. Start the bed with some "
+             + suspect.component + " in initial.y (or at the gas-phase equilibrium of the feed), add a trace to "
+               "the feed, or check the rate constants and orders of \"" + suspect.reaction
+             + "\"; see docs/reactions.md, \"Start-up of fast reactions\".";
+    std::ostringstream msg;
+    msg << "Warning: the integrator's step collapsed at a reacting cell in step \"" << w.step_name << "\" of cycle "
+        << cycle + 1 << " (" << short_steps_ << " steps shorter than " << Num(T::kReactionStiffStep) << " s by t = "
+        << Num(t, 4) << " s" << (failed ? ", then the step failed" : "") << "): reaction \"" << suspect.reaction
+        << "\" with " << suspect.component << " down to y = " << Num(suspect.y) << " in the reacting cells. "
+        << w.hint;
+    w.message = msg.str();
+    Offer(std::move(w));
   }
 
   void RunHealthMonitor::Finish(const UserData& data, const EquationLog& eq_log) {

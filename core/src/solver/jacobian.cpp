@@ -1,5 +1,7 @@
 #include "../pch.h"
 #include "adsim/solver/jacobian.h"
+#include "adsim/equations/reaction_kinds.h"
+#include "adsim/objects/reaction.h"
 #include "adsim/objects/user_data.h"
 
 #include <ida/ida.h>
@@ -72,7 +74,79 @@ namespace adsim {
       return (yj + inc) - yj;
     }
 
+    bool& ReactionIncrementOn() {
+      static bool on = true;
+      return on;
+    }
+
   } // namespace
+
+  void BandedJacobian::SetReactionIncrementForTesting(bool on) { ReactionIncrementOn() = on; }
+
+  const std::string& BandedJacobian::ComponentOf(int e) const {
+    static const std::string none;
+    return e >= 0 && e < static_cast<int>(var_components_.size()) ? var_components_[e] : none;
+  }
+
+  void BandedJacobian::MarkReactionColumns(UserData& udata) {
+    reaction_column_.assign(n_, ReactionColumn::None);
+    reaction_floor_.assign(n_, 0.0);
+    num_reaction_columns_ = 0;
+    const auto& state = udata.state;
+    if (!ReactionIncrementOn() || !state.HasReactions()) return;
+    const auto& dv = state.domain_vectors;
+    const auto& P = state.pressure.var;
+    const auto& T = state.fluid_temperature.var;
+    // Per (mole-fraction variable, cell): the column's treatment and floor.
+    std::vector<std::vector<ReactionColumn>> kind_of(n_vars_);
+    std::vector<std::vector<double>> floor_of(n_vars_);
+    for (const auto& field : state.reaction_fields) {
+      const Reaction* r = udata.adsorbent_directory.Get(field->adsorbent).reaction_source_.Find(field->reaction);
+      if (!r || !r->rate_) continue;
+      for (int e = 0; e < n_vars_; ++e) {
+        const std::string& c = var_components_[e];
+        if (c.empty()) continue;
+        const double m = r->rate_->MinExponent(c, r->nu_);
+        if (!std::isfinite(m) && r->nu_.count(c) == 0) continue;  // the reaction does not involve c
+        const ReactionColumn kind = m < 1.0 ? ReactionColumn::Singular : ReactionColumn::Participant;
+        if (kind_of[e].empty()) {
+          kind_of[e].assign(n_cells_, ReactionColumn::None);
+          floor_of[e].assign(n_cells_, 0.0);
+        }
+        const int cells = std::min(n_cells_, static_cast<int>(dv.cell_adsorbents.size()));
+        for (int n = 0; n < cells; ++n) {
+          bool present = false;
+          for (const auto& ca : dv.cell_adsorbents[n])
+            if (ca.id == field->adsorbent) { present = true; break; }
+          if (!present) continue;
+          kind_of[e][n] = std::max(kind_of[e][n], kind);
+          if (m < 0.0 && n < static_cast<int>(T.size()) && n < static_cast<int>(P.size()))
+            floor_of[e][n] = std::max(floor_of[e][n], ActivityFloorMoleFraction(r->basis_, T[n], P[n]));
+        }
+      }
+    }
+    for (sunindextype j = 0; j < n_; ++j) {
+      const auto& kinds = kind_of[var_[j]];
+      if (kinds.empty() || kinds[cell_[j]] == ReactionColumn::None) continue;
+      reaction_column_[j] = kinds[cell_[j]];
+      reaction_floor_[j] = floor_of[var_[j]][cell_[j]];
+      ++num_reaction_columns_;
+    }
+  }
+
+  sunrealtype BandedJacobian::ColumnIncrement(sunindextype j, sunrealtype yj, sunrealtype ypj, sunrealtype ewtj,
+                                              sunrealtype hh, sunrealtype srur) const {
+    const sunrealtype inc = Increment(yj, ypj, ewtj, hh, srur, var_[j] == pressure_var_, pressure_abstol_);
+    if (reaction_column_.empty() || reaction_column_[j] == ReactionColumn::None) return inc;
+    if (reaction_column_[j] == ReactionColumn::Singular) {
+      const sunrealtype rel = kReactionRelIncrement * SUNMAX(yj, static_cast<sunrealtype>(reaction_floor_[j]));
+      if (rel > SUN_RCONST(0.0) && rel < SUNRabs(inc)) return (yj + rel) - yj;
+    }
+    // Away from zero: a decreasing mole fraction (h y' < 0) below the
+    // increment would be perturbed into the clipped region y < 0.
+    if (inc < SUN_RCONST(0.0) && yj + inc < SUN_RCONST(0.0)) return (yj - inc) - yj;
+    return inc;
+  }
 
   BandedJacobian::~BandedJacobian() {
     if (ewt_) N_VDestroy(ewt_);
@@ -123,6 +197,13 @@ namespace adsim {
     var_names_.clear();
     for (int e = 0; e < n_vars_; ++e)
       var_names_.push_back(VariableName(eqs, e));
+    var_components_.assign(n_vars_, std::string{});
+    for (const auto& [component, eq] : eqs.mole_fraction)
+      for (int e = 0; e < n_vars_; ++e)
+        if (equations[e] == &eq) var_components_[e] = component;
+    reaction_column_.clear();
+    reaction_floor_.clear();
+    num_reaction_columns_ = 0;
     velocity_var_ = -1;
     pressure_var_ = -1;
     for (int e = 0; e < n_vars_; ++e) {
@@ -304,8 +385,7 @@ namespace adsim {
     const sunrealtype srur = SUNRsqrt(SUN_UNIT_ROUNDOFF);
     std::vector<sunrealtype> increments(n_);
     for (sunindextype j = 0; j < n_; ++j)
-      increments[j] = Increment(y_data[j], yp_data[j], ewt_data[j], hh, srur,
-                                var_[j] == pressure_var_, pressure_abstol_);
+      increments[j] = ColumnIncrement(j, y_data[j], yp_data[j], ewt_data[j], hh, srur);
     EvaluationView view;
     view.kind = last_pass_coloured_ ? EvaluationView::Kind::Coloured : EvaluationView::Kind::Band;
     view.tt = tt;
@@ -324,6 +404,7 @@ namespace adsim {
   int BandedJacobian::EvaluateMatrix(sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp,
                                      N_Vector rr, SUNMatrix Jac, UserData* udata,
                                      N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) {
+    if (reaction_column_.empty()) MarkReactionColumns(*udata);
     if (mode_ == JacobianMode::BandDQ) {
       return EvaluateGroups(band_groups_, Pass::Band, tt, c_j, yy, yp, rr, Jac, udata, tmp1, tmp2, tmp3);
     }
@@ -503,7 +584,7 @@ namespace adsim {
 
     for (const auto& group : groups) {
       for (sunindextype j : group) {
-        const sunrealtype inc = Increment(y_data[j], yp_data[j], ewt_data[j], hh, srur, var_[j] == pressure_var_, pressure_abstol_);
+        const sunrealtype inc = ColumnIncrement(j, y_data[j], yp_data[j], ewt_data[j], hh, srur);
         ytemp_data[j] += inc;
         yptemp_data[j] += c_j * inc;
       }
@@ -515,7 +596,7 @@ namespace adsim {
       for (sunindextype j : group) {
         ytemp_data[j] = y_data[j];
         yptemp_data[j] = yp_data[j];
-        const sunrealtype inc = Increment(y_data[j], yp_data[j], ewt_data[j], hh, srur, var_[j] == pressure_var_, pressure_abstol_);
+        const sunrealtype inc = ColumnIncrement(j, y_data[j], yp_data[j], ewt_data[j], hh, srur);
         const sunrealtype inc_inv = SUN_RCONST(1.0) / inc;
         sunrealtype* col_j = SUNBandMatrix_Column(Jac, j);
 
