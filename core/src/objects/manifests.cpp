@@ -327,6 +327,11 @@ namespace adsim {
          defaults.channel_reynolds,
          "the channel Reynolds number of a structured layer reaches {value} in step {step}, above {limit}: the "
          "flow is no longer laminar."},
+        {"outlet_backflow", "Backflow into the bed through an outlet", "end", "settings.warn_outlet_backflow",
+         defaults.outlet_backflow,
+         "gas flows back into the bed through the outlet {endpoint} in step {step} of cycle {cycle}: {moles} mol "
+         "in, {value} of the cycle feed (more than {limit}). It carries the bed-end gas, not the stream's, and is "
+         "not counted as feed. Turn on the valve's check valve (endpoint[ID].valve.check_valve) to stop it."},
         // Run health, checked after every cycle, reported at the end (run_health.h), switchable.
         {"mole_fraction_sum", "Mole fractions do not sum to 1", "end", "settings.warn_mole_fraction_sum",
          defaults.mole_fraction_sum,

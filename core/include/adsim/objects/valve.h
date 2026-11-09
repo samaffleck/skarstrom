@@ -19,6 +19,18 @@ namespace adsim {
 		double GetMolarFlowRate(double upstream_pressure, double downstream_pressure,
 			double molar_mass, double upstream_temperature, double heat_capacity) const;
 
+		// Pressure drop that a check valve passes, smoothed over a band of
+		// kCheckValveBand pascals: 0 for dp <= 0 (reverse flow is blocked),
+		// exactly dp for dp >= kCheckValveBand, and the C1 cubic
+		// 2 dp^2 / band - dp^3 / band^2 in between (monotonic, below dp).
+		// A hard max(dp, 0) would put a kink in the boundary residual where
+		// the flow decays through zero, and IDA's Newton iteration then
+		// fails to converge there; the cubic keeps the residual
+		// differentiable with a continuous slope, and passes the full flow
+		// away from the closure.
+		static double CheckValvePressureDrop(double dp);
+		static constexpr double kCheckValveBand = 10.0;	// [Pa]
+
 		ExpressionParam cv_{100};	// [USGPM]
 		ExpressionParam xt_{0.53};	// [-]
 

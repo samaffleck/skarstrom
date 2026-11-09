@@ -209,6 +209,10 @@ namespace adsim {
       BoolField("settings", "warn_channel_reynolds", "warn when the channel Reynolds number of a structured layer passes 2000",
                 [](const UserData& u) { return u.settings.warnings_.channel_reynolds; },
                 [](UserData& u, bool b) { u.settings.warnings_.channel_reynolds = b; }),
+      BoolField("settings", "warn_outlet_backflow",
+                "warn when gas flows back into the bed through an unconnected outlet",
+                [](const UserData& u) { return u.settings.warnings_.outlet_backflow; },
+                [](UserData& u, bool b) { u.settings.warnings_.outlet_backflow = b; }),
       // Run health, after every cycle (run_health.h).
       BoolField("settings", "warn_mole_fraction_sum", "warn when the gas mole fractions do not sum to 1 (MOLE_FRACTION_SUM)",
                 [](const UserData& u) { return u.settings.warnings_.mole_fraction_sum; },
@@ -693,6 +697,9 @@ namespace adsim {
         AddPressureProfile(v->boundary_value_.get(), ep);
         EmplaceKind(FindKind(ModelFamily::Stream, "valve"), {{"cv", &v->valve_.cv_}, {"xt", &v->valve_.xt_}},
                     ep.path + ".valve.", ep.alias + ".valve.", "cycle", ep.subcategory);
+        EmplaceBool(ep.path + ".valve.check_valve", ep.alias + ".valve.check_valve", "cycle", ep.subcategory,
+                    "check valve (no flow against the stream's direction; unconnected streams only)",
+                    v->check_valve_);
       } else if (auto* p = dynamic_cast<PumpBoundaryStream*>(stream)) {
         AddPumpPower(p->power_.get(), ep);
         AddPump(p->pump_.get(), ep);

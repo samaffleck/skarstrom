@@ -36,4 +36,11 @@ namespace adsim {
     return molar_flow;
   }
 
+  double Valve::CheckValvePressureDrop(double dp) {
+    if (dp <= 0.0) return 0.0;  // closed (a NaN falls through and stays NaN)
+    if (dp >= kCheckValveBand) return dp;
+    const double x = dp / kCheckValveBand;
+    return kCheckValveBand * x * x * (2.0 - x);
+  }
+
 } // end adsim namespace

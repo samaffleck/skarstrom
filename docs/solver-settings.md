@@ -42,6 +42,7 @@ A run reports advisory warnings in the solver log; none of them stops it. Each c
 | **Vacuum** | `settings.warn_vacuum` | End of a run: the last cycle goes below atmospheric and the wall is not in vacuum service. |
 | **Design temperature** | `settings.warn_design_temperature` | End of a run: the wall temperature passes the design temperature. |
 | **Fluidisation** | `settings.warn_fluidisation` | End of a run: the approach to fluidisation passes 1. Switch it off for a bed that is held down. |
+| **Outlet backflow** | `settings.warn_outlet_backflow` | End of a run: in the last cycle, gas flows back into the bed through an outlet that has no connection to another step (more than 0.1 % of the cycle feed in one step). A valve's [check valve](boundary-conditions.md#check-valve) stops it. *New in 0.9.* |
 
 All are on by default. The end-of-run checks are described on [Wall Design and Operating Limits](wall-design.md#operating-limit-warnings).
 
