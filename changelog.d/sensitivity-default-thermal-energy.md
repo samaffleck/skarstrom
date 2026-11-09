@@ -1,0 +1,2 @@
+### Changed
+- A sensitivity study that names no outputs now also watches `Component.thermal_energy` (heat supplied per kg of product, listed last) when the deck supplies heat: a step has an enabled energy source with positive power or an enabled heating medium. PSA and VSA decks keep the four defaults (purity, recovery, productivity_mass, energy_consumption). `adsim::sensitivity::DeckSuppliesHeat` exposes the rule.
