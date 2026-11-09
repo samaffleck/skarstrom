@@ -52,14 +52,14 @@ TEST(ParticleShape, DiffusionGeometryPerShape) {
   EXPECT_EQ(layer.particle_shape_, ParticleShape::Sphere);  // the default
 
   Geometry g = layer.GetDiffusionGeometry();
-  EXPECT_EQ(g.shape, Geometry::Shape::Sphere);
+  EXPECT_EQ(g.shape, MixedAdsorbentLayer::Shape::Sphere);
   EXPECT_EQ(g.c, 60.0);  // on d_p (15 on r_p)
   EXPECT_EQ(g.length, kDp);
   EXPECT_EQ(g.volume_to_surface, kDp / 6.0);
 
   layer.particle_shape_ = ParticleShape::Cylinder;
   g = layer.GetDiffusionGeometry();
-  EXPECT_EQ(g.shape, Geometry::Shape::Cylinder);
+  EXPECT_EQ(g.shape, MixedAdsorbentLayer::Shape::Cylinder);
   EXPECT_EQ(g.c, 8.0);  // on r_f
   EXPECT_EQ(g.length, kRf);
   EXPECT_EQ(g.volume_to_surface, kRf / 2.0);
@@ -70,7 +70,7 @@ TEST(ParticleShape, DiffusionGeometryPerShape) {
   // A structured layer is a slab whatever its stored particle shape.
   layer.kind_ = LayerKind::Laminate;
   g = layer.GetDiffusionGeometry();
-  EXPECT_EQ(g.shape, Geometry::Shape::Slab);
+  EXPECT_EQ(g.shape, MixedAdsorbentLayer::Shape::Slab);
   EXPECT_EQ(g.c, 3.0);
   EXPECT_EQ(g.length, layer.GetDiffusionLength());
   EXPECT_EQ(g.volume_to_surface, g.length);
