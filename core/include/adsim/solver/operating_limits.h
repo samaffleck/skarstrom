@@ -33,6 +33,17 @@
 //   for the last logged cycle only, from the endpoints' own logs, against
 //   kOutletBackflowFraction of the cycle feed. Connected endpoints are not
 //   checked: flow both ways through a connection is expected.
+// - Connection pressure: gas through a connection flows only from the
+//   higher to the lower pressure (connection.h). Two findings, for the last
+//   logged cycle only, from the endpoints' own logs: (1) the gross moles
+//   that enter the bed through one connected endpoint in one step while its
+//   bed-end pressure is above the partner's logged pressure at the same
+//   instant (by more than kConnectionPressureBand) pass
+//   kConnectionReverseFlowFraction of the cycle feed; pump streams, which
+//   raise the pressure by design, are not checked; (2) a connected pressure
+//   boundary's imposed pressure was held at its partner's (the cap of
+//   PressureBoundaryCondition::ImposedPressure) by more than 2 kPa below
+//   its own profile, so a ramp did not reach its target.
 // - Approach to fluidisation is the upward pressure gradient over the weight
 //   of the packing less the gas, (-dP/dz) / ((rho_b - rho) g); above 1 an
 //   unrestrained bed in upward flow lifts. It is checked whatever the design.
@@ -77,7 +88,8 @@ namespace adsim {
     DesignTemperature,  // wall temperature above the design temperature
     Fluidisation,       // approach to fluidisation above 1
     ChannelReynolds,    // channel Reynolds number above 2000 in a structured layer
-    OutletBackflow      // gas flows back into the bed through an unconnected outlet
+    OutletBackflow,     // gas flows back into the bed through an unconnected outlet
+    ConnectionPressure  // gas through a connection from the lower to the higher pressure, or a connected ramp capped
   };
 
   inline constexpr const char* kOperatingLimitList[] = {
@@ -86,7 +98,8 @@ namespace adsim {
     "design_temperature",
     "fluidisation",
     "channel_reynolds",
-    "outlet_backflow"
+    "outlet_backflow",
+    "connection_pressure"
   };
 
   // Above this channel Reynolds number the laminar closures of a structured
@@ -100,10 +113,19 @@ namespace adsim {
   // inlet endpoint of the cycle).
   inline constexpr double kOutletBackflowFraction = 1e-3;
 
+  // Flow from the lower to the higher pressure through a connection is
+  // reported when the gross moles that enter the bed through one connected
+  // endpoint in one step, while it is the higher, pass this fraction of the
+  // cycle feed. The same share as an outlet backflow: below it the gas moved
+  // does not show in the KPIs at the precision they are reported to.
+  inline constexpr double kConnectionReverseFlowFraction = 1e-3;
+
   struct OperatingWarning {
     OperatingLimit limit = OperatingLimit::Fluidisation;
     int step = 0;                     // step index in the cycle
-    double value = 0.0;               // the extreme reached (SI; gauge Pa for DesignPressure, absolute Pa for Vacuum)
+    double value = 0.0;               // the extreme reached (SI; gauge Pa for DesignPressure, absolute Pa for Vacuum;
+                                      // a fraction of the cycle feed for OutletBackflow and a ConnectionPressure
+                                      // reverse flow, the shortfall below the profile [Pa] for a capped ramp)
     double limit_value = 0.0;         // the limit it passed (same units)
     std::string message;
   };

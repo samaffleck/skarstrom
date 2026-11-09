@@ -110,6 +110,15 @@ namespace adsim {
 		double InletMoleFraction(double time, const std::string& component) const {
 			return SelectInletMoleFraction(buffer_tank_, connection_, mole_fraction_, component, time);
 		}
+		// The pressure the boundary imposes at `time`: its profile, except
+		// when it is connected and the partner has a log. Then the profile is
+		// capped one kConnectionPressureBand inside the partner's logged
+		// pressure at the same instant (ConnectionCappedPressure): an inlet
+		// cannot rise above the bed that feeds it, an outlet cannot fall
+		// below the bed it feeds. So the gas it exchanges flows from the
+		// higher to the lower pressure, and a ramp may then not reach its
+		// target. On the first cycle (no partner log) the profile is used.
+		double ImposedPressure(double time) const;
 
 		void EvaluateExpressions(const EvalContext& ctx) override {
 			temperature_.Evaluate(ctx);

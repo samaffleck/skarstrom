@@ -775,6 +775,10 @@ class Settings(_Node):
     warn_outlet_backflow = Boolean()
     """Warn when gas flows back into the bed through an unconnected outlet in the last cycle
     (more than 0.1 % of the cycle feed). *New in 0.9.*"""
+    warn_connection_pressure = Boolean()
+    """Warn when, in the last cycle, gas flows through a connection from the lower to the higher
+    pressure (more than 0.1 % of the cycle feed), or a connected pressure profile is held at its
+    partner's pressure. *New in 0.9.*"""
     warn_mole_fraction_sum = Boolean()
     """Run health: warn when the gas mole fractions do not sum to 1 (MOLE_FRACTION_SUM)."""
     warn_mass_balance_stuck = Boolean()

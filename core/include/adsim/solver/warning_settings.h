@@ -30,6 +30,7 @@ namespace adsim {
     bool fluidisation = true;          // approach to fluidisation above 1
     bool channel_reynolds = true;      // channel Re above 2000 in a structured layer (laminar closures)
     bool outlet_backflow = true;       // gas flows back into the bed through an unconnected outlet
+    bool connection_pressure = true;   // gas through a connection from the lower to the higher pressure, or a connected ramp capped
     // Run health, after every cycle (run_health.h).
     bool mole_fraction_sum = true;     // MOLE_FRACTION_SUM: the gas mole fractions do not sum to 1
     bool mass_balance_stuck = true;    // MASS_BALANCE_STUCK: a cycle mole balance stays open as the run settles
@@ -67,9 +68,12 @@ namespace adsim {
       // v4: the reaction step-collapse warning (on for older decks).
       if (version >= 4) ar(cereal::make_nvp("Reaction_Stiff", reaction_stiff));
       else reaction_stiff = true;
+      // v5: the connection pressure warning (on for older decks).
+      if (version >= 5) ar(cereal::make_nvp("Connection_Pressure", connection_pressure));
+      else connection_pressure = true;
     }
   };
 
 } // namespace adsim
 
-CEREAL_CLASS_VERSION(adsim::WarningSettings, 4);
+CEREAL_CLASS_VERSION(adsim::WarningSettings, 5);

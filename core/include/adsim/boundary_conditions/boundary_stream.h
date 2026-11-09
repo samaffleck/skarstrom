@@ -188,6 +188,13 @@ namespace adsim {
 		// The step's quadrature integrals of this endpoint, set when the step
 		// ends (not serialised; cleared with the log).
 		EndpointIntegrals integrals_{};
+		// True for the log of a pressure boundary (set by its constructor, not
+		// serialised, kept by Clear). A connected pressure boundary keeps its
+		// imposed pressure on the right side of its partner's
+		// (PressureBoundaryCondition::ImposedPressure), so a set-flow stream
+		// connected to one replays the gas it gives as it is
+		// (BoundaryStream::GetMolarFlow).
+		bool from_pressure_boundary_ = false;
 	};
 
 	// Mole fraction of `component` on the bed-end face at `loc`: the face

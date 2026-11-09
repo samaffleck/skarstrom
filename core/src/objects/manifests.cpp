@@ -337,6 +337,12 @@ namespace adsim {
          "gas flows back into the bed through the outlet {endpoint} in step {step} of cycle {cycle}: {moles} mol "
          "in, {value} of the cycle feed (more than {limit}). It carries the bed-end gas, not the stream's, and is "
          "not counted as feed. Turn on the valve's check valve (endpoint[ID].valve.check_valve) to stop it."},
+        {"connection_pressure", "Connection against the pressure", "end", "settings.warn_connection_pressure",
+         defaults.connection_pressure,
+         "in step {step} of cycle {cycle}, gas flows through the connection of {endpoint} from the lower to the "
+         "higher pressure ({value} of the cycle feed, more than {limit}), or the connected pressure profile of "
+         "{endpoint} is held at its partner's pressure ({value} Pa from the profile, more than {limit}), so a ramp "
+         "does not reach its target. Gas through a connection flows only from the higher to the lower pressure."},
         // Run health, checked after every cycle, reported at the end (run_health.h), switchable.
         {"mole_fraction_sum", "Mole fractions do not sum to 1", "end", "settings.warn_mole_fraction_sum",
          defaults.mole_fraction_sum,
