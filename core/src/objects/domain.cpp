@@ -80,7 +80,8 @@ namespace adsim {
       // Packed: the expressions the closures used to form themselves, so
       // packed results are unchanged bit for bit.
       const bool structured = layer.IsStructured();
-      const double c_av = structured ? layer.GetSpecificSurfaceArea() : 6.0 * (1.0 - c_eb) / c_dp;
+      const double c_av = structured ? layer.GetSpecificSurfaceArea()
+                                       : ParticleShapeSurfaceFactor(layer.particle_shape_) * (1.0 - c_eb) / c_dp;
       const double c_re_length = structured ? layer.GetHydraulicDiameter() / layer.GetOpenFraction() : c_dp;
       const double c_dh = structured ? layer.GetHydraulicDiameter() : 0.0;
       const double c_nu = layer.GetChannelNusselt();
