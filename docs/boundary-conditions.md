@@ -57,7 +57,7 @@ For a Flow boundary with a *None* device, the **Flow Type** sets how the rate is
 
 ## Inlet composition and temperature
 
-At an inlet you set the **Temperature** and the **Composition** (a mole fraction for each component). The mole fractions of an inlet must sum to 1. Outlets ignore these fields because the leaving gas is whatever is in the bed. This is also true when the flow through an outlet reverses: the gas that flows back in carries the bed-end composition and temperature (zero gradient), not the outlet's fields. See [Backflow through an outlet](#backflow-through-an-outlet).
+At an inlet you set the **Temperature** and the **Composition** (a mole fraction for each component). If several inlets take the same gas, give it one time as a [source](sources-and-sinks.md) and attach the inlets to it. The mole fractions of an inlet must sum to 1. Outlets ignore these fields because the leaving gas is whatever is in the bed. This is also true when the flow through an outlet reverses: the gas that flows back in carries the bed-end composition and temperature (zero gradient), not the outlet's fields. See [Backflow through an outlet](#backflow-through-an-outlet).
 
 ### Inlet temperature profile
 

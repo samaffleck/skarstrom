@@ -156,6 +156,7 @@ The path families are:
 - `cycle.*`
 - `step[ID].time|fraction`
 - `endpoint[ID].<field>` (flows, pressures, temperatures, `y[Component]`, pump settings)
+- `reservoir[ID].pressure|temperature|y[Component]` (a named source or sink; refer to `docs/sources-and-sinks.md`)
 - `bed.*`, `wall.*`, `layer[ID].*`
 - `adsorbent[ID].<property>|isotherm[C].<param>|kinetics[C].<param>|heat_of_adsorption[C]`
 - `variable[name]`
@@ -205,6 +206,7 @@ sim.kpi.track("CO2", feed=[feed.bottom], product=[evac.bottom])
 - **User variables:** `sim.add_variable("t_feed", 60 * u.s, category="time")`, then `time="t_feed"`. `formula="t_feed / 3"` makes a variable from other variables.
 - **Pump-driven streams:** `sk.PumpStream(name, power=, pump=)`. The power is a constant or `sk.polynomial_power(a, b, ...)`.
 - **Buffer tanks:** `inlet.set_buffer_tank(source, percentage=)`.
+- **Sources and sinks:** `feed = sim.add_source("Feed", temperature=, pressure=, y={...})`, `sim.add_sink("Ambient", pressure=)`, then `endpoint.attach(feed)`. An attached endpoint takes the temperature, the mole fractions and the pressure target of the source or sink. Its flow, valve or pump stays on the endpoint.
 - **Measured data in the deck:** `sim.experimental_data` (`add`, `load_csv`, `[name].compare(x, y)`).
 - The builder does not make cost data.
 

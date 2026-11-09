@@ -36,6 +36,7 @@
 #include "adsim/boundary_conditions/connection.h"
 #include "adsim/boundary_conditions/cycle_endpoint_summary.h"
 #include "adsim/boundary_conditions/flow_boundary_value.h"
+#include "adsim/boundary_conditions/reservoir.h"
 #include "adsim/boundary_conditions/step.h"
 #include "adsim/equations/dispersion_model.h"
 #include "adsim/equations/heat_transfer_model.h"
@@ -181,11 +182,11 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::VolumetricFlowBoundaryValue, 2),
       ADSIM_PIN(adsim::MolarFlowBoundaryValue, 2),
       ADSIM_PIN(adsim::MassFlowBoundaryValue, 2),
-      ADSIM_PIN(adsim::IBoundaryStream, 5),
+      ADSIM_PIN(adsim::IBoundaryStream, 6),
       ADSIM_PIN(adsim::BoundaryStream, 1),
       ADSIM_PIN(adsim::ValveBoundaryStream, 2),
       ADSIM_PIN(adsim::PumpBoundaryStream, 1),
-      ADSIM_PIN(adsim::PressureBoundaryCondition, 5),
+      ADSIM_PIN(adsim::PressureBoundaryCondition, 6),
       ADSIM_PIN(adsim::FlowBoundaryCondition, 1),
       ADSIM_PIN(adsim::ClosedBoundaryCondition, 1),
       ADSIM_PIN(adsim::HeatingMedium, 1),
@@ -193,8 +194,9 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::BufferTankSource, 3),
       ADSIM_PIN(adsim::CycleEndpointSummary, 1),
       ADSIM_PIN(adsim::Connection, 1),
+      ADSIM_PIN(adsim::Reservoir, 1),
       // solver
-      ADSIM_PIN(adsim::Cycle, 2),
+      ADSIM_PIN(adsim::Cycle, 3),
       ADSIM_PIN(adsim::ExperimentalData, 1),
       ADSIM_PIN(adsim::CyclicSteadyState, 2),
       ADSIM_PIN(adsim::AccelerateCyclicSteadyState, 0),

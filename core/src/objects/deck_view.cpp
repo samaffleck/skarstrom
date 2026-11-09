@@ -168,6 +168,7 @@ namespace adsim {
         Set(root, "cycle", std::move(cycle), a_);
         Set(root, "steps", Steps(), a_);
         Set(root, "connections", Connections(), a_);
+        Set(root, "reservoirs", Reservoirs(), a_);
         Set(root, "kpis", Kpis(), a_);
         Set(root, "reaction_kpi", ReactionKpi(), a_);
         Set(root, "variables", Variables(), a_);
@@ -435,6 +436,7 @@ namespace adsim {
           Set(e, "temperature_profile", Profile(pressure->temperature_profile_.get()), a_);
           Set(e, "pump", Pump(pressure->pump_.get(), ep), a_);
           Set(e, "buffer_tank", Tank(pressure->buffer_tank_, ep), a_);
+          Set(e, "reservoir", ReservoirRef(pressure->reservoir_id_), a_);
           Set(e, "values", Values(ep + "."), a_);
         } else {
           SetNull(e, "endpoint", a_);
@@ -442,6 +444,7 @@ namespace adsim {
           SetNull(e, "temperature_profile", a_);
           SetNull(e, "pump", a_);
           SetNull(e, "buffer_tank", a_);
+          SetNull(e, "reservoir", a_);
           Set(e, "values", Value(rapidjson::kArrayType), a_);
         }
         if (flow) {
@@ -474,6 +477,7 @@ namespace adsim {
             Set(s, "power", std::move(power), a_);
             Set(s, "pump", std::move(pump), a_);
             Set(s, "buffer_tank", Tank(st->buffer_tank_, ep), a_);
+            Set(s, "reservoir", ReservoirRef(st->reservoir_id_), a_);
             Set(s, "values", Values(ep + "."), a_);
             streams.PushBack(s, a_);
           }
@@ -515,6 +519,32 @@ namespace adsim {
           Set(s, "heating_medium", std::move(medium), a_);
           Set(s, "values", Values(sp + "."), a_);
           list.PushBack(s, a_);
+        }
+        return list;
+      }
+
+      // The reservoir an endpoint is attached to: its id, or null.
+      Value ReservoirRef(size_t reservoir_id) {
+        if (reservoir_id == 0 || !d_.cycle.FindReservoir(reservoir_id)) return Value();
+        return Value(static_cast<int64_t>(reservoir_id));
+      }
+
+      // The named sources and sinks (claims "reservoir[N]."), each with the
+      // endpoints attached to it.
+      Value Reservoirs() {
+        const auto endpoints = d_.cycle.Endpoints();
+        Value list(rapidjson::kArrayType);
+        for (const auto& r : d_.cycle.reservoirs_) {
+          Value v(rapidjson::kObjectType);
+          SetInt(v, "id", static_cast<long long>(r.id_), a_);
+          Set(v, "name", r.name_, a_);
+          Set(v, "kind", r.kind_ == ReservoirKind::SOURCE ? "source" : "sink", a_);
+          Value e(rapidjson::kArrayType);
+          for (const auto& h : endpoints)
+            if (Cycle::ReservoirIdOf(h) == r.id_) e.PushBack(Value(static_cast<int64_t>(h.id)), a_);
+          Set(v, "endpoints", std::move(e), a_);
+          Set(v, "values", Values("reservoir[" + std::to_string(r.id_) + "]."), a_);
+          list.PushBack(v, a_);
         }
         return list;
       }
@@ -637,8 +667,8 @@ namespace adsim {
   "type": "object",
   "additionalProperties": false,
   "required": ["view_version", "engine_version", "info", "settings", "css", "energy_balance", "components", "fluid",
-               "initial_conditions", "adsorbents", "layers", "bed", "cycle", "steps", "connections", "kpis",
-               "variables", "cost", "sensitivity", "other"],
+               "initial_conditions", "adsorbents", "layers", "bed", "cycle", "steps", "connections", "reservoirs",
+               "kpis", "variables", "cost", "sensitivity", "other"],
   "properties": {
     "view_version": {"type": "integer", "enum": [@VIEW_VERSION@]},
     "engine_version": {"type": "string"},
@@ -655,6 +685,7 @@ namespace adsim {
     "cycle": {"$ref": "#/definitions/Cycle"},
     "steps": {"type": "array", "items": {"$ref": "#/definitions/Step"}},
     "connections": {"type": "array", "items": {"$ref": "#/definitions/Connection"}},
+    "reservoirs": {"type": "array", "items": {"$ref": "#/definitions/Reservoir"}},
     "kpis": {"type": "array", "items": {"$ref": "#/definitions/KpiConfig"}},
     "reaction_kpi": {"$ref": "#/definitions/ReactionKpiConfig"},
     "variables": {"type": "array", "items": {"$ref": "#/definitions/Variable"}},
@@ -846,7 +877,7 @@ namespace adsim {
     "Stream": {
       "type": "object", "additionalProperties": false,
       "required": ["endpoint", "name", "temperature_profile", "type", "flow", "profile", "power", "pump",
-                   "buffer_tank", "values"],
+                   "buffer_tank", "reservoir", "values"],
       "properties": {
         "endpoint": {"type": "integer"},
         "name": {"type": "string"},
@@ -857,6 +888,7 @@ namespace adsim {
         "power": {"type": ["string", "null"], "enum": @PUMP_POWER@},
         "pump": {"oneOf": [{"$ref": "#/definitions/Pump"}, {"type": "null"}]},
         "buffer_tank": {"oneOf": [{"$ref": "#/definitions/BufferTank"}, {"type": "null"}]},
+        "reservoir": {"type": ["integer", "null"], "description": "id of the source or sink the endpoint is attached to"},
         "values": {"$ref": "#/definitions/ValueList"}
       }
     },
@@ -864,7 +896,7 @@ namespace adsim {
       "description": "One end of a step. A pressure end has its endpoint, profiles, pump, buffer tank and values; a flow end has streams; a closed end neither.",
       "type": "object", "additionalProperties": false,
       "required": ["location", "kind", "direction", "endpoint", "profile", "temperature_profile", "pump",
-                   "buffer_tank", "values", "streams"],
+                   "buffer_tank", "reservoir", "values", "streams"],
       "properties": {
         "location": {"type": "string", "enum": ["bottom", "top"]},
         "kind": {"type": "string", "enum": @BOUNDARY@},
@@ -874,6 +906,7 @@ namespace adsim {
         "temperature_profile": {"type": ["string", "null"], "enum": @PROFILE_OR_NULL@},
         "pump": {"oneOf": [{"$ref": "#/definitions/Pump"}, {"type": "null"}]},
         "buffer_tank": {"oneOf": [{"$ref": "#/definitions/BufferTank"}, {"type": "null"}]},
+        "reservoir": {"type": ["integer", "null"], "description": "id of the source or sink the endpoint is attached to"},
         "values": {"$ref": "#/definitions/ValueList"},
         "streams": {"type": "array", "items": {"$ref": "#/definitions/Stream"}}
       }
@@ -914,6 +947,17 @@ namespace adsim {
       "properties": {
         "id": {"type": "integer"},
         "endpoints": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2}
+      }
+    },
+    "Reservoir": {
+      "description": "A named source (inlets attach to it) or sink (outlets attach to it). Its values are the temperature, pressure and mole fractions the attached endpoints take.",
+      "type": "object", "additionalProperties": false, "required": ["id", "name", "kind", "endpoints", "values"],
+      "properties": {
+        "id": {"type": "integer"},
+        "name": {"type": "string"},
+        "kind": {"type": "string", "enum": ["source", "sink"]},
+        "endpoints": {"type": "array", "items": {"type": "integer"}, "description": "ids of the attached endpoints"},
+        "values": {"$ref": "#/definitions/ValueList"}
       }
     },
     "KpiConfig": {

@@ -658,6 +658,9 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
         w(f"{name}.cycle.{f} = {_literal(sim, cyc.path(f))}")
     ep_expr: Dict[int, str] = {}
     step_taken: set = set(taken)
+    # An endpoint attached to a source or sink has its temperature, mole
+    # fractions and pressure target there (the registry lists them once).
+    res_by_id = {r["id"]: r for r in d.get("reservoirs", [])}
     for s in d["steps"]:
         node = sim.steps.by_id(s["id"])
         v = _var(s["name"], step_taken)
@@ -670,26 +673,28 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
             elif end["kind"] == "pressure":
                 eid = end["endpoint"]
                 ep_expr[eid] = f"{v}.{loc}"
-                w(f"{v}.{loc}.set_pressure({end['direction']!r}, {_profile_src(sim, eid, 'pressure', end['profile'])}"
-                  f"{_inlet_src(sim, eid, end['temperature_profile'])}{_pump_src(sim, eid, end['pump'])})")
+                res = res_by_id.get(end.get("reservoir"))
+                w(f"{v}.{loc}.set_pressure({end['direction']!r}, {_profile_src(sim, eid, 'pressure', end['profile'], res)}"
+                  f"{_inlet_src(sim, eid, end['temperature_profile'], res)}{_pump_src(sim, eid, end['pump'])})")
             else:
                 items = []
                 names = [st["name"] for st in end["streams"]]
                 for i, st in enumerate(end["streams"]):
                     eid = st["endpoint"]
+                    res = res_by_id.get(st.get("reservoir"))
                     key = repr(st["name"]) if st["name"] and names.count(st["name"]) == 1 else str(i)
                     ep_expr[eid] = f"{v}.{loc}[{key}]"
                     if st["type"] == "valve":
                         items.append(f"    sk.ValveStream({st['name']!r}, "
-                                     f"pressure={_profile_src(sim, eid, 'pressure', st['profile'])}, "
+                                     f"pressure={_profile_src(sim, eid, 'pressure', st['profile'], res)}, "
                                      f"cv={_literal(sim, f'endpoint[{eid}].valve.cv')}, "
                                      f"xt={_literal(sim, f'endpoint[{eid}].valve.xt')}"
                                      f"{', check_valve=True' if sim.get(f'endpoint[{eid}].valve.check_valve') else ''}"
-                                     f"{_inlet_src(sim, eid, st['temperature_profile'])}),")
+                                     f"{_inlet_src(sim, eid, st['temperature_profile'], res)}),")
                     elif st["type"] == "stream":
                         flow = f"sk.{st['flow']}({_profile_src(sim, eid, st['flow'], st['profile'])})"
                         items.append(f"    sk.Stream({st['name']!r}, flow={flow}"
-                                     f"{_inlet_src(sim, eid, st['temperature_profile'])}"
+                                     f"{_inlet_src(sim, eid, st['temperature_profile'], res)}"
                                      f"{_pump_src(sim, eid, st['pump'])}),")
                     elif st["type"] == "pump":
                         if st["power"] == "polynomial":
@@ -698,7 +703,7 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                         else:
                             power = _literal(sim, f"endpoint[{eid}].power")
                         items.append(f"    sk.PumpStream({st['name']!r}, power={power}"
-                                     f"{_inlet_src(sim, eid, st['temperature_profile'])}"
+                                     f"{_inlet_src(sim, eid, st['temperature_profile'], res)}"
                                      f"{_pump_src(sim, eid, st['pump'])}),")
                     else:
                         items.append(f"    # stream {st['name']!r}: a type the builder does not create")
@@ -723,6 +728,22 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                     w(f"{v}.medium.{f} = {_literal(sim, f'{mp}.{f}')}")
     for a_id, b_id in d["connections"]:
         w(f"{name}.connect({ep_expr.get(a_id, a_id)}, {ep_expr.get(b_id, b_id)})")
+    # Named sources and sinks, and the endpoints attached to them.
+    for r in d.get("reservoirs", []):
+        rp = f"reservoir[{r['id']}]"
+        ys = ", ".join(f"{p.path[len(rp) + 3:-1]!r}: {_literal(sim, p.path)}"
+                       for p in sim.parameters() if p.path.startswith(rp + ".y["))
+        var = f"reservoir_{r['id']}"
+        if r["kind"] == "source":
+            w(f"{var} = {name}.add_source({r['name']!r}, temperature={_literal(sim, rp + '.temperature')}, "
+              f"pressure={_literal(sim, rp + '.pressure')}, y={{{ys}}})")
+        else:
+            w(f"{var} = {name}.add_sink({r['name']!r}, pressure={_literal(sim, rp + '.pressure')})")
+        for s in d["steps"]:
+            for loc in ("bottom", "top"):
+                for e in [s[loc]] + s[loc].get("streams", []):
+                    if e.get("reservoir") == r["id"]:
+                        w(f"{ep_expr.get(e['endpoint'], e['endpoint'])}.attach({var})")
     for s in d["steps"]:
         for loc in ("bottom", "top"):
             for e in [s[loc]] + s[loc].get("streams", []):
@@ -750,11 +771,14 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
     return "\n".join(out) + "\n"
 
 
-def _profile_src(sim: "Simulation", eid: int, head: str, kind: str) -> str:
+def _profile_src(sim: "Simulation", eid: int, head: str, kind: str, res: Optional[Dict[str, Any]] = None) -> str:
+    """A profile of endpoint ``eid`` as builder source. ``res`` is the source or sink the endpoint
+    is attached to: it holds the pressure a pressure profile ends at."""
     p = f"endpoint[{eid}].{head}"
+    target = f"reservoir[{res['id']}].pressure" if res and head == "pressure" else None
     if kind == "constant":
-        return _literal(sim, p)
-    end = _literal(sim, f"{p}_{kind}_end")
+        return _literal(sim, target or p)
+    end = _literal(sim, target or f"{p}_{kind}_end")
     if kind == "double_exponential":
         extra = (f", rate_1={_literal(sim, f'{p}_{kind}_rate_1')}, rate_2={_literal(sim, f'{p}_{kind}_rate_2')}"
                  f", weight={_literal(sim, f'{p}_{kind}_weight')}")
@@ -774,10 +798,15 @@ def _profile_src(sim: "Simulation", eid: int, head: str, kind: str) -> str:
             f"time={_literal(sim, f'{p}_{kind}_time')}{factor})")
 
 
-def _inlet_src(sim: "Simulation", eid: int, temperature_kind: str) -> str:
-    node_paths = [p.path for p in sim.parameters() if p.path.startswith(f"endpoint[{eid}].y[")]
-    t = _profile_src(sim, eid, "temperature", temperature_kind)
-    y = "{" + ", ".join(f"{p[len(f'endpoint[{eid}].y['):-1]!r}: {_literal(sim, p)}" for p in node_paths) + "}"
+def _inlet_src(sim: "Simulation", eid: int, temperature_kind: str, res: Optional[Dict[str, Any]] = None) -> str:
+    """The ``y=`` and ``temperature=`` arguments of endpoint ``eid``. Attached to a source
+    (``res``), they are the source's; attached to a sink, there are none (an outlet does not use them)."""
+    if res and res["kind"] == "sink":
+        return ""
+    head = f"reservoir[{res['id']}]" if res else f"endpoint[{eid}]"
+    node_paths = [p.path for p in sim.parameters() if p.path.startswith(f"{head}.y[")]
+    t = _literal(sim, f"{head}.temperature") if res else _profile_src(sim, eid, "temperature", temperature_kind)
+    y = "{" + ", ".join(f"{p[len(f'{head}.y['):-1]!r}: {_literal(sim, p)}" for p in node_paths) + "}"
     return f", y={y}, temperature={t}"
 
 

@@ -145,7 +145,7 @@ const std::vector<Exception>& Exceptions() {
       {R"(.*/polymorphic_(id|name)$)", "archive type marker"},
       {R"(.*/ptr_wrapper/(valid|id)$)", "archive pointer marker"},
       {R"(.*/DisplayUnitIndex$)", "display unit of a value (front-end preference)"},
-      {R"(.*/(ID|Step_ID|Endpoint_ID|Pair_ID|Next_ID|Next_Layer_ID|Next_Reaction_ID|Layer_ID|Adsorbent_ID|Reaction_ID|Source_Step_ID|Source_Endpoint_ID)$)",
+      {R"(.*/(ID|Step_ID|Endpoint_ID|Pair_ID|Next_ID|Next_Layer_ID|Next_Reaction_ID|Layer_ID|Adsorbent_ID|Reaction_ID|Source_Step_ID|Source_Endpoint_ID|Reservoir_ID)$)",
        "object ID"},
       {R"(^/simulation/System_Information/Version$)", "save counter"},
       // Structure, edited through deck_edit.h / deck_builder.h.

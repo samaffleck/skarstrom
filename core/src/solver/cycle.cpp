@@ -85,6 +85,29 @@ namespace adsim {
 
   bool Cycle::PerformChecks(const Fluid& fluid, std::string& error_message) {
     ResolveBufferTankReferences();  // also EnsureIds; refreshes source names from IDs
+    ApplyReservoirs();
+    {
+      std::unordered_set<std::string> reservoir_names;
+      for (const Reservoir& r : reservoirs_) {
+        if (!reservoir_names.insert(r.name_).second) {
+          error_message += "Duplicate source or sink name '" + r.name_ + "'. The names must be unique. ";
+          return false;
+        }
+      }
+      // A source feeds inlets, a sink takes outlets.
+      for (const EndpointHandle& h : Endpoints()) {
+        const Reservoir* r = FindReservoir(ReservoirIdOf(h));
+        if (!r) continue;
+        const bool inlet = h.boundary->direction_ == BoundaryDirection::INLET;
+        if (inlet != (r->kind_ == ReservoirKind::SOURCE)) {
+          error_message += std::string(inlet ? "The inlet '" : "The outlet '") + h.log_name + "' of step '"
+                          + h.step->step_name_ + "' is attached to the "
+                          + (r->kind_ == ReservoirKind::SOURCE ? "source '" : "sink '") + r->name_
+                          + "'. An inlet attaches to a source and an outlet to a sink. ";
+          return false;
+        }
+      }
+    }
     if (step_time_mode_ == StepTimeMode::FRACTION) {
       double sum = 0.0;
       for (const auto& step : step_list_) {
@@ -395,6 +418,66 @@ namespace adsim {
     std::vector<size_t*> endpoint_ids;
     ForEachEndpointId(step_list_, [&](size_t& id) { endpoint_ids.push_back(&id); });
     AssignIds(endpoint_ids);
+    std::vector<size_t*> reservoir_ids;
+    for (Reservoir& r : reservoirs_) reservoir_ids.push_back(&r.id_);
+    AssignIds(reservoir_ids);
+  }
+
+  Reservoir* Cycle::FindReservoir(size_t reservoir_id) {
+    if (reservoir_id == 0) return nullptr;
+    for (Reservoir& r : reservoirs_)
+      if (r.id_ == reservoir_id) return &r;
+    return nullptr;
+  }
+
+  size_t& Cycle::ReservoirIdOf(const EndpointHandle& endpoint) {
+    return endpoint.stream ? endpoint.stream->reservoir_id_ : endpoint.pressure->reservoir_id_;
+  }
+
+  ExpressionParam* Cycle::PressureTargetOf(const EndpointHandle& endpoint) {
+    IBoundaryValue* value = nullptr;
+    if (endpoint.pressure) value = endpoint.pressure->pressure_.get();
+    else if (auto* valve = dynamic_cast<ValveBoundaryStream*>(endpoint.stream)) value = valve->boundary_value_.get();
+    if (auto* v = dynamic_cast<ConstantBoundaryValue*>(value)) return &v->constant_value_;
+    if (auto* v = dynamic_cast<LinearBoundaryValue*>(value)) return &v->end_value_;
+    if (auto* v = dynamic_cast<ExponentialBoundaryValue*>(value)) return &v->end_value_;
+    if (auto* v = dynamic_cast<LogLinearBoundaryValue*>(value)) return &v->end_value_;
+    if (auto* v = dynamic_cast<DoubleExponentialBoundaryValue*>(value)) return &v->end_value_;
+    return nullptr;
+  }
+
+  namespace {
+    // Copies value and expression text; keeps `to`'s display unit.
+    void CopyValue(ExpressionParam& to, const ExpressionParam& from) {
+      const int unit = to.DisplayUnitIndex();
+      to = from;
+      to.DisplayUnitIndex() = unit;
+    }
+  }  // namespace
+
+  void Cycle::ApplyReservoirs() {
+    for (const EndpointHandle& h : Endpoints()) {
+      size_t& id = ReservoirIdOf(h);
+      if (id == 0) continue;
+      const Reservoir* r = FindReservoir(id);
+      if (!r) {
+        id = 0;  // the reservoir is gone: the endpoint keeps its last values as its own
+        continue;
+      }
+      ExpressionParam& temperature = h.stream ? h.stream->temperature_ : h.pressure->temperature_;
+      std::unique_ptr<IBoundaryValue>& temperature_profile =
+          h.stream ? h.stream->temperature_profile_ : h.pressure->temperature_profile_;
+      ExpressionMap& y = h.stream ? h.stream->mole_fraction : h.pressure->mole_fraction_;
+      CopyValue(temperature, r->temperature_);
+      temperature_profile.reset();
+      // Entry by entry, so entries that stay keep their address.
+      for (auto it = y.begin(); it != y.end();) {
+        if (r->mole_fraction_.count(it->first)) ++it;
+        else it = y.erase(it);
+      }
+      for (const auto& [component, yi] : r->mole_fraction_) CopyValue(y[component], yi);
+      if (ExpressionParam* target = PressureTargetOf(h)) CopyValue(*target, r->pressure_);
+    }
   }
 
   std::vector<Cycle::EndpointHandle> Cycle::Endpoints() {
@@ -626,6 +709,10 @@ namespace adsim {
 
   void Cycle::EvaluateExpressions(const EvalContext& ctx) {
     total_cycle_time_.Evaluate(ctx);
+    // Reservoirs first: the attached endpoints take their expressions, which
+    // the steps then evaluate with their own.
+    for (auto& r : reservoirs_) r.EvaluateExpressions(ctx);
+    ApplyReservoirs();
     for (auto& step : step_list_) {
       step.EvaluateExpressions(ctx);
     }

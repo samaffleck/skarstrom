@@ -37,6 +37,7 @@ void ReconcileMoleFractions(UserData& data, const std::string& component, bool a
     }
   };
   touch(data.ic.mole_fraction);
+  for (auto& r : data.cycle.reservoirs_) touch(r.mole_fraction_);
   for (auto& step : data.cycle.step_list_) {
     for (IBoundaryCondition* bc : {step.top_boundary_condition_.get(), step.bottom_boundary_condition_.get()}) {
       if (!bc) continue;
@@ -452,6 +453,7 @@ struct InletState {
   ExpressionMap y;
   ExpressionParam temperature{293.0};
   std::unique_ptr<IBoundaryValue> temperature_profile;
+  size_t reservoir_id = 0;  // the reservoir the end was attached to
   bool set = false;
 };
 
@@ -521,6 +523,7 @@ void PruneKpiConfig(UserData& data) {
 void FillDeckGaps(UserData& data) {
   const auto& comps = data.fluid.components_;
   ReconcileMoleFractionMap(data.ic.mole_fraction, comps);
+  for (auto& r : data.cycle.reservoirs_) ReconcileMoleFractionMap(r.mole_fraction_, comps);
   for (const auto& h : data.cycle.Endpoints())
     ReconcileMoleFractionMap(h.stream ? h.stream->mole_fraction : h.pressure->mole_fraction_, comps);
   for (const auto& c : comps) {
@@ -537,6 +540,146 @@ void FillDeckGaps(UserData& data) {
   EnsureObjectIds(data);
   RepairConnections(data);
 }
+
+// ---- reservoirs ---------------------------------------------------------------------------------
+
+namespace {
+
+std::string UniqueReservoirName(const UserData& data, ReservoirKind kind, const std::string& name) {
+  std::vector<std::string> taken;
+  for (const auto& r : data.cycle.reservoirs_) taken.push_back(r.name_);
+  std::string base = name;
+  if (base.empty()) {
+    const std::string head = kind == ReservoirKind::SOURCE ? "Source " : "Sink ";
+    for (size_t n = 1;; ++n) {
+      base = head + std::to_string(n);
+      if (std::find(taken.begin(), taken.end(), base) == taken.end()) break;
+    }
+  }
+  return UniqueName(taken, base);
+}
+
+Reservoir* ReservoirOrError(UserData& data, size_t reservoir_id, std::string& err) {
+  data.cycle.EnsureIds();
+  Reservoir* r = data.cycle.FindReservoir(reservoir_id);
+  if (!r) err = "no source or sink with ID " + std::to_string(reservoir_id);
+  return r;
+}
+
+}  // namespace
+
+size_t AddReservoir(UserData& data, ReservoirKind kind, const std::string& name) {
+  data.cycle.EnsureIds();
+  Reservoir r;
+  r.kind_ = kind;
+  r.name_ = UniqueReservoirName(data, kind, name);
+  SeedMoleFractions(data, r.mole_fraction_);
+  data.cycle.reservoirs_.push_back(std::move(r));
+  data.cycle.EnsureIds();
+  return data.cycle.reservoirs_.back().id_;
+}
+
+bool AddReservoirFromEndpoint(UserData& data, size_t endpoint_id, const std::string& name, size_t& reservoir_id,
+                              std::string& err) {
+  auto h = EndpointOrError(data, endpoint_id, err);
+  if (!h) return false;
+  const bool inlet = h->boundary->direction_ == BoundaryDirection::INLET;
+  const ReservoirKind kind = inlet ? ReservoirKind::SOURCE : ReservoirKind::SINK;
+  Reservoir r;
+  r.kind_ = kind;
+  r.name_ = UniqueReservoirName(data, kind, name);
+  // A ramped inlet temperature has no single value; the reservoir takes the
+  // constant the ramp replaced.
+  r.temperature_ = h->stream ? h->stream->temperature_ : h->pressure->temperature_;
+  r.mole_fraction_ = h->stream ? h->stream->mole_fraction : h->pressure->mole_fraction_;
+  ReconcileMoleFractionMap(r.mole_fraction_, data.fluid.components_);
+  if (const ExpressionParam* p = Cycle::PressureTargetOf(*h)) {
+    r.pressure_ = *p;
+  } else {
+    // A set-flow or pump stream has no pressure of its own: take the pressure
+    // the other end of its step holds the bed at, else the initial pressure.
+    r.pressure_ = data.ic.pressure;
+    for (const auto& other : data.cycle.Endpoints()) {
+      if (other.step != h->step || other.boundary == h->boundary) continue;
+      if (const ExpressionParam* p = Cycle::PressureTargetOf(other)) {
+        r.pressure_ = *p;
+        break;
+      }
+    }
+  }
+  data.cycle.reservoirs_.push_back(std::move(r));
+  data.cycle.EnsureIds();
+  reservoir_id = data.cycle.reservoirs_.back().id_;
+  Cycle::ReservoirIdOf(*h) = reservoir_id;
+  data.cycle.ApplyReservoirs();
+  return true;
+}
+
+bool RemoveReservoir(UserData& data, size_t reservoir_id, std::string& err) {
+  if (!ReservoirOrError(data, reservoir_id, err)) return false;
+  data.cycle.ApplyReservoirs();  // the attached endpoints keep its current values
+  for (const auto& h : data.cycle.Endpoints())
+    if (Cycle::ReservoirIdOf(h) == reservoir_id) Cycle::ReservoirIdOf(h) = 0;
+  auto& list = data.cycle.reservoirs_;
+  list.erase(std::remove_if(list.begin(), list.end(), [&](const Reservoir& r) { return r.id_ == reservoir_id; }),
+             list.end());
+  return true;
+}
+
+bool RenameReservoir(UserData& data, size_t reservoir_id, const std::string& name, std::string& err) {
+  Reservoir* r = ReservoirOrError(data, reservoir_id, err);
+  if (!r) return false;
+  if (name.empty()) {
+    err = "a source or sink needs a name";
+    return false;
+  }
+  for (const auto& other : data.cycle.reservoirs_) {
+    if (other.id_ != reservoir_id && other.name_ == name) {
+      err = "another source or sink is already called '" + name + "'";
+      return false;
+    }
+  }
+  r->name_ = name;
+  return true;
+}
+
+bool AttachReservoir(UserData& data, size_t endpoint_id, size_t reservoir_id, std::string& err) {
+  auto h = EndpointOrError(data, endpoint_id, err);
+  if (!h) return false;
+  if (reservoir_id == 0) {
+    Cycle::ReservoirIdOf(*h) = 0;
+    return true;
+  }
+  const Reservoir* r = ReservoirOrError(data, reservoir_id, err);
+  if (!r) return false;
+  const bool inlet = h->boundary->direction_ == BoundaryDirection::INLET;
+  if (inlet != (r->kind_ == ReservoirKind::SOURCE)) {
+    err = "endpoint " + std::to_string(endpoint_id) + " ('" + h->log_name + "') is an " +
+          (inlet ? "inlet" : "outlet") + " and '" + r->name_ + "' is a " +
+          (r->kind_ == ReservoirKind::SOURCE ? "source" : "sink") +
+          "; an inlet attaches to a source and an outlet to a sink";
+    return false;
+  }
+  Cycle::ReservoirIdOf(*h) = reservoir_id;
+  data.cycle.ApplyReservoirs();
+  return true;
+}
+
+size_t DetachMismatchedReservoirs(UserData& data) {
+  data.cycle.EnsureIds();
+  size_t n = 0;
+  for (const auto& h : data.cycle.Endpoints()) {
+    size_t& id = Cycle::ReservoirIdOf(h);
+    const Reservoir* r = data.cycle.FindReservoir(id);
+    if (!r) continue;
+    const bool inlet = h.boundary->direction_ == BoundaryDirection::INLET;
+    if (inlet == (r->kind_ == ReservoirKind::SOURCE)) continue;
+    id = 0;
+    ++n;
+  }
+  return n;
+}
+
 
 // ---- layers ---------------------------------------------------------------------------------
 
@@ -1017,6 +1160,7 @@ InletState TakeInlet(IBoundaryCondition* bc) {
     s.y = p->mole_fraction_;
     s.temperature = p->temperature_;
     s.temperature_profile = std::move(p->temperature_profile_);
+    s.reservoir_id = p->reservoir_id_;
     s.set = true;
   } else if (auto* f = dynamic_cast<FlowBoundaryCondition*>(bc)) {
     if (!f->streams_.empty() && f->streams_.front()) {
@@ -1024,6 +1168,7 @@ InletState TakeInlet(IBoundaryCondition* bc) {
       s.y = st.mole_fraction;
       s.temperature = st.temperature_;
       s.temperature_profile = std::move(st.temperature_profile_);
+      s.reservoir_id = st.reservoir_id_;
       s.set = true;
     }
   }
@@ -1051,6 +1196,7 @@ bool SetBoundaryConditionKind(UserData& data, size_t step_id, BoundaryLocation s
       p->mole_fraction_ = std::move(inlet.y);
       p->temperature_ = inlet.temperature;
       p->temperature_profile_ = std::move(inlet.temperature_profile);
+      p->reservoir_id_ = inlet.reservoir_id;
     }
     SeedMoleFractions(data, p->mole_fraction_);
   } else if (auto* f = dynamic_cast<FlowBoundaryCondition*>(fresh.get())) {
@@ -1060,12 +1206,14 @@ bool SetBoundaryConditionKind(UserData& data, size_t step_id, BoundaryLocation s
       stream->mole_fraction = std::move(inlet.y);
       stream->temperature_ = inlet.temperature;
       stream->temperature_profile_ = std::move(inlet.temperature_profile);
+      stream->reservoir_id_ = inlet.reservoir_id;
     }
     SeedMoleFractions(data, stream->mole_fraction);
     f->streams_.push_back(std::move(stream));
   }
   slot = std::move(fresh);
   AfterEndpointsRemoved(data);
+  data.cycle.ApplyReservoirs();  // a new pressure target takes its reservoir's pressure
   return true;
 }
 
@@ -1087,6 +1235,7 @@ bool SetStreamKind(UserData& data, size_t step_id, BoundaryLocation side, size_t
   fresh->temperature_profile_ = std::move(slot->temperature_profile_);
   fresh->mole_fraction = slot->mole_fraction;
   fresh->buffer_tank_ = slot->buffer_tank_;
+  fresh->reservoir_id_ = slot->reservoir_id_;
   // The pump moves between a set-flow stream and a pump stream.
   std::unique_ptr<IPump>* old_pump = nullptr;
   if (auto* b = dynamic_cast<BoundaryStream*>(slot.get())) old_pump = &b->pump_;
@@ -1100,6 +1249,7 @@ bool SetStreamKind(UserData& data, size_t step_id, BoundaryLocation side, size_t
   }
   data.cycle.ReplaceStream(slot, std::move(fresh));  // keeps the endpoint ID, drops the connection
   AfterEndpointsRemoved(data);
+  data.cycle.ApplyReservoirs();  // a valve's back pressure takes its reservoir's pressure
   return true;
 }
 
@@ -1172,6 +1322,11 @@ bool SetProfileKind(UserData& data, size_t endpoint_id, ProfileTarget target, Bo
     return false;
   };
   if (target == ProfileTarget::Temperature) {
+    if (kind != BoundaryValueType::CONSTANT && Cycle::ReservoirIdOf(*h) != 0) {
+      err = "endpoint " + std::to_string(endpoint_id) + " ('" + h->log_name +
+            "') is attached to a source or sink, which has one temperature; detach it to ramp the temperature";
+      return false;
+    }
     ExpressionParam& constant = h->stream ? h->stream->temperature_ : h->pressure->temperature_;
     auto& slot = h->stream ? h->stream->temperature_profile_ : h->pressure->temperature_profile_;
     if (InletTemperatureProfileType(slot.get()) == kind) return true;

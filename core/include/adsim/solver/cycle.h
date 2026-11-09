@@ -27,6 +27,7 @@
 // adsim includes
 #include "adsim/boundary_conditions/step.h"
 #include "adsim/boundary_conditions/connection.h"
+#include "adsim/boundary_conditions/reservoir.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/math/expression_param.h"
 
@@ -139,6 +140,21 @@ namespace adsim {
 		// IDs). A source that resolves neither way is left for PerformChecks to
 		// report.
 		void ResolveBufferTankReferences();
+		// ---- Reservoirs (named sources and sinks) -----------------------------
+		// The reservoir with this ID, or nullptr.
+		Reservoir* FindReservoir(size_t reservoir_id);
+		// The reservoir an endpoint is attached to (0 = none).
+		static size_t& ReservoirIdOf(const EndpointHandle& endpoint);
+		// The pressure an endpoint aims at: the constant pressure, or the end
+		// value of the ramp, of a pressure boundary or of a valve stream's back
+		// pressure. Null for an endpoint without one (a set-flow or pump stream).
+		static ExpressionParam* PressureTargetOf(const EndpointHandle& endpoint);
+		// Copies each reservoir's temperature, composition and pressure onto
+		// the endpoints attached to it (see reservoir.h), and detaches an
+		// endpoint whose reservoir no longer exists. Runs before every
+		// expression evaluation, on load and in PerformChecks; idempotent.
+		void ApplyReservoirs();
+
 		Step* FindStepById(size_t step_id);
 		// Index of the step with this ID, or -1.
 		int StepIndexById(size_t step_id) const;
@@ -147,6 +163,8 @@ namespace adsim {
 		StepTimeMode step_time_mode_ = StepTimeMode::ABSOLUTE;
 		ExpressionParam total_cycle_time_{100.0}; // [s] Used in FRACTION mode
 		std::vector<Step> step_list_;
+		// Named sources and sinks the endpoints can attach to (reservoir.h).
+		std::vector<Reservoir> reservoirs_;
 
 		void EvaluateExpressions(const EvalContext& ctx);
 
@@ -164,6 +182,9 @@ namespace adsim {
           cereal::make_nvp("Total_Cycle_Time", total_cycle_time_)
         );
       }
+      if (version >= 3) {
+        ar(cereal::make_nvp("Reservoirs", reservoirs_));
+      }
     }
 
     template<class Archive>
@@ -180,11 +201,17 @@ namespace adsim {
         );
         step_time_mode_ = static_cast<StepTimeMode>(mode);
       }
+      if (version >= 3) {
+        ar(cereal::make_nvp("Reservoirs", reservoirs_));
+      } else {
+        reservoirs_.clear();  // version < 3: no reservoirs
+      }
 
       // After all Steps/Connections are deserialized, rebuild the raw-pointer links.
       EnsureIds();
       RebuildConnectionsFromIDs();
       ResolveBufferTankSources();
+      ApplyReservoirs();
     }
 
     void RebuildConnectionsFromIDs() {
@@ -325,4 +352,4 @@ namespace adsim {
 
 // Class versions live next to the inline serialize templates: every
 // translation unit that saves or loads a deck must see the same numbers.
-CEREAL_CLASS_VERSION(adsim::Cycle, 2);
+CEREAL_CLASS_VERSION(adsim::Cycle, 3);

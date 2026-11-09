@@ -12,8 +12,9 @@
 // The view gives the deck's STRUCTURE -- components, adsorbents (per-component
 // isotherm and rate-model kinds, reactions), the column and its wall, layers,
 // steps with their bottom and top ends (closed, pressure or flow; streams,
-// profiles, pumps, buffer tanks), heating media and energy sources,
-// connections, the KPI configuration, user variables -- and attaches to each
+// profiles, pumps, buffer tanks, the source or sink an endpoint is attached
+// to), heating media and energy sources, connections, the named sources and
+// sinks, the KPI configuration, user variables -- and attaches to each
 // node the EDITABLE VALUES that belong to it. Every value is an entry of the
 // parameter registry (adsim/parameters/parameter_registry.h), given with its
 // registry path and the registry's value, text, unit, bounds, kind, choices

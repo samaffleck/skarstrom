@@ -106,6 +106,7 @@ from .model import (
     Kinetics,
     Layer,
     NodeMap,
+    Reservoir,
     Settings,
     Step,
     StepEnd,
@@ -128,6 +129,7 @@ __all__ = [
     "AxialProfile",
     "Bed",
     "BufferTank",
+    "Reservoir",
     "CSS",
     "CSSRecord",
     "CycleState",
@@ -552,6 +554,11 @@ class Simulation:
         return _model._adsorbents(self)
 
     @property
+    def reservoirs(self) -> Collection[Reservoir]:
+        """The named sources and sinks: ``sim.reservoirs["Feed"].temperature`` (``add_source``, ``add_sink``)."""
+        return _model._reservoirs(self)
+
+    @property
     def variables(self) -> ValueMap:
         """User variables by name (the names expressions refer to)."""
         return _model._variables(self)
@@ -958,6 +965,38 @@ class Simulation:
         if fraction is not None:
             step.fraction = fraction
         return step
+
+    def add_source(self, name: str = "", temperature: Any = None, pressure: Any = None,
+                   y: Optional[Mapping[str, Any]] = None) -> Reservoir:
+        """A named source: a gas state (temperature, pressure, composition) that any number of
+        inlets attach to with ``endpoint.attach(source)``, e.g. one feed for two feed steps.
+
+        The flow, valve or pump stays on each inlet; the source gives what the gas is. ``y`` maps
+        components to mole fractions (components left out are 0).
+        """
+        return self._add_reservoir("source", name, temperature, pressure, y)
+
+    def add_sink(self, name: str = "", pressure: Any = None) -> Reservoir:
+        """A named sink that outlets attach to with ``endpoint.attach(sink)``: ambient, a vacuum
+        header, a product line. ``pressure`` is the target of an attached pressure boundary and the
+        back pressure of an attached valve. A sink has no temperature or composition: an outlet
+        carries the bed-end gas, also when the flow reverses.
+        """
+        return self._add_reservoir("sink", name, None, pressure, None)
+
+    def _add_reservoir(self, kind: str, name: str, temperature: Any, pressure: Any,
+                       y: Optional[Mapping[str, Any]]) -> Reservoir:
+        rid = self._build("add_reservoir", kind, name)
+        r = self.reservoirs.by_id(rid)
+        if temperature is not None:
+            r.temperature = temperature
+        if pressure is not None:
+            r.pressure = pressure
+        if y is not None:
+            given = {self._component(c): v for c, v in y.items()}
+            for c in r.y.keys():
+                r.y[c] = given.get(c, 0.0)
+        return r
 
     def connect(self, a: Any, b: Any) -> None:
         """Connect two endpoints so one supplies the other (light-product pressurisation, a purge

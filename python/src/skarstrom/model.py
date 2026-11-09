@@ -178,7 +178,7 @@ class _Index:
             segments = _split_path(p.path)
             self.root.insert(segments, p.path)
             kind, key = segments[0]
-            if key is not None and kind in ("step", "layer", "adsorbent"):
+            if key is not None and kind in ("step", "layer", "adsorbent", "reservoir"):
                 rest = p.path[len(kind) + len(key) + 2 :]  # after "kind[key]"
                 if p.alias.startswith(kind + "[") and p.alias.endswith(rest) and p.alias != p.path:
                     self.names.setdefault((kind, key), p.alias[len(kind) + 1 : len(p.alias) - len(rest) - 1])
@@ -1186,6 +1186,41 @@ class Endpoint(_Node):
             self._sim.set(f"endpoint[{self._id}].buffer_tank.percentage", percentage)
         return self._sim._endpoint(self._id)
 
+    @property
+    def reservoir(self) -> Optional["Reservoir"]:
+        """The source or sink this endpoint is attached to (:meth:`attach`), or ``None``."""
+        for step in self._sim.describe()["steps"]:
+            for loc in ("bottom", "top"):
+                for e in [step[loc]] + step[loc].get("streams", []):
+                    if e.get("endpoint") == self._id and e.get("reservoir"):
+                        return _reservoirs(self._sim).by_id(e["reservoir"])
+        return None
+
+    def attach(self, reservoir: Any) -> "Endpoint":
+        """Attach this endpoint to a source or sink (a :class:`Reservoir`, its name or its ID;
+        ``sim.add_source``, ``sim.add_sink``).
+
+        While attached, its temperature, mole fractions and pressure target (the pressure of a
+        pressure boundary, the back pressure of a valve) are the reservoir's, and are set there
+        (``sim.reservoirs["Feed"].temperature``). The flow, the valve and the pump stay on the
+        endpoint. An inlet attaches to a source, an outlet to a sink. ``None`` detaches it; it
+        then keeps the reservoir's values as its own.
+        """
+        if self._id < 0:
+            raise ValueError("attach one endpoint (a stream or a pressure boundary), not a step end with several streams")
+        if reservoir is None:
+            rid = 0
+        elif isinstance(reservoir, str):
+            rid = _reservoirs(self._sim)[reservoir].id
+        else:
+            rid = int(getattr(reservoir, "id", reservoir))
+        self._sim._build("attach_reservoir", self._id, rid)
+        return self._sim._endpoint(self._id)
+
+    def detach(self) -> "Endpoint":
+        """Detach this endpoint from its source or sink; it keeps the values as its own."""
+        return self.attach(None)
+
     def set_pump(self, pump: Any) -> "Endpoint":
         """Fit a pump (a :class:`skarstrom.Pump`) to this stream or boundary; ``None`` removes it."""
         from . import build
@@ -1587,6 +1622,65 @@ def _set_layer_composition(sim: Any, layer_id: int, composition: Mapping[Any, An
     for i, f in ids:
         if isinstance(f, str):
             sim[f"layer[{layer_id}].mass_fraction[{i}]"] = f
+
+
+class Reservoir(_Node):
+    """A named source (inlets attach to it) or sink (outlets attach to it).
+
+    It holds a gas state outside the bed; the endpoints attached to it
+    (:meth:`Endpoint.attach`) take its temperature, composition and pressure.
+    """
+
+    __slots__ = ("_id", "_name", "_kind")
+
+    temperature = Real()
+    """Temperature of the gas a source supplies [K] (a sink has none)."""
+    pressure = Real()
+    """Pressure of the source or sink [Pa]: the target of an attached pressure boundary, the back
+    pressure of an attached valve."""
+
+    def __init__(self, sim: "Simulation", tree: Optional[_Tree], label: str, id: int, name: str, kind: str) -> None:
+        super().__init__(sim, tree, label)
+        object.__setattr__(self, "_id", id)
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_kind", kind)
+
+    @property
+    def id(self) -> int:
+        """The reservoir ID stored in the deck (``reservoir[<id>]`` in string paths)."""
+        return self._id
+
+    def _refetch(self) -> Optional[_Node]:
+        return _reservoirs(self._sim).by_id(self._id)
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def kind(self) -> str:
+        """``"source"`` or ``"sink"``."""
+        return self._kind
+
+    @property
+    def y(self) -> ValueMap:
+        """Mole fractions of the gas a source supplies, by component [-] (a sink has none)."""
+        paths = self._tree_or_raise().maps.get("y", {})
+        return ValueMap(self._sim, paths, f"{self._label}.y")
+
+    @property
+    def endpoints(self) -> List["Endpoint"]:
+        """The endpoints attached to this source or sink."""
+        out = []
+        for step in self._sim.describe()["steps"]:
+            for loc in ("bottom", "top"):
+                for e in [step[loc]] + step[loc].get("streams", []):
+                    if e.get("reservoir") == self._id:
+                        out.append(self._sim._endpoint(e["endpoint"]))
+        return out
+
+    def _header(self) -> str:
+        return f"<{self._label} ({self._kind}, reservoir id {self._id})>"
 
 
 class Layer(_Node):
@@ -2130,6 +2224,17 @@ def _adsorbents(sim: "Simulation") -> Collection[Adsorbent]:
         name = index.names.get(("adsorbent", key), key)
         items.append(Adsorbent(sim, tree, f"adsorbents[{name!r}]", int(key), name))
     return Collection(items, "adsorbents")
+
+
+def _reservoirs(sim: "Simulation") -> Collection[Reservoir]:
+    index = sim._index()
+    trees = index.root.keyed.get("reservoir", {})
+    items = []
+    for r in sim.describe().get("reservoirs", []):
+        key = str(r["id"])
+        items.append(Reservoir(sim, trees.get(key, _Tree()), f"reservoirs[{r['name']!r}]", int(r["id"]), r["name"],
+                               r["kind"]))
+    return Collection(items, "reservoirs")
 
 
 def _endpoint(sim: "Simulation", endpoint_id: int) -> Endpoint:

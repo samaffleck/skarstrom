@@ -219,6 +219,10 @@ const std::vector<std::string>& WallBoundaryKinds() {
   return k;
 }
 const std::vector<std::string>& ProfileKinds() { return KindTags(ModelFamily::Profile); }
+const std::vector<std::string>& ReservoirKinds() {
+  static const std::vector<std::string> k{"source", "sink"};
+  return k;
+}
 const std::vector<std::string>& FlowKinds() { return KindTags(ModelFamily::Flow); }
 const std::vector<std::string>& PumpKinds() { return KindTags(ModelFamily::Pump); }
 const std::vector<std::string>& PumpEnergyKinds() { return KindTags(ModelFamily::PumpEnergy); }
@@ -660,6 +664,17 @@ void SetBufferTank(UserData& data, size_t endpoint, size_t source) {
   tank.Activate(src.step->step_name_, src.summary_name);
   tank.source_step_id_ = src.step->id_;
   tank.source_endpoint_id_ = src.id;
+}
+
+size_t AddReservoir(UserData& data, const std::string& kind, const std::string& name) {
+  return adsim::AddReservoir(data, static_cast<ReservoirKind>(KindIndex(ReservoirKinds(), kind, "reservoir")), name);
+}
+
+void AttachReservoir(UserData& data, size_t endpoint, size_t reservoir) {
+  std::string err;
+  if (!adsim::AttachReservoir(data, endpoint, reservoir, err))
+    throw std::invalid_argument("cannot attach endpoint " + std::to_string(endpoint) + " to source or sink " +
+                                std::to_string(reservoir) + ": " + err);
 }
 
 void SetPump(UserData& data, size_t endpoint, const std::string& kind, const std::string& energy,

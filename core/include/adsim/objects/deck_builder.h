@@ -89,6 +89,7 @@ const std::vector<std::string>& BedShapeKinds();
 const std::vector<std::string>& WallMaterialKinds();
 const std::vector<std::string>& WallBoundaryKinds();
 const std::vector<std::string>& ProfileKinds();
+const std::vector<std::string>& ReservoirKinds();  // source, sink
 const std::vector<std::string>& FlowKinds();
 const std::vector<std::string>& PumpKinds();
 const std::vector<std::string>& PumpEnergyKinds();
@@ -230,6 +231,14 @@ void SetPump(UserData& data, size_t endpoint, const std::string& kind, const std
 // Connect two endpoints (one supplies the other, e.g. light-product
 // pressurisation or a purge drawn from another step's product).
 void Connect(UserData& data, size_t endpoint_a, size_t endpoint_b);
+// A named source ("source": inlets attach to it) or sink ("sink": outlets
+// attach to it); see adsim/boundary_conditions/reservoir.h. Returns its ID.
+// Its values are registry entries: reservoir[ID].temperature, .pressure,
+// .y[Component].
+size_t AddReservoir(UserData& data, const std::string& kind, const std::string& name);
+// Attach an endpoint to a reservoir, so that its temperature, mole fractions
+// and pressure target are the reservoir's; reservoir 0 detaches it.
+void AttachReservoir(UserData& data, size_t endpoint, size_t reservoir);
 // An energy source (heater or cooler) acting on a layer during a step.
 void SetEnergySource(UserData& data, size_t step, size_t layer, bool enabled);
 // Track a component's KPIs with these feed and product endpoints. Recycle

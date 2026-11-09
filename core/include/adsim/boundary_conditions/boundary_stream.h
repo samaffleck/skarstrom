@@ -290,6 +290,11 @@ namespace adsim {
     // valve or pump keeps its pressure/power-driven flow, evaluated at the
     // tank's temperature. Mutually exclusive with connection_.
     BufferTankSource buffer_tank_{};
+    // The reservoir (a named source or sink, Cycle::reservoirs_) this endpoint
+    // is attached to, by Reservoir::id_; 0 = none. While attached,
+    // temperature_, mole_fraction and a valve's back-pressure target are the
+    // reservoir's (Cycle::ApplyReservoirs).
+    size_t reservoir_id_ = 0;
 
     // Last step duration seen by Initialise. Buffer-tank inlets use this to
     // turn `total_moles` from the source into a constant molar flow rate.
@@ -333,6 +338,10 @@ namespace adsim {
 				ar(cereal::make_nvp("Endpoint_ID", endpoint_id_));
 			}
 			// version < 4: endpoint_id_ stays 0 and Cycle::EnsureIds assigns it on load.
+			if (version >= 6) {
+				ar(cereal::make_nvp("Reservoir_ID", reservoir_id_));
+			}
+			// version < 6: no reservoirs; reservoir_id_ stays 0.
 		}
 	};
 
@@ -466,7 +475,7 @@ namespace adsim {
 
 // Class versions live next to the inline serialize templates: every
 // translation unit that saves or loads a deck must see the same numbers.
-CEREAL_CLASS_VERSION(adsim::IBoundaryStream, 5);
+CEREAL_CLASS_VERSION(adsim::IBoundaryStream, 6);
 CEREAL_CLASS_VERSION(adsim::BoundaryStream, 1);
 CEREAL_CLASS_VERSION(adsim::ValveBoundaryStream, 2);
 CEREAL_CLASS_VERSION(adsim::PumpBoundaryStream, 1);

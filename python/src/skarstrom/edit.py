@@ -131,6 +131,39 @@ class Editor:
         """Connect two endpoints under a fresh pair id."""
         self._do("connect", self._endpoint(a), self._endpoint(b))
 
+    # ---- sources and sinks -----------------------------------------------------------------
+    def _reservoir(self, reservoir: Any) -> int:
+        if isinstance(reservoir, int):
+            return reservoir
+        if isinstance(reservoir, str):
+            return int(self._sim.reservoirs[reservoir].id)
+        return int(reservoir.id)
+
+    def add_reservoir(self, kind: str, name: str = "") -> int:
+        """Add a ``"source"`` or ``"sink"`` ("Source N" / "Sink N" when unnamed); returns its reservoir ID."""
+        return int(self._do("add_reservoir", kind, name))
+
+    def reservoir_from_endpoint(self, endpoint: Any, name: str = "") -> int:
+        """Add a source (for an inlet) or sink (for an outlet) with the endpoint's temperature,
+        mole fractions and pressure, and attach the endpoint to it; returns its reservoir ID."""
+        return int(self._do("reservoir_from_endpoint", self._endpoint(endpoint), name))
+
+    def remove_reservoir(self, reservoir: Any) -> None:
+        """Remove a source or sink; the endpoints attached to it keep its values as their own."""
+        self._do("remove_reservoir", self._reservoir(reservoir))
+
+    def rename_reservoir(self, reservoir: Any, name: str) -> None:
+        """Rename a source or sink."""
+        self._do("rename_reservoir", self._reservoir(reservoir), name)
+
+    def attach_reservoir(self, endpoint: Any, reservoir: Any) -> None:
+        """Attach an endpoint to a source or sink; ``None`` or 0 detaches it."""
+        self._do("attach_reservoir", self._endpoint(endpoint), 0 if reservoir in (None, 0) else self._reservoir(reservoir))
+
+    def detach_mismatched_reservoirs(self) -> int:
+        """Detach every endpoint whose direction no longer agrees with its reservoir's kind; returns the count."""
+        return int(self._do("detach_mismatched_reservoirs"))
+
     # ---- kind switches ---------------------------------------------------------------------
     def set_isotherm_kind(self, adsorbent: Any, component: str, kind: str) -> None:
         """The isotherm of one component; shared parameters (same name and unit) are kept."""

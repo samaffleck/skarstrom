@@ -1014,6 +1014,8 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "set_temperature_profile") b::SetTemperatureProfile(d, id(0), str(1));
         else if (op == "set_pump") b::SetPump(d, id(0), str(1), str(2), str(3));
         else if (op == "connect") b::Connect(d, id(0), id(1));
+        else if (op == "add_reservoir") out = py::int_(b::AddReservoir(d, str(0), str(1)));
+        else if (op == "attach_reservoir") b::AttachReservoir(d, id(0), id(1));
         else if (op == "set_energy_source") b::SetEnergySource(d, id(0), id(1), args[2].cast<bool>());
         else if (op == "set_kpi")
           b::SetKPI(d, str(0), args[1].cast<std::vector<size_t>>(), args[2].cast<std::vector<size_t>>(),
@@ -1078,6 +1080,16 @@ PYBIND11_MODULE(_core, m) {
           ret_id(AddStream(d, id(0), side(1), static_cast<BoundaryStreamType>(kind(ModelFamily::Stream, 2)), new_id, err));
         else if (op == "remove_stream") ok = RemoveStream(d, id(0), side(1), id(2), err);
         else if (op == "connect") ok = ConnectEndpoints(d, id(0), id(1), err);
+        else if (op == "add_reservoir") {
+          if (str(0) != "source" && str(0) != "sink")
+            throw py::value_error("unknown reservoir kind '" + str(0) + "'; one of: source, sink");
+          out = py::int_(AddReservoir(d, str(0) == "source" ? ReservoirKind::SOURCE : ReservoirKind::SINK, str(1)));
+        }
+        else if (op == "reservoir_from_endpoint") ret_id(AddReservoirFromEndpoint(d, id(0), str(1), new_id, err));
+        else if (op == "remove_reservoir") ok = RemoveReservoir(d, id(0), err);
+        else if (op == "rename_reservoir") ok = RenameReservoir(d, id(0), str(1), err);
+        else if (op == "attach_reservoir") ok = AttachReservoir(d, id(0), id(1), err);
+        else if (op == "detach_mismatched_reservoirs") out = py::int_(DetachMismatchedReservoirs(d));
         else if (op == "ensure_ids") EnsureIds(d);
         else if (op == "repair_connections") out = py::int_(RepairConnections(d));
         else if (op == "prune_buffer_tanks") out = py::int_(PruneBufferTanks(d));
@@ -1311,6 +1323,10 @@ PYBIND11_MODULE(_core, m) {
           if (!t.IsActive() || t.source_endpoint_id_ == 0) return py::none();
           return py::int_(t.source_endpoint_id_);
         };
+        auto reservoir_of = [&](size_t reservoir_id) -> py::object {
+          if (reservoir_id == 0 || !d.cycle.FindReservoir(reservoir_id)) return py::none();
+          return py::int_(reservoir_id);
+        };
         auto tprofile = [&](IBoundaryValue* v) -> std::string {
           return v ? kind(b::ProfileKinds(), static_cast<int>(v->GetType())) : std::string("constant");
         };
@@ -1325,6 +1341,7 @@ PYBIND11_MODULE(_core, m) {
             e["temperature_profile"] = tprofile(p->temperature_profile_.get());
             e["pump"] = pump_of(p->pump_.get());
             e["buffer_tank"] = tank_of(p->buffer_tank_);
+            e["reservoir"] = reservoir_of(p->reservoir_id_);
           } else if (auto* f = dynamic_cast<FlowBoundaryCondition*>(bc)) {
             e["kind"] = "flow";
             e["direction"] = dir;
@@ -1336,6 +1353,7 @@ PYBIND11_MODULE(_core, m) {
               sd["endpoint"] = st->endpoint_id_;
               sd["temperature_profile"] = tprofile(st->temperature_profile_.get());
               sd["buffer_tank"] = tank_of(st->buffer_tank_);
+              sd["reservoir"] = reservoir_of(st->reservoir_id_);
               if (auto* bs = dynamic_cast<BoundaryStream*>(st.get())) {
                 sd["type"] = "stream";
                 sd["flow"] = kind(b::FlowKinds(), static_cast<int>(bs->boundary_flow_->GetType()));
@@ -1374,6 +1392,17 @@ PYBIND11_MODULE(_core, m) {
           steps.append(sd);
         }
         out["steps"] = steps;
+
+        // Named sources and sinks.
+        py::list reservoirs;
+        for (const auto& r : d.cycle.reservoirs_) {
+          py::dict rd;
+          rd["id"] = r.id_;
+          rd["name"] = r.name_;
+          rd["kind"] = r.kind_ == ReservoirKind::SOURCE ? "source" : "sink";
+          reservoirs.append(rd);
+        }
+        out["reservoirs"] = reservoirs;
 
         // Connected pairs, by endpoint ID (each pair once).
         std::map<size_t, std::vector<size_t>> by_pair;
@@ -1489,6 +1518,7 @@ PYBIND11_MODULE(_core, m) {
     k["wall_material"] = b::WallMaterialKinds();
     k["wall_boundary"] = b::WallBoundaryKinds();
     k["profile"] = b::ProfileKinds();
+    k["reservoir"] = b::ReservoirKinds();
     k["flow"] = b::FlowKinds();
     k["pump"] = b::PumpKinds();
     k["pump_energy"] = b::PumpEnergyKinds();

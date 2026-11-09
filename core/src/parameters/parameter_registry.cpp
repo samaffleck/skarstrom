@@ -605,7 +605,30 @@ namespace adsim {
         Emplace("cycle.total_time", "", "cycle", "cycle", "total cycle time", "s",
                 cycle.total_cycle_time_, 1.0, 10000.0);
       }
+      for (auto& r : cycle.reservoirs_) AddReservoir(r);
       for (auto& step : cycle.step_list_) AddStep(step, cycle.step_time_mode_);
+    }
+
+    // A named source or sink (reservoir.h): reservoir[ID].pressure and, for a
+    // source, .temperature and .y[Component]. A sink lists its pressure only:
+    // an outlet is zero-gradient in temperature and composition whatever the
+    // direction of the flow, so a sink's own are not used. The endpoints
+    // attached to a reservoir take these values, so their own temperature,
+    // mole fractions and pressure target are not listed (AddBoundary,
+    // AddStream).
+    void AddReservoir(Reservoir& r) {
+      const std::string rp = Bracket("reservoir", std::to_string(r.id_));
+      const std::string ra = Bracket("reservoir", r.name_);
+      const bool source = r.kind_ == ReservoirKind::SOURCE;
+      Emplace(rp + ".pressure", ra + ".pressure", "cycle", r.name_, source ? "source pressure" : "sink pressure",
+              "Pa", r.pressure_, 1e4, 1e6);
+      if (!source) return;
+      Emplace(rp + ".temperature", ra + ".temperature", "cycle", r.name_, "source temperature", "K",
+              r.temperature_, 273.0, 473.0);
+      for (auto& [component, yi] : r.mole_fraction_) {
+        Emplace(rp + ".y[" + component + "]", ra + ".y[" + component + "]", "cycle", r.name_,
+                component + " mole fraction", "-", yi, 0.0, 1.0);
+      }
     }
 
     struct EndpointScope {
@@ -674,11 +697,16 @@ namespace adsim {
     void AddBoundary(IBoundaryCondition* boundary, const std::string& step_name, const std::string& side_alias) {
       if (auto* bc = dynamic_cast<PressureBoundaryCondition*>(boundary)) {
         EndpointScope ep{Bracket("endpoint", std::to_string(bc->endpoint_id_)), side_alias, step_name};
-        AddPressureProfile(bc->pressure_.get(), ep);
+        // Attached to a source or sink: the pressure target, the temperature
+        // and the composition are the reservoir's (reservoir[ID].*).
+        const bool attached = bc->reservoir_id_ != 0;
+        AddPressureProfile(bc->pressure_.get(), ep, attached);
         // An outlet's temperature and composition apply when the flow reverses.
         const bool inlet = bc->direction_ == BoundaryDirection::INLET;
-        AddInletTemperature(bc->temperature_, bc->temperature_profile_.get(), ep, inlet);
-        AddMoleFractions(bc->mole_fraction_, ep, inlet);
+        if (!attached) {
+          AddInletTemperature(bc->temperature_, bc->temperature_profile_.get(), ep, inlet);
+          AddMoleFractions(bc->mole_fraction_, ep, inlet);
+        }
         AddPump(bc->pump_.get(), ep);
         AddBufferTank(bc->buffer_tank_, ep);
       } else if (auto* bc = dynamic_cast<FlowBoundaryCondition*>(boundary)) {
@@ -693,13 +721,16 @@ namespace adsim {
 
     void AddStream(IBoundaryStream* stream, BoundaryDirection direction, const EndpointScope& ep) {
       const bool inlet = direction == BoundaryDirection::INLET;
-      AddInletTemperature(stream->temperature_, stream->temperature_profile_.get(), ep, inlet);
-      AddMoleFractions(stream->mole_fraction, ep, inlet);
+      const bool attached = stream->reservoir_id_ != 0;  // see AddBoundary
+      if (!attached) {
+        AddInletTemperature(stream->temperature_, stream->temperature_profile_.get(), ep, inlet);
+        AddMoleFractions(stream->mole_fraction, ep, inlet);
+      }
       if (auto* s = dynamic_cast<BoundaryStream*>(stream)) {
         AddFlow(s->boundary_flow_.get(), ep);
         AddPump(s->pump_.get(), ep);
       } else if (auto* v = dynamic_cast<ValveBoundaryStream*>(stream)) {
-        AddPressureProfile(v->boundary_value_.get(), ep);
+        AddPressureProfile(v->boundary_value_.get(), ep, attached);
         EmplaceKind(FindKind(ModelFamily::Stream, "valve"), {{"cv", &v->valve_.cv_}, {"xt", &v->valve_.xt_}},
                     ep.path + ".valve.", ep.alias + ".valve.", "cycle", ep.subcategory);
         EmplaceBool(ep.path + ".valve.check_valve", ep.alias + ".valve.check_valve", "cycle", ep.subcategory,
@@ -794,9 +825,13 @@ namespace adsim {
     // pressure, so its start is not listed; a ramp lasts the step unless
     // <kind>_use_step_time is off, when <kind>_time is listed too (it must not
     // exceed the step time; Cycle::PerformChecks).
-    void AddPressureProfile(IBoundaryValue* value, const EndpointScope& ep) {
+    // `attached`: the endpoint is attached to a reservoir, which gives the
+    // pressure the profile ends at, so that value (the constant, or a ramp's
+    // end) is not listed; the ramp's shape and time are.
+    void AddPressureProfile(IBoundaryValue* value, const EndpointScope& ep, bool attached = false) {
       if (!value) return;
       if (auto* bv = dynamic_cast<ConstantBoundaryValue*>(value)) {
+        if (attached) return;
         Emplace(ep.path + ".pressure", ep.alias + ".pressure", "cycle", ep.subcategory,
                 "pressure (constant)", "Pa", bv->constant_value_, 1e4, 1e6);
         return;
@@ -811,6 +846,7 @@ namespace adsim {
       for (auto& c : short_label) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
       for (const auto& [pname, param] : ModelFields(value)) {
         if (pname == "start") continue;  // a pressure ramp starts from the bed pressure
+        if (attached && pname == "end") continue;  // the reservoir's pressure
         const KindParameter* d = kind->Find(pname);
         if (!d) continue;
         const std::string head = ep.path + ".pressure_" + kind->tag + "_";

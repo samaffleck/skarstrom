@@ -39,6 +39,7 @@
 //   initial.pressure  initial.y[Nitrogen]  fluid.adsorbed_heat_capacity[Nitrogen]
 //   bed.particle_htc  bed.top_void.volume  cycle.step_time_mode
 //   kpi[Nitrogen].tracked  cost.discount_rate  cost.compressor[1].rated_power
+//   reservoir[1].pressure  reservoir[1].temperature  reservoir[1].y[Nitrogen]
 //   sensitivity.trajectories
 //
 // Together with the builder (objects/deck_builder.h), which creates the

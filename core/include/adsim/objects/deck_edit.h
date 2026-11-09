@@ -200,6 +200,48 @@ bool ConnectEndpoints(UserData& data, size_t endpoint_a, size_t endpoint_b, std:
 
 // ---- identity and repair ------------------------------------------------------------
 
+// ---- reservoirs (named sources and sinks) ---------------------------------------------------
+//
+// A reservoir is a named gas state the endpoints attach to
+// (adsim/boundary_conditions/reservoir.h): a source for inlets, a sink for
+// outlets. While an endpoint is attached, its temperature, mole fractions and
+// pressure target are the reservoir's.
+
+// Adds a reservoir with a unique name ("Source N" / "Sink N" when `name` is
+// empty), 293 K, 1 bar and a mole-fraction entry for every component (the
+// first component 1, the others 0). Returns its ID.
+size_t AddReservoir(UserData& data, ReservoirKind kind, const std::string& name = "");
+
+// Adds a reservoir that takes its temperature, mole fractions and pressure
+// from endpoint `endpoint_id` as it is now (a source for an inlet, a sink for
+// an outlet) and attaches the endpoint to it. The way to turn a boundary's own
+// values into a shared source or sink without typing them again. An endpoint
+// without a pressure of its own (a set-flow or pump stream) gives the
+// reservoir the pressure target of the other end of its step, else the
+// initial pressure.
+bool AddReservoirFromEndpoint(UserData& data, size_t endpoint_id, const std::string& name, size_t& reservoir_id,
+                              std::string& err);
+
+// Removes a reservoir. The endpoints attached to it keep the values they had
+// from it as their own.
+bool RemoveReservoir(UserData& data, size_t reservoir_id, std::string& err);
+
+// Renames a reservoir; refused for an empty name or one another reservoir has.
+bool RenameReservoir(UserData& data, size_t reservoir_id, const std::string& name, std::string& err);
+
+// Attaches endpoint `endpoint_id` to reservoir `reservoir_id`, or detaches it
+// with reservoir 0 (it then keeps the reservoir's values as its own). Refused
+// when the kinds do not agree: an inlet attaches to a source, an outlet to a
+// sink. A temperature ramp on the endpoint is dropped (a reservoir has one
+// temperature).
+bool AttachReservoir(UserData& data, size_t endpoint_id, size_t reservoir_id, std::string& err);
+
+// Detaches every endpoint whose direction no longer agrees with its
+// reservoir's kind (after a boundary changed from inlet to outlet or back).
+// Returns how many were detached.
+size_t DetachMismatchedReservoirs(UserData& data);
+
+
 // Stable IDs by first appearance: every step and endpoint whose ID is 0 or
 // repeated gets the next free one (Cycle::EnsureIds), likewise every layer
 // (and the layer counter is kept ahead of them), and the connection pair ids

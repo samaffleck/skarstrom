@@ -21,7 +21,7 @@ In C++ the same calls are `adsim::DeckView(UserData&)` and `adsim::DeckViewSchem
 The view has the deck's structure: components (name, formula, molar mass), adsorbents (each
 component's isotherm kind and rate-model kinds, reactions), layers (kind, transport models,
 composition), the bed and its wall, steps (time mode, the bottom and top ends with their streams,
-profiles, pumps and buffer tanks, energy sources, the heating medium), connections, the KPI
+profiles, pumps and buffer tanks, the source or sink of each endpoint, energy sources, the heating medium), connections, the named sources and sinks (`reservoirs`), the KPI
 configuration (each component's entry also lists its `kpi[C].tracked` value), user variables, the
 `cost` (cost estimate) and `sensitivity` (the stored study's settings) sections and the `info`,
 `settings`, `css` and `energy_balance` sections.

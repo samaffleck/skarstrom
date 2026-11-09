@@ -366,6 +366,7 @@ What each part takes:
 | `step.add_energy_source(layer, power=)` | heats (positive) or cools a layer during the step [W] |
 | `sim.connect(a, b)` | two endpoints (an outlet stream feeding an inlet stream or pressure boundary of another step) |
 | `inlet.set_buffer_tank(source, percentage=)` | an inlet fed, time-averaged, with `percentage` % of what endpoint `source` produced in its last run; `None` removes it |
+| `sim.add_source(name, temperature=, pressure=, y=)`, `sim.add_sink(name, pressure=)`, `endpoint.attach(reservoir)` | a named source or sink, and an endpoint that takes its temperature, mole fractions and pressure target ([Sources and Sinks](sources-and-sinks.md)) |
 | `sim.kpi.track(component, feed=, product=, recycle=)` | endpoints or step ends (all their streams); `recycle` is optional |
 
 Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)`, `sk.exponential(end, start=, time=, factor=)`, `sk.log_linear(end, start=, time=)` and `sk.double_exponential(end, rate_1, rate_2, weight, start=)`; `factor` is the exponential's F (after `time` the change left is 1/F of the initial; default 100). A pressure ramp starts from the bed pressure, so it takes no `start`; it lasts the whole step unless `time` is given (no longer than the step), e.g. `sk.linear("1 bar", time="10 s")` pressurises in 10 s and holds. The double exponential takes its rates and weight. `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. An outlet ignores `y` and `temperature`: gas that flows back in through an outlet carries the bed-end composition and temperature. To stop a valve outlet from reversing, give it `check_valve=True` (*New in 0.9*; see [Check valve](boundary-conditions.md#check-valve)). The run warns about backflow through an unconnected outlet (`settings.warn_outlet_backflow`).
@@ -373,6 +374,24 @@ Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`
 `set_*` replaces what was there: setting an end's streams removes its old streams and their connections, and a new model kind starts from that model's defaults. Objects held in variables (a step, a layer, `sim.bed`) follow these changes. `sim.describe()` returns the structure (the kind of every model, how each step end is set up, connections and KPI endpoints), and `sim.check()` runs the deck checks without running it.
 
 `skarstrom.to_script(sim)` writes the builder code for any deck, every value explicit, so you can turn a deck into a script and edit it from there; `python/tests/test_build.py` checks that this round trip reproduces every example deck parameter for parameter and, for five of them, that a run gives the same KPIs and series. The [example scripts](examples.md) build every bundled case this way, written by hand with units and comments.
+
+### Sources and sinks
+
+!!! note "New in 0.9"
+    `sim.add_source`, `sim.add_sink` and `endpoint.attach`.
+
+A **source** is a named gas state that any number of inlets attach to. A **sink** is a named pressure that any number of outlets attach to. An attached endpoint takes the temperature, the mole fractions and the pressure target of its source or sink. Its flow, valve or pump stays on the endpoint. Refer to [Sources and Sinks](sources-and-sinks.md).
+
+```python
+feed_gas = sim.add_source("Feed gas", temperature=298.15, pressure=1e5, y={"CO2": 0.15, "N2": 0.85})
+sim.steps["Feed"].bottom.attach(feed_gas)
+sim.steps["Pressurisation"].bottom.attach(feed_gas)
+feed_gas.y["CO2"] = 0.12                                   # reservoir[N].y[CarbonDioxide] in paths
+feed_gas.y["N2"] = 0.88
+sim.steps["Pressurisation"].bottom.detach()                # it keeps the values as its own
+sim.steps["Feed"].bottom.detach()
+sim.edit.remove_reservoir(feed_gas)
+```
 
 ### Pump-driven streams and buffer tanks
 

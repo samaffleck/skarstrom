@@ -92,6 +92,7 @@ nav:
   - Simulating a process:
       - Cycles and Initial Conditions: cycles.md
       - Boundary Conditions: boundary-conditions.md
+      - Sources and Sinks: sources-and-sinks.md
       - Connecting Beds: connecting-beds.md
       - Pressure Equalisation: pressure-equalization.md
       - Light-Product Pressurisation: light-product-pressurization.md

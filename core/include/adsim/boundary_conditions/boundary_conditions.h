@@ -144,6 +144,10 @@ namespace adsim {
     std::unique_ptr<IPump> pump_{};
     CycleEndpointSummary cycle_summary_{};
     BufferTankSource buffer_tank_{};
+    // The reservoir this boundary is attached to (see
+    // IBoundaryStream::reservoir_id_); 0 = none. While attached,
+    // temperature_, mole_fraction_ and the pressure target are the reservoir's.
+    size_t reservoir_id_ = 0;
     double step_time_cached_ = 0.0;
 
 	private:
@@ -175,6 +179,10 @@ namespace adsim {
 				ar(cereal::make_nvp("Endpoint_ID", endpoint_id_));
 			}
 			// version < 4: endpoint_id_ stays 0 and Cycle::EnsureIds assigns it on load.
+			if (version >= 6) {
+				ar(cereal::make_nvp("Reservoir_ID", reservoir_id_));
+			}
+			// version < 6: no reservoirs; reservoir_id_ stays 0.
 		}
 	};
 
@@ -249,6 +257,6 @@ namespace adsim {
 
 // Class versions live next to the inline serialize templates: every
 // translation unit that saves or loads a deck must see the same numbers.
-CEREAL_CLASS_VERSION(adsim::PressureBoundaryCondition, 5);
+CEREAL_CLASS_VERSION(adsim::PressureBoundaryCondition, 6);
 CEREAL_CLASS_VERSION(adsim::FlowBoundaryCondition, 1);
 CEREAL_CLASS_VERSION(adsim::ClosedBoundaryCondition, 1);
