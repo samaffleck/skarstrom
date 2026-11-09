@@ -106,6 +106,10 @@ namespace adsim {
 
   // Activity of a component with mole fraction y at (T, P) on a basis.
   double Activity(RateBasis basis, double y, double T, double P);
+  // The mole fraction whose activity at (T, P) is the basis' floor
+  // (kMinActivityBar or kMinActivityConcentration): below it a negative
+  // power of the activity no longer changes.
+  double ActivityFloorMoleFraction(RateBasis basis, double T, double P);
 
   class IReactionRate {
   public:
@@ -128,6 +132,17 @@ namespace adsim {
     virtual bool UsesComponent(const std::string& /*component*/) const { return false; }
     // Erase every per-component entry of `component`.
     virtual void RemoveComponent(const std::string& /*component*/) {}
+    // The smallest nonzero power to which the rate raises the activity of
+    // `component` (cached values): over the orders n_i, the exponents
+    // n_i + nu_i of the reverse monomial (reversible kinds) and the exponents
+    // e_ji of the LHHW denominator terms; +infinity when the rate does not
+    // depend on the component. Below 1 the derivative of the rate in the
+    // component's mole fraction is unbounded as it goes to zero (below 0 the
+    // rate itself is, up to the activity floor), which the solver's Jacobian
+    // treats specially (jacobian.h). The expression kind cannot tell: 1 when
+    // its formula names the component, else +infinity.
+    virtual double MinExponent(const std::string& component,
+                               const std::map<std::string, double>& nu) const;
 
     virtual void EvaluateExpressions(const EvalContext& ctx) = 0;
     virtual void CompileForRun(const UserVariableRegistry* /*registry*/) {}
@@ -142,6 +157,7 @@ namespace adsim {
   class PowerLawRate : public IReactionRate {
   public:
     ReactionRateType GetType() const override { return ReactionRateType::PowerLaw; }
+    double MinExponent(const std::string& component, const std::map<std::string, double>& nu) const override;
     double Rate(const ReactionState& state, RateBasis basis, const std::map<std::string, double>& nu) override;
     void SeedComponents(const std::map<std::string, double>& nu) override;
     bool UsesComponent(const std::string& component) const override;
@@ -167,6 +183,7 @@ namespace adsim {
   class ReversiblePowerLawRate : public IReactionRate {
   public:
     ReactionRateType GetType() const override { return ReactionRateType::ReversiblePowerLaw; }
+    double MinExponent(const std::string& component, const std::map<std::string, double>& nu) const override;
     double Rate(const ReactionState& state, RateBasis basis, const std::map<std::string, double>& nu) override;
     void SeedComponents(const std::map<std::string, double>& nu) override;
     bool UsesComponent(const std::string& component) const override;
@@ -211,6 +228,7 @@ namespace adsim {
   class LhhwRate : public IReactionRate {
   public:
     ReactionRateType GetType() const override { return ReactionRateType::Lhhw; }
+    double MinExponent(const std::string& component, const std::map<std::string, double>& nu) const override;
     double Rate(const ReactionState& state, RateBasis basis, const std::map<std::string, double>& nu) override;
     void SeedComponents(const std::map<std::string, double>& nu) override;
     bool UsesComponent(const std::string& component) const override;
@@ -252,6 +270,7 @@ namespace adsim {
     ReactionRateType GetType() const override { return ReactionRateType::Expression; }
     double Rate(const ReactionState& state, RateBasis basis, const std::map<std::string, double>& nu) override;
     bool UsesComponent(const std::string& component) const override;
+    double MinExponent(const std::string& component, const std::map<std::string, double>& nu) const override;
     void EvaluateExpressions(const EvalContext& ctx) override { expression_.Evaluate(ctx); }
 
     ExpressionParam expression_{0.0};   // r [mol/(kg s)]

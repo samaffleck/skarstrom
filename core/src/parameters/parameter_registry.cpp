@@ -226,6 +226,9 @@ namespace adsim {
       BoolField("settings", "warn_history_truncated", "warn when the log keeps fewer cycles than the diagnostics read (HISTORY_TRUNCATED)",
                 [](const UserData& u) { return u.settings.warnings_.history_truncated; },
                 [](UserData& u, bool b) { u.settings.warnings_.history_truncated = b; }),
+      BoolField("settings", "warn_reaction_stiff", "warn when the step collapses at a reacting cell (REACTION_STIFF)",
+                [](const UserData& u) { return u.settings.warnings_.reaction_stiff; },
+                [](UserData& u, bool b) { u.settings.warnings_.reaction_stiff = b; }),
 
       // css (cyclic steady state)
       IntField("css", "method", "CSS method",

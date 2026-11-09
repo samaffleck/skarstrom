@@ -35,6 +35,7 @@ namespace adsim {
     bool mass_balance_stuck = true;    // MASS_BALANCE_STUCK: a cycle mole balance stays open as the run settles
     bool step_retries = true;          // STEP_RETRIES: many rejected integrator attempts in a cycle
     bool history_truncated = true;     // HISTORY_TRUNCATED: the log kept fewer cycles than the diagnostics read
+    bool reaction_stiff = true;        // REACTION_STIFF: the step collapsed at a reacting cell
 
   private:
     friend class ::cereal::access;
@@ -63,9 +64,12 @@ namespace adsim {
       // v3: the outlet backflow warning (on for older decks).
       if (version >= 3) ar(cereal::make_nvp("Outlet_Backflow", outlet_backflow));
       else outlet_backflow = true;
+      // v4: the reaction step-collapse warning (on for older decks).
+      if (version >= 4) ar(cereal::make_nvp("Reaction_Stiff", reaction_stiff));
+      else reaction_stiff = true;
     }
   };
 
 } // namespace adsim
 
-CEREAL_CLASS_VERSION(adsim::WarningSettings, 3);
+CEREAL_CLASS_VERSION(adsim::WarningSettings, 4);

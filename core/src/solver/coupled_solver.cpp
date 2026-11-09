@@ -123,6 +123,25 @@ namespace adsim {
   }
 
   namespace {
+    // REACTION_STIFF (run_health.h): after an accepted step, or at a failed
+    // one, in a run with reactions: a step shorter than the threshold goes to
+    // the monitor with the location of its largest weighted local error.
+    // Returns true when a failed step produced the warning (the caller logs
+    // it, as a failed run does not log the run-health summary).
+    bool CheckReactionStep(RunHealthMonitor& health, const SolverData& solver, const UserData& data,
+                           int cycle, int step, double t, bool failed) {
+      if (!data.state.HasReactions()) return false;
+      const double h = std::abs(solver.GetLastStep());
+      if (!(h < RunHealthThresholds::kReactionStiffStep)) return false;
+      int cell = -1;
+      std::string component;
+      if (!solver.LargestLocalErrorLocation(cell, component)) return false;
+      health.OnShortStep(data, cycle, step, t, h, cell, component, failed);
+      if (!failed) return false;
+      for (const auto& w : health.Report().warnings)
+        if (w.check == RunHealthCheck::ReactionStiff) return true;
+      return false;
+    }
     // IDAS quadrature right-hand side: the KPI integrands at IDA's corrected
     // solution (kpi_quadrature.h). It loads (t, y, y') into the state as
     // logging does; the residual reloads the state on every call, so the
@@ -243,6 +262,7 @@ namespace adsim {
     double t_final = t_start + step.step_time_;
     int flag = solver_data_.SetStopTime(t_final);
     solver_data_.OnStepStart(cycle_index);
+    run_health_.OnStepStart();
     // Fresh IDA history for the new boundary conditions (see
     // SolverData::RestartForNewStep).
     solver_data_.RestartForNewStep();
@@ -356,6 +376,11 @@ namespace adsim {
         // Either a fatal (non-recoverable) code, the retry budget is exhausted,
         // or a retry could not change anything: fail with a specific message
         // instead of aborting silently.
+        if (CheckReactionStep(run_health_, solver_data_, user_data_, cycle_index, step_index,
+                              t_curr - user_data_.step_start_time_, true)) {
+          for (const auto& w : run_health_.Report().warnings)
+            if (w.check == RunHealthCheck::ReactionStiff) LogMessage(LogLevel::LOW, w.message);
+        }
         if (recoverable) {
           std::ostringstream ss;
           ss << "  Step \"" << step.step_name_ << "\" failed to converge after "
@@ -372,6 +397,8 @@ namespace adsim {
 
       // Accepted step: reset the consecutive-failure counter.
       retry_count = 0;
+      CheckReactionStep(run_health_, solver_data_, user_data_, cycle_index, step_index,
+                        t_curr - user_data_.step_start_time_, false);
 
       if (profile.enabled) {
         if (max_step > 0.0 && std::abs(solver_data_.GetLastStep()) >= max_step * (1.0 - 1e-9))
@@ -411,6 +438,11 @@ namespace adsim {
       }
 
       if (max_iters > 0 && ++iter_count >= max_iters) {
+        if (CheckReactionStep(run_health_, solver_data_, user_data_, cycle_index, step_index,
+                              t_curr - user_data_.step_start_time_, true)) {
+          for (const auto& w : run_health_.Report().warnings)
+            if (w.check == RunHealthCheck::ReactionStiff) LogMessage(LogLevel::LOW, w.message);
+        }
         LogMessage(LogLevel::LOW,
                    "  Step \"" + step.step_name_ + "\" exceeded max OneStep iterations ("
                    + std::to_string(max_iters) + "); aborting.");
@@ -997,6 +1029,11 @@ namespace adsim {
           continue;
         }
 
+        if (CheckReactionStep(run_health_, solver_data_, user_data_, cycle_index, step_index,
+                              t_curr - user_data_.step_start_time_, true)) {
+          for (const auto& w : run_health_.Report().warnings)
+            if (w.check == RunHealthCheck::ReactionStiff) LogMessage(LogLevel::LOW, w.message);
+        }
         ChunkStatus temp_status;
         temp_status.Failed("", flag);
         const std::string residual_error = ResidualErrorSuffix(user_data_);
@@ -1018,6 +1055,8 @@ namespace adsim {
 
       // Accepted step: reset the consecutive-failure counter.
       retry_count = 0;
+      CheckReactionStep(run_health_, solver_data_, user_data_, cycle_index, step_index,
+                        t_curr - user_data_.step_start_time_, false);
 
       LogFillInPoints(solver_data_, user_data_, t_prev, t_curr, log_interval, [&](double t) {
         equation_log_.LogState(user_data_.state, t, status_.GetStepIndex(), cycle_index);
@@ -1082,6 +1121,7 @@ namespace adsim {
       return false;
     }
     solver_data_.OnStepStart(cycle_index);
+    run_health_.OnStepStart();
     // Fresh IDA history for the new boundary conditions (see
     // SolverData::RestartForNewStep).
     solver_data_.RestartForNewStep();
@@ -1913,6 +1953,25 @@ namespace adsim {
       if (v > worst_value) { worst_value = v; worst = i; }
     }
     return state.DescribeBandedIndex(static_cast<size_t>(worst));
+  }
+
+  bool SolverData::LargestLocalErrorLocation(int& cell, std::string& component) const {
+    if (!ida_mem_ || !ewt_ || !ele_ || !custom_jacobian_) return false;
+    if (IDAGetErrWeights(ida_mem_, ewt_) != IDA_SUCCESS) return false;
+    if (IDAGetEstLocalErrors(ida_mem_, ele_) != IDA_SUCCESS) return false;
+    const sunrealtype* e = N_VGetArrayPointer(ele_);
+    const sunrealtype* w = N_VGetArrayPointer(ewt_);
+    const sunindextype n = std::min<sunindextype>(N_VGetLength(ele_), jacobian_.Size());
+    sunindextype worst = -1;
+    double worst_value = -1.0;
+    for (sunindextype i = 0; i < n; ++i) {
+      const double v = std::abs(e[i] * w[i]);
+      if (v > worst_value) { worst_value = v; worst = i; }
+    }
+    if (worst < 0) return false;
+    cell = jacobian_.CellOf(worst);
+    component = jacobian_.ComponentOf(jacobian_.VariableOf(worst));
+    return true;
   }
 
   long int SolverData::GetNumSteps() const {

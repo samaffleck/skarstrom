@@ -338,6 +338,10 @@ namespace adsim {
     // Which state entry dominates IDA's weighted local error estimate (the
     // variable limiting the step size), as "<name> @ cell <i>".
     std::string DescribeLargestLocalError(const Equations& state) const;
+    // The cell and the mole-fraction component (empty for any other
+    // variable) of that entry; false when not available (no accepted step
+    // yet, or IDA's internal Jacobian, whose layout is not kept).
+    bool LargestLocalErrorLocation(int& cell, std::string& component) const;
     long int GetNumSteps() const; // cumulative internal steps taken
     const BandedJacobian& GetJacobian() const { return jacobian_; }
     // True when a band audit found a coupling outside the probed matrix band
