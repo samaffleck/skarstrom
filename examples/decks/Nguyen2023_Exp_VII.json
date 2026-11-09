@@ -2185,6 +2185,7 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
+                "History_Truncated": true,
                 "Outlet_Backflow": true,
                 "Reaction_Stiff": true
             },

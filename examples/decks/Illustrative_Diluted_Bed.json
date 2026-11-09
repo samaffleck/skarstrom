@@ -1438,7 +1438,8 @@
                 "Channel_Reynolds": true,
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
-                "Step_Retries": true
+                "Step_Retries": true,
+                "History_Truncated": true
             },
             "Valve_Bed_Pressure": 0
         },
