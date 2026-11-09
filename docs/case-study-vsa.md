@@ -180,6 +180,7 @@ A candidate is feasible when every margin is zero or more. Each margin is normal
 | No fluidisation | The largest approach to fluidisation, every packed face, every step, ≤ 1 | `sim.operating_limits()` |
 | Bed pressure drop | The largest \|P<sub>top</sub> − P<sub>bottom</sub>\| / L over the logged times of every step ≤ `--max-dp-per-m` (10 kPa m⁻¹) | `sim.profile("pressure", ...)` |
 | Evacuation floor | The lowest pressure in the column in blowdown and evacuation ≥ `variable[p_evac_floor]` (10 kPa) | `sim.operating_limits()` (`min_pressure`) |
+| Product | CO₂ recovery ≥ 1 %. Without it a weak pump that evacuates nothing meets every plant limit, and NSGA-II, which ranks any feasible candidate above any infeasible one, fills its population with runs that make nothing | KPI record |
 | Converged | The run reached cyclic steady state and `result.healthy` is true | `RunResult` |
 | No outlet backflow (`--backflow-constraint`) | Gas in through an unconnected outlet ≤ 0.1 % of the cycle feed | `sim.operating_limits()` (`outlet_backflow` warning) |
 
@@ -200,11 +201,34 @@ In the feed step the pressure drop is about 0.6 kPa m⁻¹. The pressure-drop bo
 
 ### Warm starts, parallel runs and resuming
 
-- **Warm starts.** Each worker process keeps a `skarstrom.optimisation.StateCache`. Each candidate starts from the cyclic steady state of the nearest candidate that the worker has run (`skarstrom.optimisation.run_warm`, distance in the variables scaled by their bounds). In the runs below a warm-started candidate took about half the wall time of a cold one. `--no-warm-start` runs every candidate from the deck's initial state.
+- **Warm starts.** Each worker process keeps a `skarstrom.optimisation.StateCache`. Each candidate starts from the cyclic steady state of the nearest candidate that the worker has run (`skarstrom.optimisation.run_warm`, distance in the variables scaled by their bounds). The runs below give the saving. `--no-warm-start` runs every candidate from the deck's initial state.
 - **Seeds.** The first population is the base deck's own point and a uniform sample of the box from `--seed`. NSGA-II uses the same seed.
 - **The results file.** Every evaluation is appended to `results.csv` in `--out` (default `examples/output/case_study/`): the deck, the study, the variables, the status, the CSS cycle, the cycles run, the run-health codes, whether the run was warm-started, the wall time, the four KPIs, each constraint's value, each margin and `feasible`.
 - **Resuming.** Run the same command again. The candidates that are already in the file are read back and not run again. With the same seed, NSGA-II proposes the same candidates, so the search continues where it stopped. A larger `--gen` continues a finished search.
 
 ### The three fronts
 
-RESULTS_PLACEHOLDER
+A short search on one 4-core machine (2026-11-09, seed 1, warm starts on). The constrained studies had a population of 16: the `energy` studies ran 6 generations and the `purity` studies 12 (resumed from 6). The `--unconstrained` studies had a population of 12 and ran 4 generations. That is 844 runs in total, at about 13 s each. Each front below takes every converged evaluation of the deck, whatever its study, that satisfies the constraints named. These searches are far shorter than the paper's 4800 evaluations per front, so the fronts are lower bounds on what is possible.
+
+| Front (purity / recovery) | Four-step | LPP |
+|---|---|---|
+| Paper (Table 3, the paper's model) | A 99.3 / 60.0, B 95.2 / 64.1, C1 83.4 / 68.2 | D1 96.1 / 86.8, E 90.4 / 91.1, F 79.9 / 94.6 |
+| Unconstrained (CSS and run health only) | 100 / 78.5, 92.7 / 79.1, 87.6 / 85.1 | 99.2 / 72.9, 97.4 / 83.7, 94.9 / 87.8, 89.1 / 93.6, 86.9 / 95.1 |
+| Plant limits (fluidisation, pressure drop, 10 kPa floor) | 83.1 / 8.5, 57.4 / 13.8, 47.2 / 14.5 | 84.1 / 11.5, 80.5 / 47.8, 53.1 / 57.4 |
+
+- **Unconstrained, the devices reach and pass the paper's fronts.** At the paper's purity, the four-step deck recovers 78.5 % against A's 60.0 % and B's 64.1 %, and 85.1 % against C1's 68.2 %. The three-bed schedule gives the evacuation a full third of the cycle. The LPP deck passes F (95.1 % against 94.6 %), and it is 2.5 points below E and 3.1 points below D1 after 4 generations. Its unconstrained front evacuates to 2–4 kPa, the depth at which the paper's own search ended (its P<sub>low</sub> converged to its 3 kPa bound).
+- **No evaluation meets 95 % purity and 90 % recovery.** This holds with and without the plant limits. The closest is the LPP deck's 94.9 / 87.8 at 229 kWh t⁻¹, which is unconstrained (and the LPP base point, 94.1 / 88.6 at 224 kWh t⁻¹). The four-step cycle stays below 86 % recovery at any purity. The `energy` studies therefore have no feasible point. Their output is the least-violating candidate.
+- **The 10 kPa floor is the constraint that decides.** Every point of the plant-limit fronts ends its evacuation within 1 kPa of the floor (10.0–11.0 kPa). At that pressure 13X keeps much of its CO₂, so the working capacity collapses. The best constrained LPP point is 80.5 % purity at 47.8 % recovery, for 175 kWh t⁻¹. Fluidisation and pressure drop are met by slower valves (the four-step deck's pressurisation C<sub>v</sub> falls to about 0.0005), and they cost little.
+- **The four-step deck's pressurisation valve.** The valve opens fully onto the evacuated bed, so the approach to fluidisation at the opening falls below 1 only for C<sub>v</sub> below about 0.001. That valve then cannot pressurise the bed in its step (95 kPa at C<sub>v</sub> = 0.001), and the feed must finish the pressurisation. A valve that opens on a ramp, a [log-linear pressure ramp](boundary-conditions.md#choosing-a-pressurisation-ramp) for example, is the device change that would remove this trade-off.
+
+The warm starts reduced the work by about 40 %. A warm-started candidate ran 24 cycles to CSS on average, against 40 for the cold starts (12.7 s against 19.4 s of wall time). The results file of these runs is 416 kB, so this page gives the summary.
+
+To repeat the runs:
+
+<!-- no-run: needs a repository checkout and pymoo; about two hours on 4 cores -->
+```bash
+cd examples
+python perez_2019_case_study_optimise.py --objectives energy --pop 16 --gen 6 --out runs/
+python perez_2019_case_study_optimise.py --objectives purity --pop 16 --gen 12 --out runs/
+python perez_2019_case_study_optimise.py --objectives purity --unconstrained --pop 12 --gen 4 --out runs/
+```
