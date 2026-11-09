@@ -428,11 +428,12 @@ double BreakthroughTime(const Outcome& o) {
 // Run health (README, "Run health"). Every case starts from a bed without the
 // reaction products in equilibrium with the catalyst (the sorbent case also
 // has no CO2), and the reforming and shift reactions relax far faster than the
-// flow: the integrator's step collapses in the first fraction of a second,
-// which is what REACTION_STIFF reports. The test accepts that code when all
-// short steps end within kStiffStartUpTime, and prints its hint; any other
-// code, or short steps later in the run, fails.
-constexpr double kStiffStartUpTime = 1.0;  // [s] about one bed residence time
+// flow: the integrator's step collapses in the first milliseconds (the last
+// step under 1e-4 s is at t <= 3 ms in every case, 2026-11-09), which is what
+// REACTION_STIFF reports. The test accepts that code when all short steps end
+// within kStiffStartUpTime, and prints its hint; any other code, or short
+// steps later in the run, fails.
+constexpr double kStiffStartUpTime = 0.1;  // [s] well inside the ~0.7 s bed residence time
 
 void CheckHealth(const Outcome& o, const std::string& where) {
   for (const auto& w : o.warnings) {

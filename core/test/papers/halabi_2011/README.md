@@ -206,6 +206,26 @@ the rows stay record-only. Breakthrough times and CO+CO₂ levels are not
 compared row by row; the thesis prints neither per run in a form the model can
 reproduce.
 
+### Run health
+
+Five of the twelve sorption-enhanced runs (all four at 1.5 bar, and S/C 4 at
+4.5 bar) report the `REACTION_STIFF` run-health warning: 103–133 accepted steps
+shorter than 1e-4 s in the feed step, at reaction R1 or R3 with H₂ at
+y ≈ 0.07–0.10 in the reacting cells. Every such step falls in the first 3 ms of
+the run; after that the integrator takes long steps (each run takes about 2.5 s
+of wall time). This is the start-up the warning describes: the CO₂ of the
+starting gas is replaced by Ar, so the gas is out of reaction equilibrium, and
+the reforming and shift reactions relax far faster than the flow. The hint the
+engine prints is "Start the bed with some Hydrogen in initial.y (or at the
+gas-phase equilibrium of the feed), add a trace to the feed, or check the rate
+constants and orders"; the deck already starts at the gas-phase equilibrium
+(see "Start-up"). The test therefore accepts `REACTION_STIFF` when the last
+step shorter than 1e-4 s is at t ≤ 0.1 s, prints each warning with its hint,
+and fails on any other code or on short steps later in the run. The
+gas-phase-equilibrium runs stay below the warning's count (28–41 short steps,
+all before 0.8 ms) and must be healthy. The results above are unchanged by
+the warning.
+
 ### Attribution runs (final deck)
 
 One input changed at a time, all twelve runs, 2026-11-09:
