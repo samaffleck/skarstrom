@@ -130,15 +130,19 @@ TEST(FilmCorrelation, StoredWithTheLayerAndOlderArchivesLoadTheDefault) {
   EXPECT_NE(json.find("\"Film_Correlation\": 1"), std::string::npos) << json;
   EXPECT_EQ(LoadLayer(json).film_correlation_, FilmCorrelation::Gunn);
 
-  // The same archive as version 5 wrote it: no Film_Correlation field.
+  // The same archive as version 5 wrote it: no Film_Correlation field, nor
+  // the fields of later versions (Particle_Shape, v7).
   std::string v5 = json;
-  const std::string version = "\"cereal_class_version\": 6";
+  const std::string version =
+      "\"cereal_class_version\": " + std::to_string(cereal::detail::Version<MixedAdsorbentLayer>::version);
   const auto at = v5.find(version);
   ASSERT_NE(at, std::string::npos) << json;
   v5.replace(at, version.size(), "\"cereal_class_version\": 5");
-  const auto field = v5.find(",\n        \"Film_Correlation\": 1");
-  ASSERT_NE(field, std::string::npos) << json;
-  v5.erase(field, std::string(",\n        \"Film_Correlation\": 1").size());
+  for (const std::string removed : {",\n        \"Film_Correlation\": 1", ",\n        \"Particle_Shape\": 0"}) {
+    const auto field = v5.find(removed);
+    ASSERT_NE(field, std::string::npos) << json;
+    v5.erase(field, removed.size());
+  }
   EXPECT_EQ(LoadLayer(v5).film_correlation_, FilmCorrelation::WakaoFunazkri);
 }
 

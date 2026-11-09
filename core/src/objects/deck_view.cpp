@@ -200,20 +200,26 @@ namespace adsim {
 
       // Whether the adsorbent sits in a packed layer and in a structured one
       // (a layer whose composition names it). In no layer: packed.
-      std::pair<bool, bool> LayerShapes(AdsorbentID id) {
-        bool packed = false, structured = false;
+      // `shape` is the particle shape of the first packed layer that holds it
+      // (Sphere when none does).
+      struct Shapes { bool packed = false, structured = false; DiffusionShape shape = DiffusionShape::Sphere; };
+      Shapes LayerShapes(AdsorbentID id) {
+        Shapes s;
         for (const auto& layer : d_.bed.layers_.layers_) {
           if (!layer.composition_.count(id)) continue;
-          (layer.IsStructured() ? structured : packed) = true;
+          if (layer.IsStructured()) { s.structured = true; continue; }
+          if (!s.packed) s.shape = LayerDiffusionShape(layer);
+          s.packed = true;
         }
-        if (!packed && !structured) packed = true;
-        return {packed, structured};
+        if (!s.packed && !s.structured) s.packed = true;
+        return s;
       }
 
       // The generic coefficient model of one site (prefix "" or "slow_"):
       // <pre>resistances (switch states by tag), <pre>capacity_factor_mode,
       // <pre>preset (the derived preset tag, or custom), <pre>equation (LaTeX;
-      // the sphere form when the adsorbent is in a packed layer, else the slab
+      // the packed form, sphere or cylinder as the first packed layer that
+      // holds the adsorbent, when it is in a packed layer, else the slab
       // form) and <pre>equation_slab (the slab form when it is in layers of
       // both kinds, else null). All null without a generic model on the site.
       void Coefficient(Value& cv, const std::string& pre, IMassTransferCoefficientModel* m, AdsorbentID id) {
@@ -228,9 +234,9 @@ namespace adsim {
         Set(cv, pre + "resistances", std::move(r), a_);
         Set(cv, pre + "capacity_factor_mode", std::string(CapacityFactorModeList[static_cast<int>(g->CapacityMode())]), a_);
         Set(cv, pre + "preset", g->PresetTag(), a_);
-        const auto [packed, structured] = LayerShapes(id);
+        const auto [packed, structured, shape] = LayerShapes(id);
         Set(cv, pre + "equation",
-            MassTransferEquationLatex(*g, packed ? DiffusionShape::Sphere : DiffusionShape::Slab), a_);
+            MassTransferEquationLatex(*g, packed ? shape : DiffusionShape::Slab), a_);
         if (packed && structured) Set(cv, pre + "equation_slab", MassTransferEquationLatex(*g, DiffusionShape::Slab), a_);
         else SetNull(cv, pre + "equation_slab", a_);
       }
@@ -320,6 +326,10 @@ namespace adsim {
             Set(v, "channel_shape", KindName(b::ChannelShapeKinds(), static_cast<int>(layer.structured_.channel_shape_)), a_);
           else
             SetNull(v, "channel_shape", a_);
+          if (layer.IsStructured())
+            SetNull(v, "particle_shape", a_);
+          else
+            Set(v, "particle_shape", KindName(ParticleShapeKinds(), static_cast<int>(layer.particle_shape_)), a_);
           Set(v, "momentum", KindName(b::MomentumKinds(), static_cast<int>(layer.momentum_model_)), a_);
           Set(v, "film_correlation", KindName(b::FilmCorrelationKinds(), static_cast<int>(layer.film_correlation_)), a_);
           auto& le = layer.equations_;
@@ -769,13 +779,14 @@ namespace adsim {
     },
     "Layer": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "name", "kind", "channel_shape", "momentum", "film_correlation", "dispersion",
+      "required": ["id", "name", "kind", "channel_shape", "particle_shape", "momentum", "film_correlation", "dispersion",
                    "heat_dispersion", "internal_heat_transfer", "external_heat_transfer", "composition", "values"],
       "properties": {
         "id": {"type": "integer"},
         "name": {"type": "string"},
         "kind": {"type": "string", "enum": @LAYER@},
         "channel_shape": {"type": ["string", "null"], "enum": @CHANNEL_SHAPE@},
+        "particle_shape": {"type": ["string", "null"], "enum": @PARTICLE_SHAPE@},
         "momentum": {"type": "string", "enum": @MOMENTUM@},
         "film_correlation": {"type": "string", "enum": @FILM_CORRELATION@},
         "dispersion": {"type": ["string", "null"], "enum": @DISPERSION@},
@@ -959,6 +970,7 @@ namespace adsim {
       {"@MIXING_RULE@", JsonList(b::MixingRuleKinds())},
       {"@LAYER@", JsonList(b::LayerKinds())},
       {"@CHANNEL_SHAPE@", JsonList(b::ChannelShapeKinds(), true)},
+      {"@PARTICLE_SHAPE@", JsonList(ParticleShapeKinds(), true)},
       {"@MOMENTUM@", JsonList(b::MomentumKinds())},
       {"@FILM_CORRELATION@", JsonList(b::FilmCorrelationKinds())},
       {"@DISPERSION@", JsonList(b::DispersionKinds(), true)},

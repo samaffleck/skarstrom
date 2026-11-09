@@ -360,6 +360,11 @@ bool SetDispersionKind(UserData& data, LayerID layer, AxialDispersionType kind, 
 bool SetHeatDispersionKind(UserData& data, LayerID layer, AxialHeatDispersionType kind, std::string& err);
 bool SetInternalHeatTransferKind(UserData& data, LayerID layer, InternalHeatTransferType kind, std::string& err);
 bool SetExternalHeatTransferKind(UserData& data, LayerID layer, ExternalHeatTransferType kind, std::string& err);
+// The packed particle shape of a layer by its tag (ParticleShapeKinds:
+// "sphere", "cylinder"). Only the LDF diffusion geometry changes; the
+// particle diameter is kept (for a cylinder it is the extrudate diameter).
+// Stored, unused, on a structured layer. Refuses an unknown layer or tag.
+bool SetParticleShape(UserData& data, LayerID layer, const std::string& shape, std::string& err);
 bool SetParticleHeatTransferKind(UserData& data, ParticleHeatTransferType kind, std::string& err);
 
 // The boundary on `side` of a step (a pressure, flow or closed end). The old

@@ -67,9 +67,14 @@ struct KindParameter {
 };
 
 // The particle shape a diffusion resistance is written for: packed spheres
-// (packed layers), a slab of half-thickness l (structured layers), a cylinder
-// (no fragments yet).
+// of radius r_p, a slab of half-thickness l (structured layers), or packed
+// infinite cylinders of radius r_f (MixedAdsorbentLayer::particle_shape_).
 enum class DiffusionShape { Sphere, Slab, Cylinder };
+
+class MixedAdsorbentLayer;
+// The shape of a layer's diffusion geometry: Slab for a structured layer,
+// else the packed particle shape (Sphere or Cylinder).
+DiffusionShape LayerDiffusionShape(const MixedAdsorbentLayer& layer);
 
 // One resistance of the generic mass-transfer coefficient model
 // (series_resistance; MassTransferCoefficientSeriesResistance): its switch tag,
@@ -92,7 +97,7 @@ struct ResistanceDescriptor {
     // (lumped: k_L = k; micropore: D_c = D_c0); empty: `where` always.
     std::string where_isothermal;
   };
-  Latex sphere, slab, cylinder;  // per DiffusionShape (cylinder empty for now)
+  Latex sphere, slab, cylinder;  // per DiffusionShape
   std::string source;            // literature, for docs and tooltips
   const Latex& Fragments(DiffusionShape shape) const {
     return shape == DiffusionShape::Slab ? slab : shape == DiffusionShape::Cylinder ? cylinder : sphere;
@@ -248,8 +253,11 @@ const KindDescriptor& ResistanceKind();
 // terms joined by " + " (series order); then, when any definitions apply,
 // " \\ " and the definitions of the enabled terms and of the capacity mode
 // joined by ",\qquad ", the whole inside \begin{aligned} ... \end{aligned}.
-// Empty for a shape without fragments (cylinder).
+// Empty when no enabled term has a fragment for the shape.
 std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model, DiffusionShape shape);
+// The same for the shape of `layer` (LayerDiffusionShape).
+std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model,
+                                      const MixedAdsorbentLayer& layer);
 
 // Copy every parameter `to` shares with `from` (same name and same unit in
 // their descriptors), value and expression text. Returns the names copied.

@@ -1589,7 +1589,13 @@ class Layer(_Node):
     bed_void_fraction = Real()
     """Interparticle (bed) void fraction [-]."""
     particle_diameter = Real()
-    """Particle diameter [m]."""
+    """Particle diameter [m]. For a cylinder (``particle_shape = "cylinder"``) the extrudate or fibre
+    diameter 2 r_f."""
+    particle_shape = Choice()
+    """Shape of the packed particles for the LDF diffusion geometry: "sphere" (default; k = 15 D / r_p^2,
+    V/S = r_p / 3) or "cylinder" (an infinite cylinder of radius r_f = d_p / 2; k = 8 D / r_f^2,
+    V/S = r_f / 2). Pressure drop, dispersion and the film correlations keep d_p as an equivalent-sphere
+    diameter. See docs/kinetic-models.md."""
     momentum_model = Choice()
     """Pressure-drop model: "kozeny_carman" (Darcy, constant 180), "ergun" (viscous + inertial terms) or
     "blake_kozeny" (Darcy, constant 150: Ergun's viscous term without the inertial one)."""

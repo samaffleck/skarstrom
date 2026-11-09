@@ -22,6 +22,7 @@
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/objects/model_kinds.h"
+#include "adsim/objects/porous_media.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/simulation.h"
 #include "adsim/solver/log.h"
@@ -429,6 +430,17 @@ namespace adsim {
       }
       Set(out, ModelFamilyName(family), std::move(kinds), a);
     }
+    // The packed particle shapes (ParticleShape), in the families' form.
+    Value shapes(rapidjson::kArrayType);
+    for (std::size_t i = 0; i < ParticleShapeKinds().size(); ++i) {
+      Value v(rapidjson::kObjectType);
+      Set(v, "tag", ParticleShapeKinds()[i], a);
+      Set(v, "label", std::string(ParticleShapeList[i]), a);
+      Set(v, "legacy", false, a);
+      Set(v, "parameters", Value(rapidjson::kArrayType), a);
+      shapes.PushBack(v, a);
+    }
+    Set(out, "particle_shape", std::move(shapes), a);
     return Write(out, options.pretty);
   }
 

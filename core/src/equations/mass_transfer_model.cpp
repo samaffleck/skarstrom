@@ -206,14 +206,17 @@ namespace adsim {
     // (film_correlation.h; default Wakao-Funazkri). A slab (structured
     // layer): V/S = l, the half-thickness, c' = 3, k_f = Sh D / D_h with the
     // channel Sh.
-    if (layer.IsStructured()) {
+    // A packed bed of infinite cylinders: V/S = r_f / 2, l = r_f, c' = 8,
+    // k_f = Sh D / d_p (the packed correlation on d_p).
+    if (layer.IsStructured() || layer.particle_shape_ == ParticleShape::Cylinder) {
       const auto geo = layer.GetDiffusionGeometry();
       const double l = geo.length;
-      const double dh = layer.GetHydraulicDiameter();
+      const double c = geo.c;
+      const double dh = layer.IsStructured() ? layer.GetHydraulicDiameter() : layer.particle_diameter_.Get();
       for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
         const double kf = Sh[n] * Dmi[n] / dh;
         const double film = geo.volume_to_surface / kf;
-        const double molecular = tortuosity_ * l * l / (3.0 * ep * Dmi[n]);
+        const double molecular = tortuosity_ * l * l / (c * ep * Dmi[n]);
         mtc[n] = 1.0 / (film + molecular);
       }
       return;
@@ -332,8 +335,13 @@ namespace adsim {
     // The terms are written as in MassTransferCoefficient_Haynes so that with
     // f_film = 1, K = 1 and no micropore term the result is the same double.
     const bool structured = layer.IsStructured();
+    // A packed bed of infinite cylinders takes the geometry's form (V/S = r_f / 2,
+    // l = r_f, c' = 8) with the packed k_f = Sh D / d_p; spheres keep their own
+    // expressions below.
+    const bool cylinder = !structured && layer.particle_shape_ == ParticleShape::Cylinder;
     const auto geo = layer.GetDiffusionGeometry();
     const double l = geo.length;
+    const double c_geo = geo.c;
     const double dh = structured ? layer.GetHydraulicDiameter() : 0.0;
     const double dp = layer.particle_diameter_;
     const double rp = dp / 2.0;
@@ -348,6 +356,12 @@ namespace adsim {
           film = geo.volume_to_surface / kf;
         }
         if (macro_on) macro = tau * l * l / (3.0 * ep * Dp);
+      } else if (cylinder) {
+        if (film_on) {
+          const double kf = Sh[n] * Dmi[n] / dp;
+          film = geo.volume_to_surface / kf;
+        }
+        if (macro_on) macro = tau * l * l / (c_geo * ep * Dp);
       } else {
         if (film_on) {
           const double kf = Sh[n] * Dmi[n] / dp;
@@ -842,8 +856,13 @@ namespace adsim {
     // f_film = 1, K = 1 and only film and macropore on the result is the same
     // double; a switched-off term adds an exact 0.0.
     const bool structured = layer.IsStructured();
+    // A packed bed of infinite cylinders takes the geometry's form (V/S = r_f / 2,
+    // l = r_f, c' = 8) with the packed k_f = Sh D / d_p; spheres keep their own
+    // expressions below.
+    const bool cylinder = !structured && layer.particle_shape_ == ParticleShape::Cylinder;
     const auto geo = layer.GetDiffusionGeometry();
     const double l = geo.length;
+    const double c_geo = geo.c;
     const double dh = structured ? layer.GetHydraulicDiameter() : 0.0;
     const double dp = layer.particle_diameter_;
     const double rp = dp / 2.0;
@@ -863,6 +882,12 @@ namespace adsim {
           film = geo.volume_to_surface / kf;
         }
         if (r.macropore) macro = tau * l * l / (3.0 * ep * Dp);
+      } else if (cylinder) {
+        if (r.film) {
+          const double kf = Sh[n] * Dmi[n] / dp;
+          film = geo.volume_to_surface / kf;
+        }
+        if (r.macropore) macro = tau * l * l / (c_geo * ep * Dp);
       } else {
         if (r.film) {
           const double kf = Sh[n] * Dmi[n] / dp;
