@@ -886,7 +886,7 @@
             "Adsorbed_Concentration": []
         },
         "Cycle": {
-            "cereal_class_version": 2,
+            "cereal_class_version": 3,
             "Number_Of_Cycles": 1,
             "Step_List": [
                 {
@@ -902,7 +902,7 @@
                         "ptr_wrapper": {
                             "id": 2147483649,
                             "data": {
-                                "cereal_class_version": 5,
+                                "cereal_class_version": 6,
                                 "value0": {
                                     "cereal_class_version": 0,
                                     "Boundary_Condition_Location": 0,
@@ -1039,7 +1039,8 @@
                                 "Inlet_Temperature_Profile": {
                                     "polymorphic_id": 0
                                 },
-                                "Endpoint_ID": 2
+                                "Endpoint_ID": 2,
+                                "Reservoir_ID": 0
                             }
                         }
                     },
@@ -1063,7 +1064,7 @@
                                             "data": {
                                                 "cereal_class_version": 1,
                                                 "value0": {
-                                                    "cereal_class_version": 5,
+                                                    "cereal_class_version": 6,
                                                     "Stream_Name": "Humid air",
                                                     "Boundary_Temperature": {
                                                         "Value": 293.15,
@@ -1122,7 +1123,8 @@
                                                     "Temperature_Profile": {
                                                         "polymorphic_id": 0
                                                     },
-                                                    "Endpoint_ID": 1
+                                                    "Endpoint_ID": 1,
+                                                    "Reservoir_ID": 0
                                                 },
                                                 "Boundary_Flow": {
                                                     "polymorphic_id": 2147483667,
@@ -1242,7 +1244,8 @@
                 "Value": 100.0,
                 "Expression": "1e+02",
                 "DisplayUnitIndex": 0
-            }
+            },
+            "Reservoirs": []
         },
         "Solver_Settings": {
             "cereal_class_version": 7,
@@ -1317,7 +1320,6 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true,
                 "Outlet_Backflow": true,
                 "Reaction_Stiff": true,
                 "Connection_Pressure": true

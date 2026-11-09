@@ -1,6 +1,6 @@
 {
     "value0": {
-        "cereal_class_version": 2,
+        "cereal_class_version": 3,
         "Number_Of_Cycles": 5,
         "Step_List": [
             {
@@ -17,7 +17,7 @@
                     "ptr_wrapper": {
                         "id": 2147483649,
                         "data": {
-                            "cereal_class_version": 5,
+                            "cereal_class_version": 6,
                             "value0": {
                                 "cereal_class_version": 0,
                                 "Boundary_Condition_Location": 0,
@@ -129,7 +129,8 @@
                             "Inlet_Temperature_Profile": {
                                 "polymorphic_id": 0
                             },
-                            "Endpoint_ID": 2
+                            "Endpoint_ID": 2,
+                            "Reservoir_ID": 0
                         }
                     }
                 },
@@ -153,7 +154,7 @@
                                         "data": {
                                             "cereal_class_version": 1,
                                             "value0": {
-                                                "cereal_class_version": 5,
+                                                "cereal_class_version": 6,
                                                 "Stream_Name": "Feed inlet",
                                                 "Boundary_Temperature": {
                                                     "Value": 298.0,
@@ -204,7 +205,8 @@
                                                 "Temperature_Profile": {
                                                     "polymorphic_id": 0
                                                 },
-                                                "Endpoint_ID": 1
+                                                "Endpoint_ID": 1,
+                                                "Reservoir_ID": 0
                                             },
                                             "Boundary_Flow": {
                                                 "polymorphic_id": 2147483656,
@@ -423,7 +425,8 @@
                             "Inlet_Temperature_Profile": {
                                 "polymorphic_id": 0
                             },
-                            "Endpoint_ID": 4
+                            "Endpoint_ID": 4,
+                            "Reservoir_ID": 0
                         }
                     }
                 },
@@ -493,7 +496,8 @@
                                                 "Temperature_Profile": {
                                                     "polymorphic_id": 0
                                                 },
-                                                "Endpoint_ID": 3
+                                                "Endpoint_ID": 3,
+                                                "Reservoir_ID": 0
                                             },
                                             "Boundary_Flow": {
                                                 "polymorphic_id": 8,
@@ -728,7 +732,8 @@
                             "Inlet_Temperature_Profile": {
                                 "polymorphic_id": 0
                             },
-                            "Endpoint_ID": 5
+                            "Endpoint_ID": 5,
+                            "Reservoir_ID": 0
                         }
                     }
                 },
@@ -915,7 +920,8 @@
                             "Inlet_Temperature_Profile": {
                                 "polymorphic_id": 0
                             },
-                            "Endpoint_ID": 6
+                            "Endpoint_ID": 6,
+                            "Reservoir_ID": 0
                         }
                     }
                 },
@@ -1026,7 +1032,8 @@
                                                 "Temperature_Profile": {
                                                     "polymorphic_id": 0
                                                 },
-                                                "Endpoint_ID": 7
+                                                "Endpoint_ID": 7,
+                                                "Reservoir_ID": 0
                                             },
                                             "Boundary_Flow": {
                                                 "polymorphic_id": 8,
@@ -1296,7 +1303,8 @@
                             "Inlet_Temperature_Profile": {
                                 "polymorphic_id": 0
                             },
-                            "Endpoint_ID": 0
+                            "Endpoint_ID": 0,
+                            "Reservoir_ID": 0
                         }
                     }
                 },
@@ -1341,6 +1349,7 @@
             "Value": 100.0,
             "Expression": "1e+02",
             "DisplayUnitIndex": 0
-        }
+        },
+        "Reservoirs": []
     }
 }
