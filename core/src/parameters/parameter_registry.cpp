@@ -213,6 +213,11 @@ namespace adsim {
                 "warn when gas flows back into the bed through an unconnected outlet",
                 [](const UserData& u) { return u.settings.warnings_.outlet_backflow; },
                 [](UserData& u, bool b) { u.settings.warnings_.outlet_backflow = b; }),
+      BoolField("settings", "warn_connection_pressure",
+                "warn when gas flows through a connection from the lower to the higher pressure, or a connected "
+                "pressure profile is held at its partner's pressure",
+                [](const UserData& u) { return u.settings.warnings_.connection_pressure; },
+                [](UserData& u, bool b) { u.settings.warnings_.connection_pressure = b; }),
       // Run health, after every cycle (run_health.h).
       BoolField("settings", "warn_mole_fraction_sum", "warn when the gas mole fractions do not sum to 1 (MOLE_FRACTION_SUM)",
                 [](const UserData& u) { return u.settings.warnings_.mole_fraction_sum; },

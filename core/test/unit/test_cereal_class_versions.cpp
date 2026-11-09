@@ -200,7 +200,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::AccelerateCyclicSteadyState, 0),
       ADSIM_PIN(adsim::IDASettings, 7),
       ADSIM_PIN(adsim::InitialConditions, 3),
-      ADSIM_PIN(adsim::WarningSettings, 4),
+      ADSIM_PIN(adsim::WarningSettings, 5),
       ADSIM_PIN(adsim::KPIEndpointRef, 1),
       ADSIM_PIN(adsim::ComponentKPIConfig, 2),
       ADSIM_PIN(adsim::KPIConfig, 4),

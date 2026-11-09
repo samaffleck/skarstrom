@@ -20,6 +20,7 @@ The two steps run for the **same duration**.
 
 ## Notes
 
-- The receiving bed follows the **pressure ramp** you set; the connection supplies the *quality* (composition and temperature) of the gas, while the pressure profile supplies the *driving force*. Match the ramp to the step time so the bed reaches the target pressure by the end of the step.
+- The receiving bed follows the **pressure ramp** you set (unless the producing bed is lower, see below); the connection supplies the *quality* (composition and temperature) of the gas, while the pressure profile supplies the *driving force*. Match the ramp to the step time so the bed reaches the target pressure by the end of the step.
+- The receiving bed cannot rise above the bed that feeds it. Its ramp is capped at the producing bed's pressure at the same instant, so it may not reach its target. This happens, for example, when the producing step's vent has a [check valve](boundary-conditions.md#check-valve) and the light-product draw empties the producing bed. The producing step then gives what the receiving step took in, so the light product balances. The **Connection pressure** warning (`settings.warn_connection_pressure`) reports a capped ramp with its end pressure and its target. See [Connecting Beds](connecting-beds.md#flow-only-from-the-higher-to-the-lower-pressure). *New in 0.9.*
 - LPP is included in the built-in **4-Step VPSA with LPP** example cycle — load it from **Cycle Design → Load Example Cycle** to see a complete working setup.
 - To account for the light product consumed by pressurisation, classify the LPP step appropriately in the [KPI Configuration](performance-metrics.md) so recovery is computed correctly.

@@ -10,6 +10,9 @@
 #include "adsim/objects/wall_design.h"
 #include "adsim/solver/log.h"
 #include "adsim/boundary_conditions/boundary_conditions.h"
+#include "adsim/boundary_conditions/connection.h"
+
+#include <map>
 
 #include <cmath>
 #include <iomanip>
@@ -89,6 +92,59 @@ namespace adsim {
         }
       }
       return out;
+    }
+
+    // One endpoint connected to another step's endpoint.
+    struct ConnectedEndpoint {
+      int step = 0;
+      std::string name;             // display name
+      size_t endpoint_id = 0;
+      size_t pair_id = 0;
+      bool pump = false;            // a pump stream: it raises the pressure by design
+      const PressureBoundaryCondition* pressure = nullptr;  // set for a pressure boundary
+      const StreamData* data = nullptr;     // its own log
+      const StreamData* partner = nullptr;  // the partner's log
+    };
+
+    std::vector<ConnectedEndpoint> ConnectedEndpoints(const UserData& data) {
+      std::vector<ConnectedEndpoint> out;
+      const auto& steps = data.cycle.step_list_;
+      for (int k = 0; k < static_cast<int>(steps.size()); ++k) {
+        for (const auto* bc : {steps[k].bottom_boundary_condition_.get(), steps[k].top_boundary_condition_.get()}) {
+          if (!bc) continue;
+          const char* end = bc->location_ == BoundaryLocation::TOP ? "top" : "bottom";
+          if (const auto* p = dynamic_cast<const PressureBoundaryCondition*>(bc)) {
+            if (!p->connection_.IsConnected() || !p->connection_.stream_) continue;
+            out.push_back({k, std::string("pressure boundary at the ") + end, p->endpoint_id_, p->connection_.GetID(),
+                           false, p, &p->stream_data_, p->connection_.stream_});
+          } else if (const auto* f = dynamic_cast<const FlowBoundaryCondition*>(bc)) {
+            for (const auto& st : f->streams_) {
+              if (!st || !st->connection_.IsConnected() || !st->connection_.stream_) continue;
+              out.push_back({k, "stream \"" + st->name_ + "\" (" + end + ")", st->endpoint_id_,
+                             st->connection_.GetID(), dynamic_cast<const PumpBoundaryStream*>(st.get()) != nullptr,
+                             nullptr, &st->stream_data_, st->connection_.stream_});
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    // Gross moles that entered the bed through an endpoint over its last
+    // logged step while its bed-end pressure was above the partner's logged
+    // pressure at the same instant by more than kConnectionPressureBand
+    // (trapezoid of the logged samples).
+    double MolesInWhileHigher(const StreamData& own, const StreamData& partner) {
+      const auto& t = own.time_series_;
+      if (partner.time_series_.empty() || own.pressure_boundary_.size() != t.size()) return 0.0;
+      auto f = [&](size_t k) {
+        const double in = -own.GetOutflow(t[k]);
+        const bool higher = own.pressure_boundary_[k] > partner.GetPressure(t[k]) + kConnectionPressureBand;
+        return (higher && in > 0.0) ? in : 0.0;
+      };
+      double moles = 0.0;
+      for (size_t k = 1; k < t.size(); ++k) moles += 0.5 * (f(k - 1) + f(k)) * (t[k] - t[k - 1]);
+      return moles;
     }
 
   } // namespace
@@ -203,6 +259,7 @@ namespace adsim {
         case OperatingLimit::Fluidisation:      return on.fluidisation;
         case OperatingLimit::ChannelReynolds:   return on.channel_reynolds;
         case OperatingLimit::OutletBackflow:    return on.outlet_backflow;
+        case OperatingLimit::ConnectionPressure: return on.connection_pressure;
       }
       return true;
     };
@@ -298,6 +355,77 @@ namespace adsim {
           message += " Use a valve stream with a check valve, or a boundary pressure that stays below the bed's.";
         report.warnings.push_back({ OperatingLimit::OutletBackflow, e.step, fraction, kOutletBackflowFraction,
                                     "Warning: " + std::move(message) });
+      }
+    }
+
+    // Connections: gas from the lower to the higher pressure, and connected
+    // pressure ramps held at the partner's pressure. Read from the
+    // endpoints' own logs, so only for the last logged cycle.
+    if (cycle_it == std::prev(sim_log.end()) && enabled(OperatingLimit::ConnectionPressure)) {
+      const auto connected = ConnectedEndpoints(data);
+      std::map<size_t, std::vector<const ConnectedEndpoint*>> by_pair;
+      for (const auto& e : connected) by_pair[e.pair_id].push_back(&e);
+      auto partner_of = [&](const ConnectedEndpoint& e) -> std::string {
+        for (const auto* o : by_pair[e.pair_id])
+          if (o != &e) {
+            const auto& steps = data.cycle.step_list_;
+            const std::string step = o->step < static_cast<int>(steps.size()) ? steps[o->step].step_name_ : "?";
+            return "the " + o->name + " of step \"" + step + "\" (endpoint[" + std::to_string(o->endpoint_id) + "])";
+          }
+        return "its partner";
+      };
+      auto summary_of = [&](int step) {
+        return std::find_if(report.steps.begin(), report.steps.end(),
+                            [&](const StepOperatingSummary& s) { return s.step == step; });
+      };
+      double feed = 0.0;
+      for (const auto& e : ExternalEndpoints(data))
+        if (e.direction == BoundaryDirection::INLET) feed += MolesIn(*e.data);
+
+      for (const auto& e : connected) {
+        auto summary = summary_of(e.step);
+        if (summary == report.steps.end()) continue;
+        bool pump_pair = e.pump;
+        for (const auto* o : by_pair[e.pair_id]) pump_pair = pump_pair || o->pump;
+
+        // (1) Gas into this bed while it is the higher.
+        if (!pump_pair && feed > 0.0) {
+          const double moles = MolesInWhileHigher(*e.data, *e.partner);
+          const double fraction = moles / feed;
+          if (std::isfinite(fraction) && fraction > kConnectionReverseFlowFraction) {
+            report.warnings.push_back({ OperatingLimit::ConnectionPressure, e.step, fraction,
+                kConnectionReverseFlowFraction,
+                "Warning: gas flows through the connection from the lower to the higher pressure into the "
+                + e.name + " (endpoint[" + std::to_string(e.endpoint_id) + "]) " + InStep(*summary, report.cycle)
+                + ", from " + partner_of(e) + ": " + Num(moles) + " mol, " + Num(100.0 * fraction)
+                + " % of the cycle feed of " + Num(feed) + " mol, while this bed is above the other."
+                  " A valve or a set flow on a connection does not stop this on its own; check the step"
+                  " pressures and the connection's endpoint kinds." });
+          }
+        }
+
+        // (2) A connected pressure ramp held at the partner's pressure.
+        if (e.pressure && e.pressure->pressure_) {
+          const auto& d = *e.data;
+          const bool inlet = e.pressure->direction_ == BoundaryDirection::INLET;
+          double shortfall = 0.0, at = 0.0, target_end = 0.0;
+          for (size_t k = 0; k < d.time_series_.size() && k < d.pressure_boundary_.size(); ++k) {
+            const double target = e.pressure->pressure_->GetValue(d.time_series_[k]);
+            const double gap = inlet ? target - d.pressure_boundary_[k] : d.pressure_boundary_[k] - target;
+            if (gap > shortfall) { shortfall = gap; at = d.time_series_[k]; }
+            target_end = target;
+          }
+          if (shortfall > kPressureMargin && !d.pressure_boundary_.empty()) {
+            report.warnings.push_back({ OperatingLimit::ConnectionPressure, e.step, shortfall, kPressureMargin,
+                "Warning: the pressure profile of the connected " + e.name + " (endpoint["
+                + std::to_string(e.endpoint_id) + "]) " + InStep(*summary, report.cycle) + " was held at the "
+                "pressure of " + partner_of(e) + (inlet ? ", which feeds it" : ", which it feeds")
+                + ": up to " + Num(shortfall / 1e3) + " kPa " + (inlet ? "below" : "above") + " the profile ("
+                + Num(at) + " s into the step); it ends at " + BarAbs(d.pressure_boundary_.back())
+                + " instead of " + BarAbs(target_end) + ". Gas through a connection flows only from the higher"
+                  " to the lower pressure, so the other bed's pressure limits this one." });
+          }
+        }
       }
     }
     return report;
