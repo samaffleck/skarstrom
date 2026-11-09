@@ -412,6 +412,45 @@ TEST(Sensitivity, ADeckFromBeforeStudiesLoadsWithNone) {
   EXPECT_EQ(old.Data().sensitivity_study.trajectories, 10);
 }
 
+TEST(Sensitivity, DefaultOutputsAddThermalEnergyOnlyForAHeatedDeck) {
+  // PSA: no heat supply, four outputs per tracked component.
+  Simulation psa = Simulation::FromJson(ReadDeck("Arora2021_LiLSX_PSA.json"));
+  EXPECT_FALSE(DeckSuppliesHeat(psa.Data()));
+  const std::vector<Output> four = DefaultOutputs(psa.Data());
+  ASSERT_EQ(four.size() % 4, 0u);
+  for (const auto& o : four) EXPECT_NE(o.kpi, "thermal_energy");
+
+  // TSA: the heated example gets five, thermal_energy last, per component.
+  Simulation tsa = Simulation::FromJson(ReadDeck("Illustrative_TSA_13X.json"));
+  ASSERT_TRUE(DeckSuppliesHeat(tsa.Data()));
+  const std::vector<Output> five = DefaultOutputs(tsa.Data());
+  ASSERT_FALSE(five.empty());
+  ASSERT_EQ(five.size() % 5, 0u);
+  for (size_t i = 0; i < five.size(); i += 5) {
+    EXPECT_EQ(five[i + 4].kpi, "thermal_energy");
+    EXPECT_EQ(five[i + 4].component, five[i].component);
+    for (size_t j = 0; j < 4; ++j) EXPECT_NE(five[i + j].kpi, "thermal_energy");
+  }
+  for (const auto& o : five) {
+    EXPECT_NE(o.kpi, "cooling_duty");
+    EXPECT_NE(o.kpi, "electrical_energy");
+  }
+
+  // A heating medium alone (no energy source) is a heat supply.
+  Simulation medium = Simulation::FromJson(ReadDeck("Arora2021_LiLSX_PSA.json"));
+  ASSERT_FALSE(medium.Data().cycle.step_list_.empty());
+  medium.Data().cycle.step_list_[0].heating_medium_.enabled_ = true;
+  EXPECT_TRUE(DeckSuppliesHeat(medium.Data()));
+  EXPECT_EQ(DefaultOutputs(medium.Data()).size(), four.size() / 4 * 5);
+
+  // A disabled or cooling energy source is not.
+  Simulation cool = Simulation::FromJson(ReadDeck("Arora2021_LiLSX_PSA.json"));
+  EnergySource& src = cool.Data().cycle.step_list_[0].energy_sources_[1];
+  src.enabled_ = true;
+  src.power_ = -100.0;
+  EXPECT_FALSE(DeckSuppliesHeat(cool.Data()));
+}
+
 TEST(Sensitivity, ASavedStudyIsChecked) {
   const std::string deck = ReadDeck("Arora2021_LiLSX_PSA.json");
   Simulation sim = Simulation::FromJson(deck);

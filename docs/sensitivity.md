@@ -61,7 +61,7 @@ print(spread.shares())                       # each input's share of each output
 spread.save("perez_spread.json")             # study, every run and the results
 ```
 
-`outputs` (default: purity, recovery, mass productivity and specific energy of every tracked component) are `"Component.kpi"` names; `sa.kpi_names()` lists the KPIs. `workers` runs that many processes. `seed` (default 1) makes a study repeatable on any platform. Ctrl-C stops a study.
+`outputs` (default: purity, recovery, mass productivity and specific energy of every tracked component, plus `thermal_energy` when a step supplies heat) are `"Component.kpi"` names; `sa.kpi_names()` lists the KPIs. A step supplies heat when it has an enabled energy source with positive power or an enabled heating medium; a PSA deck keeps four default outputs and a TSA deck gets five. *New in NEXT.* `workers` runs that many processes. `seed` (default 1) makes a study repeatable on any platform. Ctrl-C stops a study.
 
 ## Running a study from the command line
 

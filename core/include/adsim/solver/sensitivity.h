@@ -107,7 +107,8 @@ Plan MonteCarloPlan(const std::vector<Input>& inputs, int runs, std::uint64_t se
 // electrical_energy (the same value as energy_consumption, the compressor and
 // pump work), thermal_energy (heat supplied) and cooling_duty (heat removed).
 // The default outputs are purity, recovery, productivity_mass and
-// energy_consumption.
+// energy_consumption, plus thermal_energy when the deck supplies heat
+// (DeckSuppliesHeat).
 const std::vector<std::string>& KPINames();
 
 // One watched value: a tracked component's KPI at the last logged cycle.
@@ -122,8 +123,16 @@ struct Output {
 // the text after the last one). Throws std::invalid_argument.
 Output ParseOutput(std::string_view name);
 
+// True when at least one step supplies heat: an enabled energy source with
+// positive power, or an enabled heating medium (jacket or internal exchanger).
+// This is the engine's own notion of heating (the heat-duty log and
+// CalculateCycleThermalDuty). A PSA/VSA deck has none; a TSA deck does.
+bool DeckSuppliesHeat(const UserData& data);
+
 // Purity, recovery, mass productivity and specific energy of every component
-// the deck tracks.
+// the deck tracks, in that order. When DeckSuppliesHeat(data), each component
+// also gets thermal_energy, last. cooling_duty and electrical_energy are never
+// in the defaults.
 std::vector<Output> DefaultOutputs(const UserData& data);
 
 // How each sample is run: RunPolicy, in adsim/solver/sensitivity_study.h.
