@@ -17,7 +17,7 @@
 
 Use the [web interface](https://www.skarstrom.co.uk/) to run the engine in your browser, with no install.
 
-[![The Skarstrom web interface: the simulation tree, solver settings and a plotted pressure profile of the Arora (2021) PSA example](docs/assets/skarstrom-web.png)](https://www.skarstrom.co.uk/)
+[![The Skarstrom web interface: the simulation tree, plotter options and a simulated CO₂ breakthrough curve on CALF-20 against the measured points from Nguyen et al. (2022)](docs/assets/skarstrom-web.png)](https://www.skarstrom.co.uk/)
 
 Or point your agent (e.g. Claude or Codex) at this repository. An example prompt:
 
