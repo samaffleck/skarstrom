@@ -331,7 +331,7 @@ namespace adsim {
       auto ldf = std::make_unique<LinearDrivingForce>();
       auto mtc = std::make_unique<MassTransferCoefficientConstant>();
       mtc->constant_mtc_ = m.k;
-      ldf->mtc_model_ = std::move(mtc);
+      ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
       adsorbent.adsorption_source_.mass_transfer_models_["Oxygen"] = std::move(ldf);
       adsorbent.adsorption_source_.heat_of_adsorption_["Oxygen"] = m.thermal ? m.dH : 0.0;
 

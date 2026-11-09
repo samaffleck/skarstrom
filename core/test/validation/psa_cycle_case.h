@@ -63,7 +63,7 @@ namespace adsim::validation {
       auto ldf = std::make_unique<LinearDrivingForce>();
       auto mtc_model = std::make_unique<MassTransferCoefficientConstant>();
       mtc_model->constant_mtc_ = mtc;
-      ldf->mtc_model_ = std::move(mtc_model);
+      ldf->mtc_model_ = ToResistances(std::move(mtc_model));  // generic model, as the example decks store it
       adsorbent.adsorption_source_.mass_transfer_models_[component] = std::move(ldf);
       adsorbent.adsorption_source_.heat_of_adsorption_[component] =
         (std::string(component) == "Nitrogen") ? 24000.0 : 20000.0;

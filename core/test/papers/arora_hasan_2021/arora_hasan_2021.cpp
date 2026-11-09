@@ -79,14 +79,14 @@ namespace adsim {
         auto ldf = std::make_unique<LinearDrivingForce>();
         auto mtc = std::make_unique<MassTransferCoefficientConstant>();
         mtc->constant_mtc_ = 104.07;
-        ldf->mtc_model_ = std::move(mtc);
+        ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
         lix.adsorption_source_.mass_transfer_models_[O2] = std::move(ldf);
       }
       {
         auto ldf = std::make_unique<LinearDrivingForce>();
         auto mtc = std::make_unique<MassTransferCoefficientConstant>();
         mtc->constant_mtc_ = 42.84;
-        ldf->mtc_model_ = std::move(mtc);
+        ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
         lix.adsorption_source_.mass_transfer_models_[N2] = std::move(ldf);
       }
 
@@ -111,14 +111,14 @@ namespace adsim {
         auto ldf = std::make_unique<LinearDrivingForce>();
         auto mtc = std::make_unique<MassTransferCoefficientConstant>();
         mtc->constant_mtc_ = 104.07;
-        ldf->mtc_model_ = std::move(mtc);
+        ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
         lilsx.adsorption_source_.mass_transfer_models_[O2] = std::move(ldf);
       }
       {
         auto ldf = std::make_unique<LinearDrivingForce>();
         auto mtc = std::make_unique<MassTransferCoefficientConstant>();
         mtc->constant_mtc_ = 42.84;
-        ldf->mtc_model_ = std::move(mtc);
+        ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
         lilsx.adsorption_source_.mass_transfer_models_[N2] = std::move(ldf);
       }
 
@@ -143,14 +143,14 @@ namespace adsim {
         auto ldf = std::make_unique<LinearDrivingForce>();
         auto mtc = std::make_unique<MassTransferCoefficientConstant>();
         mtc->constant_mtc_ = 12.07;
-        ldf->mtc_model_ = std::move(mtc);
+        ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
         z5a.adsorption_source_.mass_transfer_models_[O2] = std::move(ldf);
       }
       {
         auto ldf = std::make_unique<LinearDrivingForce>();
         auto mtc = std::make_unique<MassTransferCoefficientConstant>();
         mtc->constant_mtc_ = 4.02;
-        ldf->mtc_model_ = std::move(mtc);
+        ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
         z5a.adsorption_source_.mass_transfer_models_[N2] = std::move(ldf);
       }
 
