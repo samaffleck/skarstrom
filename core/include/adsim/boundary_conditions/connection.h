@@ -78,6 +78,18 @@ namespace adsim {
     PressureBoundaryCondition* p_boundary = nullptr;
   };
 
+  // Gas passes through a connection only from the higher to the lower
+  // pressure. A connected set-flow stream (BoundaryStream, no device)
+  // replays the flow its partner logged; this weight, of the pressure
+  // difference dp = upstream - downstream [Pa] at the same instant, scales
+  // the replayed flow: 0 for dp <= 0, 1 for dp >= kConnectionPressureBand,
+  // and the C1 cubic 3x^2 - 2x^3 (x = dp / band) between. A hard switch
+  // would leave a kink in the residual that stalls Newton as the flow
+  // decays through zero. The band is the check valve's
+  // (Valve::kCheckValveBand).
+  inline constexpr double kConnectionPressureBand = 10.0;  // [Pa]
+  double ConnectionFlowWeight(double dp);
+
   size_t GenerateID();
   ConnectionEndpoint MakeEndpoint(Step& step, IBoundaryStream& stream);
   ConnectionEndpoint MakeEndpoint(Step& step, PressureBoundaryCondition& pressure);

@@ -10,6 +10,13 @@ Because the interacting steps are connected as a pair, a step that receives gas 
 
 > **The coupling is lagged by one cycle.** A connected boundary uses the gas logged by its partner on the partner's **previous** run. This is exactly how a real multi-bed process behaves at cyclic steady state — each bed sees what the other bed did a cycle ago — and it converges to the correct coupled solution as the cycles repeat. On the **first** cycle there is no logged partner data yet, so each side falls back to the values you entered (the *first-cycle assumptions*). Expect the first cycle or two to be approximate; the solution becomes self-consistent as it approaches [cyclic steady state](cyclic-steady-state.md).
 
+!!! note "New in 0.9"
+    A connected flow stream (no device) no longer passes gas from the lower to the higher pressure.
+
+### Flow only from the higher to the lower pressure
+
+A connected flow stream with no device replays the flow its partner logged. That flow does not depend on the stream's own bed, so on its own it would go on drawing gas from a donor bed that has fallen below the bed it feeds. The engine prevents this. At each instant it compares the pressure of the stream's bed end with the partner's logged pressure at the same time in the step. The replayed flow passes in full while the gas flows from the higher to the lower pressure by at least 10 Pa (`kConnectionPressureBand`, the band of the [check valve](boundary-conditions.md#check-valve)). It stops when the pressures are equal or reversed. Between the two, a smooth cubic closes it, so that the solver does not meet a kink as the flow decays to zero. The partner's pressure is the logged one, so this check is lagged by one run like the flow itself.
+
 ## Making a connection
 
 Connections are stored in the deck with the cycle (each connected endpoint carries a pair id).
@@ -22,7 +29,7 @@ What passes through the connection depends on the endpoint types:
 
 | Connected endpoint | Reads from its partner |
 |--------------------|------------------------|
-| Flow stream (no device) | Molar flow, temperature and composition |
+| Flow stream (no device) | Molar flow, temperature and composition. The flow is passed only from the higher to the lower pressure (see below). |
 | Valve stream | The partner's pressure, used as the driving pressure |
 | Pump stream | The partner's pressure (suction/discharge) |
 | Pressure boundary | Inlet temperature and composition |

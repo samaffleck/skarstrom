@@ -307,8 +307,19 @@ namespace adsim {
         // conserves moles. The sign must be kept: taking the magnitude (as
         // the unconnected branch below does) turned a donor's backflow into
         // more inflow here and created gas.
+        //
+        // The replayed flow is the partner's, so nothing in it depends on
+        // this bed. Gas only passes from the higher to the lower pressure:
+        // the flow is scaled by ConnectionFlowWeight of the pressure drop in
+        // its direction, this bed-end face against the partner's logged
+        // pressure at the same instant. Without this a donor that has fallen
+        // below the bed it feeds goes on supplying it.
         const double into_this_bed = connection_.stream_->GetOutflow(time);
-        return (loc == BoundaryLocation::BOTTOM) ? into_this_bed : -into_this_bed;
+        const double p_this = BedEndValue(state.pressure.var, loc);
+        const double p_partner = connection_.stream_->GetPressure(time);
+        const double drop = into_this_bed >= 0.0 ? p_partner - p_this : p_this - p_partner;
+        const double n = into_this_bed * ConnectionFlowWeight(drop);
+        return (loc == BoundaryLocation::BOTTOM) ? n : -n;
       } else {
         mol_flow = boundary_flow_->GetMolarFlow(state, time, loc); // First cycle uses the specified values
       }

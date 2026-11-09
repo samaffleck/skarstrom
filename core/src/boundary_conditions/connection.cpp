@@ -9,6 +9,7 @@
 #include "adsim/boundary_conditions/boundary_stream.h"
 #include "adsim/boundary_conditions/step.h"
 #include "adsim/boundary_conditions/boundary_conditions.h"
+#include <cmath>
 
 
 namespace adsim {
@@ -56,6 +57,14 @@ namespace adsim {
   }
 
   // Functions
+  double ConnectionFlowWeight(double dp) {
+    if (std::isnan(dp)) return dp;
+    if (dp <= 0.0) return 0.0;
+    if (dp >= kConnectionPressureBand) return 1.0;
+    const double x = dp / kConnectionPressureBand;
+    return x * x * (3.0 - 2.0 * x);
+  }
+
   size_t GenerateID() {
     static std::atomic<size_t> counter{1};
     return counter.fetch_add(1, std::memory_order_relaxed);
