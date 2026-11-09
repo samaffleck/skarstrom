@@ -234,9 +234,31 @@
                             ],
                             "Isotherms": [
                                 {
-                                    "key": 5,
+                                    "key": 2,
                                     "value": {
                                         "polymorphic_id": 2147483651,
+                                        "polymorphic_name": "adsim::InertIsotherm",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 2,
+                                                "value0": {},
+                                                "ISO_Params": [
+                                                    {
+                                                        "key": "Helium",
+                                                        "value": {
+                                                            "cereal_class_version": 0
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": 5,
+                                    "value": {
+                                        "polymorphic_id": 2147483652,
                                         "polymorphic_name": "adsim::DualSiteLangmuirIsotherm_Concentration",
                                         "ptr_wrapper": {
                                             "valid": 1,
@@ -278,28 +300,6 @@
                                                                 "Expression": "20367",
                                                                 "DisplayUnitIndex": 0
                                                             }
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    }
-                                },
-                                {
-                                    "key": 2,
-                                    "value": {
-                                        "polymorphic_id": 2147483652,
-                                        "polymorphic_name": "adsim::InertIsotherm",
-                                        "ptr_wrapper": {
-                                            "valid": 1,
-                                            "data": {
-                                                "cereal_class_version": 2,
-                                                "value0": {},
-                                                "ISO_Params": [
-                                                    {
-                                                        "key": "Helium",
-                                                        "value": {
-                                                            "cereal_class_version": 0
                                                         }
                                                     }
                                                 ]
@@ -398,7 +398,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 6,
+                        "cereal_class_version": 7,
                         "Name": "Activated Carbon",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -551,7 +551,8 @@
                             },
                             "Entrance_Effects": false
                         },
-                        "Film_Correlation": 0
+                        "Film_Correlation": 0,
+                        "Particle_Shape": 0
                     }
                 ],
                 "Next_Layer_ID": 1
@@ -712,18 +713,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "Helium",
-                    "value": {
-                        "Value": 1.0,
-                        "Expression": "1",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": {
                         "Value": 0.0,
                         "Expression": "0",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Helium",
+                    "value": {
+                        "Value": 1.0,
+                        "Expression": "1",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -918,18 +919,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Helium",
-                                                            "value": {
-                                                                "Value": 0.0,
-                                                                "Expression": "0",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 1.0,
                                                                 "Expression": "1",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Helium",
+                                                            "value": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1153,7 +1154,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 2,
+                "cereal_class_version": 4,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -1164,7 +1165,9 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true
+                "History_Truncated": true,
+                "Outlet_Backflow": true,
+                "Reaction_Stiff": true
             },
             "Valve_Bed_Pressure": 0
         },

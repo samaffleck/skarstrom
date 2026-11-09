@@ -38,6 +38,7 @@
 #include <cereal/archives/json.hpp>
 
 // ads includes
+#include "adsim/math/sorted_map_archive.h"
 #include "adsim/equations/film_correlation.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/equations/isotherm.h"
@@ -149,12 +150,10 @@ namespace adsim {
     friend class cereal::access;
     template<class Archive>
     void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::make_nvp("Mass_Transfer_Models", mass_transfer_models_),
-        cereal::make_nvp("Heat_Of_Adsorption", heat_of_adsorption_),
-        cereal::make_nvp("Isotherms", isotherms_),
-        cereal::make_nvp("Isotherm_Map", isotherm_map_)
-      );
+      SerializeMap(ar, "Mass_Transfer_Models", mass_transfer_models_);
+      SerializeMap(ar, "Heat_Of_Adsorption", heat_of_adsorption_);
+      SerializeMap(ar, "Isotherms", isotherms_);
+      SerializeMap(ar, "Isotherm_Map", isotherm_map_);
 
       // Version 1 adds the mixing rule; older archives mean None.
       if (version >= 1) {
@@ -294,10 +293,8 @@ namespace adsim {
     friend class cereal::access;
     template<class Archive>
     void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::make_nvp("Adsorbents", adsorbents_),
-        cereal::make_nvp("Next_ID", next_id_)
-      );
+      SerializeMap(ar, "Adsorbents", adsorbents_);
+      ar(cereal::make_nvp("Next_ID", next_id_));
     }
   };
 

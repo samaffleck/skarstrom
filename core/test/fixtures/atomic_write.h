@@ -119,6 +119,36 @@ namespace adsim::test {
     });
   }
 
+  // The save counter of the example decks (System_Information.Version).
+  inline constexpr int kExampleDeckSaveCount = 3;
+
+  // Saves a deck in the form every load gives it, atomically. A deck that a
+  // test builds in code lacks what a load adds: resolved KPI endpoint IDs,
+  // the per-component KPI entries, the default gas heat capacities, and the
+  // save counter a load-and-save pass advances. The committed
+  // example decks are in the loaded form, so the tests that write them write
+  // that form too: the deck is saved to text, loaded into a fresh deck,
+  // evaluated as Simulation::Load does, and saved. `data` is left as it was
+  // except for the save counter. The result is the same on every run.
+  inline void SaveDeckAtomically(UserData& data, const std::filesystem::path& file_name) {
+    std::ostringstream text;
+    {
+      cereal::JSONOutputArchive archive(text);
+      archive(data);
+    }
+    UserData loaded;
+    LoadUserDataTransactional(loaded, [&](UserData& fresh) {
+      std::istringstream in(text.str());
+      cereal::JSONInputArchive archive(in);
+      archive(fresh);
+    });
+    loaded.EvaluateAllExpressions();
+    // The save counter would otherwise depend on how many times a test saved
+    // the deck. Pin it, so that a deck is the same file on every run.
+    loaded.info.sim_version = kExampleDeckSaveCount - 1;
+    SaveToJsonAtomically(loaded, file_name);
+  }
+
   // SaveAdsorbentToJSON (adsim/objects/porous_media.h) through
   // WriteFileAtomically: the same bytes, but the rename is retried while a
   // reader holds the file open (Windows) and failures throw. The engine

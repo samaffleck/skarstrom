@@ -263,7 +263,7 @@ namespace adsim {
                    "design of Glover et al. (2026), Fig. 5, on 10 cells.",
                    kFig5, 10);
     SaveSimulation(deck);
-    test::SaveToJsonAtomically(data, std::filesystem::current_path() / "../examples/decks" / (deck + ".json"));
+    test::SaveDeckAtomically(data, std::filesystem::current_path() / "../examples/decks" / (deck + ".json"));
     const std::string path = (test_path / deck / (deck + ".json")).string();
 
     // N2-saturated start (Haghpanah Sect. 6.1), as the deck.

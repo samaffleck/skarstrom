@@ -31,18 +31,18 @@
                     }
                 },
                 {
-                    "key": "Oxygen",
-                    "value": {
-                        "Value": 18100.0,
-                        "Expression": "1.81e+04",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Nitrogen",
                     "value": {
                         "Value": 19100.0,
                         "Expression": "1.91e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Oxygen",
+                    "value": {
+                        "Value": 18100.0,
+                        "Expression": "1.81e+04",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -132,11 +132,11 @@
                     "value": 12
                 },
                 {
-                    "key": "Oxygen",
+                    "key": "Nitrogen",
                     "value": 12
                 },
                 {
-                    "key": "Nitrogen",
+                    "key": "Oxygen",
                     "value": 12
                 }
             ],

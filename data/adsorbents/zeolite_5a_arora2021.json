@@ -22,7 +22,7 @@
             "cereal_class_version": 1,
             "Mass_Transfer_Models": [
                 {
-                    "key": "Oxygen",
+                    "key": "Nitrogen",
                     "value": {
                         "polymorphic_id": 2147483649,
                         "polymorphic_name": "adsim::LinearDrivingForce",
@@ -94,8 +94,8 @@
                                                 },
                                                 "Capacity_Factor_Mode": 0,
                                                 "Mass_Transfer_Coefficient": {
-                                                    "Value": 12.07,
-                                                    "Expression": "12.07",
+                                                    "Value": 4.02,
+                                                    "Expression": "4.02",
                                                     "DisplayUnitIndex": 0
                                                 },
                                                 "Activation_Energy": {
@@ -117,7 +117,7 @@
                     }
                 },
                 {
-                    "key": "Nitrogen",
+                    "key": "Oxygen",
                     "value": {
                         "polymorphic_id": 1,
                         "ptr_wrapper": {
@@ -184,8 +184,8 @@
                                                 },
                                                 "Capacity_Factor_Mode": 0,
                                                 "Mass_Transfer_Coefficient": {
-                                                    "Value": 4.02,
-                                                    "Expression": "4.02",
+                                                    "Value": 12.07,
+                                                    "Expression": "12.07",
                                                     "DisplayUnitIndex": 0
                                                 },
                                                 "Activation_Energy": {
@@ -209,18 +209,18 @@
             ],
             "Heat_Of_Adsorption": [
                 {
-                    "key": "Oxygen",
-                    "value": {
-                        "Value": 13221.44,
-                        "Expression": "13221.44",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Nitrogen",
                     "value": {
                         "Value": 22886.48,
                         "Expression": "22886.48",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Oxygen",
+                    "value": {
+                        "Value": 13221.44,
+                        "Expression": "13221.44",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -316,11 +316,11 @@
             ],
             "Isotherm_Map": [
                 {
-                    "key": "Oxygen",
+                    "key": "Nitrogen",
                     "value": 1
                 },
                 {
-                    "key": "Nitrogen",
+                    "key": "Oxygen",
                     "value": 1
                 }
             ],
