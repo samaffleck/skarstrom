@@ -98,9 +98,11 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         ("variable[vacuum_pump_power]", 3.0, 30.0, ""),
         # Share of the pump's time in blowdown: sets the intermediate pressure. (Base 0.197.)
         ("variable[blowdown_share]", 0.08, 0.6, ""),
-        # Pressurisation valve from the feed header [mol/(s bar)]. Small: slow, may not reach
-        # 1 bar; large: lifts the bed at the feed end when it opens. (Base 0.006.)
-        ("variable[cv_pressurisation]", 0.001, 0.02, ""),
+        # Pressurisation valve from the feed header [mol/(s bar)]. It opens fully onto the evacuated
+        # bed, so the first seconds set the approach to fluidisation: 0.001 still gives 1.15 (and
+        # reaches 95 kPa), so the range reaches down to valves that leave the feed to finish the
+        # pressurisation. Large: fast, lifts the bed at the feed end. (Base 0.006.)
+        ("variable[cv_pressurisation]", 0.0003, 0.02, ""),
         # Vent valve [mol/(s bar)]: sets the feed pressure above 1 bar (a small valve gives a
         # pressure swing as well as a vacuum swing; the blower pays for it). (Base 0.5.)
         ("variable[cv_vent]", 0.05, 2.0, ""),
@@ -449,6 +451,7 @@ def summarise(deck: str, study: str, rows: List[Dict[str, object]], quiet: bool)
           f"{statuses.count('completed')} completed, {statuses.count('failed')} failed), {feasible} feasible")
     objectives = study.split("-")[0]
     front = pareto(rows, objectives)
+    feasible_front = bool(front)
     if not front:
         best = min(rows, key=lambda r: -sum(min(0.0, _f(r, f"margin_{n}")) if math.isfinite(_f(r, f"margin_{n}"))
                                             else -FAILED for n in active_constraints(objectives, "unconstrained" in study,
@@ -463,14 +466,14 @@ def summarise(deck: str, study: str, rows: List[Dict[str, object]], quiet: bool)
                 _num(r.get("productivity_kg_per_t_h"), ".1f"), _num(r.get("max_fluidisation"), ".2f"),
                 _num(r.get("max_dp_per_m"), ".1f", 1e-3), _num(r.get("min_evacuation_pressure"), ".1f", 1e-3)]
              for r in front], header)
-    if objectives == "purity" and front:
+    if objectives == "purity" and feasible_front:
         print("  against the paper's operating points (Table 3, model): best recovery at the same purity or higher")
         for name, (p, r) in PAPER_POINTS[deck].items():
             ok = [_f(x, "recovery") for x in front if _f(x, "purity") >= p]
             got = max(ok) if ok else float("nan")
             print(f"    {name:3s} purity {100 * p:.1f} %  recovery {100 * r:.1f} %  ->  "
                   f"{_pct(got) if math.isfinite(got) else 'not reached'}")
-    return front
+    return front if feasible_front else []
 
 
 def plot(fronts: Dict[Tuple[str, str], Tuple[List, List]], args: argparse.Namespace) -> None:
