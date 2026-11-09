@@ -1021,7 +1021,15 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "add_reaction")  // structure only; values through the registry
           out = py::int_(b::AddReaction(d, id(0), str(1), args[2].cast<std::map<std::string, double>>(),
                                         args.size() > 3 ? str(3) : "power_law"));
+        else if (op == "set_reaction_kind") b::SetReactionKind(d, id(0), id(1), str(2));
+        else if (op == "set_reaction_stoichiometry")
+          b::SetReactionStoichiometry(d, id(0), id(1), args[2].cast<std::map<std::string, double>>());
         else if (op == "set_reaction_basis") b::SetReactionBasis(d, id(0), id(1), str(2));
+        else if (op == "set_effectiveness")
+          b::SetEffectiveness(d, id(0), id(1), str(2), args.size() > 3 ? str(3) : std::string{});
+        else if (op == "add_adsorption_term") out = py::int_(b::AddAdsorptionTerm(d, id(0), id(1)));
+        else if (op == "remove_adsorption_term") b::RemoveAdsorptionTerm(d, id(0), id(1), id(2));
+        else if (op == "remove_reaction") b::RemoveReaction(d, id(0), id(1));
         else if (op == "set_reaction_kpi")
           b::SetReactionKPI(d, str(0), args[1].cast<std::vector<std::string>>(), args.size() > 2 ? str(2)
                                                                                                  : "catalyst_mass");
@@ -1226,6 +1234,23 @@ PYBIND11_MODULE(_core, m) {
             rates[py::str(c)] = r;
           }
           a["rate_models"] = rates;
+          py::list reactions;
+          for (const auto& r : ads.reaction_source_.reactions_) {
+            py::dict rx;
+            rx["id"] = r.id_;
+            rx["name"] = r.name_;
+            py::dict nu;
+            for (const auto& [c, v] : r.nu_) nu[py::str(c)] = v;
+            rx["nu"] = nu;
+            rx["kind"] = r.rate_ ? std::string(ReactionRateKindString(r.rate_->GetType())) : std::string("power_law");
+            rx["basis"] = kind(b::ReactionBasisKinds(), static_cast<int>(r.basis_));
+            rx["effectiveness"] = std::string(EffectivenessModeString(r.effectiveness_.mode_));
+            rx["key_component"] = r.effectiveness_.key_component_;
+            const auto* lhhw = r.rate_ ? dynamic_cast<const LhhwRate*>(r.rate_.get()) : nullptr;
+            rx["adsorption_terms"] = lhhw ? lhhw->adsorption_.size() : size_t{0};
+            reactions.append(rx);
+          }
+          a["reactions"] = reactions;
           adsorbents.append(a);
         }
         out["adsorbents"] = adsorbents;
@@ -1448,6 +1473,9 @@ PYBIND11_MODULE(_core, m) {
     k["rate_coefficient"] = b::RateCoefficientKinds();
     k["rate_coefficient_preset"] = b::RateCoefficientPresets();
     k["mixing_rule"] = b::MixingRuleKinds();
+    k["reaction_rate"] = b::ReactionRateKinds();
+    k["reaction_basis"] = b::ReactionBasisKinds();
+    k["effectiveness"] = b::EffectivenessKinds();
     k["momentum"] = b::MomentumKinds();
     k["film_correlation"] = b::FilmCorrelationKinds();
     k["particle_shape"] = adsim::ParticleShapeKinds();
