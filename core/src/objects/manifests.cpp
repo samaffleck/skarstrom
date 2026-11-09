@@ -110,6 +110,11 @@ namespace adsim {
       {"trapezoid_mass_balance_error", "Mole balance error (trapezoid)", "mass balance error (trap.)", "mol/mol",
        "balance", "Cycle mole balance error with the endpoint flows from the trapezoid over the logged samples.",
        false, false, true},
+      {"uncounted_inflow", "Uncounted inflow", "uncounted inflow", "mol", "balance",
+       "Moles of the component that entered the bed in the cycle through unconnected endpoints that are neither "
+       "feed nor recycle endpoints of it (gross inflow, e.g. a vent that backflows).", false, false, true},
+      {"uncounted_inflow_fraction", "Uncounted inflow fraction", "uncounted inflow fraction", "mol/mol", "balance",
+       "Uncounted inflow over the counted feed of the component.", false, false, true},
     };
     return kpis;
   }

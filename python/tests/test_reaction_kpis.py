@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 import skarstrom as sk
-from skarstrom.cli import KPI_CSV_FIELDS, main
+from skarstrom.cli import KPI_CSV_DIAGNOSTIC_FIELDS, KPI_CSV_FIELDS, main
 
 N2, BUT, IBUT = "Nitrogen", "Butane", "Isobutane"
 
@@ -160,7 +160,7 @@ def test_no_reactions_keep_their_kpis_and_csv(capsys, tmp_path):
         assert "conversion" not in payload["kpis"][0]
         with open(out / "kpis.csv") as f:
             rows = list(csv.reader(f))
-        assert rows[0] == ["cycle", "component", "valid"] + [h for _, h in KPI_CSV_FIELDS]
+        assert rows[0] == ["cycle", "component", "valid"] + [h for _, h in KPI_CSV_FIELDS + KPI_CSV_DIAGNOSTIC_FIELDS]
         files.append(rows)
     assert files[0] == files[1]
     assert sim.run(cycles=1).ok

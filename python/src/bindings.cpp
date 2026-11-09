@@ -505,6 +505,8 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("trapezoid_production_rate", &adsim::KPIRecord::trapezoid_production_rate)
       .def_readonly("mass_balance_error", &adsim::KPIRecord::mass_balance_error)
       .def_readonly("trapezoid_mass_balance_error", &adsim::KPIRecord::trapezoid_mass_balance_error)
+      .def_readonly("uncounted_inflow", &adsim::KPIRecord::uncounted_inflow)
+      .def_readonly("uncounted_inflow_fraction", &adsim::KPIRecord::uncounted_inflow_fraction)
       .def_readonly("reaction_kpis", &adsim::KPIRecord::reaction_kpis)
       .def_readonly("reaction_generation", &adsim::KPIRecord::reaction_generation)
       .def_readonly("conversion", &adsim::KPIRecord::conversion)
@@ -539,6 +541,8 @@ PYBIND11_MODULE(_core, m) {
         d["trapezoid_production_rate"] = k.trapezoid_production_rate;
         d["mass_balance_error"] = k.mass_balance_error;
         d["trapezoid_mass_balance_error"] = k.trapezoid_mass_balance_error;
+        d["uncounted_inflow"] = k.uncounted_inflow;
+        d["uncounted_inflow_fraction"] = k.uncounted_inflow_fraction;
         // The reaction KPIs only on the records that carry them, so a deck
         // without reactions keeps its keys.
         if (k.reaction_kpis) {
