@@ -89,8 +89,14 @@ Every day at 05:23 UTC (and whenever it is run by hand) the *Daily release*
 workflow:
 
 1. **Checks.** It stops with a notice, and releases nothing, when:
-   - main's latest CI run (`ci.yml`, for the newest commit that is not one of
-     the workflow's own release commits) did not succeed, or is still running;
+   - main's latest completed CI run did not succeed. The workflow takes the
+     newest commit that is not one of its own release commits and looks for
+     the newest completed run of `ci.yml` (success, failure or timed out;
+     cancelled and skipped runs do not count) for that commit. If that commit
+     has none yet (the full tier takes hours), it uses the newest completed
+     run for an ancestor of it that is under 36 hours old. With no such run
+     it stops. Runs on main never cancel each other, so each push gets a
+     verdict;
    - there are no changelog fragments and nothing under *Unreleased*;
    - on a scheduled run, `main` is on a pre-release line (`0.10.0rc2.dev0`);
      a pre-release holds the automatic releases until it is finished by hand;
