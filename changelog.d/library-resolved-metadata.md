@@ -1,0 +1,2 @@
+### Added — resolved adsorbent library metadata
+- `data/adsorbents/library.resolved.json`: the adsorbent library with the engine's own resolution applied (isotherm kind tags and labels, parameters in engine order with units, source points in SI with a summary, completeness, property units and provenance, mass-transfer parameters, DOI URLs). `scripts/docs/gen_adsorbent_library.py` generates it and checks it against `library.resolved.schema.json`; a front end can embed it as it is. `library.merged.json` is unchanged.

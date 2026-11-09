@@ -105,7 +105,9 @@ TEST(AdsorbentLibraryTest, CatalogParsesWithUniqueKeysAndFiles) {
   // No orphan blobs: every adsorbent file in the folder is catalogued.
   for (const auto& f : std::filesystem::directory_iterator(kLibDir)) {
     const auto name = f.path().filename().string();
-    if (f.path().extension() != ".json" || name == "library.json" || name == "library.merged.json") continue;
+    if (f.path().extension() != ".json" || name == "library.json" || name == "library.merged.json" ||
+        name == "library.resolved.json" || name == "library.resolved.schema.json")
+      continue;
     EXPECT_TRUE(files.count(name)) << "orphan adsorbent file " << name;
   }
   // The generated merged catalogue (gen_adsorbent_library.py) lists exactly the
