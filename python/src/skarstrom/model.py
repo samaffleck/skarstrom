@@ -772,6 +772,9 @@ class Settings(_Node):
     """Warn when the last cycle's approach to fluidisation passes 1."""
     warn_channel_reynolds = Boolean()
     """Warn when the last cycle's channel Reynolds number in a structured layer passes 2000."""
+    warn_outlet_backflow = Boolean()
+    """Warn when gas flows back into the bed through an unconnected outlet in the last cycle
+    (more than 0.1 % of the cycle feed). *New in 0.9.*"""
     warn_mole_fraction_sum = Boolean()
     """Run health: warn when the gas mole fractions do not sum to 1 (MOLE_FRACTION_SUM)."""
     warn_mass_balance_stuck = Boolean()
@@ -886,6 +889,10 @@ class Valve(_Node):
     """Flow coefficient Cv (US gpm per psi^0.5) [-]."""
     xt = Real()
     """Pressure-drop ratio factor xT [-]."""
+    check_valve = Boolean()
+    """Check valve: pass gas only in the stream's own direction (out of the bed through an
+    outlet, into it through an inlet), with a smoothed closure. Off by default. Ignored on a
+    connected stream. *New in 0.9.*"""
 
 
 class Endpoint(_Node):
@@ -1797,6 +1804,90 @@ class Kinetics(_Node):
     """Slow-site value of ``capacity_factor`` in the ``dual_rate_ldf`` model: fixed capacity factor K [-]."""
 
 
+class Reaction(Group):
+    """A heterogeneous reaction on an adsorbent (``adsorbent.reactions["SMR"]``).
+
+    Its values are the fields of ``adsorbent[A].reaction[R].*``: ``basis``,
+    ``heat_of_reaction``, ``heat_mode``, ``heat_reference_temperature``,
+    ``effectiveness`` (constant mode) or ``tortuosity`` (Thiele mode); the rate
+    law's parameters are under ``.rate`` (``r.rate.pre_exp_factor``,
+    ``r.rate.order["Water"]``, ``r.rate.adsorption[1].energy``...) and the
+    stoichiometric coefficients are ``r.nu["Hydrogen"]`` (read-only; change them
+    with :meth:`set_stoichiometry`).
+
+    *New in 0.9.*
+    """
+
+    __slots__ = ("_id", "_name", "_adsorbent")
+
+    def __init__(self, sim: "Simulation", tree: Optional[_Tree], label: str, id: int, name: str,
+                 adsorbent: int) -> None:
+        super().__init__(sim, tree, label)
+        object.__setattr__(self, "_id", id)
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_adsorbent", adsorbent)
+
+    @property
+    def id(self) -> int:
+        """The reaction ID stored in the deck (``reaction[<id>]`` in string paths)."""
+        return self._id
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def _refetch(self) -> "Reaction":
+        return self._sim.adsorbents.by_id(self._adsorbent).reactions.by_id(self._id)
+
+    def _fresh(self) -> "Reaction":
+        return self._refetch()
+
+    def _args(self, *rest: Any) -> List[Any]:
+        return [self._adsorbent, self._id, *rest]
+
+    def set_kind(self, kind: str) -> "Reaction":
+        """A new rate law of ``kind`` (``skarstrom.build_kinds()["reaction_rate"]``: ``"power_law"``,
+        ``"reversible_power_law"``, ``"lhhw"``, ``"expression"``). Parameters the new law shares
+        with the old one keep their values."""
+        self._sim._build("set_reaction_kind", *self._args(kind))
+        return self._fresh()
+
+    def set_stoichiometry(self, nu: Mapping[str, float]) -> "Reaction":
+        """Replace the stoichiometry: component -> coefficient (< 0 reactant, > 0 product)."""
+        self._sim._build("set_reaction_stoichiometry", *self._args(_nu(self._sim, nu)))
+        return self._fresh()
+
+    def set_basis(self, basis: str) -> "Reaction":
+        """The activity the rate uses: ``"partial_pressure"`` (bar) or ``"concentration"`` (mol/m3)."""
+        self._sim._build("set_reaction_basis", *self._args(basis))
+        return self._fresh()
+
+    def set_effectiveness(self, mode: str = "constant", key_component: Optional[str] = None) -> "Reaction":
+        """The effectiveness model: ``"constant"`` (the ``effectiveness`` field) or ``"thiele"``
+        (from the Thiele modulus of ``key_component``, a reactant of this reaction)."""
+        args = [mode] + ([self._sim._component(key_component)] if key_component else [])
+        self._sim._build("set_effectiveness", *self._args(*args))
+        return self._fresh()
+
+    def add_adsorption_term(self) -> int:
+        """A new denominator term of an ``"lhhw"`` rate; returns its index j (from 1). Its values
+        are ``rate.adsorption[j].*``."""
+        j = self._sim._build("add_adsorption_term", *self._args())
+        return int(j)
+
+    def remove_adsorption_term(self, j: int) -> "Reaction":
+        """Remove denominator term ``j`` (from 1) of an ``"lhhw"`` rate."""
+        self._sim._build("remove_adsorption_term", *self._args(int(j)))
+        return self._fresh()
+
+    def _header(self) -> str:
+        return f"<{self._label} (id {self._id})>"
+
+
+def _nu(sim: "Simulation", nu: Mapping[str, float]) -> Dict[str, float]:
+    return {sim._component(c): float(v) for c, v in nu.items()}
+
+
 class Adsorbent(_Node):
     """An adsorbent used by the bed's layers."""
 
@@ -1928,6 +2019,54 @@ class Adsorbent(_Node):
         switches knudsen off. Parameter values are kept."""
         self._sim.edit.set_mass_transfer_resistance(self._id, self._sim._component(component), tag, bool(on),
                                                     site=site)
+        return self._fresh()
+
+    @property
+    def reactions(self) -> "Collection[Reaction]":
+        """The reactions on this adsorbent (``reactions["SMR"]``, ``reactions[0]``,
+        ``reactions.by_id(1)``). *New in 0.9.*"""
+        index = self._sim._index()
+        items = []
+        for key, tree in self._tree_or_raise().keyed.get("reaction", {}).items():
+            alias = index.by_path[tree.leaves["basis"]].alias if "basis" in tree.leaves else ""
+            name = _alias_key(alias, "reaction") if alias else key
+            items.append(Reaction(self._sim, tree, f"{self._label}.reactions[{name!r}]", int(key), name, self._id))
+        return Collection(items, f"{self._label}.reactions")
+
+    def add_reaction(self, name: str, nu: Mapping[str, float], kind: str = "power_law",
+                     basis: Optional[str] = None, effectiveness: Optional[str] = None,
+                     key_component: Optional[str] = None, adsorption_terms: int = 0,
+                     **values: Value) -> "Reaction":
+        """A reaction on this adsorbent.
+
+        ``nu`` maps components to stoichiometric coefficients (< 0 reactant, > 0 product);
+        ``kind`` is the rate law (``skarstrom.build_kinds()["reaction_rate"]``); ``basis`` is
+        ``"partial_pressure"`` (the default) or ``"concentration"``; ``effectiveness`` is
+        ``"constant"`` or ``"thiele"`` (with its ``key_component``); ``adsorption_terms`` adds
+        that many denominator terms to an ``"lhhw"`` rate. ``values`` set the reaction's fields
+        (``heat_of_reaction``...); the rate law's parameters are set on the returned object
+        (``r.rate.pre_exp_factor = ...``). Orders default to -nu for reactants and 0 for products.
+
+        *New in 0.9.*
+        """
+        rid = self._sim._build("add_reaction", self._id, name, _nu(self._sim, nu), kind)
+        rx = self._fresh().reactions.by_id(rid)
+        if basis is not None:
+            rx = rx.set_basis(basis)
+        for _ in range(adsorption_terms):
+            rx.add_adsorption_term()
+        if effectiveness is not None:
+            rx = rx.set_effectiveness(effectiveness, key_component)
+        else:
+            rx = rx._fresh()
+        _apply(rx, values)
+        return rx
+
+    def remove_reaction(self, reaction: Any) -> "Adsorbent":
+        """Remove a reaction (name, ID or :class:`Reaction`). IDs are not reused."""
+        rx = reaction if isinstance(reaction, Reaction) else (
+            self.reactions.by_id(reaction) if isinstance(reaction, int) else self.reactions[reaction])
+        self._sim._build("remove_reaction", self._id, rx.id)
         return self._fresh()
 
     def _header(self) -> str:

@@ -29,6 +29,7 @@ namespace adsim {
     bool design_temperature = true;    // wall temperature above the design temperature
     bool fluidisation = true;          // approach to fluidisation above 1
     bool channel_reynolds = true;      // channel Re above 2000 in a structured layer (laminar closures)
+    bool outlet_backflow = true;       // gas flows back into the bed through an unconnected outlet
     // Run health, after every cycle (run_health.h).
     bool mole_fraction_sum = true;     // MOLE_FRACTION_SUM: the gas mole fractions do not sum to 1
     bool mass_balance_stuck = true;    // MASS_BALANCE_STUCK: a cycle mole balance stays open as the run settles
@@ -59,9 +60,12 @@ namespace adsim {
       } else {
         mole_fraction_sum = mass_balance_stuck = step_retries = history_truncated = true;
       }
+      // v3: the outlet backflow warning (on for older decks).
+      if (version >= 3) ar(cereal::make_nvp("Outlet_Backflow", outlet_backflow));
+      else outlet_backflow = true;
     }
   };
 
 } // namespace adsim
 
-CEREAL_CLASS_VERSION(adsim::WarningSettings, 2);
+CEREAL_CLASS_VERSION(adsim::WarningSettings, 3);

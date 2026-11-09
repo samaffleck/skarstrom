@@ -9,6 +9,7 @@
 #include "adsim/objects/user_data.h"
 #include "adsim/objects/wall_design.h"
 #include "adsim/solver/log.h"
+#include "adsim/boundary_conditions/boundary_conditions.h"
 
 #include <cmath>
 #include <iomanip>
@@ -36,6 +37,58 @@ namespace adsim {
 
     std::string InStep(const StepOperatingSummary& s, int cycle) {
       return "in step \"" + s.step_name + "\" of cycle " + std::to_string(cycle + 1);
+    }
+
+    // Gross moles that entered the bed through an endpoint over its last
+    // logged step: its KPI quadrature (EndpointIntegrals::moles_in) when
+    // integrated, else the trapezoid of the inflowing part of its logged
+    // molar flow.
+    double MolesIn(const StreamData& data) {
+      if (data.integrals_.valid) return data.integrals_.moles_in;
+      const auto& t = data.time_series_;
+      const auto& n = data.molar_flow_;
+      // Positive along the bed axis is into the bed at the bottom.
+      const double into = data.location_ == BoundaryLocation::BOTTOM ? 1.0 : -1.0;
+      double moles = 0.0;
+      for (size_t k = 1; k < t.size() && k < n.size(); ++k)
+        moles += 0.5 * (std::max(into * n[k - 1], 0.0) + std::max(into * n[k], 0.0)) * (t[k] - t[k - 1]);
+      return moles;
+    }
+
+    // One endpoint that leads outside the cycle (no connection to another
+    // step): a flow stream or a pressure boundary.
+    struct ExternalEndpoint {
+      int step = 0;
+      std::string name;             // display name
+      size_t endpoint_id = 0;
+      BoundaryDirection direction = BoundaryDirection::OUTLET;
+      bool valve = false;           // a valve stream (it can take a check valve)
+      bool check_valve = false;
+      const StreamData* data = nullptr;
+    };
+
+    std::vector<ExternalEndpoint> ExternalEndpoints(const UserData& data) {
+      std::vector<ExternalEndpoint> out;
+      const auto& steps = data.cycle.step_list_;
+      for (int k = 0; k < static_cast<int>(steps.size()); ++k) {
+        for (const auto* bc : {steps[k].bottom_boundary_condition_.get(), steps[k].top_boundary_condition_.get()}) {
+          if (!bc) continue;
+          const char* end = bc->location_ == BoundaryLocation::TOP ? "top" : "bottom";
+          if (const auto* p = dynamic_cast<const PressureBoundaryCondition*>(bc)) {
+            if (p->connection_.IsConnected()) continue;
+            out.push_back({k, std::string("pressure boundary at the ") + end, p->endpoint_id_, p->direction_,
+                           false, false, &p->stream_data_});
+          } else if (const auto* f = dynamic_cast<const FlowBoundaryCondition*>(bc)) {
+            for (const auto& st : f->streams_) {
+              if (!st || st->connection_.IsConnected()) continue;
+              const auto* v = dynamic_cast<const ValveBoundaryStream*>(st.get());
+              out.push_back({k, "stream \"" + st->name_ + "\" (" + end + ")", st->endpoint_id_, f->direction_,
+                             v != nullptr, v != nullptr && v->check_valve_, &st->stream_data_});
+            }
+          }
+        }
+      }
+      return out;
     }
 
   } // namespace
@@ -149,6 +202,7 @@ namespace adsim {
         case OperatingLimit::DesignTemperature: return on.design_temperature;
         case OperatingLimit::Fluidisation:      return on.fluidisation;
         case OperatingLimit::ChannelReynolds:   return on.channel_reynolds;
+        case OperatingLimit::OutletBackflow:    return on.outlet_backflow;
       }
       return true;
     };
@@ -211,6 +265,39 @@ namespace adsim {
              + InStep(s, report.cycle) + ", above " + Num(kLaminarChannelReynolds)
              + ": the flow is no longer laminar, so the channel pressure drop, film coefficients and dispersion"
                " are underestimated.");
+      }
+    }
+
+    // Backflow into the bed through an outlet that leads outside the cycle.
+    // It reads the endpoints' own logs, which hold the last cycle the run
+    // integrated, so it is checked only for the last logged cycle.
+    // Connected endpoints (pressure equalisation, light-product
+    // pressurisation) carry flow both ways by design and are not checked.
+    if (cycle_it == std::prev(sim_log.end()) && enabled(OperatingLimit::OutletBackflow)) {
+      const auto endpoints = ExternalEndpoints(data);
+      double feed = 0.0;
+      for (const auto& e : endpoints)
+        if (e.direction == BoundaryDirection::INLET) feed += MolesIn(*e.data);
+      for (const auto& e : endpoints) {
+        if (e.direction != BoundaryDirection::OUTLET || !(feed > 0.0)) continue;
+        const double moles_in = MolesIn(*e.data);
+        const double fraction = moles_in / feed;
+        if (!std::isfinite(fraction) || fraction <= kOutletBackflowFraction) continue;
+        auto summary = std::find_if(report.steps.begin(), report.steps.end(),
+                                    [&](const StepOperatingSummary& s) { return s.step == e.step; });
+        if (summary == report.steps.end()) continue;
+        std::string message = "gas flows back into the bed through the outlet " + e.name + " (endpoint["
+            + std::to_string(e.endpoint_id) + "]) " + InStep(*summary, report.cycle) + ": " + Num(moles_in)
+            + " mol in, " + Num(100.0 * fraction) + " % of the cycle feed of " + Num(feed)
+            + " mol. The gas that flows back in carries the bed-end composition and temperature, not the"
+              " stream's, and the KPIs do not count it as feed.";
+        if (e.valve && !e.check_valve)
+          message += " Turn on the valve's check valve (endpoint[" + std::to_string(e.endpoint_id)
+                     + "].valve.check_valve) to stop the backflow.";
+        else if (!e.valve)
+          message += " Use a valve stream with a check valve, or a boundary pressure that stays below the bed's.";
+        report.warnings.push_back({ OperatingLimit::OutletBackflow, e.step, fraction, kOutletBackflowFraction,
+                                    "Warning: " + std::move(message) });
       }
     }
     return report;
