@@ -93,9 +93,10 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         # Blower flow as a superficial velocity. The paper's 0.05-1.5 m/s interstitial range
         # is 0.02-0.6 superficial; above about 0.15 m/s the feed lifts the bed. (Base 0.085.)
         ("variable[feed_velocity]", 0.02, 0.15, "m/s"),
-        # Vacuum pump power at full vacuum, W_max of W = W_max (1 - P/p_atm). Below 3 W the
-        # bed is not evacuated in the time; above 30 W the evacuation passes any floor. (Base 10.4.)
-        ("variable[vacuum_pump_power]", 3.0, 30.0, ""),
+        # Vacuum pump power at full vacuum, W_max of W = W_max (1 - P/p_atm). The small end holds
+        # the evacuation above the 10 kPa floor (the base 10.4 W reaches 3.9 kPa); above 30 W the
+        # pump passes any floor in seconds.
+        ("variable[vacuum_pump_power]", 1.0, 30.0, ""),
         # Share of the pump's time in blowdown: sets the intermediate pressure. (Base 0.197.)
         ("variable[blowdown_share]", 0.08, 0.6, ""),
         # Pressurisation valve from the feed header [mol/(s bar)]. It opens fully onto the evacuated
@@ -112,8 +113,9 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         ("variable[t_feed]", 60.0, 250.0, "s"),
         # Blower flow, superficial. (Base 0.0328 m/s.)
         ("variable[feed_velocity]", 0.015, 0.1, "m/s"),
-        # Vacuum pump power at full vacuum [W]. (Base 5.8.)
-        ("variable[vacuum_pump_power]", 2.0, 20.0, ""),
+        # Vacuum pump power at full vacuum [W]. A short search found 2.1-2.5 W still reaching
+        # 9.7 kPa, so the range reaches well below. (Base 5.8, 3.1 kPa.)
+        ("variable[vacuum_pump_power]", 0.5, 20.0, ""),
         # Share of the pump's time in blowdown. (Base 0.237.)
         ("variable[blowdown_share]", 0.08, 0.6, ""),
         # Share of the feed time in feed 1, which supplies the LPP; the LPP step is as long.
