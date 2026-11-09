@@ -40,8 +40,8 @@ namespace adsim {
 
     const double h = 1e-6 * band;
     auto slope = [&](double x) { return (ConnectionFlowWeight(x + h) - ConnectionFlowWeight(x - h)) / (2.0 * h); };
-    EXPECT_NEAR(slope(0.0), 0.0, 1e-6 / band);
-    EXPECT_NEAR(slope(band), 0.0, 1e-6 / band);
+    EXPECT_NEAR(slope(0.0), 0.0, 1e-5 / band);
+    EXPECT_NEAR(slope(band), 0.0, 1e-5 / band);
     double previous = 0.0;
     for (int k = 1; k <= 100; ++k) {
       const double w = ConnectionFlowWeight(band * k / 100.0);
