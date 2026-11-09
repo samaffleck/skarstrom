@@ -800,19 +800,29 @@ namespace {
 // (under its kind's names) take its defaults, except those the old preset
 // shared with it (same name and unit, the rate model's unit for k); the
 // parameters it does not show keep their stored values. `fresh` is the new
-// preset's model with its defaults.
+// preset's model with its defaults. series_resistance (custom) keeps a generic
+// site as it is (switches, mode and values), except that the lumped k takes
+// its default when the rate model changes order (its unit changes).
 void ApplyCoefficientPreset(std::unique_ptr<IMassTransferCoefficientModel>& site,
                             std::unique_ptr<IMassTransferCoefficientModel> fresh, MassTransferModelType old_rate,
                             MassTransferCoefficientType coefficient_kind, MassTransferModelType rate_kind) {
+  using T = MassTransferCoefficientType;
+  const bool ldf2_old = old_rate == MassTransferModelType::LDF2, ldf2_new = rate_kind == MassTransferModelType::LDF2;
   auto* g_new = dynamic_cast<MassTransferCoefficientSeriesResistance*>(fresh.get());
+  if (coefficient_kind == T::SERIES_RESISTANCE && site) {
+    if (auto* g_old = dynamic_cast<MassTransferCoefficientSeriesResistance*>(site.get())) {
+      if (ldf2_old != ldf2_new && g_new) g_old->k_ = g_new->k_;
+      return;
+    }
+  }
   if (site && g_new) {
     if (auto* g_old = dynamic_cast<MassTransferCoefficientSeriesResistance*>(site.get())) {
       // Hidden parameters: the stored values. Shown ones and those the preset
       // fixes: the preset's.
       std::vector<const ExpressionParam*> fixed;
-      for (const auto& [name, p] : ModelFields(fresh.get())) fixed.push_back(p);
-      if (coefficient_kind == MassTransferCoefficientType::CONSTANT) fixed.push_back(&g_new->activation_energy_);
-      if (coefficient_kind == MassTransferCoefficientType::HAYNES_1973) {
+      for (const auto& [name, p] : PresetFields(fresh.get(), coefficient_kind)) fixed.push_back(p);
+      if (coefficient_kind == T::CONSTANT) fixed.push_back(&g_new->activation_energy_);
+      if (coefficient_kind == T::HAYNES_1973) {
         fixed.push_back(&g_new->film_resistance_factor_);
         fixed.push_back(&g_new->molecular_diffusion_coefficient_);
       }
@@ -823,9 +833,10 @@ void ApplyCoefficientPreset(std::unique_ptr<IMassTransferCoefficientModel>& site
     }
   }
   if (site) {
-    const KindDescriptor from = CoefficientKind(site->GetModelType(), old_rate);
+    const T old_preset = CoefficientPreset(site.get());
+    const KindDescriptor from = CoefficientKind(old_preset, old_rate);
     const KindDescriptor to = CoefficientKind(coefficient_kind, rate_kind);
-    CarryOverParameters(from, ModelFields(site.get()), to, ModelFields(fresh.get()));
+    CarryOverParameters(from, PresetFields(site.get(), old_preset), to, PresetFields(fresh.get(), coefficient_kind));
   }
   site = std::move(fresh);
 }
@@ -878,7 +889,7 @@ bool SetMassTransferKind(UserData& data, AdsorbentID adsorbent, const std::strin
   if (old_rate != rate_kind) slot = CreateMassTransferModel(rate_kind);
   auto* dual = dynamic_cast<DualRateLinearDrivingForce*>(slot.get());
 
-  if (old_coeff && old_coeff->GetModelType() == coefficient_kind && old_rate == rate_kind) {
+  if (old_coeff && CoefficientPreset(old_coeff.get()) == coefficient_kind && old_rate == rate_kind) {
     slot->mtc_model_ = std::move(old_coeff);
     if (dual) dual->slow_mtc_model_ = std::move(old_slow);
     if (dual) dual->SyncSlowSite();

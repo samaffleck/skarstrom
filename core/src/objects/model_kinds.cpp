@@ -22,6 +22,18 @@ const KindParameter* KindDescriptor::Find(const std::string& name) const {
   return nullptr;
 }
 
+const ResistanceDescriptor* KindDescriptor::FindResistance(const std::string& t) const {
+  for (const auto& r : resistances)
+    if (r.tag == t) return &r;
+  return nullptr;
+}
+
+const PresetDescriptor* KindDescriptor::FindPreset(const std::string& t) const {
+  for (const auto& p : presets)
+    if (p.tag == t) return &p;
+  return nullptr;
+}
+
 namespace {
 
 using P = KindParameter;
@@ -47,44 +59,89 @@ const std::vector<K>& RateModels() {
   return k;
 }
 
+// The kind carrying the generic model's resistances, capacity modes and
+// presets (series_resistance). Fragment placeholders: see ResistanceDescriptor.
+K ResistanceModel() {
+  K k{"series_resistance",
+      "Mass-transfer resistances",
+      {{"film_resistance_factor", "-", 1.0, 0.0, 10.0, true, "film resistance factor"}, Tortuosity(),
+       MacroporeVoid(0.35), MolecularDiffusivity(),
+       {"crystal_radius", "m", 1e-6, 1e-9, 1e-4, true, "micropore (crystal) radius"},
+       {"micropore_diffusivity", "m2/s", 1e-13, 1e-20, 1e-8, true, "micropore diffusivity pre-exponential factor"},
+       {"micropore_activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "micropore diffusion activation energy"},
+       {"capacity_factor", "-", 0.0, 0.0, 1e5, true, "fixed capacity factor (the fixed mode sets 0 to 1)"},
+       {"concentration_floor", "mol/m3", 1e-3, 0.0, 10.0, true, "capacity-factor concentration floor"},
+       {"k", "1/s", 0.5, 1e-4, 100.0, true, "mass transfer coefficient"},
+       {"activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "MTC activation energy"},
+       {"pore_radius", "m", 1e-9, 1e-10, 1e-6, true, "pore radius"}}};
+  using R = ResistanceDescriptor;
+  R film{"film", "external film", "", true, {"film_resistance_factor"}};
+  film.sphere = {R"(f_{film}\,\frac{{K}r_p}{3\,k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{d_p})", ""};
+  film.slab = {R"(f_{film}\,\frac{{K}\ell}{k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{D_h})", ""};
+  film.source = "Haynes & Sarma (1973); Ruthven (1984); slab: Rezaei & Webley (2009)";
+  R macro{"macropore", "macropore diffusion", "", true,
+          {"tortuosity", "macropore_void_fraction", "molecular_diffusion_coefficient"}};
+  macro.sphere = {R"(\frac{{K}\tau\,r_p^{2}}{15\,\varepsilon_p\,{D}})", "", ""};
+  macro.slab = {R"(\frac{{K}\tau\,\ell^{2}}{3\,\varepsilon_p\,{D}})", "", ""};
+  macro.source = "Glueckauf (1955); Ruthven (1984); Haghpanah et al. (2013); slab: Rezaei & Webley (2009)";
+  R knudsen{"knudsen", "Knudsen diffusion", "macropore", false, {"pore_radius"}};
+  const std::string bosanquet =
+      R"(\frac{1}{D_{B,i}} = \frac{1}{D_{K,i}} + \frac{1}{D_{m,i}},\quad D_{K,i} = \tfrac{2}{3}\,r_{pore}\sqrt{\tfrac{8RT}{\pi M_i}})";
+  knudsen.sphere = knudsen.slab = {"", bosanquet, ""};
+  knudsen.source = "Ruthven (1984); Do (1998)";
+  R micro{"micropore", "micropore diffusion", "", false,
+          {"crystal_radius", "micropore_diffusivity", "micropore_activation_energy"}};
+  micro.sphere = micro.slab = {R"(\frac{r_c^{2}}{15\,D_{c,i}})", R"(D_{c,i} = D_{c0}\,e^{-E_{a,c}/RT})",
+                               R"(D_{c,i} = D_{c0})"};
+  micro.source = "Kärger & Ruthven (1992); Farooq & Ruthven (1991)";
+  R lumped{"lumped", "lumped coefficient", "", false, {"k", "activation_energy"}};
+  lumped.sphere = lumped.slab = {R"(\frac{1}{k_{L,i}})", R"(k_{L,i} = k_0\,e^{-E_a/RT})", R"(k_{L,i} = k)"};
+  lumped.source = "Glueckauf (1955)";
+  k.resistances = {film, macro, knudsen, micro, lumped};
+  k.capacity_modes = {
+      {"none", "none (K = 1)", ""},
+      {"slope", "isotherm slope", R"(K = \max\!\left(\rho_p\,\frac{\partial q_i^{*}}{\partial c_i},\,1\right))"},
+      {"secant", "isotherm secant", R"(K = \max\!\left(\frac{\rho_p\,q_i^{*}}{c_i},\,1\right))"},
+      {"fixed", "fixed value", R"(K = K_{fix})"}};
+  // The former coefficient kinds (PresetType); arrhenius is the lumped term
+  // with a non-zero activation energy, constant the same with E_a = 0.
+  k.presets = {{"constant", {"lumped"}, 0, {{"activation_energy", 0.0}}},
+               {"arrhenius", {"lumped"}, 0, {}},
+               {"macropore", {"macropore"}, 0, {}},
+               {"macropore_knudsen", {"macropore", "knudsen"}, 0, {}},
+               {"haynes", {"film", "macropore"}, 0, {{"film_resistance_factor", 1.0}, {"molecular_diffusion_coefficient", 0.0}}},
+               {"macropore_capacity", {"macropore"}, 2, {}}};
+  return k;
+}
+
 const std::vector<K>& RateCoefficients() {
+  // The first six kinds are the former coefficient classes: kept so old decks
+  // load and their tags name presets of the generic model; not offered as
+  // kinds (legacy).
   static const std::vector<K> k{
-      {"constant", "Constant", {{"k", "1/s", 0.5, 1e-4, 100.0, true, "mass transfer coefficient"}}},
-      {"macropore", "Macropore Diffusion", {Tortuosity(), MacroporeVoid(0.35), MolecularDiffusivity()}},
+      {"constant", "Constant", {{"k", "1/s", 0.5, 1e-4, 100.0, true, "mass transfer coefficient"}}, true},
+      {"macropore", "Macropore Diffusion", {Tortuosity(), MacroporeVoid(0.35), MolecularDiffusivity()}, true},
       {"macropore_knudsen",
        "Macropore + Knudsen Diffusion",
        {{"pore_radius", "m", 1e-9, 1e-10, 1e-6, true, "pore radius"}, Tortuosity(), MacroporeVoid(0.2),
-        MolecularDiffusivity()}},
-      {"haynes", "Haynes (1973)", {Tortuosity(), MacroporeVoid(0.2)}},
+        MolecularDiffusivity()},
+       true},
+      {"haynes", "Haynes (1973)", {Tortuosity(), MacroporeVoid(0.2)}, true},
       {"arrhenius",
        "Arrhenius",
        {{"pre_exp_factor", "1/s", 120.0, 0.01, 1e4, true, "MTC pre-exponential factor"},
-        {"activation_energy", "J/mol", 1e4, 0.0, 1e5, true, "MTC activation energy"}}},
+        {"activation_energy", "J/mol", 1e4, 0.0, 1e5, true, "MTC activation energy"}},
+       true},
       {"macropore_capacity",
        "Macropore Diffusion (capacity factor)",
        {Tortuosity(), MacroporeVoid(0.35),
         {"concentration_floor", "mol/m3", 1e-3, 0.0, 10.0, true, "capacity-factor concentration floor"},
-        MolecularDiffusivity()}},
+        MolecularDiffusivity()},
+       true},
       // The generic model: film, macropore (+ Knudsen), micropore and lumped
       // resistances in series, each switched on or off, the gas-side ones
-      // times the capacity factor K. The kinds above are its presets
-      // (MassTransferCoefficientSeriesResistance::PresetType). The defaults
-      // are those of a model created from this tag: version-1 semantics, a
-      // term off while its parameter is zero (film_resistance_factor,
-      // tortuosity, crystal_radius or micropore_diffusivity) and K from the
-      // isotherm slope unless capacity_factor > 0.
-      {"series_resistance",
-       "Mass-transfer resistances",
-       {{"film_resistance_factor", "-", 1.0, 0.0, 10.0, true, "film resistance factor"}, Tortuosity(),
-        MacroporeVoid(0.35), MolecularDiffusivity(),
-        {"crystal_radius", "m", 0.0, 0.0, 1e-4, true, "micropore (crystal) radius"},
-        {"micropore_diffusivity", "m2/s", 0.0, 0.0, 1e-8, true, "micropore diffusivity pre-exponential factor"},
-        {"micropore_activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "micropore diffusion activation energy"},
-        {"capacity_factor", "-", 0.0, 0.0, 1e5, true, "fixed capacity factor (0: isotherm slope)"},
-        {"concentration_floor", "mol/m3", 1e-3, 0.0, 10.0, true, "capacity-factor concentration floor"},
-        {"k", "1/s", 0.5, 1e-4, 100.0, true, "lumped mass transfer coefficient"},
-        {"activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "lumped coefficient activation energy"},
-        {"pore_radius", "m", 1e-9, 1e-10, 1e-6, true, "pore radius"}}},
+      // times the capacity factor K.
+      ResistanceModel(),
   };
   return k;
 }
@@ -619,6 +676,47 @@ ModelFieldList ResistanceFields(MassTransferCoefficientSeriesResistance* c) {
           {"pore_radius", &c->pore_radius_}};
 }
 
+MassTransferCoefficientType CoefficientPreset(IMassTransferCoefficientModel* m) {
+  if (!m) return MassTransferCoefficientType::CONSTANT;
+  if (auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(m)) return g->PresetType();
+  return m->GetModelType();
+}
+
+ModelFieldList PresetFields(IMassTransferCoefficientModel* m, MassTransferCoefficientType preset) {
+  auto* c = dynamic_cast<MassTransferCoefficientSeriesResistance*>(m);
+  if (!c) return ModelFields(m);
+  // The parameters the preset shows, under its kind's names (arrhenius:
+  // pre_exp_factor is the lumped k); custom: every parameter.
+  ModelFieldList out;
+  using T = MassTransferCoefficientType;
+  switch (preset) {
+    case T::CONSTANT: out = {{"k", &c->k_}}; break;
+    case T::ARRHENIUS: out = {{"pre_exp_factor", &c->k_}, {"activation_energy", &c->activation_energy_}}; break;
+    case T::MACROPORE:
+      out = {{"tortuosity", &c->tortuosity_},
+             {"macropore_void_fraction", &c->macropore_void_fraction_},
+             {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_}};
+      break;
+    case T::MACROPORE_KNUDSEN:
+      out = {{"pore_radius", &c->pore_radius_},
+             {"tortuosity", &c->tortuosity_},
+             {"macropore_void_fraction", &c->macropore_void_fraction_},
+             {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_}};
+      break;
+    case T::HAYNES_1973:
+      out = {{"tortuosity", &c->tortuosity_}, {"macropore_void_fraction", &c->macropore_void_fraction_}};
+      break;
+    case T::MACROPORE_CAPACITY:
+      out = {{"tortuosity", &c->tortuosity_},
+             {"macropore_void_fraction", &c->macropore_void_fraction_},
+             {"concentration_floor", &c->concentration_floor_},
+             {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_}};
+      break;
+    default: out = ResistanceFields(c); break;
+  }
+  return out;
+}
+
 ModelFieldList ModelFields(IMassTransferCoefficientModel* m) {
   ModelFieldList out;
   if (auto* c = dynamic_cast<MassTransferCoefficientConstant*>(m)) {
@@ -642,35 +740,7 @@ ModelFieldList ModelFields(IMassTransferCoefficientModel* m) {
            {"concentration_floor", &c->concentration_floor_},
            {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_}};
   } else if (auto* c = dynamic_cast<MassTransferCoefficientSeriesResistance*>(m)) {
-    // The generic model shows the parameters of the preset it matches, under
-    // that kind's names (arrhenius: pre_exp_factor is the lumped k); when it
-    // matches none, every parameter (ResistanceFields).
-    using T = MassTransferCoefficientType;
-    switch (c->PresetType()) {
-      case T::CONSTANT: out = {{"k", &c->k_}}; break;
-      case T::ARRHENIUS: out = {{"pre_exp_factor", &c->k_}, {"activation_energy", &c->activation_energy_}}; break;
-      case T::MACROPORE:
-        out = {{"tortuosity", &c->tortuosity_},
-               {"macropore_void_fraction", &c->macropore_void_fraction_},
-               {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_}};
-        break;
-      case T::MACROPORE_KNUDSEN:
-        out = {{"pore_radius", &c->pore_radius_},
-               {"tortuosity", &c->tortuosity_},
-               {"macropore_void_fraction", &c->macropore_void_fraction_},
-               {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_}};
-        break;
-      case T::HAYNES_1973:
-        out = {{"tortuosity", &c->tortuosity_}, {"macropore_void_fraction", &c->macropore_void_fraction_}};
-        break;
-      case T::MACROPORE_CAPACITY:
-        out = {{"tortuosity", &c->tortuosity_},
-               {"macropore_void_fraction", &c->macropore_void_fraction_},
-               {"concentration_floor", &c->concentration_floor_},
-               {"molecular_diffusion_coefficient", &c->molecular_diffusion_coefficient_}};
-        break;
-      default: out = ResistanceFields(c); break;
-    }
+    out = ResistanceFields(c);
   } else if (auto* c = dynamic_cast<LegacySeriesResistanceV1*>(m)) {
     out = {{"film_resistance_factor", &c->film_resistance_factor_},
            {"tortuosity", &c->tortuosity_},
@@ -775,6 +845,51 @@ std::vector<std::string> CarryOverParameters(const KindDescriptor& from_kind, co
     }
   }
   return copied;
+}
+
+const KindDescriptor& ResistanceKind() {
+  return *KindAt(ModelFamily::RateCoefficient, static_cast<std::size_t>(MassTransferCoefficientType::SERIES_RESISTANCE));
+}
+
+namespace {
+void ReplaceAll(std::string& s, const std::string& from, const std::string& to) {
+  for (std::size_t at = s.find(from); at != std::string::npos; at = s.find(from, at + to.size()))
+    s.replace(at, from.size(), to);
+}
+bool IsZeroNumber(const ExpressionParam& p) { return !p.HasExpression() && p.Get() == 0.0; }
+}  // namespace
+
+std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model, DiffusionShape shape) {
+  const KindDescriptor& kind = ResistanceKind();
+  const bool knudsen = model.Enabled("knudsen");
+  const CapacityFactorMode mode = model.UsesCapacityFactor() ? model.CapacityMode() : CapacityFactorMode::NONE;
+  std::vector<std::string> terms, wheres;
+  for (const ResistanceDescriptor& r : kind.resistances) {
+    if (!model.Enabled(r.tag)) continue;
+    const ResistanceDescriptor::Latex& f = r.Fragments(shape);
+    if (f.term.empty() && f.where.empty()) continue;
+    if (!f.term.empty()) {
+      std::string term = f.term;
+      ReplaceAll(term, "{K}", r.scaled_by_capacity && mode != CapacityFactorMode::NONE ? "K\\," : "");
+      ReplaceAll(term, "{D}", knudsen ? "D_{B,i}" : "D_{m,i}");
+      terms.push_back(term);
+    }
+    const ExpressionParam* ea = r.tag == "lumped"      ? &model.activation_energy_
+                                : r.tag == "micropore" ? &model.micropore_activation_energy_
+                                                       : nullptr;
+    const std::string& where = (!f.where_isothermal.empty() && ea && IsZeroNumber(*ea)) ? f.where_isothermal : f.where;
+    if (!where.empty()) wheres.push_back(where);
+  }
+  if (terms.empty()) return "";
+  const auto m = static_cast<std::size_t>(mode);
+  if (m < kind.capacity_modes.size() && !kind.capacity_modes[m].latex.empty())
+    wheres.push_back(kind.capacity_modes[m].latex);
+  std::string eq = "\\frac{1}{k_i} = ";
+  for (std::size_t i = 0; i < terms.size(); ++i) eq += (i ? " + " : "") + terms[i];
+  if (wheres.empty()) return eq;
+  std::string out = "\\begin{aligned}" + eq + " \\\\ ";
+  for (std::size_t i = 0; i < wheres.size(); ++i) out += (i ? ",\\qquad " : "") + wheres[i];
+  return out + "\\end{aligned}";
 }
 
 }  // namespace adsim

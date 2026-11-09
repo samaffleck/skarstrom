@@ -529,8 +529,36 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
             w(f"{v}.set_mixing_rule({a['mixing_rule']!r})")
         for c, r in a["rate_models"].items():
             kn = node.kinetics[c]
-            kw = _kwargs(sim, kn)
+            # The coefficient: a preset tag (which sets the switches and the
+            # mode), or series_resistance with its switches; the mode when it
+            # is not the preset's own.
+            extra = []
+            if "resistances" in r:
+                extra.append(f"resistances={r['resistances']!r}")
+            if "capacity_factor_mode" in r:
+                extra.append(f"capacity_factor_mode={r['capacity_factor_mode']!r}")
+            # A dual-rate slow site with other switches than the fast one
+            # ("slow" in describe()) gets them, and then its values, after the call.
+            slow = r.get("slow")
+            slow_differs = slow is not None
+            skip = {"capacity_factor_mode", "slow_capacity_factor_mode"}
+            if slow_differs:
+                skip |= {f for f in kn.fields if f.startswith("slow_")}
+            kw = ", ".join(extra + ([_kwargs(sim, kn, skip)] if _kwargs(sim, kn, skip) else []))
             w(f"{v}.set_rate_model({c!r}, {r['model']!r}, {r['coefficient']!r}{', ' + kw if kw else ''})")
+            if slow_differs:
+                tags = ("film", "macropore", "knudsen", "micropore", "lumped")
+                for tag in tags:  # on first: a site keeps one term on
+                    if tag in slow["resistances"]:
+                        w(f"{v}.set_rate_resistance({c!r}, {tag!r}, True, site='slow')")
+                for tag in reversed(tags):
+                    if tag not in slow["resistances"]:
+                        w(f"{v}.set_rate_resistance({c!r}, {tag!r}, False, site='slow')")
+                w(f"{name}.edit.set_capacity_factor_mode({v}.id, {c!r}, {slow['capacity_factor_mode']!r}, site='slow')")
+                kn = sim.adsorbents.by_id(a["id"]).kinetics[c]
+                for f in kn.fields:
+                    if f.startswith("slow_") and f != "slow_capacity_factor_mode":
+                        w(f"{v}.kinetics[{c!r}].{f} = {_literal(sim, kn.path(f))}")
         try:
             heats = node.heat_of_adsorption._paths
         except AttributeError:  # an adsorbent no component has been set up on

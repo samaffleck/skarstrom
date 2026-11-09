@@ -21,6 +21,7 @@
 #include "adsim/math/user_variables.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/fluid.h"
+#include "adsim/objects/model_kinds.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/simulation.h"
 #include "adsim/solver/log.h"
@@ -349,6 +350,86 @@ namespace adsim {
       return w;
     }();
     return warnings;
+  }
+
+  std::string ModelKindManifest(const ManifestOptions& options) {
+    Document doc;
+    auto& a = doc.GetAllocator();
+    Value out(rapidjson::kObjectType);
+    auto fragments = [&](const ResistanceDescriptor::Latex& l) {
+      Value f(rapidjson::kObjectType);
+      Set(f, "term", l.term, a);
+      Set(f, "where", l.where, a);
+      Set(f, "where_isothermal", l.where_isothermal, a);
+      return f;
+    };
+    for (ModelFamily family : AllModelFamilies()) {
+      Value kinds(rapidjson::kArrayType);
+      for (const KindDescriptor& k : KindDescriptors(family)) {
+        Value v(rapidjson::kObjectType);
+        Set(v, "tag", k.tag, a);
+        Set(v, "label", k.label, a);
+        Set(v, "legacy", k.legacy, a);
+        Value ps(rapidjson::kArrayType);
+        for (const KindParameter& p : k.parameters) {
+          Value pv(rapidjson::kObjectType);
+          Set(pv, "name", p.name, a);
+          Set(pv, "unit", p.unit, a);
+          Set(pv, "default", Num(p.default_value), a);
+          Set(pv, "lower", Num(p.lower), a);
+          Set(pv, "upper", Num(p.upper), a);
+          Set(pv, "tunable", p.tunable, a);
+          Set(pv, "label", p.Label(), a);
+          ps.PushBack(pv, a);
+        }
+        Set(v, "parameters", std::move(ps), a);
+        if (!k.resistances.empty()) {
+          Value rs(rapidjson::kArrayType);
+          for (const ResistanceDescriptor& r : k.resistances) {
+            Value rv(rapidjson::kObjectType);
+            Set(rv, "tag", r.tag, a);
+            Set(rv, "label", r.label, a);
+            if (r.parent.empty()) SetNull(rv, "parent", a);
+            else Set(rv, "parent", r.parent, a);
+            Set(rv, "scaled_by_capacity", r.scaled_by_capacity, a);
+            Set(rv, "parameters", StrList(r.parameters, a), a);
+            Value fr(rapidjson::kObjectType);
+            Set(fr, "sphere", fragments(r.sphere), a);
+            Set(fr, "slab", fragments(r.slab), a);
+            Set(fr, "cylinder", fragments(r.cylinder), a);
+            Set(rv, "fragments", std::move(fr), a);
+            Set(rv, "source", r.source, a);
+            rs.PushBack(rv, a);
+          }
+          Set(v, "resistances", std::move(rs), a);
+          Value ms(rapidjson::kArrayType);
+          for (const CapacityModeDescriptor& m : k.capacity_modes) {
+            Value mv(rapidjson::kObjectType);
+            Set(mv, "tag", m.tag, a);
+            Set(mv, "label", m.label, a);
+            Set(mv, "latex", m.latex, a);
+            ms.PushBack(mv, a);
+          }
+          Set(v, "capacity_modes", std::move(ms), a);
+          Value pr(rapidjson::kArrayType);
+          for (const PresetDescriptor& p : k.presets) {
+            Value pv(rapidjson::kObjectType);
+            Set(pv, "tag", p.tag, a);
+            Set(pv, "on", StrList(p.on, a), a);
+            const auto m = static_cast<std::size_t>(p.capacity_mode);
+            Set(pv, "capacity_mode", m < k.capacity_modes.size() ? k.capacity_modes[m].tag : std::string("none"), a);
+            Value vals(rapidjson::kObjectType);
+            for (const auto& [name, x] : p.values) Set(vals, name, Num(x), a);
+            Set(pv, "values", std::move(vals), a);
+            pr.PushBack(pv, a);
+          }
+          Set(v, "presets", std::move(pr), a);
+        }
+        kinds.PushBack(v, a);
+      }
+      Set(out, ModelFamilyName(family), std::move(kinds), a);
+    }
+    return Write(out, options.pretty);
   }
 
   std::string WarningManifest(const ManifestOptions& options) {

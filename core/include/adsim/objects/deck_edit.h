@@ -326,7 +326,8 @@ bool SetIsothermKind(UserData& data, AdsorbentID adsorbent, const std::string& c
 // the generic resistance model (mass_transfer_model.h): it sets the switches,
 // the capacity-factor mode and the parameters the preset shows, which take the
 // kind's defaults unless the old preset shared them (same name and unit); the
-// parameters it does not show keep their stored values. The rate constant
+// parameters it does not show keep their stored values. series_resistance
+// (custom) keeps the current switches, mode and values. The rate constant
 // keeps its value only while the rate model keeps its order (its unit is 1/s
 // for LDF, kg/(mol s) for LDF2). A dual-rate model's slow site takes the same
 // preset: a new dual-rate model starts with it a copy of the fast site's, an

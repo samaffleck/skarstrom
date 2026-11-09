@@ -51,6 +51,19 @@ constexpr double kRho = 1100.0;  // particle density [kg/m3]
 const double kGasR = constants::kIdealGasConstant;
 
 // A uniform state at (T, P, y) with the transport properties the coefficient reads.
+// The switches and mode of the version-1 rules from the current values (a
+// term on while its parameter is not zero; K from the isotherm slope unless
+// capacity_factor > 0), without replacing any value: the tests below switch
+// terms by zeroing their parameters, as the first version of the model did.
+void V1Switches(MassTransferCoefficientSeriesResistance& m) {
+  m.resistances_.film = m.film_resistance_factor_.Get() > 0.0;
+  m.resistances_.macropore = m.tortuosity_.Get() > 0.0;
+  m.resistances_.knudsen = false;
+  m.resistances_.micropore = m.crystal_radius_.Get() > 0.0 && m.micropore_diffusivity_.Get() > 0.0;
+  m.resistances_.lumped = false;
+  m.capacity_mode_ = static_cast<int>(m.capacity_factor_.Get() > 0.0 ? CapacityFactorMode::FIXED : CapacityFactorMode::SLOPE);
+}
+
 struct CellState {
   Equations eq;
   MixedAdsorbentLayer layer{"bed"};
@@ -81,6 +94,7 @@ struct CellState {
   }
 
   double Update(IMassTransferCoefficientModel& m) {
+    if (auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(&m)) V1Switches(*g);
     const auto y0 = eq.mole_fraction.at(kCO2).var;
     m.UpdateMassTransferCoefficient(eq, kAds, fluid, kCO2, layer, nullptr);
     EXPECT_EQ(eq.mole_fraction.at(kCO2).var, y0);  // restored
@@ -98,12 +112,12 @@ double Macro(double K, double tau = kTau) { return K * tau * kRp * kRp / (15.0 *
 double Micro(double rc, double Dc0, double Ea, double T) { return rc * rc / (15.0 * Dc0 * std::exp(-Ea / (kGasR * T))); }
 
 MassTransferCoefficientSeriesResistance Series() {
-  // As created from the "series_resistance" tag: terms switched off by zero
-  // parameters (version-1 semantics), micropore off.
+  // The version-1 setup these tests were written for: a term off while its
+  // parameter is zero (V1Switches before each evaluation), micropore off.
   MassTransferCoefficientSeriesResistance m;
   m.crystal_radius_ = 0.0;
   m.micropore_diffusivity_ = 0.0;
-  m.ApplyPreset(MassTransferCoefficientType::SERIES_RESISTANCE);
+  m.film_resistance_factor_ = 1.0;
   m.tortuosity_ = kTau;
   m.macropore_void_fraction_ = kEp;
   return m;
@@ -131,10 +145,10 @@ TEST(SeriesResistanceLdf, DescriptorAppendsTheKind) {
   EXPECT_EQ(k->Find("crystal_radius")->unit, "m");
   EXPECT_EQ(k->Find("micropore_diffusivity")->unit, "m2/s");
   EXPECT_EQ(k->Find("micropore_activation_energy")->unit, "J/mol");
-  // Micropore term off and K from the isotherm by default.
-  EXPECT_EQ(k->Find("crystal_radius")->default_value, 0.0);
-  EXPECT_EQ(k->Find("micropore_diffusivity")->default_value, 0.0);
-  EXPECT_EQ(k->Find("capacity_factor")->default_value, 0.0);
+  // The class defaults (each term switched by its own switch now).
+  const MassTransferCoefficientSeriesResistance m;
+  EXPECT_EQ(k->Find("crystal_radius")->default_value, m.crystal_radius_.Get());
+  EXPECT_EQ(k->Find("micropore_diffusivity")->default_value, m.micropore_diffusivity_.Get());
   EXPECT_EQ(k->Find("film_resistance_factor")->default_value, 1.0);
 }
 
@@ -147,6 +161,12 @@ TEST(SeriesResistanceLdf, RegistryLeavesAndRoundTrip) {
   build::SetRateModel(d, a, kCO2, "ldf", "series_resistance");
   sim.RefreshParameters();
   const std::string kp = "adsorbent[13X].kinetics[" + kCO2 + "].";
+  // A new model has the lumped term only; the parameters of the other terms
+  // are listed once their switch is on.
+  EXPECT_EQ(sim.Parameters().Find(kp + "crystal_radius"), nullptr);
+  for (const char* t : {"film", "macropore", "micropore"}) sim.SetParameterText(kp + "resistances." + t, "true");
+  sim.SetParameterText(kp + "resistances.lumped", "false");
+  sim.SetParameterText(kp + "capacity_factor_mode", "fixed");
   sim.SetParameterText(kp + "crystal_radius", "1.5 [um]");
   sim.SetParameterText(kp + "micropore_diffusivity", "2e-12 [m2/s]");
   sim.SetParameterText(kp + "micropore_activation_energy", "20 [kJ/mol]");
@@ -163,7 +183,7 @@ TEST(SeriesResistanceLdf, RegistryLeavesAndRoundTrip) {
   auto& m = back.Data().adsorbent_directory.Get(a).adsorption_source_.mass_transfer_models_.at(kCO2)->mtc_model_;
   ASSERT_EQ(m->GetModelType(), MassTransferCoefficientType::SERIES_RESISTANCE);
   for (const char* p : {"crystal_radius", "micropore_diffusivity", "micropore_activation_energy", "capacity_factor",
-                        "film_resistance_factor", "tortuosity", "macropore_void_fraction", "concentration_floor"})
+                        "film_resistance_factor", "tortuosity", "macropore_void_fraction"})
     EXPECT_EQ(back.GetParameter(kp + p), sim.GetParameter(kp + p)) << p;
 }
 
@@ -370,14 +390,17 @@ int ConvertHaynes(Simulation& sim, double capacity_factor) {
   for (const auto& [id, ads] : d.adsorbent_directory.GetAll()) {
     auto& models = d.adsorbent_directory.Get(id).adsorption_source_.mass_transfer_models_;
     for (auto& [c, model] : models) {
-      if (!model || !model->mtc_model_ || model->mtc_model_->GetModelType() != MassTransferCoefficientType::HAYNES_1973)
+      if (!model || !model->mtc_model_ || CoefficientPreset(model->mtc_model_.get()) != MassTransferCoefficientType::HAYNES_1973)
         continue;
       std::string err;
       EXPECT_TRUE(SetMassTransferKind(d, id, c, model->GetModelType(), MassTransferCoefficientType::SERIES_RESISTANCE, err))
           << err;
       auto* s = dynamic_cast<MassTransferCoefficientSeriesResistance*>(models.at(c)->mtc_model_.get());
       EXPECT_NE(s, nullptr);
-      if (s) s->capacity_factor_ = capacity_factor;
+      if (s) {  // the version-1 rule: K fixed when capacity_factor > 0, else the isotherm slope
+        s->capacity_factor_ = capacity_factor;
+        s->capacity_mode_ = static_cast<int>(capacity_factor > 0.0 ? CapacityFactorMode::FIXED : CapacityFactorMode::SLOPE);
+      }
       ++converted;
     }
   }
@@ -479,6 +502,7 @@ struct SeriesBreakthroughDeck : UserDataTest {
       mtc->micropore_diffusivity_ = 2.1e-12;
       mtc->micropore_activation_energy_ = 2.0e4;
     }
+    V1Switches(*mtc);
     ldf->mtc_model_ = std::move(mtc);
     GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_["CarbonDioxide"] = std::move(ldf);
     AddInitialConditions(1e5, 298.0, 298.0, {{"Nitrogen", 1.0}, {"CarbonDioxide", 0.0}}, 0.0);

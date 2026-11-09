@@ -108,7 +108,17 @@ TEST(ModelKinds, BuilderListsAreTheDescriptorTags) {
       {F::PumpEfficiency, &build::PumpEfficiencyKinds},
       {F::PumpPower, &build::PumpPowerKinds},
   };
-  for (const auto& [family, list] : lists) EXPECT_EQ(list(), KindTags(family)) << ModelFamilyName(family);
+  for (const auto& [family, list] : lists) {
+    // Legacy kinds (the former rate coefficients) are not offered.
+    std::vector<std::string> offered;
+    for (const auto& k : KindDescriptors(family))
+      if (!k.legacy) offered.push_back(k.tag);
+    EXPECT_EQ(list(), offered) << ModelFamilyName(family);
+  }
+  EXPECT_EQ(build::RateCoefficientKinds(), std::vector<std::string>{"series_resistance"});
+  EXPECT_EQ(build::RateCoefficientPresets(),
+            (std::vector<std::string>{"constant", "arrhenius", "macropore", "macropore_knudsen", "haynes",
+                                      "macropore_capacity"}));
   // The engine's spellings (front ends must follow them).
   EXPECT_EQ(KindTags(F::Momentum).front(), "kozeny_carman");
   EXPECT_EQ(KindTags(F::Flow), (std::vector<std::string>{"velocity", "volumetric_flow", "molar_flow", "mass_flow"}));
@@ -128,8 +138,17 @@ TEST(ModelKinds, DescriptorsMatchTheModelClasses) {
       ExpectMatches(kinds[i], ModelFields(model.get()), std::string(ModelFamilyName(family)) + "." + kinds[i].tag);
     }
   };
-  each(F::RateCoefficient,
-       [](size_t i) { return CreateMassTransferCoefficientModel(static_cast<MassTransferCoefficientType>(i)); });
+  // Rate coefficients: every kind is the generic model; a legacy kind (a
+  // preset) binds its parameters under its own names (PresetFields), the
+  // generic kind every parameter at the class defaults.
+  for (size_t i = 0; i < KindDescriptors(F::RateCoefficient).size(); ++i) {
+    const auto type = static_cast<MassTransferCoefficientType>(i);
+    auto model = CreateMassTransferCoefficientModel(type);
+    ASSERT_TRUE(model);
+    const KindDescriptor& k = KindDescriptors(F::RateCoefficient)[i];
+    EXPECT_EQ(k.legacy, type != MassTransferCoefficientType::SERIES_RESISTANCE) << k.tag;
+    ExpectMatches(k, k.legacy ? PresetFields(model.get(), type) : ModelFields(model.get()), "rate_coefficient." + k.tag);
+  }
   each(F::Dispersion, [](size_t i) { return CreateAxialDispersionModel(static_cast<AxialDispersionType>(i)); });
   each(F::HeatDispersion,
        [](size_t i) { return CreateAxialHeatDispersionModel(static_cast<AxialHeatDispersionType>(i)); });
@@ -249,13 +268,36 @@ TEST(ModelKinds, RegistryEntriesFollowTheDescriptors) {
     for (size_t i = 0; i < KindDescriptors(ModelFamily::RateCoefficient).size(); ++i) {
       ASSERT_TRUE(SetMassTransferKind(d, ads, c, rate, static_cast<MassTransferCoefficientType>(i), err)) << err;
       ParameterRegistry reg(d);
-      for (const auto& p0 : KindAt(ModelFamily::RateCoefficient, i)->parameters) {
-        const KindParameter p = rate == MassTransferModelType::LDF2 ? Ldf2RateConstant(p0) : p0;
-        ExpectEntry(reg, ap + "kinetics[" + c + "]." + p.name, p);
-        // The dual-rate model's slow site: the same kind, its own leaves.
-        if (rate == MassTransferModelType::DUAL_RATE_LDF)
-          ExpectEntry(reg, ap + "kinetics[" + c + "]." + SlowSiteParameter(p0).name, SlowSiteParameter(p0));
-      }
+      // The generic model's leaves, from its descriptor and current switches:
+      // a switch per resistance (knudsen with macropore on), the mode while a
+      // gas-side term is on, the parameters of the enabled terms and the mode.
+      auto& mtm = d.adsorbent_directory.Get(ads).adsorption_source_.mass_transfer_models_.at(c);
+      const std::string kp = ap + "kinetics[" + c + "].";
+      auto check_site = [&](IMassTransferCoefficientModel* m, bool slow) {
+        auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(m);
+        ASSERT_NE(g, nullptr);
+        const std::string pre = slow ? kSlowSitePrefix : "";
+        auto entry = [&](const std::string& name) {
+          const KindParameter& p0 = *ResistanceKind().Find(name);
+          KindParameter p = rate == MassTransferModelType::LDF2 ? Ldf2RateConstant(p0) : p0;
+          if (slow) p = SlowSiteParameter(p);
+          ExpectEntry(reg, kp + p.name, p);
+        };
+        for (const auto& r : ResistanceKind().resistances) {
+          const bool listed = r.parent.empty() || g->Enabled(r.parent);
+          EXPECT_EQ(reg.Find(kp + pre + "resistances." + r.tag) != nullptr, listed) << r.tag;
+          for (const auto& name : r.parameters) {
+            if (g->Enabled(r.tag)) entry(name);
+            else EXPECT_EQ(reg.Find(kp + pre + name), nullptr) << pre + name;
+          }
+        }
+        EXPECT_EQ(reg.Find(kp + pre + "capacity_factor_mode") != nullptr, g->UsesCapacityFactor());
+        for (const auto& name : g->CapacityParameters()) entry(name);
+        // The former arrhenius leaf name resolves to the lumped k.
+        if (g->Enabled("lumped")) EXPECT_EQ(reg.Find(kp + pre + "pre_exp_factor"), reg.Find(kp + pre + "k"));
+      };
+      check_site(mtm->mtc_model_.get(), false);
+      if (rate == MassTransferModelType::DUAL_RATE_LDF) check_site(mtm->SlowCoefficientModel(), true);
       // The rate model's own parameters (dual_rate_ldf: split).
       for (const auto& p : KindAt(ModelFamily::RateModel, static_cast<size_t>(rate))->parameters)
         ExpectEntry(reg, ap + "kinetics[" + c + "]." + p.name, p);

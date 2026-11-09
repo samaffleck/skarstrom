@@ -24,6 +24,12 @@
 //   ComponentManifest()  the components a deck can use: formula, molar mass,
 //                        CAS number, property source and whether the gas heat
 //                        capacity follows the temperature
+//   ModelKindManifest()  every model kind by family (objects/model_kinds.h):
+//                        tag, label, legacy, parameters; the generic
+//                        rate-coefficient kind also its resistances (tag,
+//                        label, parent, scaled_by_capacity, parameters, LaTeX
+//                        fragments per shape, source), capacity modes and
+//                        presets
 //   SeriesManifest()     the bed series variables (Simulation::Series and
 //                        Profile, the solver log): key, log name pattern,
 //                        unit, bulk or per component, and which are also
@@ -165,5 +171,20 @@ namespace adsim {
   // `variables`) and the reaction_variables are logged only for a deck with
   // reactions.
   std::string SeriesManifest(const ManifestOptions& options = {});
+
+  // ---- model kinds ---------------------------------------------------------------
+
+  // {family: [{tag, label, legacy, parameters: [{name, unit, default, lower,
+  // upper, tunable, label}], resistances?, capacity_modes?, presets?}]} for
+  // every family of AllModelFamilies(), kinds in stored order. The generic
+  // rate-coefficient kind (series_resistance) carries:
+  //   resistances: [{tag, label, parent (null or a tag), scaled_by_capacity,
+  //                  parameters (names), fragments: {sphere|slab|cylinder:
+  //                  {term, where, where_isothermal}}, source}] in series order
+  //   capacity_modes: [{tag, label, latex}] in CapacityFactorMode order
+  //   presets: [{tag, on (tags), capacity_mode (tag), values: {name: number}}]
+  // The front ends build the resistance checkboxes, their parameters and the
+  // preset shortcuts from it.
+  std::string ModelKindManifest(const ManifestOptions& options = {});
 
 }  // namespace adsim

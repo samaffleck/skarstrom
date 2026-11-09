@@ -186,7 +186,7 @@ The gas–solid model is a setting of the bed, not of a layer. Switching a layer
 Each packed layer has one gas–particle **film correlation** (`layer[ID].film_correlation`; Python `layer.film_correlation = "gunn"`). By the heat–mass analogy the same correlation gives the particle Nusselt number with the Prandtl number and the Sherwood number with the Schmidt number:
 
 - $\mathrm{Nu} = h\thinspace d_p/k_g$ feeds the **Film** gas–solid heat transfer model (above), $h_p^{vol} = h\thinspace a_v$;
-- $\mathrm{Sh} = k_f\thinspace d_p/D_m$ feeds the film resistance of the **Haynes** rate coefficient ([Kinetic Models](kinetic-models.md#haynes-1973)).
+- $\mathrm{Sh} = k_f\thinspace d_p/D_m$ feeds the external-film resistance of the mass-transfer coefficient ([Kinetic Models](kinetic-models.md#resistances); the `haynes` preset).
 
 In both, $\mathrm{Re} = \rho\thinspace |u|\thinspace d_p/\mu$ on the superficial velocity $u$, $\mathrm{Pr} = c_p\thinspace\mu/k_g$ and $\mathrm{Sc} = \mu/(\rho\thinspace D_m)$ with the mole-fraction-weighted molecular diffusivity. A structured layer ignores the setting: its channels use the laminar Nu = Sh [below](#film-coefficients-in-structured-layers). Gas phase only.
 

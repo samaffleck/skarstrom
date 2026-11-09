@@ -42,6 +42,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Iterable,
     Iterator,
     List,
     Mapping,
@@ -53,6 +54,9 @@ from typing import (
 )
 
 from .manifests import component_aliases
+
+# The resistances of the generic coefficient model, in series order.
+_RESISTANCE_TAGS = ("film", "macropore", "knudsen", "micropore", "lumped")
 
 if TYPE_CHECKING:
     from . import Parameter, Simulation
@@ -1703,44 +1707,68 @@ class Isotherm(_Node):
 
 
 class Kinetics(_Node):
-    """Mass-transfer (rate) model parameters of one component."""
+    """Mass-transfer (rate) model parameters of one component.
+
+    The coefficient is the generic resistance model (``series_resistance``): a
+    switch per resistance in the group ``resistances`` (``film``,
+    ``macropore``, ``knudsen`` (with macropore on), ``micropore``, ``lumped``;
+    ``kinetics["CO2"].resistances.micropore = True``), the capacity-factor mode
+    ``capacity_factor_mode`` (while film or macropore is on) and the parameters
+    of the enabled terms. A parameter of a switched-off term is not listed
+    (reading or setting it raises AttributeError). A dual-rate model's slow
+    site has the same under ``slow_resistances`` and ``slow_<name>``.
+    ``pre_exp_factor`` (the former arrhenius name) is the lumped ``k``."""
+
+    # The former arrhenius kind's name of the lumped coefficient.
+    _RENAMED = {"pre_exp_factor": "k", "slow_pre_exp_factor": "slow_k"}
+
+    def _path_of(self, name: str) -> str:
+        tree = self._tree_or_raise()
+        if name not in tree.leaves and self._RENAMED.get(name) in tree.leaves:
+            name = self._RENAMED[name]
+        return super()._path_of(name)
 
     k = Real()
-    """Mass transfer coefficient [1/s] ([kg/(mol-s)] for the LDF2 model)."""
+    """Lumped mass transfer coefficient k (the lumped resistance 1/k) [1/s] ([kg/(mol-s)] for the LDF2 model)."""
     pre_exp_factor = Real()
-    """Arrhenius pre-exponential factor of the mass transfer coefficient [1/s] ([kg/(mol-s)] for LDF2)."""
+    """Former name of ``k`` (the arrhenius preset's pre-exponential factor k_0) [1/s]."""
     activation_energy = Real()
-    """Arrhenius activation energy of the mass transfer coefficient [J/mol]."""
+    """Activation energy E_a of the lumped coefficient, k_L = k exp(-E_a / R T); 0 keeps k [J/mol]."""
+    capacity_factor_mode = Choice()
+    """How the capacity factor K of the film and macropore terms is taken: "none" (K = 1), "slope"
+    (max(rho_p dq*/dc, 1)), "secant" (max(rho_p q*/c, 1)) or "fixed" (``capacity_factor``)."""
     tortuosity = Real()
-    """Particle tortuosity [-]."""
+    """Particle tortuosity of the macropore term [-]."""
     macropore_void_fraction = Real()
-    """Macropore void fraction [-]."""
+    """Macropore void fraction of the macropore term [-]."""
     concentration_floor = Real()
-    """Capacity-factor concentration floor: the gas concentration below which the ratio c / (rho_p q*) is evaluated at this value [mol/m3]."""
+    """Concentration floor of the slope and secant capacity factors: the gas concentration below which K is evaluated at this value [mol/m3]."""
     pore_radius = Real()
-    """Mean pore radius [m]."""
+    """Pore radius of the Knudsen diffusivity [m]."""
     molecular_diffusion_coefficient = Real()
-    """Constant molecular diffusivity D_m of the macropore coefficients (``macropore``, ``macropore_capacity``,
-    ``macropore_knudsen``) [m2/s]; 0 (the default) uses the binary-diffusion value from the local T and P,
-    which scales as 1/P. Haghpanah et al. (2013) and Estupinan Perez et al. (2019) use a constant 1.6e-5 m2/s."""
+    """Constant molecular diffusivity D_m of the macropore term [m2/s]; 0 (the default) uses the binary-diffusion
+    value from the local T and P, which scales as 1/P. Haghpanah et al. (2013) and Estupinan Perez et al. (2019)
+    use a constant 1.6e-5 m2/s."""
     film_resistance_factor = Real()
-    """Multiplier of the external-film resistance of the ``series_resistance`` coefficient [-]; 0 drops the film term, 1 (the default) keeps the correlation's value."""
+    """Multiplier of the external-film resistance [-]; 1 (the default) keeps the correlation's value."""
     crystal_radius = Real()
-    """Crystal (micropore) radius r_c of the ``series_resistance`` coefficient [m]; 0 drops the micropore term."""
+    """Crystal (micropore) radius r_c of the micropore term [m]."""
     micropore_diffusivity = Real()
-    """Micropore diffusivity pre-exponential D_c0 of the ``series_resistance`` coefficient [m2/s]; 0 drops the micropore term."""
+    """Micropore diffusivity pre-exponential D_c0 of the micropore term [m2/s]."""
     micropore_activation_energy = Real()
     """Activation energy E_a of the micropore diffusivity D_c = D_c0 exp(-E_a / R T) [J/mol]."""
     capacity_factor = Real()
-    """Fixed capacity factor K of the ``series_resistance`` coefficient [-]; 0 (the default) takes it from the isotherm slope."""
+    """Capacity factor K of the "fixed" capacity-factor mode [-]."""
     split = Real()
     """Fast-site fraction phi of the equilibrium loading in the ``dual_rate_ldf`` model [-]; 1 is the plain LDF."""
     slow_k = Real()
-    """Slow-site value of ``k`` in the ``dual_rate_ldf`` model: mass transfer coefficient [1/s]."""
+    """Slow-site value of ``k`` in the ``dual_rate_ldf`` model: lumped mass transfer coefficient [1/s]."""
     slow_pre_exp_factor = Real()
-    """Slow-site value of ``pre_exp_factor`` in the ``dual_rate_ldf`` model: arrhenius pre-exponential factor [1/s]."""
+    """Former name of ``slow_k`` [1/s]."""
     slow_activation_energy = Real()
-    """Slow-site value of ``activation_energy`` in the ``dual_rate_ldf`` model: arrhenius activation energy [J/mol]."""
+    """Slow-site value of ``activation_energy`` in the ``dual_rate_ldf`` model: lumped activation energy [J/mol]."""
+    slow_capacity_factor_mode = Choice()
+    """Slow-site value of ``capacity_factor_mode`` in the ``dual_rate_ldf`` model."""
     slow_tortuosity = Real()
     """Slow-site value of ``tortuosity`` in the ``dual_rate_ldf`` model: particle tortuosity [-]."""
     slow_macropore_void_fraction = Real()
@@ -1748,7 +1776,7 @@ class Kinetics(_Node):
     slow_concentration_floor = Real()
     """Slow-site value of ``concentration_floor`` in the ``dual_rate_ldf`` model: capacity-factor concentration floor [mol/m3]."""
     slow_pore_radius = Real()
-    """Slow-site value of ``pore_radius`` in the ``dual_rate_ldf`` model: mean pore radius [m]."""
+    """Slow-site value of ``pore_radius`` in the ``dual_rate_ldf`` model: Knudsen pore radius [m]."""
     slow_molecular_diffusion_coefficient = Real()
     """Slow-site value of ``molecular_diffusion_coefficient`` in the ``dual_rate_ldf`` model: constant molecular diffusivity D_m [m2/s]."""
     slow_film_resistance_factor = Real()
@@ -1849,24 +1877,52 @@ class Adsorbent(_Node):
         return self._fresh()
 
     def set_rate_model(self, component: str, model: str = "ldf", coefficient: str = "constant",
+                       resistances: Optional[Iterable[str]] = None, capacity_factor_mode: Optional[str] = None,
                        **values: Value) -> "Adsorbent":
-        """The mass-transfer model of one component: ``model`` ``"ldf"``, ``"ldf2"`` or
-        ``"dual_rate_ldf"`` (two parallel LDF sites; split, and slow_<name> for the slow site's
-        coefficient), with a ``coefficient`` model ``"constant"`` (k), ``"arrhenius"``
-        (pre_exp_factor, activation_energy), ``"macropore"`` / ``"haynes"`` (tortuosity,
-        macropore_void_fraction), ``"macropore_knudsen"`` (+ pore_radius), ``"macropore_capacity"``
-        (the macropore coefficient times the capacity factor c / (rho_p q*) of Haghpanah et al. 2013;
-        + concentration_floor) or ``"series_resistance"`` (film + macropore + micropore resistances in
-        series, the first two times the isotherm-slope capacity factor; film_resistance_factor,
-        tortuosity, macropore_void_fraction, crystal_radius, micropore_diffusivity,
-        micropore_activation_energy, capacity_factor, concentration_floor). The three macropore kinds
-        and series_resistance also take molecular_diffusion_coefficient, a constant D_m [m2/s] in place
-        of the (T, P)-dependent binary-diffusion value (0, the default, keeps the latter)."""
+        """The mass-transfer model of one component.
+
+        ``model`` is ``"ldf"``, ``"ldf2"`` or ``"dual_rate_ldf"`` (two parallel LDF sites; split, and
+        slow_<name> for the slow site's coefficient). The coefficient is the resistance model:
+        ``coefficient`` is ``"series_resistance"`` (the generic model; a new one has the lumped term
+        only, k = 0.5 1/s) or a preset that sets its switches: ``"constant"`` (lumped k),
+        ``"arrhenius"`` (lumped k, activation_energy), ``"macropore"`` (tortuosity,
+        macropore_void_fraction, molecular_diffusion_coefficient), ``"macropore_knudsen"`` (+
+        pore_radius), ``"macropore_capacity"`` (macropore with the secant capacity factor of Haghpanah
+        et al. 2013; + concentration_floor) or ``"haynes"`` (film + macropore).
+
+        ``resistances`` switches on exactly the terms named (``"film"``, ``"macropore"``, ``"knudsen"``,
+        ``"micropore"``, ``"lumped"``) and the others off; ``capacity_factor_mode`` is ``"none"``,
+        ``"slope"``, ``"secant"`` or ``"fixed"``. Both apply to the two sites of a dual-rate model. Then
+        ``values`` set the parameters of the enabled terms (a parameter of a switched-off term raises
+        AttributeError)."""
         name = self._sim._component(component)
         self._sim._build("set_rate_model", self._id, name, model, coefficient)
+        sites = ["fast", "slow"] if model == "dual_rate_ldf" else ["fast"]
+        if resistances is not None:
+            wanted = list(resistances)
+            for site in sites:
+                for tag in _RESISTANCE_TAGS:  # on first: a set must keep one term on
+                    if tag in wanted:
+                        self._sim.edit.set_mass_transfer_resistance(self._id, name, tag, True, site=site)
+                for tag in reversed(_RESISTANCE_TAGS):
+                    if tag not in wanted:
+                        self._sim.edit.set_mass_transfer_resistance(self._id, name, tag, False, site=site)
+        if capacity_factor_mode is not None:
+            for site in sites:
+                self._sim.edit.set_capacity_factor_mode(self._id, name, capacity_factor_mode, site=site)
         ads = self._fresh()
         _apply(ads.kinetics[name], values)
         return ads
+
+    def set_rate_resistance(self, component: str, tag: str, on: bool = True, site: str = "fast") -> "Adsorbent":
+        """Switch one resistance (``"film"``, ``"macropore"``, ``"knudsen"``, ``"micropore"`` or
+        ``"lumped"``) of a component's coefficient on or off, on the ``"fast"`` site or the ``"slow"``
+        site of a dual-rate model. The engine refuses (ValueError) switching the last of film,
+        macropore, micropore and lumped off, and knudsen without macropore; macropore off also
+        switches knudsen off. Parameter values are kept."""
+        self._sim.edit.set_mass_transfer_resistance(self._id, self._sim._component(component), tag, bool(on),
+                                                    site=site)
+        return self._fresh()
 
     def _header(self) -> str:
         return f"<{self._label} (id {self._id})>"
