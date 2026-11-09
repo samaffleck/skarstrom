@@ -44,6 +44,32 @@ sim.add_library_adsorbent("zeolite-13x")           # add the recommended entry t
 
 In C++, `adsim/objects/adsorbent_library.h` reads the catalogue (`AdsorbentLibrary::Resolve` turns a material id, an entry key or the alias of a removed entry into an entry), `LoadAdsorbentFromJSON` loads an entry's file, and `AddLibraryAdsorbent` (`adsim/objects/deck_edit.h`) adds an entry, or a material's recommended entry, to a deck with default physics for any component the entry does not cover. The library is curated: see `CONTRIBUTING.md` for the data-integrity rules a new entry must meet (every parameter cited).
 
+### The resolved library
+
+!!! note "New in 0.9"
+    `library.resolved.json` and its schema are new in 0.9.
+
+`data/adsorbents/library.resolved.json` is the library with the engine's own resolution applied, so a front end can embed it as it is and keep no copy of the engine's rules. It is **generated** by `scripts/docs/gen_adsorbent_library.py` (never edit it) and its shape is `data/adsorbents/library.resolved.schema.json`, which the generator checks in `--check`. `library.merged.json` (the catalogue with each serialised adsorbent) is unchanged. Writing the resolved file needs the `skarstrom` package, because the labels, units and parameter order come from the engine (`skarstrom.model_kinds()`, the parameter registry), not from a table in the script.
+
+The top level has `schema_version`, `catalogue_schema_version`, `materials` (id to name, family, recommended entry, reason, aliases) and `entries`, in the order of this page. Each entry holds:
+
+- identity: `key`, `label`, `material_id`, `variant`, `family`, `support`, `recommended`, `status`, `components`, `aliases`, and `sources` with a DOI URL;
+- `isotherms`, one per component: the kind tag and label, `parameters` in the engine's order with name, label, unit and value, the data quality, the fit ranges, and `source_points` in SI (Pa, mol/kg, K) with a summary (count, temperatures, T and P ranges);
+- `heat_of_adsorption` and `properties` with unit, value and provenance (`source`, `derived`, `repo`, `default`, `convention`, `not_stated`), and the registry path of each property;
+- `mass_transfer`, one per component: the rate model, the coefficient kind and its parameters with units;
+- `completeness`: `complete`, the `missing` fields and the `unverified_fields` with the verification note. A gap is reported here, never filled in.
+
+```python
+import json, os
+import skarstrom
+path = os.path.join(skarstrom.adsorbent_library_dir(), "library.resolved.json")
+with open(path, encoding="utf-8") as f:
+    resolved = json.load(f)
+entry = next(e for e in resolved["entries"] if e["recommended"] and e["family"] == "zeolite")
+iso = entry["isotherms"][0]
+print(entry["label"], iso["kind_label"], [(p["name"], p["unit"]) for p in iso["parameters"]])
+```
+
 !!! warning "Before you run"
     Check the heat of adsorption (some sources report only site energies, so the value is left at 0) and the heat-of-adsorption convention of your deck (isosteric vs internal energy) against the source. Fit ranges are listed per component; outside them the isotherm is an extrapolation.
 
