@@ -19,11 +19,17 @@ Use the [web interface](https://www.skarstrom.co.uk/) to run the engine in your 
 
 [![The Skarstrom web interface: the simulation tree, solver settings and a plotted pressure profile of the Arora (2021) PSA example](docs/assets/skarstrom-web.png)](https://www.skarstrom.co.uk/)
 
-Or point your agent (e.g. Claude or Codex) at this repository. For example:
+Or point your agent (e.g. Claude or Codex) at this repository. An example prompt:
 
 ```text
-Use Skarstrom (https://github.com/samaffleck/skarstrom) to design a 4-step LPP cycle for CO2/N2 separation on zeolite 13X. Optimise the process parameters to maximise purity and recovery.
+Use Skarstrom (https://github.com/samaffleck/skarstrom) to design a 4-step
+LPP cycle for CO2/N2 separation on zeolite 13X. Optimise the process
+parameters to maximise purity and recovery.
 ```
+
+[9/11/2026] Using Opus 5.5 High, the following Pareto front was generated:
+
+![CO2 purity against CO2 recovery: the evaluated points and the Pareto front of the agent's optimisation of a 4-step LPP cycle on zeolite 13X](docs/assets/agent-pareto-front.png)
 
 [`AGENTS.md`](AGENTS.md) tells the agent how to install and run Skarstrom and how to check its results.
 
