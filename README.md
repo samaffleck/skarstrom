@@ -27,7 +27,7 @@ LPP cycle for CO2/N2 separation on zeolite 13X. Optimise the process
 parameters to maximise purity and recovery.
 ```
 
-[9/11/2025] Using Opus 5.5 High, the following Pareto front was generated:
+[9/11/2026] Using Opus 5.5 High, the following Pareto front was generated:
 
 ![CO2 purity against CO2 recovery: the evaluated points and the Pareto front of the agent's optimisation of a 4-step LPP cycle on zeolite 13X](docs/assets/agent-pareto-front.png)
 
