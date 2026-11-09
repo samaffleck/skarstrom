@@ -64,10 +64,10 @@ def test_constraint_sets():
     finally:
         sys.path.remove(str(EXAMPLES))
     assert mod.active_constraints("energy", False) == (
-        "purity", "recovery", "fluidisation", "pressure_drop", "evacuation_floor", "converged")
+        "purity", "recovery", "fluidisation", "pressure_drop", "evacuation_floor", "product", "converged")
     assert mod.active_constraints("purity", False, backflow=True) == (
-        "fluidisation", "pressure_drop", "evacuation_floor", "backflow", "converged")
-    assert mod.active_constraints("purity", True) == ("converged",)
+        "fluidisation", "pressure_drop", "evacuation_floor", "backflow", "product", "converged")
+    assert mod.active_constraints("purity", True) == ("product", "converged")
     # The registry paths of the decision variables exist in their decks.
     import skarstrom as sk
 

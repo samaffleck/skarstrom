@@ -40,6 +40,10 @@ infeasible candidates by their summed normalised violation):
   carries the bed-end composition, not the outside gas). It is always
   recorded; it is not enforced by default because the LPP base deck itself
   draws gas back in through its feed-1 vent (see docs/case-study-vsa.md);
+* the run recovers at least 1 % of the CO2 (``product``). Without it a weak pump
+  that evacuates nothing meets every plant limit, and NSGA-II, which ranks any
+  feasible candidate above any infeasible one, fills its population with runs
+  that produce nothing;
 * the run reached CSS and its run-health checks passed (``result.healthy``).
 
 Every evaluation is appended to ``results.csv`` (``--out``): the variables, the
@@ -159,7 +163,10 @@ MAX_DP_PER_M = 10e3   # Pa/m, the default bound on the bed pressure drop per met
 KWH_PER_TONNE = 3600.0   # J/kg in one kWh/t
 FAILED = 10.0            # the normalised violation of each constraint of a failed run
 
-CONSTRAINTS = ("purity", "recovery", "fluidisation", "pressure_drop", "evacuation_floor", "backflow", "converged")
+MIN_RECOVERY = 0.01      # the "product" constraint: a run that recovers less than 1 % of the CO2 makes nothing
+
+CONSTRAINTS = ("purity", "recovery", "fluidisation", "pressure_drop", "evacuation_floor", "backflow", "product",
+               "converged")
 PRACTICAL = ("fluidisation", "pressure_drop", "evacuation_floor")
 
 COLUMNS = (["deck", "study", "seed", "index"] + ALL_VARIABLES
@@ -269,6 +276,7 @@ def margins(row: Dict[str, object], targets: Dict[str, float], max_dp_per_m: flo
         "pressure_drop": (max_dp_per_m - get("max_dp_per_m")) / max_dp_per_m,
         "evacuation_floor": (get("min_evacuation_pressure") - floor) / floor,
         "backflow": (1e-3 - get("backflow_fraction")) / 1e-3,
+        "product": (get("recovery") - MIN_RECOVERY) / MIN_RECOVERY if math.isfinite(get("recovery")) else -1.0,
         "converged": 0.0 if (str(row.get("css_reached")) == "True" and str(row.get("healthy")) == "True") else -1.0,
     }
 
@@ -277,7 +285,7 @@ def active_constraints(objectives: str, unconstrained: bool, backflow: bool = Fa
     names = ("purity", "recovery") if objectives == "energy" else ()
     if not unconstrained:
         names += PRACTICAL + (("backflow",) if backflow else ())
-    return names + ("converged",)
+    return names + ("product", "converged")
 
 
 def objectives_of(row: Dict[str, object], objectives: str) -> List[float]:
@@ -320,6 +328,15 @@ def read_results(path: Path) -> Dict[Tuple, Dict[str, str]]:
 def append_result(path: Path, row: Dict[str, object]) -> None:
     new = not path.exists()
     path.parent.mkdir(parents=True, exist_ok=True)
+    if not new:
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f)
+            old = list(reader) if reader.fieldnames != COLUMNS else None
+        if old is not None:   # a file from an older version of this script: rewrite it with today's columns
+            with open(path, "w", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=COLUMNS, extrasaction="ignore")
+                w.writeheader()
+                w.writerows(old)
     with open(path, "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNS, extrasaction="ignore")
         if new:
@@ -368,8 +385,9 @@ class Search:
         F, G = [], []
         for i, x in enumerate(X):
             row = fresh.get(i) or dict(self.done[_key(self.deck, self.study, x)])
-            self.rows.append(row)
             m = margins(row, self.targets, self.args.max_dp_per_m)
+            row["feasible"] = all(math.isfinite(m[n]) and m[n] >= 0 for n in self.constraints)
+            self.rows.append(row)
             F.append(objectives_of(row, self.objectives))
             G.append(violations(m, self.constraints))
         return np.array(F), np.array(G)
