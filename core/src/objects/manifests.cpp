@@ -358,11 +358,6 @@ namespace adsim {
          defaults.step_retries,
          "the integrator rejected {value} attempts per accepted step in cycle {cycle} (more than {limit}).",
          "STEP_RETRIES"},
-        {"history_truncated", "Log shorter than the diagnostics need", "end", "settings.warn_history_truncated",
-         defaults.history_truncated,
-         "the log kept {value} cycles, fewer than {limit}: series and profiles cover only the logged cycles "
-         "(settings.max_cycles_to_keep).",
-         "HISTORY_TRUNCATED"},
         {"reaction_stiff", "Step collapse at a reacting cell", "end", "settings.warn_reaction_stiff",
          defaults.reaction_stiff,
          "the integrator's step collapsed at a reacting cell in step {step} of cycle {cycle}: {value} steps shorter "

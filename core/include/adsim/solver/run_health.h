@@ -8,10 +8,10 @@
 
 // Run-health checks: cheap tests after every cycle of a run for symptoms of a
 // run that completes but should not be trusted (a model or numerics error, a
-// grid or tolerance the deck cannot carry, history the diagnostics need that
-// was not kept). They never stop a run or change its status or results; they
-// add structured warnings (RunResult::health_warnings, RunResult::healthy) and
-// the solver logs each once at the end of the run (LogLevel::LOW).
+// grid or tolerance the deck cannot carry). They never stop a run or change
+// its status or results; they add structured warnings
+// (RunResult::health_warnings, RunResult::healthy) and the solver logs each
+// once at the end of the run (LogLevel::LOW).
 //
 //  * MOLE_FRACTION_SUM: the largest |sum_i y_i - 1| over the cycle's logged
 //    times and the column's cells (packed and void cells; the logged total
@@ -37,12 +37,6 @@
 //    step recoveries, IntegrationStats::recovered_steps) / accepted internal
 //    steps above kStepRetryRatio, over a cycle of at least kStepRetryMinSteps
 //    accepted steps.
-//  * HISTORY_TRUNCATED: the run outlived its log (settings.max_cycles_to_keep)
-//    and the log kept fewer cycles than the diagnostics read back
-//    (kHistoryCycles: the CSS distance estimate's window, and this check's
-//    own balance window), so the series and profiles read after the run cover
-//    only the logged cycles. KPIs and the CSS history are kept for every cycle.
-//    The checks above run as each cycle completes and are not affected.
 //  * REACTION_STIFF: the integrator's step collapsed at a reacting cell. In
 //    one cycle step, kReactionStiffMinSteps accepted steps shorter than
 //    kReactionStiffStep had their largest weighted local error in a cell
@@ -60,6 +54,9 @@
 //    products. The value is the number of such steps in the cycle step; it
 //    is counted in the step and reported at once, also when the run then
 //    fails (unlike the checks above, which run as each cycle completes).
+//
+// No check depends on how many cycles of series and profiles the log keeps
+// (settings.max_cycles_to_keep).
 //
 // Each code gives at most one warning per run, at the cycle where its value
 // was largest. The thresholds come from the engine's own decks (every example
@@ -83,7 +80,6 @@ namespace adsim {
     MoleFractionSum,
     MassBalanceStuck,
     StepRetries,
-    HistoryTruncated,
     ReactionStiff
   };
 
@@ -92,7 +88,6 @@ namespace adsim {
     "MOLE_FRACTION_SUM",
     "MASS_BALANCE_STUCK",
     "STEP_RETRIES",
-    "HISTORY_TRUNCATED",
     "REACTION_STIFF"
   };
   const char* RunHealthCode(RunHealthCheck check);
@@ -106,9 +101,6 @@ namespace adsim {
     static constexpr double kStuckRate = 0.9;             // per-cycle ratio of |balance|
     static constexpr double kStepRetryRatio = 0.25;        // rejected attempts per accepted step
     static constexpr long kStepRetryMinSteps = 50;        // accepted steps in the cycle
-    // Cycles the diagnostics read back: the CSS distance window (6 cycles)
-    // and the balance window.
-    static constexpr int kHistoryCycles = 6;
     static constexpr double kReactionStiffStep = 1e-4;    // accepted step size [s]
     static constexpr long kReactionStiffMinSteps = 100;   // such steps in one cycle step
   };
@@ -168,15 +160,11 @@ namespace adsim {
     // the step size h [s] and the time t [s] within the cycle step.
     void OnShortStep(const UserData& data, int cycle, int step, double t, double h, int cell,
                      const std::string& component, bool failed);
-    // At the end of a run that completed (or reached CSS): the run-level
-    // checks. Idempotent.
-    void Finish(const UserData& data, const EquationLog& eq_log);
     const RunHealthReport& Report() const { return report_; }
 
   private:
     void Offer(RunHealthWarning w);
     RunHealthReport report_;
-    bool finished_ = false;
     long short_steps_ = 0;          // REACTION_STIFF count in the current cycle step
     bool reaction_named_ = false;   // REACTION_STIFF offered in the current cycle step
   };

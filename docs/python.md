@@ -409,7 +409,7 @@ data = sim.experimental_data
 data.load_csv("outlet_CO2.csv")                            # two columns; a header row gives the labels
 data.add("T at 7 cm", time_s, temperature_K, "time [s]", "T [K]")
 data.names(), data["T at 7 cm"].x, data["T at 7 cm"].y     # NumPy arrays
-y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=0)
+y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=-1)
 data["outlet_CO2"].compare(y.time, y.values)               # rmse, nrmse, max_abs_error, points
 data.remove("T at 7 cm"); data.clear()
 ```
@@ -422,14 +422,14 @@ After a run:
 
 ```python
 sim.run()                  # the results below are those of the last run: run again after an edit
-sim.cycles                 # logged cycles, e.g. [0, 1, ..., 13]
+sim.cycles                 # logged cycles, e.g. [13] (settings.max_cycles_to_keep, default 1)
 sim.kpis()                 # KPIRecord per tracked component per cycle (every cycle run)
 sim.kpi_table()            # the same as a pandas DataFrame
 sim.css_history()          # the deck's CSS check at every cycle: cycle, converged, error, tolerance,
                            # state_change, state_tolerance, passing_cycles, required_cycles,
                            # distance_estimated, convergence_rate, distance, distance_ratio, distance_note
 y = sim.series("mole_fraction", "CarbonDioxide", location="top")   # NumPy arrays y.time, y.values
-T = sim.series("temperature", z=0.25, cycle=0)                      # at z = 0.25 m in the first cycle
+T = sim.series("temperature", z=0.25, cycle=-1)                     # at z = 0.25 m in the last logged cycle
 prof = sim.profile("adsorbed_concentration", "CarbonDioxide", cycle=-1, step=0)
 prof.z, prof.time, prof.values                                       # values has shape (len(time), len(z))
 sim.positions, sim.face_positions                                    # cell centres, cell faces [m]
@@ -447,7 +447,7 @@ for s in sim.streams():                                              # every end
 - **Reactions.** *New in 0.9.* `sim.series("reaction_rate", reaction="SMR")` and `sim.profile("reaction_rate", reaction="SMR", step=0)` give the rate of one reaction on its solid, eta r in mol/(kg of that solid s), 0 where the solid is absent (`reaction=` takes the reaction's name or ID; add `adsorbent=` when the reaction is on more than one solid). `sim.series_reactions()` lists them and `skarstrom.reaction_variables()` the names. The rate has no boundary value: `"top"` and `"bottom"` are the last and first packed cell. The reactions' totals are `reaction_heat` (bulk, W/m³) and `reaction_source` (per component, mol/(m³ s)). `save_logs` and the CLI's `--csv` logs write one CSV per reaction and solid, `"<reaction> Rate (<solid>)"`.
 - `sim.save_logs("out")` writes the full solver log as CSV files.
 
-The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles and stream series cover those. KPIs and the CSS check are recorded at the end of every cycle, so `sim.kpis()`, `sim.kpi_table()` and `sim.css_history()` cover the whole run (a few hundred bytes per cycle: a 2000-cycle run adds well under 1 MB).
+The solver keeps the last `settings.max_cycles_to_keep` cycles (1 by default; the log always keeps the cycles the CSS check reads) in memory: the series, profiles and stream series cover those. KPIs and the CSS check are recorded at the end of every cycle, so `sim.kpis()`, `sim.kpi_table()` and `sim.css_history()` cover the whole run (a few hundred bytes per cycle: a 2000-cycle run adds well under 1 MB).
 
 ## Optimisation
 

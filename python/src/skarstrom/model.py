@@ -785,8 +785,6 @@ class Settings(_Node):
     """Run health: warn when a cycle mole balance stays open as the run settles (MASS_BALANCE_STUCK)."""
     warn_step_retries = Boolean()
     """Run health: warn on many rejected integrator attempts in a cycle (STEP_RETRIES)."""
-    warn_history_truncated = Boolean()
-    """Run health: warn when the log keeps fewer cycles than the diagnostics read (HISTORY_TRUNCATED)."""
     warn_reaction_stiff = Boolean()
     """Run health: warn when the integrator's step collapses at a reacting cell (REACTION_STIFF).
     *New in 0.9.*"""
