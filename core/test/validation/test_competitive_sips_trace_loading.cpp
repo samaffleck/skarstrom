@@ -408,7 +408,7 @@ namespace adsim {
     auto ldf = std::make_unique<LinearDrivingForce>();
     auto mtc = std::make_unique<MassTransferCoefficientConstant>();
     mtc->constant_mtc_ = kLdf;
-    ldf->mtc_model_ = std::move(mtc);
+    ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
     adsorbent.adsorption_source_.mass_transfer_models_[kA] = std::move(ldf);
     adsorbent.adsorption_source_.heat_of_adsorption_[kA] = 0.0;
     data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;

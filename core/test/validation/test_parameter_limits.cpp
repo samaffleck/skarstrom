@@ -54,9 +54,9 @@ namespace adsim {
       auto& model = PackingOf(data).adsorption_source_.mass_transfer_models_.at("Oxygen");
       auto* ldf = dynamic_cast<LinearDrivingForce*>(model.get());
       ASSERT_NE(ldf, nullptr);
-      auto* mtc = dynamic_cast<MassTransferCoefficientConstant*>(ldf->mtc_model_.get());
+      auto* mtc = dynamic_cast<MassTransferCoefficientSeriesResistance*>(ldf->mtc_model_.get());
       ASSERT_NE(mtc, nullptr);
-      mtc->constant_mtc_ = k;
+      mtc->k_ = k;  // the fixture stores the constant coefficient on the generic model
     }
 
     Curve RunCase(UserData& data, const BreakthroughCase& c) {

@@ -163,7 +163,7 @@ namespace adsim {
           mtc->tortuosity_ = kTortuosity;
           mtc->macropore_void_fraction_ = kParticleVoid;
           mtc->molecular_diffusion_coefficient_ = kMolecularDiffusivity;
-          ldf->mtc_model_ = std::move(mtc);
+          ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
           ads.adsorption_source_.mass_transfer_models_[c] = std::move(ldf);
         } else {
           AddLinearDrivingForceModel(ads_id, c, kGloverK);

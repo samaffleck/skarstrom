@@ -229,7 +229,7 @@ namespace adsim {
       auto ldf = std::make_unique<LinearDrivingForce>();
       auto mtc = std::make_unique<MassTransferCoefficientConstant>();
       mtc->constant_mtc_ = kLdfRate;
-      ldf->mtc_model_ = std::move(mtc);
+      ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
       adsorbent.adsorption_source_.mass_transfer_models_["Oxygen"] = std::move(ldf);
 
       CoupledSolver solver{data};
