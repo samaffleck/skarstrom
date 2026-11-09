@@ -32,6 +32,7 @@
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_view.h"
 #include "adsim/objects/manifests.h"
+#include "adsim/objects/model_kinds.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/solver/operating_limits.h"
@@ -235,6 +236,46 @@ TEST_F(DeckViewTest, ViewNodesClaimTheirOwnValues) {
     EXPECT_GT(v["choices"].Size(), 1u);
   }
   EXPECT_TRUE(found);
+}
+
+// A stream's view type is its tag in the stream kind table, the tag that
+// set_stream_kind takes, and an end's kind is its tag in the boundary kind
+// table (set_boundary_kind). A front end can then show them with the kind lists
+// and need not translate (the view once said "stream" for "flow").
+TEST_F(DeckViewTest, StreamTypesAndEndKindsAreKindTags) {
+  const auto& tags = KindTags(ModelFamily::Stream);
+  const auto& end_tags = KindTags(ModelFamily::Boundary);
+  rapidjson::Document schema;
+  Parse(schema, DeckViewSchema());
+  std::vector<std::string> schema_end_kinds;
+  for (const auto& t : schema["definitions"]["End"]["properties"]["kind"]["enum"].GetArray())
+    schema_end_kinds.push_back(t.GetString());
+  EXPECT_EQ(schema_end_kinds, end_tags);
+  std::vector<std::string> schema_types;
+  for (const auto& t : schema["definitions"]["Stream"]["properties"]["type"]["enum"].GetArray())
+    schema_types.push_back(t.GetString());
+  std::vector<std::string> expected(tags.begin(), tags.end());
+  expected.push_back("unsupported");
+  EXPECT_EQ(schema_types, expected);
+
+  std::set<std::string> seen;
+  for (const auto& deck : ExampleDecks()) {
+    UserData data;
+    ASSERT_NO_THROW(LoadFromJson(data, deck.string())) << deck;
+    rapidjson::Document view;
+    Parse(view, DeckView(data));
+    for (const auto& step : view["steps"].GetArray())
+      for (const char* end : {"bottom", "top"}) {
+        const std::string end_kind = step[end]["kind"].GetString();
+        EXPECT_NE(std::find(end_tags.begin(), end_tags.end(), end_kind), end_tags.end()) << deck << ": " << end_kind;
+        for (const auto& st : step[end]["streams"].GetArray()) {
+          const std::string type = st["type"].GetString();
+          EXPECT_NE(std::find(tags.begin(), tags.end(), type), tags.end()) << deck << ": " << type;
+          seen.insert(type);
+        }
+      }
+  }
+  EXPECT_TRUE(seen.count("flow")) << "no example deck has a set-flow stream";
 }
 
 // ---- manifests ------------------------------------------------------------------
