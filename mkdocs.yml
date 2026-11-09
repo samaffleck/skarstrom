@@ -73,6 +73,7 @@ nav:
   - Tutorials:
       - "O₂ PSA (Arora 2021)": arora-2021-o2-psa.md
       - "CO₂ VPSA with LPP (Perez 2019)": perez-2019-vpsa.md
+      - "Case Study: CO₂ VSA Base Decks": case-study-vsa.md
       - TSA Regeneration: tsa-regeneration.md
   - Model:
       - Governing Equations: equations.md

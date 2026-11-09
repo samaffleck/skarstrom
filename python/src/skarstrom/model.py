@@ -781,6 +781,9 @@ class Settings(_Node):
     """Run health: warn when a cycle mole balance stays open as the run settles (MASS_BALANCE_STUCK)."""
     warn_step_retries = Boolean()
     """Run health: warn on many rejected integrator attempts in a cycle (STEP_RETRIES)."""
+    warn_reaction_stiff = Boolean()
+    """Run health: warn when the integrator's step collapses at a reacting cell (REACTION_STIFF).
+    *New in 0.9.*"""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation), "anderson" or
     "newton_krylov" (Newton-Krylov with finite-difference Jacobian-vector products)."""

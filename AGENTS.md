@@ -33,7 +33,7 @@ T_K = 298.15
 - **Run a few cycles before you run hundreds.** Start with `cycles=3`. After each run, examine `result.status`, `result.message`, `result.healthy` and `result.warnings`.
 - **A run-health warning is a wrong answer until you can explain it.**
   - The status stays `completed` intentionally. Thus, you must examine the warnings yourself.
-  - The codes are `MOLE_FRACTION_SUM`, `MASS_BALANCE_STUCK` and `STEP_RETRIES`.
+  - The codes are `MOLE_FRACTION_SUM`, `MASS_BALANCE_STUCK`, `STEP_RETRIES` and `REACTION_STIFF`.
   - Each warning has its value, threshold, suspects and a hint. Refer to the docs page `run-health.md`. The names and hints are in `core/include/adsim/solver/run_health.h`.
 - **Do you compare with a different model or a paper?** First, read "Matching Another Model" (`docs/model-conventions.md`). It describes these items: bulk density and solid density, total voidage, the sign of the heat of adsorption, the composition that the rate uses, and the boundary profiles.
 - **Machine-readable pointers:**
@@ -61,7 +61,7 @@ git clone --recursive https://github.com/samaffleck/skarstrom.git && cd skarstro
 
 ### Run a deck
 
-A **deck** is a JSON simulation file. The package contains 43 example decks (`examples/decks/` in the repository).
+A **deck** is a JSON simulation file. The package contains 45 example decks (`examples/decks/` in the repository).
 
 The CLI can give machine-readable output. The exit codes are:
 
@@ -90,7 +90,7 @@ The `--json` summary has these fields:
 - `css`: the CSS check for each cycle.
 - `warnings`: the operating limits of the last cycle (wall design pressure and temperature, vacuum, approach to fluidisation; refer to `sim.operating_limits()`). The run-health messages are added at the end.
 - `healthy`.
-- `run_health`: the structured run-health warnings `{code, value, threshold, cycle, step, suspects, hint}`. The codes are MOLE_FRACTION_SUM, MASS_BALANCE_STUCK and STEP_RETRIES (refer to docs/run-health.md).
+- `run_health`: the structured run-health warnings `{code, value, threshold, cycle, step, suspects, hint}`. The codes are MOLE_FRACTION_SUM, MASS_BALANCE_STUCK, STEP_RETRIES and REACTION_STIFF (refer to docs/run-health.md).
 
 The warnings do not change the status or the exit code. The progress output goes to stderr. Use `-q` to stop the progress output. The run-health warnings continue to go to stderr.
 

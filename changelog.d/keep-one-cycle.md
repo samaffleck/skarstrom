@@ -5,5 +5,5 @@
   every cycle, and the log still keeps the cycles the CSS check reads. Raise the setting only to plot the
   series or profiles of earlier cycles.
 - There is no run-health warning when the log keeps fewer cycles than the run: the `HISTORY_TRUNCATED`
-  check and its switch were removed before release. `WarningSettings` is class version 4; a deck saved
-  with that switch (version 2 or 3) still loads, and the value is ignored.
+  check and its switch were removed before release. `WarningSettings` is class version 5; a deck saved
+  with that switch (version 2, 3 or 4) still loads, and the value is ignored.

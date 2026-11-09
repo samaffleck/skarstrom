@@ -352,6 +352,12 @@ namespace adsim {
          defaults.step_retries,
          "the integrator rejected {value} attempts per accepted step in cycle {cycle} (more than {limit}).",
          "STEP_RETRIES"},
+        {"reaction_stiff", "Step collapse at a reacting cell", "end", "settings.warn_reaction_stiff",
+         defaults.reaction_stiff,
+         "the integrator's step collapsed at a reacting cell in step {step} of cycle {cycle}: {value} steps shorter "
+         "than 1e-4 s (at least {limit}), with near-zero {component}. Start the bed nearer the reaction's state "
+         "(docs/reactions.md, \"Start-up of fast reactions\").",
+         "REACTION_STIFF"},
       };
       return w;
     }();

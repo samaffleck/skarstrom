@@ -223,6 +223,9 @@ namespace adsim {
       BoolField("settings", "warn_step_retries", "warn on many rejected integrator attempts in a cycle (STEP_RETRIES)",
                 [](const UserData& u) { return u.settings.warnings_.step_retries; },
                 [](UserData& u, bool b) { u.settings.warnings_.step_retries = b; }),
+      BoolField("settings", "warn_reaction_stiff", "warn when the step collapses at a reacting cell (REACTION_STIFF)",
+                [](const UserData& u) { return u.settings.warnings_.reaction_stiff; },
+                [](UserData& u, bool b) { u.settings.warnings_.reaction_stiff = b; }),
 
       // css (cyclic steady state)
       IntField("css", "method", "CSS method",

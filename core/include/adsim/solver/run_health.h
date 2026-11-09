@@ -37,9 +37,26 @@
 //    step recoveries, IntegrationStats::recovered_steps) / accepted internal
 //    steps above kStepRetryRatio, over a cycle of at least kStepRetryMinSteps
 //    accepted steps.
+//  * REACTION_STIFF: the integrator's step collapsed at a reacting cell. In
+//    one cycle step, kReactionStiffMinSteps accepted steps shorter than
+//    kReactionStiffStep had their largest weighted local error in a cell
+//    that carries a reaction, or the step failed while that held for its
+//    last step. The warning names the reaction and the component whose
+//    near-zero mole fraction drives it: of the components the cell's
+//    reactions raise to a power below 1 (IReactionRate::MinExponent: an
+//    unbounded derivative at zero, or an unbounded rate below 0), the one
+//    with the smallest mole fraction, else the participant with the smallest
+//    mole fraction; and of the reactions that involve it, the one with the
+//    largest rate in that cell, named as the count crosses the threshold
+//    (the mole fraction quoted is the component's smallest over the cells
+//    that carry the reaction at that moment). Typical cause: a reaction
+//    that relaxes far faster than the flow, started from a bed without its
+//    products. The value is the number of such steps in the cycle step; it
+//    is counted in the step and reported at once, also when the run then
+//    fails (unlike the checks above, which run as each cycle completes).
 //
-// The checks run as each cycle completes, so settings.max_cycles_to_keep (how
-// many cycles of series and profiles the log keeps) does not affect them.
+// No check depends on how many cycles of series and profiles the log keeps
+// (settings.max_cycles_to_keep).
 //
 // Each code gives at most one warning per run, at the cycle where its value
 // was largest. The thresholds come from the engine's own decks (every example
@@ -62,14 +79,16 @@ namespace adsim {
   enum class RunHealthCheck {
     MoleFractionSum,
     MassBalanceStuck,
-    StepRetries
+    StepRetries,
+    ReactionStiff
   };
 
   // The codes, in RunHealthCheck order.
   inline constexpr const char* kRunHealthCodeList[] = {
     "MOLE_FRACTION_SUM",
     "MASS_BALANCE_STUCK",
-    "STEP_RETRIES"
+    "STEP_RETRIES",
+    "REACTION_STIFF"
   };
   const char* RunHealthCode(RunHealthCheck check);
 
@@ -82,6 +101,8 @@ namespace adsim {
     static constexpr double kStuckRate = 0.9;             // per-cycle ratio of |balance|
     static constexpr double kStepRetryRatio = 0.25;        // rejected attempts per accepted step
     static constexpr long kStepRetryMinSteps = 50;        // accepted steps in the cycle
+    static constexpr double kReactionStiffStep = 1e-4;    // accepted step size [s]
+    static constexpr long kReactionStiffMinSteps = 100;   // such steps in one cycle step
   };
 
   struct RunHealthWarning {
@@ -92,7 +113,8 @@ namespace adsim {
     int cycle = -1;                   // 0-based cycle; -1 for the run as a whole
     int step = -1;                    // 0-based step index; -1 when not one step
     std::string step_name;
-    std::string component;            // MASS_BALANCE_STUCK: the component
+    std::string component;            // MASS_BALANCE_STUCK: the component; REACTION_STIFF: the near-zero one
+    std::string reaction;             // REACTION_STIFF: the reaction's name
     std::vector<std::string> suspects;  // what to look at first
     std::string hint;                 // what to try
     std::string message;              // one line for the log ("Warning: ...")
@@ -129,11 +151,22 @@ namespace adsim {
     // is the run statistics' count, so the warning and the stats agree).
     void OnCycle(const UserData& data, const EquationLog& eq_log, const BoundaryLog& b_log, int cycle,
                  const IntegrationStats& at_start, const IntegrationStats& at_end);
+    // At the start of every cycle step (resets the REACTION_STIFF count).
+    void OnStepStart();
+    // After an accepted step shorter than kReactionStiffStep, or a step that
+    // failed (failed = true), in a run with reactions: the cell and the
+    // mole-fraction component (empty for another variable) of the largest
+    // weighted local error of that step (SolverData::LargestLocalErrorLocation),
+    // the step size h [s] and the time t [s] within the cycle step.
+    void OnShortStep(const UserData& data, int cycle, int step, double t, double h, int cell,
+                     const std::string& component, bool failed);
     const RunHealthReport& Report() const { return report_; }
 
   private:
     void Offer(RunHealthWarning w);
     RunHealthReport report_;
+    long short_steps_ = 0;          // REACTION_STIFF count in the current cycle step
+    bool reaction_named_ = false;   // REACTION_STIFF offered in the current cycle step
   };
 
 } // namespace adsim

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <set>
 
 #include <cereal/types/polymorphic.hpp>
@@ -47,6 +48,12 @@ namespace adsim {
       return y * P / (constants::kIdealGasConstant * Tc);  // [mol/m3]
     }
     return y * P * 1e-5;  // [bar]
+  }
+
+  double ActivityFloorMoleFraction(RateBasis basis, double T, double P) {
+    const double floor = basis == RateBasis::Concentration ? kMinActivityConcentration : kMinActivityBar;
+    const double per_unit = Activity(basis, 1.0, T, P);
+    return per_unit > 0.0 ? floor / per_unit : 0.0;
   }
 
   namespace {
@@ -108,6 +115,23 @@ namespace adsim {
       return it != m.end() && it->second.Get() != 0.0;
     }
 
+    double Value(const std::map<std::string, ExpressionParam>& m, const std::string& c) {
+      auto it = m.find(c);
+      return it == m.end() ? 0.0 : it->second.Get();
+    }
+
+    // n_c + nu_c, the component's exponent in the reverse monomial.
+    double ReverseExponent(const std::map<std::string, ExpressionParam>& order,
+                           const std::map<std::string, double>& nu, const std::string& c) {
+      auto it = nu.find(c);
+      return Value(order, c) + (it == nu.end() ? 0.0 : it->second);
+    }
+
+    // m = min(m, e) over nonzero exponents e.
+    void Fold(double e, double& m) {
+      if (e != 0.0 && e < m) m = e;
+    }
+
     void EvaluateMap(std::map<std::string, ExpressionParam>& m, const EvalContext& ctx) {
       for (auto& [c, p] : m) p.Evaluate(ctx);
     }
@@ -118,6 +142,15 @@ namespace adsim {
 
   double PowerLawRate::Rate(const ReactionState& s, RateBasis basis, const std::map<std::string, double>&) {
     return Arrhenius(pre_exp_factor_.Get(), activation_energy_.Get(), s.T) * Monomial(s, basis, order_);
+  }
+  double IReactionRate::MinExponent(const std::string&, const std::map<std::string, double>&) const {
+    return std::numeric_limits<double>::infinity();
+  }
+
+  double PowerLawRate::MinExponent(const std::string& c, const std::map<std::string, double>&) const {
+    double m = std::numeric_limits<double>::infinity();
+    Fold(Value(order_, c), m);
+    return m;
   }
   void PowerLawRate::SeedComponents(const std::map<std::string, double>& nu) { SeedOrders(order_, nu); }
   bool PowerLawRate::UsesComponent(const std::string& c) const { return AnyNonzero(order_, c); }
@@ -135,6 +168,12 @@ namespace adsim {
     const double k = Arrhenius(pre_exp_factor_.Get(), activation_energy_.Get(), s.T);
     const double K = Arrhenius(equilibrium_pre_exp_factor_.Get(), equilibrium_energy_.Get(), s.T);
     return k * (Monomial(s, basis, order_) - ReverseMonomial(s, basis, order_, nu) / K);
+  }
+  double ReversiblePowerLawRate::MinExponent(const std::string& c, const std::map<std::string, double>& nu) const {
+    double m = std::numeric_limits<double>::infinity();
+    Fold(Value(order_, c), m);
+    Fold(ReverseExponent(order_, nu, c), m);
+    return m;
   }
   void ReversiblePowerLawRate::SeedComponents(const std::map<std::string, double>& nu) { SeedOrders(order_, nu); }
   bool ReversiblePowerLawRate::UsesComponent(const std::string& c) const { return AnyNonzero(order_, c); }
@@ -164,6 +203,13 @@ namespace adsim {
       driving -= ReverseMonomial(s, basis, order_, nu) / K;
     }
     return k * driving / std::pow(Denominator(s, basis), denominator_exponent_.Get());
+  }
+  double LhhwRate::MinExponent(const std::string& c, const std::map<std::string, double>& nu) const {
+    double m = std::numeric_limits<double>::infinity();
+    Fold(Value(order_, c), m);
+    if (reversible_) Fold(ReverseExponent(order_, nu, c), m);
+    for (const auto& term : adsorption_) Fold(Value(term.exponent_, c), m);
+    return m;
   }
   void LhhwRate::SeedComponents(const std::map<std::string, double>& nu) { SeedOrders(order_, nu); }
   bool LhhwRate::UsesComponent(const std::string& c) const {
@@ -212,6 +258,10 @@ namespace adsim {
     ctx.components = &comps;
     expression_.Evaluate(ctx);
     return expression_.Get();
+  }
+
+  double ExpressionRate::MinExponent(const std::string& c, const std::map<std::string, double>&) const {
+    return UsesComponent(c) ? 1.0 : std::numeric_limits<double>::infinity();
   }
 
   bool ExpressionRate::UsesComponent(const std::string& c) const {

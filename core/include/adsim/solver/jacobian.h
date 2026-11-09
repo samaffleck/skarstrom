@@ -31,7 +31,37 @@ namespace adsim {
   // except the pressure columns: their increment is sqrt(eps) |P| floored at
   // the pressure's absolute tolerance, not IDA's reltol |P| + abstol, which
   // is coarser than the pressure differences the flow depends on (see
-  // Increment in jacobian.cpp).
+  // Increment in jacobian.cpp), and the reaction columns below.
+  //
+  // Reaction columns. Rate laws clip each activity at 0 and floor an
+  // activity raised to a negative power at kMinActivityBar /
+  // kMinActivityConcentration (reaction_kinds.h), so a rate is flat in a
+  // mole fraction below zero (and below the floor). A reaction participant
+  // can sit far below the mole fractions' absolute tolerance (1e-8): a
+  // product that the bed does not hold yet, a reactant ahead of its front.
+  // IDA's increment, floored at the error weight reltol |y| + abstol,
+  // then spans many times the mole fraction, and its sign follows h y':
+  //  * a falling mole fraction is perturbed downwards, into y < 0, where the
+  //    rate is clipped: the secant of even a linear term is y / increment of
+  //    the tangent (1e-4 at y = 1e-12);
+  //  * a power below 1 (H2 at -2.5 in steam-reforming kinetics, a square
+  //    root in a reverse term) has an unbounded derivative at zero: the
+  //    secant across [y, y + 1e-8] is far flatter than the tangent (25x for
+  //    y^-2.5 at y = 1e-9).
+  // Both starve the modified Newton iteration of the reaction's coupling.
+  // On a reaction that relaxes much faster than the flow (a fast catalyst
+  // starting from a product-free bed) it fails to converge, and IDA keeps
+  // the step at the reaction's time scale. So the mole-fraction column of a
+  // component that a reaction in the column's cell involves (its
+  // stoichiometry or IReactionRate::MinExponent) is perturbed away from
+  // zero (upwards) whenever IDA's increment would cross it, and, when the
+  // smallest power is below 1, by the relative increment
+  //   kReactionRelIncrement max(y, y_floor)   (y_floor: the activity floor's
+  //   mole fraction for a negative power, ActivityFloorMoleFraction, else 0)
+  // upwards, whenever that is smaller than IDA's. 1e-4 gives the tangent of
+  // y^-n to (n + 1) 5e-5 and stays far above the round-off of the other
+  // couplings in the column. Every other column, and every column of a deck
+  // without reactions, keeps IDA's increment bit for bit.
   //
   // In Coloured mode the coupling pattern is learned from band DQ evaluations:
   // at a few randomised "generic" states near the current one (so couplings
@@ -59,6 +89,7 @@ namespace adsim {
     static constexpr int kAuditInterval = 50;   // every Nth evaluation is a band audit
     static constexpr int kBoundaryCells = 3;    // cells at each end with exact patterns
     static constexpr int kProbeStates = 3;      // generic states probed per step in cycle 0
+    static constexpr double kReactionRelIncrement = 1e-4;  // reaction columns (see the class comment)
 
     BandedJacobian() = default;
     ~BandedJacobian();
@@ -126,6 +157,24 @@ namespace adsim {
     // set it only around a single-threaded run.
     static void SetEvaluationObserverForTesting(EvaluationObserver observer);
 
+    // Testing only: false gives the reaction columns IDA's increment, as
+    // before they were treated specially (to reproduce the time-step
+    // collapse). Process-wide, default true; read when a run's Jacobian is
+    // first evaluated; not thread-safe.
+    static void SetReactionIncrementForTesting(bool on);
+
+    // The state layout, for diagnostics: the variable (equation index) and
+    // cell of state entry j, the short name of a variable ("C", "P", "y0",
+    // ...), and the component of a mole-fraction variable (empty otherwise).
+    sunindextype Size() const { return n_; }
+    int VariableOf(sunindextype j) const { return var_[j]; }
+    int CellOf(sunindextype j) const { return cell_[j]; }
+    const std::string& VariableNameOf(int e) const { return var_names_[e]; }
+    const std::string& ComponentOf(int e) const;
+    // Mole-fraction columns with a reaction treatment (0 before the first
+    // Jacobian evaluation).
+    long NumReactionColumns() const { return num_reaction_columns_; }
+
     // Residual calls spent on Jacobians (not counting ColouredCheck's comparison).
     long NumResidualEvals() const { return num_res_evals_; }
     long NumAudits() const { return num_audits_; }
@@ -176,6 +225,14 @@ namespace adsim {
                        sunrealtype tt, sunrealtype c_j, N_Vector yy, N_Vector yp, N_Vector rr,
                        SUNMatrix Jac, UserData* udata, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
+    // Fills reaction_column_ / reaction_floor_ from the reactions of each
+    // cell (once per Initialise, at the first evaluation).
+    void MarkReactionColumns(UserData& udata);
+    // The DQ increment of column j: IDA's (Increment in jacobian.cpp), or the
+    // reaction increment of a reaction column.
+    sunrealtype ColumnIncrement(sunindextype j, sunrealtype yj, sunrealtype ypj, sunrealtype ewtj,
+                                sunrealtype hh, sunrealtype srur) const;
+
     void* ida_mem_ = nullptr;
     N_Vector ewt_ = nullptr;
     JacobianMode mode_ = JacobianMode::BandDQ;
@@ -197,6 +254,14 @@ namespace adsim {
     std::vector<int> cell_;
     std::vector<sunindextype> index_of_;
     std::vector<std::string> var_names_;
+    std::vector<std::string> var_components_;  // component of a mole-fraction variable, else empty
+    // Per column (empty: not marked yet): its reaction treatment, and the
+    // activity floor's mole fraction of a Singular column with a negative
+    // power (0 otherwise).
+    enum class ReactionColumn : char { None = 0, Participant = 1, Singular = 2 };
+    std::vector<ReactionColumn> reaction_column_;
+    std::vector<double> reaction_floor_;
+    long num_reaction_columns_ = 0;
 
     // Learned pattern. Interior: interior_[(col_var * n_vars_ + row_var) * n_offsets_ + (d + max_offset_)].
     // Boundary columns: boundary_[j][i - j + mu_] over the band.

@@ -24,6 +24,7 @@ FAST = {
     "nguyen_2023": ["--case", "I", "--cycles", "2"],
     "haghpanah_2013": ["--case", "PL002", "--cycles", "2"],
     "perez_2019": ["--case", "A", "--cycles", "2"],
+    "perez_2019_case_study": ["--case", "Base", "--cycles", "2"],
     "vysyaraju_2024": ["--cycles", "2"],
     "ward_pini_2024": ["--cycles", "2"],
     "tsa_illustrative": ["--cycles", "2"],
