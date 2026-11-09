@@ -45,7 +45,7 @@ const std::string CH4 = "Methane", H2O = "Water", H2 = "Hydrogen", CO = "CarbonM
                   AR = "Argon";
 constexpr const char* kPaper = "halabi_2011";
 
-constexpr double kR = kIdealGasConstant;  // [J/(mol K)]
+constexpr double kR = constants::kIdealGasConstant;  // [J/(mol K)]
 constexpr double kT = 723.15;             // 450 C, every case [K]
 
 // ---- thesis constants (ch. 8, Tables 2-4), converted from kPa to bar ----------
@@ -313,8 +313,8 @@ Outcome RunCase(const Case& c) {
     // D_p = 1.1e-6 m2/s, eps_p = 0.4 and tortuosity 1 (ch. 8, Table 12): the
     // macropore term alone with the isotherm-slope capacity factor.
     const std::string kp = "adsorbent[K-HTC].kinetics[CarbonDioxide].";
-    sim.SetParameterText(kp + "resistances.lumped", "0");
     sim.SetParameterText(kp + "resistances.macropore", "1");
+    sim.SetParameterText(kp + "resistances.lumped", "0");
     sim.RefreshParameters();
     sim.SetParameterText(kp + "capacity_factor_mode", "slope");
     sim.RefreshParameters();
