@@ -160,7 +160,7 @@ The variables are registry paths of the decks' [global variables](global-variabl
 | `variable[cv_lpp]`, `variable[feed1_share]` | — | 0.002–0.016, 0.08–0.5 |
 | `variable[cv_vent]` | 0.05–2 mol s⁻¹ bar⁻¹ | 0.05–2 |
 
-The base decks have no pressure set points: the pump power and the blowdown share set the blowdown and evacuation pressures, and the valves set the feed and pressurisation pressures.
+The base decks have no pressure set points: the pump power and the blowdown share set the blowdown and evacuation pressures, and the valves set the feed and pressurisation pressures. The pump power and the valve coefficients are searched in log10 (`LOG_SCALE`). Each spans one to two decades, and the plant constraints hold only near the small end, which a uniform search of a few generations seldom samples.
 
 ### Objectives
 
@@ -183,7 +183,20 @@ A candidate is feasible when every margin is zero or more. Each margin is normal
 | Converged | The run reached cyclic steady state and `result.healthy` is true | `RunResult` |
 | No outlet backflow (`--backflow-constraint`) | Gas in through an unconnected outlet ≤ 0.1 % of the cycle feed | `sim.operating_limits()` (`outlet_backflow` warning) |
 
-The operating-limit values are those at the logged times. A peak between two log points is not seen. The backflow is always recorded. It is not enforced by default: the LPP base deck itself draws 14 % of its cycle feed back in through the Feed 1 vent at cyclic steady state (the vents have no check valve), so every LPP candidate would be infeasible. The vacuum floor is a constraint on the result, not a limit of the pump model.
+The operating-limit values are those at the logged times. A peak between two log points is not seen. The backflow is always recorded. It is not enforced by default: the LPP base deck itself draws 14.4 % of its cycle feed back in through the Feed 1 vent at cyclic steady state, so every LPP candidate would be infeasible. That is a known issue of the connected LPP valves ([#241](https://github.com/samaffleck/skarstrom/issues/241)), not of the deck; the backflow becomes a default constraint when it is fixed. The vacuum floor is a constraint on the result, not a limit of the pump model.
+
+The base points are infeasible. The table gives their values (`--base-only`):
+
+| Constraint | `Perez2019_CaseStudy_Base` | `Perez2019_CaseStudy_Base_LPP` |
+|---|---|---|
+| Purity ≥ 95 % | 99.6 % | 94.1 % (fails) |
+| Recovery ≥ 90 % | 61.4 % (fails) | 88.6 % (fails) |
+| Approach to fluidisation ≤ 1 | 3.62, pressurisation valve opening (fails) | 0.30 |
+| Pressure drop ≤ 10 kPa m⁻¹ | 14.1 kPa m⁻¹, pressurisation (fails) | 16.2 kPa m⁻¹, LPP from the top (fails) |
+| Lowest vacuum pressure ≥ 10 kPa | 3.9 kPa (fails) | 3.1 kPa (fails) |
+| Outlet backflow (recorded) | 0 | 14.4 % of the feed |
+
+In the feed step the pressure drop is about 0.6 kPa m⁻¹. The pressure-drop bound acts on the pressurisation transients, where a valve opens onto an evacuated bed. The optimiser must use slower valves, a weaker pump or shorter evacuation, and keep purity and recovery.
 
 ### Warm starts, parallel runs and resuming
 
