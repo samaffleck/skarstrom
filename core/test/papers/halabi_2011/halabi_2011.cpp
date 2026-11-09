@@ -382,7 +382,7 @@ TEST_F(Halabi2011Test, GasPhaseEquilibrium) {
     c.feed = Fig7Feed();
     c.pressure_bar = p;
     c.sorbent_active = false;
-    c.step_time = 20.0;
+    c.step_time = 5.0;
     const Outcome o = RunCase(c);
     ASSERT_TRUE(o.ok) << o.message;
     EXPECT_TRUE(o.healthy);
@@ -399,7 +399,7 @@ TEST_F(Halabi2011Test, GasPhaseEquilibrium) {
       c.feed = Table6Feed(sc);
       c.pressure_bar = p;
       c.sorbent_active = false;
-      c.step_time = 20.0;
+      c.step_time = 5.0;
       const Outcome o = RunCase(c);
       ASSERT_TRUE(o.ok) << o.message;
       EXPECT_TRUE(o.healthy);
