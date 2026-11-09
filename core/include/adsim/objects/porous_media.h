@@ -38,6 +38,7 @@
 #include <cereal/archives/json.hpp>
 
 // ads includes
+#include "adsim/math/sorted_map_archive.h"
 #include "adsim/equations/film_correlation.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/equations/isotherm.h"
@@ -149,12 +150,10 @@ namespace adsim {
     friend class cereal::access;
     template<class Archive>
     void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::make_nvp("Mass_Transfer_Models", mass_transfer_models_),
-        cereal::make_nvp("Heat_Of_Adsorption", heat_of_adsorption_),
-        cereal::make_nvp("Isotherms", isotherms_),
-        cereal::make_nvp("Isotherm_Map", isotherm_map_)
-      );
+      SerializeMap(ar, "Mass_Transfer_Models", mass_transfer_models_);
+      SerializeMap(ar, "Heat_Of_Adsorption", heat_of_adsorption_);
+      SerializeMap(ar, "Isotherms", isotherms_);
+      SerializeMap(ar, "Isotherm_Map", isotherm_map_);
 
       // Version 1 adds the mixing rule; older archives mean None.
       if (version >= 1) {
@@ -294,10 +293,8 @@ namespace adsim {
     friend class cereal::access;
     template<class Archive>
     void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::make_nvp("Adsorbents", adsorbents_),
-        cereal::make_nvp("Next_ID", next_id_)
-      );
+      SerializeMap(ar, "Adsorbents", adsorbents_);
+      ar(cereal::make_nvp("Next_ID", next_id_));
     }
   };
 
@@ -341,9 +338,9 @@ namespace adsim {
   //   Cylinder: extrudates or fibres of diameter d_p = 2 r_f, taken as
   //             infinitely long in the diffusion geometry (the end faces are
   //             not counted).
-  // Only the LDF diffusion geometry (GetDiffusionGeometry) follows the shape;
-  // the pressure drop, dispersion, film correlations and the specific surface
-  // area of the solver use d_p as an equivalent-sphere diameter.
+  // The LDF diffusion geometry (GetDiffusionGeometry) and the specific surface
+  // area (ParticleShapeSurfaceFactor) follow the shape; the pressure drop,
+  // dispersion and film correlations use d_p as an equivalent-sphere diameter.
   // Enumerator values are what the deck stores, so never renumber them.
   enum class ParticleShape {
     Sphere = 0,
@@ -354,6 +351,13 @@ namespace adsim {
     "Sphere",    // 0
     "Cylinder"   // 1
   };
+
+  // Factor c of the packed specific surface area a_v = c (1 - eb) / d_p:
+  // 6 for spheres, 4 for infinite cylinders of diameter d_p. The solver
+  // (domain.cpp) and MixedAdsorbentLayer::GetSpecificSurfaceArea share it.
+  inline double ParticleShapeSurfaceFactor(ParticleShape shape) {
+    return shape == ParticleShape::Cylinder ? 4.0 : 6.0;
+  }
 
   // Kind tags of ParticleShape, by enumerator value (registry, deck view and
   // deck edits).

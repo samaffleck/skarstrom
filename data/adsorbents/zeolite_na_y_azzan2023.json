@@ -31,18 +31,18 @@
                     }
                 },
                 {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 13440.0,
-                        "Expression": "1.344e+04",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Hydrogen",
                     "value": {
                         "Value": 10790.0,
                         "Expression": "1.079e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 13440.0,
+                        "Expression": "1.344e+04",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -132,11 +132,11 @@
                     "value": 6
                 },
                 {
-                    "key": "Nitrogen",
+                    "key": "Hydrogen",
                     "value": 6
                 },
                 {
-                    "key": "Hydrogen",
+                    "key": "Nitrogen",
                     "value": 6
                 }
             ],

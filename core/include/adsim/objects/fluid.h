@@ -26,6 +26,7 @@
 
 #include "adsim/math/constants.h"
 #include "adsim/math/expression_param.h"
+#include "adsim/math/sorted_map_archive.h"
 #include "adsim/objects/viscosity_coefficients.h"
 #include "adsim/objects/ideal_gas_heat_capacity.h"
 #include "adsim/objects/thermal_conductivity_coefficients.h"
@@ -572,10 +573,8 @@ namespace adsim {
     friend class cereal::access;
     template <class Archive>
     void serialize(Archive& ar, std::uint32_t const version) {
-      ar(
-        cereal::make_nvp("Components", components_),
-        cereal::make_nvp("Adsorbed_Heat_Capacity", adsorbed_heat_capacity_)
-      );
+      ar(cereal::make_nvp("Components", components_));
+      SerializeMap(ar, "Adsorbed_Heat_Capacity", adsorbed_heat_capacity_);
       if (version >= 2) {
         ar(cereal::make_nvp("Adsorbed_Heat_Capacity_Mode", adsorbed_heat_capacity_mode_));
       }
@@ -585,9 +584,9 @@ namespace adsim {
       }
       // Legacy v1/v2 files carry no convention field; the ISOSTERIC default is retained.
       if (version >= 4) {
-        ar(cereal::make_nvp("Gas_Heat_Capacity_Mode", gas_heat_capacity_mode_),
-           cereal::make_nvp("Gas_Heat_Capacity", gas_heat_capacity_),
-           cereal::make_nvp("Viscosity_Mode", viscosity_mode_),
+        ar(cereal::make_nvp("Gas_Heat_Capacity_Mode", gas_heat_capacity_mode_));
+        SerializeMap(ar, "Gas_Heat_Capacity", gas_heat_capacity_);
+        ar(cereal::make_nvp("Viscosity_Mode", viscosity_mode_),
            cereal::make_nvp("Viscosity", viscosity_));
       }
       // Legacy v1-v3 files: CoolProp heat capacities and polynomial viscosities.

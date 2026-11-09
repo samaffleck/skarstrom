@@ -29,7 +29,7 @@
                             "cereal_class_version": 1,
                             "Mass_Transfer_Models": [
                                 {
-                                    "key": "Nitrogen",
+                                    "key": "Helium",
                                     "value": {
                                         "polymorphic_id": 2147483649,
                                         "polymorphic_name": "adsim::LinearDrivingForce",
@@ -101,8 +101,8 @@
                                                                 },
                                                                 "Capacity_Factor_Mode": 0,
                                                                 "Mass_Transfer_Coefficient": {
-                                                                    "Value": 104.98161937977187,
-                                                                    "Expression": "104.98161937977187",
+                                                                    "Value": 0.5,
+                                                                    "Expression": "0.5",
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "Activation_Energy": {
@@ -124,7 +124,7 @@
                                     }
                                 },
                                 {
-                                    "key": "Helium",
+                                    "key": "Nitrogen",
                                     "value": {
                                         "polymorphic_id": 1,
                                         "ptr_wrapper": {
@@ -191,8 +191,8 @@
                                                                 },
                                                                 "Capacity_Factor_Mode": 0,
                                                                 "Mass_Transfer_Coefficient": {
-                                                                    "Value": 0.5,
-                                                                    "Expression": "0.5",
+                                                                    "Value": 104.98161937977187,
+                                                                    "Expression": "104.98161937977187",
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "Activation_Energy": {
@@ -216,27 +216,49 @@
                             ],
                             "Heat_Of_Adsorption": [
                                 {
-                                    "key": "Nitrogen",
-                                    "value": {
-                                        "Value": 18700.0,
-                                        "Expression": "1.87e+04",
-                                        "DisplayUnitIndex": 0
-                                    }
-                                },
-                                {
                                     "key": "Helium",
                                     "value": {
                                         "Value": 0.0,
                                         "Expression": "0",
                                         "DisplayUnitIndex": 0
                                     }
+                                },
+                                {
+                                    "key": "Nitrogen",
+                                    "value": {
+                                        "Value": 18700.0,
+                                        "Expression": "1.87e+04",
+                                        "DisplayUnitIndex": 0
+                                    }
                                 }
                             ],
                             "Isotherms": [
                                 {
-                                    "key": 5,
+                                    "key": 2,
                                     "value": {
                                         "polymorphic_id": 2147483651,
+                                        "polymorphic_name": "adsim::InertIsotherm",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 2,
+                                                "value0": {},
+                                                "ISO_Params": [
+                                                    {
+                                                        "key": "Helium",
+                                                        "value": {
+                                                            "cereal_class_version": 0
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": 5,
+                                    "value": {
+                                        "polymorphic_id": 2147483652,
                                         "polymorphic_name": "adsim::DualSiteLangmuirIsotherm_Concentration",
                                         "ptr_wrapper": {
                                             "valid": 1,
@@ -284,38 +306,16 @@
                                             }
                                         }
                                     }
-                                },
-                                {
-                                    "key": 2,
-                                    "value": {
-                                        "polymorphic_id": 2147483652,
-                                        "polymorphic_name": "adsim::InertIsotherm",
-                                        "ptr_wrapper": {
-                                            "valid": 1,
-                                            "data": {
-                                                "cereal_class_version": 2,
-                                                "value0": {},
-                                                "ISO_Params": [
-                                                    {
-                                                        "key": "Helium",
-                                                        "value": {
-                                                            "cereal_class_version": 0
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    }
                                 }
                             ],
                             "Isotherm_Map": [
                                 {
-                                    "key": "Nitrogen",
-                                    "value": 5
-                                },
-                                {
                                     "key": "Helium",
                                     "value": 2
+                                },
+                                {
+                                    "key": "Nitrogen",
+                                    "value": 5
                                 }
                             ],
                             "Mixing_Rule": 0
@@ -398,7 +398,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 6,
+                        "cereal_class_version": 7,
                         "Name": "Zeolite5A",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -541,7 +541,8 @@
                             },
                             "Entrance_Effects": false
                         },
-                        "Film_Correlation": 0
+                        "Film_Correlation": 0,
+                        "Particle_Shape": 0
                     }
                 ],
                 "Next_Layer_ID": 1
@@ -629,18 +630,18 @@
             ],
             "Adsorbed_Heat_Capacity": [
                 {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Helium",
                     "value": {
                         "Value": 0.0,
                         "Expression": "0",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 29.1,
+                        "Expression": "29.1",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -650,18 +651,18 @@
             "Gas_Heat_Capacity_Mode": 1,
             "Gas_Heat_Capacity": [
                 {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 29.1340192,
-                        "Expression": "29.1340192",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Helium",
                     "value": {
                         "Value": 20.785512186000003,
                         "Expression": "20.785512186000002",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 29.1340192,
+                        "Expression": "29.1340192",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -697,18 +698,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 0.0,
-                        "Expression": "0",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Helium",
                     "value": {
                         "Value": 1.0,
                         "Expression": "1",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 0.0,
+                        "Expression": "0",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -759,7 +760,7 @@
                                         "ptr_wrapper": {
                                             "valid": 1,
                                             "data": {
-                                                "cereal_class_version": 1,
+                                                "cereal_class_version": 2,
                                                 "value0": {
                                                     "cereal_class_version": 5,
                                                     "Stream_Name": "",
@@ -770,18 +771,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.9,
-                                                                "Expression": "0.9",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "Helium",
                                                             "value": {
                                                                 "Value": 0.1,
                                                                 "Expression": "0.1",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.9,
+                                                                "Expression": "0.9",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -854,7 +855,8 @@
                                                             }
                                                         }
                                                     }
-                                                }
+                                                },
+                                                "Check_Valve": false
                                             }
                                         }
                                     }
@@ -922,18 +924,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
-                                        "value": {
-                                            "Value": 0.9,
-                                            "Expression": "0.9",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "Helium",
                                         "value": {
                                             "Value": 0.1,
                                             "Expression": "0.1",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "Value": 0.9,
+                                            "Expression": "0.9",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1072,18 +1074,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.9,
-                                                                "Expression": "0.9",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "Helium",
                                                             "value": {
                                                                 "Value": 0.1,
                                                                 "Expression": "0.1",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.9,
+                                                                "Expression": "0.9",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1266,7 +1268,7 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
+                                                            "key": "Helium",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -1274,7 +1276,7 @@
                                                             }
                                                         },
                                                         {
-                                                            "key": "Helium",
+                                                            "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -1284,7 +1286,7 @@
                                                     ],
                                                     "Boundary_Connection": {
                                                         "Connection_Type": 1,
-                                                        "Pair_ID": 3
+                                                        "Pair_ID": 2
                                                     },
                                                     "Buffer_Tank_Source": {
                                                         "Active": false,
@@ -1344,7 +1346,8 @@
                                                             }
                                                         }
                                                     }
-                                                }
+                                                },
+                                                "Check_Valve": false
                                             }
                                         }
                                     }
@@ -1433,18 +1436,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
-                                        "value": {
-                                            "Value": 0.9,
-                                            "Expression": "0.9",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "Helium",
                                         "value": {
                                             "Value": 0.1,
                                             "Expression": "0.1",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "Value": 0.9,
+                                            "Expression": "0.9",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1630,25 +1633,25 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.9,
-                                                                "Expression": "0.9",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "Helium",
                                                             "value": {
                                                                 "Value": 0.1,
                                                                 "Expression": "0.1",
                                                                 "DisplayUnitIndex": 0
                                                             }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.9,
+                                                                "Expression": "0.9",
+                                                                "DisplayUnitIndex": 0
+                                                            }
                                                         }
                                                     ],
                                                     "Boundary_Connection": {
                                                         "Connection_Type": 1,
-                                                        "Pair_ID": 3
+                                                        "Pair_ID": 2
                                                     },
                                                     "Buffer_Tank_Source": {
                                                         "Active": false,
@@ -1874,7 +1877,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 2,
+                "cereal_class_version": 4,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -1885,7 +1888,9 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true
+                "History_Truncated": true,
+                "Outlet_Backflow": true,
+                "Reaction_Stiff": true
             },
             "Valve_Bed_Pressure": 0
         },

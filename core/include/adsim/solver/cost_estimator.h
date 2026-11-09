@@ -10,6 +10,7 @@
 // Cereal includes
 #include <cereal/types/vector.hpp>
 #include <cereal/types/unordered_map.hpp>
+#include "adsim/math/sorted_map_archive.h"
 #include <cereal/cereal.hpp>
 
 // Adsim includes
@@ -570,8 +571,9 @@ namespace adsim {
          cereal::make_nvp("vacuum_pumps", vacuum_pumps_),
          cereal::make_nvp("pipework_cost", pipework_cost_),
          cereal::make_nvp("valve_cost", valve_cost_),
-         cereal::make_nvp("heat_exchanger_cost", heat_exchanger_cost_),
-         cereal::make_nvp("adsorbent_cost_per_kg", adsorbent_cost_per_kg),
+         cereal::make_nvp("heat_exchanger_cost", heat_exchanger_cost_));
+      SerializeMap(ar, "adsorbent_cost_per_kg", adsorbent_cost_per_kg);
+      ar(
          cereal::make_nvp("adsorbent_replacement_years", adsorbent_replacement_years),
          cereal::make_nvp("vessel_count", vessel_count),
          cereal::make_nvp("train_count", train_count),

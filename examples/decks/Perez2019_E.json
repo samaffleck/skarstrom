@@ -411,7 +411,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 6,
+                        "cereal_class_version": 7,
                         "Name": "13X",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -554,7 +554,8 @@
                             },
                             "Entrance_Effects": false
                         },
-                        "Film_Correlation": 0
+                        "Film_Correlation": 0,
+                        "Particle_Shape": 0
                     }
                 ],
                 "Next_Layer_ID": 1
@@ -715,18 +716,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 0.85,
-                        "Expression": "0.85",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": {
                         "Value": 0.15,
                         "Expression": "0.15",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 0.85,
+                        "Expression": "0.85",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -763,7 +764,7 @@
                                         "ptr_wrapper": {
                                             "valid": 1,
                                             "data": {
-                                                "cereal_class_version": 1,
+                                                "cereal_class_version": 2,
                                                 "value0": {
                                                     "cereal_class_version": 5,
                                                     "Stream_Name": "Feed 1 ambient Stream",
@@ -858,7 +859,8 @@
                                                             }
                                                         }
                                                     }
-                                                }
+                                                },
+                                                "Check_Valve": false
                                             }
                                         }
                                     },
@@ -1042,18 +1044,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.85,
-                                                                "Expression": "0.85",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.15,
                                                                 "Expression": "0.15",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.85,
+                                                                "Expression": "0.85",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1313,7 +1315,8 @@
                                                             }
                                                         }
                                                     }
-                                                }
+                                                },
+                                                "Check_Valve": false
                                             }
                                         }
                                     }
@@ -1345,18 +1348,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.85,
-                                                                "Expression": "0.85",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.15,
                                                                 "Expression": "0.15",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.85,
+                                                                "Expression": "0.85",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1938,18 +1941,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
-                                        "value": {
-                                            "Value": 1.0,
-                                            "Expression": "1",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.0,
                                             "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "Value": 1.0,
+                                            "Expression": "1",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -2181,7 +2184,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 2,
+                "cereal_class_version": 4,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -2192,7 +2195,9 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true
+                "History_Truncated": true,
+                "Outlet_Backflow": true,
+                "Reaction_Stiff": true
             },
             "Valve_Bed_Pressure": 0
         },
