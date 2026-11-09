@@ -48,6 +48,7 @@ The cycle time is `n_beds * t_feed`. The feed time and velocity are the paper's,
 - The feed header is held at a fixed pressure (`p_feed_header`). In a plant the blower also supplies the pressurisation gas while it feeds another bed. The feed flow does not respond to that extra draw here.
 - The vacuum pump runs at all times, but the pump model has no inertia and no shared suction header. Blowdown and evacuation of different beds never overlap in this schedule, so this is exact for the schedule, not for a pump that serves two beds at once.
 - The Idle step of the LPP deck is a closed bed. In a plant it is the bed waiting for its feed slot.
+- The vent valves have no check valve. With a larger LPP valve the LPP draw exceeds what the feed bed produces and gas flows back in through the Feed 1 vent (the validated `Perez2019_D1` deck draws 6 % of its feed back this way). `cv_lpp` is chosen just below that point. Turning on the check valve (`endpoint[N].valve.check_valve`) in this single-bed model needs a feed that is a molar flow, not a velocity at the bed pressure; that is left for the optimisation step.
 
 ## The devices
 
@@ -59,7 +60,7 @@ The cycle time is `n_beds * t_feed`. The feed time and velocity are the paper's,
 | Pressurisation (four-step) | Valve from the feed header | A valve stream from `p_feed_header`, C<sub>v</sub> = `cv_pressurisation` |
 | Pressurisation (LPP) | Valve between the beds | A valve stream at each end, C<sub>v</sub> = `cv_lpp`, connected so that each reads the other bed's pressure |
 
-The power falls to zero as the pressure ratio goes to 1. Near the atmosphere the pump then moves a finite volume flow, as a constant-speed pump does. With a constant power, the flow at the start of blowdown is unbounded: the pressure ratio is 1, so the power can move any flow. With a constant power the approach to fluidisation reached 19–31 at the start of blowdown. With the power curve the decks run without an operating-limit warning.
+The power falls to zero as the pressure ratio goes to 1. Near the atmosphere the pump then moves a finite volume flow, as a constant-speed pump does. With a constant power, the flow at the start of blowdown is unbounded: the pressure ratio is 1, so the power can move any flow. With a constant power the approach to fluidisation reached 19–31 at the start of blowdown. With the power curve it stays at 1.05 or less in blowdown and evacuation. The four-step deck's pressurisation valve still reaches 3.6 for a moment at the feed end when it opens on the evacuated bed (the validated `Perez2019_A` reaches 1.1 with its linear ramp); a ramped or smaller valve is a constraint for the optimisation step.
 
 ## Matching the paper's operating points
 
@@ -72,7 +73,7 @@ The device settings were chosen so that the device-driven steps reach the pressu
 | `vp_eta_max`, `vp_alpha` | 0.8, 19.55 | 0.8, 19.55 | The engine's default vacuum-pump curve |
 | `cv_vent` | 0.5 mol s⁻¹ bar⁻¹ | 0.5 | Feed-step pressure within 0.7 kPa of 1 bar |
 | `cv_pressurisation` | 0.006 mol s⁻¹ bar⁻¹ | — | 1 bar within the paper's 30 s |
-| `cv_lpp` | — | 0.01 mol s⁻¹ bar⁻¹ | Within 1 % of the feed-bed pressure well inside the 27.5 s |
+| `cv_lpp` | — | 0.008 mol s⁻¹ bar⁻¹ | The largest valve that does not draw gas back in through the Feed 1 vent; 99 % of the end pressure after 16.8 s |
 | `blower_efficiency` | 0.7 | 0.7 | Typical. The blower uses less than 1 % of the energy |
 
 At cyclic steady state (this engine version, 80 cells; specific energy = vacuum-pump and blower work per kg of CO₂, with the same pump curve added to the validated decks for comparison):
@@ -80,16 +81,16 @@ At cyclic steady state (this engine version, 80 cells; specific energy = vacuum-
 | Quantity | `Perez2019_A` | Base | `Perez2019_D1` | Base LPP |
 |---|---|---|---|---|
 | Cycle time | 205 s | 297 s | 360 s | 433.5 s |
-| Blowdown: time / end pressure | 19 s / 7.21 kPa | 19.5 s / 7.27 kPa (+0.8 %) | 21 s / 8.16 kPa | 34.2 s / 8.20 kPa (+0.5 %) |
-| Evacuation: time / end pressure | 57 s / 4.00 kPa | 79.5 s / 3.99 kPa (−0.1 %) | 167 s / 3.11 kPa | 110.3 s / 3.12 kPa (+0.3 %) |
-| Pressurisation: time / end pressure | 30 s / 99.98 kPa | 99 s / 100.00 kPa (99 % after 22.8 s) | 27.5 s / 101.30 kPa | 27.5 s / 100.15 kPa (−1.1 %, 99 % after 13.9 s) |
-| CO₂ purity | 99.55 % | 99.6 % | 94.08 % | 93.9 % |
-| CO₂ recovery | 60.1 % | 61.4 % | 89.5 % | 88.7 % |
-| Productivity, 10⁻⁵ kg kg⁻¹ s⁻¹ | 3.68 | 2.61 | 1.56 | 1.29 |
+| Blowdown: time / end pressure | 19 s / 7.21 kPa | 19.5 s / 7.27 kPa (+0.8 %) | 21 s / 8.16 kPa | 34.2 s / 8.12 kPa (−0.5 %) |
+| Evacuation: time / end pressure | 57 s / 4.00 kPa | 79.5 s / 3.99 kPa (−0.1 %) | 167 s / 3.11 kPa | 110.3 s / 3.14 kPa (+0.8 %) |
+| Pressurisation: time / end pressure | 30 s / 99.98 kPa | 99 s / 100.00 kPa (99 % after 22.8 s) | 27.5 s / 101.30 kPa | 27.5 s / 100.01 kPa (−1.3 %, 99 % after 16.8 s) |
+| CO₂ purity | 99.55 % | 99.59 % | 94.08 % | 94.06 % |
+| CO₂ recovery | 60.1 % | 61.4 % | 89.5 % | 88.6 % |
+| Productivity, 10⁻⁵ kg kg⁻¹ s⁻¹ | 3.68 | 2.61 | 1.56 | 1.28 |
 | Specific energy, MJ kg⁻¹ | 0.752 | 0.735 | 0.821 | 0.807 |
-| Cyclic steady state | cycle 48 | cycle 48, 41 s | cycle 92 | cycle 90, 55 s |
+| Cyclic steady state | cycle 48 | cycle 48, 41 s | cycle 92 | cycle 89, 55 s |
 
-Purity, recovery and specific energy agree with the validated decks to within 1.3 points and 3 %. The productivity is lower because the n-bed schedule makes the cycle longer: the feed time is the paper's, but the evacuation and pressurisation get a full third of the cycle each. The LPP pressurisation ends at the feed bed's pressure, 100.15 kPa. The validated deck pressurises to 1 atm while its feed vents to 1 bar.
+Purity, recovery and specific energy agree with the validated decks to within 1.3 points and 3 %. The productivity is lower because the n-bed schedule makes the cycle longer: the feed time is the paper's, but the evacuation and pressurisation get a full third of the cycle each. The LPP pressurisation ends just below the feed bed's pressure, at 100.0 kPa. The validated deck pressurises to 1 atm while its feed vents to 1 bar.
 
 ## The constraint parameters
 

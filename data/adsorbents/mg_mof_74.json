@@ -23,18 +23,18 @@
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
-                    "key": "CarbonDioxide",
-                    "value": {
-                        "Value": 30850.0,
-                        "Expression": "3.085e+04",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Nitrogen",
                     "value": {
                         "Value": 15930.0,
                         "Expression": "1.593e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 30850.0,
+                        "Expression": "3.085e+04",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -130,11 +130,11 @@
             ],
             "Isotherm_Map": [
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Nitrogen",
                     "value": 9
                 },
                 {
-                    "key": "Nitrogen",
+                    "key": "CarbonDioxide",
                     "value": 9
                 }
             ],

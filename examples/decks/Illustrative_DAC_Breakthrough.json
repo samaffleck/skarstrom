@@ -29,10 +29,10 @@
                             "cereal_class_version": 1,
                             "Mass_Transfer_Models": [
                                 {
-                                    "key": "Nitrogen",
+                                    "key": "CarbonDioxide",
                                     "value": {
                                         "polymorphic_id": 2147483649,
-                                        "polymorphic_name": "adsim::LinearDrivingForce",
+                                        "polymorphic_name": "adsim::DualRateLinearDrivingForce",
                                         "ptr_wrapper": {
                                             "valid": 1,
                                             "data": {
@@ -45,99 +45,6 @@
                                                             "valid": 1,
                                                             "data": {
                                                                 "cereal_class_version": 2,
-                                                                "value0": {},
-                                                                "Film_Resistance_Factor": {
-                                                                    "Value": 1.0,
-                                                                    "Expression": "1",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Tortuosity": {
-                                                                    "Value": 3.0,
-                                                                    "Expression": "3",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Macropore_Void_Fraction": {
-                                                                    "Value": 0.35,
-                                                                    "Expression": "0.35",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Molecular_Diffusion_Coefficient": {
-                                                                    "Value": 0.0,
-                                                                    "Expression": "0",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Crystal_Radius": {
-                                                                    "Value": 0.000001,
-                                                                    "Expression": "1e-06",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Micropore_Diffusivity": {
-                                                                    "Value": 1e-13,
-                                                                    "Expression": "1e-13",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Micropore_Activation_Energy": {
-                                                                    "Value": 0.0,
-                                                                    "Expression": "0",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Capacity_Factor": {
-                                                                    "Value": 0.0,
-                                                                    "Expression": "0",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Concentration_Floor": {
-                                                                    "Value": 0.001,
-                                                                    "Expression": "0.001",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Resistances": {
-                                                                    "cereal_class_version": 1,
-                                                                    "Film": false,
-                                                                    "Macropore": false,
-                                                                    "Knudsen": false,
-                                                                    "Micropore": false,
-                                                                    "Lumped": true
-                                                                },
-                                                                "Capacity_Factor_Mode": 0,
-                                                                "Mass_Transfer_Coefficient": {
-                                                                    "Value": 0.1,
-                                                                    "Expression": "0.1",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Activation_Energy": {
-                                                                    "Value": 0.0,
-                                                                    "Expression": "0",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Pore_Radius": {
-                                                                    "Value": 1e-9,
-                                                                    "Expression": "1e-09",
-                                                                    "DisplayUnitIndex": 0
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                {
-                                    "key": "CarbonDioxide",
-                                    "value": {
-                                        "polymorphic_id": 2147483651,
-                                        "polymorphic_name": "adsim::DualRateLinearDrivingForce",
-                                        "ptr_wrapper": {
-                                            "valid": 1,
-                                            "data": {
-                                                "cereal_class_version": 1,
-                                                "value0": {
-                                                    "Mass_Transfer_Coefficient_Model": {
-                                                        "polymorphic_id": 2,
-                                                        "ptr_wrapper": {
-                                                            "valid": 1,
-                                                            "data": {
                                                                 "value0": {},
                                                                 "Film_Resistance_Factor": {
                                                                     "Value": 1.0,
@@ -185,6 +92,7 @@
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "Resistances": {
+                                                                    "cereal_class_version": 1,
                                                                     "Film": true,
                                                                     "Macropore": true,
                                                                     "Knudsen": false,
@@ -289,6 +197,98 @@
                                                                 "Value": 1e-9,
                                                                 "Expression": "1e-09",
                                                                 "DisplayUnitIndex": 0
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": "Nitrogen",
+                                    "value": {
+                                        "polymorphic_id": 2147483651,
+                                        "polymorphic_name": "adsim::LinearDrivingForce",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 1,
+                                                "value0": {
+                                                    "Mass_Transfer_Coefficient_Model": {
+                                                        "polymorphic_id": 2,
+                                                        "ptr_wrapper": {
+                                                            "valid": 1,
+                                                            "data": {
+                                                                "value0": {},
+                                                                "Film_Resistance_Factor": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Tortuosity": {
+                                                                    "Value": 3.0,
+                                                                    "Expression": "3",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Macropore_Void_Fraction": {
+                                                                    "Value": 0.35,
+                                                                    "Expression": "0.35",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Molecular_Diffusion_Coefficient": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Crystal_Radius": {
+                                                                    "Value": 0.000001,
+                                                                    "Expression": "1e-06",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Diffusivity": {
+                                                                    "Value": 1e-13,
+                                                                    "Expression": "1e-13",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Capacity_Factor": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Concentration_Floor": {
+                                                                    "Value": 0.001,
+                                                                    "Expression": "0.001",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Resistances": {
+                                                                    "Film": false,
+                                                                    "Macropore": false,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": false,
+                                                                    "Lumped": true
+                                                                },
+                                                                "Capacity_Factor_Mode": 0,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 0.1,
+                                                                    "Expression": "0.1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
+                                                                    "DisplayUnitIndex": 0
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -537,7 +537,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 6,
+                        "cereal_class_version": 7,
                         "Name": "Lewatit",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -680,7 +680,8 @@
                             },
                             "Entrance_Effects": false
                         },
-                        "Film_Correlation": 0
+                        "Film_Correlation": 0,
+                        "Particle_Shape": 0
                     }
                 ],
                 "Next_Layer_ID": 1
@@ -770,24 +771,7 @@
             "Adsorbed_Heat_Capacity_Mode": 0,
             "Heat_Of_Adsorption_Convention": 0,
             "Gas_Heat_Capacity_Mode": 0,
-            "Gas_Heat_Capacity": [
-                {
-                    "key": "CarbonDioxide",
-                    "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
-                        "DisplayUnitIndex": 0
-                    }
-                }
-            ],
+            "Gas_Heat_Capacity": [],
             "Viscosity_Mode": 0,
             "Viscosity": {
                 "Value": 0.000018,
@@ -819,18 +803,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "CarbonDioxide",
-                    "value": {
-                        "Value": 0.0,
-                        "Expression": "0",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Nitrogen",
                     "value": {
                         "Value": 1.0,
                         "Expression": "1",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 0.0,
+                        "Expression": "0",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -867,7 +851,7 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
+                                        "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.0,
                                             "Expression": "0",
@@ -875,7 +859,7 @@
                                         }
                                     },
                                     {
-                                        "key": "CarbonDioxide",
+                                        "key": "Nitrogen",
                                         "value": {
                                             "Value": 0.0,
                                             "Expression": "0",
@@ -1016,18 +1000,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "CarbonDioxide",
-                                                            "value": {
-                                                                "Value": 0.0004,
-                                                                "Expression": "0.0004",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.9996,
                                                                 "Expression": "0.9996",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "CarbonDioxide",
+                                                            "value": {
+                                                                "Value": 0.0004,
+                                                                "Expression": "0.0004",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1242,7 +1226,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 2,
+                "cereal_class_version": 3,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -1253,7 +1237,8 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true
+                "History_Truncated": true,
+                "Outlet_Backflow": true
             },
             "Valve_Bed_Pressure": 0
         },
@@ -1288,8 +1273,8 @@
                             "Step": 0,
                             "Endpoint": "Air",
                             "Location": 1,
-                            "Step_ID": 1,
-                            "Endpoint_ID": 1
+                            "Step_ID": 0,
+                            "Endpoint_ID": 0
                         }
                     ],
                     "Product_Endpoints": [
@@ -1297,8 +1282,8 @@
                             "Step": 0,
                             "Endpoint": "Feed Pressure Boundary Top",
                             "Location": 0,
-                            "Step_ID": 1,
-                            "Endpoint_ID": 2
+                            "Step_ID": 0,
+                            "Endpoint_ID": 0
                         }
                     ],
                     "Recycle_Endpoints": []

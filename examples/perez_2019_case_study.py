@@ -59,7 +59,7 @@ CASES = {
     # LPP cycle of configuration D1: feed 1 (supplies the LPP), feed 2, blowdown, evacuation, LPP.
     "Base_LPP": dict(lpp=True, configuration="D1", feed_times=(27.5 * u.s, 117 * u.s),
                      feed_velocity=0.032799999999999996 * u.m / u.s,
-                     vacuum_pump_power=5.8 * u.W, blowdown_share=0.237, cv_vent=0.5, cv_lpp=0.01),
+                     vacuum_pump_power=5.8 * u.W, blowdown_share=0.237, cv_vent=0.5, cv_lpp=0.008),
 }
 DECKS = {"Base": "Perez2019_CaseStudy_Base", "Base_LPP": "Perez2019_CaseStudy_Base_LPP"}
 

@@ -23,27 +23,79 @@
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
-                    "key": "CarbonDioxide",
-                    "value": {
-                        "Value": 77800.0,
-                        "Expression": "7.78e+04",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Water",
                     "value": {
                         "Value": 45000.0,
                         "Expression": "4.5e+04",
                         "DisplayUnitIndex": 0
                     }
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 77800.0,
+                        "Expression": "7.78e+04",
+                        "DisplayUnitIndex": 0
+                    }
                 }
             ],
             "Isotherms": [
                 {
-                    "key": 23,
+                    "key": 21,
                     "value": {
                         "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::GabIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Water",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_q_m0": {
+                                                "Value": 3.51,
+                                                "Expression": "3.51",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH_m": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_C0": {
+                                                "Value": 2.73,
+                                                "Expression": "2.73",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH_C": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_K0": {
+                                                "Value": 0.867,
+                                                "Expression": "0.867",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dH_K": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 23,
+                    "value": {
+                        "polymorphic_id": 2147483650,
                         "polymorphic_name": "adsim::TothWadstIsotherm",
                         "ptr_wrapper": {
                             "valid": 1,
@@ -131,68 +183,16 @@
                             }
                         }
                     }
-                },
-                {
-                    "key": 21,
-                    "value": {
-                        "polymorphic_id": 2147483650,
-                        "polymorphic_name": "adsim::GabIsotherm",
-                        "ptr_wrapper": {
-                            "valid": 1,
-                            "data": {
-                                "cereal_class_version": 1,
-                                "value0": {},
-                                "Isotherm_Params": [
-                                    {
-                                        "key": "Water",
-                                        "value": {
-                                            "cereal_class_version": 0,
-                                            "IP_q_m0": {
-                                                "Value": 3.51,
-                                                "Expression": "3.51",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_dH_m": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_C0": {
-                                                "Value": 2.73,
-                                                "Expression": "2.73",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_dH_C": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_K0": {
-                                                "Value": 0.867,
-                                                "Expression": "0.867",
-                                                "DisplayUnitIndex": 0
-                                            },
-                                            "IP_dH_K": {
-                                                "Value": 0.0,
-                                                "Expression": "0",
-                                                "DisplayUnitIndex": 0
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    }
                 }
             ],
             "Isotherm_Map": [
                 {
-                    "key": "CarbonDioxide",
-                    "value": 23
-                },
-                {
                     "key": "Water",
                     "value": 21
+                },
+                {
+                    "key": "CarbonDioxide",
+                    "value": 23
                 }
             ],
             "Mixing_Rule": 0

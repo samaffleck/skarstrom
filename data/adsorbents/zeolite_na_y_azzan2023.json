@@ -23,10 +23,10 @@
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Hydrogen",
                     "value": {
-                        "Value": 33210.0,
-                        "Expression": "3.321e+04",
+                        "Value": 10790.0,
+                        "Expression": "1.079e+04",
                         "DisplayUnitIndex": 0
                     }
                 },
@@ -39,10 +39,10 @@
                     }
                 },
                 {
-                    "key": "Hydrogen",
+                    "key": "CarbonDioxide",
                     "value": {
-                        "Value": 10790.0,
-                        "Expression": "1.079e+04",
+                        "Value": 33210.0,
+                        "Expression": "3.321e+04",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -128,7 +128,7 @@
             ],
             "Isotherm_Map": [
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Hydrogen",
                     "value": 6
                 },
                 {
@@ -136,7 +136,7 @@
                     "value": 6
                 },
                 {
-                    "key": "Hydrogen",
+                    "key": "CarbonDioxide",
                     "value": 6
                 }
             ],
