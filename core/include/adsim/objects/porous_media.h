@@ -341,9 +341,9 @@ namespace adsim {
   //   Cylinder: extrudates or fibres of diameter d_p = 2 r_f, taken as
   //             infinitely long in the diffusion geometry (the end faces are
   //             not counted).
-  // Only the LDF diffusion geometry (GetDiffusionGeometry) follows the shape;
-  // the pressure drop, dispersion, film correlations and the specific surface
-  // area of the solver use d_p as an equivalent-sphere diameter.
+  // The LDF diffusion geometry (GetDiffusionGeometry) and the specific surface
+  // area (ParticleShapeSurfaceFactor) follow the shape; the pressure drop,
+  // dispersion and film correlations use d_p as an equivalent-sphere diameter.
   // Enumerator values are what the deck stores, so never renumber them.
   enum class ParticleShape {
     Sphere = 0,
@@ -354,6 +354,13 @@ namespace adsim {
     "Sphere",    // 0
     "Cylinder"   // 1
   };
+
+  // Factor c of the packed specific surface area a_v = c (1 - eb) / d_p:
+  // 6 for spheres, 4 for infinite cylinders of diameter d_p. The solver
+  // (domain.cpp) and MixedAdsorbentLayer::GetSpecificSurfaceArea share it.
+  inline double ParticleShapeSurfaceFactor(ParticleShape shape) {
+    return shape == ParticleShape::Cylinder ? 4.0 : 6.0;
+  }
 
   // Kind tags of ParticleShape, by enumerator value (registry, deck view and
   // deck edits).
