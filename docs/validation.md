@@ -16,7 +16,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 
 ## Summary
 
-55 cases from 11 publications; 217 asserted comparisons (0 outside their recorded tolerance) and 29 informational ones. Summary generated on 2026-11-08.
+57 cases from 12 publications; 232 asserted comparisons (0 outside their recorded tolerance) and 77 informational ones. Summary generated on 2026-11-08.
 
 | Publication | Cases | Against | Comparisons | Median error | Worst error |
 |---|---|---|---|---|---|
@@ -31,6 +31,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.89 % (rel. error)<br/>0.251 K (abs. error)<br/>1.93 pp (abs. error) | 3.92 % (rel. error)<br/>0.251 K (abs. error)<br/>33.5 pp (abs. error) |
 | [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 26.5 % (NRMSE)<br/>3.56 % (rel. error)<br/>1.24 K (RMSE) | 35.2 % (NRMSE)<br/>4.48 % (rel. error)<br/>2.56 K (RMSE) |
 | [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 2.34 pp (abs. error)<br/>1.86 % (rel. error) | 2.83 pp (abs. error)<br/>1.86 % (rel. error) |
+| [Halabi (2011)](#halabi-2011) | 2 | paper model | 15 | 0.61 pp (abs. error) | 1.95 pp (abs. error) |
 
 ## Arora & Hasan (2021) {#arora-hasan-2021}
 
@@ -603,6 +604,105 @@ A. Ward, R. Pini, Design and Performance Evaluation of Multisorbent Vacuum-Swing
     - CO2 from the evacuation step per bed volume (V_bed = L A) per total cycle time (Sect. 4.2)
 
 Input decks, assumptions and known discrepancies: [`core/test/papers/ward_pini_2024/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/ward_pini_2024/README.md).
+
+## Halabi (2011) {#halabi-2011}
+
+M.H. Halabi, Sorption enhanced catalytic reforming of methane for pure hydrogen production: experimental and modeling, PhD thesis, Eindhoven University of Technology, 2011 (chapters 8 and 9). [doi:10.6100/IR709035](https://doi.org/10.6100/IR709035)
+
+*System:* Sorption-enhanced steam methane reforming: Rh/Ce0.6Zr0.4O2 catalyst mixed with K2CO3-promoted hydrotalcite, 450 C, 1.5-6 bar. *Compared against:* thesis's computed gas-phase equilibria (Fig. 7 legend, Table 6); measured conversion and H2 (Table 6, recorded only).
+
+**Findings.**
+
+- With an inert sorbent the chapter-8 rate model (LHHW, the two site balances expanded into one denominator) reaches the thesis's printed equilibria: Fig. 7 within 0.46 pp, the Table 6 equilibrium column within 1.95 pp. The model equals a direct solution of the two equilibria with the thesis's K values; the Table 6 column lies 0.3-2.0 pp below it.
+- The sorption-enhanced runs are recorded, not asserted. The model's conversion has no plateau before breakthrough, and CO2 breaks through after 1.6-3.4 min against the thesis's 4-15 min. A 60 s reading seemed to agree at 1.5 bar, but that is an artefact of the read time.
+- The open input is the sorbent capacity below 0.05 bar CO2: the thesis's Freundlich fit (0.13 mol/kg at 0.024 bar), its Table 3 and its Henry constant disagree by up to 2x (skarstrom#245).
+
+| Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
+|---|---|---|---|---|---|---|---|
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Fig. 7 feed, 1.5 bar | paper model | 57.15 % | 57.1 % | 0.0528 pp abs. error | 1 pp | Ch. 9, Fig. 7 legend (p. 205): 'Equilibrium conversion' |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Fig. 7 feed, 4.5 bar | paper model | 40.14 % | 40.1 % | 0.0372 pp abs. error | 1 pp | Ch. 9, Fig. 7 legend (p. 205): 'Equilibrium conversion' |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Fig. 7 feed, 6 bar | paper model | 36.34 % | 36.8 % | 0.455 pp abs. error | 1 pp | Ch. 9, Fig. 7 legend (p. 205): 'Equilibrium conversion' |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 3, 1.5 bar | paper model | 47.25 % | 45.3 % | 1.95 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 3, 4.5 bar | paper model | 32.71 % | 32.1 % | 0.61 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 3, 6 bar | paper model | 29.55 % | 29.2 % | 0.349 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 4, 1.5 bar | paper model | 52.86 % | 51.2 % | 1.66 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 4, 4.5 bar | paper model | 36.76 % | 36.1 % | 0.656 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 4, 6 bar | paper model | 33.22 % | 31.8 % | 1.42 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 5, 1.5 bar | paper model | 57.41 % | 55.6 % | 1.81 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 5, 4.5 bar | paper model | 40.13 % | 39.6 % | 0.532 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 5, 6 bar | paper model | 36.3 % | 35.9 % | 0.402 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 6, 1.5 bar | paper model | 61.21 % | 59.4 % | 1.81 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 6, 4.5 bar | paper model | 43.04 % | 42.4 % | 0.645 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 6, 6 bar | paper model | 38.97 % | 38.5 % | 0.471 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 1.5 bar | experiment | 81.25 % | 82 % | 0.753 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 1.5 bar | experiment | 94.15 % | 82 % | 12.2 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 1.5 bar | experiment | 94.35 % | 94.7 % | 0.349 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 1.5 bar | experiment | 1.628 min | 4 min | 2.37 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 1.5 bar | experiment | 90.52 % | 92.7 % | 2.18 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 1.5 bar | experiment | 99.15 % | 92.7 % | 6.45 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 1.5 bar | experiment | 97.3 % | 98 % | 0.7 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 1.5 bar | experiment | 1.677 min | 4 min | 2.32 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 1.5 bar | experiment | 96.59 % | 98 % | 1.41 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 1.5 bar | experiment | 99.91 % | 98 % | 1.91 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 1.5 bar | experiment | 99.05 % | 99.5 % | 0.449 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 1.5 bar | experiment | 1.792 min | 4 min | 2.21 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 1.5 bar | experiment | 99.28 % | 99.6 % | 0.321 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 1.5 bar | experiment | 99.97 % | 99.6 % | 0.366 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 1.5 bar | experiment | 99.8 % | 99.8 % | 0.00317 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 1.5 bar | experiment | 1.923 min | 4 min | 2.08 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 4.5 bar | experiment | 72.1 % | 74.9 % | 2.8 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 4.5 bar | experiment | 83.67 % | 74.9 % | 8.77 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 4.5 bar | experiment | 91.18 % | 91.9 % | 0.724 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 4.5 bar | experiment | 2.922 min | 4 min | 1.08 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 4.5 bar | experiment | 80.27 % | 85.2 % | 4.93 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 4.5 bar | experiment | 91.04 % | 85.2 % | 5.84 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 4.5 bar | experiment | 94.19 % | 95.6 % | 1.41 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 4.5 bar | experiment | 2.854 min | 4 min | 1.15 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 4.5 bar | experiment | 86.39 % | 93.4 % | 7.01 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 4.5 bar | experiment | 95.28 % | 93.4 % | 1.88 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 4.5 bar | experiment | 96.18 % | 98.2 % | 2.02 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 4.5 bar | experiment | 2.864 min | 4 min | 1.14 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 4.5 bar | experiment | 90.99 % | 97.5 % | 6.51 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 4.5 bar | experiment | 97.6 % | 97.5 % | 0.0954 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 4.5 bar | experiment | 97.55 % | 99.2 % | 1.65 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 4.5 bar | experiment | 2.91 min | 4 min | 1.09 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 6 bar | experiment | 69.12 % | 72 % | 2.88 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 6 bar | experiment | 79.82 % | 72 % | 7.82 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 6 bar | experiment | 89.98 % | 91.3 % | 1.32 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 6 bar | experiment | 3.379 min | 4 min | 0.621 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 6 bar | experiment | 76.91 % | 83.4 % | 6.49 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 6 bar | experiment | 87.28 % | 83.4 % | 3.88 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 6 bar | experiment | 93.02 % | 95.3 % | 2.28 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 6 bar | experiment | 3.283 min | 4 min | 0.717 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 6 bar | experiment | 82.8 % | 91.4 % | 8.6 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 6 bar | experiment | 92 % | 91.4 % | 0.598 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 6 bar | experiment | 95.05 % | 97.5 % | 2.45 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 6 bar | experiment | 3.282 min | 4 min | 0.718 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 6 bar | experiment | 87.36 % | 95.2 % | 7.84 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 6 bar | experiment | 95.01 % | 95.2 % | 0.193 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 6 bar | experiment | 96.49 % | 98.8 % | 2.31 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 6 bar | experiment | 3.29 min | 4 min | 0.71 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+
+??? note "Notes on these comparisons"
+
+    - thesis's computed equilibrium, feed 3 vol% CH4, 0.1 vol% H2, S/C 4, 75 nml/min, 450 C (caption and p. 205)
+    - thesis's computed equilibrium, S/C 3, 1.5 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 3, 4.5 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 3, 6 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 4, 1.5 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 4, 4.5 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 4, 6 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 5, 1.5 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 5, 4.5 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 5, 6 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 6, 1.5 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 6, 4.5 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - thesis's computed equilibrium, S/C 6, 6 bar, 450 C, feed 3.94 vol% CH4, 0.1 vol% H2 (p. 203)
+    - measured, sorption-enhanced regime; the thesis does not say when it was read (recorded against the model at 60 s and at its peak); recorded only: no plateau before breakthrough, early breakthrough (README)
+    - measured; taken as dry, Ar-free (the thesis reports effluent composition on a dry basis, Fig. 3, p. 201); recorded only: no plateau before breakthrough, early breakthrough (README)
+    - low end of the range the thesis gives for all Table 6 runs; no per-row value is printed; recorded only: the thesis gives a range of 4-15 min for all rows; the reference is its low end
+
+Input decks, assumptions and known discrepancies: [`core/test/papers/halabi_2011/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/halabi_2011/README.md).
 
 ## Reproducing this page
 
