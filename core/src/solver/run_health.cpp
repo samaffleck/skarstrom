@@ -57,7 +57,7 @@ namespace adsim {
         case RunHealthCheck::MassBalanceStuck: return on.mass_balance_stuck;
         case RunHealthCheck::StepRetries:      return on.step_retries;
         case RunHealthCheck::HistoryTruncated: return on.history_truncated;
-        case RunHealthCheck::ReactionStiff:    return true;  // no switch yet
+        case RunHealthCheck::ReactionStiff:    return on.reaction_stiff;
       }
       return true;
     }

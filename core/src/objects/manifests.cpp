@@ -357,6 +357,12 @@ namespace adsim {
          "the log kept {value} cycles, fewer than {limit}: series and profiles cover only the logged cycles "
          "(settings.max_cycles_to_keep).",
          "HISTORY_TRUNCATED"},
+        {"reaction_stiff", "Step collapse at a reacting cell", "end", "settings.warn_reaction_stiff",
+         defaults.reaction_stiff,
+         "the integrator's step collapsed at a reacting cell in step {step} of cycle {cycle}: {value} steps shorter "
+         "than 1e-4 s (at least {limit}), with near-zero {component}. Start the bed nearer the reaction's state "
+         "(docs/reactions.md, \"Start-up of fast reactions\").",
+         "REACTION_STIFF"},
       };
       return w;
     }();
