@@ -19,7 +19,9 @@
 #include <cereal/archives/json.hpp>
 #include <gtest/gtest.h>
 
+#include "../fixtures/user_data_test.h"
 #include "adsim/equations/equation.h"
+#include "adsim/equations/isotherm.h"
 #include "adsim/equations/mass_transfer_model.h"
 #include "adsim/math/constants.h"
 #include "adsim/objects/deck_builder.h"
@@ -64,8 +66,8 @@ TEST(ParticleShape, DiffusionGeometryPerShape) {
   EXPECT_EQ(g.length, kRf);
   EXPECT_EQ(g.volume_to_surface, kRf / 2.0);
   EXPECT_EQ(layer.GetDiffusionLength(), kRf);
-  // a_v stays the equivalent-sphere 6 (1 - eb) / d_p (the solver's value).
-  EXPECT_DOUBLE_EQ(layer.GetSpecificSurfaceArea(), 6.0 * (1.0 - layer.eb_.Get()) / kDp);
+  // a_v is the infinite-cylinder 4 (1 - eb) / d_p.
+  EXPECT_DOUBLE_EQ(layer.GetSpecificSurfaceArea(), 4.0 * (1.0 - layer.eb_.Get()) / kDp);
 
   // A structured layer is a slab whatever its stored particle shape.
   layer.kind_ = LayerKind::Laminate;
@@ -259,6 +261,64 @@ TEST(ParticleShape, RegistryEditAndDeckView) {
   EXPECT_EQ(sim.Parameters().Find(path), nullptr);
   view = DeckView(d);
   EXPECT_NE(view.find("\"particle_shape\":null"), std::string::npos);
+}
+
+// The specific surface area and the hydraulic diameter follow the shape, in
+// the layer summary and in the solver's per-cell value (DomainVectors::av),
+// in the ratio 4/6 of a cylinder to a sphere; the film length stays d_p.
+class ParticleShapeSurface : public UserDataTest {
+protected:
+  void Build() {
+    AddComponents({"Nitrogen"});
+    auto [layer_id, ads_id] = AddLayer("Layer1");
+    auto& layer = GetLayer(layer_id);
+    layer.domain_.length = 1.0;
+    layer.domain_.n_cells = 4;
+    layer.particle_diameter_ = kDp;
+    auto& ads = GetAdsorbent(ads_id);
+    ads.solid_density_ = 1000.0;
+    ads.heat_capacity_ = 900.0;
+    ads.thermal_conductivity_ = 0.5;
+    ads.ep_ = 0.35;
+    auto henry = std::make_unique<HenryIsotherm>("Nitrogen");
+    henry->params_["Nitrogen"].k = 0.0;
+    henry->params_["Nitrogen"].Q = 0.0;
+    AddIsotherm({"Nitrogen"}, ads_id, std::move(henry));
+    AddLinearDrivingForceModel(ads_id, "Nitrogen", 1.0);
+    SetHOA(ads_id, "Nitrogen", 0.0);
+    AddConstantInternalHeatTransferCoefficientModel(10.0, layer_id);
+    AddConstantExternalHeatTransferCoefficientModel(10.0, layer_id);
+    std::get<CylinderBed>(data.bed.shape_).diameter = 0.05;
+    AddInitialConditions(1.0e5, 298.0, 298.0, {{"Nitrogen", 1.0}});
+  }
+};
+
+TEST_F(ParticleShapeSurface, FollowsTheShapeInSummaryAndSolver) {
+  Build();
+  auto& layer = data.bed.layers_.layers_.front();
+  const double eb = layer.eb_.Get();
+
+  data.Initialise();
+  const double av_sphere = data.state.domain_vectors.av[1];
+  const double re_sphere = data.state.domain_vectors.re_length[1];
+  const LayerGeometry sphere = LayerGeometrySummary(layer, data.bed.GetArea());
+  EXPECT_EQ(av_sphere, 6.0 * (1.0 - eb) / kDp);  // bitwise the old expression
+  EXPECT_EQ(sphere.specific_surface_area, av_sphere);
+  EXPECT_EQ(sphere.hydraulic_diameter, (2.0 / 3.0) * eb * kDp / (1.0 - eb));
+  EXPECT_DOUBLE_EQ(sphere.hydraulic_diameter, 4.0 * eb / sphere.specific_surface_area);
+
+  layer.particle_shape_ = ParticleShape::Cylinder;
+  data.Initialise();
+  const double av_cyl = data.state.domain_vectors.av[1];
+  const LayerGeometry cyl = LayerGeometrySummary(layer, data.bed.GetArea());
+  EXPECT_DOUBLE_EQ(av_cyl, 4.0 * (1.0 - eb) / kDp);
+  EXPECT_DOUBLE_EQ(av_cyl / av_sphere, 4.0 / 6.0);
+  EXPECT_EQ(cyl.specific_surface_area, av_cyl);  // the two call sites agree
+  EXPECT_DOUBLE_EQ(cyl.specific_surface_area / sphere.specific_surface_area, 4.0 / 6.0);
+  EXPECT_DOUBLE_EQ(cyl.hydraulic_diameter / sphere.hydraulic_diameter, 6.0 / 4.0);
+  EXPECT_DOUBLE_EQ(cyl.hydraulic_diameter, 4.0 * eb / cyl.specific_surface_area);
+  // The film correlations keep d_p as their length.
+  EXPECT_EQ(data.state.domain_vectors.re_length[1], re_sphere);
 }
 
 }  // namespace

@@ -170,7 +170,7 @@ $$
 h_p^{vol} = h_p\thinspace a_v, \qquad a_v = \frac{6(1-\epsilon_b)}{d_p}
 $$
 
-For a structured layer $a_v$ is the channel wall area per bed volume ($4a/p^2$ for a square monolith, $\pi a/p^2$ for a circular one, $2/(g+t)$ for a laminate).
+For a packed layer of cylindrical particles ([Kinetic Models](kinetic-models.md#particle-shape)) $a_v = 4(1-\epsilon_b)/d_p$; the film correlations still use $d_p$. For a structured layer $a_v$ is the channel wall area per bed volume ($4a/p^2$ for a square monolith, $\pi a/p^2$ for a circular one, $2/(g+t)$ for a laminate).
 
 Input: **Heat transfer coefficient** $h_p$ [W m⁻² K⁻¹]. Under local thermal equilibrium (LTE, the default) this model is not used.
 

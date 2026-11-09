@@ -1,0 +1,2 @@
+### Changed — specific surface area of a cylindrical packed layer
+- The specific surface area of a packed layer follows the particle shape: `6 (1 - eb) / d_p` for spheres (unchanged) and `4 (1 - eb) / d_p` for cylinders, in the solver (gas–solid heat transfer) and in `MixedAdsorbentLayer::GetSpecificSurfaceArea()` / `LayerGeometrySummary`, with the hydraulic diameter `4 eb / a_v`. Both use one shape factor. The film correlations keep `d_p` as the Reynolds and Sherwood length. Decks with spheres give the same results bit for bit.
