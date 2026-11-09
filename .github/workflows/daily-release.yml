@@ -3,8 +3,10 @@
 #
 # Each run:
 #   1. Skips (with a notice) when the repository variable AUTO_RELEASE is
-#      "false" (scheduled runs only), when main's latest CI run is not a
-#      success, or, on a scheduled run, while main is on a pre-release line
+#      "false" (scheduled runs only), when main's latest completed CI run
+#      is not a success (the run for main's newest non-release commit, else
+#      the newest completed run for an ancestor of it from the last 36
+#      hours; cancelled and skipped runs do not count; none: no release), or, on a scheduled run, while main is on a pre-release line
 #      (X.Y.ZrcN.devM: finish or continue it by hand, below).
 #   2. Runs `scripts/release.py prepare`: the changelog fragments in
 #      changelog.d/ (and entries under Unreleased in CHANGELOG.md) decide the
@@ -122,16 +124,35 @@ jobs:
             break
           done < <(git log -n 50 --format='%H %ae' HEAD)
           [ -n "$sha" ] || { echo "::error::no commit to check CI for"; exit 1; }
-          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${sha}&per_page=20" \
-                   --jq '.workflow_runs | sort_by(.created_at) | last // empty | "\(.status) \(.conclusion) \(.html_url)"')"
+          # The verdict is the newest COMPLETED run (success, failure or
+          # timed_out) of ci.yml on main: cancelled and skipped runs say
+          # nothing about the code. First choice: a run for that commit.
+          # If it has none yet (the full tier takes hours), the newest such
+          # run for an ancestor of it that is younger than CI_MAX_AGE_HOURS.
+          ci_max_age_hours=36
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&status=completed&per_page=100" \
+                    --jq '[.workflow_runs[] | select(.conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out")] | sort_by(.created_at) | reverse')"
+          ci_sha="$sha"
+          run="$(jq -r --arg sha "$sha" '[.[] | select(.head_sha == $sha)] | first // empty | "completed \(.conclusion) \(.html_url)"' <<< "$runs")"
+          if [ -z "$run" ]; then
+            cutoff="$(date -u -d "${ci_max_age_hours} hours ago" +%s)"
+            while read -r h created conclusion url; do
+              [ "$(date -u -d "$created" +%s)" -ge "$cutoff" ] || continue
+              if git merge-base --is-ancestor "$h" "$sha" 2> /dev/null; then
+                ci_sha="$h"
+                run="completed ${conclusion} ${url}"
+                break
+              fi
+            done < <(jq -r '.[] | "\(.head_sha) \(.created_at) \(.conclusion) \(.html_url)"' <<< "$runs")
+          fi
           read -r ci_status ci_conclusion ci_url <<< "${run:-none none -}"
-          summary "CI for ${sha::7}: ${ci_status}/${ci_conclusion} ${ci_url}"
+          summary "CI for ${ci_sha::7} (checking ${sha::7}): ${ci_status}/${ci_conclusion} ${ci_url}"
           if [ "$ci_status" != completed ] || [ "$ci_conclusion" != success ]; then
             if [ "$DRY_RUN" = true ]; then
               summary "(A real run would stop here: CI is not green.)"
             else
-              echo "::notice::CI for ${sha::7} is ${ci_status}/${ci_conclusion}: no release today."
-              stop "No release: main's latest CI run (${sha::7}) is ${ci_status}/${ci_conclusion}."
+              echo "::notice::CI for ${ci_sha::7} is ${ci_status}/${ci_conclusion}: no release today."
+              stop "No release: main's latest CI run (${ci_sha::7}) is ${ci_status}/${ci_conclusion}."
             fi
           fi
 
