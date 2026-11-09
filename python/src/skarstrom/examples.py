@@ -57,6 +57,8 @@ __all__ = [
     "Perez2019_A",
     "Perez2019_B",
     "Perez2019_C1",
+    "Perez2019_CaseStudy_Base",
+    "Perez2019_CaseStudy_Base_LPP",
     "Perez2019_D1",
     "Perez2019_E",
     "Perez2019_F",
@@ -308,6 +310,35 @@ bottom to achieve deep vacuum conditions. Pressurisation occurs at the bottom in
 using the feed gas composition. This configuration represents a typical four-step PSA
 process for gas separation applications."""
 
+Perez2019_CaseStudy_Base = Example('Perez2019_CaseStudy_Base', 'Perez 2019 case study - base case', 'Case-study base deck: configuration A of Estupinan Perez et al. (2019), CO2/N2 VSA on 13X, run by devices on a 4-step n-bed schedule (fraction mode, n_beds = 3): feed (1/n), blowdown and evacuation on one vacuum pump (1/n), pressurisation from the feed header through a valve. Feed by a blower, vent valve to the atmosphere, Ergun momentum. Settings the case study varies: variable[n_beds], variable[t_feed], variable[feed_velocity], variable[blowdown_share], variable[vacuum_pump_power], variable[vp_eta_max], variable[vp_alpha], variable[blower_efficiency], variable[cv_vent], variable[p_atm], variable[p_evac_floor], variable[purity_target], variable[recovery_target], variable[cv_pressurisation], variable[p_feed_header]. p_evac_floor, purity_target and recovery_target are constraint values, not used by the run.')
+"""Perez 2019 case study - base case
+
+Case-study base deck: configuration A of Estupinan Perez et al. (2019), CO2/N2 VSA on
+13X, run by devices on a 4-step n-bed schedule (fraction mode, n_beds = 3): feed (1/n),
+blowdown and evacuation on one vacuum pump (1/n), pressurisation from the feed header
+through a valve. Feed by a blower, vent valve to the atmosphere, Ergun momentum.
+Settings the case study varies: variable[n_beds], variable[t_feed],
+variable[feed_velocity], variable[blowdown_share], variable[vacuum_pump_power],
+variable[vp_eta_max], variable[vp_alpha], variable[blower_efficiency],
+variable[cv_vent], variable[p_atm], variable[p_evac_floor], variable[purity_target],
+variable[recovery_target], variable[cv_pressurisation], variable[p_feed_header].
+p_evac_floor, purity_target and recovery_target are constraint values, not used by the
+run."""
+
+Perez2019_CaseStudy_Base_LPP = Example('Perez2019_CaseStudy_Base_LPP', 'Perez 2019 case study - base case with LPP', 'Case-study base deck: configuration D1 of Estupinan Perez et al. (2019), CO2/N2 VSA on 13X, run by devices on a 6-step n-bed schedule (fraction mode, n_beds = 3): feed (1/n), blowdown and evacuation on one vacuum pump (1/n), LPP through a valve from the partner bed in its feed 1, idle. Feed by a blower, vent valve to the atmosphere, Ergun momentum. Settings the case study varies: variable[n_beds], variable[t_feed], variable[feed_velocity], variable[blowdown_share], variable[vacuum_pump_power], variable[vp_eta_max], variable[vp_alpha], variable[blower_efficiency], variable[cv_vent], variable[p_atm], variable[p_evac_floor], variable[purity_target], variable[recovery_target], variable[cv_lpp], variable[feed1_share]. p_evac_floor, purity_target and recovery_target are constraint values, not used by the run.')
+"""Perez 2019 case study - base case with LPP
+
+Case-study base deck: configuration D1 of Estupinan Perez et al. (2019), CO2/N2 VSA on
+13X, run by devices on a 6-step n-bed schedule (fraction mode, n_beds = 3): feed (1/n),
+blowdown and evacuation on one vacuum pump (1/n), LPP through a valve from the partner
+bed in its feed 1, idle. Feed by a blower, vent valve to the atmosphere, Ergun momentum.
+Settings the case study varies: variable[n_beds], variable[t_feed],
+variable[feed_velocity], variable[blowdown_share], variable[vacuum_pump_power],
+variable[vp_eta_max], variable[vp_alpha], variable[blower_efficiency],
+variable[cv_vent], variable[p_atm], variable[p_evac_floor], variable[purity_target],
+variable[recovery_target], variable[cv_lpp], variable[feed1_share]. p_evac_floor,
+purity_target and recovery_target are constraint values, not used by the run."""
+
 Perez2019_D1 = Example('Perez2019_D1', 'Perez 2019 - Configuration D1', 'Five-step pressure swing adsorption cycle for CO2/N2 separation based on Perez et al. 2019, configuration D1. This cycle features feed splitting with two separate feed steps, allowing for product stream recycling. The cycle uses 13X zeolite adsorbent and includes inter-step connections where the low-pressure product stream from the first feed step is recycled and used for bed pressurisation, improving process efficiency. The cycle consists of two feed steps, blowdown, evacuation, and pressurisation steps. Feed 1 has dual outlets allowing product stream splitting, while Feed 2 operates with a single outlet. The simulation demonstrates a more complex PSA cycle configuration with stream connections between steps.')
 """Perez 2019 - Configuration D1
 
@@ -442,6 +473,8 @@ ALL: Tuple[Example, ...] = (
     Perez2019_A,
     Perez2019_B,
     Perez2019_C1,
+    Perez2019_CaseStudy_Base,
+    Perez2019_CaseStudy_Base_LPP,
     Perez2019_D1,
     Perez2019_E,
     Perez2019_F,
