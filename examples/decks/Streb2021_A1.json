@@ -545,7 +545,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 6,
+                        "cereal_class_version": 7,
                         "Name": "13X",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -683,7 +683,8 @@
                             },
                             "Entrance_Effects": false
                         },
-                        "Film_Correlation": 0
+                        "Film_Correlation": 0,
+                        "Particle_Shape": 0
                     }
                 ],
                 "Next_Layer_ID": 1
@@ -1329,7 +1330,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 2,
+                "cereal_class_version": 4,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -1340,7 +1341,9 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true
+                "History_Truncated": true,
+                "Outlet_Backflow": true,
+                "Reaction_Stiff": true
             },
             "Valve_Bed_Pressure": 0
         },
