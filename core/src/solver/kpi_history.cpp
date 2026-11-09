@@ -54,6 +54,35 @@ namespace adsim {
       return mass;
     }
 
+    // Every logged endpoint of the cycle that is not connected to another
+    // endpoint (a Connection or pressure-equalisation partner).
+    std::vector<KPIEndpointRef> ExternalEndpoints(const std::vector<Step>& steps, const BoundaryLog& b_log,
+                                                  int cycle) {
+      std::vector<KPIEndpointRef> out;
+      for (int s = 0; s < static_cast<int>(steps.size()); ++s) {
+        auto add = [&](const std::string& name, BoundaryLocation location, bool connected) {
+          if (connected || !b_log.GetStreamData(cycle, s, name)) return;
+          KPIEndpointRef ref;
+          ref.step_index = s;
+          ref.endpoint_name = name;
+          ref.location = location;
+          out.push_back(std::move(ref));
+        };
+        for (const IBoundaryCondition* bc : {steps[s].bottom_boundary_condition_.get(),
+                                             steps[s].top_boundary_condition_.get()}) {
+          if (!bc) continue;
+          if (auto* flow = dynamic_cast<const FlowBoundaryCondition*>(bc)) {
+            for (const auto& stream : flow->streams_)
+              if (stream) add(stream->name_, bc->location_, stream->connection_.IsConnected());
+          } else if (auto* pressure = dynamic_cast<const PressureBoundaryCondition*>(bc)) {
+            add(Step::PressureEndpointName(steps[s].step_name_, bc->location_), bc->location_,
+                pressure->connection_.IsConnected());
+          }
+        }
+      }
+      return out;
+    }
+
     double RatioOrNaN(double num, double den) {
       bool ok = true;
       const double r = KPIRatio(num, den, ok);
@@ -173,6 +202,8 @@ namespace adsim {
       peak = CyclePeakTemperature(eq_log, cycle);
     }
 
+    const std::vector<KPIEndpointRef> external = ExternalEndpoints(steps, b_log, cycle);
+
     for (const auto& cfg : config.per_component) {
       const bool is_key = reactive && cfg.product_component == rx.key_reactant;
       const bool is_product = reactive && rx.IsProduct(cfg.product_component);
@@ -212,6 +243,11 @@ namespace adsim {
           r.step_thermal_energy.push_back(ok_h ? h : nan);
           r.step_cooling_duty.push_back(ok_c ? c : nan);
         }
+
+        // Uncounted inflow: gross inflow through unconnected endpoints that are
+        // not feed or recycle.
+        r.uncounted_inflow = CalculateComponentMolesUncountedInflow(p, external);
+        r.uncounted_inflow_fraction = RatioOrNaN(r.uncounted_inflow, CalculateComponentMolesInFeed(p));
 
         // The same KPIs from the trapezoid over the logged samples.
         p.integration_ = KPIIntegration::TRAPEZOID;

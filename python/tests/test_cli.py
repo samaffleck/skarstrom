@@ -76,7 +76,8 @@ def test_run_prints_kpis_and_css(capsys, tmp_path):
     # The original columns come first, new KPIs are appended.
     assert list(rows[0])[3:] == ["purity [mol/mol]", "recovery [mol/mol]", "productivity [kg/(kg s)]",
                                  "productivity [kg/(m3 s)]", "energy [J/kg]", "production [mol/s]",
-                                 "electrical energy [J/kg]", "thermal energy [J/kg]", "cooling duty [J/kg]"]
+                                 "electrical energy [J/kg]", "thermal energy [J/kg]", "cooling duty [J/kg]",
+                                 "uncounted inflow fraction [mol/mol]"]
     assert float(rows[-1]["thermal energy [J/kg]"]) == 0  # no energy sources in this deck
     run = json.loads((tmp_path / "run.json").read_text())
     assert run["cycles_run"] == 2

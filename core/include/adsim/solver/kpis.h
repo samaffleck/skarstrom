@@ -231,6 +231,30 @@ namespace adsim {
     return (ep.location == adsim::BoundaryLocation::BOTTOM) ? integral : -integral;
   }
 
+  // Gross moles of `component` that entered the bed through one endpoint (the
+  // inflow only, not net of what left). The quadrature's component_in; without
+  // quadratures, the trapezoid over the positive part of the logged flow.
+  static double EndpointComponentMolesInGross(
+    const adsim::BoundaryLog& b_log,
+    int cycle_index,
+    const KPIEndpointRef& ep,
+    const std::string& component,
+    KPIIntegration integration = KPIIntegration::QUADRATURE
+  ) {
+    if (integration == KPIIntegration::QUADRATURE) {
+      if (const EndpointIntegrals* q = EndpointQuadrature(b_log, cycle_index, ep.step_index, ep.endpoint_name)) {
+        const auto in = q->component_in.find(component);
+        return in == q->component_in.end() ? 0.0 : in->second;
+      }
+    }
+    adsim::BoundaryVariableData d = b_log.GetComponentVariableData(
+      cycle_index, ep.step_index, ep.endpoint_name,
+      adsim::BoundaryComponentVariableType::MOLAR_FLOW, component);
+    const double sign = (ep.location == adsim::BoundaryLocation::BOTTOM) ? 1.0 : -1.0;
+    for (auto& v : d.variable_timeseries) v = std::max(sign * v, 0.0);
+    return IntegrateVariableInTime(d.variable_timeseries, d.time);
+  }
+
   // Face-reconstruction of per-component boundary flux (positive = entering the
   // bed), matching the discrete species-equation flux at the boundary face:
   // upwind convection only, since no axial dispersion crosses a boundary face
@@ -440,6 +464,26 @@ namespace adsim {
     }
 
     return component_moles_in_feed;
+  }
+
+  // Component moles that entered the bed through the `external` endpoints
+  // (unconnected ones, chosen by the caller) that are neither feed nor recycle
+  // endpoints of the component: inflow the KPIs do not count (gross inflow). A
+  // diagnostic only; it enters no other KPI.
+  static double CalculateComponentMolesUncountedInflow(const KPIParams& params,
+                                                       const std::vector<KPIEndpointRef>& external) {
+    auto listed = [](const std::vector<KPIEndpointRef>& list, const KPIEndpointRef& ep) {
+      for (const auto& e : list)
+        if (e.Matches(ep.step_index, ep.endpoint_name)) return true;
+      return false;
+    };
+    double uncounted = 0.0;
+    for (const auto& ep : external) {
+      if (listed(params.feed_endpoints, ep) || listed(params.recycle_endpoints, ep)) continue;
+      uncounted += EndpointComponentMolesInGross(params.b_log_, params.cycle_index_, ep, params.product_comp_,
+                                                 params.integration_);
+    }
+    return uncounted;
   }
 
   // A component amount indistinguishable from zero at double precision relative

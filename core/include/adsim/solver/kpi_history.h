@@ -88,6 +88,16 @@ namespace adsim {
     double mass_balance_error = std::numeric_limits<double>::quiet_NaN();
     double trapezoid_mass_balance_error = std::numeric_limits<double>::quiet_NaN();
 
+    // Uncounted inflow diagnostic: moles of the component that entered the
+    // bed over the cycle (gross inflow) through external endpoints that are
+    // neither feed nor recycle endpoints of it, e.g. a vent valve that
+    // backflows. Connected endpoints (pressure equalisation, every
+    // Connection) are not counted: their gas is internal and leaves again
+    // elsewhere. `uncounted_inflow_fraction` is that amount over the counted
+    // feed (NaN when the feed is not a positive number). Changes no other KPI.
+    double uncounted_inflow = std::numeric_limits<double>::quiet_NaN();           // [mol per cycle]
+    double uncounted_inflow_fraction = std::numeric_limits<double>::quiet_NaN();  // [mol/mol]
+
     // ---- Reaction KPIs (KPIConfig::reaction) ------------------------------
     // Set on the records of the key reactant A and of each product P when
     // the deck has reactions and a key reactant is configured; otherwise
