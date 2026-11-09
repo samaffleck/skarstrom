@@ -106,7 +106,8 @@ TEST(KpiUncountedInflow, VentCountedConnectedEndpointExcluded) {
 // With quadratures the gross inflow is read, not the net.
 TEST(KpiUncountedInflow, QuadratureUsesGrossInflow) {
   auto rig = BuildRig(true);
-  const KPIRecord& r = Record(ComputeCycleKPIs(rig->config, rig->steps, rig->eq_log, rig->b_log, 0));
+  const auto recs = ComputeCycleKPIs(rig->config, rig->steps, rig->eq_log, rig->b_log, 0);
+  const KPIRecord& r = Record(recs);
   EXPECT_NEAR(r.uncounted_inflow, 0.25, 1e-12);
 }
 
@@ -129,7 +130,8 @@ TEST(KpiUncountedInflow, ZeroWithoutExternalInflow) {
   top->location_ = BoundaryLocation::TOP;
   top->streams_.push_back(MakeStream("Product", 2.0, 1.6));
   rig->steps[0].top_boundary_condition_ = std::move(top);
-  const KPIRecord& r = Record(ComputeCycleKPIs(rig->config, rig->steps, rig->eq_log, rig->b_log, 0));
+  const auto recs = ComputeCycleKPIs(rig->config, rig->steps, rig->eq_log, rig->b_log, 0);
+  const KPIRecord& r = Record(recs);
   EXPECT_EQ(r.uncounted_inflow, 0.0);
   EXPECT_EQ(r.uncounted_inflow_fraction, 0.0);
 }
