@@ -54,9 +54,9 @@ namespace adsim {
       auto& model = PackingOf(data).adsorption_source_.mass_transfer_models_.at("Oxygen");
       auto* ldf = dynamic_cast<LinearDrivingForce*>(model.get());
       ASSERT_NE(ldf, nullptr);
-      auto* mtc = dynamic_cast<MassTransferCoefficientConstant*>(ldf->mtc_model_.get());
+      auto* mtc = dynamic_cast<MassTransferCoefficientSeriesResistance*>(ldf->mtc_model_.get());
       ASSERT_NE(mtc, nullptr);
-      mtc->constant_mtc_ = k;
+      mtc->k_ = k;  // the fixture stores the constant coefficient on the generic model
     }
 
     Curve RunCase(UserData& data, const BreakthroughCase& c) {
@@ -531,7 +531,7 @@ namespace adsim {
       auto ldf = std::make_unique<LinearDrivingForce>();
       auto mtc = std::make_unique<MassTransferCoefficientConstant>();
       mtc->constant_mtc_ = 0.5;
-      ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
+      ldf->mtc_model_ = std::move(mtc);
       source.mass_transfer_models_["Nitrogen"] = std::move(ldf);
       source.heat_of_adsorption_["Nitrogen"] = 0.0;
       return c;
@@ -653,7 +653,7 @@ namespace adsim {
     auto ldf = std::make_unique<LinearDrivingForce>();
     auto mtc = std::make_unique<MassTransferCoefficientConstant>();
     mtc->constant_mtc_ = 0.5;  // = O2's in the PSA case
-    ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
+    ldf->mtc_model_ = std::move(mtc);
     source.mass_transfer_models_["Argon"] = std::move(ldf);
     source.heat_of_adsorption_["Argon"] = 20000.0;  // = O2's
     SetAllMoleFractions(data, {{"Nitrogen", 0.79}, {"Oxygen", 0.14}, {"Argon", 0.07}});
