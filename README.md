@@ -15,11 +15,11 @@
 
 ## Get started
 
-**People:** use the [web interface](https://www.skarstrom.co.uk/). It runs the engine in your browser, with no install. You can run the examples, plot the results, and run optimisation and parameter-fitting studies.
+Use the [web interface](https://www.skarstrom.co.uk/) to run the engine in your browser, with no install.
 
 [![The Skarstrom web interface: the simulation tree, solver settings and a plotted pressure profile of the Arora (2021) PSA example](docs/assets/skarstrom-web.png)](https://www.skarstrom.co.uk/)
 
-**AI agents:** point your agent at this repository. For example:
+Or point your agent (e.g. Claude or Codex) at this repository. For example:
 
 ```text
 Use Skarstrom (https://github.com/samaffleck/skarstrom) to design a 4-step LPP cycle for CO2/N2 separation on zeolite 13X. Optimise the process parameters to maximise purity and recovery.
