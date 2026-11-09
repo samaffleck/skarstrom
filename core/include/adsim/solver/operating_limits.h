@@ -25,6 +25,14 @@
 //   Gauge pressure is relative to kAtmosphericPressure. A pressure limit
 //   counts as passed by more than 2 kPa (decks often take 1 bar as
 //   atmospheric), a temperature limit by more than 0.01 K.
+// - Outlet backflow: gas that enters the bed through an outlet endpoint with
+//   no connection to another step (a valve outlet whose bed fell below the
+//   downstream pressure, a pressure outlet above the bed). The gas that
+//   flows back carries the bed-end composition (an outlet is zero-gradient),
+//   so it is not the stream's gas; a valve's check valve stops it. Checked
+//   for the last logged cycle only, from the endpoints' own logs, against
+//   kOutletBackflowFraction of the cycle feed. Connected endpoints are not
+//   checked: flow both ways through a connection is expected.
 // - Approach to fluidisation is the upward pressure gradient over the weight
 //   of the packing less the gas, (-dP/dz) / ((rho_b - rho) g); above 1 an
 //   unrestrained bed in upward flow lifts. It is checked whatever the design.
@@ -68,7 +76,8 @@ namespace adsim {
     Vacuum,             // pressure below atmospheric, wall not in vacuum service
     DesignTemperature,  // wall temperature above the design temperature
     Fluidisation,       // approach to fluidisation above 1
-    ChannelReynolds     // channel Reynolds number above 2000 in a structured layer
+    ChannelReynolds,    // channel Reynolds number above 2000 in a structured layer
+    OutletBackflow      // gas flows back into the bed through an unconnected outlet
   };
 
   inline constexpr const char* kOperatingLimitList[] = {
@@ -76,13 +85,20 @@ namespace adsim {
     "vacuum",
     "design_temperature",
     "fluidisation",
-    "channel_reynolds"
+    "channel_reynolds",
+    "outlet_backflow"
   };
 
   // Above this channel Reynolds number the laminar closures of a structured
   // layer (Hagen-Poiseuille, the fully developed Nu and Sh, Taylor-Aris) no
   // longer hold: flow in straight channels turns transitional near 2000.
   inline constexpr double kLaminarChannelReynolds = 2000.0;
+
+  // Backflow through an outlet is reported when the gross moles that enter
+  // the bed through one unconnected outlet endpoint in one step pass this
+  // fraction of the cycle feed (the gross moles in through every unconnected
+  // inlet endpoint of the cycle).
+  inline constexpr double kOutletBackflowFraction = 1e-3;
 
   struct OperatingWarning {
     OperatingLimit limit = OperatingLimit::Fluidisation;

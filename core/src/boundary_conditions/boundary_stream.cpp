@@ -220,17 +220,27 @@ namespace adsim {
     double Cp_boundary = 0.5 * (Cp[i] + Cp[i + d]);
     double Mr_boundary = 0.5 * (Mr[i] + Mr[i + d]);
 
+    // A check valve (unconnected streams only) passes the pressure drop in
+    // the stream's own direction and shuts, smoothly, against the reverse:
+    // the downstream pressure the valve law sees is raised to
+    // upstream - CheckValvePressureDrop(upstream - downstream).
+    const bool check = check_valve_ && !connection_.IsConnected();
+    auto downstream_seen = [&](double upstream, double downstream) {
+      return check ? upstream - Valve::CheckValvePressureDrop(upstream - downstream) : downstream;
+    };
+
     auto get_molar_flow = [&](){
       if (direction_ == BoundaryDirection::INLET) {
         // Upstream gas is the buffer tank's once it is ready (the tank's
         // pressure is still the user-specified upstream boundary value).
-        double mol_flow = valve_.GetMolarFlowRate(boundary_value_->GetValue(time), P_boundary, Mr_boundary, InletTemperature(time), Cp_boundary);
+        const double P_up = boundary_value_->GetValue(time);
+        double mol_flow = valve_.GetMolarFlowRate(P_up, downstream_seen(P_up, P_boundary), Mr_boundary, InletTemperature(time), Cp_boundary);
         if (loc == BoundaryLocation::TOP)
           return -mol_flow;
         else
           return mol_flow;
       } else { // Outlet
-        double mol_flow = valve_.GetMolarFlowRate(P_boundary, boundary_value_->GetValue(time), Mr_boundary, T_boundary, Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_boundary, downstream_seen(P_boundary, boundary_value_->GetValue(time)), Mr_boundary, T_boundary, Cp_boundary);
         if (loc == BoundaryLocation::TOP)
           return mol_flow;
         else

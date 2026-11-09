@@ -13,7 +13,7 @@ Every step has a **Top** and a **Bottom** boundary. The first choice for each is
 Imposes a specified **pressure** at the face. Use it for steps controlled by a pressure level — pressurisation, blowdown, or a constant-pressure product outlet.
 
 - As an **inlet**, you also specify the inlet **Temperature** and **Composition**; gas enters at the imposed pressure.
-- As an **outlet**, the temperature and composition are taken from the bed (zero-gradient); gas leaves at the imposed pressure.
+- As an **outlet**, the temperature and composition are taken from the bed (zero-gradient); gas leaves at the imposed pressure. If the bed falls below the imposed pressure, gas flows back in through the outlet with the bed-end temperature and composition, and the run warns at the end ([Backflow through an outlet](#backflow-through-an-outlet)).
 
 The pressure follows a **Pressure Profile** over the step (see [Profiles](#time-varying-profiles) below), so you can ramp the pressure up or down during the step. A **pump** (compressor or vacuum pump) can be attached to compute compression power and heating — see [Pumps](#pumps-compressors-and-vacuum-pumps).
 
@@ -57,7 +57,7 @@ For a Flow boundary with a *None* device, the **Flow Type** sets how the rate is
 
 ## Inlet composition and temperature
 
-At an inlet you set the **Temperature** and the **Composition** (a mole fraction for each component). The mole fractions of an inlet must sum to 1. Outlets ignore these fields because the leaving gas is whatever is in the bed.
+At an inlet you set the **Temperature** and the **Composition** (a mole fraction for each component). The mole fractions of an inlet must sum to 1. Outlets ignore these fields because the leaving gas is whatever is in the bed. This is also true when the flow through an outlet reverses: the gas that flows back in carries the bed-end composition and temperature (zero gradient), not the outlet's fields. See [Backflow through an outlet](#backflow-through-an-outlet).
 
 ### Inlet temperature profile
 
@@ -164,6 +164,32 @@ so $C_v$ is in mol s⁻¹ bar⁻¹: a valve with $C_v = 10$ passes 10 mol/s for 
 The bed side of the law is the pressure at the bed end (the boundary face, the mean of the ghost cell and the end cell). The solver setting `settings.valve_bed_pressure` (`"Valve_Bed_Pressure"` in `Solver_Settings`; `IDASettings::valve_bed_pressure_`) can instead read the pressure of the end cell, the last cell at that end of the bed, as models that treat the column as a series of well-mixed cells do (toPSAil attaches its valves to the last cell). A connected valve then reads its partner's end cell as well. The two readings differ by the pressure drop over half a cell and agree as the grid is refined; use `end_cell` only to compare with such a model.
 
 Valves are the mechanism behind [pressure equalisation](pressure-equalization.md): put a valve on each bed and connect them, and gas flows from the high-pressure bed to the low-pressure one at a rate set by Cv.
+
+### Check valve
+
+!!! note "New in 0.9"
+    The check valve (`endpoint[ID].valve.check_valve`) and the outlet backflow warning (`settings.warn_outlet_backflow`).
+
+Turn on a valve stream's **Check Valve** (`endpoint[ID].valve.check_valve`; Python `sk.ValveStream(..., check_valve=True)` or `endpoint.valve.check_valve = True`) to stop the flow from reversing. An outlet then passes gas only out of the bed, and an inlet only into it. While the valve is shut, the stream carries no flow, so the end acts as a closed end for that stream. The closure is smooth: the valve law sees the pressure difference $\Delta P$ in the stream's direction replaced by
+
+$$
+s(\Delta P) =
+\begin{cases}
+0 & \Delta P \le 0 \\
+\Delta P\left(2 x - x^2\right),\ x = \Delta P / \delta & 0 < \Delta P < \delta \\
+\Delta P & \Delta P \ge \delta
+\end{cases}
+$$
+
+with $\delta = 10$ Pa (`Valve::kCheckValveBand`). Beyond 10 Pa this is the plain valve law. A hard cut-off would put a kink in the boundary residual where the flow decays through zero, and the solver's Newton iteration would then fail to converge there.
+
+The check valve is off by default, so decks keep their results. It applies only to an **unconnected** stream. A [connected](pressure-equalization.md) valve ignores it, because flow both ways through a connection (pressure equalisation, light-product pressurisation) is expected.
+
+### Backflow through an outlet
+
+An outlet is zero-gradient in composition and temperature, whatever the direction of the flow. When a valve outlet's bed falls below the downstream pressure, or a pressure outlet's set pressure rises above the bed, gas flows back into the bed through the outlet. This gas has the bed-end composition and temperature, not the outlet's `y` and temperature, and the [KPIs](performance-metrics.md) do not count it as feed. If the same step also draws gas from that end, for example a light-product draw to another step, the backflow can feed that draw with gas that has the bed's own composition.
+
+At the end of a run, the solver warns when gas flows back in through an outlet that has no connection to another step (**Outlet backflow**, `settings.warn_outlet_backflow`). The check is on the last logged cycle. It warns when the gross moles in through one such outlet in one step exceed 0.1 % of the cycle feed (`kOutletBackflowFraction`; the feed is the gross moles in through every unconnected inlet). The warning names the step, the endpoint, the moles and the fraction of the feed. For a valve, it suggests the check valve. Connected endpoints are not checked.
 
 ## Pumps: compressors and vacuum pumps
 

@@ -772,6 +772,9 @@ class Settings(_Node):
     """Warn when the last cycle's approach to fluidisation passes 1."""
     warn_channel_reynolds = Boolean()
     """Warn when the last cycle's channel Reynolds number in a structured layer passes 2000."""
+    warn_outlet_backflow = Boolean()
+    """Warn when gas flows back into the bed through an unconnected outlet in the last cycle
+    (more than 0.1 % of the cycle feed). *New in 0.9.*"""
     warn_mole_fraction_sum = Boolean()
     """Run health: warn when the gas mole fractions do not sum to 1 (MOLE_FRACTION_SUM)."""
     warn_mass_balance_stuck = Boolean()
@@ -886,6 +889,10 @@ class Valve(_Node):
     """Flow coefficient Cv (US gpm per psi^0.5) [-]."""
     xt = Real()
     """Pressure-drop ratio factor xT [-]."""
+    check_valve = Boolean()
+    """Check valve: pass gas only in the stream's own direction (out of the bed through an
+    outlet, into it through an inlet), with a smoothed closure. Off by default. Ignored on a
+    connected stream. *New in 0.9.*"""
 
 
 class Endpoint(_Node):

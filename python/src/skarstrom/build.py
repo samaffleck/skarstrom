@@ -264,6 +264,9 @@ class ValveStream:
     xt: Any = None
     y: Optional[Dict[str, Any]] = None
     temperature: Any = None
+    #: Check valve: no flow against the stream's direction (unconnected streams only).
+    #: ``None`` keeps the default (off). *New in 0.9.*
+    check_valve: Optional[bool] = None
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +348,7 @@ def _set_streams(sim: "Simulation", step_id: int, location: str, direction: str,
             _apply_profile(sim, eid, "pressure", prof)
             _set_endpoint(sim, eid, "valve.cv", st.cv)
             _set_endpoint(sim, eid, "valve.xt", st.xt)
+            _set_endpoint(sim, eid, "valve.check_valve", st.check_valve)
         elif isinstance(st, Stream):
             eid = sim._build("add_stream", step_id, location, st.name, st.flow.kind, st.flow.profile.kind)
             _apply_profile(sim, eid, st.flow.kind, st.flow.profile)
@@ -680,6 +684,7 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                                      f"pressure={_profile_src(sim, eid, 'pressure', st['profile'])}, "
                                      f"cv={_literal(sim, f'endpoint[{eid}].valve.cv')}, "
                                      f"xt={_literal(sim, f'endpoint[{eid}].valve.xt')}"
+                                     f"{', check_valve=True' if sim.get(f'endpoint[{eid}].valve.check_valve') else ''}"
                                      f"{_inlet_src(sim, eid, st['temperature_profile'])}),")
                     elif st["type"] == "stream":
                         flow = f"sk.{st['flow']}({_profile_src(sim, eid, st['flow'], st['profile'])})"

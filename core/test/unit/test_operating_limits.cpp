@@ -64,6 +64,9 @@ namespace adsim {
       AddPressureOutletBC(CreateConstantBoundaryValue(0.9 * kAtm), BoundaryLocation::BOTTOM, "Purge");
       ConfigureCycle(2);
       data.settings.css.method_ = CSSMethod::NONE;
+      // The feed starts below its top pressure outlet after the purge, so gas
+      // flows back in there; that warning is tested in test_check_valve.cpp.
+      data.settings.warnings_.outlet_backflow = false;
     }
 
     // Runs the cycle; returns the solver's LOW-level messages.
