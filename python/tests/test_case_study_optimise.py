@@ -41,7 +41,7 @@ def test_base_point_is_evaluated_with_every_constraint(script, tmp_path):
     assert row["deck"] == "Base" and row["study"] == "base" and row["status"] == "completed"
     # The decision variables are the deck's own values.
     assert float(row["variable[t_feed]"]) == pytest.approx(99.0)
-    assert float(row["variable[vacuum_pump_power]"]) == pytest.approx(10.4)
+    assert float(row["variable[vacuum_pump_power]"]) == pytest.approx(10.2)
     assert row["variable[cv_lpp]"] == ""      # a variable of the other deck
     for key in ("purity", "recovery", "energy_kwh_per_t", "productivity_kg_per_t_h", "max_fluidisation",
                 "max_dp_per_m", "min_evacuation_pressure", "backflow_fraction", "wall_time_s"):

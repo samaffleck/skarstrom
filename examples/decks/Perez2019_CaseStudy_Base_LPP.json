@@ -29,7 +29,7 @@
                             "cereal_class_version": 1,
                             "Mass_Transfer_Models": [
                                 {
-                                    "key": "Nitrogen",
+                                    "key": "CarbonDioxide",
                                     "value": {
                                         "polymorphic_id": 2147483649,
                                         "polymorphic_name": "adsim::LinearDrivingForce",
@@ -124,7 +124,7 @@
                                     }
                                 },
                                 {
-                                    "key": "CarbonDioxide",
+                                    "key": "Nitrogen",
                                     "value": {
                                         "polymorphic_id": 1,
                                         "ptr_wrapper": {
@@ -216,18 +216,18 @@
                             ],
                             "Heat_Of_Adsorption": [
                                 {
-                                    "key": "Nitrogen",
-                                    "value": {
-                                        "Value": 15930.0,
-                                        "Expression": "1.593e+04",
-                                        "DisplayUnitIndex": 0
-                                    }
-                                },
-                                {
                                     "key": "CarbonDioxide",
                                     "value": {
                                         "Value": 30850.0,
                                         "Expression": "3.085e+04",
+                                        "DisplayUnitIndex": 0
+                                    }
+                                },
+                                {
+                                    "key": "Nitrogen",
+                                    "value": {
+                                        "Value": 15930.0,
+                                        "Expression": "1.593e+04",
                                         "DisplayUnitIndex": 0
                                     }
                                 }
@@ -323,11 +323,11 @@
                             ],
                             "Isotherm_Map": [
                                 {
-                                    "key": "Nitrogen",
+                                    "key": "CarbonDioxide",
                                     "value": 9
                                 },
                                 {
-                                    "key": "CarbonDioxide",
+                                    "key": "Nitrogen",
                                     "value": 9
                                 }
                             ],
@@ -648,7 +648,7 @@
             ],
             "Adsorbed_Heat_Capacity": [
                 {
-                    "key": "Nitrogen",
+                    "key": "CarbonDioxide",
                     "value": {
                         "Value": 30.7,
                         "Expression": "30.7",
@@ -656,7 +656,7 @@
                     }
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Nitrogen",
                     "value": {
                         "Value": 30.7,
                         "Expression": "30.7",
@@ -669,7 +669,7 @@
             "Gas_Heat_Capacity_Mode": 1,
             "Gas_Heat_Capacity": [
                 {
-                    "key": "Nitrogen",
+                    "key": "CarbonDioxide",
                     "value": {
                         "Value": 30.7,
                         "Expression": "30.7",
@@ -677,7 +677,7 @@
                     }
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Nitrogen",
                     "value": {
                         "Value": 30.7,
                         "Expression": "30.7",
@@ -716,18 +716,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 0.85,
-                        "Expression": "0.85",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": {
                         "Value": 0.15,
                         "Expression": "0.15",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 0.85,
+                        "Expression": "0.85",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -775,7 +775,7 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
+                                                            "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -783,7 +783,7 @@
                                                             }
                                                         },
                                                         {
-                                                            "key": "CarbonDioxide",
+                                                            "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -823,7 +823,7 @@
                                                     "Endpoint_ID": 2
                                                 },
                                                 "Valve": {
-                                                    "cereal_class_version": 1,
+                                                    "cereal_class_version": 2,
                                                     "CV": {
                                                         "Value": 0.5,
                                                         "Expression": "cv_vent",
@@ -832,6 +832,16 @@
                                                     "Xt": {
                                                         "Value": 0.53,
                                                         "Expression": "0.53",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Start": {
+                                                        "Value": 1.0,
+                                                        "Expression": "1",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Ramp_Time": {
+                                                        "Value": 0.0,
+                                                        "Expression": "0",
                                                         "DisplayUnitIndex": 0
                                                     }
                                                 },
@@ -869,7 +879,7 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
+                                                            "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -877,7 +887,7 @@
                                                             }
                                                         },
                                                         {
-                                                            "key": "CarbonDioxide",
+                                                            "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -922,6 +932,16 @@
                                                     "Xt": {
                                                         "Value": 0.53,
                                                         "Expression": "0.53",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Start": {
+                                                        "Value": 0.2,
+                                                        "Expression": "valve_ramp_start",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Ramp_Time": {
+                                                        "Value": 8.0,
+                                                        "Expression": "valve_ramp_time",
                                                         "DisplayUnitIndex": 0
                                                     }
                                                 },
@@ -973,18 +993,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.85,
-                                                                "Expression": "0.85",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.15,
                                                                 "Expression": "0.15",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.85,
+                                                                "Expression": "0.85",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1170,7 +1190,7 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
+                                                            "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -1178,7 +1198,7 @@
                                                             }
                                                         },
                                                         {
-                                                            "key": "CarbonDioxide",
+                                                            "key": "Nitrogen",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
@@ -1223,6 +1243,16 @@
                                                     "Xt": {
                                                         "Value": 0.53,
                                                         "Expression": "0.53",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Start": {
+                                                        "Value": 1.0,
+                                                        "Expression": "1",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Ramp_Time": {
+                                                        "Value": 0.0,
+                                                        "Expression": "0",
                                                         "DisplayUnitIndex": 0
                                                     }
                                                 },
@@ -1272,18 +1302,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.85,
-                                                                "Expression": "0.85",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.15,
                                                                 "Expression": "0.15",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.85,
+                                                                "Expression": "0.85",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1457,18 +1487,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 1.0,
-                                                                "Expression": "1",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 1.0,
+                                                                "Expression": "1",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1514,12 +1544,12 @@
                                                             "Polynomial_Function": {
                                                                 "cereal_class_version": 0,
                                                                 "a": {
-                                                                    "Value": 5.8,
+                                                                    "Value": 5.85,
                                                                     "Expression": "vacuum_pump_power",
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "b": {
-                                                                    "Value": -0.000058,
+                                                                    "Value": -0.0000585,
                                                                     "Expression": "-vacuum_pump_power / p_atm",
                                                                     "DisplayUnitIndex": 0
                                                                 },
@@ -1624,7 +1654,7 @@
                     "Step_Name": "Blowdown",
                     "Energy_Sources": [],
                     "Step_Fraction": {
-                        "Value": 0.079,
+                        "Value": 0.07766666666666668,
                         "Expression": "blowdown_share / n_beds",
                         "DisplayUnitIndex": 0
                     },
@@ -1698,18 +1728,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 1.0,
-                                                                "Expression": "1",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 1.0,
+                                                                "Expression": "1",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1750,12 +1780,12 @@
                                                             "value0": {},
                                                             "Polynomial_Function": {
                                                                 "a": {
-                                                                    "Value": 5.8,
+                                                                    "Value": 5.85,
                                                                     "Expression": "vacuum_pump_power",
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "b": {
-                                                                    "Value": -0.000058,
+                                                                    "Value": -0.0000585,
                                                                     "Expression": "-vacuum_pump_power / p_atm",
                                                                     "DisplayUnitIndex": 0
                                                                 },
@@ -1842,7 +1872,7 @@
                     "Step_Name": "Evacuation",
                     "Energy_Sources": [],
                     "Step_Fraction": {
-                        "Value": 0.25433333333333338,
+                        "Value": 0.25566666666666668,
                         "Expression": "(1 - blowdown_share) / n_beds",
                         "DisplayUnitIndex": 0
                     },
@@ -1904,18 +1934,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 1.0,
-                                                                "Expression": "1",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.0,
                                                                 "Expression": "0",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 1.0,
+                                                                "Expression": "1",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1957,6 +1987,16 @@
                                                     "Xt": {
                                                         "Value": 0.53,
                                                         "Expression": "0.53",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Start": {
+                                                        "Value": 0.2,
+                                                        "Expression": "valve_ramp_start",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Ramp_Time": {
+                                                        "Value": 8.0,
+                                                        "Expression": "valve_ramp_time",
                                                         "DisplayUnitIndex": 0
                                                     }
                                                 },
@@ -2164,7 +2204,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 3,
+                "cereal_class_version": 5,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -2175,8 +2215,9 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true,
-                "Outlet_Backflow": true
+                "Outlet_Backflow": true,
+                "Reaction_Stiff": true,
+                "Connection_Pressure": true
             },
             "Valve_Bed_Pressure": 0
         },
@@ -2187,7 +2228,7 @@
         "System_Information": {
             "cereal_class_version": 0,
             "Title": "Perez 2019 case study - base case with LPP",
-            "Description": "Case-study base deck: configuration D1 of Estupinan Perez et al. (2019), CO2/N2 VSA on 13X, run by devices on a 6-step n-bed schedule (fraction mode, n_beds = 3): feed (1/n), blowdown and evacuation on one vacuum pump (1/n), LPP through a valve from the partner bed in its feed 1, idle. Feed by a blower, vent valve to the atmosphere. Ergun momentum (the validated Perez2019 decks use Kozeny-Carman). The pump and valves are sized to reach the step-end pressures the validated deck Perez2019_D1 reaches at cyclic steady state (blowdown 8.2 kPa, evacuation 3.1 kPa), not the nominal end values of its imposed profiles, which it does not reach in the step time. Settings the case study varies: variable[n_beds], variable[t_feed], variable[feed_velocity], variable[blowdown_share], variable[vacuum_pump_power], variable[vp_eta_max], variable[vp_alpha], variable[blower_efficiency], variable[cv_vent], variable[p_atm], variable[p_evac_floor], variable[purity_target], variable[recovery_target], variable[cv_lpp], variable[feed1_share]. p_evac_floor, purity_target and recovery_target are constraint values, not used by the run.",
+            "Description": "Case-study base deck: configuration D1 of Estupinan Perez et al. (2019), CO2/N2 VSA on 13X, run by devices on a 6-step n-bed schedule (fraction mode, n_beds = 3): feed (1/n), blowdown and evacuation on one vacuum pump (1/n), LPP through a valve from the partner bed in its feed 1, idle. Feed by a blower, vent valve to the atmosphere. Ergun momentum (the validated Perez2019 decks use Kozeny-Carman). The pump and valves are sized to reach the step-end pressures the validated deck Perez2019_D1 reaches at cyclic steady state (blowdown 8.2 kPa, evacuation 3.1 kPa), not the nominal end values of its imposed profiles, which it does not reach in the step time. The LPP valve (both ends) opens from 0.2 of C_v to fully open over 8 s (variable[valve_ramp_start], variable[valve_ramp_time]). Settings the case study varies: variable[n_beds], variable[t_feed], variable[feed_velocity], variable[blowdown_share], variable[vacuum_pump_power], variable[vp_eta_max], variable[vp_alpha], variable[blower_efficiency], variable[cv_vent], variable[p_atm], variable[p_evac_floor], variable[purity_target], variable[recovery_target], variable[valve_ramp_start], variable[valve_ramp_time], variable[cv_lpp], variable[feed1_share]. p_evac_floor, purity_target and recovery_target are constraint values, not used by the run.",
             "Author": "Skarstrom examples",
             "Version": 2
         },
@@ -2254,7 +2295,7 @@
                 },
                 {
                     "Name": "blowdown_share",
-                    "Value": 0.237,
+                    "Value": 0.233,
                     "ValueExpr": "",
                     "Description": "share of the vacuum pump's 1/n of the cycle spent in blowdown",
                     "UnitCategory": 0
@@ -2282,7 +2323,7 @@
                 },
                 {
                     "Name": "vacuum_pump_power",
-                    "Value": 5.8,
+                    "Value": 5.85,
                     "ValueExpr": "",
                     "Description": "vacuum pump shaft power at full vacuum [W] (W = W_max (1 - P / p_atm))",
                     "UnitCategory": 8
@@ -2328,6 +2369,20 @@
                     "ValueExpr": "",
                     "Description": "constraint: CO2 recovery target",
                     "UnitCategory": 0
+                },
+                {
+                    "Name": "valve_ramp_start",
+                    "Value": 0.2,
+                    "ValueExpr": "",
+                    "Description": "pressurisation valve: opening at the start of the step (share of its Cv)",
+                    "UnitCategory": 0
+                },
+                {
+                    "Name": "valve_ramp_time",
+                    "Value": 8.0,
+                    "ValueExpr": "",
+                    "Description": "pressurisation valve: time to open fully from the start of the step",
+                    "UnitCategory": 1
                 },
                 {
                     "Name": "t_feed",

@@ -98,16 +98,20 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         # is 0.02-0.6 superficial; above about 0.15 m/s the feed lifts the bed. (Base 0.085.)
         ("variable[feed_velocity]", 0.02, 0.15, "m/s"),
         # Vacuum pump power at full vacuum, W_max of W = W_max (1 - P/p_atm). The small end holds
-        # the evacuation above the 10 kPa floor (the base 10.4 W reaches 3.9 kPa); above 30 W the
+        # the evacuation above the 10 kPa floor (the base 10.2 W reaches 3.9 kPa); above 30 W the
         # pump passes any floor in seconds.
         ("variable[vacuum_pump_power]", 1.0, 30.0, ""),
-        # Share of the pump's time in blowdown: sets the intermediate pressure. (Base 0.197.)
+        # Share of the pump's time in blowdown: sets the intermediate pressure. (Base 0.205.)
         ("variable[blowdown_share]", 0.08, 0.6, ""),
-        # Pressurisation valve from the feed header [mol/(s bar)]. It opens fully onto the evacuated
-        # bed, so the first seconds set the approach to fluidisation: 0.001 still gives 1.15 (and
-        # reaches 95 kPa), so the range reaches down to valves that leave the feed to finish the
-        # pressurisation. Large: fast, lifts the bed at the feed end. (Base 0.006.)
+        # Pressurisation valve from the feed header [mol/(s bar)]. Large: fast, lifts the bed at the
+        # feed end unless the valve opens on a ramp. (Base 0.006.)
         ("variable[cv_pressurisation]", 0.0003, 0.02, ""),
+        # Its opening ramp: the share of C_v open at the start of the step, and the time to open
+        # fully. The opening at the start sets the approach to fluidisation on the evacuated bed
+        # (fully open 3.6 at the base C_v; 0.1 of it 0.95), the ramp time how soon the bed fills.
+        # (Base 0.1, 20 s.)
+        ("variable[valve_ramp_start]", 0.02, 1.0, ""),
+        ("variable[valve_ramp_time]", 1.0, 60.0, "s"),
         # Vent valve [mol/(s bar)]: sets the feed pressure above 1 bar (a small valve gives a
         # pressure swing as well as a vacuum swing; the blower pays for it). (Base 0.5.)
         ("variable[cv_vent]", 0.05, 2.0, ""),
@@ -118,9 +122,9 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         # Blower flow, superficial. (Base 0.0328 m/s.)
         ("variable[feed_velocity]", 0.015, 0.1, "m/s"),
         # Vacuum pump power at full vacuum [W]. A short search found 2.1-2.5 W still reaching
-        # 9.7 kPa, so the range reaches well below. (Base 5.8, 3.1 kPa.)
+        # 9.7 kPa, so the range reaches well below. (Base 5.85, 3.1 kPa.)
         ("variable[vacuum_pump_power]", 0.5, 20.0, ""),
-        # Share of the pump's time in blowdown. (Base 0.237.)
+        # Share of the pump's time in blowdown. (Base 0.233.)
         ("variable[blowdown_share]", 0.08, 0.6, ""),
         # Share of the feed time in feed 1, which supplies the LPP; the LPP step is as long.
         # (Base 0.190.)
@@ -129,6 +133,11 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         # the feed bed makes and gas flows back in through the vent (the backflow constraint).
         # (Base 0.008.)
         ("variable[cv_lpp]", 0.002, 0.016, ""),
+        # The LPP valve's opening ramp (both ends): opening at the start of the step and time to open
+        # fully. Fully open, the LPP from the top gives 16 kPa/m at the base C_v; 0.2 over 8 s, 5.7.
+        # (Base 0.2, 8 s.)
+        ("variable[valve_ramp_start]", 0.02, 1.0, ""),
+        ("variable[valve_ramp_time]", 1.0, 30.0, "s"),
         # Vent valve [mol/(s bar)]. (Base 0.5.)
         ("variable[cv_vent]", 0.05, 2.0, ""),
     ],
@@ -137,7 +146,8 @@ ALL_VARIABLES = sorted({path for v in VARIABLES.values() for path, *_ in v})
 # Variables searched in log10: each spans one to two decades, and the plant limits hold only
 # near the small end (a slow pressurisation valve, a weak pump), which a uniform search of a
 # few generations rarely samples.
-LOG_SCALE = {"variable[vacuum_pump_power]", "variable[cv_pressurisation]", "variable[cv_lpp]", "variable[cv_vent]"}
+LOG_SCALE = {"variable[vacuum_pump_power]", "variable[cv_pressurisation]", "variable[cv_lpp]", "variable[cv_vent]",
+             "variable[valve_ramp_start]"}
 
 
 def search_bounds(deck: str) -> Tuple[np.ndarray, np.ndarray]:
