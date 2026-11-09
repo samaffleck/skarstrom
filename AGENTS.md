@@ -355,7 +355,11 @@ pip install -r requirements-docs.txt && mkdocs build --strict
   - If such a test takes more than a few seconds, add it to `ADSIM_SLOW_TESTS` in `core/test/CMakeLists.txt` (ctest label `slow`, runs on main and at night). Write the reason in the comment of the test.
   - Put a new paper suite in `ADSIM_PAPER_TESTS` in the same file (label `paper`).
 - **Tolerances in paper tests are regression bounds.** The measured error sets them. Do not make a tolerance larger to hide a disagreement. Write the disagreement in the README of the paper.
-- **Regenerated example decks are expected.** The test suite saves `examples/decks/*.json` and some `data/adsorbents/*.json` again. The embedded result numbers change in the last digits. Commit these changes with the code change that caused them.
+- **The test suite re-saves the example decks. The files stay equal to its output.**
+  - The tests write `examples/decks/*.json`, some `data/adsorbents/*.json` and `data/cycles/*.json`. We commit these files, so that the decks that ship are the decks that the tests run.
+  - The save is deterministic: the maps are written in key order and the decks are written in the form that a load gives (`test::SaveDeckAtomically`). Thus a second run of the suite makes no change.
+  - After a change that moves the numbers in a deck, run the tests and commit the changed files with the change. CI fails if the tests change a file in `examples/` or `data/`.
+  - A change of the order of entries in a file is never a change of a result. Do not change a tolerance or a value by hand to remove a diff.
 - **Data file names must be shell-safe** (`[A-Za-z0-9._,=+@-]`). The `DataFileNamesAreShellSafe` test examines them.
 - **Bump `cereal_class_version`** for each change to a serialised class. Make the load function accept the older versions.
 - **The engine stays front-end free.**

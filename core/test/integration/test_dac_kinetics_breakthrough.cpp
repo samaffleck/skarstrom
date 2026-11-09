@@ -159,9 +159,9 @@ Simulation RunVariant(Variant variant, const std::string& name, RunResult& resul
   deck.Build(variant);
   std::filesystem::create_directories(deck.test_path);
   const std::filesystem::path path = deck.test_path / ("DacKinetics_" + name + ".json");
-  test::SaveToJsonAtomically(deck.data, path);
+  test::SaveDeckAtomically(deck.data, path);
   if (variant == Variant::DualSeries)
-    test::SaveToJsonAtomically(deck.data,
+    test::SaveDeckAtomically(deck.data,
                                std::filesystem::current_path() / "../examples/decks/Illustrative_DAC_Breakthrough.json");
   Simulation sim = Simulation::FromFile(path.string());
   result = sim.Run();

@@ -162,18 +162,18 @@
                                                 },
                                                 "Boundary_Mole_Fraction": [
                                                     {
-                                                        "key": "Nitrogen",
-                                                        "value": {
-                                                            "Value": 0.85,
-                                                            "Expression": "0.85",
-                                                            "DisplayUnitIndex": 0
-                                                        }
-                                                    },
-                                                    {
                                                         "key": "CarbonDioxide",
                                                         "value": {
                                                             "Value": 0.15,
                                                             "Expression": "0.15",
+                                                            "DisplayUnitIndex": 0
+                                                        }
+                                                    },
+                                                    {
+                                                        "key": "Nitrogen",
+                                                        "value": {
+                                                            "Value": 0.85,
+                                                            "Expression": "0.85",
                                                             "DisplayUnitIndex": 0
                                                         }
                                                     }

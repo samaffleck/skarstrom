@@ -710,18 +710,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "Methane",
-                    "value": {
-                        "Value": 0.6,
-                        "Expression": "0.6",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": {
                         "Value": 0.4,
                         "Expression": "0.4",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Methane",
+                    "value": {
+                        "Value": 0.6,
+                        "Expression": "0.6",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -758,18 +758,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Methane",
-                                        "value": {
-                                            "Value": 0.6,
-                                            "Expression": "0.6",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.4,
                                             "Expression": "0.4",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Methane",
+                                        "value": {
+                                            "Value": 0.6,
+                                            "Expression": "0.6",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -916,18 +916,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Methane",
-                                                            "value": {
-                                                                "Value": 0.6,
-                                                                "Expression": "0.6",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.4,
                                                                 "Expression": "0.4",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Methane",
+                                                            "value": {
+                                                                "Value": 0.6,
+                                                                "Expression": "0.6",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1103,18 +1103,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Methane",
-                                        "value": {
-                                            "Value": 0.6,
-                                            "Expression": "0.6",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.4,
                                             "Expression": "0.4",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Methane",
+                                        "value": {
+                                            "Value": 0.6,
+                                            "Expression": "0.6",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1318,18 +1318,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Methane",
-                                        "value": {
-                                            "Value": 0.6,
-                                            "Expression": "0.6",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.4,
                                             "Expression": "0.4",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Methane",
+                                        "value": {
+                                            "Value": 0.6,
+                                            "Expression": "0.6",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1517,18 +1517,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Methane",
-                                        "value": {
-                                            "Value": 0.6,
-                                            "Expression": "0.6",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.4,
                                             "Expression": "0.4",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Methane",
+                                        "value": {
+                                            "Value": 0.6,
+                                            "Expression": "0.6",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
