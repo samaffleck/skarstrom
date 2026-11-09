@@ -216,17 +216,20 @@ jobs:
 
       - name: Example decks unchanged by the tests
         if: runner.os == 'Linux'
-        # The test suite re-saves the example decks and adsorbent files; their
-        # embedded result numbers may move in the last digits, but no file may
-        # appear or disappear.
+        # The tests that save example decks, adsorbent files and cycle templates
+        # write exactly the committed bytes (the save is deterministic). Any
+        # difference means a change that was not re-saved and committed, or a
+        # test that writes a file it should not. The pull-request run covers
+        # the fast tier; the run on main and the nightly run cover all tiers.
         run: |
-          changed=$(git status --porcelain --untracked-files=all examples data | grep -E '^(\?\?| D|D )' || true)
+          changed=$(git status --porcelain --untracked-files=all examples data)
           if [ -n "$changed" ]; then
-            echo "::error::The test suite added or removed files under examples/ or data/:"
+            echo "::error::The test suite changed files under examples/ or data/. Re-save them (run the tests) and commit them with the change that caused it:"
             echo "$changed"
+            git diff --stat -- examples data | tail -n 25
             exit 1
           else
-            echo "No files added or removed under examples/ or data/."
+            echo "The tests left examples/ and data/ unchanged."
           fi
 
       - name: Remove test output

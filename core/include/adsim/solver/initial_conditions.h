@@ -20,6 +20,7 @@
 #include "adsim/objects/fluid.h"
 #include "adsim/math/constants.h"
 #include "adsim/math/expression_map.h"
+#include "adsim/math/sorted_map_archive.h"
 
 
 namespace adsim {
@@ -55,7 +56,7 @@ namespace adsim {
       );
       // version < 3: the mole fractions were plain numbers.
       SerializeExpressionMap(ar, "Initial_Composition", mole_fraction, version < 3);
-      ar(cereal::make_nvp("Adsorbed_Concentration", adsorbed_concentration));
+      SerializeMap(ar, "Adsorbed_Concentration", adsorbed_concentration);
     }
   };
 
