@@ -409,7 +409,7 @@ data = sim.experimental_data
 data.load_csv("outlet_CO2.csv")                            # two columns; a header row gives the labels
 data.add("T at 7 cm", time_s, temperature_K, "time [s]", "T [K]")
 data.names(), data["T at 7 cm"].x, data["T at 7 cm"].y     # NumPy arrays
-y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=0)
+y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=-1)
 data["outlet_CO2"].compare(y.time, y.values)               # rmse, nrmse, max_abs_error, points
 data.remove("T at 7 cm"); data.clear()
 ```
@@ -422,14 +422,14 @@ After a run:
 
 ```python
 sim.run()                  # the results below are those of the last run: run again after an edit
-sim.cycles                 # logged cycles, e.g. [0, 1, ..., 13]
+sim.cycles                 # logged cycles, e.g. [13] (settings.max_cycles_to_keep, default 1)
 sim.kpis()                 # KPIRecord per tracked component per cycle (every cycle run)
 sim.kpi_table()            # the same as a pandas DataFrame
 sim.css_history()          # the deck's CSS check at every cycle: cycle, converged, error, tolerance,
                            # state_change, state_tolerance, passing_cycles, required_cycles,
                            # distance_estimated, convergence_rate, distance, distance_ratio, distance_note
 y = sim.series("mole_fraction", "CarbonDioxide", location="top")   # NumPy arrays y.time, y.values
-T = sim.series("temperature", z=0.25, cycle=0)                      # at z = 0.25 m in the first cycle
+T = sim.series("temperature", z=0.25, cycle=-1)                     # at z = 0.25 m in the last logged cycle
 prof = sim.profile("adsorbed_concentration", "CarbonDioxide", cycle=-1, step=0)
 prof.z, prof.time, prof.values                                       # values has shape (len(time), len(z))
 sim.positions, sim.face_positions                                    # cell centres, cell faces [m]
