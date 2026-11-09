@@ -121,9 +121,9 @@ Simulation RunDeck(double y_water, const std::string& name, RunResult& result) {
   deck.Build(y_water);
   std::filesystem::create_directories(deck.test_path);
   const std::filesystem::path path = deck.test_path / ("HumidDac_" + name + ".json");
-  test::SaveToJsonAtomically(deck.data, path);
+  test::SaveDeckAtomically(deck.data, path);
   if (y_water > 0.0)
-    test::SaveToJsonAtomically(deck.data, std::filesystem::current_path() /
+    test::SaveDeckAtomically(deck.data, std::filesystem::current_path() /
                                               "../examples/decks/Illustrative_Humid_DAC_Breakthrough.json");
   Simulation sim = Simulation::FromFile(path.string());
   result = sim.Run();

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "adsim/math/expression_param.h"
+#include "adsim/math/sorted_map_archive.h"
 
 #include <string>
 #include <unordered_map>
@@ -39,7 +40,7 @@ void SerializeExpressionMap(Archive& ar, const char* name, ExpressionMap& m, boo
     m.clear();
     for (const auto& [key, value] : numbers) m.emplace(key, ExpressionParam(value));
   } else {
-    ar(cereal::make_nvp(name, m));
+    SerializeMap(ar, name, m);
   }
 }
 
