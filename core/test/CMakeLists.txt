@@ -55,7 +55,7 @@ include(GoogleTest)
 set(ADSIM_PAPER_TESTS
     "Arora2021Test.*" "Casas2012Test.*" "Ferre2026Test.*" "Haghpanah2013Test.*" "Nguyen2022Test.*"
     "Nguyen2023Test.*" "Perez2019Test.*" "Streb2021Test.*" "Vysyaraju2024Test.*"
-    "Ward2022Test.*" "WardPini2024Test.*")
+    "Ward2022Test.*" "WardPini2024Test.*" "Halabi2011Test.*")
 set(ADSIM_SLOW_TESTS
     # Cycles to CSS with and without Aitken acceleration on a slow cycle, and
     # on the thermal four-step LPP deck (87 vs 39 cycles, ~10 s).
