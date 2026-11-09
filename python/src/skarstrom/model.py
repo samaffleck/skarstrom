@@ -898,6 +898,13 @@ class Valve(_Node):
     """Check valve: pass gas only in the stream's own direction (out of the bed through an
     outlet, into it through an inlet), with a smoothed closure. Off by default. Ignored on a
     connected stream. *New in 0.9.*"""
+    opening_start = Real()
+    """Opening at the start of the step, in (0, 1] [-]: the valve opens from it to fully open
+    over ``opening_ramp_time`` along a smooth (C1) cubic, and the valve flow is ``cv`` times
+    the opening. 1 (the default) is fully open from the start. *New in 0.9.*"""
+    opening_ramp_time = Real()
+    """Time from the start of the step to open fully [s]. 0 (the default): no ramp.
+    *New in 0.9.*"""
 
 
 class Endpoint(_Node):

@@ -702,6 +702,12 @@ namespace adsim {
         AddPressureProfile(v->boundary_value_.get(), ep);
         EmplaceKind(FindKind(ModelFamily::Stream, "valve"), {{"cv", &v->valve_.cv_}, {"xt", &v->valve_.xt_}},
                     ep.path + ".valve.", ep.alias + ".valve.", "cycle", ep.subcategory);
+        Emplace(ep.path + ".valve.opening_start", ep.alias + ".valve.opening_start", "cycle", ep.subcategory,
+                "valve opening at the start of the step (ramps to fully open over the opening ramp time)", "-",
+                v->valve_.opening_start_, 1e-3, 1.0);
+        Emplace(ep.path + ".valve.opening_ramp_time", ep.alias + ".valve.opening_ramp_time", "cycle", ep.subcategory,
+                "valve opening ramp time (0: fully open from the start of the step)", "s",
+                v->valve_.opening_ramp_time_, 0.0, 600.0);
         EmplaceBool(ep.path + ".valve.check_valve", ep.alias + ".valve.check_valve", "cycle", ep.subcategory,
                     "check valve (no flow against the stream's direction; unconnected streams only)",
                     v->check_valve_);

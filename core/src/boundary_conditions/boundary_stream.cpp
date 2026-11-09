@@ -229,18 +229,22 @@ namespace adsim {
       return check ? upstream - Valve::CheckValvePressureDrop(upstream - downstream) : downstream;
     };
 
+    // The valve's opening fraction at this time of the step (1 unless the
+    // valve has an opening ramp): the valve law's flow is scaled by it.
+    const double opening = valve_.OpeningFraction(time);
+
     auto get_molar_flow = [&](){
       if (direction_ == BoundaryDirection::INLET) {
         // Upstream gas is the buffer tank's once it is ready (the tank's
         // pressure is still the user-specified upstream boundary value).
         const double P_up = boundary_value_->GetValue(time);
-        double mol_flow = valve_.GetMolarFlowRate(P_up, downstream_seen(P_up, P_boundary), Mr_boundary, InletTemperature(time), Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_up, downstream_seen(P_up, P_boundary), Mr_boundary, InletTemperature(time), Cp_boundary) * opening;
         if (loc == BoundaryLocation::TOP)
           return -mol_flow;
         else
           return mol_flow;
       } else { // Outlet
-        double mol_flow = valve_.GetMolarFlowRate(P_boundary, downstream_seen(P_boundary, boundary_value_->GetValue(time)), Mr_boundary, T_boundary, Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_boundary, downstream_seen(P_boundary, boundary_value_->GetValue(time)), Mr_boundary, T_boundary, Cp_boundary) * opening;
         if (loc == BoundaryLocation::TOP)
           return mol_flow;
         else
@@ -261,13 +265,13 @@ namespace adsim {
       const double P_partner = at_end_cell ? connection_.stream_->GetEndCellPressure(time)
                                            : connection_.stream_->GetPressure(time);
       if (direction_ == BoundaryDirection::INLET) {
-        double mol_flow = valve_.GetMolarFlowRate(P_partner, P_boundary, Mr_boundary, AssumedInletTemperature(time), Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_partner, P_boundary, Mr_boundary, AssumedInletTemperature(time), Cp_boundary) * opening;
         if (loc == BoundaryLocation::TOP)
           return -mol_flow;
         else
           return mol_flow;
       } else { // Outlet
-        double mol_flow = valve_.GetMolarFlowRate(P_boundary, P_partner, Mr_boundary, T_boundary, Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_boundary, P_partner, Mr_boundary, T_boundary, Cp_boundary) * opening;
         if (loc == BoundaryLocation::TOP)
           return mol_flow;
         else
@@ -277,7 +281,17 @@ namespace adsim {
   }
 
   bool ValveBoundaryStream::PerformSpecificChecks(std::string& error_msg, const Fluid& fluid) {
-    return true;
+    bool ok = true;
+    const double start = valve_.opening_start_;
+    if (!(start > 0.0 && start <= 1.0)) {
+      error_msg += "Valve opening start of stream '" + name_ + "' must be in (0, 1]. ";
+      ok = false;
+    }
+    if (!(valve_.opening_ramp_time_ >= 0.0)) {
+      error_msg += "Valve opening ramp time of stream '" + name_ + "' must not be negative. ";
+      ok = false;
+    }
+    return ok;
   }
 
   BoundaryStream::BoundaryStream() {

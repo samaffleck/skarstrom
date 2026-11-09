@@ -36,6 +36,18 @@ namespace adsim {
     return molar_flow;
   }
 
+  double Valve::OpeningFraction(double time) const {
+    return OpeningFraction(time, opening_start_, opening_ramp_time_);
+  }
+
+  double Valve::OpeningFraction(double time, double start, double ramp_time) {
+    if (!(ramp_time > 0.0) || start >= 1.0) return 1.0;  // no ramp: open at once (defaults)
+    if (time >= ramp_time) return 1.0;
+    if (time <= 0.0) return start;
+    const double x = time / ramp_time;
+    return start + (1.0 - start) * x * x * (3.0 - 2.0 * x);
+  }
+
   double Valve::CheckValvePressureDrop(double dp) {
     if (dp <= 0.0) return 0.0;  // closed (a NaN falls through and stays NaN)
     if (dp >= kCheckValveBand) return dp;
