@@ -130,6 +130,23 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
     ],
 }
 ALL_VARIABLES = sorted({path for v in VARIABLES.values() for path, *_ in v})
+# Variables searched in log10: each spans one to two decades, and the plant limits hold only
+# near the small end (a slow pressurisation valve, a weak pump), which a uniform search of a
+# few generations rarely samples.
+LOG_SCALE = {"variable[vacuum_pump_power]", "variable[cv_pressurisation]", "variable[cv_lpp]", "variable[cv_vent]"}
+
+
+def search_bounds(deck: str) -> Tuple[np.ndarray, np.ndarray]:
+    """The bounds of the search space: log10 of the bounds for the LOG_SCALE variables."""
+    return to_search(deck, [v[1] for v in VARIABLES[deck]]), to_search(deck, [v[2] for v in VARIABLES[deck]])
+
+
+def to_search(deck: str, x: Sequence[float]) -> np.ndarray:
+    return np.array([math.log10(v) if path in LOG_SCALE else float(v) for (path, *_), v in zip(VARIABLES[deck], x)])
+
+
+def to_physical(deck: str, s: Sequence[float]) -> np.ndarray:
+    return np.array([10.0 ** v if path in LOG_SCALE else float(v) for (path, *_), v in zip(VARIABLES[deck], s)])
 
 # The paper's operating points (Table 3, the paper's model), chosen from its purity-recovery
 # fronts: the comparison for the "purity" fronts.
@@ -203,7 +220,8 @@ def measure(sim: sk.Simulation, max_dp_per_m: float) -> Dict[str, object]:
 
 
 def evaluate(x: Sequence[float], deck: str, targets: Dict[str, float], max_dp_per_m: float) -> Dict[str, object]:
-    """Run one candidate to CSS and return its results-file row (without the bookkeeping columns)."""
+    """Run one candidate (in the units of the bounds) to CSS and return its results-file row (without the
+    bookkeeping columns). The warm-start distance is measured in the search space."""
     sim = _base.copy()
     for (path, _, _, unit), value in zip(VARIABLES[deck], x):
         if unit:
@@ -214,7 +232,7 @@ def evaluate(x: Sequence[float], deck: str, targets: Dict[str, float], max_dp_pe
     t0 = time.perf_counter()
     try:
         if _warm:
-            result, info = opt.run_warm(sim, _cache, list(x))
+            result, info = opt.run_warm(sim, _cache, list(to_search(deck, x)))
             row.update(warm=bool(info["warm"]), start_cycles=info["start_cycles"])
         else:
             result = sim.run()
@@ -329,7 +347,8 @@ class Search:
         self.constraints = active_constraints(self.objectives, study.endswith("unconstrained"),
                                               args.backflow_constraint)
 
-    def run(self, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def run(self, S: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        X = np.array([to_physical(self.deck, s) for s in S])
         todo = [i for i, x in enumerate(X) if _key(self.deck, self.study, x) not in self.done]
         fresh = {}
         if todo:
@@ -384,11 +403,10 @@ def run_study(deck: str, study: str, args: argparse.Namespace, done) -> List[Dic
 
     base = base_case(deck, args.cycles, args.max_cycles)
     targets = {name: base.get(f"variable[{name}]") for name in ("purity_target", "recovery_target", "p_evac_floor")}
-    lower = np.array([v[1] for v in VARIABLES[deck]])
-    upper = np.array([v[2] for v in VARIABLES[deck]])
-    # The first population: the base deck's own point and a seeded uniform sample of the box.
+    lower, upper = search_bounds(deck)
+    # The first population: the base deck's own point and a seeded uniform sample of the search box.
     rng = np.random.default_rng(args.seed)
-    X0 = np.vstack([np.clip(base_point(base, deck), lower, upper),
+    X0 = np.vstack([np.clip(to_search(deck, base_point(base, deck)), lower, upper),
                     lower + rng.random((args.pop - 1, len(lower))) * (upper - lower)])
 
     with ProcessPoolExecutor(max_workers=args.workers, initializer=_init_worker,
@@ -410,8 +428,7 @@ def evaluate_base(deck: str, args: argparse.Namespace) -> Dict[str, object]:
     """The base deck's own point, through the same evaluation and results file (no pymoo needed)."""
     base = base_case(deck, args.cycles, args.max_cycles)
     targets = {name: base.get(f"variable[{name}]") for name in ("purity_target", "recovery_target", "p_evac_floor")}
-    lower = [v[1] for v in VARIABLES[deck]]
-    upper = [v[2] for v in VARIABLES[deck]]
+    lower, upper = search_bounds(deck)
     _init_worker(base.to_json(), lower, upper, False)
     row = evaluate(base_point(base, deck), deck, targets, args.max_dp_per_m)
     row.update(deck=deck, study="base", seed="", index=0)
