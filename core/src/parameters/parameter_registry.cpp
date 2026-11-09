@@ -964,6 +964,14 @@ namespace adsim {
         f.info_.choices = FilmCorrelationKinds();
         f.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->film_correlation_)); };
         f.set_int_ = [l](long long x) { l->film_correlation_ = static_cast<FilmCorrelation>(static_cast<int>(x)); };
+        // Particle shape (ParticleShape): the LDF diffusion geometry; for a
+        // cylinder the particle diameter is the extrudate diameter 2 r_f.
+        auto& s = Add(Info(lp + ".particle_shape", la + ".particle_shape", "layer", ln,
+                           "particle shape (diffusion geometry)", "-", ParameterKind::Integer,
+                           std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()));
+        s.info_.choices = ParticleShapeKinds();
+        s.get_int_ = [l] { return static_cast<long long>(static_cast<int>(l->particle_shape_)); };
+        s.set_int_ = [l](long long x) { l->particle_shape_ = static_cast<ParticleShape>(static_cast<int>(x)); };
       } else {
         // A structured layer: only the fields of its kind. Bed void fraction
         // and momentum model are not used (the open frontal area and laminar

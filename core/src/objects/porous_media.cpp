@@ -525,14 +525,22 @@ namespace adsim {
 
 	MixedAdsorbentLayer::DiffusionGeometry MixedAdsorbentLayer::GetDiffusionGeometry() const {
 		DiffusionGeometry g;
-		if (!IsStructured()) {
-			g.c = 60.0;
-			g.length = particle_diameter_.Get();
-			g.volume_to_surface = particle_diameter_.Get() / 6.0;
-		} else {
+		if (IsStructured()) {
+			g.shape = Shape::Slab;
 			g.c = 3.0;
 			g.length = GetDiffusionLength();
 			g.volume_to_surface = g.length;
+		} else if (particle_shape_ == ParticleShape::Cylinder) {
+			// Infinite cylinder of radius r_f: k = 8 D / r_f^2, V/S = r_f / 2.
+			g.shape = Shape::Cylinder;
+			g.c = 8.0;
+			g.length = 0.5 * particle_diameter_.Get();
+			g.volume_to_surface = 0.5 * g.length;
+		} else {
+			g.shape = Shape::Sphere;
+			g.c = 60.0;
+			g.length = particle_diameter_.Get();
+			g.volume_to_surface = particle_diameter_.Get() / 6.0;
 		}
 		return g;
 	}

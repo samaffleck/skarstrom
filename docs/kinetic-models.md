@@ -95,17 +95,35 @@ The coefficient kinds of earlier versions (`constant`, `arrhenius`, `macropore`,
 
 ### Resistances
 
-The geometry comes from the layer. Packed layers use spheres of radius $r_p = d_p/2$. Structured layers ([Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)) use a slab of half-thickness $\ell$: half the monolith wall, half the laminate sheet, or the washcoat thickness when there is a washcoat. The factors 15 (sphere, on the radius) and 3 (slab, on the half-thickness) are Glueckauf's (1955) linear-driving-force approximation for each shape. For the slab terms, refer to Rezaei & Webley (2009, *Chem. Eng. Sci.* 64, Eq. 6 on p. 5184 and Table 1 on p. 5183).
+The geometry comes from the layer. Packed layers use spheres of radius $r_p = d_p/2$, or infinite cylinders of radius $r_f = d_p/2$ when the layer's [particle shape](#particle-shape) is `cylinder`. Structured layers ([Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)) use a slab of half-thickness $\ell$: half the monolith wall, half the laminate sheet, or the washcoat thickness when there is a washcoat. The factors 15 (sphere, on the radius), 8 (cylinder, on the radius) and 3 (slab, on the half-thickness) are Glueckauf's (1955) linear-driving-force approximation for each shape. For the slab terms, refer to Rezaei & Webley (2009, *Chem. Eng. Sci.* 64, Eq. 6 on p. 5184 and Table 1 on p. 5183).
 
-| Switch (`resistances.<tag>`) | Term of $1/k_i$, sphere | Term of $1/k_i$, slab | Definitions |
+| Switch (`resistances.<tag>`) | Term of $1/k_i$, sphere | Term of $1/k_i$, cylinder | Term of $1/k_i$, slab | Definitions |
+| --- | --- | --- | --- | --- |
+| `film` (external film) | $f_\text{film}\thinspace\dfrac{K\thinspace r_p}{3\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace r_f}{2\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace\ell}{k_f}$ | $k_f = \mathrm{Sh}\thinspace D_{m,i}/d_p$ (sphere, cylinder), $\mathrm{Sh}\thinspace D_{m,i}/D_h$ (slab) |
+| `macropore` (macropore diffusion) | $\dfrac{K\thinspace\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace r_f^2}{8\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace\ell^2}{3\thinspace\varepsilon_p D}$ | $D = D_{m,i}$, or $D_{B,i}$ with Knudsen on |
+| `knudsen` (Knudsen diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $\dfrac{1}{D_{B,i}} = \dfrac{1}{D_{K,i}} + \dfrac{1}{D_{m,i}}$, $D_{K,i} = \tfrac{2}{3}\thinspace r_\text{pore}\sqrt{\dfrac{8RT}{\pi M_i}}$ |
+| `micropore` (micropore diffusion) | $\dfrac{r_c^2}{15\thinspace D_{c,i}}$ | the same | the same | $D_{c,i} = D_{c0}\thinspace e^{-E_{a,c}/RT}$ |
+| `lumped` (lumped coefficient) | $\dfrac{1}{k_{L,i}}$ | the same | the same | $k_{L,i} = k\thinspace e^{-E_a/RT}$; $k_{L,i} = k$ when $E_a = 0$ |
+
+The film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ of the layer's film correlation (default Wakao and Funazkri; [Transport Correlations](transport-correlations.md#packed-bed-film-correlations)). For a structured layer it uses the channel Sh and the hydraulic diameter $D_h$ ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). The micropore term is that of a spherical crystal in all geometries.
+
+#### Particle shape
+
+!!! note "New in 0.9"
+    The layer leaf `layer[L].particle_shape` (`sphere`, `cylinder`), the deck edit `SetParticleShape` and the deck-view layer field `particle_shape`.
+
+A packed layer holds spheres (`sphere`, the default and the shape of every deck from an earlier version) or extrudates and fibres (`cylinder`). The layer keeps one size field, `particle_diameter`. For a cylinder it is the extrudate (fibre) diameter $d_p = 2 r_f$. The engine takes the cylinder as infinitely long: the end faces are not in the diffusion geometry. This is a good approximation for extrudates that are several diameters long.
+
+Only the diffusion geometry of the rate coefficient follows the shape:
+
+| | Sphere (radius $r_p$) | Infinite cylinder (radius $r_f$) | Slab (half-thickness $\ell$) |
 | --- | --- | --- | --- |
-| `film` (external film) | $f_\text{film}\thinspace\dfrac{K\thinspace r_p}{3\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace\ell}{k_f}$ | $k_f = \mathrm{Sh}\thinspace D_{m,i}/d_p$ (sphere), $\mathrm{Sh}\thinspace D_{m,i}/D_h$ (slab) |
-| `macropore` (macropore diffusion) | $\dfrac{K\thinspace\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace\ell^2}{3\thinspace\varepsilon_p D}$ | $D = D_{m,i}$, or $D_{B,i}$ with Knudsen on |
-| `knudsen` (Knudsen diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | $\dfrac{1}{D_{B,i}} = \dfrac{1}{D_{K,i}} + \dfrac{1}{D_{m,i}}$, $D_{K,i} = \tfrac{2}{3}\thinspace r_\text{pore}\sqrt{\dfrac{8RT}{\pi M_i}}$ |
-| `micropore` (micropore diffusion) | $\dfrac{r_c^2}{15\thinspace D_{c,i}}$ | the same | $D_{c,i} = D_{c0}\thinspace e^{-E_{a,c}/RT}$ |
-| `lumped` (lumped coefficient) | $\dfrac{1}{k_{L,i}}$ | the same | $k_{L,i} = k\thinspace e^{-E_a/RT}$; $k_{L,i} = k$ when $E_a = 0$ |
+| LDF constant, $k = c\thinspace D/R^2$ | 15 | 8 | 3 |
+| Volume-to-surface ratio $V/S$ (film term) | $r_p/3$ | $r_f/2$ | $\ell$ |
 
-The film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ of the layer's film correlation (default Wakao and Funazkri; [Transport Correlations](transport-correlations.md#packed-bed-film-correlations)). For a structured layer it uses the channel Sh and the hydraulic diameter $D_h$ ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). The micropore term is that of a spherical crystal in both geometries.
+The constant comes from Glueckauf's (1955) assumption of a parabolic profile in the particle, $q(r) = a + b\thinspace r^2$. For a cylinder the mean is $\bar q = a + b R^2/2$ and the flux through the surface gives $d\bar q/dt = (2/R)\thinspace D\thinspace(\partial q/\partial r)_R = 4 D b$. With $q_s - \bar q = b R^2/2$, this is $d\bar q/dt = (8 D/R^2)(q_s - \bar q)$. The same steps for a sphere ($\bar q = a + 3bR^2/5$) give the factor 15, and for a slab give 3.
+
+The pressure drop (Ergun, Kozeny–Carman, Blake–Kozeny), the axial dispersion, the packed-bed film correlations (Sh and Nu) and the specific surface area $a_v = 6(1-\varepsilon_b)/d_p$ of the heat transfer continue to use $d_p$ as an equivalent-sphere diameter. A shape-specific pressure-drop correlation is not in the engine. A structured layer ignores the particle shape.
 
 **Molecular diffusivity.** By default (`molecular_diffusion_coefficient` = 0), $D_{m,i}$ is the binary-diffusion value that the engine calculates from the local temperature and pressure (Chapman–Enskog). This value changes as $1/P$: at an evacuation pressure of 3–10 kPa it is 10–33 times its 1 bar value, and so is the macropore coefficient. A value above 0 [m² s⁻¹] is a constant $D_m$ for the macropore term, in each cell and at each pressure. Haghpanah et al. (2013) and Estupiñan Perez et al. (2019, Table 1) use $D_m = 1.6 \times 10^{-5}$ m² s⁻¹. The film term always uses the local value, because its Sherwood number comes from the Schmidt number of that same $D_m$.
 
@@ -169,7 +187,7 @@ $$
 \begin{aligned}\frac{1}{k_i} = \frac{K\,\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ K = \max\!\left(\frac{\rho_p\,q_i^{*}}{c_i},\,1\right)\end{aligned}
 $$
 
-If the adsorbent is in a packed layer, the deck view uses the sphere fragments. If it is only in structured layers, it uses the slab fragments. If it is in layers of the two kinds, `equation` is the sphere form and `equation_slab` is the slab form.
+If the adsorbent is in a packed layer, the deck view uses the fragments of that layer's particle shape (sphere or cylinder; with several packed layers, the first that holds the adsorbent). If it is only in structured layers, it uses the slab fragments. If it is in layers of the two kinds, `equation` is the packed form and `equation_slab` is the slab form.
 
 ### Presets
 
@@ -191,7 +209,7 @@ The single-term presets reduce to the forms of the former kinds:
 
 - **constant:** $k_i = k$.
 - **arrhenius:** $k_i = k_0\thinspace e^{-E_a/RT}$.
-- **macropore:** $k_i = 60\thinspace D_\text{eff}/d_p^2$ with $D_\text{eff} = D\thinspace\varepsilon_p/\tau$ (slab: $3\thinspace D_\text{eff}/\ell^2$).
+- **macropore:** $k_i = 60\thinspace D_\text{eff}/d_p^2$ with $D_\text{eff} = D\thinspace\varepsilon_p/\tau$ (cylinder: $8\thinspace D_\text{eff}/r_f^2$; slab: $3\thinspace D_\text{eff}/\ell^2$).
 - **macropore_knudsen:** the same, with $D = D_{B,i}$.
 - **macropore_capacity:** $k_i = \dfrac{15\thinspace\varepsilon_p D_{m,i}}{\tau\thinspace r_p^2}\thinspace\min\!\left(\dfrac{c_i}{\rho_p q_i^*},\thinspace 1\right)$.
 - **haynes:** $k_i = \left(\dfrac{r_p}{3 k_f} + \dfrac{\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D_{m,i}}\right)^{-1}$ (Haynes & Sarma, 1973).

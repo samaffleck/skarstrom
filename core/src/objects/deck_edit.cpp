@@ -946,6 +946,21 @@ bool SetDispersionKind(UserData& data, LayerID layer, AxialDispersionType kind, 
   return true;
 }
 
+bool SetParticleShape(UserData& data, LayerID layer, const std::string& shape, std::string& err) {
+  MixedAdsorbentLayer* l = LayerOrError(data, layer, err);
+  if (!l) return false;
+  const auto& tags = ParticleShapeKinds();
+  for (std::size_t i = 0; i < tags.size(); ++i) {
+    if (tags[i] != shape) continue;
+    l->particle_shape_ = static_cast<ParticleShape>(static_cast<int>(i));
+    return true;
+  }
+  std::string valid;
+  for (const auto& t : tags) valid += (valid.empty() ? "" : ", ") + t;
+  err = "unknown particle shape '" + shape + "'; one of: " + valid;
+  return false;
+}
+
 bool SetHeatDispersionKind(UserData& data, LayerID layer, AxialHeatDispersionType kind, std::string& err) {
   MixedAdsorbentLayer* l = LayerOrError(data, layer, err);
   if (!l) return false;

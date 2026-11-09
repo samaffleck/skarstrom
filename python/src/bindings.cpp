@@ -1096,6 +1096,7 @@ PYBIND11_MODULE(_core, m) {
         }
         else if (op == "set_dispersion_kind")
           ok = SetDispersionKind(d, id(0), static_cast<AxialDispersionType>(kind(ModelFamily::Dispersion, 1)), err);
+        else if (op == "set_particle_shape") ok = SetParticleShape(d, id(0), str(1), err);
         else if (op == "set_heat_dispersion_kind")
           ok = SetHeatDispersionKind(d, id(0), static_cast<AxialHeatDispersionType>(kind(ModelFamily::HeatDispersion, 1)), err);
         else if (op == "set_internal_heat_transfer_kind")
@@ -1445,6 +1446,7 @@ PYBIND11_MODULE(_core, m) {
     k["mixing_rule"] = b::MixingRuleKinds();
     k["momentum"] = b::MomentumKinds();
     k["film_correlation"] = b::FilmCorrelationKinds();
+    k["particle_shape"] = adsim::ParticleShapeKinds();
     k["dispersion"] = b::DispersionKinds();
     k["heat_dispersion"] = b::HeatDispersionKinds();
     k["internal_heat_transfer"] = b::InternalHeatTransferKinds();

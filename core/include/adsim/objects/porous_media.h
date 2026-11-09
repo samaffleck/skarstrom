@@ -334,6 +334,34 @@ namespace adsim {
     "Circular"   // 1
   };
 
+  // Shape of the particles of a packed layer. The stored size is the particle
+  // diameter in both cases (MixedAdsorbentLayer::particle_diameter_):
+  //   Sphere:   spheres of diameter d_p (default; archives older than
+  //             MixedAdsorbentLayer v7).
+  //   Cylinder: extrudates or fibres of diameter d_p = 2 r_f, taken as
+  //             infinitely long in the diffusion geometry (the end faces are
+  //             not counted).
+  // Only the LDF diffusion geometry (GetDiffusionGeometry) follows the shape;
+  // the pressure drop, dispersion, film correlations and the specific surface
+  // area of the solver use d_p as an equivalent-sphere diameter.
+  // Enumerator values are what the deck stores, so never renumber them.
+  enum class ParticleShape {
+    Sphere = 0,
+    Cylinder = 1
+  };
+
+  static const char* ParticleShapeList[] = {
+    "Sphere",    // 0
+    "Cylinder"   // 1
+  };
+
+  // Kind tags of ParticleShape, by enumerator value (registry, deck view and
+  // deck edits).
+  inline const std::vector<std::string>& ParticleShapeKinds() {
+    static const std::vector<std::string> k{"sphere", "cylinder"};
+    return k;
+  }
+
   // Geometry of a structured layer. Every field is kept whatever the kind,
   // so switching kind loses nothing; only the fields of the layer's kind are
   // used (MixedAdsorbentLayer's geometry getters).
@@ -399,7 +427,10 @@ namespace adsim {
     std::string name_ = "Layer 1";
     Domain domain_{};
     ExpressionParam eb_{0.37};                  // Inter-particle bed voidage [m3/m3]
-    ExpressionParam particle_diameter_{1e-3};   // Particle diameter [m]
+    ExpressionParam particle_diameter_{1e-3};   // Particle diameter [m] (a cylinder's: 2 r_f)
+    // Shape of the packed particles (ParticleShape). Not used by a structured
+    // layer; kept for switching back to packed.
+    ParticleShape particle_shape_ = ParticleShape::Sphere;
     // Default for a newly constructed layer is Ergun; archives older than
     // MixedAdsorbentLayer v3 load as KarmenCozeny (see serialize).
     MomentumModel momentum_model_ = MomentumModel::Ergun;
@@ -501,13 +532,18 @@ namespace adsim {
 
     // Diffusion geometry of the linear-driving-force rate coefficients
     // k = c D_eff / l^2 (Glueckauf 1955): a packed bed of spheres c = 60 on
-    // l = d_p (15 on the radius); a slab (monolith wall, laminate sheet or
+    // l = d_p (15 on the radius); a packed bed of infinite cylinders c = 8 on
+    // the radius l = r_f = d_p / 2; a slab (monolith wall, laminate sheet or
     // washcoat) c = 3 on its half-thickness l. volume_to_surface is the
-    // solid's V/S for the film resistance: r_p / 3 for a sphere, l for a slab.
+    // solid's V/S for the film resistance: r_p / 3 for a sphere, r_f / 2 for
+    // a cylinder, l for a slab. `shape` says which; every shape but the
+    // sphere has c on the radius or half-thickness `length`.
+    enum class Shape { Sphere, Cylinder, Slab };
     struct DiffusionGeometry {
       double c = 60.0;
       double length = 0.0;             // [m]
       double volume_to_surface = 0.0;  // [m]
+      Shape shape = Shape::Sphere;
     };
     DiffusionGeometry GetDiffusionGeometry() const;
 
@@ -577,6 +613,9 @@ namespace adsim {
       // v6: the film correlation (Wakao-Funazkri, the fixed Sh before v6).
       if (version >= 6) ar(cereal::make_nvp("Film_Correlation", film_correlation_));
       else film_correlation_ = FilmCorrelation::WakaoFunazkri;
+      // v7: the particle shape (spheres before v7).
+      if (version >= 7) ar(cereal::make_nvp("Particle_Shape", particle_shape_));
+      else particle_shape_ = ParticleShape::Sphere;
     }
   };
 
@@ -757,5 +796,5 @@ CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
 CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
 CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
 CEREAL_CLASS_VERSION(adsim::StructuredGeometry, 2);
-CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 6);
+CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 7);
 CEREAL_CLASS_VERSION(adsim::AdsorbentLayers, 1);

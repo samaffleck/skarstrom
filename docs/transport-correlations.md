@@ -31,7 +31,7 @@ $$
 | $D_m$ | Molecular diffusivity | m² s⁻¹ |
 | $u$ | Superficial velocity | m s⁻¹ |
 | $\epsilon_b$ | Bed void fraction | - |
-| $d_p$ | Particle diameter | m |
+| $d_p$ | Particle diameter (a cylinder's extrudate diameter, used as an equivalent sphere; [Kinetic Models](kinetic-models.md#particle-shape)) | m |
 
 ---
 

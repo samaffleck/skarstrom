@@ -13,6 +13,7 @@
 #include "adsim/equations/heat_transfer_model.h"
 #include "adsim/equations/mass_transfer_model.h"
 #include "adsim/objects/compressor.h"
+#include "adsim/objects/porous_media.h"
 
 namespace adsim {
 
@@ -78,24 +79,27 @@ K ResistanceModel() {
   R film{"film", "external film", "", true, {"film_resistance_factor"}};
   film.sphere = {R"(f_{film}\,\frac{{K}r_p}{3\,k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{d_p})", ""};
   film.slab = {R"(f_{film}\,\frac{{K}\ell}{k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{D_h})", ""};
+  film.cylinder = {R"(f_{film}\,\frac{{K}r_f}{2\,k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{d_p})", ""};
   film.source = "Haynes & Sarma (1973); Ruthven (1984); slab: Rezaei & Webley (2009)";
   R macro{"macropore", "macropore diffusion", "", true,
           {"tortuosity", "macropore_void_fraction", "molecular_diffusion_coefficient"}};
   macro.sphere = {R"(\frac{{K}\tau\,r_p^{2}}{15\,\varepsilon_p\,{D}})", "", ""};
   macro.slab = {R"(\frac{{K}\tau\,\ell^{2}}{3\,\varepsilon_p\,{D}})", "", ""};
-  macro.source = "Glueckauf (1955); Ruthven (1984); Haghpanah et al. (2013); slab: Rezaei & Webley (2009)";
+  macro.cylinder = {R"(\frac{{K}\tau\,r_f^{2}}{8\,\varepsilon_p\,{D}})", "", ""};
+  macro.source = "Glueckauf (1955); Ruthven (1984); Haghpanah et al. (2013); slab: Rezaei & Webley (2009); "
+                 "cylinder: Glueckauf's (1955) parabolic profile in an infinite cylinder";
   R knudsen{"knudsen", "Knudsen diffusion", "macropore", false, {"pore_radius"}};
   const std::string bosanquet =
       R"(\frac{1}{D_{B,i}} = \frac{1}{D_{K,i}} + \frac{1}{D_{m,i}},\quad D_{K,i} = \tfrac{2}{3}\,r_{pore}\sqrt{\tfrac{8RT}{\pi M_i}})";
-  knudsen.sphere = knudsen.slab = {"", bosanquet, ""};
+  knudsen.sphere = knudsen.slab = knudsen.cylinder = {"", bosanquet, ""};
   knudsen.source = "Ruthven (1984); Do (1998)";
   R micro{"micropore", "micropore diffusion", "", false,
           {"crystal_radius", "micropore_diffusivity", "micropore_activation_energy"}};
-  micro.sphere = micro.slab = {R"(\frac{r_c^{2}}{15\,D_{c,i}})", R"(D_{c,i} = D_{c0}\,e^{-E_{a,c}/RT})",
-                               R"(D_{c,i} = D_{c0})"};
+  micro.sphere = micro.slab = micro.cylinder = {R"(\frac{r_c^{2}}{15\,D_{c,i}})", R"(D_{c,i} = D_{c0}\,e^{-E_{a,c}/RT})",
+                                                R"(D_{c,i} = D_{c0})"};
   micro.source = "Kärger & Ruthven (1992); Farooq & Ruthven (1991)";
   R lumped{"lumped", "lumped coefficient", "", false, {"k", "activation_energy"}};
-  lumped.sphere = lumped.slab = {R"(\frac{1}{k_{L,i}})", R"(k_{L,i} = k_0\,e^{-E_a/RT})", R"(k_{L,i} = k)"};
+  lumped.sphere = lumped.slab = lumped.cylinder = {R"(\frac{1}{k_{L,i}})", R"(k_{L,i} = k_0\,e^{-E_a/RT})", R"(k_{L,i} = k)"};
   lumped.source = "Glueckauf (1955)";
   k.resistances = {film, macro, knudsen, micro, lumped};
   k.capacity_modes = {
@@ -890,6 +894,16 @@ std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResista
   std::string out = "\\begin{aligned}" + eq + " \\\\ ";
   for (std::size_t i = 0; i < wheres.size(); ++i) out += (i ? ",\\qquad " : "") + wheres[i];
   return out + "\\end{aligned}";
+}
+
+DiffusionShape LayerDiffusionShape(const MixedAdsorbentLayer& layer) {
+  if (layer.IsStructured()) return DiffusionShape::Slab;
+  return layer.particle_shape_ == ParticleShape::Cylinder ? DiffusionShape::Cylinder : DiffusionShape::Sphere;
+}
+
+std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model,
+                                      const MixedAdsorbentLayer& layer) {
+  return MassTransferEquationLatex(model, LayerDiffusionShape(layer));
 }
 
 }  // namespace adsim
