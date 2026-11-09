@@ -46,6 +46,10 @@ it with Emscripten; `bash scripts/test_install_consumer.sh` checks
 
 ## Making a change
 
+- Search the [open and closed issues](https://github.com/samaffleck/skarstrom/issues?q=is%3Aissue)
+  before you open one. If your problem or idea is already there, add a comment
+  to that issue (another case, a better reproduction) instead of opening a new
+  one.
 - Open an issue first for anything large, so we can agree on the approach.
 - Keep pull requests focused; add or update tests with every behaviour change.
 - CI runs on pull requests (a draft is fine) and on main, not on a plain push
