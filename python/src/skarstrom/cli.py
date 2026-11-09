@@ -160,6 +160,11 @@ def _reaction_csv_fields(kpis) -> List[Tuple[str, str]]:
     return out
 
 
+# Appended last to kpis.csv (after the manifest and reaction columns, so no existing column moves):
+# the uncounted-inflow diagnostic, as a fraction of the counted feed.
+KPI_CSV_DIAGNOSTIC_FIELDS = [("uncounted_inflow_fraction", "uncounted inflow fraction [mol/mol]")]
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     sim = Simulation.from_file(_resolve_deck(args.deck))
     _apply_sets(sim, args.set or [])
@@ -275,7 +280,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         os.makedirs(args.csv, exist_ok=True)
         with open(os.path.join(args.csv, "kpis.csv"), "w", newline="") as f:
             w = csv.writer(f)
-            columns = KPI_CSV_FIELDS + _reaction_csv_fields(kpis)
+            columns = KPI_CSV_FIELDS + _reaction_csv_fields(kpis) + KPI_CSV_DIAGNOSTIC_FIELDS
             w.writerow(["cycle", "component", "valid"] + [h for _, h in columns])
             for k in kpis:
                 w.writerow([k.cycle + 1, k.component, k.valid] + [getattr(k, fld) for fld, _ in columns])
