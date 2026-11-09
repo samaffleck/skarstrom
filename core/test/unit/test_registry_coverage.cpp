@@ -165,12 +165,17 @@ const std::vector<Exception>& Exceptions() {
       {R"(.*/Reactions\[\]/Stoichiometry\[\]/Component$)", "which components react (build::SetReactionStoichiometry)"},
       {R"(.*/Reactions\[\]/Stoichiometry\[\]/Phase$)", "phase of a stoichiometry entry: only the gas phase exists"},
       {R"(^/simulation/Experimental_Data/.*)", "measured data series (sim.experimental_data: add, load_csv)"},
+      {R"(^/simulation/Variable_Registry/Variables\[\]/(Description|UnitCategory)$)",
+       "a global variable's note and unit category, chosen when it is added (build add_variable)"},
+      {R"(^/simulation/Variable_Registry/Variables\[\]/ValueExpr$)",
+       "a global variable's formula text: variable[name] set to a string; this test sets numbers, which leave it empty"},
       // Values of a variant the deck does not use: the registry lists a
       // field while it takes part in the model, and the structural edit that
       // activates it makes it listed.
       {R"(^/simulation/Bed/Layers/Layers\[\]/Structured_Geometry/.*)", "structured-layer geometry of a packed layer (listed for monoliths and laminates)"},
       {R"(^/simulation/Cycle/Step_List\[\]/Step_Fraction$)", "step fraction in absolute step-time mode (listed in fraction mode)"},
       {R"(^/simulation/Cycle/Total_Cycle_Time$)", "total cycle time in absolute step-time mode (listed in fraction mode)"},
+      {R"(^/simulation/Cycle/Step_List\[\]/Step_Time$)", "step time in fraction step-time mode (listed in absolute mode)"},
       {R"(.*/Boundary_Pressure/ptr_wrapper/data/Start_Value$)", "start of a pressure ramp: the bed pressure when the step starts, set at run time"},
       {R"(.*/Boundary_Pressure/ptr_wrapper/data/(Ramp_Time|Step_Time)$)", "pressure ramp time while the ramp lasts the step (listed once <kind>_use_step_time is off)"},
       {R"(.*/Pump/ptr_wrapper/data/(Suction_Pressure|Discharge_Pressure|value0/.*)$)", "pump of an endpoint whose pump is off (listed once SetPumpKind turns it on)"},

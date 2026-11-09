@@ -89,3 +89,19 @@ def test_example_runs_like_its_deck(family, deck):
         for key, value in ka.as_dict().items():
             if isinstance(value, float):
                 np.testing.assert_allclose(kb.as_dict()[key], value, rtol=1e-4, err_msg=key)
+
+
+@pytest.mark.parametrize("case", ["Base", "Base_LPP"])
+def test_case_study_constraints_are_parameters(case):
+    """The Perez 2019 case-study decks expose every device setting and constraint value as a
+    tunable registry path, and their step fractions follow the number of beds."""
+    module = importlib.import_module("perez_2019_case_study")
+    sim = skarstrom.examples.get(module.DECKS[case]).load()
+    tunable = {p.path for p in sim.parameters(tunable_only=True)}
+    missing = [p for p in module.CONSTRAINT_PATHS if p not in tunable]
+    assert missing == [], missing
+    assert sim.cycle.step_time_mode == "fraction"
+    feed_time = sim.get("variable[t_feed]")
+    sim["variable[n_beds]"] = 4
+    assert sim.cycle.total_time == pytest.approx(4 * feed_time)
+    assert sum(s.fraction for s in sim.steps) == pytest.approx(1.0)
