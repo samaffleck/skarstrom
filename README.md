@@ -13,6 +13,20 @@
 
 **Skarstrom** is an open-source library for adsorption process simulations including **pressure, vacuum and temperature swing adsorption** (PSA, VSA and TSA). Written in C++, the engine solves a 1D finite-volume model of a packed-bed adsorption column with multiple layers. Skarstrom is designed for engineers and scientists to rapidly develop new adsorption-based gas separation systems, with modules for accelerating convergence to cyclic steady state and for optimising purity, recovery, productivity and energy consumption.
 
+## Get started
+
+Use the [web interface](https://www.skarstrom.co.uk/) to run the engine in your browser, with no install.
+
+[![The Skarstrom web interface: the simulation tree, solver settings and a plotted pressure profile of the Arora (2021) PSA example](docs/assets/skarstrom-web.png)](https://www.skarstrom.co.uk/)
+
+Or point your agent (e.g. Claude or Codex) at this repository. For example:
+
+```text
+Use Skarstrom (https://github.com/samaffleck/skarstrom) to design a 4-step LPP cycle for CO2/N2 separation on zeolite 13X. Optimise the process parameters to maximise purity and recovery.
+```
+
+[`AGENTS.md`](AGENTS.md) tells the agent how to install and run Skarstrom and how to check its results.
+
 ## Why Skarstrom
 
 Several commercial simulation packages are available, but to date there has been no good open-source tool for adsorption modelling. It has become common practice for people to write their own models from scratch, resulting in a lot of repeated work and a lack of transparency and reproducibility.
@@ -33,26 +47,6 @@ Cycle optimisation and parameter fitting are important design tasks that require
 
 *CSS is reached when every component's mass balance over a cycle closes within 0.5 %. Median of 3 runs on one core of an Apple M4, Release build; reproduce with `python scripts/benchmark_css.py`.*
 
-## Graphical user interface
-
-We host a user interface on the [Skarstrom website](https://www.skarstrom.co.uk/). It is a browser-based interface that runs the C++ engine and is the best starting point for users who don't want to write code. From the interface you can run examples, visualise the results, and run optimisation and parameterisation studies.
-
-[![The Skarstrom web interface: the simulation tree, solver settings and a plotted pressure profile of the Arora (2021) PSA example](docs/assets/skarstrom-web.png)](https://www.skarstrom.co.uk/)
-
-
-
-## Quick start
-
-
-
-Skarstrom is published on PyPI, so you can use it in your project with:
-
-```bash
-pip install skarstrom
-```
-
-
-The best place to start is one of the 43 bundled [examples](https://samaffleck.github.io/skarstrom/examples/), each of which reproduces a published study.
 ## Documentation
 
 The full documentation is at <https://samaffleck.github.io/skarstrom/>: getting started, the Python API and command line, tutorials, the model equations, the adsorbent library and the validation results.
