@@ -46,7 +46,7 @@ namespace adsim {
 
   class UserData;
 
-  inline constexpr int kDeckViewVersion = 1;
+  inline constexpr int kDeckViewVersion = 2;  // 2: Stream.type "stream" became "flow"
 
   struct DeckViewOptions {
     bool pretty = false;  // indented JSON (for reading); compact otherwise

@@ -54,7 +54,9 @@ The view is read-only. Change a value by its path (`sim.set(path, value)`, `Para
 suite checks, for every example deck, that the view validates against the schema and that setting
 every value back by path leaves the deck unchanged.
 
-`view_version` changes when the view's shape changes incompatibly.
+`view_version` changes when the view's shape changes incompatibly. Version 2 changed a stream's
+`type` to its tag in the `stream` kind list (`flow`, `valve`, `pump`), the tag that
+`set_stream_kind` takes; version 1 said `stream` for a set-flow stream.
 
 Each layer has `kind` (`packed`, `monolith`, `laminate`), `channel_shape` (a monolith's; else
 `null`), `particle_shape` (a packed layer's `sphere` or `cylinder`; `null` for a structured layer;

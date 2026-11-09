@@ -420,7 +420,9 @@ namespace adsim {
         Set(e, "location", location, a_);
         auto* pressure = dynamic_cast<PressureBoundaryCondition*>(bc);
         auto* flow = dynamic_cast<FlowBoundaryCondition*>(bc);
-        Set(e, "kind", pressure ? "pressure" : (flow ? "flow" : "closed"), a_);
+        // The end's tag in the boundary kind table, the one set_boundary_kind takes.
+        const KindDescriptor* kind = bc ? KindAt(ModelFamily::Boundary, static_cast<std::size_t>(bc->GetType())) : nullptr;
+        Set(e, "kind", kind ? kind->tag : std::string("closed"), a_);
         if (pressure || flow)
           Set(e, "direction", bc->direction_ == BoundaryDirection::INLET ? "inlet" : "outlet", a_);
         else
@@ -451,17 +453,17 @@ namespace adsim {
             Set(s, "name", st->name_, a_);
             Set(s, "temperature_profile", Profile(st->temperature_profile_.get()), a_);
             Value flow_kind, profile, power, pump;
-            const char* type = "unsupported";
+            // The device's tag in the stream kind table, the one set_stream_kind
+            // takes ("flow", "valve", "pump"), so the view and the edit op agree.
+            const KindDescriptor* kind = KindAt(ModelFamily::Stream, static_cast<std::size_t>(st->GetType()));
+            const std::string type = kind ? kind->tag : std::string("unsupported");
             if (auto* bs = dynamic_cast<BoundaryStream*>(st.get())) {
-              type = "stream";
               flow_kind = Str(KindName(b::FlowKinds(), static_cast<int>(bs->boundary_flow_->GetType())), a_);
               profile = Str(Profile(bs->boundary_flow_->profile_.get()), a_);
               pump = Pump(bs->pump_.get(), ep);
             } else if (auto* vs = dynamic_cast<ValveBoundaryStream*>(st.get())) {
-              type = "valve";
               profile = Str(Profile(vs->boundary_value_.get()), a_);
             } else if (auto* ps = dynamic_cast<PumpBoundaryStream*>(st.get())) {
-              type = "pump";
               power = Str(ps->power_ ? KindName(b::PumpPowerKinds(), static_cast<int>(ps->power_->GetType()))
                                      : std::string("constant"), a_);
               pump = Pump(ps->pump_.get(), ep);
@@ -849,7 +851,7 @@ namespace adsim {
         "endpoint": {"type": "integer"},
         "name": {"type": "string"},
         "temperature_profile": {"type": "string", "enum": @PROFILE@},
-        "type": {"type": "string", "enum": ["stream", "valve", "pump", "unsupported"]},
+        "type": {"type": "string", "enum": @STREAM@},
         "flow": {"type": ["string", "null"], "enum": @FLOW@},
         "profile": {"type": ["string", "null"], "enum": @PROFILE_OR_NULL@},
         "power": {"type": ["string", "null"], "enum": @PUMP_POWER@},
@@ -865,7 +867,7 @@ namespace adsim {
                    "buffer_tank", "values", "streams"],
       "properties": {
         "location": {"type": "string", "enum": ["bottom", "top"]},
-        "kind": {"type": "string", "enum": ["closed", "pressure", "flow"]},
+        "kind": {"type": "string", "enum": @BOUNDARY@},
         "direction": {"type": ["string", "null"], "enum": ["inlet", "outlet", null]},
         "endpoint": {"type": ["integer", "null"]},
         "profile": {"type": ["string", "null"], "enum": @PROFILE_OR_NULL@},
@@ -987,6 +989,8 @@ namespace adsim {
       {"@PUMP_EFFICIENCY@", JsonList(b::PumpEfficiencyKinds())},
       {"@PUMP_POWER@", JsonList(b::PumpPowerKinds(), true)},
       {"@FLOW@", JsonList(b::FlowKinds(), true)},
+      {"@BOUNDARY@", JsonList(KindTags(ModelFamily::Boundary))},
+      {"@STREAM@", JsonList([] { auto t = KindTags(ModelFamily::Stream); t.push_back("unsupported"); return t; }())},
       {"@PROFILE_OR_NULL@", JsonList(b::ProfileKinds(), true)},
       {"@PROFILE@", JsonList(b::ProfileKinds())},
       {"@VARIABLE_CATEGORY@", JsonList(b::VariableCategoryKinds())},
