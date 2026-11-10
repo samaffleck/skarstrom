@@ -127,7 +127,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 150
+    # The all-tiers run (main, nightly, manual) is the long one: about 90 minutes
+    # of tests on Linux, 65 on macOS and over 100 on Windows (MSVC code is slower
+    # and the first run builds without a compiler cache or test timings).
+    # Windows gets a larger limit so that the run is not cancelled near its end.
+    # Pull-request fast-tier jobs finish in well under an hour.
+    timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
       matrix:
@@ -136,14 +141,17 @@ jobs:
             runner: ubuntu-24.04
             preset: linux-release
             jobs: 4
+            timeout: 150
           - name: macOS arm64 (Apple clang)
             runner: macos-15
             preset: macos-release
             jobs: 3
+            timeout: 150
           - name: Windows x64 (MSVC 2022)
             runner: windows-2022
             preset: windows-ninja-release
             jobs: 4
+            timeout: 240
     defaults:
       run:
         shell: bash
