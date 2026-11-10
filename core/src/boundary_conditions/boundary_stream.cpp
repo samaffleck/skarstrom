@@ -323,37 +323,10 @@ namespace adsim {
         // the unconnected branch below does) turned a donor's backflow into
         // more inflow here and created gas.
         //
-        //
-        // The replayed flow is the partner's, so nothing in it depends on
-        // this bed. Gas only passes from the higher to the lower pressure,
-        // so the flow is scaled by ConnectionFlowWeight of the pressure drop
-        // in its direction: this bed-end face against the partner's logged
-        // pressure at the same instant. A draw out of this bed stops once
-        // it falls below the partner (a light-product donor below the bed it
-        // pressurises).
-        //
-        // A partner pressure boundary keeps its imposed pressure a band
-        // inside this bed's logged pressure (PressureBoundaryCondition::
-        // ImposedPressure), so once the replay has settled the weight is 1
-        // and the moles balance. Gas it gives to this bed is replayed as it
-        // is: it leaves the partner's bed only when that bed is above the
-        // capped face, so it flows from the higher pressure, though the face
-        // is a band below this bed.
-        //
-        // A partner valve stream already sets its flow from the pressure
-        // difference, both ways (StreamData::from_valve_): its flow is
-        // replayed as it is in both directions. Scaling it here too made gas
-        // after a pressure equalisation: the valve drew gas back while its
-        // bed was a few Pa below this one's log, and this bed, within the
-        // band, gave none of it.
-        double into_this_bed = connection_.stream_->GetOutflow(time);
-        const StreamData& partner = *connection_.stream_;
-        if (!partner.from_valve_ && (!partner.from_pressure_boundary_ || into_this_bed < 0.0)) {
-          const double p_this = BedEndValue(state.pressure.var, loc);
-          const double p_partner = connection_.stream_->GetPressure(time);
-          const double drop = into_this_bed >= 0.0 ? p_partner - p_this : p_this - p_partner;
-          into_this_bed *= ConnectionFlowWeight(drop);
-        }
+        // A partner valve stream sets its flow from the pressure difference,
+        // both ways (StreamData::from_valve_), so its flow is replayed as it
+        // is in both directions too.
+        const double into_this_bed = connection_.stream_->GetOutflow(time);
         return (loc == BoundaryLocation::BOTTOM) ? into_this_bed : -into_this_bed;
       } else {
         mol_flow = boundary_flow_->GetMolarFlow(state, time, loc); // First cycle uses the specified values

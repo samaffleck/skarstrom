@@ -110,22 +110,6 @@ namespace adsim {
   PressureBoundaryCondition::PressureBoundaryCondition() {
     pressure_ = std::make_unique<ConstantBoundaryValue>(constants::kStandardAtmosphere);
     pump_ = CreatePump(PumpType::COMPRESSOR);
-    stream_data_.from_pressure_boundary_ = true;
-  }
-
-  double PressureBoundaryCondition::ImposedPressure(double time) const {
-    const double target = pressure_->GetValue(time);
-    if (!connection_.IsConnected() || connection_.stream_ == nullptr
-        || connection_.stream_->time_series_.empty())
-      return target;  // unconnected, or the first cycle (no partner log yet)
-    // The bound sits one band inside the partner's pressure, so the
-    // partner's own closure (a set-flow stream scales a draw out of its bed
-    // by ConnectionFlowWeight) is fully open against it once the replay has
-    // settled, and the moles through the connection balance.
-    const bool inlet = direction_ == BoundaryDirection::INLET;
-    const double partner = connection_.stream_->GetPressure(time);
-    return ConnectionCappedPressure(target, inlet ? partner - kConnectionPressureBand
-                                                  : partner + kConnectionPressureBand, inlet);
   }
 
   void PressureBoundaryCondition::Initialise(Equations& state, double step_time) {
@@ -199,7 +183,7 @@ namespace adsim {
     // double Cf = pressure_->GetValue(time) / (R * Tf);
     // res_C[i] = C[i] + C[i + d] - 2 * Cf;
 
-    double Pf = ImposedPressure(time);
+    double Pf = pressure_->GetValue(time);
     res_P[i] = P[i] + P[i + d] - 2 * Pf;
 
     // Ergun layer: this condition fixes the boundary-face pressure drop, so

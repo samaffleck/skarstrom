@@ -214,8 +214,7 @@ namespace adsim {
                 [](const UserData& u) { return u.settings.warnings_.outlet_backflow; },
                 [](UserData& u, bool b) { u.settings.warnings_.outlet_backflow = b; }),
       BoolField("settings", "warn_connection_pressure",
-                "warn when gas flows through a connection from the lower to the higher pressure, or a connected "
-                "pressure profile is held at its partner's pressure",
+                "warn when gas flows through a connection from the lower to the higher pressure",
                 [](const UserData& u) { return u.settings.warnings_.connection_pressure; },
                 [](UserData& u, bool b) { u.settings.warnings_.connection_pressure = b; }),
       // Run health, after every cycle (run_health.h).
