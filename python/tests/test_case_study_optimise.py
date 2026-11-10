@@ -93,3 +93,17 @@ def test_search_resumes_from_results(script, tmp_path, capsys):
     assert script.main(args[:5] + ["2"] + args[6:]) == 0
     assert len(_rows(tmp_path / "results.csv")) == 4
     assert "completed" in capsys.readouterr().out
+
+
+def test_summary_tables_are_written_from_the_results_file(script, tmp_path):
+    assert script.main(["--deck", "Base", "--base-only", "--cycles", "2", "--out", str(tmp_path)]) == 0
+    summary = tmp_path / "summary"
+    assert script.main(["--out", str(tmp_path), "--summary", str(summary)]) == 0
+    fronts = _rows(summary / "fronts.csv")
+    # The paper's points are always there; a run that did not reach CSS is on no front.
+    assert {r["point"] for r in fronts if r["front"] == "paper"} == {"A", "B", "C1", "D1", "E", "F"}
+    assert not [r for r in fronts if r["front"] != "paper"]
+    cost = _rows(summary / "constraint_cost.csv")
+    assert {r["constraints"] for r in cost} == {"none", "fluidisation", "pressure_drop", "evacuation_floor", "all"}
+    counts = {r["deck"]: r for r in _rows(summary / "counts.csv")}
+    assert counts["Base"]["evaluations"] == "1" and counts["Base"]["converged"] == "0"
