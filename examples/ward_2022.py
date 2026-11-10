@@ -45,12 +45,16 @@ SPEED = {"50": "low", "100": "medium", "200": "high"}
 
 def paper_dispersion(feed_flow) -> float:
     """Ward & Pini's dispersion coefficient [m2/s] for one feed flow: 4 x (0.7 D_m + v_F r_p)."""
-    import math
     Dm, rp, Di, eb = 0.605e-5, 1.5e-3, 0.0189, 0.456
+    # Computed exactly as the paper test that writes the shipped decks does (PaperDispersion in
+    # core/test/papers/ward_2022/ward_2022.cpp): the engine's pi (adsim::constants::kPI, 15 digits,
+    # not math.pi) and the same operation order. A built case then has the deck's dispersion to the
+    # last bit and runs bit for bit like it on every platform; a 1-ulp difference changes IDA's
+    # step sequence and moves the logged thermal front by more than the comparison allows.
+    pi = 3.14159265358979
     q = feed_flow.to("m**3/s").magnitude
-    vF = q / (math.pi / 4 * Di**2) / eb
-    # To the 15 significant digits a deck stores, so a built case and its shipped deck have the same inputs.
-    return float(f"{4.0 * (0.7 * Dm + vF * rp):.15g}")
+    vF = q / (pi / 4.0 * Di * Di) / eb
+    return 4.0 * (0.7 * Dm + vF * rp)
 
 
 def add_activated_carbon(sim: sk.Simulation) -> sk.Adsorbent:
