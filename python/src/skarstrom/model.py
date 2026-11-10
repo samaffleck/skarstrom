@@ -845,6 +845,8 @@ class Pump(_Node):
     """Compressor suction pressure [Pa]."""
     discharge_pressure = Real()
     """Vacuum-pump discharge pressure [Pa]."""
+    ultimate_pressure = Real()
+    """Ultimate (blank-off) pressure of a vacuum-pump stream [Pa]: no flow at or below it; 0 turns it off."""
     eta_max = Real()
     """Peak efficiency of the vacuum-pump efficiency curve [-]."""
     alpha = Real()
