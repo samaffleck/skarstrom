@@ -174,6 +174,7 @@ namespace adsim {
 
   ValveBoundaryStream::ValveBoundaryStream() {
     boundary_value_ = std::make_unique<ConstantBoundaryValue>(constants::kStandardAtmosphere);
+    stream_data_.from_valve_ = true;
   }
 
   // void ValveBoundaryStream::Initialise(double step_time) {}
@@ -324,8 +325,16 @@ namespace adsim {
         // is: it leaves the partner's bed only when that bed is above the
         // capped face, so it flows from the higher pressure, though the face
         // is a band below this bed.
+        //
+        // A partner valve stream already sets its flow from the pressure
+        // difference, both ways (StreamData::from_valve_): its flow is
+        // replayed as it is in both directions. Scaling it here too made gas
+        // after a pressure equalisation: the valve drew gas back while its
+        // bed was a few Pa below this one's log, and this bed, within the
+        // band, gave none of it.
         double into_this_bed = connection_.stream_->GetOutflow(time);
-        if (!connection_.stream_->from_pressure_boundary_ || into_this_bed < 0.0) {
+        const StreamData& partner = *connection_.stream_;
+        if (!partner.from_valve_ && (!partner.from_pressure_boundary_ || into_this_bed < 0.0)) {
           const double p_this = BedEndValue(state.pressure.var, loc);
           const double p_partner = connection_.stream_->GetPressure(time);
           const double drop = into_this_bed >= 0.0 ? p_partner - p_this : p_this - p_partner;

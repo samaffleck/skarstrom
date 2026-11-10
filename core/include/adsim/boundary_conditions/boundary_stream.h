@@ -195,6 +195,15 @@ namespace adsim {
 		// connected to one replays the gas it gives as it is
 		// (BoundaryStream::GetMolarFlow).
 		bool from_pressure_boundary_ = false;
+		// True for the log of a valve stream (set by its constructor, not
+		// serialised, kept by Clear). A connected valve sets its flow from its
+		// own bed's pressure and its partner's logged pressure, of either sign
+		// (Valve::GetMolarFlowRate), so it already passes gas only from the
+		// higher to the lower of the two. A set-flow stream connected to one
+		// replays the flow as it is, both ways (BoundaryStream::GetMolarFlow):
+		// a second, one-sided closure on it would let the valve draw gas back
+		// that the partner does not give, and the connection would make gas.
+		bool from_valve_ = false;
 	};
 
 	// Mole fraction of `component` on the bed-end face at `loc`: the face
