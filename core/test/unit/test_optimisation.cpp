@@ -135,7 +135,9 @@ TEST(OptimizationCostFunctionTest, KPIIndicesAreStable) {
   static_assert(static_cast<int>(KPIVariableType::PRODUCTION_RATE) == 5);
   static_assert(static_cast<int>(KPIVariableType::THERMAL_ENERGY) == 6 &&
                 static_cast<int>(KPIVariableType::COOLING_DUTY) == 7);
-  static_assert(std::size(kKPITypeList) == 9 && std::size(kKPIVariableTypeList) == 8);
+  static_assert(static_cast<int>(KPIType::END_PRESSURE_BOTTOM) == 9 &&
+                static_cast<int>(KPIType::END_PRESSURE_MAX) == 13);
+  static_assert(std::size(kKPITypeList) == 14 && std::size(kKPIVariableTypeList) == 8);
   EXPECT_EQ(kKPITypeList[static_cast<int>(KPIType::THERMAL_ENERGY)], "Thermal Energy");
   EXPECT_EQ(GetKPIUnits(KPIVariableType::COOLING_DUTY), "[J/kg]");
 }
