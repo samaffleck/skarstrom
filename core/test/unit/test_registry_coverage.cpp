@@ -28,6 +28,7 @@
 #include <cereal/external/rapidjson/document.h>
 
 #include "adsim/objects/deck_builder.h"
+#include "adsim/objects/deck_edit.h"
 #include "adsim/objects/deck_io.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/parameters/parameter_registry.h"
@@ -86,7 +87,12 @@ void CollectUnchanged(const rj::Value& a, const rj::Value& b, const std::string&
 }
 
 // Give every parameter a value it does not have yet.
-void MarkEverything(ParameterRegistry& reg) {
+// Every listed value set to a new one. Switches (Booleans) are flipped after
+// the rest, the ones that are off first, so a cascade that keeps one of a set
+// on (the mass-transfer resistances) does not refuse turning the others off;
+// a refused flip is left as it is. flip_switches = false leaves them alone.
+void MarkEverything(ParameterRegistry& reg, bool flip_switches = true) {
+  std::vector<std::pair<Parameter*, bool>> switches;
   double next = 7.123456789e5;
   int string_n = 0;
   for (auto& p : reg.All()) {
@@ -98,7 +104,7 @@ void MarkEverything(ParameterRegistry& reg) {
         next += 1.0;
         break;
       case ParameterKind::Boolean:
-        p.SetValue(p.GetValue() != 0.0 ? 0.0 : 1.0);
+        switches.emplace_back(&p, p.GetValue() != 0.0);
         break;
       case ParameterKind::Integer: {
         const double v = p.GetValue();
@@ -115,6 +121,15 @@ void MarkEverything(ParameterRegistry& reg) {
         break;
     }
   }
+  if (!flip_switches) return;
+  for (bool was_on : {false, true})
+    for (auto& [p, on] : switches) {
+      if (on != was_on) continue;
+      try {
+        p->SetValue(on ? 0.0 : 1.0);
+      } catch (const std::invalid_argument&) {
+      }
+    }
 }
 
 // Leaves that are not values the registry should set, with the reason.
@@ -150,22 +165,22 @@ const std::vector<Exception>& Exceptions() {
       {R"(.*/Reactions\[\]/Stoichiometry\[\]/Component$)", "which components react (build::SetReactionStoichiometry)"},
       {R"(.*/Reactions\[\]/Stoichiometry\[\]/Phase$)", "phase of a stoichiometry entry: only the gas phase exists"},
       {R"(^/simulation/Experimental_Data/.*)", "measured data series (sim.experimental_data: add, load_csv)"},
+      {R"(^/simulation/Variable_Registry/Variables\[\]/(Description|UnitCategory)$)",
+       "a global variable's note and unit category, chosen when it is added (build add_variable)"},
+      {R"(^/simulation/Variable_Registry/Variables\[\]/ValueExpr$)",
+       "a global variable's formula text: variable[name] set to a string; this test sets numbers, which leave it empty"},
       // Values of a variant the deck does not use: the registry lists a
       // field while it takes part in the model, and the structural edit that
       // activates it makes it listed.
       {R"(^/simulation/Bed/Layers/Layers\[\]/Structured_Geometry/.*)", "structured-layer geometry of a packed layer (listed for monoliths and laminates)"},
       {R"(^/simulation/Cycle/Step_List\[\]/Step_Fraction$)", "step fraction in absolute step-time mode (listed in fraction mode)"},
       {R"(^/simulation/Cycle/Total_Cycle_Time$)", "total cycle time in absolute step-time mode (listed in fraction mode)"},
+      {R"(^/simulation/Cycle/Step_List\[\]/Step_Time$)", "step time in fraction step-time mode (listed in absolute mode)"},
       {R"(.*/Boundary_Pressure/ptr_wrapper/data/Start_Value$)", "start of a pressure ramp: the bed pressure when the step starts, set at run time"},
       {R"(.*/Boundary_Pressure/ptr_wrapper/data/(Ramp_Time|Step_Time)$)", "pressure ramp time while the ramp lasts the step (listed once <kind>_use_step_time is off)"},
       {R"(.*/Pump/ptr_wrapper/data/(Suction_Pressure|Discharge_Pressure|value0/.*)$)", "pump of an endpoint whose pump is off (listed once SetPumpKind turns it on)"},
       {R"(.*/Reactions\[\]/Effectiveness/(Effectiveness|Tortuosity)$)", "the effectiveness value of the mode not in use (eta for constant, tortuosity for Thiele)"},
       {R"(.*/Buffer_Tank_Source/Percentage$)", "share drawn by an inactive buffer tank (listed once the tank is set)"},
-      {R"(.*Mass_Transfer_Coefficient_Model/ptr_wrapper/data/(Resistances/(Film|Macropore|Knudsen|Micropore|Lumped)|Capacity_Factor_Mode)$)",
-       "mass-transfer resistance switches and capacity-factor mode (SetMassTransferResistance, SetCapacityFactorMode)"},
-      {R"(.*Mass_Transfer_Coefficient_Model/ptr_wrapper/data/(Film_Resistance_Factor|Tortuosity|Macropore_Void_Fraction|Molecular_Diffusion_Coefficient|Crystal_Radius|Micropore_Diffusivity|Micropore_Activation_Energy|Capacity_Factor|Concentration_Floor|Mass_Transfer_Coefficient|Activation_Energy|Pore_Radius)$)",
-       "a coefficient parameter its preset does not show (every one is stored; the registry lists the preset's, "
-       "which ModelKinds.RegistryEntriesFollowTheDescriptors checks)"},
       // Legacy.
       {R"(.*/Boundary_Pressure/ptr_wrapper/data/Proportional_Gain$)", "unused field kept for the archive layout of the exponential profile"},
       {R"(^/simulation/Bed/Layers/Layers\[\]/Layer_Equations/Thermal_Equilibrium_Mode$)", "moved to the bed (bed.thermal_equilibrium_mode); discarded on load"},
@@ -184,16 +199,49 @@ bool Excepted(const std::string& path) {
 // The generic paths of `d`'s leaves that no registry parameter reaches and
 // no exception explains.
 std::set<std::string> Uncovered(UserData& d) {
-  const std::string before = Save(d);
-  ParameterRegistry reg(d);
-  MarkEverything(reg);
-  const std::string after = Save(d);
-  rj::Document a, b;
-  a.Parse(before.c_str());
-  b.Parse(after.c_str());
-  std::set<std::string> unchanged, out;
-  if (a.HasParseError() || b.HasParseError()) return {"(parse error)"};
-  CollectUnchanged(a, b, "", unchanged);
+  const std::string deck = Save(d);
+  // A value is covered when a pass changes it. The first pass marks the deck
+  // as it is. The parameters of a switched-off mass-transfer resistance and
+  // of another capacity-factor mode are listed once their switch or mode is
+  // on, so two more passes start from every resistance switched on (through
+  // the cascades), with the slope and the fixed mode. Each pass compares a
+  // reloaded copy with itself (the deck's maps are unordered).
+  std::set<std::string> unchanged;
+  for (int pass = 0; pass < 3; ++pass) {
+    UserData copy;
+    LoadDeckFlexible(copy, deck);
+    const std::string before = Save(copy);
+    if (pass > 0) {
+      const CapacityFactorMode mode = pass == 1 ? CapacityFactorMode::SLOPE : CapacityFactorMode::FIXED;
+      for (auto& [id, ads] : copy.adsorbent_directory.GetAll())
+        for (auto& [c, m] : ads.adsorption_source_.mass_transfer_models_)
+          for (MassTransferSite site : {MassTransferSite::Fast, MassTransferSite::Slow}) {
+            if (site == MassTransferSite::Slow && !m->SlowCoefficientModel()) continue;
+            std::string err;
+            for (const char* t : {"film", "macropore", "knudsen", "micropore", "lumped"})
+              SetMassTransferResistance(copy, id, c, site, t, true, err);
+            SetCapacityFactorMode(copy, id, c, site, mode, err);
+          }
+    }
+    ParameterRegistry reg(copy);
+    MarkEverything(reg, pass == 0);
+    const std::string after = Save(copy);
+    rj::Document a, b;
+    a.Parse(before.c_str());
+    b.Parse(after.c_str());
+    if (a.HasParseError() || b.HasParseError()) return {"(parse error)"};
+    std::set<std::string> here;
+    CollectUnchanged(a, b, "", here);
+    if (pass == 0) {
+      unchanged = here;
+    } else {
+      std::set<std::string> both;
+      for (const auto& path : unchanged)
+        if (here.count(path)) both.insert(path);
+      unchanged = both;
+    }
+  }
+  std::set<std::string> out;
   for (const auto& path : unchanged)
     if (!Excepted(path)) out.insert(path);
   return out;

@@ -21,6 +21,8 @@
 #include "adsim/math/user_variables.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/fluid.h"
+#include "adsim/objects/model_kinds.h"
+#include "adsim/objects/porous_media.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/simulation.h"
 #include "adsim/solver/log.h"
@@ -108,6 +110,11 @@ namespace adsim {
       {"trapezoid_mass_balance_error", "Mole balance error (trapezoid)", "mass balance error (trap.)", "mol/mol",
        "balance", "Cycle mole balance error with the endpoint flows from the trapezoid over the logged samples.",
        false, false, true},
+      {"uncounted_inflow", "Uncounted inflow", "uncounted inflow", "mol", "balance",
+       "Moles of the component that entered the bed in the cycle through unconnected endpoints that are neither "
+       "feed nor recycle endpoints of it (gross inflow, e.g. a vent that backflows).", false, false, true},
+      {"uncounted_inflow_fraction", "Uncounted inflow fraction", "uncounted inflow fraction", "mol/mol", "balance",
+       "Uncounted inflow over the counted feed of the component.", false, false, true},
     };
     return kpis;
   }
@@ -325,6 +332,16 @@ namespace adsim {
          defaults.channel_reynolds,
          "the channel Reynolds number of a structured layer reaches {value} in step {step}, above {limit}: the "
          "flow is no longer laminar."},
+        {"outlet_backflow", "Backflow into the bed through an outlet", "end", "settings.warn_outlet_backflow",
+         defaults.outlet_backflow,
+         "gas flows back into the bed through the outlet {endpoint} in step {step} of cycle {cycle}: {moles} mol "
+         "in, {value} of the cycle feed (more than {limit}). It carries the bed-end gas, not the stream's, and is "
+         "not counted as feed. Turn on the valve's check valve (endpoint[ID].valve.check_valve) to stop it."},
+        {"connection_pressure", "Connection against the pressure", "end", "settings.warn_connection_pressure",
+         defaults.connection_pressure,
+         "in step {step} of cycle {cycle}, gas flows through the connection of {endpoint} from the lower to the "
+         "higher pressure ({value} of the cycle feed, more than {limit}). A connected endpoint replays its "
+         "partner's run and does not stop this on its own."},
         // Run health, checked after every cycle, reported at the end (run_health.h), switchable.
         {"mole_fraction_sum", "Mole fractions do not sum to 1", "end", "settings.warn_mole_fraction_sum",
          defaults.mole_fraction_sum,
@@ -340,15 +357,107 @@ namespace adsim {
          defaults.step_retries,
          "the integrator rejected {value} attempts per accepted step in cycle {cycle} (more than {limit}).",
          "STEP_RETRIES"},
-        {"history_truncated", "Log shorter than the diagnostics need", "end", "settings.warn_history_truncated",
-         defaults.history_truncated,
-         "the log kept {value} cycles, fewer than {limit}: series and profiles cover only the logged cycles "
-         "(settings.max_cycles_to_keep).",
-         "HISTORY_TRUNCATED"},
+        {"reaction_stiff", "Step collapse at a reacting cell", "end", "settings.warn_reaction_stiff",
+         defaults.reaction_stiff,
+         "the integrator's step collapsed at a reacting cell in step {step} of cycle {cycle}: {value} steps shorter "
+         "than 1e-4 s (at least {limit}), with near-zero {component}. Start the bed nearer the reaction's state "
+         "(docs/reactions.md, \"Start-up of fast reactions\").",
+         "REACTION_STIFF"},
       };
       return w;
     }();
     return warnings;
+  }
+
+  std::string ModelKindManifest(const ManifestOptions& options) {
+    Document doc;
+    auto& a = doc.GetAllocator();
+    Value out(rapidjson::kObjectType);
+    auto fragments = [&](const ResistanceDescriptor::Latex& l) {
+      Value f(rapidjson::kObjectType);
+      Set(f, "term", l.term, a);
+      Set(f, "where", l.where, a);
+      Set(f, "where_isothermal", l.where_isothermal, a);
+      return f;
+    };
+    for (ModelFamily family : AllModelFamilies()) {
+      Value kinds(rapidjson::kArrayType);
+      for (const KindDescriptor& k : KindDescriptors(family)) {
+        Value v(rapidjson::kObjectType);
+        Set(v, "tag", k.tag, a);
+        Set(v, "label", k.label, a);
+        Set(v, "legacy", k.legacy, a);
+        Value ps(rapidjson::kArrayType);
+        for (const KindParameter& p : k.parameters) {
+          Value pv(rapidjson::kObjectType);
+          Set(pv, "name", p.name, a);
+          Set(pv, "unit", p.unit, a);
+          Set(pv, "default", Num(p.default_value), a);
+          Set(pv, "lower", Num(p.lower), a);
+          Set(pv, "upper", Num(p.upper), a);
+          Set(pv, "tunable", p.tunable, a);
+          Set(pv, "label", p.Label(), a);
+          ps.PushBack(pv, a);
+        }
+        Set(v, "parameters", std::move(ps), a);
+        if (!k.resistances.empty()) {
+          Value rs(rapidjson::kArrayType);
+          for (const ResistanceDescriptor& r : k.resistances) {
+            Value rv(rapidjson::kObjectType);
+            Set(rv, "tag", r.tag, a);
+            Set(rv, "label", r.label, a);
+            if (r.parent.empty()) SetNull(rv, "parent", a);
+            else Set(rv, "parent", r.parent, a);
+            Set(rv, "scaled_by_capacity", r.scaled_by_capacity, a);
+            Set(rv, "parameters", StrList(r.parameters, a), a);
+            Value fr(rapidjson::kObjectType);
+            Set(fr, "sphere", fragments(r.sphere), a);
+            Set(fr, "slab", fragments(r.slab), a);
+            Set(fr, "cylinder", fragments(r.cylinder), a);
+            Set(rv, "fragments", std::move(fr), a);
+            Set(rv, "source", r.source, a);
+            rs.PushBack(rv, a);
+          }
+          Set(v, "resistances", std::move(rs), a);
+          Value ms(rapidjson::kArrayType);
+          for (const CapacityModeDescriptor& m : k.capacity_modes) {
+            Value mv(rapidjson::kObjectType);
+            Set(mv, "tag", m.tag, a);
+            Set(mv, "label", m.label, a);
+            Set(mv, "latex", m.latex, a);
+            ms.PushBack(mv, a);
+          }
+          Set(v, "capacity_modes", std::move(ms), a);
+          Value pr(rapidjson::kArrayType);
+          for (const PresetDescriptor& p : k.presets) {
+            Value pv(rapidjson::kObjectType);
+            Set(pv, "tag", p.tag, a);
+            Set(pv, "on", StrList(p.on, a), a);
+            const auto m = static_cast<std::size_t>(p.capacity_mode);
+            Set(pv, "capacity_mode", m < k.capacity_modes.size() ? k.capacity_modes[m].tag : std::string("none"), a);
+            Value vals(rapidjson::kObjectType);
+            for (const auto& [name, x] : p.values) Set(vals, name, Num(x), a);
+            Set(pv, "values", std::move(vals), a);
+            pr.PushBack(pv, a);
+          }
+          Set(v, "presets", std::move(pr), a);
+        }
+        kinds.PushBack(v, a);
+      }
+      Set(out, ModelFamilyName(family), std::move(kinds), a);
+    }
+    // The packed particle shapes (ParticleShape), in the families' form.
+    Value shapes(rapidjson::kArrayType);
+    for (std::size_t i = 0; i < ParticleShapeKinds().size(); ++i) {
+      Value v(rapidjson::kObjectType);
+      Set(v, "tag", ParticleShapeKinds()[i], a);
+      Set(v, "label", std::string(ParticleShapeList[i]), a);
+      Set(v, "legacy", false, a);
+      Set(v, "parameters", Value(rapidjson::kArrayType), a);
+      shapes.PushBack(v, a);
+    }
+    Set(out, "particle_shape", std::move(shapes), a);
+    return Write(out, options.pretty);
   }
 
   std::string WarningManifest(const ManifestOptions& options) {

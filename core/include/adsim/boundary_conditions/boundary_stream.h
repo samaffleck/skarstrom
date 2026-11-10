@@ -188,6 +188,16 @@ namespace adsim {
 		// The step's quadrature integrals of this endpoint, set when the step
 		// ends (not serialised; cleared with the log).
 		EndpointIntegrals integrals_{};
+		// True for the log of a valve stream (set by its constructor, not
+		// serialised, kept by Clear). A connected valve sets its flow from its
+		// own bed's pressure and its partner's logged pressure, of either sign
+		// (Valve::GetMolarFlowRate). A set-flow stream connected to one must
+		// replay that flow as it is, both ways: a one-sided closure on the
+		// replay lets the valve draw back gas that the set-flow side never
+		// gives, and the connection makes gas. The replay has no closure now
+		// (BoundaryStream::GetMolarFlow), so nothing reads the flag; it marks
+		// the case for any closure added there later.
+		bool from_valve_ = false;
 	};
 
 	// Mole fraction of `component` on the bed-end face at `loc`: the face
@@ -350,6 +360,15 @@ namespace adsim {
 
     std::unique_ptr<IBoundaryValue> boundary_value_; // Pressure
 		Valve valve_{};
+		// Check valve: when true, an unconnected valve passes gas only in its
+		// own direction (out of the bed through an outlet, into the bed
+		// through an inlet). The closure is smoothed over
+		// Valve::kCheckValveBand; while it is shut the stream carries no flow,
+		// so the end acts as a closed end for it. Ignored on a connected
+		// stream: flow both ways through a connection (pressure equalisation,
+		// light-product pressurisation) is expected. Off by default, which
+		// keeps the plain valve law (flow of either sign).
+		bool check_valve_ = false;
 
 	private:
 		friend class cereal::access;
@@ -360,6 +379,9 @@ namespace adsim {
 				cereal::make_nvp("Valve", valve_),
 				cereal::make_nvp("Boundary_Value", boundary_value_)
 			);
+			// v2: the check valve (off for older decks).
+			if (version >= 2) ar(cereal::make_nvp("Check_Valve", check_valve_));
+			else check_valve_ = false;
 		}
 	};
 
@@ -477,5 +499,5 @@ namespace adsim {
 // translation unit that saves or loads a deck must see the same numbers.
 CEREAL_CLASS_VERSION(adsim::IBoundaryStream, 5);
 CEREAL_CLASS_VERSION(adsim::BoundaryStream, 1);
-CEREAL_CLASS_VERSION(adsim::ValveBoundaryStream, 1);
+CEREAL_CLASS_VERSION(adsim::ValveBoundaryStream, 2);
 CEREAL_CLASS_VERSION(adsim::PumpBoundaryStream, 2);

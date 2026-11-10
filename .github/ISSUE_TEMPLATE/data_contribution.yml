@@ -2,6 +2,13 @@ name: Adsorbent data or validation case
 description: Propose an adsorbent library entry or a new paper validation case
 labels: [data]
 body:
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Existing issues
+      options:
+        - label: I searched the [open and closed issues](https://github.com/samaffleck/skarstrom/issues?q=is%3Aissue) and this is not a duplicate.
+          required: true
   - type: input
     id: source
     attributes:

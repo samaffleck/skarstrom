@@ -10,6 +10,15 @@ Because the interacting steps are connected as a pair, a step that receives gas 
 
 > **The coupling is lagged by one cycle.** A connected boundary uses the gas logged by its partner on the partner's **previous** run. This is exactly how a real multi-bed process behaves at cyclic steady state — each bed sees what the other bed did a cycle ago — and it converges to the correct coupled solution as the cycles repeat. On the **first** cycle there is no logged partner data yet, so each side falls back to the values you entered (the *first-cycle assumptions*). Expect the first cycle or two to be approximate; the solution becomes self-consistent as it approaches [cyclic steady state](cyclic-steady-state.md).
 
+!!! note "New in 0.9"
+    The warning `settings.warn_connection_pressure` reports gas that passes through a connection from the lower to the higher pressure.
+
+### Pressure order through a connection
+
+A connected endpoint replays its partner's previous run: a flow stream replays the partner's flow, and a pressure boundary follows its own profile. Neither checks the pressures of the two beds, so gas can pass from the lower to the higher pressure, for example when a producing bed falls below the bed that its light product pressurises. The engine reports this but does not prevent it.
+
+At the end of a run, the warning **Connection pressure** (`settings.warn_connection_pressure`) reports gas that enters a bed through a connection while that bed's end pressure is more than 1 kPa above the partner's logged pressure at the same instant, by more than 0.1 % of the cycle feed in one step, in the last cycle. Pump streams are not checked. A valve stream on a connection sets its flow from the pressure difference, so it passes gas from the higher to the lower pressure by its own law.
+
 ## Making a connection
 
 Connections are stored in the deck with the cycle (each connected endpoint carries a pair id).

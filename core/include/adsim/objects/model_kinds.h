@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "adsim/equations/isotherm.h"
+#include "adsim/equations/mass_transfer_model.h"
 #include "adsim/math/expression_param.h"
 
 namespace adsim {
@@ -65,11 +66,73 @@ struct KindParameter {
   const std::string& Label() const { return label.empty() ? name : label; }
 };
 
+// The particle shape a diffusion resistance is written for: packed spheres
+// of radius r_p, a slab of half-thickness l (structured layers), or packed
+// infinite cylinders of radius r_f (MixedAdsorbentLayer::particle_shape_).
+enum class DiffusionShape { Sphere, Slab, Cylinder };
+
+class MixedAdsorbentLayer;
+// The shape of a layer's diffusion geometry: Slab for a structured layer,
+// else the packed particle shape (Sphere or Cylinder).
+DiffusionShape LayerDiffusionShape(const MixedAdsorbentLayer& layer);
+
+// One resistance of the generic mass-transfer coefficient model
+// (series_resistance; MassTransferCoefficientSeriesResistance): its switch tag,
+// label, the term it refines, whether the capacity factor K multiplies it, its
+// parameters (names in the kind's `parameters`, display order) and the LaTeX
+// fragments of its term per particle shape. Placeholders in the fragments:
+// {K} becomes "K\," when the capacity-factor mode is not none and the term is
+// scaled by capacity (else nothing); {D} becomes D_{m,i}, or D_{B,i} with
+// Knudsen diffusion on. MassTransferEquationLatex composes them.
+struct ResistanceDescriptor {
+  std::string tag;                      // "film", "macropore", "knudsen", "micropore", "lumped"
+  std::string label;                    // "external film", ...
+  std::string parent;                   // "" or the term it refines ("knudsen" -> "macropore")
+  bool scaled_by_capacity = false;      // multiplied by K (film, macropore)
+  std::vector<std::string> parameters;  // names in the kind's `parameters`, in display order
+  struct Latex {
+    std::string term;   // the term of 1/k (empty: refines its parent's term)
+    std::string where;  // the definitions it uses (may be empty)
+    // The definitions when the term's activation energy is the number 0
+    // (lumped: k_L = k; micropore: D_c = D_c0); empty: `where` always.
+    std::string where_isothermal;
+  };
+  Latex sphere, slab, cylinder;  // per DiffusionShape
+  std::string source;            // literature, for docs and tooltips
+  const Latex& Fragments(DiffusionShape shape) const {
+    return shape == DiffusionShape::Slab ? slab : shape == DiffusionShape::Cylinder ? cylinder : sphere;
+  }
+};
+
+// A named switch set of the generic model (the former coefficient kinds): the
+// resistances on, the capacity-factor mode (CapacityFactorMode value) and the
+// parameter values the preset fixes.
+struct PresetDescriptor {
+  std::string tag;
+  std::vector<std::string> on;
+  int capacity_mode = 0;
+  std::vector<std::pair<std::string, double>> values;
+};
+
+// One capacity-factor mode (CapacityFactorMode order): tag, label and the LaTeX
+// definition of K (empty for none).
+struct CapacityModeDescriptor {
+  std::string tag, label, latex;
+};
+
 struct KindDescriptor {
   std::string tag;
   std::string label;
   std::vector<KindParameter> parameters;
+  // A kind kept for loading old decks and as a preset tag only: not offered
+  // in the builder's kind lists (the six former rate-coefficient kinds).
+  bool legacy = false;
+  std::vector<ResistanceDescriptor> resistances;       // series_resistance only, in series order
+  std::vector<CapacityModeDescriptor> capacity_modes;  // series_resistance only, CapacityFactorMode order
+  std::vector<PresetDescriptor> presets;               // series_resistance only
   const KindParameter* Find(const std::string& name) const;
+  const ResistanceDescriptor* FindResistance(const std::string& tag) const;
+  const PresetDescriptor* FindPreset(const std::string& tag) const;
 };
 
 enum class ModelFamily {
@@ -152,10 +215,17 @@ using ModelFieldList = std::vector<std::pair<std::string, ExpressionParam*>>;
 // descriptor names ("start", "end", "time", "value", ...).
 ModelFieldList ModelFields(IMassTransferModel* model);  // the rate model's own (dual_rate_ldf: split)
 // The generic coefficient model (MassTransferCoefficientSeriesResistance)
-// binds the parameters of the preset it matches under that kind's names; every
-// parameter of it, under the series_resistance names, is ResistanceFields.
+// binds every parameter under the series_resistance names (ResistanceFields);
+// an older coefficient class (load-only) binds its own kind's.
 ModelFieldList ModelFields(IMassTransferCoefficientModel* model);
 ModelFieldList ResistanceFields(MassTransferCoefficientSeriesResistance* model);
+// The preset a coefficient model matches (MassTransferCoefficientSeriesResistance::
+// PresetType; an older class: its kind), and the parameters a preset shows
+// bound under that preset kind's names (arrhenius: pre_exp_factor is the
+// lumped k; SERIES_RESISTANCE: every parameter). For the parameter carry-over
+// of a preset switch (deck_edit.h). An older class gives ModelFields.
+MassTransferCoefficientType CoefficientPreset(IMassTransferCoefficientModel* model);
+ModelFieldList PresetFields(IMassTransferCoefficientModel* model, MassTransferCoefficientType preset);
 ModelFieldList ModelFields(IDispersionModel* model);
 ModelFieldList ModelFields(IHeatDispersionModel* model);
 ModelFieldList ModelFields(IInternalHeatTransferModel* model);
@@ -173,6 +243,21 @@ ModelFieldList ModelFields(IPump* pump);
 // when the rate model has no slow-site coefficient model.
 const KindDescriptor* SlowSiteKind(IMassTransferModel* model);
 ModelFieldList SlowSiteFields(IMassTransferModel* model);
+
+// The descriptor of the generic coefficient model (series_resistance), which
+// carries the resistances, capacity modes and presets.
+const KindDescriptor& ResistanceKind();
+
+// The display equation of a coefficient model for one particle shape, built
+// only from the descriptor's fragments: "\frac{1}{k_i} = " and the enabled
+// terms joined by " + " (series order); then, when any definitions apply,
+// " \\ " and the definitions of the enabled terms and of the capacity mode
+// joined by ",\qquad ", the whole inside \begin{aligned} ... \end{aligned}.
+// Empty when no enabled term has a fragment for the shape.
+std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model, DiffusionShape shape);
+// The same for the shape of `layer` (LayerDiffusionShape).
+std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model,
+                                      const MixedAdsorbentLayer& layer);
 
 // Copy every parameter `to` shares with `from` (same name and same unit in
 // their descriptors), value and expression text. Returns the names copied.

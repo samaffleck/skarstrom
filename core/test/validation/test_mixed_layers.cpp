@@ -146,7 +146,7 @@ namespace adsim {
               auto ldf = std::make_unique<LinearDrivingForce>();
               auto mtc = std::make_unique<MassTransferCoefficientConstant>();
               mtc->constant_mtc_ = kldf;
-              ldf->mtc_model_ = std::move(mtc);
+              ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
               ads.adsorption_source_.mass_transfer_models_[c] = std::move(ldf);
             }
             ads.adsorption_source_.heat_of_adsorption_[kO2] = s.dH_O2;
@@ -518,7 +518,7 @@ namespace adsim {
       auto ldf = std::make_unique<LinearDrivingForce>();
       auto mtc = std::make_unique<MassTransferCoefficientConstant>();
       mtc->constant_mtc_ = s.kldf;
-      ldf->mtc_model_ = std::move(mtc);
+      ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
       ads.adsorption_source_.mass_transfer_models_[kO2] = std::move(ldf);
       ads.adsorption_source_.heat_of_adsorption_[kO2] = 0.0;  // isothermal
       layer.composition_[id] = s.w;
@@ -805,7 +805,7 @@ namespace adsim {
       auto ldf = std::make_unique<LinearDrivingForce>();
       auto mtc = std::make_unique<MassTransferCoefficientConstant>();
       mtc->constant_mtc_ = s.kldf;
-      ldf->mtc_model_ = std::move(mtc);
+      ldf->mtc_model_ = ToResistances(std::move(mtc));  // generic model, as the example decks store it
       ads.adsorption_source_.mass_transfer_models_[kN2] = std::move(ldf);
       ads.adsorption_source_.heat_of_adsorption_[kN2] = s.Q;  // van 't Hoff consistent
       layer.composition_[id] = s.w;

@@ -139,7 +139,7 @@ whose Jacobian block is the identity: $u^\*$ depends only on the first bed cell'
 | $A$, $B$      | Viscous / inertial resistance            | Pa s m⁻², Pa s² m⁻³ |
 | $\beta$       | Ergun inertial coefficient               | m⁻¹            |
 | $z$           | Axial coordinate                         | m              |
-| $d_p$         | Particle diameter                        | m              |
+| $d_p$         | Particle diameter (a cylinder's extrudate diameter, used as an equivalent sphere) | m |
 | $\epsilon_b$  | Bed void fraction                        | -              |
 
 ### Approach to fluidisation

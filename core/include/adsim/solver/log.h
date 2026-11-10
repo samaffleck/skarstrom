@@ -235,7 +235,7 @@ namespace adsim {
     void LogStepBalance(int cycle_idx, int step_idx, StepBalance balance);
     const StepBalance* GetStepBalance(int cycle_idx, int step_idx) const;
     
-    int max_cycles_to_keep_ = 10;
+    int max_cycles_to_keep_ = 1;
     SystemData sys_data;
     std::unordered_map<std::string, std::vector<std::string>> stream_names{};
     
@@ -470,7 +470,7 @@ namespace adsim {
     VariableLogEntry GetComponentFaceVariable(int cycle_index, int step_index,
       ComponentVariableType type, const std::string& component) const;
 
-    int max_cycles_to_keep_ = 10;
+    int max_cycles_to_keep_ = 1;
     // Max rows written per (cycle, step) in SaveToFile (CSV plotting output
     // only; the in-memory log keeps every solver step, up to the budget
     // below). <= 0 writes every row.
@@ -519,7 +519,7 @@ namespace adsim {
     EquationLog eq_log_;
     BoundaryLog b_log_;
     bool logging_enabled_ = false;
-    int max_cycles_to_keep_ = 10;
+    int max_cycles_to_keep_ = 1;
 
   };
 

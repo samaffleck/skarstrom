@@ -9,7 +9,7 @@ built from the KPIs of each candidate's last cycle::
     sim = skarstrom.examples.Perez2019_A.load()
     result = opt.optimise(
         sim,
-        {"step[Feed].time": (60, 150), "step[Evacuation].bottom.pressure_exponential_end": (2e3, 6e3)},
+        {"step[Feed].time": (60, 150), "step[Evacuation].bottom.pressure_double_exponential_end": (2e3, 6e3)},
         objectives=[opt.maximise("CarbonDioxide", "recovery")],
         constraints=[opt.at_least("CarbonDioxide", "purity", 0.9, penalty=10)],
         evaluations=20,

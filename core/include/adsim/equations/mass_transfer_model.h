@@ -169,22 +169,12 @@ namespace adsim {
 	// (film_resistance_factor, tortuosity, crystal_radius or
 	// micropore_diffusivity) and K came from the isotherm slope unless
 	// capacity_factor > 0. A version-1 archive loads with the switches and
-	// mode derived from those zeros, and a model created from the tag keeps
-	// deriving them from its current values (so setting crystal_radius and
-	// micropore_diffusivity after creation turns the micropore term on, as
-	// before) until a switch or the mode is set explicitly or it is saved.
+	// mode derived from those zeros (AdoptVersion1Switches).
 	class MassTransferCoefficientSeriesResistance : public IMassTransferCoefficientModel {
 	public:
-		// The preset the switches, mode and values match (SERIES_RESISTANCE
-		// when none does): what the deck's kind readers (registry, deck view,
-		// builder scripts) show. The class itself is always this one.
-		// INTERIM: until the registry has a leaf per switch, reporting the
-		// preset keeps every kind reader and its parameter names unchanged;
-		// the same holds for the in-memory sentinel derivation of a model
-		// created from "series_resistance" (sentinel_switches_). Both go once
-		// the switches can be set by path: then this returns SERIES_RESISTANCE
-		// and the preset is read from PresetType().
-		MassTransferCoefficientType GetModelType() override { return PresetType(); }
+		MassTransferCoefficientType GetModelType() override { return MassTransferCoefficientType::SERIES_RESISTANCE; }
+		// The preset (former kind) the switches, mode and values match, or
+		// SERIES_RESISTANCE when none does; derived, never stored.
 		MassTransferCoefficientType PresetType() const;
 		// The preset's tag, or "custom" when no older kind matches.
 		std::string PresetTag() const;
@@ -203,11 +193,10 @@ namespace adsim {
 		// Whether a resistance ("film", "macropore", "knudsen", "micropore",
 		// "lumped") is on; false for an unknown tag.
 		bool Enabled(const std::string& tag) const;
-		// The effective switch set (derived from the parameters while
-		// SentinelSwitches()).
-		MassTransferResistances Resistances() const;
-		// The stored switch of a resistance, for binding (the switches are made
-		// explicit first); throws std::out_of_range for an unknown tag.
+		// The switch set.
+		MassTransferResistances Resistances() const { return resistances_; }
+		// The stored switch of a resistance; throws std::out_of_range for an
+		// unknown tag.
 		bool& Switch(const std::string& tag);
 		// Sets one switch with the model's rules: at least one of film,
 		// macropore, micropore and lumped stays on; knudsen needs macropore,
@@ -228,19 +217,17 @@ namespace adsim {
 		// The parameters of one resistance, in display order (empty for an
 		// unknown tag).
 		static const std::vector<std::string>& ResistanceParameters(const std::string& tag);
-		// True while the switches and mode are derived from the version-1 zero
-		// sentinels (see the class comment).
-		bool SentinelSwitches() const { return sentinel_switches_; }
-		// Ends the sentinel derivation: stores the derived switches and mode.
-		// With replace_sentinels (loading a version-1 archive), a switched-off
-		// term's zero sentinels become that term's defaults, which cannot change
-		// results: the term is off. Otherwise every value is kept, so a save and
-		// reload shows the same parameters.
-		void MakeSwitchesExplicit(bool replace_sentinels = false);
+		// Sets the switches and mode a version-1 model meant: a term is on when
+		// its parameter is not zero (film_resistance_factor, tortuosity,
+		// crystal_radius and micropore_diffusivity), K from the isotherm slope
+		// unless capacity_factor > 0. A switched-off term's zero sentinels then
+		// become that term's defaults, which cannot change results: the term
+		// is off. Used when a version-1 archive is loaded.
+		void AdoptVersion1Switches();
 		// Sets the switches, mode and the values the preset fixes (constant:
 		// activation_energy = 0; haynes: film_resistance_factor = 1,
-		// molecular_diffusion_coefficient = 0). SERIES_RESISTANCE starts the
-		// sentinel derivation. Other parameters are left as they are.
+		// molecular_diffusion_coefficient = 0). SERIES_RESISTANCE (custom)
+		// changes nothing. Other parameters are left as they are.
 		void ApplyPreset(MassTransferCoefficientType preset);
 
 		// The capacity factor K at each cell of [start, end] (written into k_out)
@@ -286,7 +273,6 @@ namespace adsim {
 		// True when the lumped term's activation energy is the number 0.
 		bool ActivationEnergyIsZero() const;
 
-		bool sentinel_switches_ = false;      // transient: derive the switches from the version-1 zeros
 		IIsotherm* isotherm_ = nullptr;       // transient, set by AdsorptionSource
 		AdsorptionSource* source_ = nullptr;  // transient: under IAST, q* comes from its UpdateIsothermAll
 		double solid_density_ = 0.0;          // transient [kg/m3]
@@ -318,21 +304,12 @@ namespace adsim {
 
 		friend class cereal::access;
 		template <class Archive>
-		void save(Archive& ar, std::uint32_t const version) const {
-			if (sentinel_switches_) {
-				MassTransferCoefficientSeriesResistance explicit_copy(*this);
-				explicit_copy.MakeSwitchesExplicit();
-				Fields(ar, explicit_copy, version);
-				return;
-			}
-			Fields(ar, *this, version);
-		}
+		void save(Archive& ar, std::uint32_t const version) const { Fields(ar, *this, version); }
 		template <class Archive>
 		void load(Archive& ar, std::uint32_t const version) {
 			Fields(ar, *this, version);
 			// v1: the switches and mode follow from the zero sentinels.
-			sentinel_switches_ = version < 2;
-			MakeSwitchesExplicit(true);
+			if (version < 2) AdoptVersion1Switches();
 		}
 	};
 

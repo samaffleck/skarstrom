@@ -104,13 +104,13 @@ struct DacDeck : UserDataTest {
     AddLinearDrivingForceModel(ads_id, "Nitrogen", 0.1);
     auto series = [](double dc0, double rc, double capacity) {
       auto m = std::make_unique<MassTransferCoefficientSeriesResistance>();
-      m->ApplyPreset(MassTransferCoefficientType::SERIES_RESISTANCE);  // terms switched off by zero parameters
       m->tortuosity_ = 3.0;
       m->macropore_void_fraction_ = 0.338;
       m->crystal_radius_ = rc;
       m->micropore_diffusivity_ = dc0;
       m->micropore_activation_energy_ = 2.0e4;
       m->capacity_factor_ = capacity;
+      m->AdoptVersion1Switches();  // terms switched off by zero parameters, as in the version-1 model
       return m;
     };
     if (variant == Variant::LdfHaynes) {
@@ -159,9 +159,9 @@ Simulation RunVariant(Variant variant, const std::string& name, RunResult& resul
   deck.Build(variant);
   std::filesystem::create_directories(deck.test_path);
   const std::filesystem::path path = deck.test_path / ("DacKinetics_" + name + ".json");
-  test::SaveToJsonAtomically(deck.data, path);
+  test::SaveDeckAtomically(deck.data, path);
   if (variant == Variant::DualSeries)
-    test::SaveToJsonAtomically(deck.data,
+    test::SaveDeckAtomically(deck.data,
                                std::filesystem::current_path() / "../examples/decks/Illustrative_DAC_Breakthrough.json");
   Simulation sim = Simulation::FromFile(path.string());
   result = sim.Run();

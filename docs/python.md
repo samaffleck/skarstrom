@@ -351,14 +351,16 @@ What each part takes:
 | `sim.add_adsorbent(name, **values)` | `solid_density`, `heat_capacity`, `thermal_conductivity`, `particle_void_fraction`; new components get an inert isotherm and a constant LDF rate |
 | `ads.set_isotherm(kind, {component: {param: value}}, components=None)` | `build_kinds()["isotherm"]`; the parameters are those of `skarstrom.isotherm_parameters(kind)`. Components given together share one (competitive) isotherm |
 | `ads.set_mixing_rule(kind)` | `none` (each isotherm on its own) or `iast` (Ideal Adsorbed Solution Theory over the pure isotherms; see [Isotherms](isotherms.md#mixture-loadings-the-mixing-rule-and-iast)); also the field `ads.mixing_rule` |
-| `ads.set_rate_model(component, model, coefficient, **values)` | model `ldf`, `ldf2` or `dual_rate_ldf` (`split`, slow-site `slow_<name>` values); coefficient `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity` or `series_resistance` |
+| `ads.set_rate_model(component, model, coefficient, resistances=None, capacity_factor_mode=None, **values)` | model `ldf`, `ldf2` or `dual_rate_ldf` (`split`, slow-site `slow_<name>` values); coefficient `series_resistance` (the [resistance model](kinetic-models.md#mass-transfer-coefficient): lumped term only until `resistances=[...]` switches terms on) or a preset: `constant` (k), `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity`; `capacity_factor_mode` `none`, `slope`, `secant` or `fixed`. *New in 0.9:* `resistances=`, `capacity_factor_mode=` |
+| `ads.set_rate_resistance(component, tag, on=True, site="fast")` | Switch one resistance (`film`, `macropore`, `knudsen`, `micropore`, `lumped`) on or off; `site="slow"` for a dual-rate slow site. *New in 0.9.* |
+| `ads.add_reaction(name, nu, kind="power_law", basis=None, effectiveness=None, key_component=None, adsorption_terms=0, **values)` | a [reaction](reactions.md) on the adsorbent; `nu` maps components to coefficients (< 0 reactant); `kind` `power_law`, `reversible_power_law`, `lhhw` or `expression`; `basis` `partial_pressure` or `concentration`; `effectiveness` `constant` or `thiele` (with `key_component`). Returns a `Reaction` whose `set_kind`, `set_stoichiometry`, `set_basis`, `set_effectiveness`, `add_adsorption_term` and rate-law values (`rx.rate.pre_exp_factor`) change it. *New in 0.9.* |
 | `sim.bed.set_shape(kind, **values)` | `cylinder` (diameter), `square` (width), `rectangle` (width, length) |
 | `sim.bed.set_thermal_equilibrium(kind)`, `sim.bed.set_particle_heat_transfer("constant", particle_htc=...)` | `lte` or `ltne` |
 | `sim.wall.set_material(kind, **values)`, `sim.wall.set_boundary(kind, **values)` | a library material or `custom`; `zero_flux` or `fixed` |
 | `sim.add_layer(name, composition=, momentum=, **values)` | composition by adsorbent name (mass fractions: numbers, or expressions over deck variables such as `"x"` and `"1 - x"`); momentum `ergun`, `kozeny_carman` or `blake_kozeny`; `length`, `cells`, `bed_void_fraction`, `particle_diameter` |
 | `layer.set_dispersion`, `set_heat_dispersion`, `set_internal_heat_transfer`, `set_external_heat_transfer` | `constant` or a correlation (`ruthven`, `yagi_kunii`, `channel`, `dixon`, `leva`, `holman`) with its values |
 | `sim.add_step(name, time=)` or `fraction=` | appended to the cycle |
-| `end.set_streams(direction, [streams])` | `"inlet"` or `"outlet"`; `sk.Stream(name, flow=, y=, temperature=, pump=)`, `sk.ValveStream(name, pressure=, cv=, xt=)` or `sk.PumpStream(name, power=, pump=, y=, temperature=)` |
+| `end.set_streams(direction, [streams])` | `"inlet"` or `"outlet"`; `sk.Stream(name, flow=, y=, temperature=, pump=)`, `sk.ValveStream(name, pressure=, cv=, xt=, check_valve=)` or `sk.PumpStream(name, power=, pump=, y=, temperature=)` |
 | `end.set_pressure(direction, pressure, temperature=, y=, pump=)` | a value or a profile |
 | `end.set_closed()` | no flow |
 | `step.add_energy_source(layer, power=)` | heats (positive) or cools a layer during the step [W] |
@@ -366,7 +368,7 @@ What each part takes:
 | `inlet.set_buffer_tank(source, percentage=)` | an inlet fed, time-averaged, with `percentage` % of what endpoint `source` produced in its last run; `None` removes it |
 | `sim.kpi.track(component, feed=, product=, recycle=)` | endpoints or step ends (all their streams); `recycle` is optional |
 
-Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)`, `sk.exponential(end, start=, time=, factor=)`, `sk.log_linear(end, start=, time=)` and `sk.double_exponential(end, rate_1, rate_2, weight, start=)`; `factor` is the exponential's F (after `time` the change left is 1/F of the initial; default 100). A pressure ramp starts from the bed pressure, so it takes no `start`; it lasts the whole step unless `time` is given (no longer than the step), e.g. `sk.linear("1 bar", time="10 s")` pressurises in 10 s and holds. The double exponential takes its rates and weight. `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. `y` and `temperature` of an outlet are the gas that enters if the flow reverses.
+Flows are `sk.velocity`, `sk.volumetric_flow`, `sk.molar_flow` or `sk.mass_flow`, each given a value or a profile. Profiles are `sk.constant(v)`, `sk.linear(end, start=, time=)`, `sk.exponential(end, start=, time=, factor=)`, `sk.log_linear(end, start=, time=)` and `sk.double_exponential(end, rate_1, rate_2, weight, start=)`; `factor` is the exponential's F (after `time` the change left is 1/F of the initial; default 100). A pressure ramp starts from the bed pressure, so it takes no `start`; it lasts the whole step unless `time` is given (no longer than the step), e.g. `sk.linear("1 bar", time="10 s")` pressurises in 10 s and holds. The double exponential takes its rates and weight. `sk.Pump(kind, energy, efficiency_model, **values)` is a `compressor` or `vacuum_pump` with `isothermal` or `adiabatic` compression and a `constant`, `vacuum_pump` or `polynomial` efficiency. An outlet ignores `y` and `temperature`: gas that flows back in through an outlet carries the bed-end composition and temperature. To stop a valve outlet from reversing, give it `check_valve=True` (*New in 0.9*; see [Check valve](boundary-conditions.md#check-valve)). The run warns about backflow through an unconnected outlet (`settings.warn_outlet_backflow`).
 
 `set_*` replaces what was there: setting an end's streams removes its old streams and their connections, and a new model kind starts from that model's defaults. Objects held in variables (a step, a layer, `sim.bed`) follow these changes. `sim.describe()` returns the structure (the kind of every model, how each step end is set up, connections and KPI endpoints), and `sim.check()` runs the deck checks without running it.
 
@@ -407,7 +409,7 @@ data = sim.experimental_data
 data.load_csv("outlet_CO2.csv")                            # two columns; a header row gives the labels
 data.add("T at 7 cm", time_s, temperature_K, "time [s]", "T [K]")
 data.names(), data["T at 7 cm"].x, data["T at 7 cm"].y     # NumPy arrays
-y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=0)
+y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=-1)
 data["outlet_CO2"].compare(y.time, y.values)               # rmse, nrmse, max_abs_error, points
 data.remove("T at 7 cm"); data.clear()
 ```
@@ -420,14 +422,14 @@ After a run:
 
 ```python
 sim.run()                  # the results below are those of the last run: run again after an edit
-sim.cycles                 # logged cycles, e.g. [0, 1, ..., 13]
+sim.cycles                 # logged cycles, e.g. [13] (settings.max_cycles_to_keep, default 1)
 sim.kpis()                 # KPIRecord per tracked component per cycle (every cycle run)
 sim.kpi_table()            # the same as a pandas DataFrame
 sim.css_history()          # the deck's CSS check at every cycle: cycle, converged, error, tolerance,
                            # state_change, state_tolerance, passing_cycles, required_cycles,
                            # distance_estimated, convergence_rate, distance, distance_ratio, distance_note
 y = sim.series("mole_fraction", "CarbonDioxide", location="top")   # NumPy arrays y.time, y.values
-T = sim.series("temperature", z=0.25, cycle=0)                      # at z = 0.25 m in the first cycle
+T = sim.series("temperature", z=0.25, cycle=-1)                     # at z = 0.25 m in the last logged cycle
 prof = sim.profile("adsorbed_concentration", "CarbonDioxide", cycle=-1, step=0)
 prof.z, prof.time, prof.values                                       # values has shape (len(time), len(z))
 sim.positions, sim.face_positions                                    # cell centres, cell faces [m]
@@ -445,7 +447,7 @@ for s in sim.streams():                                              # every end
 - **Reactions.** *New in 0.9.* `sim.series("reaction_rate", reaction="SMR")` and `sim.profile("reaction_rate", reaction="SMR", step=0)` give the rate of one reaction on its solid, eta r in mol/(kg of that solid s), 0 where the solid is absent (`reaction=` takes the reaction's name or ID; add `adsorbent=` when the reaction is on more than one solid). `sim.series_reactions()` lists them and `skarstrom.reaction_variables()` the names. The rate has no boundary value: `"top"` and `"bottom"` are the last and first packed cell. The reactions' totals are `reaction_heat` (bulk, W/m³) and `reaction_source` (per component, mol/(m³ s)). `save_logs` and the CLI's `--csv` logs write one CSV per reaction and solid, `"<reaction> Rate (<solid>)"`.
 - `sim.save_logs("out")` writes the full solver log as CSV files.
 
-The solver keeps the last `settings.max_cycles_to_keep` cycles (10 by default) in memory: the series, profiles and stream series cover those. KPIs and the CSS check are recorded at the end of every cycle, so `sim.kpis()`, `sim.kpi_table()` and `sim.css_history()` cover the whole run (a few hundred bytes per cycle: a 2000-cycle run adds well under 1 MB).
+The solver keeps the last `settings.max_cycles_to_keep` cycles (1 by default; the log always keeps the cycles the CSS check reads) in memory: the series, profiles and stream series cover those. KPIs and the CSS check are recorded at the end of every cycle, so `sim.kpis()`, `sim.kpi_table()` and `sim.css_history()` cover the whole run (a few hundred bytes per cycle: a 2000-cycle run adds well under 1 MB).
 
 ## Optimisation
 

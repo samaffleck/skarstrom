@@ -73,6 +73,7 @@ nav:
   - Tutorials:
       - "O₂ PSA (Arora 2021)": arora-2021-o2-psa.md
       - "CO₂ VPSA with LPP (Perez 2019)": perez-2019-vpsa.md
+      - "Case Study: CO₂ VSA Base Decks": case-study-vsa.md
       - TSA Regeneration: tsa-regeneration.md
   - Model:
       - Governing Equations: equations.md
@@ -83,6 +84,7 @@ nav:
       - Wall Design and Operating Limits: wall-design.md
       - Isotherms: isotherms.md
       - Kinetic Models: kinetic-models.md
+      - Reactions: reactions.md
       - Mixed Adsorbent Layers: mixed-layers.md
       - Transport Correlations: transport-correlations.md
       - Equation of State: equation-of-state.md

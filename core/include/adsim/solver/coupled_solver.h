@@ -338,6 +338,10 @@ namespace adsim {
     // Which state entry dominates IDA's weighted local error estimate (the
     // variable limiting the step size), as "<name> @ cell <i>".
     std::string DescribeLargestLocalError(const Equations& state) const;
+    // The cell and the mole-fraction component (empty for any other
+    // variable) of that entry; false when not available (no accepted step
+    // yet, or IDA's internal Jacobian, whose layout is not kept).
+    bool LargestLocalErrorLocation(int& cell, std::string& component) const;
     long int GetNumSteps() const; // cumulative internal steps taken
     const BandedJacobian& GetJacobian() const { return jacobian_; }
     // True when a band audit found a coupling outside the probed matrix band
@@ -556,6 +560,10 @@ namespace adsim {
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
     const CSSHistory& GetCSSHistory() const { return css_history_; }
+    // Cumulative integrator counters of the run so far, the same ones a blocking
+    // run reports in RunResult::stats (CoupledSolver::GetStatistics), including
+    // recovered_steps. Valid while the run is active and after it ends.
+    IntegrationStats GetStatistics() const { return solver_data_.GetStatistics(); }
     // Run-health measures and warnings of the most recent run (run_health.h).
     const RunHealthReport& GetRunHealth() const { return run_health_.Report(); }
     // Cycles that started from a state moved by CSS acceleration (a committed

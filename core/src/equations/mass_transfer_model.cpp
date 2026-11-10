@@ -206,14 +206,17 @@ namespace adsim {
     // (film_correlation.h; default Wakao-Funazkri). A slab (structured
     // layer): V/S = l, the half-thickness, c' = 3, k_f = Sh D / D_h with the
     // channel Sh.
-    if (layer.IsStructured()) {
+    // A packed bed of infinite cylinders: V/S = r_f / 2, l = r_f, c' = 8,
+    // k_f = Sh D / d_p (the packed correlation on d_p).
+    if (layer.IsStructured() || layer.particle_shape_ == ParticleShape::Cylinder) {
       const auto geo = layer.GetDiffusionGeometry();
       const double l = geo.length;
-      const double dh = layer.GetHydraulicDiameter();
+      const double c = geo.c;
+      const double dh = layer.IsStructured() ? layer.GetHydraulicDiameter() : layer.particle_diameter_.Get();
       for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
         const double kf = Sh[n] * Dmi[n] / dh;
         const double film = geo.volume_to_surface / kf;
-        const double molecular = tortuosity_ * l * l / (3.0 * ep * Dmi[n]);
+        const double molecular = tortuosity_ * l * l / (c * ep * Dmi[n]);
         mtc[n] = 1.0 / (film + molecular);
       }
       return;
@@ -332,8 +335,13 @@ namespace adsim {
     // The terms are written as in MassTransferCoefficient_Haynes so that with
     // f_film = 1, K = 1 and no micropore term the result is the same double.
     const bool structured = layer.IsStructured();
+    // A packed bed of infinite cylinders takes the geometry's form (V/S = r_f / 2,
+    // l = r_f, c' = 8) with the packed k_f = Sh D / d_p; spheres keep their own
+    // expressions below.
+    const bool cylinder = !structured && layer.particle_shape_ == ParticleShape::Cylinder;
     const auto geo = layer.GetDiffusionGeometry();
     const double l = geo.length;
+    const double c_geo = geo.c;
     const double dh = structured ? layer.GetHydraulicDiameter() : 0.0;
     const double dp = layer.particle_diameter_;
     const double rp = dp / 2.0;
@@ -348,6 +356,12 @@ namespace adsim {
           film = geo.volume_to_surface / kf;
         }
         if (macro_on) macro = tau * l * l / (3.0 * ep * Dp);
+      } else if (cylinder) {
+        if (film_on) {
+          const double kf = Sh[n] * Dmi[n] / dp;
+          film = geo.volume_to_surface / kf;
+        }
+        if (macro_on) macro = tau * l * l / (c_geo * ep * Dp);
       } else {
         if (film_on) {
           const double kf = Sh[n] * Dmi[n] / dp;
@@ -390,13 +404,6 @@ namespace adsim {
     return IsNumber(activation_energy_, 0.0);
   }
 
-  MassTransferResistances MassTransferCoefficientSeriesResistance::Resistances() const {
-    if (!sentinel_switches_) return resistances_;
-    // Version 1: a term is off when its parameter is zero.
-    return Only(film_resistance_factor_.Get() > 0.0, tortuosity_.Get() > 0.0, false,
-                crystal_radius_.Get() > 0.0 && micropore_diffusivity_.Get() > 0.0, false);
-  }
-
   bool MassTransferCoefficientSeriesResistance::Enabled(const std::string& tag) const {
     MassTransferResistances r = Resistances();
     const bool* on = SwitchOf(r, tag);
@@ -404,21 +411,17 @@ namespace adsim {
   }
 
   bool& MassTransferCoefficientSeriesResistance::Switch(const std::string& tag) {
-    MakeSwitchesExplicit();
     bool* on = SwitchOf(resistances_, tag);
     if (!on) throw std::out_of_range("unknown mass-transfer resistance '" + tag + "'");
     return *on;
   }
 
   CapacityFactorMode MassTransferCoefficientSeriesResistance::CapacityMode() const {
-    if (sentinel_switches_)
-      return capacity_factor_.Get() > 0.0 ? CapacityFactorMode::FIXED : CapacityFactorMode::SLOPE;
     if (capacity_mode_ < 0 || capacity_mode_ > static_cast<int>(CapacityFactorMode::FIXED)) return CapacityFactorMode::NONE;
     return static_cast<CapacityFactorMode>(capacity_mode_);
   }
 
   void MassTransferCoefficientSeriesResistance::SetCapacityMode(CapacityFactorMode mode) {
-    MakeSwitchesExplicit();
     capacity_mode_ = static_cast<int>(mode);
     if (mode == CapacityFactorMode::FIXED && !(capacity_factor_.Get() > 0.0)) capacity_factor_ = 1.0;
   }
@@ -440,7 +443,6 @@ namespace adsim {
       err = "at least one mass-transfer resistance must stay on";
       return false;
     }
-    MakeSwitchesExplicit();
     const bool first_enable = on && !Enabled(tag);
     resistances_ = next;
     if (first_enable) {
@@ -485,14 +487,13 @@ namespace adsim {
     return none;
   }
 
-  void MassTransferCoefficientSeriesResistance::MakeSwitchesExplicit(bool replace_sentinels) {
-    if (!sentinel_switches_) return;
-    const MassTransferResistances r = Resistances();
-    const CapacityFactorMode mode = CapacityMode();
-    sentinel_switches_ = false;
+  void MassTransferCoefficientSeriesResistance::AdoptVersion1Switches() {
+    // Version 1: a term is off when its parameter is zero; K from the slope
+    // unless capacity_factor > 0.
+    const MassTransferResistances r = Only(film_resistance_factor_.Get() > 0.0, tortuosity_.Get() > 0.0, false,
+                                           crystal_radius_.Get() > 0.0 && micropore_diffusivity_.Get() > 0.0, false);
     resistances_ = r;
-    capacity_mode_ = static_cast<int>(mode);
-    if (!replace_sentinels) return;
+    capacity_mode_ = static_cast<int>(capacity_factor_.Get() > 0.0 ? CapacityFactorMode::FIXED : CapacityFactorMode::SLOPE);
     // A switched-off term's zero sentinels become its defaults.
     if (!r.film && !(film_resistance_factor_.Get() > 0.0)) film_resistance_factor_ = 1.0;
     if (!r.macropore && !(tortuosity_.Get() > 0.0)) tortuosity_ = 3.0;
@@ -503,7 +504,7 @@ namespace adsim {
   }
 
   void MassTransferCoefficientSeriesResistance::ApplyPreset(MassTransferCoefficientType preset) {
-    sentinel_switches_ = false;
+    if (preset == MassTransferCoefficientType::SERIES_RESISTANCE) return;  // custom: as it is
     capacity_mode_ = static_cast<int>(CapacityFactorMode::NONE);
     switch (preset) {
       case MassTransferCoefficientType::CONSTANT:
@@ -529,14 +530,12 @@ namespace adsim {
         capacity_mode_ = static_cast<int>(CapacityFactorMode::SECANT);
         break;
       case MassTransferCoefficientType::SERIES_RESISTANCE:
-        sentinel_switches_ = true;
         break;
     }
   }
 
   MassTransferCoefficientType MassTransferCoefficientSeriesResistance::PresetType() const {
     using T = MassTransferCoefficientType;
-    if (sentinel_switches_) return T::SERIES_RESISTANCE;
     const MassTransferResistances& r = resistances_;
     const CapacityFactorMode mode = CapacityMode();
     if (r == Only(false, false, false, false, true)) return ActivationEnergyIsZero() ? T::CONSTANT : T::ARRHENIUS;
@@ -559,8 +558,6 @@ namespace adsim {
   }
 
   unsigned MassTransferCoefficientSeriesResistance::ReadsTransportProperties() const {
-    // Version-1 semantics read both, as that class did.
-    if (sentinel_switches_) return kMolecularDiffusion | kSherwoodNumber;
     const MassTransferResistances& r = resistances_;
     unsigned reads = kNoTransportProperties;
     if (r.macropore) reads |= kMolecularDiffusion;
@@ -859,8 +856,13 @@ namespace adsim {
     // f_film = 1, K = 1 and only film and macropore on the result is the same
     // double; a switched-off term adds an exact 0.0.
     const bool structured = layer.IsStructured();
+    // A packed bed of infinite cylinders takes the geometry's form (V/S = r_f / 2,
+    // l = r_f, c' = 8) with the packed k_f = Sh D / d_p; spheres keep their own
+    // expressions below.
+    const bool cylinder = !structured && layer.particle_shape_ == ParticleShape::Cylinder;
     const auto geo = layer.GetDiffusionGeometry();
     const double l = geo.length;
+    const double c_geo = geo.c;
     const double dh = structured ? layer.GetHydraulicDiameter() : 0.0;
     const double dp = layer.particle_diameter_;
     const double rp = dp / 2.0;
@@ -880,6 +882,12 @@ namespace adsim {
           film = geo.volume_to_surface / kf;
         }
         if (r.macropore) macro = tau * l * l / (3.0 * ep * Dp);
+      } else if (cylinder) {
+        if (r.film) {
+          const double kf = Sh[n] * Dmi[n] / dp;
+          film = geo.volume_to_surface / kf;
+        }
+        if (r.macropore) macro = tau * l * l / (c_geo * ep * Dp);
       } else {
         if (r.film) {
           const double kf = Sh[n] * Dmi[n] / dp;
@@ -942,8 +950,7 @@ namespace adsim {
       g->micropore_activation_energy_ = c->micropore_activation_energy_;
       g->capacity_factor_ = c->capacity_factor_;
       g->concentration_floor_ = c->concentration_floor_;
-      g->ApplyPreset(T::SERIES_RESISTANCE);
-      g->MakeSwitchesExplicit(true);
+      g->AdoptVersion1Switches();
     } else {
       return model;  // not a coefficient class this function knows: left as it is
     }
@@ -964,15 +971,8 @@ namespace adsim {
   }
 
   std::unique_ptr<IMassTransferCoefficientModel> CreateMassTransferCoefficientModel(MassTransferCoefficientType type) {
-    if (type == MassTransferCoefficientType::SERIES_RESISTANCE) {
-      // The version-1 defaults (micropore term off: r_c = D_c0 = 0), switches
-      // derived from the values until made explicit.
-      auto g = std::make_unique<Generic>();
-      g->crystal_radius_ = 0.0;
-      g->micropore_diffusivity_ = 0.0;
-      g->ApplyPreset(type);
-      return g;
-    }
+    // The tag of the generic model: its defaults (the lumped term only).
+    if (type == MassTransferCoefficientType::SERIES_RESISTANCE) return std::make_unique<Generic>();
     return ToResistances(CreateLegacyMassTransferCoefficientModel(type));
   }
 

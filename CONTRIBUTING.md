@@ -46,6 +46,10 @@ it with Emscripten; `bash scripts/test_install_consumer.sh` checks
 
 ## Making a change
 
+- Search the [open and closed issues](https://github.com/samaffleck/skarstrom/issues?q=is%3Aissue)
+  before you open one. If your problem or idea is already there, add a comment
+  to that issue (another case, a better reproduction) instead of opening a new
+  one.
 - Open an issue first for anything large, so we can agree on the approach.
 - Keep pull requests focused; add or update tests with every behaviour change.
 - CI runs on pull requests (a draft is fine) and on main, not on a plain push
@@ -56,9 +60,11 @@ it with Emscripten; `bash scripts/test_install_consumer.sh` checks
   not one recorded from the current output.
 - Changes to a serialised class must bump its `cereal_class_version` and keep
   older decks loading.
-- The test suite re-saves the example decks (`examples/decks/`) and some
-  adsorbent files; small changes to their embedded numbers are expected —
-  commit them with your change.
+- The test suite re-saves the example decks (`examples/decks/`), some
+  adsorbent files and the cycle templates, so that the committed files are
+  exactly what the tests write. Run the tests and commit any changed files with
+  your change; CI fails if the tests change a file under `examples/` or
+  `data/`. A different order of entries in a file is never a different result.
 - Update the docs (`docs/`) and add a changelog entry as a **new file**
   `changelog.d/<topic>.md` (see `changelog.d/README.md`), not an edit to
   `CHANGELOG.md`, so pull requests in flight at the same time do not

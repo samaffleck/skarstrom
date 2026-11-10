@@ -3,13 +3,14 @@
 // Run-health checks (run_health.h): a healthy two-step cycle is silent, and
 // deliberately broken runs raise each warning: a component source with no
 // matching overall source (MOLE_FRACTION_SUM), a leak of one component
-// (MASS_BALANCE_STUCK), an absurd nonlinear tolerance (STEP_RETRIES) and a log shorter
-// than the diagnostics read (HISTORY_TRUNCATED). The broken runs use the
+// (MASS_BALANCE_STUCK) and an absurd nonlinear tolerance (STEP_RETRIES). A log
+// that keeps one cycle of a longer run (the default) is healthy. The broken runs use the
 // manufactured-source verification hook (manufactured_sources.h), which no
 // deck can set.
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -184,30 +185,24 @@ namespace adsim {
     EXPECT_GT(w->value, RunHealthThresholds::kStepRetryRatio);
   }
 
-  TEST_F(RunHealthTest, ShortLogIsReportedAndResultIsUnhealthy) {
-    data.settings.max_cycles_to_keep_ = 2;
+  // The log keeps settings.max_cycles_to_keep cycles of series and profiles
+  // (default 1); the checks run as each cycle completes, so a log of one cycle
+  // of an eight-cycle run is not a run-health problem.
+  TEST_F(RunHealthTest, ALogOfOneCycleIsHealthy) {
+    EXPECT_EQ(IDASettings{}.max_cycles_to_keep_, 1);
+    data.settings.max_cycles_to_keep_ = 1;
     Simulation sim;
     sim.SetData(std::move(data));
     const RunResult r = sim.Run();
     EXPECT_TRUE(r.Ok()) << r.message;
-    EXPECT_EQ(r.status, RunStatus::Completed);  // the status is unchanged
-    EXPECT_FALSE(r.healthy);
-    ASSERT_EQ(r.health_warnings.size(), 1u);
-    const auto& w = r.health_warnings.front();
-    EXPECT_EQ(w.code, "HISTORY_TRUNCATED");
-    EXPECT_LT(w.value, w.threshold);
-    EXPECT_EQ(w.cycle, -1);
+    EXPECT_EQ(r.status, RunStatus::Completed);
+    EXPECT_TRUE(r.healthy);
+    EXPECT_TRUE(r.health_warnings.empty());
     EXPECT_EQ(sim.RunHealth().cycles.size(), 8u);
-    // KPIs, profiles and the other checks are unaffected; switching the check
-    // off makes the same run healthy.
-    sim.Data().settings.warnings_.history_truncated = false;
-    const RunResult again = sim.Run();
-    EXPECT_TRUE(again.healthy);
-    EXPECT_TRUE(again.health_warnings.empty());
   }
 
-  TEST_F(RunHealthTest, ChunkedRunReportsTheSameWarnings) {
-    data.settings.max_cycles_to_keep_ = 2;
+  TEST_F(RunHealthTest, ChunkedRunWithALogOfOneCycleIsHealthy) {
+    data.settings.max_cycles_to_keep_ = 1;
     Simulation sim;
     sim.SetData(std::move(data));
     ASSERT_TRUE(sim.Start(LogLevel::LOW));
@@ -215,13 +210,12 @@ namespace adsim {
     while (st == RunStatus::Running) st = sim.Advance(1000);
     EXPECT_EQ(st, RunStatus::Completed);
     const RunResult& r = sim.LastResult();
-    EXPECT_FALSE(r.healthy);
-    ASSERT_EQ(r.health_warnings.size(), 1u);
-    EXPECT_EQ(r.health_warnings.front().code, "HISTORY_TRUNCATED");
+    EXPECT_TRUE(r.healthy);
+    EXPECT_TRUE(r.health_warnings.empty());
   }
 
   TEST(RunHealth, EveryCodeHasASwitchedManifestEntry) {
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < static_cast<int>(std::size(kRunHealthCodeList)); ++i) {
       const auto check = static_cast<RunHealthCheck>(i);
       EXPECT_STREQ(RunHealthCode(check), kRunHealthCodeList[i]);
       const auto& defs = WarningDefinitions();

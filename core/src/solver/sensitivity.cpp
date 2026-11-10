@@ -450,13 +450,29 @@ Output ParseOutput(std::string_view name) {
   return out;
 }
 
+bool DeckSuppliesHeat(const UserData& data) {
+  for (const auto& step : data.cycle.step_list_) {
+    // An enabled medium (jacket or internal exchanger) is a heat supply, as in
+    // the heat-duty log. A source heats when it is enabled and its power is
+    // positive (EnergySource: negative power cools).
+    if (step.ActiveHeatingMedium() != nullptr) return true;
+    for (const auto& entry : step.energy_sources_) {
+      const EnergySource& src = entry.second;
+      if (src.enabled_ && src.power_.Get() > 0.0) return true;
+    }
+  }
+  return false;
+}
+
 std::vector<Output> DefaultOutputs(const UserData& data) {
   std::vector<Output> out;
+  const bool heated = DeckSuppliesHeat(data);
   for (const auto& cfg : data.kpi_config.per_component) {
     if (!cfg.tracked) continue;
     for (const char* kpi : {"purity", "recovery", "productivity_mass", "energy_consumption"}) {
       out.push_back({cfg.product_component, kpi});
     }
+    if (heated) out.push_back({cfg.product_component, "thermal_energy"});
   }
   return out;
 }

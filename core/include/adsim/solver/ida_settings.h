@@ -70,7 +70,11 @@ namespace adsim {
     // Bed-side pressure of every valve stream's flow law (see ValveBedPressure).
     ValveBedPressure valve_bed_pressure_ = ValveBedPressure::Face;
 
-    int max_cycles_to_keep_ = 10;
+    // Cycles of series and profiles the log keeps (the memory-heavy data; the
+    // KPIs and the CSS record of every cycle are always kept). The log always
+    // keeps the cycles the CSS check reads (CyclicSteadyState::CyclesToLog).
+    // 1 keeps a long run of a fine grid inside the 2 GB of the web solver.
+    int max_cycles_to_keep_ = 1;
 
     // Number of rows per step written to the profile CSV files
     // (EquationLog::SaveToFile): the written rows are decimated to about this

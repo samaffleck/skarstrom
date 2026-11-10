@@ -36,7 +36,7 @@ $$
 | $q_i^*$ | Equilibrium adsorbed loading (from the isotherm) | mol kg⁻¹ |
 | $q_i$ | Current adsorbed loading | mol kg⁻¹ |
 
-The same symbols are used throughout this page: $k_i$ is the coefficient of the [rate model](#rate-models), whatever [coefficient type](#mass-transfer-coefficient) produces it; the dual-rate model below writes its two coefficients $k_{i,1}$ (fast) and $k_{i,2}$ (slow), and each is produced by the coefficient type in the same way.
+The same symbols are used throughout this page: $k_i$ is the coefficient of the [rate model](#rate-models), whatever [resistances](#mass-transfer-coefficient) produce it; the dual-rate model below writes its two coefficients $k_{i,1}$ (fast) and $k_{i,2}$ (slow), and each comes from its own coefficient model.
 
 
 ### Dual-Rate Linear Driving Force
@@ -62,10 +62,10 @@ This model describes uptake curves with a fast initial rise followed by a slow t
 | Parameter (registry leaf) | Description | Unit | Default |
 |---------------------------|-------------|------|---------|
 | `split` | Fast-site fraction $\varphi$ of $q_i^*$, in (0, 1] | – | 1 |
-| coefficient parameters (e.g. `k`) | Fast-site coefficient $k_{i,1}$ | as the coefficient type | |
-| `slow_<name>` (e.g. `slow_k`) | Slow-site coefficient $k_{i,2}$ | as the coefficient type | the fast site's values |
+| coefficient parameters (e.g. `k`) | Fast-site coefficient $k_{i,1}$ | as the [resistance](#resistances) | |
+| `slow_<name>` (e.g. `slow_k`) | Slow-site coefficient $k_{i,2}$ | as the resistance | the fast site's values |
 
-The slow site has its own coefficient model, of the **same mass transfer coefficient type** as the fast site, with its own values, because published fits report both rate constants. With the constant type, the registry paths are `adsorbent[A].kinetics[C].k` ($k_{i,1}$), `adsorbent[A].kinetics[C].slow_k` ($k_{i,2}$) and `adsorbent[A].kinetics[C].split` ($\varphi$). Changing the coefficient type changes both sites. A new dual-rate model starts with the slow site a copy of the fast one, so it behaves like the LDF until you change `split` or the slow coefficient.
+The slow site has its own coefficient model, with its own [switches](#setting-the-switches), capacity-factor mode and values, because published fits report both rate constants. With the lumped term alone, the registry paths are `adsorbent[A].kinetics[C].k` ($k_{i,1}$), `adsorbent[A].kinetics[C].slow_k` ($k_{i,2}$) and `adsorbent[A].kinetics[C].split` ($\varphi$). A preset (`set_rate_model`, `SetMassTransferKind`) applies to both sites. A new dual-rate model starts with the slow site a copy of the fast one, so it behaves like the LDF until you change `split` or the slow coefficient.
 
 With $\varphi = 1$ the slow site holds nothing. The model is then exactly the first-order LDF with $k = k_{i,1}$, and the solver adds no unknown for it. The slow-site unknown exists only for components whose $\varphi$ is below 1. A warm start from a state taken with another $\varphi$, or with another rate model, gives a new slow site its share $(1 - \varphi)$ of the total loading. A slow site the deck no longer has is dropped, and the total loading keeps the inventory. $\varphi$ is one number per run; it may come from a variable but not from the local state.
 
@@ -77,114 +77,179 @@ ads.set_rate_model("CO2", "dual_rate_ldf", "constant", k=0.05, slow_k=0.002, spl
 
 ## Mass Transfer Coefficient
 
-The coefficient $k_i$ in the LDF models can be supplied in several ways. The rate model's **mass transfer coefficient type** selects one.
-
-### Constant
-
-The coefficient is entered directly (as a number or an [expression](isotherms.md)).
+The coefficient $k_i$ of the LDF models comes from one model: **mass-transfer resistances in series** (tag `series_resistance`). It has five resistances. You switch each one on or off by itself, and the enabled terms add up:
 
 $$
-k_i = \text{constant}
+\frac{1}{k_i} = \underbrace{f_\text{film}\thinspace K\thinspace R_\text{film}}_\text{film}
+ + \underbrace{K\thinspace R_\text{macro}}_\text{macropore (+ Knudsen)}
+ + \underbrace{R_\text{micro}}_\text{micropore}
+ + \underbrace{\frac{1}{k_{L,i}}}_\text{lumped}
 $$
 
-Input: **Mass transfer coefficient** [s⁻¹].
+A term that is switched off adds nothing. $K$ is the capacity factor: it multiplies the gas-side terms (film and macropore) only. The [capacity-factor mode](#capacity-factor-modes) sets how the engine gets $K$. This is the series (Glueckauf) form of the LDF coefficient (Glueckauf, 1955; Ruthven, 1984). Stampi-Bombelli et al. (2024, *Ind. Eng. Chem. Res.* 63, 11637, doi:[10.1021/acs.iecr.4c01392](https://doi.org/10.1021/acs.iecr.4c01392)) use it for direct-air-capture breakthrough curves.
 
-### Macropore Diffusion
+The coefficient kinds of earlier versions (`constant`, `arrhenius`, `macropore`, `macropore_knudsen`, `haynes`, `macropore_capacity`) are now [presets](#presets) of this model: a set of switches, a mode and a few fixed values.
 
-The coefficient is derived from macropore molecular diffusion only:
+!!! note "New in 0.9"
+    The switch of each resistance and the capacity-factor mode are registry parameters: `adsorbent[A].kinetics[C].resistances.<tag>` and `adsorbent[A].kinetics[C].capacity_factor_mode`. The deck view also shows the [preset](#presets) the switches match and the [display equation](#display-equation). In 0.8 these were set only with the deck edits `SetMassTransferResistance` and `SetCapacityFactorMode`.
 
-$$
-k_i = \frac{60 \thinspace D_{m,\text{eff}}}{d_p^2}, \qquad D_{m,\text{eff}} = D_m \frac{\epsilon_p}{\tau}
-$$
+### Resistances
 
-Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$, optionally a constant **Molecular diffusion coefficient** $D_m$ (see below). The particle diameter $d_p$ comes from the layer.
+The geometry comes from the layer. Packed layers use spheres of radius $r_p = d_p/2$, or infinite cylinders of radius $r_f = d_p/2$ when the layer's [particle shape](#particle-shape) is `cylinder`. Structured layers ([Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)) use a slab of half-thickness $\ell$: half the monolith wall, half the laminate sheet, or the washcoat thickness when there is a washcoat. The factors 15 (sphere, on the radius), 8 (cylinder, on the radius) and 3 (slab, on the half-thickness) are Glueckauf's (1955) linear-driving-force approximation for each shape. For the slab terms, refer to Rezaei & Webley (2009, *Chem. Eng. Sci.* 64, Eq. 6 on p. 5184 and Table 1 on p. 5183).
 
-**Geometry.** The factor is Glueckauf's (1955) linear-driving-force approximation for the shape of the solid, $k = c\thinspace D_\text{eff}/\ell^2$. For packed spheres, $c = 60$ on $\ell = d_p$, which is 15 on the radius. For a structured layer ([Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)) the solid is a slab: $c = 3$ on its half-thickness $\ell$, which is half the monolith wall, half the laminate sheet, or the washcoat thickness when there is a washcoat. The same applies to the capacity-factor and Knudsen variants below.
+| Switch (`resistances.<tag>`) | Term of $1/k_i$, sphere | Term of $1/k_i$, cylinder | Term of $1/k_i$, slab | Definitions |
+| --- | --- | --- | --- | --- |
+| `film` (external film) | $f_\text{film}\thinspace\dfrac{K\thinspace r_p}{3\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace r_f}{2\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace\ell}{k_f}$ | $k_f = \mathrm{Sh}\thinspace D_{m,i}/d_p$ (sphere, cylinder), $\mathrm{Sh}\thinspace D_{m,i}/D_h$ (slab) |
+| `macropore` (macropore diffusion) | $\dfrac{K\thinspace\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace r_f^2}{8\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace\ell^2}{3\thinspace\varepsilon_p D}$ | $D = D_{m,i}$, or $D_{B,i}$ with Knudsen on |
+| `knudsen` (Knudsen diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $\dfrac{1}{D_{B,i}} = \dfrac{1}{D_{K,i}} + \dfrac{1}{D_{m,i}}$, $D_{K,i} = \tfrac{2}{3}\thinspace r_\text{pore}\sqrt{\dfrac{8RT}{\pi M_i}}$ |
+| `micropore` (micropore diffusion) | $\dfrac{r_c^2}{15\thinspace D_{c,i}}$ | the same | the same | $D_{c,i} = D_{c0}\thinspace e^{-E_{a,c}/RT}$ |
+| `lumped` (lumped coefficient) | $\dfrac{1}{k_{L,i}}$ | the same | the same | $k_{L,i} = k\thinspace e^{-E_a/RT}$; $k_{L,i} = k$ when $E_a = 0$ |
 
-**Molecular diffusivity.** By default (molecular diffusion coefficient 0) $D_m$ is the binary-diffusion value the engine computes from the local temperature and pressure (Chapman–Enskog), which scales as $1/P$: at an evacuation pressure of 3–10 kPa it is 10–33 times its 1 bar value, and so is the macropore coefficient. A value above 0 [m² s⁻¹] is used as a constant $D_m$ instead, in every cell and at every pressure. Haghpanah et al. (2013) and Estupiñan Perez et al. (2019, Table 1) use a constant $D_m = 1.6 \times 10^{-5}$ m² s⁻¹. The option applies to the three macropore kinds (macropore, with the capacity factor, and macropore + Knudsen); the registry leaf is `adsorbent[...].kinetics[<component>].molecular_diffusion_coefficient` and the Python keyword `molecular_diffusion_coefficient=` of `set_rate_model`.
+The film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ of the layer's film correlation (default Wakao and Funazkri; [Transport Correlations](transport-correlations.md#packed-bed-film-correlations)). For a structured layer it uses the channel Sh and the hydraulic diameter $D_h$ ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). The micropore term is that of a spherical crystal in all geometries.
 
-### Macropore Diffusion with the capacity factor
+#### Particle shape
 
-The macropore coefficient scaled by the ratio of the gas-phase to the adsorbed-phase capacity, the form used by the Haghpanah et al. (2013) VSA model and the papers built on it (e.g. Estupiñan Perez et al. 2019, SI Eq. S4):
+!!! note "New in 0.9"
+    The layer leaf `layer[L].particle_shape` (`sphere`, `cylinder`), the deck edit `SetParticleShape` and the deck-view layer field `particle_shape`.
 
-$$
-k_i = \frac{15 \thinspace \epsilon_p D_{m,i}}{\tau \thinspace r_p^2}\thinspace \frac{c_i}{\rho_p \thinspace q_i^*}
-$$
+A packed layer holds spheres (`sphere`, the default and the shape of every deck from an earlier version) or extrudates and fibres (`cylinder`). The layer keeps one size field, `particle_diameter`. For a cylinder it is the extrudate (fibre) diameter $d_p = 2 r_f$. The engine takes the cylinder as infinitely long: the end faces are not in the diffusion geometry. This is a good approximation for extrudates that are several diameters long.
 
-with $c_i$ the gas-phase concentration [mol m⁻³], $q_i^*$ the equilibrium loading [mol kg⁻¹] and $\rho_p$ the particle density, so the ratio is dimensionless. For a strongly adsorbed component (CO₂ on 13X at 0.15 bar: $c/\rho_p q^* \approx 2 \times 10^{-3}$) the coefficient is orders of magnitude below the plain macropore value. As $c_i \to 0$ both $c_i$ and $q_i^*$ vanish and their ratio tends to the Henry limit $1/(\rho_p K_H)$; evaluating the state's own $c_i / q_i^*$ there is a $0/0$ that drifts with the solver's error. The engine therefore evaluates the ratio at $\max(c_i, c_{\text{floor}})$, re-evaluating the isotherm at that concentration (every other component at its actual value), which is finite and smooth; the ratio is capped at 1.
+Only the diffusion geometry of the rate coefficient follows the shape:
 
-Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$, **Concentration floor** $c_{\text{floor}}$ [mol m⁻³] (default 10⁻³, about 2.5 Pa of partial pressure at room temperature, inside the Henry regime of the usual isotherms), optionally a constant **Molecular diffusion coefficient** $D_m$ (as for the plain macropore coefficient; the papers above use $1.6 \times 10^{-5}$ m² s⁻¹).
+| | Sphere (radius $r_p$) | Infinite cylinder (radius $r_f$) | Slab (half-thickness $\ell$) |
+| --- | --- | --- | --- |
+| LDF constant, $k = c\thinspace D/R^2$ | 15 | 8 | 3 |
+| Volume-to-surface ratio $V/S$ (film term) | $r_p/3$ | $r_f/2$ | $\ell$ |
 
-### Macropore + Knudsen Diffusion
+The constant comes from Glueckauf's (1955) assumption of a parabolic profile in the particle, $q(r) = a + b\thinspace r^2$. For a cylinder the mean is $\bar q = a + b R^2/2$ and the flux through the surface gives $d\bar q/dt = (2/R)\thinspace D\thinspace(\partial q/\partial r)_R = 4 D b$. With $q_s - \bar q = b R^2/2$, this is $d\bar q/dt = (8 D/R^2)(q_s - \bar q)$. The same steps for a sphere ($\bar q = a + 3bR^2/5$) give the factor 15, and for a slab give 3.
 
-As above, but the effective diffusivity combines Knudsen and molecular contributions in series:
+The pressure drop (Ergun, Kozeny–Carman, Blake–Kozeny), the axial dispersion, and the packed-bed film correlations (Sh and Nu) continue to use $d_p$ as an equivalent-sphere diameter, for the Reynolds and Sherwood length too. The specific surface area follows the shape: $a_v = 6(1-\varepsilon_b)/d_p$ for spheres and $a_v = 4(1-\varepsilon_b)/d_p$ for infinite cylinders of diameter $d_p$ (end faces not counted). The gas–solid heat transfer ($h\thinspace a_v$) and the packed hydraulic diameter $D_h = 4\varepsilon_b/a_v$ use it. A shape-specific pressure-drop correlation is not in the engine. A structured layer ignores the particle shape.
 
-$$
-\frac{1}{D_{\text{eff}}} = \frac{1}{D_{k,\text{eff}}} + \frac{1}{D_{m,\text{eff}}}, \qquad
-D_{k,\text{eff}} = D_k \frac{\epsilon_p}{\tau}, \qquad
-D_{m,\text{eff}} = D_m \frac{\epsilon_p}{\tau}
-$$
+**Molecular diffusivity.** By default (`molecular_diffusion_coefficient` = 0), $D_{m,i}$ is the binary-diffusion value that the engine calculates from the local temperature and pressure (Chapman–Enskog). This value changes as $1/P$: at an evacuation pressure of 3–10 kPa it is 10–33 times its 1 bar value, and so is the macropore coefficient. A value above 0 [m² s⁻¹] is a constant $D_m$ for the macropore term, in each cell and at each pressure. Haghpanah et al. (2013) and Estupiñan Perez et al. (2019, Table 1) use $D_m = 1.6 \times 10^{-5}$ m² s⁻¹. The film term always uses the local value, because its Sherwood number comes from the Schmidt number of that same $D_m$.
 
-with the Knudsen diffusivity evaluated from kinetic theory using the pore radius $r_p$ and molar mass $M$:
+The parameters are registry leaves with flat names, `adsorbent[A].kinetics[C].<name>`. The registry shows a leaf only while its resistance is on. The model keeps every value whatever its switch, so if you switch a term off and on again, its values come back.
 
-$$
-D_k = \frac{2}{3}\thinspace r_p \sqrt{\frac{8 R T}{\pi M}}, \qquad k_i = \frac{60 \thinspace D_{\text{eff}}}{d_p^2}
-$$
+| Leaf | Resistance | Symbol | Unit | Default |
+| --- | --- | --- | --- | --- |
+| `film_resistance_factor` | film | $f_\text{film}$ | – | 1 |
+| `tortuosity` | macropore | $\tau$ | – | 3 |
+| `macropore_void_fraction` | macropore | $\varepsilon_p$ | – | 0.35 |
+| `molecular_diffusion_coefficient` | macropore | constant $D_m$ (0: local value) | m² s⁻¹ | 0 |
+| `pore_radius` | knudsen | $r_\text{pore}$ | m | 10⁻⁹ |
+| `crystal_radius` | micropore | $r_c$ | m | 10⁻⁶ |
+| `micropore_diffusivity` | micropore | $D_{c0}$ | m² s⁻¹ | 10⁻¹³ |
+| `micropore_activation_energy` | micropore | $E_{a,c}$ | J mol⁻¹ | 0 |
+| `k` | lumped | $k$ (LDF2: kg mol⁻¹ s⁻¹) | s⁻¹ | 0.5 |
+| `activation_energy` | lumped | $E_a$ | J mol⁻¹ | 0 |
+| `concentration_floor` | modes slope, secant | $c_\text{floor}$ | mol m⁻³ | 10⁻³ |
+| `capacity_factor` | mode fixed | $K_\text{fix}$ | – | 0 (choosing the fixed mode sets 0 to 1) |
 
-Inputs: **Pore radius** $r_p$, **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$, optionally a constant **Molecular diffusion coefficient** $D_m$ in the molecular term (0, the default, uses the value from $T$ and $P$).
+At least one of film, macropore, micropore and lumped must stay on. The engine refuses a switch that turns the last one off. It also refuses Knudsen without macropore, and switching macropore off also switches Knudsen off. When you switch a term on for the first time, a parameter of that term that is out of range (for example a zero from an old deck) gets the default.
 
-### Haynes (1973)
+Sources of the terms:
 
-Combines an external gas-film resistance and an internal macropore resistance in series (Haynes & Sarma, 1973):
+- **Film:** Haynes & Sarma (1973); Ruthven (1984).
+- **Macropore:** Glueckauf (1955); Ruthven (1984). With the secant capacity factor, Haghpanah et al. (2013, *Ind. Eng. Chem. Res.* 52, p. 4253, Eqs. 40–41).
+- **Knudsen:** the Bosanquet combination of Knudsen and molecular diffusion; Ruthven (1984), Do (1998).
+- **Micropore:** Kärger & Ruthven (1992); Farooq & Ruthven (*Chem. Eng. Sci.* 46, 1991, 2213).
+- **Lumped:** a fitted LDF coefficient (Glueckauf, 1955), with an optional Arrhenius temperature dependence.
+- **Slab forms:** Rezaei & Webley (2009, p. 5184, Eq. 6; Table 1, p. 5183).
 
-$$
-k_i = \left(\frac{r_p}{3 k_f} + \frac{\tau \thinspace r_p^2}{15 \thinspace \epsilon_p D_m}\right)^{-1}, \qquad k_f = \frac{\mathrm{Sh}\thinspace D_m}{d_p}
-$$
+The books are cited without page numbers.
 
-where $r_p = d_p/2$ and the film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ of the layer's film correlation (default Wakao and Funazkri; [Transport Correlations](transport-correlations.md#packed-bed-film-correlations)). For a slab (structured layer) the same series form uses the slab's $V/S = \ell$ and Glueckauf's factor 3: $k_i = \left(\ell/k_f + \tau\thinspace \ell^2/(3\thinspace \epsilon_p D_m)\right)^{-1}$, with $k_f = \mathrm{Sh}\thinspace D_m/D_h$ and the channel Sh ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). Inputs: **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$. $D_m$ is always the value from $T$ and $P$: the Sherwood number comes from the Schmidt number of that same $D_m$, so a constant $D_m$ is not offered here.
+### Capacity-factor modes
 
-### Series resistance (film + macropore + micropore)
+$K$ [-] is the ratio of the solid's capacity to the gas's capacity for the component. The film and macropore resistances are then the resistances of a solid-phase driving force. $q_i^*$ is in mol kg⁻¹, $c_i = y_i P/(RT)$ is in mol per m³ of gas, and $\rho_p$ is the particle density (`solid_density`). The mode is the leaf `capacity_factor_mode` (`none`, `slope`, `secant`, `fixed`). The registry shows this leaf only while film or macropore is on.
 
-The general series-resistance (Glueckauf) form of the LDF coefficient: the external film, macropore and micropore (crystal) resistances added in series, the first two scaled by the local **capacity factor** $K$, as used for direct-air-capture breakthrough curves on amine sorbents (Stampi-Bombelli et al., 2024, *Ind. Eng. Chem. Res.* 63, 11637, doi:[10.1021/acs.iecr.4c01392](https://doi.org/10.1021/acs.iecr.4c01392); the form is Ruthven's, *Principles of Adsorption and Adsorption Processes*, 1984). For packed spheres
-
-$$
-\frac{1}{k_i} = f_\text{film}\thinspace \frac{K\thinspace r_p}{3 k_f} + \frac{K\thinspace \tau\thinspace r_p^2}{15\thinspace \epsilon_p D_m} + \frac{r_c^2}{15\thinspace D_c},
-\qquad k_f = \frac{\mathrm{Sh}\thinspace D_m}{d_p},
-\qquad D_c = D_{c,0}\thinspace \exp\negthinspace\left(-\frac{E_a}{R T}\right)
-$$
-
-with $r_p = d_p/2$, the pore diffusivity $D_p = D_m/\tau$ and $k_f$ from the layer's film correlation, exactly as in [Haynes](#haynes-1973). For a slab (structured layer) the film and macropore terms take the Haynes slab form, $K\thinspace\ell/k_f$ and $K\thinspace\tau\thinspace\ell^2/(3\thinspace\epsilon_p D_m)$; the micropore term stays the spherical-crystal one.
-
-**Capacity factor.** $K = \rho_p\thinspace \partial q_i^*/\partial c_i$ [-], the slope of the isotherm, with $q^*$ in mol kg⁻¹, $c_i = y_i P/(R T)$ in mol per m³ of gas and $\rho_p$ the particle density (`solid_density`), so that it is dimensionless and the film and macropore resistances are those of a solid-phase driving force. The engine uses the **slope**, not the secant $\rho_p q_i^*/c_i$ of the [capacity-factor macropore](#macropore-diffusion-with-the-capacity-factor) kind: for a linear isotherm the two agree, and for a favourable one the slope is the local value the Glueckauf derivation calls for. It is a forward difference of the isotherm in $c_i$ (relative step 10⁻⁶) at $\max(c_i, c_\text{floor})$, every other component at its actual value (under the IAST mixing rule, the IAST mixture loading). Where the slope is not positive (a flat or non-adsorbing isotherm) the secant is used, and $K$ is floored at 1, so the coefficient never exceeds the $K = 1$ (Haynes) value, as the capacity-factor kind caps its ratio. A **capacity factor** above 0 replaces all of this with that fixed $K$ (for example a published Henry constant).
-
-**Switching terms off.** Each term has a parameter that drops it:
-
-| Term | Off when | Parameters |
+| Mode | $K$ | Notes |
 | --- | --- | --- |
-| Film | `film_resistance_factor` = 0 | $f_\text{film}$ [-] multiplies the correlation's resistance (default 1) |
-| Macropore | `tortuosity` = 0 ($D_p = D_m/\tau \to \infty$) | $\tau$ [-], $\epsilon_p$ [-], optionally a constant $D_m$ [m² s⁻¹] |
-| Micropore | `crystal_radius` = 0 or `micropore_diffusivity` = 0 (the defaults) | $r_c$ [m], $D_{c,0}$ [m² s⁻¹], $E_a$ [J mol⁻¹] |
+| `none` | $1$ | The gas-side terms as written. |
+| `slope` | $\max\!\left(\rho_p\thinspace\dfrac{\partial q_i^*}{\partial c_i},\thinspace 1\right)$ | The local value from the Glueckauf derivation (Farooq & Ruthven, 1991). The engine uses a forward difference of the isotherm in $c_i$ (relative step 10⁻⁶). Where the slope is not positive, the engine uses the secant. |
+| `secant` | $\max\!\left(\dfrac{\rho_p\thinspace q_i^*}{c_i},\thinspace 1\right)$ | The form of Haghpanah et al. (2013) and the papers that use their model (for example Estupiñan Perez et al. 2019, SI Eq. S4). |
+| `fixed` | $K_\text{fix}$ | For example a published Henry constant. The engine does not floor this value. |
 
-At least one term must be on. The constant $D_m$ (`molecular_diffusion_coefficient` above 0) applies to the macropore term only; the film term uses the local $D_m$, as its Sherwood number does.
+The slope and secant modes evaluate the isotherm at $\max(c_i, c_\text{floor})$, with each other component at its actual value (under the IAST mixing rule, the IAST mixture loading). As $c_i \to 0$, both $c_i$ and $q_i^*$ go to zero, and their ratio goes to the Henry limit. If the engine evaluated the state's own $c_i/q_i^*$ there, it would get a $0/0$ that drifts with the solver's error. The floor (default 10⁻³ mol m⁻³, approximately 2.5 Pa of partial pressure at room temperature) keeps the value finite and smooth. With the floor at 1, $K$ cannot make the coefficient larger than the $K = 1$ value. For a strongly adsorbed component (CO₂ on 13X at 0.15 bar, $\rho_p q^*/c \approx 500$), the coefficient is orders of magnitude below the value without the capacity factor.
 
-**Reduction cases.** With the micropore term off and $K = 1$ (`capacity_factor` = 1) the coefficient is the Haynes coefficient, to the last bit. With the film term off it is the macropore-controlled LDF with the capacity factor, $k_i = 15\thinspace\epsilon_p D_m/(K\thinspace\tau\thinspace r_p^2)$; with only the micropore term, $k_i = 15\thinspace D_c/r_c^2$, an Arrhenius coefficient.
+### Display equation
 
-Inputs: **Film resistance factor**, **Tortuosity** $\tau$, **Macropore Void Fraction** $\epsilon_p$, **Molecular diffusion coefficient** $D_m$ (0: local value), **Crystal radius** $r_c$, **Micropore diffusivity** $D_{c,0}$, **Micropore activation energy** $E_a$, **Capacity factor** $K$ (0: from the isotherm), **Concentration floor** $c_\text{floor}$ [mol m⁻³] (default 10⁻³).
+!!! note "New in 0.9"
+    The deck view's kinetics entry has `equation` (fast site) and `slow_equation` (slow site of a dual-rate model). Each is the LaTeX of the current coefficient model. The engine makes it only from the fragments of the kind descriptor (`MassTransferEquationLatex`), and it makes it again after each edit.
+
+The equation is always in the series form, also for a single term. The definitions of the enabled terms and of the mode follow it. For example, the `haynes` preset on packed spheres gives
+
+$$
+\begin{aligned}\frac{1}{k_i} = f_{film}\,\frac{r_p}{3\,k_f} + \frac{\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ k_f = \frac{Sh\,D_{m,i}}{d_p}\end{aligned}
+$$
+
+and `macropore_capacity` gives
+
+$$
+\begin{aligned}\frac{1}{k_i} = \frac{K\,\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ K = \max\!\left(\frac{\rho_p\,q_i^{*}}{c_i},\,1\right)\end{aligned}
+$$
+
+If the adsorbent is in a packed layer, the deck view uses the fragments of that layer's particle shape (sphere or cylinder; with several packed layers, the first that holds the adsorbent). If it is only in structured layers, it uses the slab fragments. If it is in layers of the two kinds, `equation` is the packed form and `equation_slab` is the slab form.
+
+### Presets
+
+<a id="constant"></a><a id="arrhenius"></a><a id="macropore-diffusion"></a><a id="macropore-diffusion-with-the-capacity-factor"></a><a id="macropore-knudsen-diffusion"></a><a id="haynes-1973"></a><a id="series-resistance-film-macropore-micropore"></a>
+
+A preset is a name for a set of switches, a mode and some fixed values. The former coefficient kinds are presets. Each deck-view kinetics entry has the `preset` that its current switches match, or `custom`. The engine calculates the preset from the model each time, so it cannot be out of date: if you switch film on in a `macropore` model, it becomes `custom`, and if you switch film off again, it becomes `macropore` again.
+
+| Preset (former kind) | Switches | Mode | Fixed values | Parameters it shows |
+| --- | --- | --- | --- | --- |
+| `constant` | lumped | – | $E_a = 0$ | `k` |
+| `arrhenius` | lumped | – | ($E_a \ne 0$) | `k` ($k_0$; the former `pre_exp_factor`), `activation_energy` |
+| `macropore` | macropore | none | | `tortuosity`, `macropore_void_fraction`, `molecular_diffusion_coefficient` |
+| `macropore_knudsen` | macropore, knudsen | none | | the macropore leaves and `pore_radius` |
+| `macropore_capacity` | macropore | secant | | the macropore leaves and `concentration_floor` |
+| `haynes` | film, macropore | none | $f_\text{film} = 1$, constant $D_m$ = 0 | `film_resistance_factor`, the macropore leaves |
+| `custom` | any other set | any | | the leaves of each enabled term and of the mode |
+
+The single-term presets reduce to the forms of the former kinds:
+
+- **constant:** $k_i = k$.
+- **arrhenius:** $k_i = k_0\thinspace e^{-E_a/RT}$.
+- **macropore:** $k_i = 60\thinspace D_\text{eff}/d_p^2$ with $D_\text{eff} = D\thinspace\varepsilon_p/\tau$ (cylinder: $8\thinspace D_\text{eff}/r_f^2$; slab: $3\thinspace D_\text{eff}/\ell^2$).
+- **macropore_knudsen:** the same, with $D = D_{B,i}$.
+- **macropore_capacity:** $k_i = \dfrac{15\thinspace\varepsilon_p D_{m,i}}{\tau\thinspace r_p^2}\thinspace\min\!\left(\dfrac{c_i}{\rho_p q_i^*},\thinspace 1\right)$.
+- **haynes:** $k_i = \left(\dfrac{r_p}{3 k_f} + \dfrac{\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D_{m,i}}\right)^{-1}$ (Haynes & Sarma, 1973).
+
+The engine evaluates each preset with the operations of the former class, so the coefficient is the same double.
+
+A preset tag is not a kind of its own. The builder, `set_rate_model` and `SetMassTransferKind` accept it as a shortcut: it sets the switches, the mode and the fixed values. The deck keeps only the switches and the values.
+
+### Setting the switches
 
 ```python
-ads.set_rate_model("CO2", "ldf", "series_resistance", tortuosity=3, macropore_void_fraction=0.35,
-                   crystal_radius=1e-6, micropore_diffusivity=2e-12, micropore_activation_energy=2e4)
+ads.set_rate_model("CO2", "ldf", "haynes", tortuosity=3, macropore_void_fraction=0.35)   # a preset
+kin = sim.adsorbents["13X"].kinetics["CO2"]
+path = kin.resistances.path("micropore")   # adsorbent[A].kinetics[CarbonDioxide].resistances.micropore
+sim[path] = True                           # switch on by path (or kin.resistances.micropore = True)
+kin = sim.adsorbents["13X"].kinetics["CO2"]
+kin.capacity_factor_mode = "slope"
+kin.crystal_radius = 1e-6                  # listed now that micropore is on
+print(path, kin.crystal_radius)
 ```
 
-### Arrhenius
+A custom set in one call:
 
-An activation-energy form for temperature-dependent kinetics:
+```python
+ads.set_rate_model("CO2", "ldf", "series_resistance", resistances=["film", "macropore", "micropore"],
+                   capacity_factor_mode="slope", tortuosity=3, macropore_void_fraction=0.35,
+                   crystal_radius=1e-6, micropore_diffusivity=2e-12, micropore_activation_energy=2e4)
+ads.set_rate_resistance("CO2", "film", False)   # one switch; site="slow" for the slow site of a dual-rate model
+```
 
-$$
-k_i = k_0 \thinspace \exp\negthinspace \left(-\frac{E_a}{R T}\right)
-$$
+!!! note "New in 0.9"
+    `set_rate_model` accepts `resistances=` and `capacity_factor_mode=`, and `Adsorbent.set_rate_resistance` sets one switch. A model made from the tag `series_resistance` starts with the lumped term only ($k = 0.5$ s⁻¹), until you set its switches.
 
-Inputs: **Pre-exponential factor** $k_0$ [s⁻¹], **Activation energy** $E_a$ [J mol⁻¹].
+When you set a switch or the mode by path, the engine uses the deck edits `SetMassTransferResistance` and `SetCapacityFactorMode`, with their rules. A dual-rate model's slow site has its own switches, mode and parameters, with the prefix `slow_`: `kinetics[C].slow_resistances.<tag>`, `kinetics[C].slow_capacity_factor_mode` and `kinetics[C].slow_<name>`. The registry shows these leaves only while the model has a slow site.
+
+The former path `kinetics[C].pre_exp_factor` (and `slow_pre_exp_factor`) of the `arrhenius` kind still resolves: it is the lumped `k`.
+
+### Migration
+
+Decks saved by earlier versions load unchanged, and their results do not change. A deck that stores one of the former coefficient kinds loads as the generic model with that preset's switches. A version-1 `series_resistance` model, in which a term was off when its parameter was zero, loads with the switches that those zeros meant. The deck is saved again in the generic form (cereal version 2).
 
 ---
 
@@ -193,9 +258,9 @@ Inputs: **Pre-exponential factor** $k_0$ [s⁻¹], **Activation energy** $E_a$ [
 Direct-air-capture sorbents (amine-functionalised resins, aluminas and silicas) at 400 ppm CO₂ sit on the steep, Henry-like part of their isotherm, where the capacity factor $K$ is large, and their breakthrough curves show a fast initial front followed by a slow tail. Two choices follow:
 
 - **Rate model.** Use [dual-rate LDF](#dual-rate-linear-driving-force) when the measured breakthrough or uptake curve has the tail, with $\varphi$ the fraction of the capacity that loads fast and $k_{i,1} \gg k_{i,2}$. Stampi-Bombelli et al. (2024, [doi:10.1021/acs.iecr.4c01392](https://doi.org/10.1021/acs.iecr.4c01392)) fit breakthrough curves of amine-functionalised sorbents at DAC conditions with two rates. A single LDF is enough when the outlet reaches the feed in one front.
-- **Coefficient type.** Use [series resistance](#series-resistance-film-macropore-micropore) when the rate constants should follow from particle and transport properties (film, macropore and micropore resistances, with $K$ from the isotherm) rather than being fitted, for instance to scale a laboratory column to another particle size or temperature. Use [constant](#constant) when you have fitted values of $k_{i,1}$ and $k_{i,2}$ directly. The slow site can use a different $D_{c,0}$ or $r_c$ from the fast one.
+- **Coefficient.** Switch on the physical [resistances](#resistances) (film, macropore, micropore, with $K$ from the isotherm slope) when the rate constants should follow from particle and transport properties (film, macropore and micropore resistances, with $K$ from the isotherm) rather than being fitted, for instance to scale a laboratory column to another particle size or temperature. Use the lumped term alone (the `constant` [preset](#presets)) when you have fitted values of $k_{i,1}$ and $k_{i,2}$ directly. The slow site can use a different $D_{c,0}$ or $r_c$ from the fast one.
 
-See also Stampi-Bombelli and Mazzotti (2024) on DAC process modelling. With $\varphi = 1$, the capacity factor set to 1 and the micropore term off, the two models reduce to the first-order LDF with [Haynes](#haynes-1973) coefficient, bit for bit. The bundled deck `Illustrative_DAC_Breakthrough` (400 ppm CO₂ in N₂ on the Lewatit VP OC 1065 library entry) uses both together; its rate parameters are illustrative, not fitted.
+See also Stampi-Bombelli and Mazzotti (2024) on DAC process modelling. With $\varphi = 1$, the capacity factor set to 1 and the micropore term off, the two models reduce to the first-order LDF with the [`haynes` preset](#presets), bit for bit. The bundled deck `Illustrative_DAC_Breakthrough` (400 ppm CO₂ in N₂ on the Lewatit VP OC 1065 library entry) uses both together; its rate parameters are illustrative, not fitted.
 
 ---
 

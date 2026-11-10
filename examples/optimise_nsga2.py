@@ -32,7 +32,7 @@ from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 # Decision variables: (path, lower bound, upper bound, unit of the bounds).
 VARIABLES = [
     ("step[Feed].time", 60.0, 150.0, "s"),
-    ("step[Evacuation].bottom.pressure_exponential_end", 2.0, 6.0, "kPa"),
+    ("step[Evacuation].bottom.pressure_double_exponential_end", 2.0, 6.0, "kPa"),
 ]
 
 _base: Optional[sk.Simulation] = None

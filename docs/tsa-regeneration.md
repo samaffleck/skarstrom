@@ -117,7 +117,7 @@ for i, name in enumerate(sim.steps.names):
 - at the end of **Heating** it is at 413–421 K, just short of the medium's 423 K, and the wall is at 423 K;
 - at the end of **Cooling** it is back to 300 K, close to the cooling water's 298 K.
 
-`sim.series("temperature", z=0.15)` gives the temperature at one position over the last cycle; with `cycle=0`, `1`, … you can watch it settle into the same loop every cycle.
+`sim.series("temperature", z=0.15)` gives the temperature at one position over the last cycle. To watch it settle into the same loop every cycle, raise `settings.max_cycles_to_keep` (default 1) before the run and read `cycle=0`, `1`, …
 
 **Product quality.** The CO₂ mole fraction leaving the bottom during *Heating* (step index 1):
 

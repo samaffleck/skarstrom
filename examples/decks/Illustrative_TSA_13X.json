@@ -411,7 +411,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 6,
+                        "cereal_class_version": 7,
                         "Name": "13X",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -554,7 +554,8 @@
                             },
                             "Entrance_Effects": false
                         },
-                        "Film_Correlation": 0
+                        "Film_Correlation": 0,
+                        "Particle_Shape": 0
                     }
                 ],
                 "Next_Layer_ID": 1
@@ -663,7 +664,7 @@
             "Gas_Heat_Capacity_Mode": 0,
             "Gas_Heat_Capacity": [
                 {
-                    "key": "Nitrogen",
+                    "key": "CarbonDioxide",
                     "value": {
                         "Value": 29.1,
                         "Expression": "29.1",
@@ -671,7 +672,7 @@
                     }
                 },
                 {
-                    "key": "CarbonDioxide",
+                    "key": "Nitrogen",
                     "value": {
                         "Value": 29.1,
                         "Expression": "29.1",
@@ -710,18 +711,18 @@
             },
             "Initial_Composition": [
                 {
-                    "key": "Nitrogen",
-                    "value": {
-                        "Value": 1.0,
-                        "Expression": "1",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "CarbonDioxide",
                     "value": {
                         "Value": 0.0,
                         "Expression": "0",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 1.0,
+                        "Expression": "1",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -758,18 +759,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
-                                        "value": {
-                                            "Value": 1.0,
-                                            "Expression": "1",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.0,
                                             "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "Value": 1.0,
+                                            "Expression": "1",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -907,18 +908,18 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
-                                                            "key": "Nitrogen",
-                                                            "value": {
-                                                                "Value": 0.85,
-                                                                "Expression": "0.85",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
                                                             "key": "CarbonDioxide",
                                                             "value": {
                                                                 "Value": 0.15,
                                                                 "Expression": "0.15",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
+                                                            "key": "Nitrogen",
+                                                            "value": {
+                                                                "Value": 0.85,
+                                                                "Expression": "0.85",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1099,18 +1100,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
-                                        "value": {
-                                            "Value": 0.0,
-                                            "Expression": "0",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 1.0,
                                             "Expression": "1",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1337,18 +1338,18 @@
                                 },
                                 "Inlet_Mole_Fraction": [
                                     {
-                                        "key": "Nitrogen",
-                                        "value": {
-                                            "Value": 0.85,
-                                            "Expression": "0.85",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "CarbonDioxide",
                                         "value": {
                                             "Value": 0.15,
                                             "Expression": "0.15",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "Value": 0.85,
+                                            "Expression": "0.85",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1550,7 +1551,7 @@
                 },
                 "consecutive_cycles": 3
             },
-            "max_cycles_to_keep": 10,
+            "max_cycles_to_keep": 1,
             "Maximum_Iterations_Per_Step": 50000,
             "Advection_Scheme": 1,
             "Accelerate_Cyclic_Steady_State": {
@@ -1559,7 +1560,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 2,
+                "cereal_class_version": 5,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -1570,7 +1571,9 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true
+                "Outlet_Backflow": true,
+                "Reaction_Stiff": true,
+                "Connection_Pressure": true
             },
             "Valve_Bed_Pressure": 0
         },
@@ -1583,7 +1586,7 @@
             "Title": "Illustrative TSA - CO2/N2 on 13X",
             "Description": "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.",
             "Author": "Skarstrom docs tutorial",
-            "Version": 2
+            "Version": 3
         },
         "KPI_Config": {
             "cereal_class_version": 4,

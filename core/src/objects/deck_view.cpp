@@ -17,6 +17,7 @@
 #include "adsim/equations/isotherm_kinds.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/manifests.h"
+#include "adsim/objects/model_kinds.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/parameters/parameter_registry.h"
 #include "adsim/version.h"
@@ -197,6 +198,49 @@ namespace adsim {
         return list;
       }
 
+      // Whether the adsorbent sits in a packed layer and in a structured one
+      // (a layer whose composition names it). In no layer: packed.
+      // `shape` is the particle shape of the first packed layer that holds it
+      // (Sphere when none does).
+      struct Shapes { bool packed = false, structured = false; DiffusionShape shape = DiffusionShape::Sphere; };
+      Shapes LayerShapes(AdsorbentID id) {
+        Shapes s;
+        for (const auto& layer : d_.bed.layers_.layers_) {
+          if (!layer.composition_.count(id)) continue;
+          if (layer.IsStructured()) { s.structured = true; continue; }
+          if (!s.packed) s.shape = LayerDiffusionShape(layer);
+          s.packed = true;
+        }
+        if (!s.packed && !s.structured) s.packed = true;
+        return s;
+      }
+
+      // The generic coefficient model of one site (prefix "" or "slow_"):
+      // <pre>resistances (switch states by tag), <pre>capacity_factor_mode,
+      // <pre>preset (the derived preset tag, or custom), <pre>equation (LaTeX;
+      // the packed form, sphere or cylinder as the first packed layer that
+      // holds the adsorbent, when it is in a packed layer, else the slab
+      // form) and <pre>equation_slab (the slab form when it is in layers of
+      // both kinds, else null). All null without a generic model on the site.
+      void Coefficient(Value& cv, const std::string& pre, IMassTransferCoefficientModel* m, AdsorbentID id) {
+        auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(m);
+        if (!g) {
+          for (const char* f : {"resistances", "capacity_factor_mode", "preset", "equation", "equation_slab"})
+            SetNull(cv, pre + f, a_);
+          return;
+        }
+        Value r(rapidjson::kObjectType);
+        for (const auto& t : ResistanceTags()) Set(r, t, g->Enabled(t), a_);
+        Set(cv, pre + "resistances", std::move(r), a_);
+        Set(cv, pre + "capacity_factor_mode", std::string(CapacityFactorModeList[static_cast<int>(g->CapacityMode())]), a_);
+        Set(cv, pre + "preset", g->PresetTag(), a_);
+        const auto [packed, structured, shape] = LayerShapes(id);
+        Set(cv, pre + "equation",
+            MassTransferEquationLatex(*g, packed ? shape : DiffusionShape::Slab), a_);
+        if (packed && structured) Set(cv, pre + "equation_slab", MassTransferEquationLatex(*g, DiffusionShape::Slab), a_);
+        else SetNull(cv, pre + "equation_slab", a_);
+      }
+
       Value Adsorbents() {
         namespace b = build;
         Value list(rapidjson::kArrayType);
@@ -223,12 +267,15 @@ namespace adsim {
             const bool has_rate = mt != src.mass_transfer_models_.end() && mt->second && mt->second->mtc_model_;
             if (has_rate) {
               Set(cv, "rate_model", KindName(b::RateModelKinds(), static_cast<int>(mt->second->GetModelType())), a_);
-              Set(cv, "rate_coefficient",
-                  KindName(b::RateCoefficientKinds(), static_cast<int>(mt->second->mtc_model_->GetModelType())), a_);
+              const KindDescriptor* ck = KindAt(ModelFamily::RateCoefficient,
+                                                static_cast<std::size_t>(mt->second->mtc_model_->GetModelType()));
+              Set(cv, "rate_coefficient", ck ? ck->tag : std::string("unknown"), a_);
             } else {
               SetNull(cv, "rate_model", a_);
               SetNull(cv, "rate_coefficient", a_);
             }
+            Coefficient(cv, "", has_rate ? mt->second->mtc_model_.get() : nullptr, id);
+            Coefficient(cv, "slow_", has_rate ? mt->second->SlowCoefficientModel() : nullptr, id);
             Value values(rapidjson::kArrayType);
             for (const std::string head : {".isotherm[", ".kinetics[", ".heat_of_adsorption["}) {
               const std::string prefix = ap + head + c + "]";
@@ -279,6 +326,10 @@ namespace adsim {
             Set(v, "channel_shape", KindName(b::ChannelShapeKinds(), static_cast<int>(layer.structured_.channel_shape_)), a_);
           else
             SetNull(v, "channel_shape", a_);
+          if (layer.IsStructured())
+            SetNull(v, "particle_shape", a_);
+          else
+            Set(v, "particle_shape", KindName(ParticleShapeKinds(), static_cast<int>(layer.particle_shape_)), a_);
           Set(v, "momentum", KindName(b::MomentumKinds(), static_cast<int>(layer.momentum_model_)), a_);
           Set(v, "film_correlation", KindName(b::FilmCorrelationKinds(), static_cast<int>(layer.film_correlation_)), a_);
           auto& le = layer.equations_;
@@ -369,7 +420,9 @@ namespace adsim {
         Set(e, "location", location, a_);
         auto* pressure = dynamic_cast<PressureBoundaryCondition*>(bc);
         auto* flow = dynamic_cast<FlowBoundaryCondition*>(bc);
-        Set(e, "kind", pressure ? "pressure" : (flow ? "flow" : "closed"), a_);
+        // The end's tag in the boundary kind table, the one set_boundary_kind takes.
+        const KindDescriptor* kind = bc ? KindAt(ModelFamily::Boundary, static_cast<std::size_t>(bc->GetType())) : nullptr;
+        Set(e, "kind", kind ? kind->tag : std::string("closed"), a_);
         if (pressure || flow)
           Set(e, "direction", bc->direction_ == BoundaryDirection::INLET ? "inlet" : "outlet", a_);
         else
@@ -400,17 +453,17 @@ namespace adsim {
             Set(s, "name", st->name_, a_);
             Set(s, "temperature_profile", Profile(st->temperature_profile_.get()), a_);
             Value flow_kind, profile, power, pump;
-            const char* type = "unsupported";
+            // The device's tag in the stream kind table, the one set_stream_kind
+            // takes ("flow", "valve", "pump"), so the view and the edit op agree.
+            const KindDescriptor* kind = KindAt(ModelFamily::Stream, static_cast<std::size_t>(st->GetType()));
+            const std::string type = kind ? kind->tag : std::string("unsupported");
             if (auto* bs = dynamic_cast<BoundaryStream*>(st.get())) {
-              type = "stream";
               flow_kind = Str(KindName(b::FlowKinds(), static_cast<int>(bs->boundary_flow_->GetType())), a_);
               profile = Str(Profile(bs->boundary_flow_->profile_.get()), a_);
               pump = Pump(bs->pump_.get(), ep);
             } else if (auto* vs = dynamic_cast<ValveBoundaryStream*>(st.get())) {
-              type = "valve";
               profile = Str(Profile(vs->boundary_value_.get()), a_);
             } else if (auto* ps = dynamic_cast<PumpBoundaryStream*>(st.get())) {
-              type = "pump";
               power = Str(ps->power_ ? KindName(b::PumpPowerKinds(), static_cast<int>(ps->power_->GetType()))
                                      : std::string("constant"), a_);
               pump = Pump(ps->pump_.get(), ep);
@@ -656,20 +709,43 @@ namespace adsim {
     },
     "AdsorbentComponent": {
       "type": "object", "additionalProperties": false,
-      "required": ["component", "isotherm", "rate_model", "rate_coefficient", "values"],
+      "required": ["component", "isotherm", "rate_model", "rate_coefficient", "resistances", "capacity_factor_mode",
+                   "preset", "equation", "equation_slab", "slow_resistances", "slow_capacity_factor_mode",
+                   "slow_preset", "slow_equation", "slow_equation_slab", "values"],
       "properties": {
         "component": {"type": "string"},
         "isotherm": {"type": "string", "enum": @ISOTHERM@},
         "rate_model": {"type": ["string", "null"], "enum": @RATE_MODEL@},
         "rate_coefficient": {"type": ["string", "null"], "enum": @RATE_COEFFICIENT@},
+        "resistances": {"oneOf": [{"type": "null"}, {"$ref": "#/definitions/Resistances"}]},
+        "capacity_factor_mode": {"type": ["string", "null"], "enum": @CAPACITY_FACTOR_MODE@},
+        "preset": {"type": ["string", "null"], "enum": @RATE_PRESET@,
+                   "description": "the preset the switches, mode and values match (derived), or custom"},
+        "equation": {"type": ["string", "null"],
+                     "description": "LaTeX of the coefficient: sphere form in a packed layer, else slab form"},
+        "equation_slab": {"type": ["string", "null"],
+                          "description": "the slab form when the adsorbent is also in a structured layer"},
+        "slow_resistances": {"oneOf": [{"type": "null"}, {"$ref": "#/definitions/Resistances"}]},
+        "slow_capacity_factor_mode": {"type": ["string", "null"], "enum": @CAPACITY_FACTOR_MODE@},
+        "slow_preset": {"type": ["string", "null"], "enum": @RATE_PRESET@},
+        "slow_equation": {"type": ["string", "null"], "description": "the dual-rate slow site's equation"},
+        "slow_equation_slab": {"type": ["string", "null"]},
         "values": {"$ref": "#/definitions/ValueList"}
       }
+    },
+    "Resistances": {
+      "type": "object", "additionalProperties": false,
+      "required": ["film", "macropore", "knudsen", "micropore", "lumped"],
+      "properties": {"film": {"type": "boolean"}, "macropore": {"type": "boolean"}, "knudsen": {"type": "boolean"},
+                     "micropore": {"type": "boolean"}, "lumped": {"type": "boolean"}}
     },
     "StoichiometricCoefficient": {
       "type": "object", "additionalProperties": false, "required": ["component", "nu"],
       "properties": {"component": {"type": "string"}, "nu": {"type": ["number", "null"]}}
     },
-    "Reaction": {
+)JSON"
+        // Split: MSVC limits one string literal to 16 KB.
+        R"JSON(    "Reaction": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "name", "kind", "basis", "stoichiometry", "effectiveness", "key_component", "values"],
       "properties": {
@@ -705,13 +781,14 @@ namespace adsim {
     },
     "Layer": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "name", "kind", "channel_shape", "momentum", "film_correlation", "dispersion",
+      "required": ["id", "name", "kind", "channel_shape", "particle_shape", "momentum", "film_correlation", "dispersion",
                    "heat_dispersion", "internal_heat_transfer", "external_heat_transfer", "composition", "values"],
       "properties": {
         "id": {"type": "integer"},
         "name": {"type": "string"},
         "kind": {"type": "string", "enum": @LAYER@},
         "channel_shape": {"type": ["string", "null"], "enum": @CHANNEL_SHAPE@},
+        "particle_shape": {"type": ["string", "null"], "enum": @PARTICLE_SHAPE@},
         "momentum": {"type": "string", "enum": @MOMENTUM@},
         "film_correlation": {"type": "string", "enum": @FILM_CORRELATION@},
         "dispersion": {"type": ["string", "null"], "enum": @DISPERSION@},
@@ -774,7 +851,7 @@ namespace adsim {
         "endpoint": {"type": "integer"},
         "name": {"type": "string"},
         "temperature_profile": {"type": "string", "enum": @PROFILE@},
-        "type": {"type": "string", "enum": ["stream", "valve", "pump", "unsupported"]},
+        "type": {"type": "string", "enum": @STREAM@},
         "flow": {"type": ["string", "null"], "enum": @FLOW@},
         "profile": {"type": ["string", "null"], "enum": @PROFILE_OR_NULL@},
         "power": {"type": ["string", "null"], "enum": @PUMP_POWER@},
@@ -790,7 +867,7 @@ namespace adsim {
                    "buffer_tank", "values", "streams"],
       "properties": {
         "location": {"type": "string", "enum": ["bottom", "top"]},
-        "kind": {"type": "string", "enum": ["closed", "pressure", "flow"]},
+        "kind": {"type": "string", "enum": @BOUNDARY@},
         "direction": {"type": ["string", "null"], "enum": ["inlet", "outlet", null]},
         "endpoint": {"type": ["integer", "null"]},
         "profile": {"type": ["string", "null"], "enum": @PROFILE_OR_NULL@},
@@ -887,12 +964,15 @@ namespace adsim {
       {"@ISOTHERM@", JsonList(isotherms)},
       {"@RATE_MODEL@", JsonList(b::RateModelKinds(), true)},
       {"@RATE_COEFFICIENT@", JsonList(b::RateCoefficientKinds(), true)},
+      {"@CAPACITY_FACTOR_MODE@", JsonList(std::vector<std::string>(std::begin(CapacityFactorModeList), std::end(CapacityFactorModeList)), true)},
+      {"@RATE_PRESET@", JsonList([] { auto t = b::RateCoefficientPresets(); t.push_back("custom"); return t; }(), true)},
       {"@REACTION_RATE@", JsonList(b::ReactionRateKinds())},
       {"@REACTION_BASIS@", JsonList(b::ReactionBasisKinds())},
       {"@EFFECTIVENESS@", JsonList(b::EffectivenessKinds())},
       {"@MIXING_RULE@", JsonList(b::MixingRuleKinds())},
       {"@LAYER@", JsonList(b::LayerKinds())},
       {"@CHANNEL_SHAPE@", JsonList(b::ChannelShapeKinds(), true)},
+      {"@PARTICLE_SHAPE@", JsonList(ParticleShapeKinds(), true)},
       {"@MOMENTUM@", JsonList(b::MomentumKinds())},
       {"@FILM_CORRELATION@", JsonList(b::FilmCorrelationKinds())},
       {"@DISPERSION@", JsonList(b::DispersionKinds(), true)},
@@ -909,6 +989,8 @@ namespace adsim {
       {"@PUMP_EFFICIENCY@", JsonList(b::PumpEfficiencyKinds())},
       {"@PUMP_POWER@", JsonList(b::PumpPowerKinds(), true)},
       {"@FLOW@", JsonList(b::FlowKinds(), true)},
+      {"@BOUNDARY@", JsonList(KindTags(ModelFamily::Boundary))},
+      {"@STREAM@", JsonList([] { auto t = KindTags(ModelFamily::Stream); t.push_back("unsupported"); return t; }())},
       {"@PROFILE_OR_NULL@", JsonList(b::ProfileKinds(), true)},
       {"@PROFILE@", JsonList(b::ProfileKinds())},
       {"@VARIABLE_CATEGORY@", JsonList(b::VariableCategoryKinds())},

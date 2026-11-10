@@ -29,11 +29,13 @@ namespace adsim {
     bool design_temperature = true;    // wall temperature above the design temperature
     bool fluidisation = true;          // approach to fluidisation above 1
     bool channel_reynolds = true;      // channel Re above 2000 in a structured layer (laminar closures)
+    bool outlet_backflow = true;       // gas flows back into the bed through an unconnected outlet
+    bool connection_pressure = true;   // gas through a connection from the lower to the higher pressure (diagnostic)
     // Run health, after every cycle (run_health.h).
     bool mole_fraction_sum = true;     // MOLE_FRACTION_SUM: the gas mole fractions do not sum to 1
     bool mass_balance_stuck = true;    // MASS_BALANCE_STUCK: a cycle mole balance stays open as the run settles
     bool step_retries = true;          // STEP_RETRIES: many rejected integrator attempts in a cycle
-    bool history_truncated = true;     // HISTORY_TRUNCATED: the log kept fewer cycles than the diagnostics read
+    bool reaction_stiff = true;        // REACTION_STIFF: the step collapsed at a reacting cell
 
   private:
     friend class ::cereal::access;
@@ -54,14 +56,28 @@ namespace adsim {
       if (version >= 2) {
         ar(cereal::make_nvp("Mole_Fraction_Sum", mole_fraction_sum),
            cereal::make_nvp("Mass_Balance_Stuck", mass_balance_stuck),
-           cereal::make_nvp("Step_Retries", step_retries),
-           cereal::make_nvp("History_Truncated", history_truncated));
+           cereal::make_nvp("Step_Retries", step_retries));
       } else {
-        mole_fraction_sum = mass_balance_stuck = step_retries = history_truncated = true;
+        mole_fraction_sum = mass_balance_stuck = step_retries = true;
       }
+      // v5 removed the HISTORY_TRUNCATED warning: the switch of a v2, v3 or
+      // v4 deck is read and ignored.
+      if (version >= 2 && version <= 4) {
+        bool history_truncated = true;
+        ar(cereal::make_nvp("History_Truncated", history_truncated));
+      }
+      // v3: the outlet backflow warning (on for older decks).
+      if (version >= 3) ar(cereal::make_nvp("Outlet_Backflow", outlet_backflow));
+      else outlet_backflow = true;
+      // v4: the reaction step-collapse warning (on for older decks).
+      if (version >= 4) ar(cereal::make_nvp("Reaction_Stiff", reaction_stiff));
+      else reaction_stiff = true;
+      // v5: the connection pressure warning (on for older decks).
+      if (version >= 5) ar(cereal::make_nvp("Connection_Pressure", connection_pressure));
+      else connection_pressure = true;
     }
   };
 
 } // namespace adsim
 
-CEREAL_CLASS_VERSION(adsim::WarningSettings, 2);
+CEREAL_CLASS_VERSION(adsim::WarningSettings, 5);

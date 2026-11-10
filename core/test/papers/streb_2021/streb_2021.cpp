@@ -3,6 +3,9 @@
 #include <cmath>
 #include <filesystem>
 #include <limits>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 // AdSim includes
 #include "../../../src/pch.h"
@@ -11,6 +14,8 @@
 #include "adsim/solver/kpis.h"
 #include "adsim/math/constants.h"
 #include "adsim/equations/isotherm.h"
+#include "adsim/equations/iast.h"
+#include "adsim/objects/porous_media.h"
 #include "adsim/boundary_conditions/boundary_conditions.h"
 #include "adsim/boundary_conditions/boundary_stream.h"
 #include "adsim/boundary_conditions/connection.h"
@@ -34,13 +39,15 @@
 //  (z = 10, 35, 60, 85, 110 cm) live in core/data/streb_2021/<case>/.
 //
 //  Every case is a PREDICTION with the parameters estimated on A3 (Table 4) and
-//  the extended-Sips competitive isotherm of Table 3. Note the paper itself
-//  finds IAST/RAST predict the binary cases better than extended isotherms
-//  (Sect. 4.2.2) and fits the feed velocity per experiment within the MFC
-//  uncertainty (Fig. 7, 12); adsim uses the MFC set-point and extended Sips,
-//  so some disagreement in the CH4 front at 10-25 bar is expected. The paper
-//  also models ~10.5 m of downstream piping to the MS (Table 1); adsim does not,
-//  which shifts the simulated outlet curves slightly earlier.
+//  the extended-Sips competitive isotherm of Table 3. The paper finds IAST/RAST
+//  predict the binary cases better than extended isotherms (Sect. 4.2.1); the
+//  *_IAST_RecordOnly tests run every case under IAST over the pure Sips terms
+//  of the same parameters and record it without assertion (README, "IAST
+//  versus extended Sips": IAST moves the CO2 fronts 0.4-14 % later). The paper
+//  also fits the feed velocity per experiment within the MFC uncertainty
+//  (Fig. 7, 12) and models ~10.5 m of downstream piping to the MS (Table 1);
+//  adsim uses the MFC set-point and no piping, which shifts the simulated
+//  outlet curves slightly earlier.
 //
 //  Metrics (recorded in the validation summary):
 //    * outlet mole-fraction NRMSE per component = RMSE / feed mole fraction,
@@ -67,6 +74,47 @@ namespace adsim {
       double tol_t50_co2;
       double tol_t50_ch4;
     };
+
+    // Competition model of the adsorbent: false = the extended-Sips isotherm
+    // the decks use (Table 3, Eqs. 1-4, 6); true = IAST over the pure Sips
+    // terms of the same parameters (the paper's Sect. 4.2.1 alternative;
+    // recorded only, README "IAST versus extended Sips").
+    bool iast_ = false;
+
+    static std::vector<std::string> StrebAdsorbing(bool ternary) {
+      if (ternary) return { "CarbonDioxide", "Methane", "Hydrogen" };
+      return { "CarbonDioxide", "Methane" };
+    }
+
+    // Table 3 (CO2 from the paper's ref. [14]): A1 [mol/kg], A2 [-], B1 [1/Pa],
+    // B2 [J/mol], C1, C2 [-], T_ref [K].
+    static void SetTable3Sips(ParamMap<Sips2IsothermParameters>& params, bool ternary) {
+      params["CarbonDioxide"].A1 = 7.268;
+      params["CarbonDioxide"].A2 = -0.6168;
+      params["CarbonDioxide"].B1 = 1.129e-9;
+      params["CarbonDioxide"].B2 = 28389;
+      params["CarbonDioxide"].C1 = 0.425;
+      params["CarbonDioxide"].C2 = 0.7238;
+      params["CarbonDioxide"].T_ref = 298;
+
+      params["Methane"].A1 = 4.473;
+      params["Methane"].A2 = -0.6569;
+      params["Methane"].B1 = 3.605e-9;
+      params["Methane"].B2 = 15561;
+      params["Methane"].C1 = 1.073;
+      params["Methane"].C2 = 0.0;
+      params["Methane"].T_ref = 298;
+
+      if (ternary) {
+        params["Hydrogen"].A1 = 5.013;
+        params["Hydrogen"].A2 = 0.0;
+        params["Hydrogen"].B1 = 1.034e-9;
+        params["Hydrogen"].B2 = 9453;
+        params["Hydrogen"].C1 = 1.006;
+        params["Hydrogen"].C2 = 0.0;
+        params["Hydrogen"].T_ref = 298;
+      }
+    }
 
     // Shared column / isotherm / transport set-up (Table 1, 3, 4). Kept in the
     // exact order of the original A1/A3 tests so their example decks (which the
@@ -112,36 +160,18 @@ namespace adsim {
       data.bed.equations_.wall_temperature_boundary_condition_ = CreateWallTemperatureBoundaryCondition(WallTemperatureBoundaryConditionType::ZERO_FLUX);
       data.bed.ambient_temperature_ = c.temperature;
 
-      // Extended Sips2 isotherm, Table 3 (B1 converted from 1e-4 1/bar to 1/Pa,
-      // B2 from kJ/mol to J/mol).
-      auto sips = std::make_unique<ExtendedSips2Isotherm>();
-      sips->params_["CarbonDioxide"].A1 = 7.268;
-      sips->params_["CarbonDioxide"].A2 = -0.6168;
-      sips->params_["CarbonDioxide"].B1 = 1.129e-9;
-      sips->params_["CarbonDioxide"].B2 = 28389;
-      sips->params_["CarbonDioxide"].C1 = 0.425;
-      sips->params_["CarbonDioxide"].C2 = 0.7238;
-      sips->params_["CarbonDioxide"].T_ref = 298;
-
-      sips->params_["Methane"].A1 = 4.473;
-      sips->params_["Methane"].A2 = -0.6569;
-      sips->params_["Methane"].B1 = 3.605e-9;
-      sips->params_["Methane"].B2 = 15561;
-      sips->params_["Methane"].C1 = 1.073;
-      sips->params_["Methane"].C2 = 0.0;
-      sips->params_["Methane"].T_ref = 298;
-
-      if (c.ternary) {
-        sips->params_["Hydrogen"].A1 = 5.013;
-        sips->params_["Hydrogen"].A2 = 0.0;
-        sips->params_["Hydrogen"].B1 = 1.034e-9;
-        sips->params_["Hydrogen"].B2 = 9453;
-        sips->params_["Hydrogen"].C1 = 1.006;
-        sips->params_["Hydrogen"].C2 = 0.0;
-        sips->params_["Hydrogen"].T_ref = 298;
-        AddIsotherm({ "CarbonDioxide", "Methane", "Hydrogen" }, ads_id, std::move(sips));
+      // Table 3 Sips parameters (B1 converted from 1e-4 1/bar to 1/Pa, B2 from
+      // kJ/mol to J/mol), as the extended-Sips competitive isotherm (Eqs. 1-4,
+      // 6) or as pure Sips 2 isotherms under the IAST mixing rule.
+      if (iast_) {
+        auto sips = std::make_unique<Sips2Isotherm>();
+        SetTable3Sips(sips->params_, c.ternary);
+        AddIsotherm(StrebAdsorbing(c.ternary), ads_id, std::move(sips));
+        GetAdsorbent(ads_id).adsorption_source_.mixing_rule_ = MixingRule::IAST;
       } else {
-        AddIsotherm({ "CarbonDioxide", "Methane" }, ads_id, std::move(sips));
+        auto sips = std::make_unique<ExtendedSips2Isotherm>();
+        SetTable3Sips(sips->params_, c.ternary);
+        AddIsotherm(StrebAdsorbing(c.ternary), ads_id, std::move(sips));
       }
 
       // LDF coefficients estimated on A3 (Table 4); H2 assumed 1 1/s (Table 4, b).
@@ -215,24 +245,28 @@ namespace adsim {
       Validate(solver, c);
     }
 
+    // Under IAST (iast_) the case is recorded as Experiment<name>_IAST without
+    // assertion: every tolerance is infinite and the compared quantities are
+    // named "... vs experiment (IAST)".
     void Validate(const CoupledSolver& solver, const StrebCase& c) {
       using namespace validation;
-      CaseReport report("streb_2021", "Experiment" + c.name);
+      CaseReport report("streb_2021", "Experiment" + c.name + (iast_ ? "_IAST" : ""));
+      const std::string tag = iast_ ? " vs experiment (IAST)" : "";
       const std::string dir = "data/streb_2021/" + c.name + "/" + c.name;
       const std::string fig = c.ternary ? "Fig. 11 (digitised)" : (c.name == "A3" ? "Fig. 6 (digitised)" : "Fig. 7 (digitised)");
 
       const double y_co2 = c.ternary ? 0.20 : 0.5;
       const double y_ch4 = c.ternary ? 0.05 : 0.5;
-      report.CheckCurve("outlet y_CO2", FaceMoleFraction(solver, "CarbonDioxide", 0, 0),
+      report.CheckCurve(std::string("outlet y_CO2") + tag, FaceMoleFraction(solver, "CarbonDioxide", 0, 0),
                         LoadSeriesCsv(dir + "_mole_fraction_CO2.csv"), c.tol_nrmse_co2, "-", fig, y_co2);
-      report.CheckCurve("outlet y_CH4", FaceMoleFraction(solver, "Methane", 0, 0),
+      report.CheckCurve(std::string("outlet y_CH4") + tag, FaceMoleFraction(solver, "Methane", 0, 0),
                         LoadSeriesCsv(dir + "_mole_fraction_CH4.csv"), c.tol_nrmse_ch4, "-", fig, y_ch4);
-      report.CheckCrossingTime("CO2 front time (y_CO2 = y_feed/2)", FaceMoleFraction(solver, "CarbonDioxide", 0, 0),
+      report.CheckCrossingTime(std::string("CO2 front time (y_CO2 = y_feed/2)") + tag, FaceMoleFraction(solver, "CarbonDioxide", 0, 0),
                                LoadSeriesCsv(dir + "_mole_fraction_CO2.csv"), 0.5 * y_co2, c.tol_t50_co2, fig);
-      report.CheckCrossingTime("CH4 front time (y_CH4 = y_feed/2)", FaceMoleFraction(solver, "Methane", 0, 0),
+      report.CheckCrossingTime(std::string("CH4 front time (y_CH4 = y_feed/2)") + tag, FaceMoleFraction(solver, "Methane", 0, 0),
                                LoadSeriesCsv(dir + "_mole_fraction_CH4.csv"), 0.5 * y_ch4, c.tol_t50_ch4, fig);
       if (c.ternary)
-        report.CheckCurve("outlet y_H2", FaceMoleFraction(solver, "Hydrogen", 0, 0),
+        report.CheckCurve(std::string("outlet y_H2") + tag, FaceMoleFraction(solver, "Hydrogen", 0, 0),
                           LoadSeriesCsv(dir + "_mole_fraction_H2.csv"), c.tol_nrmse_h2, "-", fig, 0.75);
 
       // Pooled RMSE over the five centre-line thermocouples.
@@ -246,7 +280,7 @@ namespace adsim {
         if (n > 0 && std::isfinite(rmse)) { sum_sq += rmse * rmse * n; n_tot += n; }
       }
       const double t_rmse = n_tot ? std::sqrt(sum_sq / n_tot) : std::numeric_limits<double>::quiet_NaN();
-      report.CheckError("thermocouple T (5 positions, pooled)", t_rmse, "rmse", c.tol_temperature_rmse, "K", fig,
+      report.CheckError(std::string("thermocouple T (5 positions, pooled)") + tag, t_rmse, "rmse", c.tol_temperature_rmse, "K", fig,
                         "RMSE pooled over " + std::to_string(n_tot) +
                         " digitised points of the centre-line thermocouples at z = 10, 35, 60, 85, 110 cm");
 
@@ -271,6 +305,109 @@ namespace adsim {
   namespace {
     // Ternary-only tolerance slot for the binary cases.
     constexpr double kNotUsed = std::numeric_limits<double>::infinity();
+
+    // The experiments of Table 2 with digitised data: conditions and the
+    // regression tolerances of the extended-Sips decks (measured error rounded
+    // up). Durations cover the digitised record.
+    Streb2021Test::StrebCase StrebCaseFor(const std::string& name) {
+      using StrebCase = Streb2021Test::StrebCase;
+      static const std::vector<StrebCase> cases = {
+        // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.184339, y_CH4 0.603105, T RMSE 12.0664 K, front time CO2 0.046863, CH4 0.030998; upwind on 60 cells: y_CH4 0.5591).
+        StrebCase{ "A3", 10e5, 298, 20e-6, false, 4100.0,
+                   0.27, 0.73, kNotUsed, 19, 0.08, 0.041 },
+        // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.456647, y_CH4 0.721357, T RMSE 21.1045 K, front time CO2 0.0843783, CH4 0.0970627).
+        StrebCase{ "A1", 1e5, 298, 20e-6, false, 4100.0,
+                   0.53, 0.83, kNotUsed, 25, 0.098, 0.12 },
+        // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.350419, y_CH4 0.838922, T RMSE 18.5785 K, front time CO2 0.0546649, CH4 0.110449; before: y_CO2 0.33839).
+        StrebCase{ "A2", 10e5, 298, 10e-6, false, 1500.0,
+                   0.37, 0.96, kNotUsed, 22, 0.058, 0.13 },
+        // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.290623, y_CH4 0.792805, T RMSE 16.6768 K, front time CO2 0.100904, CH4 0.177891; upwind on 60 cells: y_CO2 0.2865).
+        StrebCase{ "A4", 10e5, 298, 40e-6, false, 1000.0,
+                   0.35, 0.91, kNotUsed, 20, 0.105, 0.195 },
+        // Tolerances = measured error rounded up. y_CO2 NRMSE and CO2 front time
+        // re-measured with the paper's constant gas heat capacity (Cp0 at the feed
+        // temperature; 2026-11, owner-approved; see README.md): y_CO2 0.184734,
+        // CO2 front 0.0647726 (were 0.1728 and 0.0594 with the held CoolProp value).
+        // Earlier (molar-basis gas heat capacity fix): y_CH4 0.659749, T RMSE
+        // 16.0716 K, CH4 front 0.148211.
+        StrebCase{ "A5", 25e5, 298, 20e-6, false, 750.0,
+                   0.19, 0.76, kNotUsed, 21, 0.066, 0.17 },
+        // Tolerances = measured error rounded up. y_CO2 NRMSE and CO2 front time
+        // re-measured with the paper's constant gas heat capacity (Cp0 at the feed
+        // temperature; 2026-11, owner-approved; see README.md): y_CO2 0.170486,
+        // CO2 front 0.0292289 (were 0.1608 and 0.0273 with the held CoolProp value).
+        // Earlier (molar-basis gas heat capacity fix): y_CH4 0.749957, T RMSE
+        // 11.7501 K, CH4 front 0.122827.
+        StrebCase{ "A6", 10e5, 318.15, 20e-6, false, 1050.0,
+                   0.175, 0.85, kNotUsed, 13, 0.030, 0.14 },
+        // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.0794838, y_CH4 0.692014, T RMSE 11.1461 K, front time CO2 0.0195941, CH4 0.102098; before: CH4 front 0.0726965).
+        StrebCase{ "A7", 10e5, 338.15, 20e-6, false, 1100.0,
+                   0.14, 0.72, kNotUsed, 14, 0.04, 0.12 },
+        // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.376751, y_CH4 0.126405, y_H2 0.372369, T RMSE 17.6917 K, front time CO2 0.06425, CH4 0.001939; upwind on 60 cells: CH4 front 0.02382).
+        StrebCase{ "B1", 1e5, 298, 20e-6, true, 10400.0,
+                   0.45, 0.15, 0.42, 20, 0.081, 0.004 },
+        // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.488768, y_CH4 0.297433, y_H2 0.399014, T RMSE 32.6309 K, front time CO2 0.0912807, CH4 0.121991). After the WP19-1 competitive-Sips trace fix (2026-11): y_CO2 0.44785, y_CH4 0.32043, y_H2 0.39777, T RMSE 27.005 K, front time CO2 0.1072, CH4 0.13975 (before it, on the same main: y_CH4 0.31859, CH4 front 0.13722).
+        StrebCase{ "B2", 10e5, 298, 10e-6, true, 3350.0,
+                   0.57, 0.35, 0.46, 38, 0.11, 0.15 },
+      };
+      for (const auto& c : cases)
+        if (c.name == name) return c;
+      throw std::invalid_argument("no Streb 2021 case " + name);
+    }
+
+    // The same case with every tolerance infinite (recorded only).
+    Streb2021Test::StrebCase RecordOnly(Streb2021Test::StrebCase c) {
+      c.tol_nrmse_co2 = c.tol_nrmse_ch4 = c.tol_nrmse_h2 = kNotUsed;
+      c.tol_temperature_rmse = c.tol_t50_co2 = c.tol_t50_ch4 = kNotUsed;
+      return c;
+    }
+  }  // namespace
+
+  // The IAST variant uses the pure Sips 2 form of the same Table 3 parameters,
+  // so at y_i -> 1 it must give the extended-Sips loading exactly: the switch
+  // changes only the competition. Checked over the three test temperatures and
+  // 1 mbar - 25 bar for every component. The 50:50 CO2/CH4 loadings at
+  // 10 bar, 25 C of both models are printed for the README.
+  TEST_F(Streb2021Test, IastPureLimitsMatchExtendedSips) {
+    Sips2Isotherm pure;
+    SetTable3Sips(pure.params_, true);
+    const std::vector<std::string> comps = StrebAdsorbing(true);
+    std::vector<IIsotherm*> isos(comps.size(), &pure);
+    for (double T : { 298.0, 318.15, 338.15 }) {
+      for (double P = 1e2; P <= 25e5 * 1.0001; P *= std::sqrt(10.0)) {
+        for (size_t i = 0; i < comps.size(); ++i) {
+          std::vector<double> y(comps.size(), 0.0), q;
+          y[i] = 1.0;
+          const IastResult r = EvalIastMixture(isos, comps, T, P, y, q);
+          ASSERT_TRUE(r.converged) << comps[i] << " T=" << T << " P=" << P;
+          double q_ext = 0.0;
+          IsothermFunction::ExtendedSips2(q_ext, T, P, 1.0, pure.params_.at(comps[i]));
+          EXPECT_NEAR(q[i], q_ext, 1e-10 * std::max(1.0, q_ext)) << comps[i] << " T=" << T << " P=" << P;
+          for (size_t j = 0; j < comps.size(); ++j)
+            if (j != i) EXPECT_EQ(q[j], 0.0) << comps[j] << " absent, T=" << T << " P=" << P;
+        }
+      }
+    }
+
+    // 50:50 CO2/CH4 at 10 bar, 25 C: extended Sips (shared denominator) and IAST.
+    const double T = 298.0, P = 10e5;
+    const std::vector<std::string> bin = StrebAdsorbing(false);
+    std::vector<IIsotherm*> bin_isos(bin.size(), &pure);
+    std::vector<double> y = { 0.5, 0.5 }, q_iast;
+    ASSERT_TRUE(EvalIastMixture(bin_isos, bin, T, P, y, q_iast).converged);
+    const double R = constants::kIdealGasConstant;
+    double z[2], qmax[2], zsum = 0.0;
+    for (int i = 0; i < 2; ++i) {
+      const auto& ip = pure.params_.at(bin[i]);
+      const double b = ip.B1 * std::exp(ip.B2 / (R * T));
+      const double s = ip.C1 + ip.C2 * (T / ip.T_ref - 1);
+      z[i] = std::pow(b * P * y[i], s);
+      qmax[i] = ip.A1 * std::exp(ip.A2 * (T / ip.T_ref - 1));
+      zsum += z[i];
+    }
+    for (int i = 0; i < 2; ++i)
+      std::cout << "[streb iast] 50:50, 10 bar, 298 K: " << bin[i] << " extended Sips "
+                << qmax[i] * z[i] / (1 + zsum) << " mol/kg, IAST " << q_iast[i] << " mol/kg" << std::endl;
   }
 
   // Reference experiment (Table 2: 25 C, 10 bar, 20 cm3/s) — the one the paper
@@ -286,9 +423,7 @@ namespace adsim {
                             "to validate the solver performance. This test demonstrates the ability to model competitive adsorption in binary systems "
                             "at high pressure conditions.";
     data.info.author = "Sam Affleck";
-    // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.184339, y_CH4 0.603105, T RMSE 12.0664 K, front time CO2 0.046863, CH4 0.030998; upwind on 60 cells: y_CH4 0.5591).
-    StrebCase c{ "A3", 10e5, 298, 20e-6, false, 4100.0,
-                 0.27, 0.73, kNotUsed, 19, 0.08, 0.041 };
+    const StrebCase c = StrebCaseFor("A3");
     SetUpStreb(c);
     RunAndValidate(c, true);
   }
@@ -306,84 +441,125 @@ namespace adsim {
                             "to validate the solver performance. This test demonstrates the ability to model competitive adsorption in binary systems "
                             "at atmospheric pressure conditions.";
     data.info.author = "Sam Affleck";
-    // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.456647, y_CH4 0.721357, T RMSE 21.1045 K, front time CO2 0.0843783, CH4 0.0970627).
-    StrebCase c{ "A1", 1e5, 298, 20e-6, false, 4100.0,
-                 0.53, 0.83, kNotUsed, 25, 0.098, 0.12 };
+    const StrebCase c = StrebCaseFor("A1");
     SetUpStreb(c);
     RunAndValidate(c, true);
   }
 
   // The remaining binary (A2, A4-A7) and ternary (B1, B2) experiments of Table 2
-  // for which digitised data exist. Durations cover the digitised record.
+  // for which digitised data exist.
   TEST_F(Streb2021Test, ExperimentA2) {
     data.info.title = "Streb 2021 - Experiment A2";
-    // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.350419, y_CH4 0.838922, T RMSE 18.5785 K, front time CO2 0.0546649, CH4 0.110449; before: y_CO2 0.33839).
-    StrebCase c{ "A2", 10e5, 298, 10e-6, false, 1500.0,
-                 0.37, 0.96, kNotUsed, 22, 0.058, 0.13 };
+    const StrebCase c = StrebCaseFor("A2");
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentA4) {
     data.info.title = "Streb 2021 - Experiment A4";
-    // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.290623, y_CH4 0.792805, T RMSE 16.6768 K, front time CO2 0.100904, CH4 0.177891; upwind on 60 cells: y_CO2 0.2865).
-    StrebCase c{ "A4", 10e5, 298, 40e-6, false, 1000.0,
-                 0.35, 0.91, kNotUsed, 20, 0.105, 0.195 };
+    const StrebCase c = StrebCaseFor("A4");
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentA5) {
     data.info.title = "Streb 2021 - Experiment A5";
-    // Tolerances = measured error rounded up. y_CO2 NRMSE and CO2 front time
-    // re-measured with the paper's constant gas heat capacity (Cp0 at the feed
-    // temperature; 2026-11, owner-approved; see README.md): y_CO2 0.184734,
-    // CO2 front 0.0647726 (were 0.1728 and 0.0594 with the held CoolProp value).
-    // Earlier (molar-basis gas heat capacity fix): y_CH4 0.659749, T RMSE
-    // 16.0716 K, CH4 front 0.148211.
-    StrebCase c{ "A5", 25e5, 298, 20e-6, false, 750.0,
-                 0.19, 0.76, kNotUsed, 21, 0.066, 0.17 };
+    const StrebCase c = StrebCaseFor("A5");
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentA6) {
     data.info.title = "Streb 2021 - Experiment A6";
-    // Tolerances = measured error rounded up. y_CO2 NRMSE and CO2 front time
-    // re-measured with the paper's constant gas heat capacity (Cp0 at the feed
-    // temperature; 2026-11, owner-approved; see README.md): y_CO2 0.170486,
-    // CO2 front 0.0292289 (were 0.1608 and 0.0273 with the held CoolProp value).
-    // Earlier (molar-basis gas heat capacity fix): y_CH4 0.749957, T RMSE
-    // 11.7501 K, CH4 front 0.122827.
-    StrebCase c{ "A6", 10e5, 318.15, 20e-6, false, 1050.0,
-                 0.175, 0.85, kNotUsed, 13, 0.030, 0.14 };
+    const StrebCase c = StrebCaseFor("A6");
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentA7) {
     data.info.title = "Streb 2021 - Experiment A7";
-    // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.0794838, y_CH4 0.692014, T RMSE 11.1461 K, front time CO2 0.0195941, CH4 0.102098; before: CH4 front 0.0726965).
-    StrebCase c{ "A7", 10e5, 338.15, 20e-6, false, 1100.0,
-                 0.14, 0.72, kNotUsed, 14, 0.04, 0.12 };
+    const StrebCase c = StrebCaseFor("A7");
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentB1) {
     data.info.title = "Streb 2021 - Experiment B1";
-    // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.376751, y_CH4 0.126405, y_H2 0.372369, T RMSE 17.6917 K, front time CO2 0.06425, CH4 0.001939; upwind on 60 cells: CH4 front 0.02382).
-    StrebCase c{ "B1", 1e5, 298, 20e-6, true, 10400.0,
-                 0.45, 0.15, 0.42, 20, 0.081, 0.004 };
+    const StrebCase c = StrebCaseFor("B1");
     SetUpStreb(c);
     RunAndValidate(c, false);
   }
 
   TEST_F(Streb2021Test, ExperimentB2) {
     data.info.title = "Streb 2021 - Experiment B2";
-    // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.488768, y_CH4 0.297433, y_H2 0.399014, T RMSE 32.6309 K, front time CO2 0.0912807, CH4 0.121991). After the WP19-1 competitive-Sips trace fix (2026-11): y_CO2 0.44785, y_CH4 0.32043, y_H2 0.39777, T RMSE 27.005 K, front time CO2 0.1072, CH4 0.13975 (before it, on the same main: y_CH4 0.31859, CH4 front 0.13722).
-    StrebCase c{ "B2", 10e5, 298, 10e-6, true, 3350.0,
-                 0.57, 0.35, 0.46, 38, 0.11, 0.15 };
+    const StrebCase c = StrebCaseFor("B2");
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  // IAST over the pure Sips terms of Table 3 (the competition model the paper
+  // finds better for the binary breakthroughs, Sect. 4.2.1), every case
+  // recorded without assertion. Extended Sips stays the decks' model: README
+  // "IAST versus extended Sips" (2026-11-10) has the comparison.
+  TEST_F(Streb2021Test, ExperimentA3_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("A3"));
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  TEST_F(Streb2021Test, ExperimentA1_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("A1"));
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  TEST_F(Streb2021Test, ExperimentA2_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("A2"));
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  TEST_F(Streb2021Test, ExperimentA4_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("A4"));
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  TEST_F(Streb2021Test, ExperimentA5_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("A5"));
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  TEST_F(Streb2021Test, ExperimentA6_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("A6"));
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  TEST_F(Streb2021Test, ExperimentA7_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("A7"));
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  TEST_F(Streb2021Test, ExperimentB1_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("B1"));
+    SetUpStreb(c);
+    RunAndValidate(c, false);
+  }
+
+  TEST_F(Streb2021Test, ExperimentB2_IAST_RecordOnly) {
+    iast_ = true;
+    const StrebCase c = RecordOnly(StrebCaseFor("B2"));
     SetUpStreb(c);
     RunAndValidate(c, false);
   }

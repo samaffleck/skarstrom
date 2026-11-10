@@ -265,6 +265,14 @@ class ValveStream:
     xt: Any = None
     y: Optional[Dict[str, Any]] = None
     temperature: Any = None
+    #: Check valve: no flow against the stream's direction (unconnected streams only).
+    #: ``None`` keeps the default (off). *New in 0.9.*
+    check_valve: Optional[bool] = None
+    #: Opening at the start of the step, in (0, 1]; the valve opens smoothly to fully open
+    #: over ``opening_ramp_time`` [s]. ``None`` keeps the defaults (1 and 0 s: fully open).
+    #: *New in 0.9.*
+    opening_start: Any = None
+    opening_ramp_time: Any = None
 
 
 # ---------------------------------------------------------------------------
@@ -346,6 +354,9 @@ def _set_streams(sim: "Simulation", step_id: int, location: str, direction: str,
             _apply_profile(sim, eid, "pressure", prof)
             _set_endpoint(sim, eid, "valve.cv", st.cv)
             _set_endpoint(sim, eid, "valve.xt", st.xt)
+            _set_endpoint(sim, eid, "valve.check_valve", st.check_valve)
+            _set_endpoint(sim, eid, "valve.opening_start", st.opening_start)
+            _set_endpoint(sim, eid, "valve.opening_ramp_time", st.opening_ramp_time)
         elif isinstance(st, Stream):
             eid = sim._build("add_stream", step_id, location, st.name, st.flow.kind, st.flow.profile.kind)
             _apply_profile(sim, eid, st.flow.kind, st.flow.profile)
@@ -369,6 +380,20 @@ def _set_streams(sim: "Simulation", step_id: int, location: str, direction: str,
         _apply_inlet(sim, eid, st.temperature, st.y)
         ids.append(eid)
     return [sim._endpoint(e) for e in ids]
+
+
+def _valve_ramp_src(sim: "Simulation", eid: int) -> str:
+    """The opening-ramp keywords of a valve stream, or nothing for the defaults (fully open)."""
+    head = f"endpoint[{eid}].valve."
+    start, ramp = head + "opening_start", head + "opening_ramp_time"
+    def plain(path: str, default: float) -> bool:
+        try:
+            return float(sim.get_text(path)) == default
+        except ValueError:
+            return False  # an expression
+    if plain(start, 1.0) and plain(ramp, 0.0):
+        return ""
+    return f", opening_start={_literal(sim, start)}, opening_ramp_time={_literal(sim, ramp)}"
 
 
 def _endpoint_ids(x: Any) -> List[int]:
@@ -530,8 +555,64 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
             w(f"{v}.set_mixing_rule({a['mixing_rule']!r})")
         for c, r in a["rate_models"].items():
             kn = node.kinetics[c]
-            kw = _kwargs(sim, kn)
+            # The coefficient: a preset tag (which sets the switches and the
+            # mode), or series_resistance with its switches; the mode when it
+            # is not the preset's own.
+            extra = []
+            if "resistances" in r:
+                extra.append(f"resistances={r['resistances']!r}")
+            if "capacity_factor_mode" in r:
+                extra.append(f"capacity_factor_mode={r['capacity_factor_mode']!r}")
+            # A dual-rate slow site with other switches than the fast one
+            # ("slow" in describe()) gets them, and then its values, after the call.
+            slow = r.get("slow")
+            slow_differs = slow is not None
+            skip = {"capacity_factor_mode", "slow_capacity_factor_mode"}
+            if slow_differs:
+                skip |= {f for f in kn.fields if f.startswith("slow_")}
+            kw = ", ".join(extra + ([_kwargs(sim, kn, skip)] if _kwargs(sim, kn, skip) else []))
             w(f"{v}.set_rate_model({c!r}, {r['model']!r}, {r['coefficient']!r}{', ' + kw if kw else ''})")
+            if slow_differs:
+                tags = ("film", "macropore", "knudsen", "micropore", "lumped")
+                for tag in tags:  # on first: a site keeps one term on
+                    if tag in slow["resistances"]:
+                        w(f"{v}.set_rate_resistance({c!r}, {tag!r}, True, site='slow')")
+                for tag in reversed(tags):
+                    if tag not in slow["resistances"]:
+                        w(f"{v}.set_rate_resistance({c!r}, {tag!r}, False, site='slow')")
+                w(f"{name}.edit.set_capacity_factor_mode({v}.id, {c!r}, {slow['capacity_factor_mode']!r}, site='slow')")
+                kn = sim.adsorbents.by_id(a["id"]).kinetics[c]
+                for f in kn.fields:
+                    if f.startswith("slow_") and f != "slow_capacity_factor_mode":
+                        w(f"{v}.kinetics[{c!r}].{f} = {_literal(sim, kn.path(f))}")
+        for rx in a.get("reactions", []):
+            rn = node.reactions.by_id(rx["id"])
+            rkw = [f"kind={rx['kind']!r}"]
+            if rx["basis"] != "partial_pressure":
+                rkw.append(f"basis={rx['basis']!r}")
+            if rx["adsorption_terms"]:
+                rkw.append(f"adsorption_terms={rx['adsorption_terms']}")
+            if rx["effectiveness"] != "constant":
+                rkw.append(f"effectiveness={rx['effectiveness']!r}, key_component={rx['key_component']!r}")
+            rv = _var(f"{a['name']}_{rx['name']}", taken)
+            w(f"{rv} = {v}.add_reaction({rx['name']!r}, {rx['nu']!r}, {', '.join(rkw)})")
+            for f in rn.fields:
+                if f != "basis":
+                    w(f"{rv}.{f} = {_literal(sim, rn.path(f))}")
+            tree = rn._tree_or_raise()
+            rate = tree.groups.get("rate")
+            if rate is not None:
+                for f, path in rate.leaves.items():
+                    w(f"{rv}.rate.{f} = {_literal(sim, path)}")
+                for m, entries in rate.maps.items():
+                    for c, path in entries.items():
+                        w(f"{rv}.rate.{m}[{c!r}] = {_literal(sim, path)}")
+                for j, jt in sorted(rate.keyed.get("adsorption", {}).items(), key=lambda kv: int(kv[0])):
+                    for f, path in jt.leaves.items():
+                        w(f"{rv}.rate.adsorption[{j}].{f} = {_literal(sim, path)}")
+                    for m, entries in jt.maps.items():
+                        for c, path in entries.items():
+                            w(f"{rv}.rate.adsorption[{j}].{m}[{c!r}] = {_literal(sim, path)}")
         try:
             heats = node.heat_of_adsorption._paths
         except AttributeError:  # an adsorbent no component has been set up on
@@ -625,6 +706,8 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                                      f"pressure={_profile_src(sim, eid, 'pressure', st['profile'])}, "
                                      f"cv={_literal(sim, f'endpoint[{eid}].valve.cv')}, "
                                      f"xt={_literal(sim, f'endpoint[{eid}].valve.xt')}"
+                                     f"{', check_valve=True' if sim.get(f'endpoint[{eid}].valve.check_valve') else ''}"
+                                     f"{_valve_ramp_src(sim, eid)}"
                                      f"{_inlet_src(sim, eid, st['temperature_profile'])}),")
                     elif st["type"] == "stream":
                         flow = f"sk.{st['flow']}({_profile_src(sim, eid, st['flow'], st['profile'])})"

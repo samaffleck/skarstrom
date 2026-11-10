@@ -97,13 +97,13 @@ namespace adsim {
         auto haynes = std::make_unique<MassTransferCoefficient_Haynes>();
         haynes->macropore_void_fraction_ = d.ep;
         haynes->tortuosity_ = d.tortuosity;
-        ldf->mtc_model_ = std::move(haynes);
+        ldf->mtc_model_ = ToResistances(std::move(haynes));  // generic model, as the example decks store it
       } else {
         auto macro = std::make_unique<MassTransferCoefficientMacropore>();
         macro->macropore_void_fraction_ = d.ep;
         macro->tortuosity_ = d.tortuosity;
         macro->molecular_diffusion_coefficient_ = d.dm_ldf;
-        ldf->mtc_model_ = std::move(macro);
+        ldf->mtc_model_ = ToResistances(std::move(macro));  // generic model, as the example decks store it
       }
       ads.adsorption_source_.mass_transfer_models_[kTracer] = std::move(ldf);
       ads.adsorption_source_.heat_of_adsorption_[kTracer] = 0.0;

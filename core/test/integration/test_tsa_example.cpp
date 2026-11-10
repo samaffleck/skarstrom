@@ -199,7 +199,7 @@ namespace adsim {
     std::string error;
     ASSERT_TRUE(data.PerformChecks(error)) << error;
     if (save_deck)
-      test::SaveToJsonAtomically(data, std::filesystem::current_path() / "../examples/decks/Illustrative_TSA_13X.json");
+      test::SaveDeckAtomically(data, std::filesystem::current_path() / "../examples/decks/Illustrative_TSA_13X.json");
 
     CoupledSolver solver{data};
     // Count step retries (each one is a recoverable IDA failure, logged at

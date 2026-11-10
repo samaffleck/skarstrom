@@ -19,15 +19,27 @@ checked against the source must be listed in the entry's `unverified_fields`.
 Nothing may be silently missing. Tabulated source data (`source_points`, per
 isotherm) are validated and summarised.
 
-It then GENERATES two files (never edit them by hand): docs/adsorbent-library.md
-and data/adsorbents/library.merged.json, the validated catalogue with every
-entry's serialised adsorbent inlined, in the order of the docs page. Tools that
-embed the library read the merged file, so they need no validator of their own.
+It then GENERATES three files (never edit them by hand): docs/adsorbent-library.md,
+data/adsorbents/library.merged.json (the validated catalogue with every entry's
+serialised adsorbent inlined, in the order of the docs page) and
+data/adsorbents/library.resolved.json (every entry with the engine's own
+resolution applied: kind tags and labels, parameters in engine order with
+units, source points in SI, completeness, property units and provenance, mass
+transfer). Tools that embed the library read these files, so they need no
+validator of their own and no copy of the engine's rules. The resolved file
+is checked against data/adsorbents/library.resolved.schema.json.
+
+The resolved file takes its labels, units and parameter order from the engine
+(skarstrom.model_kinds(), the parameter registry, sim.describe()), so writing
+it needs the skarstrom package (pip install skarstrom, or pip install . from a
+checkout). Without the package, --check still validates the committed file
+against the schema and the catalogue's entry list; python/tests/
+test_library_resolved.py compares a full regeneration.
 
     python scripts/docs/gen_adsorbent_library.py          # validate + write the page
     python scripts/docs/gen_adsorbent_library.py --check  # validate + fail on drift
 
-Standard library only.
+Standard library only (the skarstrom package only for the resolved file).
 """
 
 from __future__ import annotations
@@ -48,6 +60,9 @@ CATALOG = LIB_DIR / "library.json"
 DECK_DIR = ROOT / "examples" / "decks"
 DOCS_OUT = ROOT / "docs" / "adsorbent-library.md"
 MERGED_OUT = LIB_DIR / "library.merged.json"
+RESOLVED_OUT = LIB_DIR / "library.resolved.json"
+RESOLVED_SCHEMA = LIB_DIR / "library.resolved.schema.json"
+RESOLVED_VERSION = 1
 
 # adsim::IsothermType enum order (core/include/adsim/equations/isotherm.h) ->
 # kind tag (adsim::IsothermKindString in adsim/equations/isotherm_kinds.h).
@@ -557,7 +572,7 @@ def load_library(catalog=None):
         entries.append({"meta": meta, "file": e["file"], "points": points_summary})
 
     for f in sorted(LIB_DIR.iterdir()):
-        if f.suffix == ".json" and f.name not in ("library.json", MERGED_OUT.name) and f.name not in seen_files:
+        if f.suffix == ".json" and f.name not in ("library.json", MERGED_OUT.name, RESOLVED_OUT.name, RESOLVED_SCHEMA.name) and f.name not in seen_files:
             errors.append(f"orphan blob '{f.name}' is not listed in library.json")
 
     # Materials: one recommended entry each; variants only where a material
@@ -689,6 +704,32 @@ def render_docs(entries) -> str:
     out("```")
     out("")
     out("In C++, `adsim/objects/adsorbent_library.h` reads the catalogue (`AdsorbentLibrary::Resolve` turns a material id, an entry key or the alias of a removed entry into an entry), `LoadAdsorbentFromJSON` loads an entry's file, and `AddLibraryAdsorbent` (`adsim/objects/deck_edit.h`) adds an entry, or a material's recommended entry, to a deck with default physics for any component the entry does not cover. The library is curated: see `CONTRIBUTING.md` for the data-integrity rules a new entry must meet (every parameter cited).")
+    out("")
+    out("### The resolved library")
+    out("")
+    out('!!! note "New in 0.9"')
+    out("    `library.resolved.json` and its schema are new in 0.9.")
+    out("")
+    out("`data/adsorbents/library.resolved.json` is the library with the engine's own resolution applied, so a front end can embed it as it is and keep no copy of the engine's rules. It is **generated** by `scripts/docs/gen_adsorbent_library.py` (never edit it) and its shape is `data/adsorbents/library.resolved.schema.json`, which the generator checks in `--check`. `library.merged.json` (the catalogue with each serialised adsorbent) is unchanged. Writing the resolved file needs the `skarstrom` package, because the labels, units and parameter order come from the engine (`skarstrom.model_kinds()`, the parameter registry), not from a table in the script.")
+    out("")
+    out("The top level has `schema_version`, `catalogue_schema_version`, `materials` (id to name, family, recommended entry, reason, aliases) and `entries`, in the order of this page. Each entry holds:")
+    out("")
+    out("- identity: `key`, `label`, `material_id`, `variant`, `family`, `support`, `recommended`, `status`, `components`, `aliases`, and `sources` with a DOI URL;")
+    out("- `isotherms`, one per component: the kind tag and label, `parameters` in the engine's order with name, label, unit and value, the data quality, the fit ranges, and `source_points` in SI (Pa, mol/kg, K) with a summary (count, temperatures, T and P ranges);")
+    out("- `heat_of_adsorption` and `properties` with unit, value and provenance (`source`, `derived`, `repo`, `default`, `convention`, `not_stated`), and the registry path of each property;")
+    out("- `mass_transfer`, one per component: the rate model, the coefficient kind and its parameters with units;")
+    out("- `completeness`: `complete`, the `missing` fields and the `unverified_fields` with the verification note. A gap is reported here, never filled in.")
+    out("")
+    out("```python")
+    out("import json, os")
+    out("import skarstrom")
+    out('path = os.path.join(skarstrom.adsorbent_library_dir(), "library.resolved.json")')
+    out("with open(path, encoding=\"utf-8\") as f:")
+    out("    resolved = json.load(f)")
+    out('entry = next(e for e in resolved["entries"] if e["recommended"] and e["family"] == "zeolite")')
+    out('iso = entry["isotherms"][0]')
+    out('print(entry["label"], iso["kind_label"], [(p["name"], p["unit"]) for p in iso["parameters"]])')
+    out("```")
     out("")
     out("!!! warning \"Before you run\"")
     out("    Check the heat of adsorption (some sources report only site energies, so the value is left at 0) and the heat-of-adsorption convention of your deck (isosteric vs internal energy) against the source. Fit ranges are listed per component; outside them the isotherm is an extrapolation.")
@@ -839,6 +880,235 @@ def render_merged(entries) -> str:
     return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
 
 
+# ---- resolved metadata -----------------------------------------------------------
+
+# Catalogue property key -> leaf of the engine's parameter registry that holds it
+# (adsorbent[ID].<leaf>, or layer[ID].<leaf> for the particle diameter). Properties
+# with no engine field (the skeletal density is information only) keep the
+# catalogue's label and unit.
+PROPERTY_REGISTRY = {
+    "particle_density": ("adsorbent", "solid_density"),
+    "heat_capacity": ("adsorbent", "heat_capacity"),
+    "thermal_conductivity": ("adsorbent", "thermal_conductivity"),
+    "particle_voidage": ("adsorbent", "particle_void_fraction"),
+    "particle_diameter": ("layer", "particle_diameter"),
+}
+
+
+class EngineTables:
+    """The engine's own labels, units and parameter order, read through the
+    skarstrom package (model_kinds(), the parameter registry, describe())."""
+
+    def __init__(self, sk):
+        self.sk = sk
+        kinds = sk.model_kinds()
+        self.isotherm = {k["tag"]: k for k in kinds["isotherm"]}
+        self.isotherm_order = [k["tag"] for k in kinds["isotherm"]]  # enum order (the blob's stored index)
+        self.rate_model = {k["tag"]: k["label"] for k in kinds["rate_model"]}
+        self.rate_coefficient = {k["tag"]: k["label"] for k in kinds["rate_coefficient"]}
+
+    def resolve_entry(self, blob_names, comps, support, library_key):
+        """Add the adsorbent to a scratch deck and read what the registry resolves:
+        {"properties": {catalogue key: {name, path, unit}}, "heat_unit", "mass_transfer": [...]}."""
+        sk = self.sk
+        sim = sk.Simulation.new(title="resolve")
+        for c in blob_names:
+            sim.add_component(c)
+        aid = sim.add_library_adsorbent(library_key)
+        name = sim.adsorbents[0].name
+        layer_id = None
+        if not support:
+            sim.add_layer(name, composition={name: 1.0}, length=0.1, cells=5, particle_diameter=1e-3)
+            layer_id = 1
+        reg = {p.path: p for p in sim.parameters(tunable_only=False)}
+        props = {}
+        for key, (family, leaf) in PROPERTY_REGISTRY.items():
+            ident = aid if family == "adsorbent" else layer_id
+            p = reg.get(f"{family}[{ident}].{leaf}") if ident is not None else None
+            if p is not None:
+                props[key] = {"engine_name": p.name, "registry_path": f"{family}[ID].{leaf}", "unit": p.unit}
+        hp = [p for path, p in reg.items() if path.startswith(f"adsorbent[{aid}].heat_of_adsorption[")]
+        rate_models = sim.describe()["adsorbents"][0].get("rate_models", {})
+        mass_transfer = []
+        for comp in comps:
+            rm = rate_models.get(comp) or {}
+            prefix = f"adsorbent[{aid}].kinetics[{comp}]."
+            params, resistances = [], []
+            for path, p in reg.items():
+                if not path.startswith(prefix):
+                    continue
+                leaf = path[len(prefix):]
+                if leaf.startswith("resistances."):
+                    if p.value:
+                        resistances.append(leaf.split(".", 1)[1])
+                else:
+                    params.append({"name": leaf, "label": p.name, "unit": p.unit, "value": p.value})
+            mass_transfer.append({
+                "component": comp,
+                "model": rm.get("model", ""),
+                "model_label": self.rate_model.get(rm.get("model", ""), ""),
+                "coefficient": rm.get("coefficient", ""),
+                "coefficient_label": self.rate_coefficient.get(rm.get("coefficient", ""), ""),
+                "resistances": resistances,
+                "parameters": params,
+            })
+        return {"properties": props, "heat_unit": hp[0].unit if hp else "J/mol", "mass_transfer": mass_transfer}
+
+
+def load_engine():
+    """The engine tables, or None when the skarstrom package (with model_kinds) is missing."""
+    try:
+        import skarstrom  # noqa: PLC0415
+        if not hasattr(skarstrom, "model_kinds"):
+            return None
+        return EngineTables(skarstrom)
+    except ImportError:
+        return None
+
+
+def resolved_source_points(sp, source_ids):
+    """A catalogue source_points record converted to SI, with its summary."""
+    u = sp["units"]
+    T = [si(t + T_UNITS[u["T"]]) for t in sp["T"]]
+    p = [si(x * P_UNITS[u["p"]]) for x in sp["p"]]
+    q = [si(x * Q_UNITS[u["q"]]) for x in sp["q"]]
+    return {
+        "kind": sp["kind"], "quantity": sp["quantity"], "source": sp["source"], "ref": sp["ref"], "note": sp["note"],
+        "summary": {
+            "n": len(p), "temperatures_K": sorted(set(T)), "T_range_K": [min(T), max(T)],
+            "P_range_Pa": [min(p), max(p)], "q_range_mol_per_kg": [min(q), max(q)],
+        },
+        "T_K": T, "p_Pa": p, "q_mol_per_kg": q,
+    }
+
+
+def render_resolved(entries, engine) -> str:
+    """Every entry with the engine's resolution applied (see the module docstring)."""
+    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    raw = {e["key"]: e for e in catalog["entries"]}
+    sources = catalog["sources"]
+    out_entries = []
+    for _mid, mat, members in material_groups(entries):
+        for en in members:
+            m, key = en["meta"], en["meta"]["key"]
+            blob = json.loads((LIB_DIR / en["file"]).read_text(encoding="utf-8"))
+            view = blob_view(blob)
+            r = engine.resolve_entry(list(view["iso_map"]), m["components"], m["support"], key)
+            iso_raw = {i["component"]: i for i in raw[key].get("isotherms") or []}
+            isotherms = []
+            for i in m["isotherms"]:
+                comp = i["component"]
+                tag = engine.isotherm_order[view["iso_map"][comp]]
+                desc = engine.isotherm[tag]
+                values = {p["name"]: p["value"] for p in i["params"]}
+                sp = iso_raw[comp].get("source_points")
+                isotherms.append({
+                    "component": comp, "kind": tag, "kind_label": desc["label"],
+                    "parameters": [{"name": p["name"], "label": p["label"], "unit": p["unit"], "value": values[p["name"]]}
+                                   for p in desc["parameters"]],
+                    "data_quality": i["data_quality"],
+                    "data_quality_label": DATA_QUALITY_LABELS.get(i["data_quality"], i["data_quality"]),
+                    "data_quality_note": i["data_quality_note"],
+                    "ref": i["ref"],
+                    "T_range_K": i["T_range_K"], "P_range_Pa": i["P_range_Pa"],
+                    "T_range_not_stated": i["T_range_not_stated"], "P_range_not_stated": i["P_range_not_stated"],
+                    "range_note": i["range_note"],
+                    "source_points": resolved_source_points(sp, None) if sp else None,
+                })
+            props = []
+            for p in m["properties"]:
+                eng = r["properties"].get(p["name"])
+                props.append({
+                    "name": p["name"], "label": p["label"],
+                    "unit": eng["unit"] if eng else p["unit"],
+                    "registry_path": eng["registry_path"] if eng else None,
+                    "engine_name": eng["engine_name"] if eng else None,
+                    "value": p["value"], "provenance": p["provenance"],
+                    "provenance_label": PROV.get(p["provenance"], p["provenance"]),
+                    "ref": p["ref"], "temperature_table": p["temperature_table"],
+                })
+            out_entries.append({
+                "key": key, "label": m["label"], "file": en["file"],
+                "material_id": m["material_id"], "material_name": m["material_name"], "variant": m["variant"],
+                "family": m["family"], "support": m["support"], "recommended": m["recommended"],
+                "status": m["status"], "legacy_note": m["legacy_note"],
+                "applications": m["applications"], "components": m["components"],
+                "aliases": mat.get("aliases") or [],
+                "sources": m["sources"],
+                "isotherms": isotherms,
+                "heat_of_adsorption": [{**h, "unit": r["heat_unit"], "provenance_label": PROV.get(h["provenance"], h["provenance"])}
+                                       for h in m["heat_of_adsorption"]],
+                "properties": props,
+                "mass_transfer": r["mass_transfer"],
+                "example_decks": m["example_decks"], "example_deck_note": m["example_deck_note"],
+                "completeness": {
+                    "complete": m["completeness"]["complete"], "missing": m["completeness"]["missing"],
+                    "unverified_fields": raw[key].get("unverified_fields") or [],
+                    "verification_note": m["completeness"]["verification_note"],
+                },
+                "notes": m["notes"],
+            })
+    doc = {
+        "_about": "GENERATED by scripts/docs/gen_adsorbent_library.py from library.json and the <key>.json blobs; do not edit. "
+                  "Resolved catalogue: each entry with the engine's labels, units and parameter order applied, source points in SI, "
+                  "completeness and provenance, in the order of docs/adsorbent-library.md. Shape: library.resolved.schema.json.",
+        "schema_version": RESOLVED_VERSION,
+        "catalogue_schema_version": catalog["schema_version"],
+        "materials": {mid: {"name": mat["name"], "family": mat["family"], "recommended": mat["recommended"],
+                            "recommended_reason": mat["recommended_reason"], "aliases": mat["aliases"]}
+                      for mid, mat in catalog["materials"].items()},
+        "entries": out_entries,
+    }
+    return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+
+
+def validate_schema(value, schema, root, path="$"):
+    """A small JSON Schema checker (type, enum, required, properties,
+    additionalProperties, items, $ref into $defs, minimum): the subset
+    library.resolved.schema.json uses. Returns a list of error strings."""
+    if "$ref" in schema:
+        node = root
+        for part in schema["$ref"].lstrip("#/").split("/"):
+            node = node[part]
+        return validate_schema(value, node, root, path)
+    errs = []
+    types = schema.get("type")
+    if types is not None:
+        types = [types] if isinstance(types, str) else types
+        ok = {"object": isinstance(value, dict), "array": isinstance(value, list), "string": isinstance(value, str),
+              "boolean": isinstance(value, bool), "null": value is None,
+              "integer": isinstance(value, int) and not isinstance(value, bool),
+              "number": isinstance(value, (int, float)) and not isinstance(value, bool)}
+        if not any(ok[t] for t in types):
+            return [f"{path}: expected {'/'.join(types)}, got {type(value).__name__}"]
+    if "enum" in schema and value not in schema["enum"]:
+        errs.append(f"{path}: {value!r} not in {schema['enum']}")
+    if "minimum" in schema and isinstance(value, (int, float)) and value < schema["minimum"]:
+        errs.append(f"{path}: {value} < {schema['minimum']}")
+    if isinstance(value, dict):
+        props = schema.get("properties", {})
+        for req in schema.get("required", []):
+            if req not in value:
+                errs.append(f"{path}: missing '{req}'")
+        extra = schema.get("additionalProperties", True)
+        for k, v in value.items():
+            if k in props:
+                errs += validate_schema(v, props[k], root, f"{path}.{k}")
+            elif isinstance(extra, dict):
+                errs += validate_schema(v, extra, root, f"{path}.{k}")
+            elif extra is False:
+                errs.append(f"{path}: unexpected '{k}'")
+    if isinstance(value, list) and "items" in schema:
+        for i, v in enumerate(value):
+            errs += validate_schema(v, schema["items"], root, f"{path}[{i}]")
+    return errs
+
+
+def check_resolved_schema(text):
+    schema = json.loads(RESOLVED_SCHEMA.read_text(encoding="utf-8"))
+    return validate_schema(json.loads(text), schema, schema)
+
+
 def completeness_summary(entries) -> str:
     inc = [e for e in entries if not e["meta"]["completeness"]["complete"]]
     pts = sum(1 for e in entries if e["points"])
@@ -859,16 +1129,48 @@ def main(argv=None) -> int:
             print(f"  - {e}", file=sys.stderr)
         return 1
     outputs = [(DOCS_OUT, render_docs(entries)), (MERGED_OUT, render_merged(entries))]
+    engine = load_engine()
+    if engine is not None:
+        resolved = render_resolved(entries, engine)
+        problems = check_resolved_schema(resolved)
+        if problems:
+            print(f"[adsorbent-library] resolved metadata violates {RESOLVED_SCHEMA.name}:", file=sys.stderr)
+            for p in problems[:20]:
+                print(f"  - {p}", file=sys.stderr)
+            return 1
+        outputs.append((RESOLVED_OUT, resolved))
     if args.check:
         stale = [p for p, text in outputs
                  if (p.read_text(encoding="utf-8") if p.is_file() else None) != text]
         for p in stale:
             print(f"[adsorbent-library] DRIFT: {p.relative_to(ROOT)} is out of date — run "
                   "python scripts/docs/gen_adsorbent_library.py", file=sys.stderr)
+        if engine is None:
+            # No engine package: validate the committed resolved file against the
+            # schema and the catalogue's entry list (full regeneration: python/tests).
+            if not RESOLVED_OUT.is_file():
+                print(f"[adsorbent-library] DRIFT: {RESOLVED_OUT.relative_to(ROOT)} is missing", file=sys.stderr)
+                return 1
+            committed = RESOLVED_OUT.read_text(encoding="utf-8")
+            problems = check_resolved_schema(committed)
+            keys = [e["key"] for e in json.loads(committed)["entries"]]
+            want = [en["meta"]["key"] for _m, _mat, members in material_groups(entries) for en in members]
+            if keys != want:
+                problems.append(f"entries {keys} do not match the catalogue {want}")
+            for p in problems[:20]:
+                print(f"[adsorbent-library] {RESOLVED_OUT.name}: {p}", file=sys.stderr)
+            if problems:
+                return 1
+            print("[adsorbent-library] skarstrom package not installed: resolved file checked against its schema "
+                  "and the entry list only (python/tests/test_library_resolved.py compares a regeneration).")
         if stale:
             return 1
         print(f"[adsorbent-library] {len(entries)} entries; generated files up to date.")
     else:
+        if engine is None:
+            print("[adsorbent-library] the resolved file needs the skarstrom package (pip install skarstrom, "
+                  "or pip install . from a checkout)", file=sys.stderr)
+            return 1
         for p, text in outputs:
             p.write_text(text, encoding="utf-8")
             print(f"[adsorbent-library] wrote {p.relative_to(ROOT)} ({len(entries)} entries)")

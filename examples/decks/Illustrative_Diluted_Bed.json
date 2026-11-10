@@ -1419,7 +1419,7 @@
                 },
                 "consecutive_cycles": 3
             },
-            "max_cycles_to_keep": 10,
+            "max_cycles_to_keep": 1,
             "Maximum_Iterations_Per_Step": 50000,
             "Advection_Scheme": 1,
             "Accelerate_Cyclic_Steady_State": {
@@ -1428,7 +1428,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 2,
+                "cereal_class_version": 5,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -1439,7 +1439,9 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true
+                "Outlet_Backflow": true,
+                "Reaction_Stiff": true,
+                "Connection_Pressure": true
             },
             "Valve_Bed_Pressure": 0
         },

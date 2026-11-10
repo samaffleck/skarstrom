@@ -76,7 +76,8 @@ def test_run_prints_kpis_and_css(capsys, tmp_path):
     # The original columns come first, new KPIs are appended.
     assert list(rows[0])[3:] == ["purity [mol/mol]", "recovery [mol/mol]", "productivity [kg/(kg s)]",
                                  "productivity [kg/(m3 s)]", "energy [J/kg]", "production [mol/s]",
-                                 "electrical energy [J/kg]", "thermal energy [J/kg]", "cooling duty [J/kg]"]
+                                 "electrical energy [J/kg]", "thermal energy [J/kg]", "cooling duty [J/kg]",
+                                 "uncounted inflow fraction [mol/mol]"]
     assert float(rows[-1]["thermal energy [J/kg]"]) == 0  # no energy sources in this deck
     run = json.loads((tmp_path / "run.json").read_text())
     assert run["cycles_run"] == 2
@@ -107,20 +108,13 @@ def test_run_health_is_reported_even_when_quiet(capsys):
     payload = json.loads(out)
     assert code == 0 and payload["healthy"] is True and payload["run_health"] == []
     assert "run health" not in err
-    # A log shorter than the diagnostics read: the status and exit code are unchanged, the warning is in
-    # the JSON (structured, and its message in warnings) and on stderr despite -q.
+    # A log that keeps one cycle of a longer run is not a run-health problem (HISTORY_TRUNCATED was removed).
     argv = ["run", PEREZ, "--cycles", "3", "--set", "settings.max_cycles_to_keep=1", "--set", "css.method=0"]
     code, out, err = run_cli(capsys, *argv, "--json", "-q")
     payload = json.loads(out)
     assert code == 0 and payload["status"] == "completed"
-    assert payload["healthy"] is False
-    (w,) = payload["run_health"]
-    assert w["code"] == "HISTORY_TRUNCATED" and w["value"] < w["threshold"] and w["suspects"] and w["hint"]
-    assert w["message"] in payload["warnings"]
-    assert "run health: " in err
-    code, out, err = run_cli(capsys, *argv, "-q")
-    assert code == 0 and "Health:  1 run-health warning(s): HISTORY_TRUNCATED" in out
-    assert "run health: " in err
+    assert payload["healthy"] is True and payload["run_health"] == []
+    assert "run health" not in err
 
 
 def test_csv_has_every_cycle_although_the_log_keeps_few(capsys, tmp_path):

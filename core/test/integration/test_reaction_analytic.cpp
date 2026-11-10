@@ -518,6 +518,7 @@ TEST(ReactionAnalytic, ElementAndEnergyClosureOverSeveralReactiveCycles) {
   const double Cp = 40.0, T_ref = 298.15;  // [J/(mol K)]
   for (const auto& c : o.components) r.sim.SetParameterText("fluid.gas_heat_capacity[" + c + "]", Num(Cp));
   const int cycles = 4;
+  r.sim.SetParameter("settings.max_cycles_to_keep", cycles);  // the closure is checked in every cycle
   const RunResult run = RunReactor(r, cycles);
   ASSERT_TRUE(run.Ok()) << run.message;
   const EquationLog& log = r.sim.Log();

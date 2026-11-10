@@ -175,6 +175,7 @@ namespace adsim {
 
   ValveBoundaryStream::ValveBoundaryStream() {
     boundary_value_ = std::make_unique<ConstantBoundaryValue>(constants::kStandardAtmosphere);
+    stream_data_.from_valve_ = true;
   }
 
   // void ValveBoundaryStream::Initialise(double step_time) {}
@@ -221,17 +222,31 @@ namespace adsim {
     double Cp_boundary = 0.5 * (Cp[i] + Cp[i + d]);
     double Mr_boundary = 0.5 * (Mr[i] + Mr[i + d]);
 
+    // A check valve (unconnected streams only) passes the pressure drop in
+    // the stream's own direction and shuts, smoothly, against the reverse:
+    // the downstream pressure the valve law sees is raised to
+    // upstream - CheckValvePressureDrop(upstream - downstream).
+    const bool check = check_valve_ && !connection_.IsConnected();
+    auto downstream_seen = [&](double upstream, double downstream) {
+      return check ? upstream - Valve::CheckValvePressureDrop(upstream - downstream) : downstream;
+    };
+
+    // The valve's opening fraction at this time of the step (1 unless the
+    // valve has an opening ramp): the valve law's flow is scaled by it.
+    const double opening = valve_.OpeningFraction(time);
+
     auto get_molar_flow = [&](){
       if (direction_ == BoundaryDirection::INLET) {
         // Upstream gas is the buffer tank's once it is ready (the tank's
         // pressure is still the user-specified upstream boundary value).
-        double mol_flow = valve_.GetMolarFlowRate(boundary_value_->GetValue(time), P_boundary, Mr_boundary, InletTemperature(time), Cp_boundary);
+        const double P_up = boundary_value_->GetValue(time);
+        double mol_flow = valve_.GetMolarFlowRate(P_up, downstream_seen(P_up, P_boundary), Mr_boundary, InletTemperature(time), Cp_boundary) * opening;
         if (loc == BoundaryLocation::TOP)
           return -mol_flow;
         else
           return mol_flow;
       } else { // Outlet
-        double mol_flow = valve_.GetMolarFlowRate(P_boundary, boundary_value_->GetValue(time), Mr_boundary, T_boundary, Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_boundary, downstream_seen(P_boundary, boundary_value_->GetValue(time)), Mr_boundary, T_boundary, Cp_boundary) * opening;
         if (loc == BoundaryLocation::TOP)
           return mol_flow;
         else
@@ -252,13 +267,13 @@ namespace adsim {
       const double P_partner = at_end_cell ? connection_.stream_->GetEndCellPressure(time)
                                            : connection_.stream_->GetPressure(time);
       if (direction_ == BoundaryDirection::INLET) {
-        double mol_flow = valve_.GetMolarFlowRate(P_partner, P_boundary, Mr_boundary, AssumedInletTemperature(time), Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_partner, P_boundary, Mr_boundary, AssumedInletTemperature(time), Cp_boundary) * opening;
         if (loc == BoundaryLocation::TOP)
           return -mol_flow;
         else
           return mol_flow;
       } else { // Outlet
-        double mol_flow = valve_.GetMolarFlowRate(P_boundary, P_partner, Mr_boundary, T_boundary, Cp_boundary);
+        double mol_flow = valve_.GetMolarFlowRate(P_boundary, P_partner, Mr_boundary, T_boundary, Cp_boundary) * opening;
         if (loc == BoundaryLocation::TOP)
           return mol_flow;
         else
@@ -268,7 +283,17 @@ namespace adsim {
   }
 
   bool ValveBoundaryStream::PerformSpecificChecks(std::string& error_msg, const Fluid& fluid) {
-    return true;
+    bool ok = true;
+    const double start = valve_.opening_start_;
+    if (!(start > 0.0 && start <= 1.0)) {
+      error_msg += "Valve opening start of stream '" + name_ + "' must be in (0, 1]. ";
+      ok = false;
+    }
+    if (!(valve_.opening_ramp_time_ >= 0.0)) {
+      error_msg += "Valve opening ramp time of stream '" + name_ + "' must not be negative. ";
+      ok = false;
+    }
+    return ok;
   }
 
   BoundaryStream::BoundaryStream() {
@@ -298,6 +323,10 @@ namespace adsim {
         // conserves moles. The sign must be kept: taking the magnitude (as
         // the unconnected branch below does) turned a donor's backflow into
         // more inflow here and created gas.
+        //
+        // A partner valve stream sets its flow from the pressure difference,
+        // both ways (StreamData::from_valve_), so its flow is replayed as it
+        // is in both directions too.
         const double into_this_bed = connection_.stream_->GetOutflow(time);
         return (loc == BoundaryLocation::BOTTOM) ? into_this_bed : -into_this_bed;
       } else {

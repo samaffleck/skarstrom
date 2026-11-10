@@ -485,13 +485,36 @@ namespace adsim {
   TEST(NewtonKrylovCSSReference, Nguyen2023ExpX) { CheckNewtonKrylov("Nguyen2023_Exp_X", false, 300, 50, 2.0); }
 
   // Below the integrator's noise floor at the deck's tolerance: with reltol
-  // 1e-12, one solve takes the residual below 1e-8 in the state norm (the
-  // stopping rule's tolerance is 2e-5), the residual falling faster and
-  // faster until it meets the floor the absolute tolerances set (about 1e-8:
-  // the loadings' 1e-8 mol/kg and the temperatures' 1e-4 K are fixed;
-  // 1.2e-8 at reltol 1e-10, 5e-9 at 1e-12). Measured: 4.97e-3, 5.01e-4,
-  // 3.20e-5, 1.71e-6, 1.81e-8, 1.22e-8, 6.03e-9 (factors 0.10, 0.064,
-  // 0.053, 0.011, then 0.67 and 0.49 at the floor), 57 extra cycles, ~45 s.
+  // 1e-12, one solve takes the residual from 5e-3 to the floor the absolute
+  // tolerances set (about 1e-8 in the state norm: the loadings' 1e-8 mol/kg
+  // and the temperatures' 1e-4 K are fixed), three orders below the stopping
+  // rule's tolerance eps = 2e-5, with factors that shrink while clear of the
+  // floor. Measured first solves (57 to 62 extra cycles, ~45 s on Linux):
+  //   Linux (GCC):          4.97e-3, 5.01e-4, 3.20e-5, 1.71e-6, 1.81e-8,
+  //                         1.22e-8, 6.03e-9 (converged)
+  //   macOS (Apple clang):  4.97e-3, 5.00e-4, 3.19e-5, 1.10e-6, 9.36e-8,
+  //                         4.80e-8, 1.59e-8, 1.20e-8, 7.59e-9 (converged)
+  //   Windows (MSVC):       4.97e-3, 5.16e-4, 3.70e-5, 1.35e-6, 1.02e-7,
+  //                         1.02e-8, then a step that does not reduce it
+  // Where the floor lies differs with the platform's libm and FMA use: the
+  // Newton tolerance of 1e-8 sits on it, so whether the solve reports
+  // "converged" (Linux, macOS) or stops one step short with "the Newton step
+  // did not reduce the residual" at 1.02e-8 (Windows) is rounding, not
+  // Newton-Krylov. So the test asks for either ending and for a best
+  // residual within kFloorMargin of the floor (3x the 1e-8 estimate, about 3x the
+  // largest measured 1.02e-8, still ~700x below eps; plain iteration, contracting by
+  // a constant factor near 1, would need hundreds of cycles to get there).
+  //
+  // The contraction factors: only steps that start AND end above kFloorBand
+  // (30x the floor) are measured. A step that ends nearer the floor carries
+  // its noise (and its finite-difference J v products are noise-dominated
+  // there): the step to the floor gives 0.011 (Linux), 0.085 (macOS); the
+  // Windows step to 1.02e-7, 10x the floor, gives 0.076. Clear of the band
+  // the three platforms give 0.101, 0.064, 0.053 (Linux), 0.101, 0.064,
+  // 0.035 (macOS) and 0.104, 0.072, 0.036 (Windows): each well below plain
+  // iteration's and the last at most three quarters of the first (0.53,
+  // 0.34, 0.35), so the test still fails if the solve stops contracting
+  // superlinearly (a constant factor) or stalls.
   TEST(NewtonKrylovCSSReference, ConvergesBelowTheNoiseFloor) {
     Simulation sim = CoarsePerezA();
     sim.Data().settings.reltol = 1e-12;
@@ -504,17 +527,27 @@ namespace adsim {
     const auto solves = Solves(sim);
     ASSERT_FALSE(solves.empty());
     const auto& first = solves.front();
-    ASSERT_TRUE(first.converged) << first.outcome;
     const auto& h = first.residuals;
-    EXPECT_LE(h.back(), 1e-8);
-    // The contraction factors above the floor: each well below plain
-    // iteration's, and shrinking (the last a fraction of the first).
+    ASSERT_FALSE(h.empty());
+    // Ended at the floor: converged there, or the next step could not reduce
+    // the residual further (a Krylov failure or the iteration limit is not
+    // accepted).
+    EXPECT_TRUE(first.converged || first.outcome == "the Newton step did not reduce the residual") << first.outcome;
+    constexpr double kFloor = 1e-8;  // the absolute tolerances' floor in the state norm
+    constexpr double kFloorMargin = 3.0;
+    const double best = *std::min_element(h.begin(), h.end());
+    std::printf("  best residual %.3e (%.2f x the 1e-8 floor, %.1e eps)\n", best, best / kFloor, best / kEps);
+    EXPECT_LE(best, kFloorMargin * kFloor);
+    constexpr double kFloorBand = 30.0 * kFloor;
     std::vector<double> factors;
     for (size_t k = 1; k < h.size(); ++k)
-      if (h[k - 1] > 1e-7) factors.push_back(h[k] / h[k - 1]);
-    ASSERT_GE(factors.size(), 4u);
+      if (h[k - 1] > kFloorBand && h[k] > kFloorBand) factors.push_back(h[k] / h[k - 1]);
+    std::string sequence;
+    for (double q : factors) sequence += " " + std::to_string(q);
+    std::printf("  factors above the floor band:%s\n", sequence.c_str());
+    ASSERT_GE(factors.size(), 3u);
     for (double q : factors) EXPECT_LT(q, 0.25);
-    EXPECT_LT(factors.back(), 0.5 * factors.front());
+    EXPECT_LT(factors.back(), 0.75 * factors.front());
   }
 
   // ---- measurement helper (not run by default) ------------------------------

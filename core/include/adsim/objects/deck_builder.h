@@ -69,7 +69,11 @@ namespace adsim::build {
 // ---- kind names -------------------------------------------------------------
 std::vector<std::string> IsothermKinds();
 const std::vector<std::string>& RateModelKinds();
+// The coefficient kinds offered: "series_resistance" (the generic resistance
+// model). The former kinds are its presets (RateCoefficientPresets), still
+// accepted by SetRateModel.
 const std::vector<std::string>& RateCoefficientKinds();
+const std::vector<std::string>& RateCoefficientPresets();
 const std::vector<std::string>& MixingRuleKinds();
 const std::vector<std::string>& MomentumKinds();
 const std::vector<std::string>& FilmCorrelationKinds(); // wakao_funazkri, gunn, ranz_marshall
@@ -115,7 +119,9 @@ void SetIsotherm(UserData& data, AdsorbentID adsorbent, const std::string& kind,
 // isotherms, iast.h).
 void SetMixingRule(UserData& data, AdsorbentID adsorbent, const std::string& kind);
 
-// The rate model of one component: `model` with a `coefficient` model.
+// The rate model of one component: `model` with a `coefficient` model, the
+// kind "series_resistance" (the resistance model at its defaults: the lumped
+// term only) or a preset tag (RateCoefficientPresets), which sets the switches.
 void SetRateModel(UserData& data, AdsorbentID adsorbent, const std::string& component,
                   const std::string& model, const std::string& coefficient);
 

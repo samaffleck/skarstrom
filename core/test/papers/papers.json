@@ -141,6 +141,19 @@
         "CO2 purity within 2.3 pp, recovery within 1.8 pp and productivity within 0.7 % of Table 4.",
         "The deck now uses the extended (competitive) DSL the paper states (Sect. 2.1). Energy is not compared (no pump model in the deck)."
       ]
+    },
+    {
+      "id": "halabi_2011",
+      "label": "Halabi (2011)",
+      "citation": "M.H. Halabi, Sorption enhanced catalytic reforming of methane for pure hydrogen production: experimental and modeling, PhD thesis, Eindhoven University of Technology, 2011 (chapters 8 and 9).",
+      "doi": "10.6100/IR709035",
+      "system": "Sorption-enhanced steam methane reforming: Rh/Ce0.6Zr0.4O2 catalyst mixed with K2CO3-promoted hydrotalcite, 450 C, 1.5-6 bar",
+      "reference_kind": "thesis's computed gas-phase equilibria (Fig. 7 legend, Table 6); measured conversion and H2 (Table 6, recorded only)",
+      "findings": [
+        "With an inert sorbent the chapter-8 rate model (LHHW, the two site balances expanded into one denominator) reaches the thesis's printed equilibria: Fig. 7 within 0.46 pp, the Table 6 equilibrium column within 1.95 pp. The model equals a direct solution of the two equilibria with the thesis's K values; the Table 6 column lies 0.3-2.0 pp below it.",
+        "The sorption-enhanced runs are recorded, not asserted. The model's conversion has no plateau before breakthrough, and CO2 breaks through after 1.6-3.4 min against the thesis's 4-15 min. A 60 s reading seemed to agree at 1.5 bar, but that is an artefact of the read time.",
+        "The open input is the sorbent capacity below 0.05 bar CO2: the thesis's Freundlich fit (0.13 mol/kg at 0.024 bar), its Table 3 and its Henry constant disagree by up to 2x (skarstrom#245)."
+      ]
     }
   ]
 }

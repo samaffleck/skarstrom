@@ -22,8 +22,8 @@ python examples/ward_2022.py --case 100 # about a second
 python examples/perez_2019.py --case D1 # one VSA configuration to cyclic steady state
 ```
 
-Options common to every script (`optimise_nsga2.py` has `--pop`, `--gen` and
-`--workers` instead of `--case`; it needs `pip install pymoo`): `--case NAME` (repeatable) to run a subset,
+Options common to every script (`optimise_nsga2.py` and `perez_2019_case_study_optimise.py` have `--pop`, `--gen` and
+`--workers` instead of `--case`; they need `pip install pymoo`): `--case NAME` (repeatable) to run a subset,
 `--cycles N` to override the number of cycles for a quick look, `--no-plot`,
 and `-q`. `_common.py` holds the shared helpers (deck lookup, reference data,
 NRMSE, KPI tables, stream-log integration for decks without a KPI
@@ -40,6 +40,8 @@ configuration).
 | [`nguyen_2023.py`](nguyen_2023.py) | `Nguyen2023_Exp_I` … `_X` (10) | CO₂/N₂ VPSA on CALF-20, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 2) | 22 min |
 | [`haghpanah_2013.py`](haghpanah_2013.py) | `Haghpanah2013_Sec61`, `_PL002` … `_PL010`, `_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on 13X with compression and vacuum energy, to CSS | paper-model CO₂ purity/recovery (Haghpanah 2013 Sect. 6.1; Glover 2026 Table 4) | 4 min |
 | [`perez_2019.py`](perez_2019.py) | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on 13X, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 3) | 6 min |
+| [`perez_2019_case_study.py`](perez_2019_case_study.py) | `Perez2019_CaseStudy_Base`, `_Base_LPP` | Perez 2019 A and D1 run by devices (blower, valves with a ramped opening for pressurisation, vacuum pump) on a 3-bed schedule, to CSS | the validated decks' step-end pressures, purity, recovery and specific energy | 2 min |
+| [`perez_2019_case_study_optimise.py`](perez_2019_case_study_optimise.py) | `Perez2019_CaseStudy_Base`, `_Base_LPP` | NSGA-II (pymoo) of the case-study device settings under plant constraints (purity/recovery targets, fluidisation, pressure drop, evacuation floor), warm-started, resumable from `results.csv`; `--summary DIR` writes the tables in `case_study_results/` | — (energy–productivity and purity–recovery fronts; the paper's Table 3 points) | about 15 min per deck and objective set (48 runs of about 45 s, 4 cores) |
 | [`vysyaraju_2024.py`](vysyaraju_2024.py) | `Vysyaraju2024_PSA_exp1` | He/N₂ 5-step PSA on binderless 5A, to CSS | measured and paper-model He purity/recovery (Table 3) | 30 s |
 | [`ward_pini_2024.py`](ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 80 s |
 | [`tsa_illustrative.py`](tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA heated and cooled by a medium (jacket + internal exchanger), to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
@@ -64,11 +66,14 @@ published values are mostly the authors' optimised **model** results or
 
 ## Notebooks
 
-`notebooks/` holds three executed notebooks:
+`notebooks/` holds four executed notebooks:
 
 - `parametric_study.ipynb` — sweeps the feed-step time of a CO₂ VSA cycle and plots purity and recovery;
 - `sensitivity_analysis.ipynb` — screening of uncertain inputs and KPI error bars with `skarstrom.sensitivity`;
-- `isotherm_fit.ipynb` — single- and multi-temperature isotherm fits with the engine's fitter.
+- `isotherm_fit.ipynb` — single- and multi-temperature isotherm fits with the engine's fitter;
+- `case_study_vsa.ipynb` — the CO₂ VSA case study: the device-driven base decks, their operating-limit
+  and KPI reports, a small optimisation, and the paper, unconstrained and constrained purity–recovery
+  fronts (from `case_study_results/`).
 
 ## Decks
 

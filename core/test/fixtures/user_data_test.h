@@ -528,7 +528,7 @@ namespace adsim {
 
       // Atomic: other tests may be loading this deck at the same time under
       // `ctest --parallel` and must never see a partly written file.
-      test::SaveToJsonAtomically(data, json_path);
+      test::SaveDeckAtomically(data, json_path);
     }
 
     // Save only the UserData configuration to Results/test_name/test_name.json

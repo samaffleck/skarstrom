@@ -99,6 +99,7 @@ from .model import (
     EnergyBalance,
     EnergySource,
     Endpoint,
+    Reaction,
     Fluid,
     Info,
     InitialConditions,
@@ -122,6 +123,7 @@ __version__: str = _core.__version__
 
 __all__ = [
     "Adsorbent",
+    "Reaction",
     "Editor",
     "model_kinds",
     "AxialProfile",

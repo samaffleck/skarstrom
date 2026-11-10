@@ -31,6 +31,7 @@
 #include "adsim/objects/deck_edit.h"
 #include "adsim/objects/deck_view.h"
 #include "adsim/objects/manifests.h"
+#include "adsim/objects/model_kinds.h"
 #include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/isotherm_fit.h"
 #include "adsim/solver/optimisation.h"
@@ -545,6 +546,8 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("trapezoid_production_rate", &adsim::KPIRecord::trapezoid_production_rate)
       .def_readonly("mass_balance_error", &adsim::KPIRecord::mass_balance_error)
       .def_readonly("trapezoid_mass_balance_error", &adsim::KPIRecord::trapezoid_mass_balance_error)
+      .def_readonly("uncounted_inflow", &adsim::KPIRecord::uncounted_inflow)
+      .def_readonly("uncounted_inflow_fraction", &adsim::KPIRecord::uncounted_inflow_fraction)
       .def_readonly("reaction_kpis", &adsim::KPIRecord::reaction_kpis)
       .def_readonly("reaction_generation", &adsim::KPIRecord::reaction_generation)
       .def_readonly("conversion", &adsim::KPIRecord::conversion)
@@ -579,6 +582,8 @@ PYBIND11_MODULE(_core, m) {
         d["trapezoid_production_rate"] = k.trapezoid_production_rate;
         d["mass_balance_error"] = k.mass_balance_error;
         d["trapezoid_mass_balance_error"] = k.trapezoid_mass_balance_error;
+        d["uncounted_inflow"] = k.uncounted_inflow;
+        d["uncounted_inflow_fraction"] = k.uncounted_inflow_fraction;
         // The reaction KPIs only on the records that carry them, so a deck
         // without reactions keeps its keys.
         if (k.reaction_kpis) {
@@ -1058,7 +1063,15 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "add_reaction")  // structure only; values through the registry
           out = py::int_(b::AddReaction(d, id(0), str(1), args[2].cast<std::map<std::string, double>>(),
                                         args.size() > 3 ? str(3) : "power_law"));
+        else if (op == "set_reaction_kind") b::SetReactionKind(d, id(0), id(1), str(2));
+        else if (op == "set_reaction_stoichiometry")
+          b::SetReactionStoichiometry(d, id(0), id(1), args[2].cast<std::map<std::string, double>>());
         else if (op == "set_reaction_basis") b::SetReactionBasis(d, id(0), id(1), str(2));
+        else if (op == "set_effectiveness")
+          b::SetEffectiveness(d, id(0), id(1), str(2), args.size() > 3 ? str(3) : std::string{});
+        else if (op == "add_adsorption_term") out = py::int_(b::AddAdsorptionTerm(d, id(0), id(1)));
+        else if (op == "remove_adsorption_term") b::RemoveAdsorptionTerm(d, id(0), id(1), id(2));
+        else if (op == "remove_reaction") b::RemoveReaction(d, id(0), id(1));
         else if (op == "set_reaction_kpi")
           b::SetReactionKPI(d, str(0), args[1].cast<std::vector<std::string>>(), args.size() > 2 ? str(2)
                                                                                                  : "catalyst_mass");
@@ -1120,8 +1133,24 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "set_mass_transfer_kind")
           ok = SetMassTransferKind(d, id(0), str(1), static_cast<MassTransferModelType>(kind(ModelFamily::RateModel, 2)),
                                    static_cast<MassTransferCoefficientType>(kind(ModelFamily::RateCoefficient, 3)), err);
+        else if (op == "set_mass_transfer_resistance" || op == "set_capacity_factor_mode") {
+          const std::string where = str(2);
+          if (where != "fast" && where != "slow") throw py::value_error("unknown site '" + where + "'; one of: fast, slow");
+          const MassTransferSite site = where == "slow" ? MassTransferSite::Slow : MassTransferSite::Fast;
+          if (op == "set_mass_transfer_resistance") {
+            ok = SetMassTransferResistance(d, id(0), str(1), site, str(3), args[4].cast<bool>(), err);
+          } else {
+            const std::string m = str(3);
+            int mode = -1;
+            for (int i = 0; i < 4; ++i)
+              if (m == CapacityFactorModeList[i]) mode = i;
+            if (mode < 0) throw py::value_error("unknown capacity-factor mode '" + m + "'; one of: none, slope, secant, fixed");
+            ok = SetCapacityFactorMode(d, id(0), str(1), site, static_cast<CapacityFactorMode>(mode), err);
+          }
+        }
         else if (op == "set_dispersion_kind")
           ok = SetDispersionKind(d, id(0), static_cast<AxialDispersionType>(kind(ModelFamily::Dispersion, 1)), err);
+        else if (op == "set_particle_shape") ok = SetParticleShape(d, id(0), str(1), err);
         else if (op == "set_heat_dispersion_kind")
           ok = SetHeatDispersionKind(d, id(0), static_cast<AxialHeatDispersionType>(kind(ModelFamily::HeatDispersion, 1)), err);
         else if (op == "set_internal_heat_transfer_kind")
@@ -1208,10 +1237,62 @@ PYBIND11_MODULE(_core, m) {
             if (it == src.mass_transfer_models_.end() || !it->second || !it->second->mtc_model_) continue;
             py::dict r;
             r["model"] = kind(b::RateModelKinds(), static_cast<int>(it->second->GetModelType()));
-            r["coefficient"] = kind(b::RateCoefficientKinds(), static_cast<int>(it->second->mtc_model_->GetModelType()));
+            // The preset the switches match (a former kind's tag), or
+            // series_resistance with the switches and mode (custom).
+            auto site = [](adsim::IMassTransferCoefficientModel* m) {
+              py::dict out;
+              auto* g = dynamic_cast<adsim::MassTransferCoefficientSeriesResistance*>(m);
+              if (!g) return out;
+              const std::string preset = g->PresetTag();
+              out["coefficient"] = preset == "custom" ? std::string("series_resistance") : preset;
+              py::list on;
+              for (const auto& t : adsim::ResistanceTags())
+                if (g->Enabled(t)) on.append(t);
+              out["resistances"] = on;
+              out["capacity_factor_mode"] = std::string(adsim::CapacityFactorModeList[static_cast<int>(g->CapacityMode())]);
+              return out;
+            };
+            py::dict fast = site(it->second->mtc_model_.get());
+            std::string coefficient = "series_resistance";
+            if (fast.contains("coefficient")) coefficient = fast["coefficient"].cast<std::string>();
+            else if (const auto* k = adsim::KindAt(adsim::ModelFamily::RateCoefficient,
+                                                   static_cast<size_t>(it->second->mtc_model_->GetModelType())))
+              coefficient = k->tag;  // an older class built by hand
+            r["coefficient"] = coefficient;
+            // The switches and mode only where the coefficient does not imply
+            // them: a custom model, or a mode the preset does not set; the
+            // slow site only where it differs from the fast one.
+            if (fast.contains("coefficient")) {
+              const std::string mode = fast["capacity_factor_mode"].cast<std::string>();
+              const std::string preset_mode = coefficient == "macropore_capacity" ? "secant" : "none";
+              if (coefficient == "series_resistance") r["resistances"] = fast["resistances"];
+              if (coefficient == "series_resistance" || mode != preset_mode) r["capacity_factor_mode"] = mode;
+            }
+            py::dict slow = site(it->second->SlowCoefficientModel());
+            if (slow.contains("coefficient") && fast.contains("coefficient") &&
+                (!slow["resistances"].equal(fast["resistances"]) ||
+                 !slow["capacity_factor_mode"].equal(fast["capacity_factor_mode"])))
+              r["slow"] = slow;
             rates[py::str(c)] = r;
           }
           a["rate_models"] = rates;
+          py::list reactions;
+          for (const auto& r : ads.reaction_source_.reactions_) {
+            py::dict rx;
+            rx["id"] = r.id_;
+            rx["name"] = r.name_;
+            py::dict nu;
+            for (const auto& [c, v] : r.nu_) nu[py::str(c)] = v;
+            rx["nu"] = nu;
+            rx["kind"] = r.rate_ ? std::string(ReactionRateKindString(r.rate_->GetType())) : std::string("power_law");
+            rx["basis"] = kind(b::ReactionBasisKinds(), static_cast<int>(r.basis_));
+            rx["effectiveness"] = std::string(EffectivenessModeString(r.effectiveness_.mode_));
+            rx["key_component"] = r.effectiveness_.key_component_;
+            const auto* lhhw = r.rate_ ? dynamic_cast<const LhhwRate*>(r.rate_.get()) : nullptr;
+            rx["adsorption_terms"] = lhhw ? lhhw->adsorption_.size() : size_t{0};
+            reactions.append(rx);
+          }
+          a["reactions"] = reactions;
           adsorbents.append(a);
         }
         out["adsorbents"] = adsorbents;
@@ -1405,18 +1486,9 @@ PYBIND11_MODULE(_core, m) {
       }
       return ps;
     };
-    py::dict out;
-    for (adsim::ModelFamily f : adsim::AllModelFamilies()) {
-      py::list kinds;
-      for (const auto& k : adsim::KindDescriptors(f)) {
-        py::dict d;
-        d["tag"] = k.tag;
-        d["label"] = k.label;
-        d["parameters"] = params(k);
-        kinds.append(d);
-      }
-      out[adsim::ModelFamilyName(f)] = kinds;
-    }
+    // The families from the engine's manifest (one definition: legacy flags,
+    // the generic coefficient's resistances, capacity modes and presets).
+    py::dict out = py::module_::import("json").attr("loads")(adsim::ModelKindManifest());
     py::list isotherms;
     for (const auto& k : adsim::IsothermKindDescriptors()) {
       py::dict d;
@@ -1441,9 +1513,14 @@ PYBIND11_MODULE(_core, m) {
     k["variable_category"] = b::VariableCategoryKinds();
     k["rate_model"] = b::RateModelKinds();
     k["rate_coefficient"] = b::RateCoefficientKinds();
+    k["rate_coefficient_preset"] = b::RateCoefficientPresets();
     k["mixing_rule"] = b::MixingRuleKinds();
+    k["reaction_rate"] = b::ReactionRateKinds();
+    k["reaction_basis"] = b::ReactionBasisKinds();
+    k["effectiveness"] = b::EffectivenessKinds();
     k["momentum"] = b::MomentumKinds();
     k["film_correlation"] = b::FilmCorrelationKinds();
+    k["particle_shape"] = adsim::ParticleShapeKinds();
     k["dispersion"] = b::DispersionKinds();
     k["heat_dispersion"] = b::HeatDispersionKinds();
     k["internal_heat_transfer"] = b::InternalHeatTransferKinds();

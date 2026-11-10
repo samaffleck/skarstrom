@@ -26,7 +26,7 @@ The solver parameters are stored in the deck and are parameters of the registry 
 | **Maximum Error Test Failures** | `settings.max_err_test_fails` | 40 | Local error-test failures tolerated before giving up. |
 | **Maximum Number of Steps** | `settings.max_num_steps` | 100000 | Cap on total integrator steps. |
 | **Advection Scheme** | `settings.advection_scheme` | `weno` | Face reconstruction of the mole fractions and of the energy balance's convective face temperature: `weno` (third order), `van_leer` (limited second order) or `upwind` (first order, the default up to engine 0.4). WENO reaches a grid-converged result on 4-10 times fewer cells than upwind; see [Numerics](numerics.md#advection-schemes). |
-| **Maximum Number of Cycles to Log** | `settings.max_cycles_to_keep` | 10 | How many recent cycles of full profile data are retained for plotting. Every solver step of each kept cycle is stored, so this sets most of a run's memory (on a fine grid, hundreds of MB per cycle). KPIs and the CSS history are kept for every cycle whatever this is (well under 1 MB for 2000 cycles). With a [CSS method](cyclic-steady-state.md#consecutive-cycles) on, at least the cycles the CSS check reads are kept (4 with the default three consecutive cycles). |
+| **Maximum Number of Cycles to Log** | `settings.max_cycles_to_keep` | 1 | How many recent cycles of full profile data are retained for plotting. Every solver step of each kept cycle is stored, so this sets most of a run's memory (on a fine grid, hundreds of MB per cycle). KPIs and the CSS history are kept for every cycle whatever this is (well under 1 MB for 2000 cycles). With a [CSS method](cyclic-steady-state.md#consecutive-cycles) on, at least the cycles the CSS check reads are kept (4 with the default three consecutive cycles). |
 
 > **Absolute tolerances** are set internally on a per-variable basis (10⁻⁸ for concentrations, mole fractions and loadings, 10⁻⁶ for pressure and velocity, 10⁻⁴ K for temperatures), so only the single relative tolerance is a setting. See [Numerics](numerics.md#time-integration-sundials-ida).
 
@@ -42,6 +42,8 @@ A run reports advisory warnings in the solver log; none of them stops it. Each c
 | **Vacuum** | `settings.warn_vacuum` | End of a run: the last cycle goes below atmospheric and the wall is not in vacuum service. |
 | **Design temperature** | `settings.warn_design_temperature` | End of a run: the wall temperature passes the design temperature. |
 | **Fluidisation** | `settings.warn_fluidisation` | End of a run: the approach to fluidisation passes 1. Switch it off for a bed that is held down. |
+| **Outlet backflow** | `settings.warn_outlet_backflow` | End of a run: in the last cycle, gas flows back into the bed through an outlet that has no connection to another step (more than 0.1 % of the cycle feed in one step). A valve's [check valve](boundary-conditions.md#check-valve) stops it. *New in 0.9.* |
+| **Connection pressure** | `settings.warn_connection_pressure` | End of a run: in the last cycle, gas enters a bed through a [connection](connecting-beds.md#pressure-order-through-a-connection) while that bed is more than 1 kPa the higher (more than 0.1 % of the cycle feed in one step). A diagnostic: the connection does not prevent it. *New in 0.9.* |
 
 All are on by default. The end-of-run checks are described on [Wall Design and Operating Limits](wall-design.md#operating-limit-warnings).
 
@@ -51,4 +53,4 @@ All are on by default. The end-of-run checks are described on [Wall Design and O
 - **The run stalls or reports many convergence/error-test failures.** Reduce `settings.max_step` and/or loosen `settings.reltol` slightly; check for very stiff inputs (e.g. an extremely large mass-transfer coefficient or a near-instant pressure ramp). Increasing the layer's number of cells gradually rather than in one large jump also helps.
 - **Results look under-resolved.** Increase the layer's number of cells and re-run; confirm the results stop changing. With the default WENO scheme about 80 cells resolve a 0.3 m VSA column; upwind needs several times more ([Numerics](numerics.md#advection-schemes)).
 
-Once a run completes, retain enough cycles (`settings.max_cycles_to_keep`) to inspect the approach to [cyclic steady state](cyclic-steady-state.md) and to compute [performance metrics](performance-metrics.md).
+The KPIs and the CSS history of every cycle are kept whatever `settings.max_cycles_to_keep` is, so the approach to [cyclic steady state](cyclic-steady-state.md) and the [performance metrics](performance-metrics.md) need no more than the default 1. Raise it only to plot the series or profiles of earlier cycles; the web solver has at most 2 GB.

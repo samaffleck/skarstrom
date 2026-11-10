@@ -53,6 +53,7 @@ def build(case: str = "DAC") -> sk.Simulation:
     ads.set_rate_model("Nitrogen", "ldf", "constant", k=0.1 / u.s)
     # fast site: 70 % of the capacity; the slow site has a twenty times smaller micropore diffusivity
     ads.set_rate_model("CarbonDioxide", "dual_rate_ldf", "series_resistance", split=0.7,
+                       resistances=["film", "macropore", "micropore"], capacity_factor_mode="slope",
                        tortuosity=3.0, macropore_void_fraction=0.338,
                        crystal_radius=1e-5 * u.m, micropore_diffusivity=2e-10 * u.m**2 / u.s,
                        micropore_activation_energy=20 * u.kJ / u.mol,

@@ -1,0 +1,11 @@
+deck,constraints,evaluations,best_recovery_at_purity_target,best_purity_at_recovery_target
+Base,none,1050,0.912983,0.971028
+Base,fluidisation,801,0.841631,0.839488
+Base,pressure_drop,1000,0.897303,0.943716
+Base,evacuation_floor,368,,
+Base,all,364,,
+Base_LPP,none,836,0.892544,0.946595
+Base_LPP,fluidisation,758,0.892544,0.946595
+Base_LPP,pressure_drop,702,0.892544,0.946595
+Base_LPP,evacuation_floor,272,,0.458004
+Base_LPP,all,242,,0.458004

@@ -208,7 +208,7 @@ TEST(ResistancePresets, DeckResultsUnchanged) {
     for (auto& [id, ads] : generic.Data().adsorbent_directory.GetAll())
       for (auto& [c, m] : ads.adsorption_source_.mass_transfer_models_) {
         ASSERT_NE(dynamic_cast<Generic*>(m->mtc_model_.get()), nullptr) << c;
-        has_kind = has_kind || m->mtc_model_->GetModelType() == kind;
+        has_kind = has_kind || static_cast<Generic*>(m->mtc_model_.get())->PresetType() == kind;
       }
     EXPECT_TRUE(has_kind);
     ASSERT_GT(ToLegacy(legacy.Data()), 0);

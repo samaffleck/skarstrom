@@ -427,7 +427,9 @@ namespace adsim {
 		const StructuredGeometry& g = structured_;
 		switch (kind_) {
 			case LayerKind::Packed: {
+				// 4 eb / a_v; spheres keep the original expression bit for bit.
 				const double e = eb_.Get();
+				if (particle_shape_ == ParticleShape::Cylinder) return e * particle_diameter_.Get() / (1.0 - e);
 				return (2.0 / 3.0) * e * particle_diameter_.Get() / (1.0 - e);
 			}
 			case LayerKind::Monolith: {
@@ -446,7 +448,7 @@ namespace adsim {
 		switch (kind_) {
 			case LayerKind::Packed: {
 				const double dp = particle_diameter_.Get();
-				return dp > 0.0 ? 6.0 * (1.0 - eb_.Get()) / dp : 0.0;
+				return dp > 0.0 ? ParticleShapeSurfaceFactor(particle_shape_) * (1.0 - eb_.Get()) / dp : 0.0;
 			}
 			case LayerKind::Monolith: {
 				double p, a;
@@ -525,14 +527,22 @@ namespace adsim {
 
 	MixedAdsorbentLayer::DiffusionGeometry MixedAdsorbentLayer::GetDiffusionGeometry() const {
 		DiffusionGeometry g;
-		if (!IsStructured()) {
-			g.c = 60.0;
-			g.length = particle_diameter_.Get();
-			g.volume_to_surface = particle_diameter_.Get() / 6.0;
-		} else {
+		if (IsStructured()) {
+			g.shape = Shape::Slab;
 			g.c = 3.0;
 			g.length = GetDiffusionLength();
 			g.volume_to_surface = g.length;
+		} else if (particle_shape_ == ParticleShape::Cylinder) {
+			// Infinite cylinder of radius r_f: k = 8 D / r_f^2, V/S = r_f / 2.
+			g.shape = Shape::Cylinder;
+			g.c = 8.0;
+			g.length = 0.5 * particle_diameter_.Get();
+			g.volume_to_surface = 0.5 * g.length;
+		} else {
+			g.shape = Shape::Sphere;
+			g.c = 60.0;
+			g.length = particle_diameter_.Get();
+			g.volume_to_surface = particle_diameter_.Get() / 6.0;
 		}
 		return g;
 	}

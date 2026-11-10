@@ -15,6 +15,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace adsim {
 
@@ -319,6 +320,114 @@ namespace adsim {
     return PreparePureIsotherm(ResolvePureIsotherm(iso, component), T);
   }
 
+  namespace {
+    // ---- trace continuation of a steep Sips term (SolveIast) -------------------
+    //
+    // A Sips term q = qs z / (1 + z), z = (b p)^n, with n < 1 has an infinite
+    // slope q/p at p -> 0, and so does everything IAST builds from it: a
+    // component absent from the gas (y <= 0 ahead of a front) takes the dilute
+    // loading y P q_T / P°(psi), and P°(psi) -> 0 faster than psi as psi -> 0,
+    // so at the edge of a bed that starts in an inert gas a mole fraction of
+    // -1e-14 gave loadings of order -1e7 mol/kg and the integrator failed. The
+    // competitive Sips kinds continue the power below a small mole fraction
+    // (isotherm.cpp, kSipsTraceY0); SolveIast does the same for the pure term
+    // below p0 = kIastTraceY0 * P (P the total pressure), with
+    //     q = A t / (1 + B t)^k,   t = p / p0,   0 < k <= 1,
+    // whose three constants give the Sips value and slope at p0 (C1, so the
+    // Newton iteration sees no kink) and the Sips spreading pressure at p0:
+    //     psi(p0) = ∫_0^p0 q/p dp = (qs / n) ln(1 + z0).
+    // The loading is monotone with the finite Henry slope A / p0, and psi above
+    // p0 is the Sips closed form unchanged, so every IAST loading whose
+    // fictitious pressures are at or above p0 (every component with y >= 1e-4)
+    // is the exact IAST solution. The continuation's psi and inverse are closed
+    // forms too. Stored in c3 = p0, c4 = B, c5 = k (0 = no continuation).
+    //
+    // The threshold is 1e-4, not the competitive kinds' 1e-5: matching the
+    // spreading pressure puts the continuation's weight near p = 0, so its
+    // Henry slope A / p0 is steeper than a plain C1 quadratic's (about 100x
+    // at 1e-5 for n = 0.425), and at 1e-5 a Streb 2021 breakthrough crawled
+    // (0.1 s of 4100 s in a minute of run time). At 1e-4 and at 1e-3 the nine
+    // Streb runs give the same outlet and temperature metrics to 0.1 %.
+    constexpr double kIastTraceY0 = 1e-4;
+
+    // Mole fractions at or below this are treated as absent (the dilute,
+    // first-order limit of IAST, exact to this order). The integrator's
+    // decaying front toes reach subnormal values (5e-321 seen), where the
+    // spreading pressure and its inverse underflow and the full solve fails.
+    constexpr double kIastMinMoleFraction = 1e-150;
+
+    struct SipsTrace {
+      double p0, A, B, k, psi0;
+    };
+
+    bool HasSipsTrace(const double* c) { return c[3] > 0.0; }
+
+    SipsTrace SipsTraceOf(const double* c) {
+      SipsTrace t;
+      t.p0 = c[3];
+      t.B = c[4];
+      t.k = c[5];
+      const double z0 = std::pow(c[1] * t.p0, c[2]);
+      t.A = c[0] * z0 / (1.0 + z0) * std::pow(1.0 + t.B, t.k);
+      t.psi0 = c[0] / c[2] * std::log1p(z0);
+      return t;
+    }
+
+    // ∫_0^t dt' / (1 + B t')^k = [(1 + B t)^(1-k) - 1] / (B (1 - k)), and its
+    // k -> 1 limit ln(1 + B t) / B.
+    double TraceIntegral(double B, double k, double t) {
+      const double L = std::log1p(B * t);
+      const double m = 1.0 - k;
+      return std::abs(m * L) < 1e-8 ? L * (1.0 + 0.5 * m * L) / B : std::expm1(m * L) / (B * m);
+    }
+
+    // B and k of the continuation of the Sips term c (qs, b, n < 1) below p0.
+    // Value and slope at t = 1 give A = q0 (1 + B)^k and k B / (1 + B) = 1 - s,
+    // s = n / (1 + z0) the log-slope of the Sips term; the spreading pressure
+    // then fixes B: R(B) = (1 + B)^k TraceIntegral(B, k, 1) = psi0 / q0. R runs
+    // from ln(1/s) / (1 - s) at k = 1 (B = (1 - s) / s) to 1/s as B -> inf, and
+    // psi0 / q0 = (1 + z0) ln(1 + z0) / (n z0) lies in between for n < 1.
+    // Solved by the Illinois method in ln B. Returns false when it does not
+    // bracket (then the term is left exact).
+    bool SolveSipsTrace(const double* c, double p0, double& B, double& k) {
+      const double n = c[2];
+      const double z0 = std::pow(c[1] * p0, n);
+      if (!(n > 0.0 && n < 1.0) || !(z0 > 0.0) || !std::isfinite(z0)) return false;
+      const double s = n / (1.0 + z0);
+      const double target = (1.0 + z0) * std::log1p(z0) / (n * z0);
+      auto f = [&](double u, double& kk) {
+        const double b = std::exp(u);
+        kk = std::min(1.0, (1.0 - s) * (1.0 + b) / b);
+        return std::pow(1.0 + b, kk) * TraceIntegral(b, kk, 1.0) / target - 1.0;
+      };
+      double k_lo = 1.0, k_hi = 1.0;
+      double u_lo = std::log((1.0 - s) / s), u_hi = u_lo + 60.0;
+      double f_lo = f(u_lo, k_lo), f_hi = f(u_hi, k_hi);
+      if (!(f_lo < 0.0 && f_hi > 0.0)) return false;
+      int side = 0;
+      for (int it = 0; it < 200; ++it) {
+        const double u = (u_lo * f_hi - u_hi * f_lo) / (f_hi - f_lo);
+        double kk;
+        const double fu = f(u, kk);
+        if (std::abs(fu) <= 1e-14 || u_hi - u_lo <= 1e-14 * std::abs(u)) {
+          B = std::exp(u);
+          k = kk;
+          return true;
+        }
+        if (fu < 0.0) {
+          u_lo = u; f_lo = fu;
+          if (side == -1) f_hi *= 0.5;
+          side = -1;
+        } else {
+          u_hi = u; f_hi = fu;
+          if (side == 1) f_lo *= 0.5;
+          side = 1;
+        }
+      }
+      return false;
+    }
+  }  // namespace
+
   double PureLoading(const PureIsotherm& iso, double P) {
     const double* c = iso.c;
     switch (FamilyOf(iso.kind)) {
@@ -335,6 +444,11 @@ namespace adsim {
       }
       case Family::Freundlich: return std::pow(c[0] * P, c[1]);
       case Family::Sips: {
+        if (HasSipsTrace(c) && P < c[3]) {
+          const SipsTrace t = SipsTraceOf(c);
+          const double tau = P / t.p0;
+          return t.A * tau / std::pow(1.0 + t.B * tau, t.k);
+        }
         const double z = std::pow(c[1] * P, c[2]);
         return c[0] * z / (1.0 + z);
       }
@@ -364,7 +478,12 @@ namespace adsim {
       case Family::Langmuir: return c[0] * std::log1p(c[1] * P);
       case Family::DualSiteLangmuir: return c[0] * std::log1p(c[1] * P) + c[2] * std::log1p(c[3] * P);
       case Family::Freundlich: return std::pow(c[0] * P, c[1]) / c[1];
-      case Family::Sips: return c[0] / c[2] * std::log1p(std::pow(c[1] * P, c[2]));
+      case Family::Sips:
+        if (HasSipsTrace(c) && P < c[3]) {
+          const SipsTrace t = SipsTraceOf(c);
+          return t.A * TraceIntegral(t.B, t.k, P / t.p0);
+        }
+        return c[0] / c[2] * std::log1p(std::pow(c[1] * P, c[2]));
       case Family::DualSiteSips:
         return c[0] / c[2] * std::log1p(std::pow(c[1] * P, c[2])) +
                c[3] / c[5] * std::log1p(std::pow(c[4] * P, c[5]));
@@ -392,7 +511,17 @@ namespace adsim {
       case Family::Henry: return psi / c[0];
       case Family::Langmuir: return std::expm1(psi / c[0]) / c[1];
       case Family::Freundlich: return std::pow(c[1] * psi, 1.0 / c[1]) / c[0];
-      case Family::Sips: return std::pow(std::expm1(c[2] * psi / c[0]), 1.0 / c[2]) / c[1];
+      case Family::Sips:
+        if (HasSipsTrace(c)) {
+          const SipsTrace t = SipsTraceOf(c);
+          if (psi < t.psi0) {
+            // Invert A TraceIntegral(B, k, tau) = psi.
+            const double m = 1.0 - t.k, r = psi * t.B / t.A;
+            const double L = std::abs(m) < 1e-12 ? r : std::log1p(m * r) / m;
+            return t.p0 * std::expm1(L) / t.B;
+          }
+        }
+        return std::pow(std::expm1(c[2] * psi / c[0]), 1.0 / c[2]) / c[1];
       case Family::AntiLangmuir:
         return (c[1] == 0.0) ? psi / c[0] : -std::expm1(-c[1] * psi / c[0]) / c[1];
       case Family::DualSiteLangmuir:
@@ -421,7 +550,9 @@ namespace adsim {
       case Family::Langmuir: return c[0] * c[1];
       case Family::DualSiteLangmuir: return c[0] * c[1] + c[2] * c[3];
       case Family::Freundlich: return power_law(c[0], c[1]);
-      case Family::Sips: return power_law(c[0] * c[1], c[2]);
+      case Family::Sips:
+        if (HasSipsTrace(c)) return SipsTraceOf(c).A / c[3];
+        return power_law(c[0] * c[1], c[2]);
       case Family::DualSiteSips: return power_law(c[0] * c[1], c[2]) + power_law(c[3] * c[4], c[5]);
       case Family::AntiLangmuir: return c[0];
       case Family::RedlichPeterson: return c[0];
@@ -431,8 +562,41 @@ namespace adsim {
     return 0.0;
   }
 
+  namespace {
+    IastResult SolveIastCore(const PureIsotherm* isos, int n, double P, const double* y, double* q,
+                             IastScratch& scratch, double psi_guess);
+  }  // namespace
+
   IastResult SolveIast(const PureIsotherm* isos, int n, double P, const double* y, double* q,
                        IastScratch& scratch, double psi_guess) {
+    // A Sips-family term with n < 1 takes the trace continuation below
+    // kIastTraceY0 * P (see SolveSipsTrace); every other isotherm is used as
+    // prepared.
+    bool steep = false;
+    if (P > 0.0 && std::isfinite(P))
+      for (int i = 0; i < n; ++i)
+        if (isos[i].kind != IsothermType::INERT && FamilyOf(isos[i].kind) == Family::Sips &&
+            isos[i].c[2] < 1.0 && !HasSipsTrace(isos[i].c))
+          steep = true;
+    if (!steep) return SolveIastCore(isos, n, P, y, q, scratch, psi_guess);
+    thread_local std::vector<PureIsotherm> traced;
+    traced.assign(isos, isos + n);
+    for (auto& iso : traced) {
+      if (iso.kind == IsothermType::INERT || FamilyOf(iso.kind) != Family::Sips || !(iso.c[2] < 1.0)) continue;
+      const double p0 = kIastTraceY0 * P;
+      double B = 0.0, k = 0.0;
+      if (SolveSipsTrace(iso.c, p0, B, k)) {
+        iso.c[3] = p0;
+        iso.c[4] = B;
+        iso.c[5] = k;
+      }
+    }
+    return SolveIastCore(traced.data(), n, P, y, q, scratch, psi_guess);
+  }
+
+  namespace {
+  IastResult SolveIastCore(const PureIsotherm* isos, int n, double P, const double* y, double* q,
+                           IastScratch& scratch, double psi_guess) {
     IastResult result;
     if (n <= 0) { result.converged = true; return result; }
     if (scratch.p0.size() != static_cast<size_t>(n)) scratch.p0.assign(static_cast<size_t>(n), 0.0);
@@ -453,8 +617,9 @@ namespace adsim {
 
     // Components that adsorb at all (not inert, a non-zero capacity: judged at
     // the total pressure so the choice never depends on the composition). Of
-    // these, the ones in the gas (y > 0) set the spreading pressure; the rest
-    // (y <= 0, which the integrator produces ahead of a front) get the
+    // these, the ones in the gas (y > kIastMinMoleFraction) set the spreading
+    // pressure; the rest (y <= 0, which the integrator produces ahead of a
+    // front, and the vanishing positive values of a decaying front toe) get the
     // infinite-dilution limit of IAST, q_i = y_i P q_T / P_i°(psi), linear in
     // y_i. That is the first-order limit of the full solve as y_i -> 0+, so the
     // loading is continuous with a continuous slope through y_i = 0, as the
@@ -466,11 +631,11 @@ namespace adsim {
       // of a quadrature for the Toth-type kinds.
       const bool adsorbs = isos[i].kind != IsothermType::INERT && PureLoading(isos[i], P) > 0.0;
       yv[i] = adsorbs ? y[i] : 0.0;
-      if (adsorbs && y[i] > 0.0) { ++count; last = i; Y += y[i]; }
+      if (adsorbs && y[i] > kIastMinMoleFraction) { ++count; last = i; Y += y[i]; }
     }
     auto dilute = [&](double psi, double qT) {
       for (int i = 0; i < n; ++i) {
-        if (yv[i] >= 0.0) continue;
+        if (yv[i] > kIastMinMoleFraction || yv[i] == 0.0) continue;
         if (psi > 0.0) {
           const double Pi = InvertSpreadingPressure(isos[i], psi, p0[i]);
           if (Pi > 0.0 && std::isfinite(Pi)) { p0[i] = Pi; q[i] = yv[i] * P * qT / Pi; }
@@ -499,7 +664,7 @@ namespace adsim {
     // anti-Langmuir isotherm past its pole; the search then expands upwards.
     double lo = 0.0, hi = 0.0;
     for (int i = 0; i < n; ++i) {
-      if (!(yv[i] > 0.0)) continue;
+      if (!(yv[i] > kIastMinMoleFraction)) continue;
       lo = std::max(lo, ReducedSpreadingPressure(isos[i], yv[i] * P));
       hi = std::max(hi, ReducedSpreadingPressure(isos[i], Y * P));
     }
@@ -517,7 +682,7 @@ namespace adsim {
       S = 0.0;
       dS = 0.0;
       for (int i = 0; i < n; ++i) {
-        if (!(yv[i] > 0.0)) continue;
+        if (!(yv[i] > kIastMinMoleFraction)) continue;
         const double Pi = InvertSpreadingPressure(isos[i], psi, p0[i]);
         const double qi = PureLoading(isos[i], Pi);
         if (!(Pi > 0.0) || !(qi > 0.0) || !std::isfinite(Pi)) { S = kNaN; return; }
@@ -569,17 +734,18 @@ namespace adsim {
     // removes the last-bit residual of the iteration) and the total loading.
     double inv_qT = 0.0;
     for (int i = 0; i < n; ++i) {
-      if (!(yv[i] > 0.0)) continue;
+      if (!(yv[i] > kIastMinMoleFraction)) continue;
       inv_qT += (yv[i] * P / p0[i]) / S / q0[i];
     }
     const double qT = 1.0 / inv_qT;
     for (int i = 0; i < n; ++i) {
-      if (!(yv[i] > 0.0)) continue;
+      if (!(yv[i] > kIastMinMoleFraction)) continue;
       q[i] = (yv[i] * P / p0[i]) / S * qT;
     }
     dilute(psi, qT);
     return result;
   }
+  }  // namespace
 
   IastResult EvalIastMixture(const std::vector<IIsotherm*>& isos, const std::vector<std::string>& components,
                              double T, double P, const std::vector<double>& y, std::vector<double>& q) {

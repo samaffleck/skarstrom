@@ -590,7 +590,7 @@ def test_double_exponential_pressure_and_capacity_factor_build_and_round_trip():
     ads = sim.adsorbents[0]
     ads.set_rate_model("CarbonDioxide", "ldf", "macropore_capacity", tortuosity=3.0, macropore_void_fraction=0.35)
     assert ads.kinetics["CarbonDioxide"].concentration_floor == pytest.approx(1e-3)
-    assert "macropore_capacity" in sk.build_kinds()["rate_coefficient"]
+    assert "macropore_capacity" in sk.build_kinds()["rate_coefficient_preset"]
     d = {s["name"]: s for s in sim.describe()["steps"]}
     assert d["Evacuation"]["bottom"]["profile"] == "double_exponential"
     script = sk.to_script(sim)

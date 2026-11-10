@@ -166,6 +166,7 @@ void BuildBufferTankDeck(UserData& data) {
   }
 
   data.cycle.number_of_cycles_ = kNumCycles;
+  data.settings.max_cycles_to_keep_ = kNumCycles;  // Extract reads every cycle's boundary log
   data.settings.max_step = 1.0;
 }
 

@@ -1,6 +1,6 @@
 # Examples
 
-Skarstrom ships 43 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
+Skarstrom ships 45 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
 
 Every paper-based deck is also an automated validation test; the [Validation](validation.md) page lists the simulated and published values and the error metric for each case, including where Skarstrom and the paper disagree, and why.
 
@@ -25,6 +25,7 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 | [`nguyen_2023.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/nguyen_2023.py) | `Nguyen2023_Exp_I` … `_X` (10) | CO₂/N₂ VPSA on CALF-20, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 2) | 22 min |
 | [`haghpanah_2013.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/haghpanah_2013.py) | `Haghpanah2013_Sec61`, `_PL002` … `_PL010`, `_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on 13X with compression and vacuum energy, to CSS | paper-model CO₂ purity/recovery (Haghpanah 2013 Sect. 6.1; Glover 2026 Table 4) | 4 min |
 | [`perez_2019.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/perez_2019.py) | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on 13X, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 3) | 6 min |
+| [`perez_2019_case_study.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/perez_2019_case_study.py) | `Perez2019_CaseStudy_Base`, `_Base_LPP` | Perez 2019 A and D1 run by devices (blower, valves with a ramped opening for pressurisation, vacuum pump) on a 3-bed schedule, to CSS | the validated decks' step-end pressures, purity, recovery and specific energy | 2 min |
 | [`vysyaraju_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/vysyaraju_2024.py) | `Vysyaraju2024_PSA_exp1` | He/N₂ 5-step PSA on binderless 5A, to CSS | measured and paper-model He purity/recovery (Table 3) | 30 s |
 | [`ward_pini_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 80 s |
 | [`tsa_illustrative.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA with heater and cooler, to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
@@ -34,11 +35,12 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 
 Runtimes are wall-clock times of a full run of the script (all its cases, to cyclic steady state where the deck checks it) on one core of a shared 4-core Linux machine, for the decks' grid-converged WENO settings and feed-loaded starts (from the paper tests, which run the same cases); for a quick look lower `cells` or pass `--cycles`. `python/tests/test_examples.py` imports every script and runs each once with fast options (one breakthrough case, or two cycles of one cyclic case).
 
-Three executed notebooks are in `examples/notebooks/`: a parametric study of the feed time of a CO₂ VSA cycle, a sensitivity study with error bars on its KPIs, and isotherm fitting with the engine's fitter.
+Four executed notebooks are in `examples/notebooks/`: a parametric study of the feed time of a CO₂ VSA cycle, a sensitivity study with error bars on its KPIs, isotherm fitting with the engine's fitter, and the [VSA case study](case-study-vsa.md) (`case_study_vsa.ipynb`: the base decks, their operating-limit and KPI reports, a small optimisation and the three purity–recovery fronts; *New in 0.9.*).
 
 ## Worked tutorials
 
 - [O₂ PSA (Arora 2021)](arora-2021-o2-psa.md): a four-step Skarstrom cycle for medical oxygen on LiLSX, and how to read purity and recovery when product is recycled.
+- [Case study: CO₂ VSA base decks](case-study-vsa.md): the Perez 2019 cycles run by a blower, valves and a vacuum pump on an n-bed schedule, with every plant constraint as a parameter.
 - [CO₂ VPSA with LPP (Perez 2019)](perez-2019-vpsa.md): a five-step vacuum swing cycle on zeolite 13X with light-product pressurisation, run to cyclic steady state and compared with experiment.
 - [TSA regeneration](tsa-regeneration.md): an illustrative temperature swing cycle with heater and cooler energy sources.
 
@@ -52,7 +54,7 @@ Three executed notebooks are in `examples/notebooks/`: a parametric study of the
 | **Haghpanah (2013)** | `Haghpanah2013_Sec61`, `Haghpanah2013_PL002` … `_PL010`, `Haghpanah2013_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on zeolite 13X (pressurisation, adsorption, forward blowdown, reverse evacuation) with compressor and vacuum-pump energy: the Sect. 6.1 reference design, the five minimum-energy designs of Table 6, and the CSS benchmark design of Glover et al. (2026) |
 | **Nguyen (2022)** | `Nguyen2022_Fig4`, `Nguyen2022_Fig5` | CO₂/He breakthrough (70 % and 15 % CO₂) into a helium-filled bed of CALF-20 (Figs. 4 and 5) |
 | **Nguyen (2023)** | `Nguyen2023_Exp_I` … `Nguyen2023_Exp_X` | CO₂/N₂ VPSA on structured CALF-20: experiments I–V use the basic 4-step cycle, VI–X the 4-step cycle with light-product pressurisation (Table 2) |
-| **Perez (2019)** | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on zeolite 13X: A, B and C1 are the basic 4-step cycle, D1, E and F add light-product pressurisation (Table 3) |
+| **Perez (2019)** | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on zeolite 13X: A, B and C1 are the basic 4-step cycle, D1, E and F add light-product pressurisation (Table 3) ; `Perez2019_CaseStudy_Base` and `_Base_LPP` run A and D1 by devices on a 3-bed schedule ([case study](case-study-vsa.md), *New in 0.9.*) |
 | **Streb (2021)** | `Streb2021_A1`, `Streb2021_A3` | CO₂/CH₄ breakthrough on zeolite 13X with thermocouple data |
 | **Vysyaraju (2024)** | `Vysyaraju2024_PSA_exp1` | He/N₂ separation on binderless zeolite 5A, 5-step PSA |
 | **Ward (2022)** | `Ward2022_Q50ccm`, `Ward2022_Q100ccm`, `Ward2022_Q200ccm` | CO₂ breakthrough on activated carbon at three feed flow rates |

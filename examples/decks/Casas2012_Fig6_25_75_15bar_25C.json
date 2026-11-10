@@ -124,96 +124,6 @@
                                     }
                                 },
                                 {
-                                    "key": "Hydrogen",
-                                    "value": {
-                                        "polymorphic_id": 1,
-                                        "ptr_wrapper": {
-                                            "valid": 1,
-                                            "data": {
-                                                "value0": {
-                                                    "Mass_Transfer_Coefficient_Model": {
-                                                        "polymorphic_id": 2,
-                                                        "ptr_wrapper": {
-                                                            "valid": 1,
-                                                            "data": {
-                                                                "value0": {},
-                                                                "Film_Resistance_Factor": {
-                                                                    "Value": 1.0,
-                                                                    "Expression": "1",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Tortuosity": {
-                                                                    "Value": 3.0,
-                                                                    "Expression": "3",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Macropore_Void_Fraction": {
-                                                                    "Value": 0.35,
-                                                                    "Expression": "0.35",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Molecular_Diffusion_Coefficient": {
-                                                                    "Value": 0.0,
-                                                                    "Expression": "0",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Crystal_Radius": {
-                                                                    "Value": 0.000001,
-                                                                    "Expression": "1e-06",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Micropore_Diffusivity": {
-                                                                    "Value": 1e-13,
-                                                                    "Expression": "1e-13",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Micropore_Activation_Energy": {
-                                                                    "Value": 0.0,
-                                                                    "Expression": "0",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Capacity_Factor": {
-                                                                    "Value": 0.0,
-                                                                    "Expression": "0",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Concentration_Floor": {
-                                                                    "Value": 0.001,
-                                                                    "Expression": "0.001",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Resistances": {
-                                                                    "Film": false,
-                                                                    "Macropore": false,
-                                                                    "Knudsen": false,
-                                                                    "Micropore": false,
-                                                                    "Lumped": true
-                                                                },
-                                                                "Capacity_Factor_Mode": 0,
-                                                                "Mass_Transfer_Coefficient": {
-                                                                    "Value": 1.0,
-                                                                    "Expression": "1",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Activation_Energy": {
-                                                                    "Value": 0.0,
-                                                                    "Expression": "0",
-                                                                    "DisplayUnitIndex": 0
-                                                                },
-                                                                "Pore_Radius": {
-                                                                    "Value": 1e-9,
-                                                                    "Expression": "1e-09",
-                                                                    "DisplayUnitIndex": 0
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                {
                                     "key": "Helium",
                                     "value": {
                                         "polymorphic_id": 1,
@@ -302,6 +212,96 @@
                                             }
                                         }
                                     }
+                                },
+                                {
+                                    "key": "Hydrogen",
+                                    "value": {
+                                        "polymorphic_id": 1,
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "value0": {
+                                                    "Mass_Transfer_Coefficient_Model": {
+                                                        "polymorphic_id": 2,
+                                                        "ptr_wrapper": {
+                                                            "valid": 1,
+                                                            "data": {
+                                                                "value0": {},
+                                                                "Film_Resistance_Factor": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Tortuosity": {
+                                                                    "Value": 3.0,
+                                                                    "Expression": "3",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Macropore_Void_Fraction": {
+                                                                    "Value": 0.35,
+                                                                    "Expression": "0.35",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Molecular_Diffusion_Coefficient": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Crystal_Radius": {
+                                                                    "Value": 0.000001,
+                                                                    "Expression": "1e-06",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Diffusivity": {
+                                                                    "Value": 1e-13,
+                                                                    "Expression": "1e-13",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Capacity_Factor": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Concentration_Floor": {
+                                                                    "Value": 0.001,
+                                                                    "Expression": "0.001",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Resistances": {
+                                                                    "Film": false,
+                                                                    "Macropore": false,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": false,
+                                                                    "Lumped": true
+                                                                },
+                                                                "Capacity_Factor_Mode": 0,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
+                                                                    "DisplayUnitIndex": 0
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             ],
                             "Heat_Of_Adsorption": [
@@ -314,27 +314,49 @@
                                     }
                                 },
                                 {
-                                    "key": "Hydrogen",
-                                    "value": {
-                                        "Value": 9800.0,
-                                        "Expression": "9.8e+03",
-                                        "DisplayUnitIndex": 0
-                                    }
-                                },
-                                {
                                     "key": "Helium",
                                     "value": {
                                         "Value": 0.0,
                                         "Expression": "0",
                                         "DisplayUnitIndex": 0
                                     }
+                                },
+                                {
+                                    "key": "Hydrogen",
+                                    "value": {
+                                        "Value": 9800.0,
+                                        "Expression": "9.8e+03",
+                                        "DisplayUnitIndex": 0
+                                    }
                                 }
                             ],
                             "Isotherms": [
                                 {
-                                    "key": 19,
+                                    "key": 2,
                                     "value": {
                                         "polymorphic_id": 2147483651,
+                                        "polymorphic_name": "adsim::InertIsotherm",
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "cereal_class_version": 2,
+                                                "value0": {},
+                                                "ISO_Params": [
+                                                    {
+                                                        "key": "Helium",
+                                                        "value": {
+                                                            "cereal_class_version": 0
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": 19,
+                                    "value": {
+                                        "polymorphic_id": 2147483652,
                                         "polymorphic_name": "adsim::ArrheniusSipsIsotherm",
                                         "ptr_wrapper": {
                                             "valid": 1,
@@ -437,28 +459,6 @@
                                             }
                                         }
                                     }
-                                },
-                                {
-                                    "key": 2,
-                                    "value": {
-                                        "polymorphic_id": 2147483652,
-                                        "polymorphic_name": "adsim::InertIsotherm",
-                                        "ptr_wrapper": {
-                                            "valid": 1,
-                                            "data": {
-                                                "cereal_class_version": 2,
-                                                "value0": {},
-                                                "ISO_Params": [
-                                                    {
-                                                        "key": "Helium",
-                                                        "value": {
-                                                            "cereal_class_version": 0
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    }
                                 }
                             ],
                             "Isotherm_Map": [
@@ -467,12 +467,12 @@
                                     "value": 19
                                 },
                                 {
-                                    "key": "Hydrogen",
-                                    "value": 19
-                                },
-                                {
                                     "key": "Helium",
                                     "value": 2
+                                },
+                                {
+                                    "key": "Hydrogen",
+                                    "value": 19
                                 }
                             ],
                             "Mixing_Rule": 0
@@ -555,7 +555,7 @@
                 "cereal_class_version": 1,
                 "Layers": [
                     {
-                        "cereal_class_version": 6,
+                        "cereal_class_version": 7,
                         "Name": "AP3-60",
                         "Domain": {
                             "cereal_class_version": 0,
@@ -708,7 +708,8 @@
                             },
                             "Entrance_Effects": false
                         },
-                        "Film_Correlation": 0
+                        "Film_Correlation": 0,
+                        "Particle_Shape": 0
                     }
                 ],
                 "Next_Layer_ID": 1
@@ -805,7 +806,7 @@
                     }
                 },
                 {
-                    "key": "Hydrogen",
+                    "key": "Helium",
                     "value": {
                         "Value": 0.0,
                         "Expression": "0",
@@ -813,7 +814,7 @@
                     }
                 },
                 {
-                    "key": "Helium",
+                    "key": "Hydrogen",
                     "value": {
                         "Value": 0.0,
                         "Expression": "0",
@@ -834,18 +835,18 @@
                     }
                 },
                 {
-                    "key": "Hydrogen",
-                    "value": {
-                        "Value": 29.06,
-                        "Expression": "29.06",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
                     "key": "Helium",
                     "value": {
                         "Value": 20.79,
                         "Expression": "20.79",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Hydrogen",
+                    "value": {
+                        "Value": 29.06,
+                        "Expression": "29.06",
                         "DisplayUnitIndex": 0
                     }
                 }
@@ -881,6 +882,14 @@
             },
             "Initial_Composition": [
                 {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 0.0,
+                        "Expression": "0",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
                     "key": "Helium",
                     "value": {
                         "Value": 1.0,
@@ -890,14 +899,6 @@
                 },
                 {
                     "key": "Hydrogen",
-                    "value": {
-                        "Value": 0.0,
-                        "Expression": "0",
-                        "DisplayUnitIndex": 0
-                    }
-                },
-                {
-                    "key": "CarbonDioxide",
                     "value": {
                         "Value": 0.0,
                         "Expression": "0",
@@ -945,18 +946,18 @@
                                         }
                                     },
                                     {
-                                        "key": "Hydrogen",
-                                        "value": {
-                                            "Value": 0.0,
-                                            "Expression": "0",
-                                            "DisplayUnitIndex": 0
-                                        }
-                                    },
-                                    {
                                         "key": "Helium",
                                         "value": {
                                             "Value": 1.0,
                                             "Expression": "1",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    },
+                                    {
+                                        "key": "Hydrogen",
+                                        "value": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -1107,6 +1108,14 @@
                                                     },
                                                     "Boundary_Mole_Fraction": [
                                                         {
+                                                            "key": "CarbonDioxide",
+                                                            "value": {
+                                                                "Value": 0.25,
+                                                                "Expression": "0.25",
+                                                                "DisplayUnitIndex": 0
+                                                            }
+                                                        },
+                                                        {
                                                             "key": "Helium",
                                                             "value": {
                                                                 "Value": 0.0,
@@ -1119,14 +1128,6 @@
                                                             "value": {
                                                                 "Value": 0.75,
                                                                 "Expression": "0.75",
-                                                                "DisplayUnitIndex": 0
-                                                            }
-                                                        },
-                                                        {
-                                                            "key": "CarbonDioxide",
-                                                            "value": {
-                                                                "Value": 0.25,
-                                                                "Expression": "0.25",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1345,7 +1346,7 @@
                 },
                 "consecutive_cycles": 3
             },
-            "max_cycles_to_keep": 10,
+            "max_cycles_to_keep": 1,
             "Maximum_Iterations_Per_Step": 50000,
             "Advection_Scheme": 1,
             "Accelerate_Cyclic_Steady_State": {
@@ -1354,7 +1355,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 2,
+                "cereal_class_version": 5,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -1365,7 +1366,9 @@
                 "Mole_Fraction_Sum": true,
                 "Mass_Balance_Stuck": true,
                 "Step_Retries": true,
-                "History_Truncated": true
+                "Outlet_Backflow": true,
+                "Reaction_Stiff": true,
+                "Connection_Pressure": true
             },
             "Valve_Bed_Pressure": 0
         },

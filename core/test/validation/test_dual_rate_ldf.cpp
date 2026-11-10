@@ -57,7 +57,7 @@ void ConvertToDualRate(Simulation& sim) {
       auto& models = d.adsorbent_directory.Get(id).adsorption_source_.mass_transfer_models_;
       auto it = models.find(c);
       ASSERT_TRUE(it != models.end() && it->second && it->second->mtc_model_);
-      const auto coeff = it->second->mtc_model_->GetModelType();
+      const auto coeff = CoefficientPreset(it->second->mtc_model_.get());
       std::string err;
       ASSERT_TRUE(SetMassTransferKind(d, id, c, MassTransferModelType::DUAL_RATE_LDF, coeff, err)) << err;
     }
@@ -142,8 +142,9 @@ TEST(DualRateLdf, RegistryHasSplitAndTheSlowSiteCoefficient) {
   DualRateLinearDrivingForce* m = Dual(sim, id, "CarbonDioxide");
   ASSERT_NE(m, nullptr);
   // The slow site has the fast site's kind and, after the switch, its values.
-  ASSERT_EQ(m->slow_mtc_model_->GetModelType(), m->mtc_model_->GetModelType());
-  const auto fast = ModelFields(m->mtc_model_.get());
+  ASSERT_EQ(CoefficientPreset(m->slow_mtc_model_.get()), CoefficientPreset(m->mtc_model_.get()));
+  const auto preset = CoefficientPreset(m->mtc_model_.get());
+  const auto fast = PresetFields(m->mtc_model_.get(), preset);
   ASSERT_FALSE(fast.empty());
   for (const auto& [name, p] : fast) {
     SCOPED_TRACE(name);
@@ -161,7 +162,7 @@ TEST(DualRateLdf, RegistryHasSplitAndTheSlowSiteCoefficient) {
   const double before = fast.front().second->Get();
   sim.SetParameter(kp + "slow_" + first, 2.0 * before + 1.0);
   EXPECT_EQ(fast.front().second->Get(), before);
-  EXPECT_EQ(ModelFields(m->slow_mtc_model_.get()).front().second->Get(), 2.0 * before + 1.0);
+  EXPECT_EQ(PresetFields(m->slow_mtc_model_.get(), preset).front().second->Get(), 2.0 * before + 1.0);
   sim.SetParameter(kp + "split", 0.7);
   EXPECT_EQ(m->split_.Get(), 0.7);
 
@@ -173,13 +174,13 @@ TEST(DualRateLdf, RegistryHasSplitAndTheSlowSiteCoefficient) {
                                   MassTransferCoefficientType::MACROPORE, err)) << err;
   m = Dual(sim, id, "CarbonDioxide");
   ASSERT_NE(m, nullptr);
-  EXPECT_EQ(m->mtc_model_->GetModelType(), MassTransferCoefficientType::MACROPORE);
-  EXPECT_EQ(m->slow_mtc_model_->GetModelType(), MassTransferCoefficientType::MACROPORE);
+  EXPECT_EQ(CoefficientPreset(m->mtc_model_.get()), MassTransferCoefficientType::MACROPORE);
+  EXPECT_EQ(CoefficientPreset(m->slow_mtc_model_.get()), MassTransferCoefficientType::MACROPORE);
   EXPECT_EQ(m->split_.Get(), 0.7);
   ASSERT_TRUE(SetMassTransferKind(sim.Data(), id, "CarbonDioxide", MassTransferModelType::DUAL_RATE_LDF,
                                   MassTransferCoefficientType::CONSTANT, err)) << err;
   m = Dual(sim, id, "CarbonDioxide");
-  EXPECT_EQ(m->slow_mtc_model_->GetModelType(), MassTransferCoefficientType::CONSTANT);
+  EXPECT_EQ(CoefficientPreset(m->slow_mtc_model_.get()), MassTransferCoefficientType::CONSTANT);
 }
 
 // ---------------------------------------------------------------------------
@@ -315,7 +316,8 @@ TEST(DualRateLdf, DeckRoundTrip) {
   ASSERT_NE(m, nullptr);
   EXPECT_EQ(m->split_.Get(), 0.7);
   ASSERT_NE(m->slow_mtc_model_, nullptr);
-  EXPECT_EQ(m->slow_mtc_model_->GetModelType(), Dual(sim, id, "CarbonDioxide")->slow_mtc_model_->GetModelType());
+  EXPECT_EQ(CoefficientPreset(m->slow_mtc_model_.get()),
+            CoefficientPreset(Dual(sim, id, "CarbonDioxide")->slow_mtc_model_.get()));
   for (const auto& p : sim.Parameters().All()) {
     if (p.Info().path.rfind(kp, 0) != 0) continue;
     SCOPED_TRACE(p.Info().path);

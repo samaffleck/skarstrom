@@ -2,6 +2,13 @@ name: Bug report
 description: Something does not build, crashes, or gives a wrong result
 labels: [bug]
 body:
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Existing issues
+      options:
+        - label: I searched the [open and closed issues](https://github.com/samaffleck/skarstrom/issues?q=is%3Aissue) and this is not a duplicate.
+          required: true
   - type: textarea
     id: what
     attributes:

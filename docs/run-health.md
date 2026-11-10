@@ -71,12 +71,28 @@ solver's own step recoveries) per accepted internal step, over a cycle of at lea
 rejections mean the integrator is fighting the deck: a tolerance it cannot meet, an abrupt boundary condition,
 a grid too coarse for a front.
 
-### `HISTORY_TRUNCATED`
+The integrator counters, including the recovered-step count (`recovered_steps`), are the same for a run in slices (the chunked solver, `CoupledSolverChuncked::GetStatistics()`) as for a blocking run. *New in 0.9.*
 
-The run outlived its log (`settings.max_cycles_to_keep`) and the log kept fewer cycles than the diagnostics
-read back (6: the window of the CSS remaining-distance estimate). The series and profiles read after the run
-then cover only the logged cycles. KPIs and the CSS history are kept for every cycle, and the checks above run
-as each cycle completes, so none of them is affected.
+### `REACTION_STIFF`
+
+The integrator's step collapsed at a reacting cell: in one cycle step, 100 accepted internal steps shorter
+than $10^{-4}$ s had the largest weighted local error estimate in a cell that carries a reaction, or the step
+failed while its last accepted step was that short there. A reaction that relaxes far faster than the flow
+can hold the step at its own time scale (microseconds) for the rest of the step; the run then crawls or fails
+with "too much work".
+
+The warning names the reaction (`reaction`) and the component (`component`) to look at. Of the components the
+cell's reactions raise to a power below 1 (a negative order, a square root in a reverse term), it takes the one
+with the smallest mole fraction in that cell, else the participant with the smallest mole fraction; of the
+reactions that involve it, the one with the largest rate there. The value is the number of short steps.
+
+Unlike the checks above, which run as each cycle completes, this one counts within the cycle step and is
+reported at once, so it also reaches a run that then fails: the failed run's log carries the message.
+
+Suspects: the reaction and its rate law, the near-zero mole fraction of the component (typically a product in
+a bed that holds none yet), the initial gas composition. Try: start the bed with some of the component in
+`initial.y`, or at the gas-phase equilibrium of the feed; add a trace to the feed; check the orders and the
+units of the rate constants. See [Reactions: start-up of fast reactions](reactions.md#start-up-of-fast-reactions).
 
 ## Thresholds
 
@@ -91,7 +107,7 @@ ratio.
 | `MASS_BALANCE_STUCK` | $\lvert e\rvert$ of a component, any cycle | $2.2 \times 10^{-4}$ (Perez2019_C1, an early cycle) | $2 \times 10^{-3}$ | 9 |
 | | $\lvert e\rvert$ once the state change is $\le 10^{-3}$ | $2.3 \times 10^{-5}$ (Nguyen2023_Exp_IX) | $2 \times 10^{-3}$ | 87 |
 | `STEP_RETRIES` | rejected attempts per accepted step, per cycle | 0.078 (Perez2019_B) | 0.25 | 3.2 |
-| `HISTORY_TRUNCATED` | cycles logged | every deck keeps 10 or more | 6, or the cycles run if fewer | |
+| `REACTION_STIFF` | steps shorter than $10^{-4}$ s at a reacting cell, per cycle step | 0 (no example deck has a reaction) | 100 | |
 
 Distribution over the decks (the largest value of each deck):
 

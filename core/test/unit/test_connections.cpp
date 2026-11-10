@@ -720,11 +720,13 @@ namespace adsim {
   TEST(ConnectedStreamTest, ReplayKeepsTheSignOfTheDonorFlow) {
     // Donor at the top of its bed: the log is signed along the bed axis, so
     // +2 at t = 0 leaves the bed and -0.5 from t = 4 is backflow into it.
+    // Donor pressure logged so each flow runs downhill (connections pass gas only from high to low pressure).
+    auto donor_pressure = [](double t) { return t <= 2.0 ? 1.1e5 : 0.9e5; };
     BoundaryStream donor_top;
     donor_top.stream_data_.Clear();
     donor_top.stream_data_.location_ = BoundaryLocation::TOP;
     for (auto [t, F] : {std::pair{0.0, 2.0}, {2.0, 1.0}, {4.0, -0.5}, {10.0, -0.5}}) {
-      donor_top.stream_data_.Log(F, 300.0 * F, 300.0, 1e5, 0.0, t, {}, {});
+      donor_top.stream_data_.Log(F, 300.0 * F, 300.0, donor_pressure(t), 0.0, t, {}, {});
     }
     EXPECT_DOUBLE_EQ(donor_top.stream_data_.GetOutflow(1.0), 1.5);
     EXPECT_DOUBLE_EQ(donor_top.stream_data_.GetOutflow(6.0), -0.5);
@@ -734,7 +736,7 @@ namespace adsim {
     donor_bottom.stream_data_.Clear();
     donor_bottom.stream_data_.location_ = BoundaryLocation::BOTTOM;
     for (auto [t, F] : {std::pair{0.0, -2.0}, {2.0, -1.0}, {4.0, 0.5}, {10.0, 0.5}}) {
-      donor_bottom.stream_data_.Log(F, 300.0 * F, 300.0, 1e5, 0.0, t, {}, {});
+      donor_bottom.stream_data_.Log(F, 300.0 * F, 300.0, donor_pressure(t), 0.0, t, {}, {});
     }
     EXPECT_DOUBLE_EQ(donor_bottom.stream_data_.GetOutflow(1.0), 1.5);
     EXPECT_DOUBLE_EQ(donor_bottom.stream_data_.GetOutflow(6.0), -0.5);
