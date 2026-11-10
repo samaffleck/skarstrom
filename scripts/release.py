@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import os
 import re
 import subprocess
 import sys
@@ -451,4 +452,12 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        code = main()
+        sys.stdout.flush()
+    except BrokenPipeError:
+        # `release.py notes | head` closes the pipe early. Point stdout at
+        # devnull so the flush at exit cannot fail (exit 120), and stop quietly.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        code = 0
+    sys.exit(code)
