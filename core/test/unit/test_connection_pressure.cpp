@@ -162,6 +162,51 @@ namespace adsim {
       build::Connect(data, Lpp().endpoint_id_, receiver_id);
     }
 
+    // Pressure equalisation through a valve: Feed fills the bed to 3 atm;
+    // in "Equalise down" (the donor) gas leaves the top through a valve
+    // outlet connected to the top of "Equalise up" (the receiver), a
+    // set-flow inlet; Blowdown takes the bed to 1 atm between them. The
+    // donor's valve reads the receiver's logged pressure: the beds equalise
+    // early in the step, and the donor's bottom vent then takes it below
+    // the receiver, so the valve draws gas back.
+    void EqualisationCycle(int cycles) {
+      AddStep("Feed", 20.0);
+      AddPressureInletBC(CreateConstantBoundaryValue(3.0 * kAtm), feed, 293, BoundaryLocation::BOTTOM, "Feed");
+      AddClosedBC(BoundaryLocation::TOP, "Feed");
+      AddStep("Equalise down", 20.0);
+      // A vent at the bottom keeps the donor falling after the beds
+      // have equalised, so the valve then draws gas back from the receiver.
+      {
+        std::vector<std::unique_ptr<IBoundaryStream>> streams;
+        streams.push_back(CreateValveOutletStream(CreateConstantBoundaryValue(kAtm), 0.05));
+        streams.back()->name_ = "Vent";
+        AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::OUTLET, "Equalise down");
+      }
+      {
+        std::vector<std::unique_ptr<IBoundaryStream>> streams;
+        streams.push_back(CreateValveOutletStream(CreateConstantBoundaryValue(2.0 * kAtm), 10.0));
+        streams.back()->name_ = "PE out";
+        AddFlowBC(std::move(streams), BoundaryLocation::TOP, BoundaryDirection::OUTLET, "Equalise down");
+      }
+      AddStep("Blowdown", 10.0);
+      AddPressureOutletBC(CreateConstantBoundaryValue(kAtm), BoundaryLocation::BOTTOM, "Blowdown");
+      AddClosedBC(BoundaryLocation::TOP, "Blowdown");
+      AddStep("Equalise up", 20.0);
+      AddClosedBC(BoundaryLocation::BOTTOM, "Equalise up");
+      {
+        std::vector<std::unique_ptr<IBoundaryStream>> streams;
+        streams.push_back(CreateNoValveInletStream(CreateVelocityBC(0.0), feed, 293));
+        streams.back()->name_ = "PE in";
+        AddFlowBC(std::move(streams), BoundaryLocation::TOP, BoundaryDirection::INLET, "Equalise up");
+      }
+      ConfigureCycle(cycles);
+      data.settings.css.method_ = CSSMethod::NONE;
+      data.settings.warnings_.vacuum = false;
+      data.cycle.EnsureIds();
+      build::Connect(data, Flow("Equalise down", BoundaryLocation::TOP).streams_.at(0)->endpoint_id_,
+                     Flow("Equalise up", BoundaryLocation::TOP).streams_.at(0)->endpoint_id_);
+    }
+
     void Run(CoupledSolver& solver) {
       std::string error;
       ASSERT_TRUE(data.PerformChecks(error)) << error;
@@ -274,6 +319,31 @@ namespace adsim {
     }
     data.settings.warnings_.outlet_backflow = false;  // the bottom outlet feeds the receiver on purpose
     EXPECT_TRUE(ConnectionWarnings(CheckOperatingLimits(data, solver.GetLog())).empty());
+  }
+
+  // A set-flow stream replays a connected valve's flow as it is, both ways:
+  // the valve already sets its flow from the pressure difference. After the
+  // beds equalise, the donor's valve draws small amounts of gas back while
+  // its bed is a few Pa below the receiver's log. Scaled by
+  // ConnectionFlowWeight too, the receiver gave none of it back, and the
+  // connection made gas (2 % of the equalisation moles on
+  // Vysyaraju2024_PSA_exp1). The moles the donor gives, net, are the moles
+  // the receiver takes in.
+  TEST_F(ConnectionPressureTest, ValvePartnerFlowIsReplayedBothWays) {
+    EqualisationCycle(20);
+    CoupledSolver solver{data};
+    Run(solver);
+    const StreamData& donor = Flow("Equalise down", BoundaryLocation::TOP).streams_.at(0)->stream_data_;
+    const StreamData& receiver = Flow("Equalise up", BoundaryLocation::TOP).streams_.at(0)->stream_data_;
+    ASSERT_GT(donor.time_series_.size(), 10u);
+    ASSERT_GT(receiver.time_series_.size(), 10u);
+
+    // The scenario: the beds equalised and the valve then drew gas back.
+    const double given = MolesOut(donor) - MolesIn(donor);
+    const double taken = MolesIn(receiver) - MolesOut(receiver);
+    ASSERT_GT(given, 0.0);
+    ASSERT_GT(MolesIn(donor), 1e-3 * given) << "the donor's valve drew no gas back";
+    EXPECT_NEAR(taken, given, 1e-4 * given) << "given " << given << " mol, taken " << taken << " mol";
   }
 
 } // namespace adsim
