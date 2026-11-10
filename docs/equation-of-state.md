@@ -21,14 +21,18 @@ This is one of the residuals the solver satisfies at every time step (the *Conce
 | $T$     | Gas temperature                  | K           |
 | $R$     | Gas constant, 8.314462618 J mol⁻¹ K⁻¹ | J mol⁻¹ K⁻¹ |
 
-### Where CoolProp is used
+### Where the component constants come from
 
-Components are chosen by their [CoolProp](https://coolprop.org/) fluid names in the deck's fluid package. CoolProp is called only when a run starts (`Fluid::Initialise`), never inside the time integration:
+Components are chosen by their [CoolProp](https://coolprop.org/) fluid names in the deck's fluid package. The engine does not call CoolProp. The fixed constants of each component are in a table, `core/include/adsim/objects/component_properties.h`. The script `scripts/gen_component_properties.py` writes this table from the CoolProp fluid files:
 
-- **Molar mass** $M_i$ of each component, from CoolProp.
-- **Heat capacity**: see [Gas heat capacity](#gas-heat-capacity) below. CoolProp is used only for a component without an ideal-gas polynomial.
+- **Molar mass** $M_i$ of each component.
+- **Formula, CAS number and aliases** (the component manifest).
+- **Critical point, triple point and vapour-pressure equation** (the saturation pressure of the GAB isotherms; see [Isotherms](isotherms.md)).
 
-If CoolProp cannot evaluate a property, the error is printed to the console and the value is set to 0.
+The heat capacity, viscosity and thermal conductivity come from polynomials; see below.
+
+!!! note "New in 0.10"
+    The table replaces the CoolProp calls of earlier engines. The values are the same.
 
 ### Gas heat capacity
 
@@ -89,7 +93,10 @@ The energy balance is written in temperature form, $\rho C_{p,g}(\partial T/\par
 
 The larger differences for the heavier organics are differences between the two published correlations (TM-4513's fit and the ideal-gas part of each reference equation of state), not fitting noise; below its triple point (279 K) cyclohexane's two correlations differ by up to 8 %, which is why the comparison starts there.
 
-**Components without a polynomial.** Hexane has no TM-4513 entry. It keeps CoolProp's gas-phase heat capacity at the initial-condition pressure and temperature, held for the run (as every component did before), and a run-start warning says so. For it, the initial temperature still sets the heat capacity.
+**Every component has a polynomial.** Earlier engines also had Hexane, which has no TM-4513 entry. Its heat capacity was CoolProp's value at the initial conditions, held for the run.
+
+!!! note "Changed in 0.10"
+    Hexane is removed. A deck that has Hexane does not load. The error names the component.
 
 **Kirchhoff heats of reaction** integrate the same heat capacities exactly: $\Delta H_r(T) = \Delta H_r(T_\mathrm{ref}) + \sum_i \nu_i \int_{T_\mathrm{ref}}^{T} C_{p,i}\thinspace dT$.
 

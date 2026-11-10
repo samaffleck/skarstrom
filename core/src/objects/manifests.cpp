@@ -16,7 +16,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "CoolProp.h"
+#include "adsim/objects/component_properties.h"
 #include "adsim/math/unit_parser.h"
 #include "adsim/math/user_variables.h"
 #include "adsim/objects/deck_builder.h"
@@ -300,9 +300,6 @@ namespace adsim {
          "adsorbent '{adsorbent}' uses the IAST mixing rule with the competitive isotherm '{isotherm}' for "
          "{components}. IAST takes every isotherm in its pure-component limit, so that kind's own competition term "
          "is not applied."},
-        {"gas_heat_capacity", "Gas heat capacity held at the initial conditions", "start", "", true,
-         "{component} has no ideal-gas heat capacity polynomial, so its gas heat capacity is CoolProp's value at the "
-         "initial pressure and temperature, held for the whole run."},
         {"layer_composition", "Solid at mass fraction 0", "start", "", true,
          "adsorbent {adsorbent} has mass fraction 0 in layer {layer}, so it takes no part in the run."},
         {"film_correlation", "Single-sphere film correlation in a bed", "start", "", true,
@@ -564,54 +561,20 @@ namespace adsim {
 
   // ---- components ----------------------------------------------------------------
 
-  namespace {
-
-    std::string CoolPropString(const std::string& fluid, const std::string& param) {
-      try {
-        return CoolProp::get_fluid_param_string(fluid, param);
-      } catch (...) {
-        return {};
-      }
-    }
-
-    // CoolProp writes formulas with subscripts in braces, "C_{1}O_{2}": drop
-    // the ones and the markup ("CO2").
-    std::string PlainFormula(std::string f) {
-      std::string out;
-      for (size_t i = 0; i < f.size(); ++i) {
-        if (f[i] == '_' && i + 1 < f.size() && f[i + 1] == '{') {
-          const size_t close = f.find('}', i);
-          if (close == std::string::npos) break;
-          const std::string n = f.substr(i + 2, close - i - 2);
-          if (n != "1") out += n;
-          i = close;
-        } else if (f[i] != '{' && f[i] != '}') {
-          out += f[i];
-        }
-      }
-      return out;
-    }
-
-  }  // namespace
-
   ComponentInfo DescribeComponent(const std::string& name) {
     ComponentInfo info;
     info.name = name;
-    info.formula = PlainFormula(CoolPropString(name, "formula"));
-    info.cas = CoolPropString(name, "CAS");
-    const std::string aliases = CoolPropString(name, "aliases");
-    std::stringstream ss(aliases);
-    for (std::string item; std::getline(ss, item, ',');) {
-      item.erase(0, item.find_first_not_of(' '));
-      item.erase(item.find_last_not_of(' ') + 1);
-      if (!item.empty() && item != name) info.aliases.push_back(item);
+    if (const ComponentProperties* p = FindComponentProperties(name)) {
+      info.formula = std::string(p->formula);
+      info.cas = std::string(p->cas);
+      std::stringstream ss{std::string(p->aliases)};
+      for (std::string item; std::getline(ss, item, ',');) {
+        item.erase(0, item.find_first_not_of(' '));
+        item.erase(item.find_last_not_of(' ') + 1);
+        if (!item.empty() && item != name) info.aliases.push_back(item);
+      }
+      info.molar_mass = p->molar_mass;
     }
-    try {
-      info.molar_mass = CoolProp::Props1SI(name, "molar_mass");
-    } catch (...) {
-      info.molar_mass = 0.0;
-    }
-    if (!std::isfinite(info.molar_mass) || info.molar_mass <= 0.0 || info.molar_mass > 1e3) info.molar_mass = 0.0;
     if (const NasaPolynomial* p = Fluid::IdealGasCoeffs(name)) {
       info.ideal_gas_heat_capacity = true;
       info.cp_species = std::string(p->species);
@@ -631,11 +594,11 @@ namespace adsim {
       Set(v, "formula", c.formula, a);
       Set(v, "molar_mass", Num(c.molar_mass > 0 ? c.molar_mass : std::numeric_limits<double>::quiet_NaN()), a);
       Set(v, "cas", c.cas, a);
-      Set(v, "properties_source", "CoolProp", a);
+      Set(v, "properties_source", kComponentPropertiesSource, a);
       Set(v, "coolprop_name", c.name, a);
       Set(v, "aliases", StrList(c.aliases, a), a);
       Set(v, "ideal_gas_heat_capacity", c.ideal_gas_heat_capacity, a);
-      Set(v, "heat_capacity_held", !c.ideal_gas_heat_capacity, a);
+      Set(v, "heat_capacity_held", false, a);  // always false; kept for one release
       Set(v, "cp_species", c.cp_species, a);
       Set(v, "cp_source", c.cp_source, a);
       list.PushBack(v, a);

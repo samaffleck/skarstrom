@@ -5,6 +5,8 @@
 
 // STL includes
 #include <cmath>
+#include <map>
+#include <string>
 
 // Gtest includes
 #include <gtest/gtest.h>
@@ -21,7 +23,10 @@ namespace adsim {
     // with Omega_D from the Neufeld et al. (1972) correlation and M_AB = M_i.
     double ChapmanEnskogSelfDiffusion(const std::string& component, double T, double P) {
       const ComponentData& cd = Components::GetComponentData(component);
-      const double M = CoolProp::Props1SI(component, "molar_mass") * 1e3; // [g/mol]
+      // Molar mass [g/mol], recorded from the CoolProp 6.7.0 fluid files
+      // (EOS molar_mass), independent of the engine's table.
+      const std::map<std::string, double> kMolarMass = {{"CarbonDioxide", 44.0098}, {"Nitrogen", 28.01348}};
+      const double M = kMolarMass.at(component);
       const double Ts = T / cd.eps;
       const double omega = 1.06036 / std::pow(Ts, 0.15610)
                          + 0.19300 / std::exp(0.47635 * Ts)

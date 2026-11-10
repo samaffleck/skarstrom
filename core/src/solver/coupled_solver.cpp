@@ -559,8 +559,6 @@ namespace adsim {
         LogMessage(LogLevel::LOW, w);
     for (const auto& w : MixingRuleWarnings(user_data_.adsorbent_directory, user_data_.fluid))
       LogMessage(LogLevel::LOW, w);
-    for (const auto& w : GasHeatCapacityWarnings(user_data_.fluid))
-      LogMessage(LogLevel::LOW, w);
     for (const auto& w : LayerCompositionWarnings(user_data_.adsorbent_directory, user_data_.bed))
       LogMessage(LogLevel::LOW, w);
     for (const auto& w : MassTransferWarnings(user_data_.adsorbent_directory, user_data_.bed)) LogMessage(LogLevel::LOW, w);
@@ -819,8 +817,6 @@ namespace adsim {
         for (const auto& w : WallDesignWarnings(user_data_.bed))
           LogMessage(LogLevel::LOW, w);
       for (const auto& w : MixingRuleWarnings(user_data_.adsorbent_directory, user_data_.fluid))
-        LogMessage(LogLevel::LOW, w);
-      for (const auto& w : GasHeatCapacityWarnings(user_data_.fluid))
         LogMessage(LogLevel::LOW, w);
       for (const auto& w : LayerCompositionWarnings(user_data_.adsorbent_directory, user_data_.bed))
         LogMessage(LogLevel::LOW, w);

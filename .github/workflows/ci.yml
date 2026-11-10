@@ -384,6 +384,12 @@ jobs:
         run: python scripts/release.py check-dev
       - name: Examples module is up to date
         run: python scripts/gen_examples_module.py --check
+      # The generator reads the CoolProp fluid files (a development-time data
+      # source; the engine does not call CoolProp).
+      - name: Component property table is up to date
+        run: |
+          git submodule update --init --depth 1 external/CoolProp
+          python scripts/gen_component_properties.py --check
       - uses: ./.github/actions/docs-checks
 
   lint:

@@ -1264,8 +1264,8 @@ def ideal_gas_heat_capacity(component: str, temperature: float) -> float:
     ``temperature`` [K], from the NASA 7-coefficient polynomials (McBride, Gordon and
     Reno 1993, NASA TM-4513) that the default ``ideal_gas`` gas heat capacity mode
     uses (one coefficient set per component, to 1000 K). Outside a polynomial's range
-    the value at the nearer limit. ValueError for
-    a component without a polynomial (Hexane)."""
+    the value at the nearer limit. Every engine component has a polynomial; ValueError
+    for a name that is not an engine component."""
     return _core.ideal_gas_heat_capacity(component, float(temperature))
 
 
@@ -1277,12 +1277,12 @@ def ideal_gas_heat_capacity_reference() -> str:
 def ideal_gas_heat_capacity_source(component: str) -> Dict[str, str]:
     """Provenance of ``component``'s polynomial: ``{"species": TM-4513 species label,
     "source": TM-4513 data-source code}`` (Air: its mixture and mixing note).
-    ValueError for a component without a polynomial (Hexane)."""
+    ValueError for a name that is not an engine component."""
     return dict(_core.ideal_gas_heat_capacity_source(component))
 
 
 def components_with_held_heat_capacity() -> List[str]:
-    """Components without a polynomial; they keep CoolProp's value held at the initial conditions."""
+    """Components without a polynomial: always empty, because every engine component has one."""
     return list(_core.components_with_held_heat_capacity())
 
 

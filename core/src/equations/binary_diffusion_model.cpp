@@ -32,8 +32,8 @@ namespace adsim {
 				params.omega.resize(number_of_cells, 0.0);
 				params.Dm_ij.resize(number_of_cells, 0.0);
 
-				double mr_1 = CoolProp::Props1SI(component1, "molar_mass") * 1e3;		// molecular weight in [g/mol]
-				double mr_2 = CoolProp::Props1SI(component2, "molar_mass") * 1e3;		// molecular weight in [g/mol]
+				double mr_1 = GetMolarMass(component1) * 1e3;		// molecular weight in [g/mol]
+				double mr_2 = GetMolarMass(component2) * 1e3;		// molecular weight in [g/mol]
 				params.mr_avr_invers_ij = (1 / mr_1) + (1 / mr_2);
 
 				const ComponentData& cd_1 = Components::GetComponentData(component1);

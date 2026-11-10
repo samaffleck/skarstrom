@@ -81,9 +81,9 @@ def warning_manifest() -> List[Dict[str, Any]]:
 def component_manifest() -> Dict[str, Any]:
     """The components a deck can use: ``{"cp_reference": ..., "components": [...]}``. Each component has
     ``name`` (CoolProp), ``formula``, ``molar_mass`` [kg/mol], ``cas``, ``properties_source``,
-    ``aliases``, ``ideal_gas_heat_capacity``, ``heat_capacity_held`` and the polynomial's provenance
-    ``cp_species`` and ``cp_source`` (empty when the heat capacity is held); ``cp_reference`` is the
-    table the polynomials come from."""
+    ``aliases``, ``ideal_gas_heat_capacity``, ``heat_capacity_held`` (always false; kept for one
+    release) and the polynomial's provenance ``cp_species`` and ``cp_source``; ``cp_reference`` is
+    the table the polynomials come from."""
     return json.loads(_core.component_manifest())
 
 

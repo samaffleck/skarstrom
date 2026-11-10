@@ -12,6 +12,7 @@
 
 #include <array>
 #include <cmath>
+#include <numbers>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -100,7 +101,7 @@ namespace adsim {
         const int n = kGaussN;
         const int m = (n + 1) / 2;
         for (int i = 0; i < m; ++i) {
-          double z = std::cos(M_PI * (i + 0.75) / (n + 0.5));
+          double z = std::cos(std::numbers::pi * (i + 0.75) / (n + 0.5));
           double pp = 0.0;
           for (int it = 0; it < 100; ++it) {
             double p1 = 1.0, p2 = 0.0;
@@ -262,7 +263,7 @@ namespace adsim {
       case K::ARRHENIUS_SIPS:  // n_inf_a, n_inf_b, k_A, k_B, c_ref, c_amp, c_beta, c_Tref
         c[0] = p[0] * std::exp(p[1] / RT);
         c[1] = p[2] * std::exp(p[3] / RT);
-        c[2] = p[4] + p[5] * (2.0 / M_PI) * std::atan(p[6] * (T - p[7]));
+        c[2] = p[4] + p[5] * (2.0 / std::numbers::pi) * std::atan(p[6] * (T - p[7]));
         break;
       case K::EXTENDED_LANGMUIR_FREUNDLICH: {  // k1, k2, k3, k4, k5, k6, P_ref
         // b (P / P_ref)^n = (b^{1/n} P / P_ref)^n: a Sips term with

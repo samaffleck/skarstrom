@@ -48,13 +48,6 @@ namespace adsim {
   // term is not applied and the plain kind with the same parameters is meant.
   std::vector<std::string> MixingRuleWarnings(const AdsorbentDirectory& adsorbents, const Fluid& fluid);
 
-  // One warning per component whose gas heat capacity is held at the initial
-  // conditions instead of following the temperature: in the ideal-gas mode, a
-  // component without an ideal-gas polynomial (Fluid::
-  // ComponentsWithHeldHeatCapacity; ideal_gas_heat_capacity.h). Requires
-  // Fluid::Initialise. Empty in the constant mode.
-  std::vector<std::string> GasHeatCapacityWarnings(const Fluid& fluid);
-
   // The warnings of CheckLayerComposition (porous_media.h) for every layer, in
   // layer order: one per solid at mass fraction 0 (it takes no part in the
   // run). Layer composition errors stop the run in the deck checks instead.

@@ -44,10 +44,9 @@
 // mixed polynomial is exact.
 //
 // Agreement with CoolProp's ideal-gas C_p0 (the reference equations of state)
-// is checked in test/unit/test_ideal_gas_heat_capacity.cpp and tabulated in
-// docs/equation-of-state.md. Components of Components::componentNames without
-// an entry (Hexane) keep the CoolProp value held at the initial conditions
-// (Fluid::Initialise), and the run-start warnings say so.
+// is checked in test/unit/test_ideal_gas_heat_capacity.cpp (against values
+// recorded from CoolProp) and tabulated in docs/equation-of-state.md. Every
+// component of Components::componentNames has an entry.
 // ---------------------------------------------------------------------------
 
 namespace adsim {
