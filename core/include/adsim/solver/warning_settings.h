@@ -30,7 +30,7 @@ namespace adsim {
     bool fluidisation = true;          // approach to fluidisation above 1
     bool channel_reynolds = true;      // channel Re above 2000 in a structured layer (laminar closures)
     bool outlet_backflow = true;       // gas flows back into the bed through an unconnected outlet
-    bool connection_pressure = true;   // gas through a connection from the lower to the higher pressure, or a connected ramp capped
+    bool connection_pressure = true;   // gas through a connection from the lower to the higher pressure (diagnostic)
     // Run health, after every cycle (run_health.h).
     bool mole_fraction_sum = true;     // MOLE_FRACTION_SUM: the gas mole fractions do not sum to 1
     bool mass_balance_stuck = true;    // MASS_BALANCE_STUCK: a cycle mole balance stays open as the run settles

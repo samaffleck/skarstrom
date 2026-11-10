@@ -43,7 +43,7 @@ A run reports advisory warnings in the solver log; none of them stops it. Each c
 | **Design temperature** | `settings.warn_design_temperature` | End of a run: the wall temperature passes the design temperature. |
 | **Fluidisation** | `settings.warn_fluidisation` | End of a run: the approach to fluidisation passes 1. Switch it off for a bed that is held down. |
 | **Outlet backflow** | `settings.warn_outlet_backflow` | End of a run: in the last cycle, gas flows back into the bed through an outlet that has no connection to another step (more than 0.1 % of the cycle feed in one step). A valve's [check valve](boundary-conditions.md#check-valve) stops it. *New in 0.9.* |
-| **Connection pressure** | `settings.warn_connection_pressure` | End of a run: in the last cycle, gas enters a bed through a [connection](connecting-beds.md#flow-only-from-the-higher-to-the-lower-pressure) while that bed is the higher (more than 0.1 % of the cycle feed in one step), or a connected pressure profile is held more than 2 kPa from its own value by its partner's pressure. *New in 0.9.* |
+| **Connection pressure** | `settings.warn_connection_pressure` | End of a run: in the last cycle, gas enters a bed through a [connection](connecting-beds.md#pressure-order-through-a-connection) while that bed is more than 1 kPa the higher (more than 0.1 % of the cycle feed in one step). A diagnostic: the connection does not prevent it. *New in 0.9.* |
 
 All are on by default. The end-of-run checks are described on [Wall Design and Operating Limits](wall-design.md#operating-limit-warnings).
 

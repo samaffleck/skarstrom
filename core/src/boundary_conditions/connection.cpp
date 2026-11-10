@@ -9,7 +9,6 @@
 #include "adsim/boundary_conditions/boundary_stream.h"
 #include "adsim/boundary_conditions/step.h"
 #include "adsim/boundary_conditions/boundary_conditions.h"
-#include <cmath>
 
 
 namespace adsim {
@@ -57,26 +56,6 @@ namespace adsim {
   }
 
   // Functions
-  double ConnectionFlowWeight(double dp) {
-    if (std::isnan(dp)) return dp;
-    if (dp <= 0.0) return 0.0;
-    if (dp >= kConnectionPressureBand) return 1.0;
-    const double x = dp / kConnectionPressureBand;
-    return x * x * (3.0 - 2.0 * x);
-  }
-
-  double ConnectionCappedPressure(double target, double partner, bool inlet) {
-    // Headroom: how far the target is inside the bound.
-    const double x = inlet ? partner - target : target - partner;
-    if (std::isnan(x)) return target + partner;  // NaN
-    if (x >= kConnectionPressureBand) return target;
-    if (x <= 0.0) return partner;
-    // g(x): 0 at 0, x at the band, C1 at both ends, g(x) <= x.
-    const double u = x / kConnectionPressureBand;
-    const double g = kConnectionPressureBand * u * u * (2.0 - u);
-    return inlet ? partner - g : partner + g;
-  }
-
   size_t GenerateID() {
     static std::atomic<size_t> counter{1};
     return counter.fetch_add(1, std::memory_order_relaxed);

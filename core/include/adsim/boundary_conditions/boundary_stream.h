@@ -188,21 +188,15 @@ namespace adsim {
 		// The step's quadrature integrals of this endpoint, set when the step
 		// ends (not serialised; cleared with the log).
 		EndpointIntegrals integrals_{};
-		// True for the log of a pressure boundary (set by its constructor, not
-		// serialised, kept by Clear). A connected pressure boundary keeps its
-		// imposed pressure on the right side of its partner's
-		// (PressureBoundaryCondition::ImposedPressure), so a set-flow stream
-		// connected to one replays the gas it gives as it is
-		// (BoundaryStream::GetMolarFlow).
-		bool from_pressure_boundary_ = false;
 		// True for the log of a valve stream (set by its constructor, not
 		// serialised, kept by Clear). A connected valve sets its flow from its
 		// own bed's pressure and its partner's logged pressure, of either sign
-		// (Valve::GetMolarFlowRate), so it already passes gas only from the
-		// higher to the lower of the two. A set-flow stream connected to one
-		// replays the flow as it is, both ways (BoundaryStream::GetMolarFlow):
-		// a second, one-sided closure on it would let the valve draw gas back
-		// that the partner does not give, and the connection would make gas.
+		// (Valve::GetMolarFlowRate). A set-flow stream connected to one must
+		// replay that flow as it is, both ways: a one-sided closure on the
+		// replay lets the valve draw back gas that the set-flow side never
+		// gives, and the connection makes gas. The replay has no closure now
+		// (BoundaryStream::GetMolarFlow), so nothing reads the flag; it marks
+		// the case for any closure added there later.
 		bool from_valve_ = false;
 	};
 

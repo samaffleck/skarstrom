@@ -78,43 +78,6 @@ namespace adsim {
     PressureBoundaryCondition* p_boundary = nullptr;
   };
 
-  // Gas passes through a connection only from the higher to the lower
-  // pressure.
-  //
-  // A connected set-flow stream (BoundaryStream, no device) replays the
-  // flow its partner logged. This weight, of the pressure difference
-  // dp = upstream - downstream [Pa] at the same instant, scales the
-  // replayed flow: 0 for dp <= 0, 1 for dp >= kConnectionPressureBand, and
-  // the C1 cubic 3x^2 - 2x^3 (x = dp / band) between. A hard switch would
-  // leave a kink in the residual that stalls Newton as the flow decays
-  // through zero.
-  //
-  // A connected pressure boundary caps its imposed pressure one band inside
-  // the partner's logged pressure (ConnectionCappedPressure), so the
-  // partner's weight is 1 once the replay has settled and the moles through
-  // the connection balance.
-  //
-  // The band is wide on purpose (1 kPa, about 1 % of an atmosphere). Both
-  // closures read the partner's previous run, so each cycle answers the
-  // other's last one. A narrow band makes the closure on/off against a
-  // pressure that moves by more than the band from one cycle to the next,
-  // and the pair hunts instead of settling (measured on Perez2019_D1 with
-  // its vents' check valves on: no cyclic steady state in 250 cycles and
-  // the light-product moles out of balance by 44 % with 10 Pa; balanced to
-  // 1 % with 1 kPa).
-  inline constexpr double kConnectionPressureBand = 1000.0;  // [Pa]
-  double ConnectionFlowWeight(double dp);
-
-  // The pressure a connected pressure boundary imposes: `target` (its own
-  // profile) kept on the right side of `partner` (the partner's logged
-  // pressure at the same instant). An INLET takes gas from the partner, so
-  // it cannot rise above it (`inlet` true: the result is at most
-  // `partner`); an OUTLET gives gas to it, so it cannot fall below it. The
-  // target is returned exactly while it is at least kConnectionPressureBand
-  // inside that bound, the bound at or beyond it, and a C1 cubic blend
-  // between (never past the bound).
-  double ConnectionCappedPressure(double target, double partner, bool inlet);
-
   size_t GenerateID();
   ConnectionEndpoint MakeEndpoint(Step& step, IBoundaryStream& stream);
   ConnectionEndpoint MakeEndpoint(Step& step, PressureBoundaryCondition& pressure);
