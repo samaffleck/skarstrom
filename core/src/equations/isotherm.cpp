@@ -11,6 +11,7 @@
 #include "adsim/math/constants.h"
 
 #include <cmath>
+#include <numbers>
 #include <limits>
 #include <memory>
 
@@ -158,7 +159,7 @@ namespace adsim {
 		const double c_ref = ips.c_ref, c_amp = ips.c_amp, c_beta = ips.c_beta, c_Tref = ips.c_Tref;
 		const double n_inf = a * std::exp(b / (R * T));
 		const double k_i = A * std::exp(B / (R * T));
-		const double c_i = c_ref + c_amp * (2.0 / M_PI) * std::atan(c_beta * (T - c_Tref));
+		const double c_i = c_ref + c_amp * (2.0 / std::numbers::pi) * std::atan(c_beta * (T - c_Tref));
 		// The competitive term as ArrheniusSipsIsotherm::UpdateAll evaluates it.
 		const double z = SipsTraceTerm(k_i * P, yi, c_i);
 		qi = n_inf * z / (1 + z);
@@ -716,7 +717,7 @@ namespace adsim {
     inline double ArrSips_c(double T, const ArrheniusSipsIsothermParameters& p) {
       // c(T) = c_ref + c_amp·(2/π)·arctan(c_beta·(T − c_Tref)); c_amp = 0 → constant.
       const double c_ref = p.c_ref, c_amp = p.c_amp, c_beta = p.c_beta, c_Tref = p.c_Tref;
-      return c_ref + c_amp * (2.0 / M_PI) * std::atan(c_beta * (T - c_Tref));
+      return c_ref + c_amp * (2.0 / std::numbers::pi) * std::atan(c_beta * (T - c_Tref));
     }
     inline double ArrSips_z(double T, double P, double mf,
                             const ArrheniusSipsIsothermParameters& p) {

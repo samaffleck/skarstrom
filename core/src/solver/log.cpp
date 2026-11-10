@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <charconv>
+#include <numbers>
 
 namespace adsim {
 
@@ -110,7 +111,7 @@ namespace adsim {
     const size_t n = std::min({Tw.size(), d_o.size(), dx.size()});
     for (size_t i = 1; i + 1 < n; ++i) {  // interior cells only
       if (i < is_void.size() && is_void[i]) continue;
-      const double q = M_PI * d_o[i] * dx[i] * h_m * (T_m - Tw[i]);
+      const double q = std::numbers::pi * d_o[i] * dx[i] * h_m * (T_m - Tw[i]);
       if (q > 0.0) flow.in += q;
       else flow.out -= q;
     }
