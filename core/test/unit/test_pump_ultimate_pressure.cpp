@@ -101,7 +101,7 @@ void Build(Column& c, double evacuation_time = 60.0) {
   for (const auto& [path, text] : values) c.sim.SetParameterText(path, text);
 }
 
-double Run(Column& c) {
+double RunColumn(Column& c) {
   std::string error;
   EXPECT_TRUE(c.sim.Check(error)) << error;
   RunOptions options;
@@ -164,13 +164,13 @@ TEST(PumpUltimatePressure, IsARegistryLeafThatDefaultsToOff) {
 TEST(PumpUltimatePressure, IsReachedAndHeld) {
   Column free;
   Build(free);
-  const double p_free = Run(free);
+  const double p_free = RunColumn(free);
 
   const double p_ult = 3e4;
   Column floor;
   Build(floor);
   floor.sim.SetParameterText("step[Evacuation].bottom[Vacuum pump].pump.ultimate_pressure", std::to_string(p_ult));
-  const double p_end = Run(floor);
+  const double p_end = RunColumn(floor);
 
   EXPECT_LT(p_free, 0.5 * p_ult);
   EXPECT_GE(p_end, p_ult);
@@ -193,7 +193,7 @@ TEST(PumpUltimatePressure, IsReachedAndHeld) {
 TEST(StepEndPressure, EqualsTheLastValueOfTheSeriesAndTheProfile) {
   Column c;
   Build(c);
-  Run(c);
+  RunColumn(c);
   const std::vector<StepEndPressure> ends = c.sim.StepEndPressures(-1);
   ASSERT_EQ(ends.size(), 2u);
   EXPECT_EQ(ends[0].step_name, "Evacuation");
@@ -256,7 +256,7 @@ TEST(StepEndPressure, StepReferencesAndOutputs) {
                std::invalid_argument);
   const sensitivity::SampleOutcome s = sensitivity::EvaluateSample(deck, {}, {}, outputs, policy);
   ASSERT_TRUE(s.accepted) << s.message;
-  const double p_end = Run(c);
+  const double p_end = RunColumn(c);
   EXPECT_NEAR(s.outputs[0], p_end, 1e-6 * p_end);
   EXPECT_TRUE(std::isfinite(s.outputs[1]));
 
