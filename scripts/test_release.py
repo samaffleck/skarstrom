@@ -1,6 +1,7 @@
 """Tests for scripts/release.py (python -m unittest discover -s scripts -p 'test_release.py')."""
 
 import re
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -162,6 +163,15 @@ class ReleaseTests(unittest.TestCase):
         if not suffix:
             self.assertIsNotNone(r.section(text, value),
                                  f"CHANGELOG.md has no section for the current version {value}")
+
+    def test_notes_survive_a_closed_pipe(self):
+        # `release.py notes | head -n 0` must not fail with BrokenPipeError.
+        script = Path(__file__).with_name("release.py")
+        p = subprocess.Popen([sys.executable, str(script), "notes", "0.8.0"],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.stdout.close()
+        _, err = p.communicate()
+        self.assertEqual(p.returncode, 0, err)
 
 
 if __name__ == "__main__":

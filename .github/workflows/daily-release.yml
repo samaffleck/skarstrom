@@ -182,6 +182,11 @@ jobs:
           git add CMakeLists.txt
           git commit --quiet -m "Development version ${dev}" -m "Set after releasing ${version}, so that builds of main never report a released version."
 
+          # Write to files first: a producer on the left of `head` gets SIGPIPE
+          # (or EPIPE) once head exits, and `pipefail` turns that into a failure.
+          git show --stat --format='%s' "$release_sha" > "$RUNNER_TEMP/release-stat.txt"
+          python3 scripts/release.py notes "$version" > "$RUNNER_TEMP/release-notes.md"
+
           {
             echo "### Release ${version}"
             echo
@@ -190,7 +195,7 @@ jobs:
             echo "<details><summary>Release commit</summary>"
             echo
             echo '```diff'
-            git show --stat --format='%s' "$release_sha" | head -n 60
+            head -n 60 "$RUNNER_TEMP/release-stat.txt"
             echo
             git diff "${release_sha}^" "$release_sha" -- CMakeLists.txt CITATION.cff
             echo '```'
@@ -199,7 +204,7 @@ jobs:
             echo
             echo "#### Release notes"
             echo
-            python3 scripts/release.py notes "$version" | head -n 200
+            head -n 200 "$RUNNER_TEMP/release-notes.md"
           } >> "$GITHUB_STEP_SUMMARY"
 
           {
