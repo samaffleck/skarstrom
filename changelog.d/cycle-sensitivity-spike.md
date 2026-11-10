@@ -1,5 +1,0 @@
-### Changed — the engine links IDAS instead of IDA
-- The `adsim` library now links SUNDIALS IDAS only (it was linked against IDA and IDAS, with IDA's copies of the shared entry points winning). IDAS has every IDA entry point, so runs are unchanged (the end state and the integrator counters of six example decks are bit-identical), and its forward sensitivities can act on the solver's own integrator.
-
-### Added — prototype: cycle-map Jacobian-vector products by forward sensitivities
-- Internal, experimental `CycleJacobianVector` (`adsim/solver/cycle_sensitivity.h`): one cycle of a single-bed deck without connections with IDAS forward sensitivities along given directions of the initial differential state, returning the end-of-cycle state and Φ_x·v. The sensitivities restart with the integrator at every step switch. `SolverData` gains a re-initialisation observer for it (null by default). Not exposed in Python. The measured cost and accuracy, and where it fails (across the step switches of a PSA cycle), are in the Cyclic Steady State page, "Cycle-map Jacobian by forward sensitivities".

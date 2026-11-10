@@ -1,2 +1,0 @@
-### Fixed — the Daily release workflow failed with exit code 120 while writing the job summary
-- CI: `release.py notes | head -n 200` made Python fail with `BrokenPipeError` once `head` closed the pipe, and `pipefail` stopped the step before the release commit was pushed. The workflow now writes the notes and the release commit stat to files and runs `head` on the files, and `scripts/release.py` restores the default `SIGPIPE` handling so a closed pipe ends it quietly.

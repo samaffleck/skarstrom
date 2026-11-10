@@ -1,2 +1,0 @@
-### Fixed — automatic releases skipped because main's CI runs were cancelled
-- Every push to `main` now gets its own CI run (they no longer share one concurrency group, where GitHub cancelled all but one pending run). The *Daily release* workflow decides "is main green?" from the newest completed CI run for main's newest non-release commit, or else for an ancestor of it from the last 36 hours, and ignores cancelled runs. See `RELEASING.md`.

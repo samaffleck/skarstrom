@@ -1,5 +1,0 @@
-### Added — packed-bed film correlations
-- Each packed layer has one gas-particle film correlation, `layer[ID].film_correlation` (Python `layer.film_correlation`, builder `set_film_correlation`): `wakao_funazkri` (default), `gunn` (Gunn 1978) or `ranz_marshall` (Ranz and Marshall 1952). By the heat-mass analogy the same correlation gives the particle Nusselt number of the Film gas-solid heat transfer model and the Sherwood number of the Haynes rate coefficient's film resistance. The default is the Sherwood number used before, so existing decks give the same results bit for bit. Ranz-Marshall is a single-sphere correlation and the run log warns when a layer selects it. Sources, validity ranges and the points still to be confirmed are in docs/transport-correlations.md.
-
-### Changed — deck format
-- `MixedAdsorbentLayer` is at cereal class version 6 (the film correlation); older decks load with the default, Wakao-Funazkri. The packed path of the Film gas-solid heat model now evaluates the Wakao-Kaguei-Funazkri cube root as the Sherwood number always has (`pow(Pr, 0.3333333)`), a relative change below 1e-7.

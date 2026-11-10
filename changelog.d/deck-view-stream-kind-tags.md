@@ -1,2 +1,0 @@
-### Changed — deck view stream types are the stream kind tags
-- The deck view (`DeckView`, `sim.deck_view()`) now reports a set-flow stream's `type` as `"flow"`, not `"stream"`. Every stream `type` is now its tag in the `stream` kind list (`flow`, `valve`, `pump`), the tag that `set_stream_kind` takes, so a front end can show the device with the kind list and need not translate. The schema enumerations of a stream `type` and an end `kind` now come from the same kind tables as the edit ops. `kDeckViewVersion` is now 2. `sim.describe()` is unchanged.
