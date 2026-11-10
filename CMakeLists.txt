@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 3.15)
 # (scripts/release.py); do not edit these lines by hand. The suffix is
 # appended to ADSIM_VERSION_STRING and the Python version, and a released one
 # must match the tag (v0.2.0rc1). See RELEASING.md.
-set(ADSIM_PROJECT_VERSION 0.9.1)
+set(ADSIM_PROJECT_VERSION 0.9.2)
 set(ADSIM_VERSION_SUFFIX ".dev0")
 
 # Minimum macOS version. It must be set before project(). 13.3 is the lowest

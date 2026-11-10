@@ -8,6 +8,11 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-11-10
+
+### Fixed — the Ward 2022 example builds its decks to the last bit
+- `examples/ward_2022.py` computed the paper's dispersion coefficient with `math.pi` and rounded it to 15 digits. The shipped decks use the engine's 15-digit pi at full precision. So the 100 and 200 ccm cases differed from their decks in the last bit. This changed IDA's step sequence, and `test_example_runs_like_its_deck[Ward2022_Q100ccm]` failed on macOS (the v0.9.0 release run). The builder now uses the same formula as the deck, so each built case runs bit for bit like its deck. A new test checks every registry value of the three cases exactly.
+
 ## [0.9.0] — 2026-11-10
 
 ### Fixed — the Daily release workflow failed with exit code 120 while writing the job summary
