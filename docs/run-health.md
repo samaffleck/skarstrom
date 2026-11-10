@@ -71,6 +71,8 @@ solver's own step recoveries) per accepted internal step, over a cycle of at lea
 rejections mean the integrator is fighting the deck: a tolerance it cannot meet, an abrupt boundary condition,
 a grid too coarse for a front.
 
+The integrator counters, including the recovered-step count (`recovered_steps`), are the same for a run in slices (the chunked solver, `CoupledSolverChuncked::GetStatistics()`) as for a blocking run. *New in 0.9.*
+
 ### `REACTION_STIFF`
 
 The integrator's step collapsed at a reacting cell: in one cycle step, 100 accepted internal steps shorter

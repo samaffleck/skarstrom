@@ -560,6 +560,10 @@ namespace adsim {
     // max_cycles_to_keep cycles; this keeps every cycle's KPIs).
     const KPIHistory& GetKPIHistory() const { return kpi_history_; }
     const CSSHistory& GetCSSHistory() const { return css_history_; }
+    // Cumulative integrator counters of the run so far, the same ones a blocking
+    // run reports in RunResult::stats (CoupledSolver::GetStatistics), including
+    // recovered_steps. Valid while the run is active and after it ends.
+    IntegrationStats GetStatistics() const { return solver_data_.GetStatistics(); }
     // Run-health measures and warnings of the most recent run (run_health.h).
     const RunHealthReport& GetRunHealth() const { return run_health_.Report(); }
     // Cycles that started from a state moved by CSS acceleration (a committed

@@ -54,8 +54,13 @@ on:
 permissions:
   contents: read
 
+# One run per pull request (a new push cancels the old run) and per other branch.
+# Every run on main has its own group: GitHub keeps one pending run per group and
+# cancels the older pending ones, so a shared group lost the full-tier runs of
+# most main pushes and the Daily release found no completed CI run. Main runs
+# never cancel each other (public repository: parallel runs cost nothing).
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && format('ci-main-{0}', github.run_id) || format('ci-{0}', github.ref)) }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:

@@ -195,6 +195,12 @@ struct Outcome {
   bool ok = false;
   std::string message;
   bool healthy = true;
+  std::vector<RunHealthWarning> warnings;
+  // Accepted integrator steps shorter than the REACTION_STIFF step threshold:
+  // how many, and the simulated time of the last one [s]. They tell a start-up
+  // transient (all in the first fraction of a second) from a mid-run collapse.
+  long short_steps = 0;
+  double last_short_step_t = -1.0;
   std::map<std::string, double> y_out;  // outlet mole fractions at the end of the step
   // Outlet history: time [s] and mole fractions per component, every logged row.
   std::vector<double> t;
@@ -335,6 +341,11 @@ Outcome RunCase(const Case& c) {
   RunOptions options;
   options.cycles = 1;
   options.on_message = [](LogLevel, const std::string&) {};
+  long short_steps = 0;
+  double last_short_t = -1.0;
+  options.on_step = [&](double t, double h, double, int, int) {
+    if (h < RunHealthThresholds::kReactionStiffStep) ++short_steps, last_short_t = t;
+  };
   const auto t0 = std::chrono::steady_clock::now();
   const RunResult res = sim.Run(options);
   Outcome out;
@@ -342,6 +353,9 @@ Outcome RunCase(const Case& c) {
   out.ok = res.Ok();
   out.message = res.message;
   out.healthy = res.healthy;
+  out.warnings = res.health_warnings;
+  out.short_steps = short_steps;
+  out.last_short_step_t = last_short_t;
   if (!out.ok) return out;
   for (const auto& comp : {CH4, H2O, H2, CO, CO2, AR}) {
     const auto e = sim.Log().GetComponentFaceVariable(0, 0, ComponentVariableType::MOLE_FRACTION, comp);
@@ -411,6 +425,33 @@ double BreakthroughTime(const Outcome& o) {
 
 }  // namespace
 
+// Run health (README, "Run health"). Every case starts from a bed without the
+// reaction products in equilibrium with the catalyst (the sorbent case also
+// has no CO2), and the reforming and shift reactions relax far faster than the
+// flow: the integrator's step collapses in the first milliseconds (the last
+// step under 1e-4 s is at t <= 3 ms in every case, 2026-11-09), which is what
+// REACTION_STIFF reports. The test accepts that code when all short steps end
+// within kStiffStartUpTime, and prints its hint; any other code, or short
+// steps later in the run, fails.
+constexpr double kStiffStartUpTime = 0.1;  // [s] well inside the ~0.7 s bed residence time
+
+void CheckHealth(const Outcome& o, const std::string& where) {
+  for (const auto& w : o.warnings) {
+    std::printf("[halabi_2011] %s: run-health %s (cycle %d, step %d '%s', value %g, threshold %g): %s\n",
+                where.c_str(), w.code.c_str(), w.cycle, w.step, w.step_name.c_str(), w.value, w.threshold,
+                w.message.c_str());
+    if (!w.hint.empty()) std::printf("[halabi_2011]   hint: %s\n", w.hint.c_str());
+    const bool startup_stiff = w.code == "REACTION_STIFF" && o.last_short_step_t <= kStiffStartUpTime;
+    EXPECT_TRUE(startup_stiff) << where << ": run-health warning " << w.code << " (cycle " << w.cycle << ", step "
+                               << w.step << " '" << w.step_name << "'): " << w.message
+                               << " [short steps " << o.short_steps << ", last at t = " << o.last_short_step_t
+                               << " s]";
+  }
+  std::printf("[halabi_2011] %s: %ld steps < %g s, last at t = %.3g s\n", where.c_str(), o.short_steps,
+              RunHealthThresholds::kReactionStiffStep, o.last_short_step_t);
+  if (o.warnings.empty()) EXPECT_TRUE(o.healthy) << where;
+}
+
 class Halabi2011Test : public ::testing::Test {};
 
 // Case 1: inert sorbent. The outlet of the 4.2 cm catalyst bed reaches the
@@ -426,7 +467,7 @@ TEST_F(Halabi2011Test, GasPhaseEquilibrium) {
     c.step_time = 5.0;
     const Outcome o = RunCase(c);
     ASSERT_TRUE(o.ok) << o.message;
-    EXPECT_TRUE(o.healthy);
+    CheckHealth(o, "Fig. 7 feed, " + Num(p) + " bar");
     const double x = Conversion(c.feed, o.y_out);
     char q[64];
     std::snprintf(q, sizeof(q), "Fig7_P%g", p);
@@ -443,7 +484,7 @@ TEST_F(Halabi2011Test, GasPhaseEquilibrium) {
       c.step_time = 5.0;
       const Outcome o = RunCase(c);
       ASSERT_TRUE(o.ok) << o.message;
-      EXPECT_TRUE(o.healthy);
+      CheckHealth(o, "Table 6 feed S/C " + Num(sc) + ", " + Num(p) + " bar");
       const double x = Conversion(c.feed, o.y_out);
       std::printf("[halabi_2011] Table 6 feed S/C %g, %.1f bar: X = %.2f %% (%.2f s)\n", sc, p, x, o.wall_s);
       report.CheckAbs("CH4 equilibrium conversion vs paper model, Table 6, S/C " + Num(sc) + ", " + Num(p) + " bar", x,
@@ -467,7 +508,7 @@ TEST_F(Halabi2011Test, SorptionEnhanced_RecordOnly) {
       c.pressure_bar = p;
       const Outcome o = RunCase(c);
       ASSERT_TRUE(o.ok) << o.message;
-      EXPECT_TRUE(o.healthy);
+      CheckHealth(o, "SE S/C " + Num(sc) + ", " + Num(p) + " bar");
       const auto x = ConversionHistory(c, o);
       // The peak after the start-up gas has left the bed (t >= 5 s, about seven
       // bed residence times): before that the outlet still carries the
