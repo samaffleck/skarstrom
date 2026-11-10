@@ -84,7 +84,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::Bed, 4),
       ADSIM_PIN(adsim::BedWall, 4),
       ADSIM_PIN(adsim::VoidRegion, 2),
-      ADSIM_PIN(adsim::Valve, 1),
+      ADSIM_PIN(adsim::Valve, 2),
       ADSIM_PIN(adsim::Adsorbent, 5),
       ADSIM_PIN(adsim::AdsorptionSource, 1),
       ADSIM_PIN(adsim::AdsorbentDirectory, 1),

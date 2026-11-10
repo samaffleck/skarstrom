@@ -50,16 +50,25 @@ from skarstrom import ureg as u
 
 FEED, BACKFLOW, NO_GAS = paper.FEED, paper.BACKFLOW, paper.NO_GAS
 
+# The opening ramp of the pressurisation valves (the feed-header valve of the four-step deck,
+# both ends of the LPP valve): the valve opens from valve_ramp_start of its Cv to fully open
+# over valve_ramp_time from the start of the step. Fully open at once, the four-step deck's
+# valve reaches an approach to fluidisation of 3.6 at the feed end on the evacuated bed.
+RAMP_START_BASE, RAMP_TIME_BASE = 0.1, 20.0 * u.s
+RAMP_START_LPP, RAMP_TIME_LPP = 0.2, 8.0 * u.s
+
 # The validated configuration each base case starts from, its feed (kept as in
 # the paper) and the device settings chosen to reach its operating point.
 CASES = {
     # Four-step cycle of configuration A: feed, blowdown, evacuation, pressurisation.
     "Base": dict(lpp=False, configuration="A", feed_time=99 * u.s, feed_velocity=0.08486999999999999 * u.m / u.s,
-                 vacuum_pump_power=10.4 * u.W, blowdown_share=0.197, cv_vent=0.5, cv_pressurisation=0.006),
+                 vacuum_pump_power=10.2 * u.W, blowdown_share=0.205, cv_vent=0.5, cv_pressurisation=0.006,
+                 valve_ramp_start=RAMP_START_BASE, valve_ramp_time=RAMP_TIME_BASE),
     # LPP cycle of configuration D1: feed 1 (supplies the LPP), feed 2, blowdown, evacuation, LPP.
     "Base_LPP": dict(lpp=True, configuration="D1", feed_times=(27.5 * u.s, 117 * u.s),
                      feed_velocity=0.032799999999999996 * u.m / u.s,
-                     vacuum_pump_power=5.8 * u.W, blowdown_share=0.237, cv_vent=0.5, cv_lpp=0.008),
+                     vacuum_pump_power=5.85 * u.W, blowdown_share=0.233, cv_vent=0.5, cv_lpp=0.008,
+                     valve_ramp_start=RAMP_START_LPP, valve_ramp_time=RAMP_TIME_LPP),
 }
 DECKS = {"Base": "Perez2019_CaseStudy_Base", "Base_LPP": "Perez2019_CaseStudy_Base_LPP"}
 
@@ -79,7 +88,7 @@ CONSTRAINT_PATHS = (
     "variable[n_beds]", "variable[t_feed]", "variable[feed_velocity]", "variable[blowdown_share]",
     "variable[vacuum_pump_power]", "variable[vp_eta_max]", "variable[vp_alpha]", "variable[blower_efficiency]",
     "variable[cv_vent]", "variable[p_atm]", "variable[p_evac_floor]", "variable[purity_target]",
-    "variable[recovery_target]",
+    "variable[recovery_target]", "variable[valve_ramp_start]", "variable[valve_ramp_time]",
 )
 
 
@@ -115,6 +124,10 @@ def build(case: str) -> sk.Simulation:
                      description="constraint: lowest allowed evacuation pressure")
     sim.add_variable("purity_target", 0.95, description="constraint: CO2 purity target")
     sim.add_variable("recovery_target", 0.90, description="constraint: CO2 recovery target")
+    sim.add_variable("valve_ramp_start", cfg["valve_ramp_start"],
+                     description="pressurisation valve: opening at the start of the step (share of its Cv)")
+    sim.add_variable("valve_ramp_time", cfg["valve_ramp_time"], category="time",
+                     description="pressurisation valve: time to open fully from the start of the step")
 
     sim.cycle.step_time_mode = "fraction"
     if cfg["lpp"]:
@@ -193,7 +206,7 @@ def add_basic_cycle(sim: sk.Simulation, cfg: dict) -> None:
     pressurisation = sim.add_step("Pressurisation", fraction="1 - 2 / n_beds")
     pressurisation.bottom.set_streams("inlet", [
         sk.ValveStream("Feed header", pressure="p_feed_header", cv="cv_pressurisation", xt=0.53, y=FEED,
-                       temperature=298 * u.K),
+                       temperature=298 * u.K, opening_start="valve_ramp_start", opening_ramp_time="valve_ramp_time"),
     ])
     pressurisation.top.set_closed()
 
@@ -218,7 +231,9 @@ def add_lpp_cycle(sim: sk.Simulation, cfg: dict) -> None:
         vent("Feed 1 vent"),
         # The LPP valve between this bed and the bed being pressurised; its driving
         # pressure is that bed's pressure (through the connection).
-        sk.ValveStream("LPP out", pressure="p_atm", cv="cv_lpp", xt=0.53, y=NO_GAS, temperature=293 * u.K),
+        # It opens on the same ramp as its other end (one valve; the two steps start together).
+        sk.ValveStream("LPP out", pressure="p_atm", cv="cv_lpp", xt=0.53, y=NO_GAS, temperature=293 * u.K,
+                       opening_start="valve_ramp_start", opening_ramp_time="valve_ramp_time"),
     ])
     feed_2 = sim.add_step("Feed 2", fraction="(1 - feed1_share) / n_beds")
     feed_2.bottom.set_streams("inlet", [feed_inlet("Feed 2 inlet")])
@@ -229,7 +244,8 @@ def add_lpp_cycle(sim: sk.Simulation, cfg: dict) -> None:
     pressurisation = sim.add_step("Pressurisation", fraction="feed1_share / n_beds")
     pressurisation.bottom.set_closed()
     pressurisation.top.set_streams("inlet", [
-        sk.ValveStream("LPP in", pressure="p_atm", cv="cv_lpp", xt=0.53, y=BACKFLOW, temperature=298 * u.K),
+        sk.ValveStream("LPP in", pressure="p_atm", cv="cv_lpp", xt=0.53, y=BACKFLOW, temperature=298 * u.K,
+                       opening_start="valve_ramp_start", opening_ramp_time="valve_ramp_time"),
     ])
     # The rest of the bed's third of the cycle: closed, waiting for its feed slot.
     sim.add_step("Idle", fraction="1 - (2 + feed1_share) / n_beds")
@@ -246,6 +262,9 @@ def description(case: str) -> str:
              "partner bed in its feed 1, idle" if cfg["lpp"] else
              "feed (1/n), blowdown and evacuation on one vacuum pump (1/n), pressurisation from the feed "
              "header through a valve")
+    ramp = (f"The {'LPP valve (both ends)' if cfg['lpp'] else 'pressurisation valve'} opens from "
+            f"{cfg['valve_ramp_start']:g} of C_v to fully open over {cfg['valve_ramp_time'].to('s').magnitude:g} s "
+            f"(variable[valve_ramp_start], variable[valve_ramp_time]). ")
     return (f"Case-study base deck: configuration {cfg['configuration']} of Estupinan Perez et al. (2019), "
             f"CO2/N2 VSA on 13X, run by devices on a {'6' if cfg['lpp'] else '4'}-step n-bed schedule "
             f"(fraction mode, n_beds = 3): {cycle}. Feed by a blower, vent valve to the atmosphere. Ergun momentum "
@@ -253,7 +272,7 @@ def description(case: str) -> str:
             f"step-end pressures the validated deck {REFERENCE[case]['deck']} reaches at cyclic steady state "
             f"(blowdown {REFERENCE[case]['blowdown'][1] / 1e3:.1f} kPa, evacuation "
             f"{REFERENCE[case]['evacuation'][1] / 1e3:.1f} kPa), not the nominal end values of its imposed "
-            f"profiles, which it does not reach in the step time. Settings the case study varies: " + ", ".join(CONSTRAINT_PATHS)
+            f"profiles, which it does not reach in the step time. " + ramp + "Settings the case study varies: " + ", ".join(CONSTRAINT_PATHS)
             + (", variable[cv_lpp], variable[feed1_share]" if cfg["lpp"] else
                ", variable[cv_pressurisation], variable[p_feed_header]")
             + ". p_evac_floor, purity_target and recovery_target are constraint values, not used by the run.")

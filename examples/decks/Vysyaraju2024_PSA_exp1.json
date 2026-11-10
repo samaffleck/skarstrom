@@ -828,7 +828,7 @@
                                                     "Endpoint_ID": 1
                                                 },
                                                 "Valve": {
-                                                    "cereal_class_version": 1,
+                                                    "cereal_class_version": 2,
                                                     "CV": {
                                                         "Value": 0.012,
                                                         "Expression": "0.012",
@@ -837,6 +837,16 @@
                                                     "Xt": {
                                                         "Value": 0.53,
                                                         "Expression": "0.53",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Start": {
+                                                        "Value": 1.0,
+                                                        "Expression": "1",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Ramp_Time": {
+                                                        "Value": 0.0,
+                                                        "Expression": "0",
                                                         "DisplayUnitIndex": 0
                                                     }
                                                 },
@@ -1330,6 +1340,16 @@
                                                     "Xt": {
                                                         "Value": 0.53,
                                                         "Expression": "0.53",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Start": {
+                                                        "Value": 1.0,
+                                                        "Expression": "1",
+                                                        "DisplayUnitIndex": 0
+                                                    },
+                                                    "Opening_Ramp_Time": {
+                                                        "Value": 0.0,
+                                                        "Expression": "0",
                                                         "DisplayUnitIndex": 0
                                                     }
                                                 },

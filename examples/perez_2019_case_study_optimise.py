@@ -98,16 +98,20 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         # is 0.02-0.6 superficial; above about 0.15 m/s the feed lifts the bed. (Base 0.085.)
         ("variable[feed_velocity]", 0.02, 0.15, "m/s"),
         # Vacuum pump power at full vacuum, W_max of W = W_max (1 - P/p_atm). The small end holds
-        # the evacuation above the 10 kPa floor (the base 10.4 W reaches 3.9 kPa); above 30 W the
+        # the evacuation above the 10 kPa floor (the base 10.2 W reaches 3.9 kPa); above 30 W the
         # pump passes any floor in seconds.
         ("variable[vacuum_pump_power]", 1.0, 30.0, ""),
-        # Share of the pump's time in blowdown: sets the intermediate pressure. (Base 0.197.)
+        # Share of the pump's time in blowdown: sets the intermediate pressure. (Base 0.205.)
         ("variable[blowdown_share]", 0.08, 0.6, ""),
-        # Pressurisation valve from the feed header [mol/(s bar)]. It opens fully onto the evacuated
-        # bed, so the first seconds set the approach to fluidisation: 0.001 still gives 1.15 (and
-        # reaches 95 kPa), so the range reaches down to valves that leave the feed to finish the
-        # pressurisation. Large: fast, lifts the bed at the feed end. (Base 0.006.)
+        # Pressurisation valve from the feed header [mol/(s bar)]. Large: fast, lifts the bed at the
+        # feed end unless the valve opens on a ramp. (Base 0.006.)
         ("variable[cv_pressurisation]", 0.0003, 0.02, ""),
+        # Its opening ramp: the share of C_v open at the start of the step, and the time to open
+        # fully. The opening at the start sets the approach to fluidisation on the evacuated bed
+        # (fully open 3.6 at the base C_v; 0.1 of it 0.95), the ramp time how soon the bed fills.
+        # (Base 0.1, 20 s.)
+        ("variable[valve_ramp_start]", 0.02, 1.0, ""),
+        ("variable[valve_ramp_time]", 1.0, 60.0, "s"),
         # Vent valve [mol/(s bar)]: sets the feed pressure above 1 bar (a small valve gives a
         # pressure swing as well as a vacuum swing; the blower pays for it). (Base 0.5.)
         ("variable[cv_vent]", 0.05, 2.0, ""),
@@ -118,9 +122,9 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         # Blower flow, superficial. (Base 0.0328 m/s.)
         ("variable[feed_velocity]", 0.015, 0.1, "m/s"),
         # Vacuum pump power at full vacuum [W]. A short search found 2.1-2.5 W still reaching
-        # 9.7 kPa, so the range reaches well below. (Base 5.8, 3.1 kPa.)
+        # 9.7 kPa, so the range reaches well below. (Base 5.85, 3.1 kPa.)
         ("variable[vacuum_pump_power]", 0.5, 20.0, ""),
-        # Share of the pump's time in blowdown. (Base 0.237.)
+        # Share of the pump's time in blowdown. (Base 0.233.)
         ("variable[blowdown_share]", 0.08, 0.6, ""),
         # Share of the feed time in feed 1, which supplies the LPP; the LPP step is as long.
         # (Base 0.190.)
@@ -129,6 +133,11 @@ VARIABLES: Dict[str, List[Tuple[str, float, float, str]]] = {
         # the feed bed makes and gas flows back in through the vent (the backflow constraint).
         # (Base 0.008.)
         ("variable[cv_lpp]", 0.002, 0.016, ""),
+        # The LPP valve's opening ramp (both ends): opening at the start of the step and time to open
+        # fully. Fully open, the LPP from the top gives 16 kPa/m at the base C_v; 0.2 over 8 s, 5.7.
+        # (Base 0.2, 8 s.)
+        ("variable[valve_ramp_start]", 0.02, 1.0, ""),
+        ("variable[valve_ramp_time]", 1.0, 30.0, "s"),
         # Vent valve [mol/(s bar)]. (Base 0.5.)
         ("variable[cv_vent]", 0.05, 2.0, ""),
     ],
@@ -137,7 +146,8 @@ ALL_VARIABLES = sorted({path for v in VARIABLES.values() for path, *_ in v})
 # Variables searched in log10: each spans one to two decades, and the plant limits hold only
 # near the small end (a slow pressurisation valve, a weak pump), which a uniform search of a
 # few generations rarely samples.
-LOG_SCALE = {"variable[vacuum_pump_power]", "variable[cv_pressurisation]", "variable[cv_lpp]", "variable[cv_vent]"}
+LOG_SCALE = {"variable[vacuum_pump_power]", "variable[cv_pressurisation]", "variable[cv_lpp]", "variable[cv_vent]",
+             "variable[valve_ramp_start]"}
 
 
 def search_bounds(deck: str) -> Tuple[np.ndarray, np.ndarray]:
@@ -544,6 +554,104 @@ def plot(fronts: Dict[Tuple[str, str], Tuple[List, List]], args: argparse.Namesp
     print(f"plot saved to {path}")
 
 
+# ---- the committed summary (--summary) ---------------------------------------------------
+
+def _qualifies(row: Dict[str, object], names: Sequence[str], targets: Dict[str, float], max_dp_per_m: float) -> bool:
+    m = margins(row, targets, max_dp_per_m)
+    return all(math.isfinite(m[n]) and m[n] >= 0 for n in names)
+
+
+def _front_rows(rows: List[Dict[str, object]]) -> List[Dict[str, object]]:
+    """The purity-recovery front (non-dominated, unique) of rows, by recovery."""
+    marked = [dict(r, feasible="True") for r in rows]
+    return sorted(pareto(marked, "purity"), key=lambda r: _f(r, "recovery"))
+
+
+def summary_tables(results: Path, max_dp_per_m: float = MAX_DP_PER_M) -> Dict[str, List[Dict[str, object]]]:
+    """The tables committed under examples/case_study_results/, from a results file.
+
+    Every converged evaluation of a deck counts, whatever its study (the studies only steer the
+    search): ``fronts`` holds the paper's operating points and the purity-recovery fronts with
+    no practical constraint and with all of them; ``constraint_cost`` the best recovery at the
+    purity target and the best purity at the recovery target under each practical constraint
+    alone and all together; ``paper`` the best recovery at each paper point's purity on each
+    front; ``best`` the evaluations that meet every constraint including the targets (or, when
+    none does, the one closest to the targets under the practical constraints).
+    """
+    rows = list(read_results(results).values())
+    out: Dict[str, List[Dict[str, object]]] = {"fronts": [], "constraint_cost": [], "paper": [], "best": []}
+    base_rows = {}
+    for deck in DECKS:
+        base = c.load(DECKS[deck])
+        targets = {name: base.get(f"variable[{name}]") for name in ("purity_target", "recovery_target", "p_evac_floor")}
+        base_rows[deck] = targets
+        mine = [r for r in rows if r["deck"] == deck]
+        ok = [r for r in mine if _qualifies(r, ("product", "converged"), targets, max_dp_per_m)]
+        sets = {"none": (), "fluidisation": ("fluidisation",), "pressure_drop": ("pressure_drop",),
+                "evacuation_floor": ("evacuation_floor",), "all": PRACTICAL}
+        pools = {k: [r for r in ok if _qualifies(r, v, targets, max_dp_per_m)] for k, v in sets.items()}
+        keep = ("purity", "recovery", "energy_kwh_per_t", "productivity_kg_per_t_h", "max_fluidisation",
+                "max_dp_per_m", "min_evacuation_pressure")
+        for name, (p, r) in PAPER_POINTS[deck].items():
+            out["fronts"].append(dict(deck=deck, front="paper", point=name, purity=p, recovery=r))
+        for front, pool in (("unconstrained", pools["none"]), ("plant_limits", pools["all"])):
+            for r in _front_rows(pool):
+                row = dict(deck=deck, front=front, point="")
+                row.update({k: _f(r, k) for k in keep})
+                row.update({p: _f(r, p) for p, *_ in VARIABLES[deck]})
+                out["fronts"].append(row)
+            for name, (p, rec) in PAPER_POINTS[deck].items():
+                got = [_f(x, "recovery") for x in pool if _f(x, "purity") >= p]
+                out["paper"].append(dict(deck=deck, front=front, point=name, paper_purity=p, paper_recovery=rec,
+                                         best_recovery=max(got) if got else float("nan")))
+        pt, rt = targets["purity_target"], targets["recovery_target"]
+        for name, pool in pools.items():
+            rec = [_f(x, "recovery") for x in pool if _f(x, "purity") >= pt]
+            pur = [_f(x, "purity") for x in pool if _f(x, "recovery") >= rt]
+            out["constraint_cost"].append(dict(deck=deck, constraints=name, evaluations=len(pool),
+                                               best_recovery_at_purity_target=max(rec) if rec else float("nan"),
+                                               best_purity_at_recovery_target=max(pur) if pur else float("nan")))
+        feasible = [r for r in pools["all"] if _f(r, "purity") >= pt and _f(r, "recovery") >= rt]
+        if feasible:
+            chosen = pareto([dict(r, feasible="True") for r in feasible], "energy")
+            kind = "feasible"
+        else:
+            gap = lambda r: max(0.0, pt - _f(r, "purity")) / pt + max(0.0, rt - _f(r, "recovery")) / rt
+            chosen = sorted(pools["all"], key=gap)[:1]
+            kind = "closest (infeasible)"
+        for r in chosen:
+            row = dict(deck=deck, kind=kind)
+            row.update({k: _f(r, k) for k in keep})
+            row.update({p: _f(r, p) for p, *_ in VARIABLES[deck]})
+            out["best"].append(row)
+        out.setdefault("counts", []).append(dict(deck=deck, evaluations=len(mine), converged=len(ok),
+                                                 plant_limits=len(pools["all"]), meets_targets=len(feasible)))
+    return out
+
+
+def write_summary(results: Path, directory: Path, max_dp_per_m: float = MAX_DP_PER_M) -> Dict[str, Path]:
+    """Write the summary tables of a results file as CSV files in ``directory``."""
+    directory.mkdir(parents=True, exist_ok=True)
+    paths = {}
+    for name, table in summary_tables(results, max_dp_per_m).items():
+        columns: List[str] = []
+        for row in table:
+            columns += [k for k in row if k not in columns]
+        paths[name] = directory / f"{name}.csv"
+        with open(paths[name], "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=columns)
+            w.writeheader()
+            for row in table:
+                w.writerow({k: _short(row.get(k, "")) for k in columns})
+    return paths
+
+
+def _short(v: object) -> object:
+    if isinstance(v, float):
+        return "" if not math.isfinite(v) else f"{v:.6g}"
+    return v
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--deck", action="append", choices=list(DECKS), help="deck(s) (repeatable; default both)")
@@ -564,12 +672,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--out", type=Path, default=None, help="directory of results.csv (default examples/output/case_study)")
     ap.add_argument("--base-only", action="store_true", help="evaluate the base deck's own point only (no pymoo)")
     ap.add_argument("--no-plot", action="store_true", help="do not save the plot")
+    ap.add_argument("--summary", type=Path, default=None, metavar="DIR",
+                    help="write the summary tables of the results file to DIR (no runs) and stop")
     ap.add_argument("-q", "--quiet", action="store_true", help="only the summary")
     args = ap.parse_args(argv)
     if args.unconstrained and args.objectives != "purity":
         ap.error("--unconstrained applies to --objectives purity")
     args.results = (args.out or c.OUTPUT / "case_study") / "results.csv"
     decks = args.deck or list(DECKS)
+
+    if args.summary is not None:
+        for name, path in write_summary(args.results, args.summary, args.max_dp_per_m).items():
+            print(f"{name}: {path}")
+        return 0
 
     if args.base_only:
         for deck in decks:

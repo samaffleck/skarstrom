@@ -31,11 +31,24 @@ namespace adsim {
 		static double CheckValvePressureDrop(double dp);
 		static constexpr double kCheckValveBand = 10.0;	// [Pa]
 
+		// Opening fraction at `time` [s] from the start of the step: it
+		// rises from opening_start_ to 1 over opening_ramp_time_ along the
+		// C1 cubic s + (1 - s)(3x^2 - 2x^3), x = time / ramp, with a zero
+		// slope at both ends of the ramp (a kink in the valve flow would
+		// stall IDA's Newton iteration, as for the check valve). A ramp
+		// time <= 0 or a start >= 1 gives 1: the valve is fully open for the
+		// whole step. The flow of the valve law is cv_ times this fraction.
+		double OpeningFraction(double time) const;
+		static double OpeningFraction(double time, double start, double ramp_time);
+
 		ExpressionParam cv_{100};	// [USGPM]
 		ExpressionParam xt_{0.53};	// [-]
+		ExpressionParam opening_start_{1.0};		// [-] opening at the start of the step, in (0, 1]
+		ExpressionParam opening_ramp_time_{0.0};	// [s] time to open fully; 0: open at once
 
 		void EvaluateExpressions(const EvalContext& ctx) {
 			cv_.Evaluate(ctx); xt_.Evaluate(ctx);
+			opening_start_.Evaluate(ctx); opening_ramp_time_.Evaluate(ctx);
 		}
 
 	private:
@@ -46,6 +59,13 @@ namespace adsim {
 				cereal::make_nvp("CV", cv_),
 				cereal::make_nvp("Xt", xt_)
 			);
+			// Version 2: the opening ramp. Older decks keep the defaults (fully open).
+			if (version >= 2) {
+				ar(
+					cereal::make_nvp("Opening_Start", opening_start_),
+					cereal::make_nvp("Opening_Ramp_Time", opening_ramp_time_)
+				);
+			}
 		}
 	};
 
@@ -53,4 +73,4 @@ namespace adsim {
 
 // Class versions live next to the inline serialize templates: every
 // translation unit that saves or loads a deck must see the same numbers.
-CEREAL_CLASS_VERSION(adsim::Valve, 1);
+CEREAL_CLASS_VERSION(adsim::Valve, 2);

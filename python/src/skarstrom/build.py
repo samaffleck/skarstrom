@@ -267,6 +267,11 @@ class ValveStream:
     #: Check valve: no flow against the stream's direction (unconnected streams only).
     #: ``None`` keeps the default (off). *New in 0.9.*
     check_valve: Optional[bool] = None
+    #: Opening at the start of the step, in (0, 1]; the valve opens smoothly to fully open
+    #: over ``opening_ramp_time`` [s]. ``None`` keeps the defaults (1 and 0 s: fully open).
+    #: *New in 0.9.*
+    opening_start: Any = None
+    opening_ramp_time: Any = None
 
 
 # ---------------------------------------------------------------------------
@@ -349,6 +354,8 @@ def _set_streams(sim: "Simulation", step_id: int, location: str, direction: str,
             _set_endpoint(sim, eid, "valve.cv", st.cv)
             _set_endpoint(sim, eid, "valve.xt", st.xt)
             _set_endpoint(sim, eid, "valve.check_valve", st.check_valve)
+            _set_endpoint(sim, eid, "valve.opening_start", st.opening_start)
+            _set_endpoint(sim, eid, "valve.opening_ramp_time", st.opening_ramp_time)
         elif isinstance(st, Stream):
             eid = sim._build("add_stream", step_id, location, st.name, st.flow.kind, st.flow.profile.kind)
             _apply_profile(sim, eid, st.flow.kind, st.flow.profile)
@@ -372,6 +379,20 @@ def _set_streams(sim: "Simulation", step_id: int, location: str, direction: str,
         _apply_inlet(sim, eid, st.temperature, st.y)
         ids.append(eid)
     return [sim._endpoint(e) for e in ids]
+
+
+def _valve_ramp_src(sim: "Simulation", eid: int) -> str:
+    """The opening-ramp keywords of a valve stream, or nothing for the defaults (fully open)."""
+    head = f"endpoint[{eid}].valve."
+    start, ramp = head + "opening_start", head + "opening_ramp_time"
+    def plain(path: str, default: float) -> bool:
+        try:
+            return float(sim.get_text(path)) == default
+        except ValueError:
+            return False  # an expression
+    if plain(start, 1.0) and plain(ramp, 0.0):
+        return ""
+    return f", opening_start={_literal(sim, start)}, opening_ramp_time={_literal(sim, ramp)}"
 
 
 def _endpoint_ids(x: Any) -> List[int]:
@@ -685,6 +706,7 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                                      f"cv={_literal(sim, f'endpoint[{eid}].valve.cv')}, "
                                      f"xt={_literal(sim, f'endpoint[{eid}].valve.xt')}"
                                      f"{', check_valve=True' if sim.get(f'endpoint[{eid}].valve.check_valve') else ''}"
+                                     f"{_valve_ramp_src(sim, eid)}"
                                      f"{_inlet_src(sim, eid, st['temperature_profile'])}),")
                     elif st["type"] == "stream":
                         flow = f"sk.{st['flow']}({_profile_src(sim, eid, st['flow'], st['profile'])})"

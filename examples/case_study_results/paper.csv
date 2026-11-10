@@ -1,0 +1,13 @@
+deck,front,point,paper_purity,paper_recovery,best_recovery
+Base,unconstrained,A,0.993,0.6,0.836833
+Base,unconstrained,B,0.952,0.641,0.912983
+Base,unconstrained,C1,0.834,0.682,0.960121
+Base,plant_limits,A,0.993,0.6,
+Base,plant_limits,B,0.952,0.641,
+Base,plant_limits,C1,0.834,0.682,
+Base_LPP,unconstrained,D1,0.961,0.868,0.88418
+Base_LPP,unconstrained,E,0.904,0.911,0.943926
+Base_LPP,unconstrained,F,0.799,0.946,0.96404
+Base_LPP,plant_limits,D1,0.961,0.868,
+Base_LPP,plant_limits,E,0.904,0.911,
+Base_LPP,plant_limits,F,0.799,0.946,0.397668

@@ -25,7 +25,7 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 | [`nguyen_2023.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/nguyen_2023.py) | `Nguyen2023_Exp_I` … `_X` (10) | CO₂/N₂ VPSA on CALF-20, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 2) | 22 min |
 | [`haghpanah_2013.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/haghpanah_2013.py) | `Haghpanah2013_Sec61`, `_PL002` … `_PL010`, `_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on 13X with compression and vacuum energy, to CSS | paper-model CO₂ purity/recovery (Haghpanah 2013 Sect. 6.1; Glover 2026 Table 4) | 4 min |
 | [`perez_2019.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/perez_2019.py) | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on 13X, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 3) | 6 min |
-| [`perez_2019_case_study.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/perez_2019_case_study.py) | `Perez2019_CaseStudy_Base`, `_Base_LPP` | Perez 2019 A and D1 run by devices (blower, valves, vacuum pump) on a 3-bed schedule, to CSS | the validated decks' step-end pressures, purity, recovery and specific energy | 2 min |
+| [`perez_2019_case_study.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/perez_2019_case_study.py) | `Perez2019_CaseStudy_Base`, `_Base_LPP` | Perez 2019 A and D1 run by devices (blower, valves with a ramped opening for pressurisation, vacuum pump) on a 3-bed schedule, to CSS | the validated decks' step-end pressures, purity, recovery and specific energy | 2 min |
 | [`vysyaraju_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/vysyaraju_2024.py) | `Vysyaraju2024_PSA_exp1` | He/N₂ 5-step PSA on binderless 5A, to CSS | measured and paper-model He purity/recovery (Table 3) | 30 s |
 | [`ward_pini_2024.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/ward_pini_2024.py) | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74, to CSS | paper-model CO₂ purity/recovery (Table 4) | 80 s |
 | [`tsa_illustrative.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/tsa_illustrative.py) | `Illustrative_TSA_13X` | Illustrative 4-step TSA with heater and cooler, to CSS | — (KPIs, CSS status, bed temperatures) | 3 s |
@@ -35,7 +35,7 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 
 Runtimes are wall-clock times of a full run of the script (all its cases, to cyclic steady state where the deck checks it) on one core of a shared 4-core Linux machine, for the decks' grid-converged WENO settings and feed-loaded starts (from the paper tests, which run the same cases); for a quick look lower `cells` or pass `--cycles`. `python/tests/test_examples.py` imports every script and runs each once with fast options (one breakthrough case, or two cycles of one cyclic case).
 
-Three executed notebooks are in `examples/notebooks/`: a parametric study of the feed time of a CO₂ VSA cycle, a sensitivity study with error bars on its KPIs, and isotherm fitting with the engine's fitter.
+Four executed notebooks are in `examples/notebooks/`: a parametric study of the feed time of a CO₂ VSA cycle, a sensitivity study with error bars on its KPIs, isotherm fitting with the engine's fitter, and the [VSA case study](case-study-vsa.md) (`case_study_vsa.ipynb`: the base decks, their operating-limit and KPI reports, a small optimisation and the three purity–recovery fronts; *New in 0.9.*).
 
 ## Worked tutorials
 

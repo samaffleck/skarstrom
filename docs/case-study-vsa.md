@@ -5,7 +5,7 @@
 
 This case study starts from the validated design of one CO₂/N₂ VSA paper, [Estupiñan Perez et al. (2019)](perez-2019-vpsa.md), adds the engineering constraints a real plant must meet, and re-optimises under them. This page describes its first step: the **base decks**. They run the paper's cycles at the paper's operating points, but the way a plant runs them:
 
-- **Steps are driven by devices, not imposed profiles.** A blower delivers the feed, the light product leaves through a valve, the bed is pressurised through a valve, and one vacuum pump does the blowdown and the evacuation.
+- **Steps are driven by devices, not imposed profiles.** A blower delivers the feed, the light product leaves through a valve, the bed is pressurised through a valve that opens on a ramp, and one vacuum pump does the blowdown and the evacuation.
 - **The cycle is an n-bed schedule.** The steps are timed as fractions of one cycle time, so the feed and the vacuum pump both run without a break.
 - **Each constraint is one parameter.** Every device setting and every constraint value is a [global variable](global-variables.md), so a [study](sensitivity.md) or an [optimiser](parameterisation.md#optimisation) can change it by its registry path.
 
@@ -57,23 +57,40 @@ The cycle time is `n_beds * t_feed`. The feed time and velocity are the paper's,
 | Feed | Positive-displacement blower | A set feed velocity (`feed_velocity`), with the [compressor power](boundary-conditions.md#pumps-compressors-and-vacuum-pumps) calculated from the bed inlet pressure over the suction pressure `p_atm` (efficiency `blower_efficiency`) |
 | Feed (top) | Vent valve to the atmosphere | A [valve stream](boundary-conditions.md#valves) to `p_atm`, C<sub>v</sub> = `cv_vent` |
 | Blowdown (top), Evacuation (bottom) | One vacuum pump | A pump stream that discharges to `p_atm`. Its shaft power falls linearly with the suction pressure P, W = W<sub>max</sub> (1 − P / p<sub>atm</sub>), with W<sub>max</sub> = `vacuum_pump_power`. The efficiency curve is η = η<sub>max</sub> α p / (1 + α p), p in bar (`vp_eta_max`, `vp_alpha`) |
-| Pressurisation (four-step) | Valve from the feed header | A valve stream from `p_feed_header`, C<sub>v</sub> = `cv_pressurisation` |
-| Pressurisation (LPP) | Valve between the beds | A valve stream at each end, C<sub>v</sub> = `cv_lpp`, connected so that each reads the other bed's pressure |
+| Pressurisation (four-step) | Valve from the feed header | A valve stream from `p_feed_header`, C<sub>v</sub> = `cv_pressurisation`, that opens on a ramp (`valve_ramp_start`, `valve_ramp_time`; below) |
+| Pressurisation (LPP) | Valve between the beds | A valve stream at each end, C<sub>v</sub> = `cv_lpp`, connected so that each reads the other bed's pressure. Both ends open on the same ramp |
 
-The power falls to zero as the pressure ratio goes to 1. Near the atmosphere the pump then moves a finite volume flow, as a constant-speed pump does. With a constant power, the flow at the start of blowdown is unbounded: the pressure ratio is 1, so the power can move any flow. With a constant power the approach to fluidisation reached 19–31 at the start of blowdown. With the power curve it stays at 1.05 or less in blowdown and evacuation. The four-step deck's pressurisation valve still reaches 3.6 for a moment at the feed end when it opens on the evacuated bed (the validated `Perez2019_A` reaches 1.1 with its linear ramp); a ramped or smaller valve is a constraint for the optimisation step.
+The power falls to zero as the pressure ratio goes to 1. Near the atmosphere the pump then moves a finite volume flow, as a constant-speed pump does. With a constant power, the flow at the start of blowdown is unbounded: the pressure ratio is 1, so the power can move any flow. With a constant power the approach to fluidisation reached 19–31 at the start of blowdown. With the power curve it stays below 1 in blowdown and evacuation.
+
+### The ramped valve opening
+
+!!! note "New in 0.9"
+    The [valve opening ramp](boundary-conditions.md#opening-ramp) and the variables `valve_ramp_start` and `valve_ramp_time` of both decks.
+
+A pressurisation valve that opens fully at the start of the step sees the largest pressure difference it will ever see: the header is at 1 bar and the bed has just been evacuated to 4 kPa. Its flow is largest in that first instant, and it enters a bed full of thin gas, so the pressure gradient at the feed end is steep. With the four-step deck's valve fully open at once, the approach to fluidisation reaches 3.6 at the feed end for a moment. A smaller valve does not solve this: the approach falls below 1 only for C<sub>v</sub> below about 0.001, and that valve then cannot pressurise the bed in its step. An earlier search of 844 runs without the ramp found no design that meets the fluidisation constraint and still pressurises the bed.
+
+A plant valve does not open in an instant. Actuated valves have a stroke time, and pressurisation valves are often given a slow opening to protect the bed. The decks now model this with the valve's [opening ramp](boundary-conditions.md#opening-ramp): the valve opens from `valve_ramp_start` of its C<sub>v</sub> to fully open over `valve_ramp_time` from the start of the step, along a smooth cubic. The first instant then sees a small valve, and the full valve acts only once the bed pressure, and with it the gas density at the feed end, has risen.
+
+| Deck | Valve | `valve_ramp_start` | `valve_ramp_time` | Effect at the base point |
+|---|---|---|---|---|
+| Four-step | Feed header | 0.1 | 20 s | Approach to fluidisation in pressurisation 3.62 → 0.95. Pressure drop 14.1 → 3.7 kPa m⁻¹. The bed still comes within 2 % of 1 bar after 31.7 s of its 99 s step |
+| LPP | Both ends of the LPP valve | 0.2 | 8 s | Pressure drop in the LPP step 16.2 → 5.7 kPa m⁻¹ (its approach to fluidisation was already 0.3: the LPP enters from the top). The bed ends the step at 99.84 kPa, 1.4 % below the validated deck |
+
+The start opening sets the peak: at the base C<sub>v</sub>, an opening of 0.1 gives 0.95 and 0.2 gives 1.39, whatever the ramp time from 20 to 30 s. The ramp time sets how soon the bed fills. Both are decision variables of the optimisation.
 
 ## Matching the paper's operating points
 
-The device settings were chosen so that the device-driven steps reach the pressures that the validated decks reach at cyclic steady state. These are not the nominal end values of the validated decks' imposed profiles, because those profiles do not reach their end values in the step time. The pump power and the blowdown share were solved together for the two vacuum pressures. The pressurisation valve was chosen to reach 1 bar within the paper's 30 s. The vent valve keeps the feed step within 0.7 kPa of 1 bar. The tolerance is 2 % on the step-end pressures.
+The device settings were chosen so that the device-driven steps reach the pressures that the validated decks reach at cyclic steady state. These are not the nominal end values of the validated decks' imposed profiles, because those profiles do not reach their end values in the step time. The pump power and the blowdown share were solved together for the two vacuum pressures. The pressurisation valve was chosen to reach 1 bar within the paper's 30 s, and its opening ramp was then added (the pump power and the share were solved again with the ramp in place). The vent valve keeps the feed step within 0.7 kPa of 1 bar. The tolerance is 2 % on the step-end pressures.
 
 | Setting | Four-step | LPP | Why |
 |---|---|---|---|
-| `vacuum_pump_power` (W<sub>max</sub>) | 10.4 W | 5.8 W | Blowdown and evacuation end pressures (solved with the share) |
-| `blowdown_share` | 0.197 | 0.237 | as above |
+| `vacuum_pump_power` (W<sub>max</sub>) | 10.2 W | 5.85 W | Blowdown and evacuation end pressures (solved with the share) |
+| `blowdown_share` | 0.205 | 0.233 | as above |
 | `vp_eta_max`, `vp_alpha` | 0.8, 19.55 | 0.8, 19.55 | The engine's default vacuum-pump curve |
 | `cv_vent` | 0.5 mol s⁻¹ bar⁻¹ | 0.5 | Feed-step pressure within 0.7 kPa of 1 bar |
 | `cv_pressurisation` | 0.006 mol s⁻¹ bar⁻¹ | — | 1 bar within the paper's 30 s |
-| `cv_lpp` | — | 0.008 mol s⁻¹ bar⁻¹ | The largest valve that does not draw gas back in through the Feed 1 vent; 99 % of the end pressure after 16.8 s |
+| `cv_lpp` | — | 0.008 mol s⁻¹ bar⁻¹ | The largest valve that does not draw gas back in through the Feed 1 vent |
+| `valve_ramp_start`, `valve_ramp_time` | 0.1, 20 s | 0.2, 8 s | Approach to fluidisation about 1 or less and a lower pressure drop, with the bed still pressurised in the step (above) |
 | `blower_efficiency` | 0.7 | 0.7 | Typical. The blower uses less than 1 % of the energy |
 
 At cyclic steady state (this engine version, 80 cells; specific energy = vacuum-pump and blower work per kg of CO₂, with the same pump curve added to the validated decks for comparison):
@@ -81,16 +98,16 @@ At cyclic steady state (this engine version, 80 cells; specific energy = vacuum-
 | Quantity | `Perez2019_A` | Base | `Perez2019_D1` | Base LPP |
 |---|---|---|---|---|
 | Cycle time | 205 s | 297 s | 360 s | 433.5 s |
-| Blowdown: time / end pressure | 19 s / 7.21 kPa | 19.5 s / 7.27 kPa (+0.8 %) | 21 s / 8.16 kPa | 34.2 s / 8.12 kPa (−0.5 %) |
-| Evacuation: time / end pressure | 57 s / 4.00 kPa | 79.5 s / 3.99 kPa (−0.1 %) | 167 s / 3.11 kPa | 110.3 s / 3.14 kPa (+0.8 %) |
-| Pressurisation: time / end pressure | 30 s / 99.98 kPa | 99 s / 100.00 kPa (99 % after 22.8 s) | 27.5 s / 101.30 kPa | 27.5 s / 100.01 kPa (−1.3 %, 99 % after 16.8 s) |
-| CO₂ purity | 99.55 % | 99.59 % | 94.08 % | 94.06 % |
-| CO₂ recovery | 60.1 % | 61.4 % | 89.5 % | 88.6 % |
-| Productivity, 10⁻⁵ kg kg⁻¹ s⁻¹ | 3.68 | 2.61 | 1.56 | 1.28 |
-| Specific energy, MJ kg⁻¹ | 0.752 | 0.735 | 0.821 | 0.807 |
-| Cyclic steady state | cycle 48 | cycle 48, 41 s | cycle 92 | cycle 89, 55 s |
+| Blowdown: time / end pressure | 19 s / 7.21 kPa | 20.3 s / 7.19 kPa (−0.2 %) | 21 s / 8.16 kPa | 33.7 s / 8.08 kPa (−1.0 %) |
+| Evacuation: time / end pressure | 57 s / 4.00 kPa | 78.7 s / 4.01 kPa (+0.4 %) | 167 s / 3.11 kPa | 110.8 s / 3.12 kPa (+0.0 %) |
+| Pressurisation: time / end pressure | 30 s / 99.98 kPa | 99 s / 100.00 kPa (within 2 % after 31.7 s) | 27.5 s / 101.30 kPa | 27.5 s / 99.84 kPa (−1.4 %, within 2 % after 19.6 s) |
+| CO₂ purity | 99.55 % | 99.57 % | 94.08 % | 94.24 % |
+| CO₂ recovery | 60.1 % | 59.5 % | 89.5 % | 89.4 % |
+| Productivity, 10⁻⁵ kg kg⁻¹ s⁻¹ | 3.68 | 2.53 | 1.56 | 1.29 |
+| Specific energy, MJ kg⁻¹ | 0.752 | 0.743 | 0.821 | 0.810 |
+| Cyclic steady state | cycle 48 | cycle 49, 43 s | cycle 92 | cycle 101, 59 s |
 
-Purity, recovery and specific energy agree with the validated decks to within 1.3 points and 3 %. The productivity is lower because the n-bed schedule makes the cycle longer: the feed time is the paper's, but the evacuation and pressurisation get a full third of the cycle each. The LPP pressurisation ends just below the feed bed's pressure, at 100.0 kPa. The validated deck pressurises to 1 atm while its feed vents to 1 bar.
+Purity, recovery and specific energy agree with the validated decks to within 0.6 points and 1.4 %. The productivity is lower because the n-bed schedule makes the cycle longer: the feed time is the paper's, but the evacuation and pressurisation get a full third of the cycle each. The LPP pressurisation ends just below the feed bed's pressure, at 99.8 kPa. The validated deck pressurises to 1 atm while its feed vents to 1 bar.
 
 ## The constraint parameters
 
@@ -106,6 +123,7 @@ These registry paths are the settings the case study varies:
 | `variable[vp_eta_max]`, `variable[vp_alpha]` | Pump efficiency curve | 0.8, 19.55 |
 | `variable[blower_efficiency]` | Blower efficiency | 0.7 |
 | `variable[cv_vent]`, `variable[cv_pressurisation]`, `variable[cv_lpp]` | Valve coefficients, mol s⁻¹ bar⁻¹ | above |
+| `variable[valve_ramp_start]`, `variable[valve_ramp_time]` | Pressurisation valve opening ramp: share of C<sub>v</sub> open at the start of the step, time to open fully | 0.1, 20 s / 0.2, 8 s |
 | `variable[p_atm]`, `variable[p_feed_header]` | Atmosphere and feed-header pressure | 1 bar |
 | `variable[feed1_share]` | Share of the feed time in Feed 1, the LPP supply (LPP deck) | 0.190 |
 | `variable[p_evac_floor]` | Constraint: lowest allowed evacuation pressure | 10 kPa |
@@ -158,9 +176,11 @@ The variables are registry paths of the decks' [global variables](global-variabl
 | `variable[blowdown_share]` | 0.08–0.6 | 0.08–0.6 |
 | `variable[cv_pressurisation]` | 0.0003–0.02 mol s⁻¹ bar⁻¹ | — |
 | `variable[cv_lpp]`, `variable[feed1_share]` | — | 0.002–0.016, 0.08–0.5 |
+| `variable[valve_ramp_start]` (pressurisation valve) | 0.02–1 | 0.02–1 |
+| `variable[valve_ramp_time]` | 1–60 s | 1–30 s |
 | `variable[cv_vent]` | 0.05–2 mol s⁻¹ bar⁻¹ | 0.05–2 |
 
-The base decks have no pressure set points: the pump power and the blowdown share set the blowdown and evacuation pressures, and the valves set the feed and pressurisation pressures. The pump power and the valve coefficients are searched in log10 (`LOG_SCALE`). Each spans one to two decades, and the plant constraints hold only near the small end, which a uniform search of a few generations seldom samples.
+The base decks have no pressure set points: the pump power and the blowdown share set the blowdown and evacuation pressures, and the valves set the feed and pressurisation pressures. The pump power, the valve coefficients and the valve's start opening are searched in log10 (`LOG_SCALE`). Each spans one to two decades, and the plant constraints hold only near the small end, which a uniform search of a few generations seldom samples.
 
 ### Objectives
 
@@ -184,20 +204,20 @@ A candidate is feasible when every margin is zero or more. Each margin is normal
 | Converged | The run reached cyclic steady state and `result.healthy` is true | `RunResult` |
 | No outlet backflow (`--backflow-constraint`) | Gas in through an unconnected outlet ≤ 0.1 % of the cycle feed | `sim.operating_limits()` (`outlet_backflow` warning) |
 
-The operating-limit values are those at the logged times. A peak between two log points is not seen. The backflow is always recorded. It is not enforced by default: the LPP base deck itself draws 14.4 % of its cycle feed back in through the Feed 1 vent at cyclic steady state, so every LPP candidate would be infeasible. That is a known issue of the connected LPP valves ([#241](https://github.com/samaffleck/skarstrom/issues/241)), not of the deck; the backflow becomes a default constraint when it is fixed. The vacuum floor is a constraint on the result, not a limit of the pump model.
+The operating-limit values are those at the logged times. A peak between two log points is not seen. The backflow is always recorded. It is not enforced by default: the LPP base deck itself draws 12.4 % of its cycle feed back in through the Feed 1 vent at cyclic steady state, so every LPP candidate would be infeasible. That is a known issue of the connected LPP valves ([#241](https://github.com/samaffleck/skarstrom/issues/241)), not of the deck; the backflow becomes a default constraint when it is fixed. The vacuum floor is a constraint on the result, not a limit of the pump model.
 
 The base points are infeasible. The table gives their values (`--base-only`):
 
 | Constraint | `Perez2019_CaseStudy_Base` | `Perez2019_CaseStudy_Base_LPP` |
 |---|---|---|
-| Purity ≥ 95 % | 99.6 % | 94.1 % (fails) |
-| Recovery ≥ 90 % | 61.4 % (fails) | 88.6 % (fails) |
-| Approach to fluidisation ≤ 1 | 3.62, pressurisation valve opening (fails) | 0.30 |
-| Pressure drop ≤ 10 kPa m⁻¹ | 14.1 kPa m⁻¹, pressurisation (fails) | 16.2 kPa m⁻¹, LPP from the top (fails) |
+| Purity ≥ 95 % | 99.6 % | 94.2 % (fails) |
+| Recovery ≥ 90 % | 59.5 % (fails) | 89.4 % (fails) |
+| Approach to fluidisation ≤ 1 | 0.98, evacuation (0.95 in pressurisation; 3.62 without the ramp) | 0.30 |
+| Pressure drop ≤ 10 kPa m⁻¹ | 3.7 kPa m⁻¹, pressurisation (14.1 without the ramp) | 5.7 kPa m⁻¹, LPP from the top (16.2 without the ramp) |
 | Lowest vacuum pressure ≥ 10 kPa | 3.9 kPa (fails) | 3.1 kPa (fails) |
-| Outlet backflow (recorded) | 0 | 14.4 % of the feed |
+| Outlet backflow (recorded) | 0 | 12.4 % of the feed |
 
-In the feed step the pressure drop is about 0.6 kPa m⁻¹. The pressure-drop bound acts on the pressurisation transients, where a valve opens onto an evacuated bed. The optimiser must use slower valves, a weaker pump or shorter evacuation, and keep purity and recovery.
+In the feed step the pressure drop is about 0.6 kPa m⁻¹. The pressure-drop bound acts on the pressurisation transients, where a valve opens onto an evacuated bed. With the opening ramps, both base points meet the fluidisation and pressure-drop constraints. They fail the vacuum floor and the targets.
 
 ### Warm starts, parallel runs and resuming
 
@@ -208,27 +228,62 @@ In the feed step the pressure drop is about 0.6 kPa m⁻¹. The pressure-drop bo
 
 ### The three fronts
 
-A short search on one 4-core machine (2026-11-09, seed 1, warm starts on). The constrained studies had a population of 16: the `energy` studies ran 6 generations and the `purity` studies 12 (resumed from 6). The `--unconstrained` studies had a population of 12 and ran 4 generations. That is 844 runs in total, at about 13 s each. Each front below takes every converged evaluation of the deck, whatever its study, that satisfies the constraints named. These searches are far shorter than the paper's 4800 evaluations per front, so the fronts are lower bounds on what is possible.
+One run of the six studies on a 4-core machine (2026-11-09, seed 1, warm starts on), with the opening ramps as decision variables. The `purity` studies had a population of 24 and ran 25 generations, the `energy` studies 24 and 20, the `--unconstrained` studies 16 and 15. That is 2640 runs in total, three times the 844 runs of an earlier search without the ramps, in about 4.8 hours. 2573 runs reached cyclic steady state. Each front below takes every converged evaluation of the deck, whatever its study, that satisfies the constraints named (`--summary`). The searches are still shorter than the paper's 4800 evaluations per front, so the fronts are lower bounds on what is possible.
 
-| Front (purity / recovery) | Four-step | LPP |
+| Front (purity / recovery, %) | Four-step | LPP |
 |---|---|---|
 | Paper (Table 3, the paper's model) | A 99.3 / 60.0, B 95.2 / 64.1, C1 83.4 / 68.2 | D1 96.1 / 86.8, E 90.4 / 91.1, F 79.9 / 94.6 |
-| Unconstrained (CSS and run health only) | 100 / 78.5, 92.7 / 79.1, 87.6 / 85.1 | 99.2 / 72.9, 97.4 / 83.7, 94.9 / 87.8, 89.1 / 93.6, 86.9 / 95.1 |
-| Plant limits (fluidisation, pressure drop, 10 kPa floor) | 83.1 / 8.5, 57.4 / 13.8, 47.2 / 14.5 | 84.1 / 11.5, 80.5 / 47.8, 53.1 / 57.4 |
+| Unconstrained (CSS and run health only) | 99.6 / 80.2, 98.0 / 88.4, 97.1 / 90.3, 93.0 / 93.4, 84.8 / 96.0 | 98.8 / 88.4, 95.3 / 88.7, 94.7 / 93.9, 85.2 / 95.0 |
+| Plant limits (fluidisation, pressure drop, 10 kPa floor) | 80.1 / 21.8, 72.9 / 26.0, 56.6 / 33.8, 45.1 / 39.2 | 89.2 / 13.9, 83.7 / 38.2, 60.2 / 59.8, 53.5 / 85.2 |
+| Earlier search without the ramps, plant limits | 83.1 / 8.5, 57.4 / 13.8, 47.2 / 14.5 | 84.1 / 11.5, 80.5 / 47.8, 53.1 / 57.4 |
 
-- **Unconstrained, the devices reach and pass the paper's fronts.** At the paper's purity, the four-step deck recovers 78.5 % against A's 60.0 % and B's 64.1 %, and 85.1 % against C1's 68.2 %. The three-bed schedule gives the evacuation a full third of the cycle. The LPP deck passes F (95.1 % against 94.6 %), and it is 2.5 points below E and 3.1 points below D1 after 4 generations. Its unconstrained front evacuates to 2–4 kPa, the depth at which the paper's own search ended (its P<sub>low</sub> converged to its 3 kPa bound).
-- **No evaluation meets 95 % purity and 90 % recovery.** This holds with and without the plant limits. The closest is the LPP deck's 94.9 / 87.8 at 229 kWh t⁻¹, which is unconstrained (and the LPP base point, 94.1 / 88.6 at 224 kWh t⁻¹). The four-step cycle stays below 86 % recovery at any purity. The `energy` studies therefore have no feasible point. Their output is the least-violating candidate.
-- **The 10 kPa floor is the constraint that decides.** Every point of the plant-limit fronts ends its evacuation within 1 kPa of the floor (10.0–11.0 kPa). At that pressure 13X keeps much of its CO₂, so the working capacity collapses. The best constrained LPP point is 80.5 % purity at 47.8 % recovery, for 175 kWh t⁻¹. Fluidisation and pressure drop are met by slower valves (the four-step deck's pressurisation C<sub>v</sub> falls to about 0.0005), and they cost little.
-- **The four-step deck's pressurisation valve.** The valve opens fully onto the evacuated bed, so the approach to fluidisation at the opening falls below 1 only for C<sub>v</sub> below about 0.001. That valve then cannot pressurise the bed in its step (95 kPa at C<sub>v</sub> = 0.001), and the feed must finish the pressurisation. A valve that opens on a ramp, a [log-linear pressure ramp](boundary-conditions.md#choosing-a-pressurisation-ramp) for example, is the device change that would remove this trade-off.
+At the purity of each paper point, the best recovery on each front:
 
-The warm starts reduced the work by about 40 %. A warm-started candidate ran 24 cycles to CSS on average, against 40 for the cold starts (12.7 s against 19.4 s of wall time). The results file of these runs is 416 kB, so this page gives the summary.
+| Paper point | Paper recovery | Unconstrained | Plant limits |
+|---|---|---|---|
+| A (99.3 %) | 60.0 % | 83.7 % | not reached |
+| B (95.2 %) | 64.1 % | 91.3 % | not reached |
+| C1 (83.4 %) | 68.2 % | 96.0 % | not reached |
+| D1 (96.1 %) | 86.8 % | 88.4 % | not reached |
+| E (90.4 %) | 91.1 % | 94.4 % | not reached |
+| F (79.9 %) | 94.6 % | 96.4 % | 39.8 % |
+
+The cost of each practical constraint, alone and together, over the same evaluations (`constraint_cost.csv`):
+
+| Constraints applied | Four-step: best recovery at 95 % purity | Four-step: best purity at 90 % recovery | LPP: best recovery at 95 % purity | LPP: best purity at 90 % recovery |
+|---|---|---|---|---|
+| None | 91.3 % | 97.1 % | 89.3 % | 94.7 % |
+| Approach to fluidisation ≤ 1 | 84.2 % | 83.9 % | 89.3 % | 94.7 % |
+| Pressure drop ≤ 10 kPa m⁻¹ | 89.7 % | 94.4 % | 89.3 % | 94.7 % |
+| Evacuation ≥ 10 kPa | none reaches 95 % | none reaches 90 % | none reaches 95 % | 45.8 % |
+| All three | none reaches 95 % | none reaches 90 % | none reaches 95 % | 45.8 % |
+
+- **Unconstrained, the devices pass every paper point.** The three-bed schedule gives the evacuation a full third of the cycle. The four-step deck reaches 97.1 % purity at 90.3 % recovery, which meets both targets. It evacuates to about 1 kPa, and its pumps lift the bed (approach to fluidisation 4.3). The LPP deck comes within 0.3 points of the purity target (94.7 / 93.9) or 1.3 points of the recovery target (95.3 / 88.7), at 2–3 kPa.
+- **With the plant limits, no design meets 95 % purity and 90 % recovery.** None of the 606 evaluations that meet every practical constraint reaches both targets. The `energy` studies therefore have no feasible point. Their output is the candidate closest to the targets: four-step 79.5 / 22.5 at 155 kWh t⁻¹, LPP 50.9 / 88.9 at 109 kWh t⁻¹.
+- **The ramps open the fluidisation and pressure-drop constraints.** With the opening ramp, both constraints cost at most 7 points of recovery (the four-step deck's fluidisation, at 95 % purity), and nothing on the LPP deck. The plant-limit fronts moved up against the earlier search: four-step from 57.4 / 13.8 to 72.9 / 26.0 and 80.1 / 21.8, LPP to 53.5 / 85.2 from 53.1 / 57.4. The four-step designs on the plant-limit front open the feed-header valve from 2–7 % of its C<sub>v</sub>. The LPP designs mostly open their valve almost fully at once: the LPP enters from the top, where it does not lift the bed.
+- **The 10 kPa floor is the constraint that decides.** Every point of the plant-limit fronts ends its evacuation within 0.9 kPa of the floor. At 10 kPa, 13X still holds much of its CO₂, so the working capacity collapses and the N₂ co-adsorbed in the feed step is not cleared. The floor alone removes every design at 95 % purity on both decks.
+
+### What the laboratory column cannot reach
+
+Under the practical constraints, the laboratory column of this case study (0.3 m of 13X, one vacuum pump, three beds on a 3-bed schedule) does not reach 95 % purity and 90 % recovery together. The best constrained designs are about 89 % purity at 14 % recovery and 54 % purity at 85 % recovery. The fluidisation and pressure-drop limits are met by slow-opening valves at little cost. The vacuum floor is not: the purity–recovery targets need an evacuation to 1–3 kPa, which is what the paper and the unconstrained search use.
+
+These directions could change that. They are not results of this study:
+
+- **A lower vacuum floor.** The floor is a constraint value (`variable[p_evac_floor]`), not a device limit. The unconstrained fronts show what a pump that holds 1–3 kPa at the column does. Whether a plant can hold that at scale, with pipe losses and a pump's real curve, is the question.
+- **Pilot scale.** A longer column, a larger diameter and a real header change the ratio of the void and pipe volumes to the bed, the heat transfer through the wall and the pressure drop per metre. All three move the trade-off between the floor and the working capacity.
+- **More beds or more steps.** A heavy reflux, a pressure equalisation or a second stage concentrates the CO₂ without a deeper vacuum. The paper's LPP cycle is one such step. Two-stage processes are the common answer for 95/90 at a moderate vacuum.
+
+The summary tables are in [`examples/case_study_results/`](https://github.com/samaffleck/skarstrom/tree/main/examples/case_study_results): `fronts.csv` (the paper points and the two fronts, with the decision variables), `constraint_cost.csv`, `paper.csv`, `best.csv` and `counts.csv`. The full results file (2640 rows) is 1.4 MB, so it is not committed. The notebook [`examples/notebooks/case_study_vsa.ipynb`](https://github.com/samaffleck/skarstrom/blob/main/examples/notebooks/case_study_vsa.ipynb) plots the three fronts from `fronts.csv`.
+
+The warm starts reduced the work by about half. A warm-started candidate ran 38 cycles to CSS on average, against 68 for the cold starts (23 s against 50 s of wall time).
 
 To repeat the runs:
 
-<!-- no-run: needs a repository checkout and pymoo; about two hours on 4 cores -->
+<!-- no-run: needs a repository checkout and pymoo; about five hours on 4 cores -->
 ```bash
 cd examples
-python perez_2019_case_study_optimise.py --objectives energy --pop 16 --gen 6 --out runs/
-python perez_2019_case_study_optimise.py --objectives purity --pop 16 --gen 12 --out runs/
-python perez_2019_case_study_optimise.py --objectives purity --unconstrained --pop 12 --gen 4 --out runs/
+python perez_2019_case_study_optimise.py --objectives purity --pop 24 --gen 25 --out runs/
+python perez_2019_case_study_optimise.py --objectives energy --pop 24 --gen 20 --out runs/
+python perez_2019_case_study_optimise.py --objectives purity --unconstrained --pop 16 --gen 15 --out runs/
+python perez_2019_case_study_optimise.py --out runs/ --summary case_study_results/
 ```
