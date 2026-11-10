@@ -280,7 +280,7 @@ jobs:
         uses: ./.github/actions/install-and-run
         with:
           package: dist/*.whl
-          extra-packages: matplotlib pint jsonschema
+          extra-packages: matplotlib pint jsonschema pymoo
       - name: Test the installed wheel
         run: |
           cd /tmp && /tmp/venv/bin/skarstrom examples | head -3
