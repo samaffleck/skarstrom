@@ -162,8 +162,8 @@ def vacuum_pump_power() -> sk.PolynomialPower:
     return sk.polynomial_power(a="vacuum_pump_power", b="-vacuum_pump_power / p_atm")
 
 
-def vent(name: str) -> sk.ValveStream:
-    return sk.ValveStream(name, pressure="p_atm", cv="cv_vent", xt=0.53, y=NO_GAS, temperature=293 * u.K)
+def vent(name: str, y: dict = NO_GAS) -> sk.ValveStream:
+    return sk.ValveStream(name, pressure="p_atm", cv="cv_vent", xt=0.53, y=y, temperature=293 * u.K)
 
 
 def feed_inlet(name: str) -> sk.Stream:
@@ -228,7 +228,8 @@ def add_lpp_cycle(sim: sk.Simulation, cfg: dict) -> None:
     feed_1 = sim.add_step("Feed 1", fraction="feed1_share / n_beds")
     feed_1.bottom.set_streams("inlet", [feed_inlet("Feed 1 inlet")])
     feed_1.top.set_streams("outlet", [
-        vent("Feed 1 vent"),
+        # The vents back-feed N2: the LPP valve can take more gas than the bed supplies at the top.
+        vent("Feed 1 vent", BACKFLOW),
         # The LPP valve between this bed and the bed being pressurised; its driving
         # pressure is that bed's pressure (through the connection).
         # It opens on the same ramp as its other end (one valve; the two steps start together).
@@ -237,7 +238,7 @@ def add_lpp_cycle(sim: sk.Simulation, cfg: dict) -> None:
     ])
     feed_2 = sim.add_step("Feed 2", fraction="(1 - feed1_share) / n_beds")
     feed_2.bottom.set_streams("inlet", [feed_inlet("Feed 2 inlet")])
-    feed_2.top.set_streams("outlet", [vent("Feed 2 vent")])
+    feed_2.top.set_streams("outlet", [vent("Feed 2 vent", BACKFLOW)])
 
     _, evacuation = add_vacuum_steps(sim)
 

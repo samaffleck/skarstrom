@@ -20,7 +20,30 @@ namespace adsim {
     stream_data_.Log(Sample(state, time, location), time);
   }
 
-  EndpointSample IBoundaryStream::Sample(const Equations& state, double time, BoundaryLocation location) {
+  void IBoundaryStream::Log(const Equations& state, double time, BoundaryLocation location, const NodeMixing* mix) {
+    stream_data_.Log(Sample(state, time, location, mix), time);
+  }
+
+  bool IBoundaryStream::BackflowComposition(double time, const std::vector<std::string>& components,
+                                            std::unordered_map<std::string, double>& y) const {
+    y.clear();
+    double sum = 0.0;
+    for (const auto& c : components) {
+      double yc = InletMoleFraction(time, c);
+      if (!std::isfinite(yc) || yc < 0.0) yc = 0.0;
+      y[c] = yc;
+      sum += yc;
+    }
+    if (!(sum > 0.0)) return false;
+    for (auto& [c, yc] : y) {
+      (void)c;
+      yc /= sum;
+    }
+    return true;
+  }
+
+  EndpointSample IBoundaryStream::Sample(const Equations& state, double time, BoundaryLocation location,
+                                         const NodeMixing* mix) {
     auto& component_mole_fractions = state.mole_fraction;
     auto& T = state.fluid_temperature.var;
     auto& P = state.pressure.var;
@@ -56,7 +79,27 @@ namespace adsim {
     // bed-end face gas, as the species balance convects it, not the stream's
     // composition; at an outlet GetComponentMolarFlow uses the face already.
     const bool leaving = (location == BoundaryLocation::BOTTOM) ? molar_flow < 0.0 : molar_flow > 0.0;
+
+    // At a mixing outlet node (NodeMixing): a leaving stream carries the
+    // node's mix, a stream flowing back in its own gas when it has one.
+    const bool mixed = mix && mix->active && direction_ == BoundaryDirection::OUTLET;
+    std::unordered_map<std::string, double> y_back{};
+    bool own_backflow = false;
+    if (mixed && !leaving) {
+      std::vector<std::string> components;
+      components.reserve(component_mole_fractions.size());
+      for (const auto& [component, yi] : component_mole_fractions) { (void)yi; components.push_back(component); }
+      own_backflow = BackflowComposition(time, components, y_back);
+    }
+
     for (const auto& [component, yi] : component_mole_fractions) {
+      if (mixed && (leaving || own_backflow)) {
+        const double y_flow = leaving ? mix->y_face.at(component) : y_back.at(component);
+        const double y_log = leaving ? mix->y_logged.at(component) : y_back.at(component);
+        component_molar_flow[component] = molar_flow * y_flow;
+        logged_mole_fraction[component] = std::isfinite(y_log) && y_log > 0.0 ? y_log : 0.0;
+        continue;
+      }
       const double n_i = (direction_ == BoundaryDirection::INLET && leaving)
                              ? molar_flow * BedEndFaceMoleFraction(state, location, component)
                              : GetComponentMolarFlow(state, time, location, component);

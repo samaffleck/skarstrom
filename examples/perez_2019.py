@@ -212,7 +212,9 @@ def add_lpp_cycle(sim: sk.Simulation, cfg: dict) -> None:
     """Feed split in two steps; part of the first one's light product pressurises the bed from the top."""
     feed_times = cfg["feed_times"]
     # Light product leaves through a valve (flow coefficient Cv, pressure-drop ratio factor xT) to 1 bar.
-    ambient = dict(pressure=1 * u.bar, cv=10.0, xt=0.53, y=NO_GAS, temperature=293 * u.K)
+    # The vents back-feed N2, the feed's inert: in feed 1 the LPP draw takes more gas than the bed
+    # supplies at the top, and the vent makes up the rest.
+    ambient = dict(pressure=1 * u.bar, cv=10.0, xt=0.53, y=BACKFLOW, temperature=293 * u.K)
 
     feed_1 = sim.add_step("Feed 1", time=feed_times[0])
     feed_1.bottom.set_streams("inlet", [

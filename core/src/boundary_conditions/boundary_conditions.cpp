@@ -701,9 +701,64 @@ namespace adsim {
     return checksSuccess;
   }
 
+  NodeMixing FlowBoundaryCondition::Mixing(const Equations& state, double time) const {
+    NodeMixing mix;
+    if (direction_ != BoundaryDirection::OUTLET || streams_.size() < 2) return mix;
+
+    // Flow out of the bed through each stream (GetMolarFlow is signed along
+    // the bed axis, positive upwards).
+    const double out_sign = location_ == BoundaryLocation::TOP ? 1.0 : -1.0;
+    std::vector<double> out(streams_.size(), 0.0);
+    double leaving = 0.0, inflow = 0.0;
+    for (size_t k = 0; k < streams_.size(); ++k) {
+      if (!streams_[k]) continue;
+      out[k] = out_sign * streams_[k]->GetMolarFlow(state, time, location_);
+      if (!std::isfinite(out[k])) return mix;
+      if (out[k] > 0.0) leaving += out[k];
+      else inflow -= out[k];
+    }
+    if (!(leaving > 0.0) || !(inflow > 0.0)) return mix;
+
+    const auto& Y = state.mole_fraction;
+    if (Y.empty()) return mix;
+    const int N = static_cast<int>(Y.begin()->second.var.size()) - 1;
+    const int i = location_ == BoundaryLocation::TOP ? N : 0;
+    const int d = location_ == BoundaryLocation::TOP ? -1 : 1;
+
+    std::vector<std::string> components;
+    components.reserve(Y.size());
+    for (const auto& [c, y] : Y) { (void)y; components.push_back(c); }
+
+    // The inflowing streams' own gas (or the bed-end gas for a stream with
+    // no composition).
+    std::vector<std::unordered_map<std::string, double>> y_in(streams_.size());
+    std::vector<bool> own(streams_.size(), false);
+    for (size_t k = 0; k < streams_.size(); ++k)
+      if (streams_[k] && out[k] < 0.0) own[k] = streams_[k]->BackflowComposition(time, components, y_in[k]);
+
+    const double net = std::max(leaving - inflow, 0.0);
+    const double total = net + inflow;
+    for (const auto& c : components) {
+      const auto& y = Y.at(c).var;
+      const double bed_face = BedEndFaceMoleFraction(state, location_, c);
+      const double bed_logged = 0.5 * (y[i] + y[i + d]);
+      double face = net * bed_face, logged = net * bed_logged;
+      for (size_t k = 0; k < streams_.size(); ++k) {
+        if (!(out[k] < 0.0)) continue;
+        face -= out[k] * (own[k] ? y_in[k].at(c) : bed_face);
+        logged -= out[k] * (own[k] ? y_in[k].at(c) : bed_logged);
+      }
+      mix.y_face[c] = face / total;
+      mix.y_logged[c] = logged / total;
+    }
+    mix.active = true;
+    return mix;
+  }
+
   void FlowBoundaryCondition::Log(const Equations& state, double time) {
+    const NodeMixing mix = Mixing(state, time);
     for (const auto& stream : streams_) {
-      stream->Log(state, time, location_);
+      stream->Log(state, time, location_, &mix);
     }
   }
 

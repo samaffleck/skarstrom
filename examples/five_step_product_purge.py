@@ -110,7 +110,8 @@ def build(case: str = "FiveStepProductPurge") -> sk.Simulation:
             sk.Stream(f"Feed {n} inlet", flow=sk.velocity(0.5 * u.m / u.s), y=FEED, temperature=298 * u.K),
         ])
         step.top.set_streams("outlet", [
-            sk.ValveStream("Ambient Stream", pressure=1 * u.atm, cv=100.0, xt=0.53, y={}, temperature=293 * u.K),
+            # The vent back-feeds N2 when the draw takes more gas than the bed supplies at the top.
+            sk.ValveStream("Ambient Stream", pressure=1 * u.atm, cv=100.0, xt=0.53, y=N2, temperature=293 * u.K),
             # The draw's flow is whatever the connected step takes from it.
             sk.Stream(draw, flow=sk.velocity(0 * u.m / u.s), y={}, temperature=293 * u.K),
         ])

@@ -57,7 +57,7 @@ For a Flow boundary with a *None* device, the **Flow Type** sets how the rate is
 
 ## Inlet composition and temperature
 
-At an inlet you set the **Temperature** and the **Composition** (a mole fraction for each component). The mole fractions of an inlet must sum to 1. Outlets ignore these fields because the leaving gas is whatever is in the bed. This is also true when the flow through an outlet reverses: the gas that flows back in carries the bed-end composition and temperature (zero gradient), not the outlet's fields. See [Backflow through an outlet](#backflow-through-an-outlet).
+At an inlet you set the **Temperature** and the **Composition** (a mole fraction for each component). The mole fractions of an inlet must sum to 1. Outlets ignore these fields because the leaving gas is whatever is in the bed. When the flow through an outlet reverses, the gas that flows back into the bed carries the bed-end composition and temperature (zero gradient). An outlet's composition is used in one case: when its backflow feeds another stream that leaves through the same bed end (see [Backflow through an outlet](#backflow-through-an-outlet)).
 
 ### Inlet temperature profile
 
@@ -196,7 +196,8 @@ $$
 f(t) =
 egin{cases}
 f_0 & t \le 0 \
-f_0 + (1 - f_0)\left(3 x^2 - 2 x^3ight),\ x = t / t_r & 0 < t < t_r \
+f_0 + (1 - f_0)\left(3 x^2 - 2 x^3
+ight),\ x = t / t_r & 0 < t < t_r \
 1 & t \ge t_r
 \end{cases}
 $$
@@ -218,7 +219,9 @@ On a loaded deck, set `endpoint.valve.opening_start` and `endpoint.valve.opening
 
 ### Backflow through an outlet
 
-An outlet is zero-gradient in composition and temperature, whatever the direction of the flow. When a valve outlet's bed falls below the downstream pressure, or a pressure outlet's set pressure rises above the bed, gas flows back into the bed through the outlet. This gas has the bed-end composition and temperature, not the outlet's `y` and temperature, and the [KPIs](performance-metrics.md) do not count it as feed. If the same step also draws gas from that end, for example a light-product draw to another step, the backflow can feed that draw with gas that has the bed's own composition.
+An outlet is zero-gradient in composition and temperature, whatever the direction of the flow. When a valve outlet's bed falls below the downstream pressure, or a pressure outlet's set pressure rises above the bed, gas flows back into the bed through the outlet. This gas has the bed-end composition and temperature, not the outlet's `y` and temperature, and the [KPIs](performance-metrics.md) do not count it as feed.
+
+If the same step also draws gas from that end, for example a light-product draw to another step, the backflow can feed that draw instead of the bed. The streams that leave through that end then carry a mix: the bed's net outflow at the bed-end composition, plus the back-fed gas at the back-feeding outlet's own composition (its `y`, normalised). So every component is conserved at the bed end, and the draw does not carry a copy of the bed's gas that the bed never gave. An outlet whose `y` is all zero has no composition of its own, and its back-fed gas takes the bed-end composition. The light-product decks give their vents the feed's inert (N2). The mix is on the composition only; the temperature of the leaving streams is the bed-end temperature.
 
 At the end of a run, the solver warns when gas flows back in through an outlet that has no connection to another step (**Outlet backflow**, `settings.warn_outlet_backflow`). The check is on the last logged cycle. It warns when the gross moles in through one such outlet in one step exceed 0.1 % of the cycle feed (`kOutletBackflowFraction`; the feed is the gross moles in through every unconnected inlet). The warning names the step, the endpoint, the moles and the fraction of the feed. For a valve, it suggests the check valve. Connected endpoints are not checked.
 
