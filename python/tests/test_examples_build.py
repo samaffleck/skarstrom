@@ -45,6 +45,21 @@ def test_example_builds_its_deck(family, case, deck):
     assert params == [], params[:8]
 
 
+@pytest.mark.parametrize("case", ["50", "100", "200"])
+def test_ward_builds_its_decks_to_the_last_bit(case):
+    """The Ward 2022 builder gives every registry value of its deck exactly (rel=0).
+
+    The 1e-12 check above lets a last-bit difference through, and one in the dispersion
+    coefficient (math.pi in place of the engine's 15-digit kPI) changed IDA's step
+    sequence enough to fail the run comparison below on macOS. With equal inputs the
+    built case runs bit for bit like the shipped deck on every platform.
+    """
+    module = importlib.import_module("ward_2022")
+    built, shipped = module.build(case), skarstrom.examples.get(module.DECKS[case]).load()
+    params = [d for d in parameter_diff(built, shipped, rel=0) if not d[0].startswith("info.")]
+    assert params == [], params[:8]
+
+
 @pytest.mark.parametrize("family,deck", [("perez_2019", "Perez2019_E"), ("ward_2022", "Ward2022_Q100ccm"),
                                          ("tsa_illustrative", "Illustrative_TSA_13X")], ids=lambda x: str(x))
 def test_example_runs_like_its_deck(family, deck):
