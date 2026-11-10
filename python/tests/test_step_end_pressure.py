@@ -15,7 +15,8 @@ from skarstrom import optimisation as opt
 from skarstrom import sensitivity as sa
 from skarstrom import ureg as u
 
-COARSE = {"layer[1].cells": 10}
+COARSE = {"layer[1].cells": 10, "css.method": 0, "step[Evacuation].time": 300}
+FLOOR = 4e3  # below the blowdown's end (~7.7 kPa)
 
 
 def _pumped(ultimate=None):
@@ -25,7 +26,7 @@ def _pumped(ultimate=None):
     if ultimate is not None:
         values["ultimate_pressure"] = ultimate
     sim.steps["Evacuation"].bottom.set_streams("outlet", [sk.PumpStream(
-        "Vacuum pump", power=10, pump=sk.Pump("vacuum_pump", efficiency_model="vacuum_pump", **values))])
+        "Vacuum pump", power=100, pump=sk.Pump("vacuum_pump", efficiency_model="vacuum_pump", **values))])
     return sim
 
 
@@ -45,11 +46,10 @@ def test_ultimate_pressure_is_a_pump_leaf_that_defaults_to_off():
 def test_the_pump_holds_its_ultimate_pressure():
     free = _pumped()
     assert free.run(cycles=1).ok
-    floor = _pumped(ultimate=2e4)
+    floor = _pumped(ultimate=FLOOR)
     assert floor.run(cycles=1).ok
-    assert _evacuation(free).bottom < 1e4
-    end = _evacuation(floor)
-    assert 2e4 <= end.bottom < 1.02 * 2e4
+    assert _evacuation(free).bottom < 0.5 * FLOOR
+    assert FLOOR <= _evacuation(floor).bottom < 1.02 * FLOOR
 
 
 def test_step_end_pressures_match_the_series_and_feed_the_outputs():
@@ -71,14 +71,14 @@ def test_optimiser_terms_take_a_step_reference():
     with pytest.raises(ValueError, match="unknown step KPI"):
         opt.optimise(_pumped(), {"step[Evacuation].time": (60, 120)},
                      objectives=[opt.maximise("step[Evacuation]", "purity")], evaluations=1)
-    sim = _pumped(ultimate=2e4)
-    r = opt.optimise(sim, {"step[Evacuation].bottom[Vacuum pump].power": (5, 15)},
+    sim = _pumped(ultimate=FLOOR)
+    r = opt.optimise(sim, {"step[Evacuation].bottom[Vacuum pump].power": (80, 120)},
                      objectives=[opt.minimise("step[Evacuation]", "end_pressure_bottom")],
-                     constraints=[opt.at_least("step[Evacuation]", "end_pressure_bottom", 1e4, penalty=1e-3)],
+                     constraints=[opt.at_least("step[Evacuation]", "end_pressure_bottom", 3e3, penalty=1e-3)],
                      evaluations=1, init_samples=1, cycles=1, rerun_cold=False)
     value = r.kpis["step[Evacuation]"]["end_pressure_bottom"]
-    assert 2e4 <= value < 1.02 * 2e4
-    assert r.cost == pytest.approx(value)
+    assert FLOOR <= value < 1.02 * FLOOR
+    assert r.cost == pytest.approx(value)  # the constraint (>= 3 kPa) holds
 
 
 def test_cli_json_lists_the_step_end_pressures(tmp_path, capsys):
