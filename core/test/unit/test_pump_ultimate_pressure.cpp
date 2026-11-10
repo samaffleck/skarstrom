@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -26,81 +27,45 @@
 namespace adsim {
 namespace {
 
-// A 0.3 m 13X column filled with N2 at 1 bar, closed at the top, evacuated
-// from the bottom by a constant-power vacuum pump (20 cells, short steps).
+const std::filesystem::path kDecks = std::filesystem::current_path() / ".." / "examples" / "decks";
+
+// The Perez 2019 VSA column (feed, blowdown, evacuation, pressurisation),
+// coarse (20 cells), one cycle, with the evacuation drawn through the bottom
+// by a constant-power vacuum pump instead of the deck's pressure profile. It
+// opens after the blowdown, below the 1 bar discharge pressure: a constant-
+// power pump opened at a pressure ratio of about 1 draws a near-unbounded
+// flow (issue #250).
 struct Column {
   Simulation sim;
-  size_t evacuation = 0, hold = 0, pump = 0;
+  size_t evacuation = 0;  // step ID
+  int evac_index = 0;     // its index in the cycle
+  size_t pump = 0;        // endpoint ID
 };
 
-void Build(Column& c, double evacuation_time = 60.0) {
+void Build(Column& c) {
+  c.sim.Load((kDecks / "Perez2019_A.json").string());
   UserData& d = c.sim.Data();
-  build::AddComponent(d, "CarbonDioxide");
-  build::AddComponent(d, "Nitrogen");
-  const AdsorbentID zeolite = build::AddAdsorbent(d, "13X");
-  build::SetIsotherm(d, zeolite, "extended_dual_site_langmuir_c", {"CarbonDioxide", "Nitrogen"});
-  build::SetRateModel(d, zeolite, "CarbonDioxide", "ldf", "constant");
-  build::SetRateModel(d, zeolite, "Nitrogen", "ldf", "constant");
-  build::SetBedShape(d, "cylinder");
-  build::SetWallMaterial(d, "ss316l");
-  build::SetWallBoundary(d, "zero_flux");
-  build::SetThermalEquilibrium(d, "lte");
-  const size_t layer = build::AddLayer(d, "13X");
-  build::SetLayerComposition(d, layer, {{zeolite, 1.0}});
-  build::SetMomentum(d, layer, "kozeny_carman");
-  build::SetDispersion(d, layer, "ruthven");
-  build::SetHeatDispersion(d, layer, "constant");
-  build::SetInternalHeatTransfer(d, layer, "constant");
-  build::SetExternalHeatTransfer(d, layer, "constant");
-
-  c.evacuation = build::AddStep(d, "Evacuation");
+  const auto& steps = d.cycle.step_list_;
+  for (size_t s = 0; s < steps.size(); ++s)
+    if (steps[s].step_name_ == "Evacuation") {
+      c.evacuation = steps[s].id_;
+      c.evac_index = static_cast<int>(s);
+    }
   build::SetFlowBoundary(d, c.evacuation, "bottom", "outlet");
   c.pump = build::AddPumpStream(d, c.evacuation, "bottom", "Vacuum pump", "constant", "isothermal", "vacuum_pump");
-  // A closed hold step after it: its end pressure is the evacuation's.
-  c.hold = build::AddStep(d, "Hold");
   c.sim.RefreshParameters();
-
   const std::vector<std::pair<std::string, std::string>> values = {
-      {"bed.diameter", "0.032"},
-      {"wall.thickness", "0.0031"},
-      {"adsorbent[13X].solid_density", "1138"},
-      {"adsorbent[13X].heat_capacity", "900"},
-      {"adsorbent[13X].thermal_conductivity", "0.63"},
-      {"adsorbent[13X].particle_void_fraction", "0.35"},
-      {"adsorbent[13X].isotherm[CarbonDioxide].m1", "2.768"},
-      {"adsorbent[13X].isotherm[CarbonDioxide].b1", "3.934e-7"},
-      {"adsorbent[13X].isotherm[CarbonDioxide].q1", "40980"},
-      {"adsorbent[13X].isotherm[CarbonDioxide].m2", "2.758"},
-      {"adsorbent[13X].isotherm[CarbonDioxide].b2", "1.256e-7"},
-      {"adsorbent[13X].isotherm[CarbonDioxide].q2", "34190"},
-      {"adsorbent[13X].isotherm[Nitrogen].m1", "2.768"},
-      {"adsorbent[13X].isotherm[Nitrogen].b1", "3.134e-6"},
-      {"adsorbent[13X].isotherm[Nitrogen].q1", "15710"},
-      {"adsorbent[13X].isotherm[Nitrogen].m2", "2.758"},
-      {"adsorbent[13X].isotherm[Nitrogen].b2", "3.134e-6"},
-      {"adsorbent[13X].isotherm[Nitrogen].q2", "15720"},
-      {"adsorbent[13X].kinetics[CarbonDioxide].k", "0.5"},
-      {"adsorbent[13X].kinetics[Nitrogen].k", "0.5"},
-      {"adsorbent[13X].heat_of_adsorption[CarbonDioxide]", "30850"},
-      {"adsorbent[13X].heat_of_adsorption[Nitrogen]", "15930"},
-      {"layer[13X].length", "0.3"},
-      {"layer[13X].cells", "20"},
-      {"layer[13X].bed_void_fraction", "0.41"},
-      {"layer[13X].particle_diameter", "0.0015"},
-      {"layer[13X].molecular_diffusion_coefficient", "1.6e-5"},
-      {"initial.pressure", "1e5"},
-      {"initial.temperature", "298"},
-      {"initial.y[Nitrogen]", "1"},
-      {"initial.y[CarbonDioxide]", "0"},
-      {"step[Evacuation].time", std::to_string(evacuation_time)},
-      {"step[Evacuation].bottom[Vacuum pump].power", "5"},
+      {"layer[1].cells", "20"},
+      {"css.method", "0"},
+      {"step[Evacuation].time", "300"},
+      {"step[Evacuation].bottom[Vacuum pump].power", "100"},
       {"step[Evacuation].bottom[Vacuum pump].pump.eta_max", "0.7"},
       {"step[Evacuation].bottom[Vacuum pump].pump.discharge_pressure", "1e5"},
-      {"step[Hold].time", "5"},
   };
   for (const auto& [path, text] : values) c.sim.SetParameterText(path, text);
 }
 
+// Runs one cycle; returns the evacuation's end pressure at the pumped end.
 double RunColumn(Column& c) {
   std::string error;
   EXPECT_TRUE(c.sim.Check(error)) << error;
@@ -109,8 +74,9 @@ double RunColumn(Column& c) {
   const RunResult r = c.sim.Run(options);
   EXPECT_TRUE(r.Ok()) << r.message;
   const std::vector<StepEndPressure> ends = c.sim.StepEndPressures(-1);
-  EXPECT_EQ(ends.size(), 2u);
-  return ends.empty() ? std::nan("") : ends.front().bottom;
+  EXPECT_EQ(ends.size(), 4u);
+  return static_cast<size_t>(c.evac_index) < ends.size() ? ends[static_cast<size_t>(c.evac_index)].bottom
+                                                          : std::nan("");
 }
 
 }  // namespace
@@ -166,7 +132,7 @@ TEST(PumpUltimatePressure, IsReachedAndHeld) {
   Build(free);
   const double p_free = RunColumn(free);
 
-  const double p_ult = 3e4;
+  const double p_ult = 4e3;  // below the blowdown's end (~7.7 kPa)
   Column floor;
   Build(floor);
   floor.sim.SetParameterText("step[Evacuation].bottom[Vacuum pump].pump.ultimate_pressure", std::to_string(p_ult));
@@ -176,14 +142,19 @@ TEST(PumpUltimatePressure, IsReachedAndHeld) {
   EXPECT_GE(p_end, p_ult);
   EXPECT_LT(p_end, 1.02 * p_ult);
 
-  // Never below the ultimate pressure at the pumped end, and settled there:
-  // the last fifth of the step moves the pressure by less than 1 %.
+  // Never below the ultimate pressure at the pumped end during the
+  // evacuation, and settled there: its last fifth moves the pressure by less
+  // than 1 % of p_ult.
+  const std::vector<StepEndPressure> ends = floor.sim.StepEndPressures(-1);
+  const size_t e = static_cast<size_t>(floor.evac_index);
+  ASSERT_GT(e, 0u);
+  const double t0 = ends[e - 1].time, t1 = ends[e].time;
   const TimeSeries s = floor.sim.Series("pressure", {}, SeriesLocation::Bottom, 0.0, -1);
-  const double t_end = floor.sim.StepEndPressures(-1).front().time;
   double p_at_80 = 0.0;
-  for (size_t i = 0; i < s.time.size() && s.time[i] <= t_end; ++i) {
+  for (size_t i = 0; i < s.time.size(); ++i) {
+    if (s.time[i] <= t0 || s.time[i] > t1) continue;
     EXPECT_GE(s.values[i], p_ult * (1.0 - 1e-9)) << "t = " << s.time[i];
-    if (s.time[i] <= 0.8 * t_end) p_at_80 = s.values[i];
+    if (s.time[i] <= t0 + 0.8 * (t1 - t0)) p_at_80 = s.values[i];
   }
   EXPECT_LT(p_at_80 - p_end, 0.01 * p_ult);
 }
@@ -195,26 +166,33 @@ TEST(StepEndPressure, EqualsTheLastValueOfTheSeriesAndTheProfile) {
   Build(c);
   RunColumn(c);
   const std::vector<StepEndPressure> ends = c.sim.StepEndPressures(-1);
-  ASSERT_EQ(ends.size(), 2u);
-  EXPECT_EQ(ends[0].step_name, "Evacuation");
-  EXPECT_EQ(ends[1].step_name, "Hold");
+  ASSERT_EQ(ends.size(), 4u);
+  const auto& steps = c.sim.Data().cycle.step_list_;
+  for (size_t s = 0; s < ends.size(); ++s) {
+    EXPECT_EQ(ends[s].step, static_cast<int>(s));
+    EXPECT_EQ(ends[s].step_name, steps[s].step_name_);
+    EXPECT_EQ(ends[s].step_id, steps[s].id_);
+  }
 
   const TimeSeries bottom = c.sim.Series("pressure", {}, SeriesLocation::Bottom, 0.0, -1);
   const TimeSeries top = c.sim.Series("pressure", {}, SeriesLocation::Top, 0.0, -1);
   ASSERT_FALSE(bottom.time.empty());
   // The last step's end is the last row of the cycle.
-  EXPECT_EQ(ends[1].bottom, bottom.values.back());
-  EXPECT_EQ(ends[1].top, top.values.back());
-  EXPECT_EQ(ends[1].time, bottom.time.back());
-  // The evacuation's end is the last row at its end time.
-  size_t last_evac = 0;
-  for (size_t i = 0; i < bottom.time.size(); ++i)
-    if (bottom.time[i] <= ends[0].time) last_evac = i;
-  EXPECT_EQ(ends[0].bottom, bottom.values[last_evac]);
-  EXPECT_NEAR(ends[0].time, 60.0, 1e-9);
+  EXPECT_EQ(ends.back().bottom, bottom.values.back());
+  EXPECT_EQ(ends.back().top, top.values.back());
+  EXPECT_EQ(ends.back().time, bottom.time.back());
+  // Every other step's end is its last row: the last row at its end time
+  // (the next step's first row repeats that time).
+  for (size_t s = 0; s + 1 < ends.size(); ++s) {
+    size_t last = 0;
+    for (size_t i = 0; i < bottom.time.size(); ++i)
+      if (bottom.time[i] < ends[s].time || (bottom.time[i] == ends[s].time && last < i && bottom.time[last] < ends[s].time)) last = i;
+    EXPECT_EQ(ends[s].bottom, bottom.values[last]) << ends[s].step_name;
+    EXPECT_EQ(ends[s].top, top.values[last]) << ends[s].step_name;
+  }
 
-  // Bed statistics from the profile's last row.
-  for (int step = 0; step < 2; ++step) {
+  // Bed statistics from each step's profile, last row.
+  for (int step = 0; step < 4; ++step) {
     const AxialProfile p = c.sim.Profile("pressure", {}, -1, step);
     ASSERT_GT(p.rows, 0u);
     const std::vector<double> row(p.values.end() - static_cast<std::ptrdiff_t>(p.cols), p.values.end());
@@ -225,7 +203,7 @@ TEST(StepEndPressure, EqualsTheLastValueOfTheSeriesAndTheProfile) {
     EXPECT_LE(ends[step].bed_mean, *hi);
   }
   // The pumped end is the lowest point at the end of the evacuation.
-  EXPECT_LE(ends[0].bottom, ends[0].bed_min);
+  EXPECT_LE(ends[static_cast<size_t>(c.evac_index)].bottom, ends[static_cast<size_t>(c.evac_index)].bed_min);
 }
 
 // Step references resolve by deck ID or name; the outputs and the optimiser
@@ -236,9 +214,10 @@ TEST(StepEndPressure, StepReferencesAndOutputs) {
   const auto& steps = c.sim.Data().cycle.step_list_;
   EXPECT_TRUE(IsStepReference("step[Evacuation]"));
   EXPECT_FALSE(IsStepReference("CarbonDioxide"));
-  EXPECT_EQ(ResolveStepReference(steps, "step[Hold]"), 1);
-  EXPECT_EQ(ResolveStepReference(steps, "step[" + std::to_string(steps[1].id_) + "]"), 1);
-  EXPECT_THROW(ResolveStepReference(steps, "step[Feed]"), std::invalid_argument);
+  EXPECT_FALSE(IsStepReference("step[]"));
+  EXPECT_EQ(ResolveStepReference(steps, "step[Evacuation]"), c.evac_index);
+  EXPECT_EQ(ResolveStepReference(steps, "step[" + std::to_string(c.evacuation) + "]"), c.evac_index);
+  EXPECT_THROW(ResolveStepReference(steps, "step[Hold]"), std::invalid_argument);
 
   const sensitivity::Output o = sensitivity::ParseOutput("step[Evacuation].end_pressure_bottom");
   EXPECT_EQ(o.component, "step[Evacuation]");
@@ -250,11 +229,13 @@ TEST(StepEndPressure, StepReferencesAndOutputs) {
   sensitivity::RunPolicy policy;
   policy.require_css = false;
   policy.cycles = 1;
-  const std::vector<sensitivity::Output> outputs = {o, sensitivity::ParseOutput("step[Hold].end_pressure_mean")};
-  sensitivity::CheckStudy(deck, {}, outputs, policy);
-  EXPECT_THROW(sensitivity::CheckStudy(deck, {}, {sensitivity::ParseOutput("step[Feed].end_pressure_top")}, policy),
+  const std::vector<sensitivity::Output> outputs = {o, sensitivity::ParseOutput("step[Feed].end_pressure_mean")};
+  const std::vector<sensitivity::Input> inputs = {
+      sensitivity::Uniform("step[Evacuation].bottom[Vacuum pump].power", 80.0, 120.0)};
+  sensitivity::CheckStudy(deck, inputs, outputs, policy);
+  EXPECT_THROW(sensitivity::CheckStudy(deck, inputs, {sensitivity::ParseOutput("step[Hold].end_pressure_top")}, policy),
                std::invalid_argument);
-  const sensitivity::SampleOutcome s = sensitivity::EvaluateSample(deck, {}, {}, outputs, policy);
+  const sensitivity::SampleOutcome s = sensitivity::EvaluateSample(deck, inputs, {}, outputs, policy);
   ASSERT_TRUE(s.accepted) << s.message;
   const double p_end = RunColumn(c);
   EXPECT_NEAR(s.outputs[0], p_end, 1e-6 * p_end);
@@ -268,8 +249,7 @@ TEST(StepEndPressure, StepReferencesAndOutputs) {
   PerComponentKPIValues values;
   values["step[Evacuation]"][KPIType::END_PRESSURE_BOTTOM] = 8e3;
   EXPECT_DOUBLE_EQ(cost.ComputeCost(values), 8e3 + 2.0 * 2e3);
-  const std::vector<OptimizationVariable> variables = {
-      {"step[Evacuation].bottom[Vacuum pump].power", 2.0, 8.0}};
+  const std::vector<OptimizationVariable> variables = {{"step[Evacuation].bottom[Vacuum pump].power", 80.0, 120.0}};
   SimulationOptimizerSettings settings;
   settings.cycles = 1;
   CheckOptimization(deck, variables, cost, settings);
@@ -277,7 +257,7 @@ TEST(StepEndPressure, StepReferencesAndOutputs) {
   mixed.AddObjective("step[Evacuation]", KPIType::PURITY, 1.0, ObjectiveDirection::MAXIMIZE);
   EXPECT_THROW(CheckOptimization(deck, variables, mixed, settings), std::invalid_argument);
   OptimizationCostFunction wrong;
-  wrong.AddObjective("Nitrogen", KPIType::END_PRESSURE_TOP, 1.0, ObjectiveDirection::MINIMIZE);
+  wrong.AddObjective("CarbonDioxide", KPIType::END_PRESSURE_TOP, 1.0, ObjectiveDirection::MINIMIZE);
   EXPECT_THROW(CheckOptimization(deck, variables, wrong, settings), std::invalid_argument);
 }
 
