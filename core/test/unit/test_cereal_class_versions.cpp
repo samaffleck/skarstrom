@@ -184,7 +184,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::IBoundaryStream, 5),
       ADSIM_PIN(adsim::BoundaryStream, 1),
       ADSIM_PIN(adsim::ValveBoundaryStream, 1),
-      ADSIM_PIN(adsim::PumpBoundaryStream, 1),
+      ADSIM_PIN(adsim::PumpBoundaryStream, 2),
       ADSIM_PIN(adsim::PressureBoundaryCondition, 5),
       ADSIM_PIN(adsim::FlowBoundaryCondition, 1),
       ADSIM_PIN(adsim::ClosedBoundaryCondition, 1),

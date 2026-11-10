@@ -194,6 +194,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("", file=sys.stderr)
 
     kpis = sim.kpis() if sim.has_results else []
+    step_pressures = sim.step_end_pressures() if sim.has_results else []
     css = sim.css_history() if sim.has_results else []
     warnings = [w.message for w in sim.operating_limits().warnings] if sim.has_results else []
     # Run-health warnings go to stderr even with -q (and beside --json), so a script or an agent cannot
@@ -218,6 +219,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             "kpis": [{k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in r.as_dict().items()}
                      for r in kpis],
             "css": [_css_entry(c) for c in css],
+            "step_end_pressures": [{k: (None if isinstance(v, float) and math.isnan(v) else v)
+                                    for k, v in r.as_dict().items()} for r in step_pressures],
             "warnings": warnings,
             "healthy": result.healthy,
             "run_health": [_health_entry(w) for w in health],

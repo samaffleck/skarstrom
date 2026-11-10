@@ -53,6 +53,7 @@ __all__ = [
     "Screening",
     "Study",
     "kpi_names",
+    "step_output_names",
     "normal",
     "relative",
     "triangular",
@@ -124,6 +125,14 @@ def kpi_names() -> List[str]:
     return list(_core.sensitivity_kpi_names())
 
 
+def step_output_names() -> List[str]:
+    """The step outputs an output can name after a step reference
+    (``"step[Evacuation].end_pressure_bottom"``; the step by deck ID or name):
+    the pressure the step ends at, at each bed end and over the bed
+    (:meth:`Simulation.step_end_pressures`)."""
+    return list(_core.step_output_names())
+
+
 # ---- running ------------------------------------------------------------------------
 
 # Warm-start caches of this process, one per (deck, input paths, policy): the
@@ -171,7 +180,8 @@ class Study:
 
     ``inputs`` are :class:`Input` objects; ``outputs`` are ``"Component.kpi"``
     names (default: purity, recovery, mass productivity and specific energy of
-    every component the deck tracks; see :func:`kpi_names`).
+    every component the deck tracks; see :func:`kpi_names`) or step outputs
+    ``"step[<ID or name>].end_pressure_bottom"`` (see :func:`step_output_names`).
 
     Every run starts from the deck as it is now. ``settings`` are applied to
     every run (paths and values as for :meth:`Simulation.set`), typically a

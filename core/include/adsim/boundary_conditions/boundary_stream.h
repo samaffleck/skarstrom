@@ -413,10 +413,16 @@ namespace adsim {
 			IBoundaryStream::EvaluateExpressions(ctx);
 			if (power_) power_->EvaluateExpressions(ctx);
 			if (pump_) pump_->EvaluateExpressions(ctx);
+			ultimate_pressure_.Evaluate(ctx);
 		}
 
     std::unique_ptr<IPumpPowerModel> power_{};
     std::unique_ptr<IPump> pump_{};
+    // Ultimate (blank-off) pressure of a vacuum pump [Pa]: the suction
+    // pressure at which the pump stops delivering gas. 0 turns it off (the
+    // flow follows the power alone). Used on an OUTLET (vacuum pump) only;
+    // the flow is scaled by UltimatePressureFactor.
+    ExpressionParam ultimate_pressure_{0.0};
 
 	protected:
 		double BedInletTemperature(const Equations& state, double time, BoundaryLocation loc) override;
@@ -430,8 +436,30 @@ namespace adsim {
 				cereal::make_nvp("Power_Model", power_),
 				cereal::make_nvp("Pump", pump_)
 			);
+			// Version 2 added the ultimate pressure; older decks have none (off).
+			if (version >= 2) ar(cereal::make_nvp("Ultimate_Pressure", ultimate_pressure_));
 		}
 	};
+
+	// Factor on a vacuum pump's flow for its ultimate pressure p_ult at the
+	// suction pressure P1: the rotary-pump speed law u = 1 - p_ult / P1
+	// (S_eff = S (1 - p_ult / P1)), with the corner at u = 0 rounded so the
+	// factor is C1 (IDA's Newton iteration needs a smooth residual):
+	//   f = 0                               for u <= 0 (P1 <= p_ult)
+	//   f = 2 u^2 / d - u^3 / d^2           for 0 < u < d
+	//   f = u                               for u >= d
+	// with d = kUltimatePressureBlend. f is non-decreasing in P1, so the bed
+	// pressure approaches p_ult from above and is held there. 1 when p_ult <= 0
+	// (no ultimate pressure).
+	inline constexpr double kUltimatePressureBlend = 0.02;
+	inline double UltimatePressureFactor(double P1, double p_ult) {
+		if (!(p_ult > 0.0)) return 1.0;
+		if (!(P1 > p_ult)) return 0.0;
+		const double u = 1.0 - p_ult / P1;
+		const double d = kUltimatePressureBlend;
+		if (u >= d) return u;
+		return u * u * (2.0 / d - u / (d * d));
+	}
 
 	/* Factory function */
 	inline std::unique_ptr<IBoundaryStream> CreateStream(BoundaryStreamType type) {
@@ -450,4 +478,4 @@ namespace adsim {
 CEREAL_CLASS_VERSION(adsim::IBoundaryStream, 5);
 CEREAL_CLASS_VERSION(adsim::BoundaryStream, 1);
 CEREAL_CLASS_VERSION(adsim::ValveBoundaryStream, 1);
-CEREAL_CLASS_VERSION(adsim::PumpBoundaryStream, 1);
+CEREAL_CLASS_VERSION(adsim::PumpBoundaryStream, 2);

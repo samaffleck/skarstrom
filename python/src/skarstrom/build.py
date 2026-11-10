@@ -185,7 +185,8 @@ class Pump:
     ``efficiency_model`` ``"constant"`` (efficiency), ``"vacuum_pump"``
     (eta_max, alpha) or ``"polynomial"`` (poly_a ... poly_f). Other keyword
     values: polytropic_index, suction_pressure (compressor),
-    discharge_pressure (vacuum pump).
+    discharge_pressure (vacuum pump), and on a :class:`PumpStream` outlet
+    ultimate_pressure (the vacuum pump's blank-off pressure, Pa; 0: none).
     """
 
     def __init__(self, kind: str = "compressor", energy: str = "isothermal", efficiency_model: str = "constant",

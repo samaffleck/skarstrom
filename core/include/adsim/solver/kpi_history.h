@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "adsim/solver/kpi_config.h"
+#include "adsim/solver/step_end_pressure.h"
 
 namespace adsim {
 
@@ -155,13 +156,22 @@ namespace adsim {
                                           const EquationLog& eq_log, const BoundaryLog& b_log,
                                           int cycle);
 
-  // The KPIs of each completed cycle, recorded when the cycle completed.
+  // The KPIs of each completed cycle, recorded when the cycle completed,
+  // with the pressure each step ended at (StepEndPressure).
   class KPIHistory {
   public:
-    void Clear() { records_.clear(); }
-    // Compute and keep the KPIs of `cycle` (replaces an earlier record of it).
+    void Clear() {
+      records_.clear();
+      step_pressures_.clear();
+    }
+    // Compute and keep the KPIs and step-end pressures of `cycle` (replaces
+    // an earlier record of it).
     void Record(const KPIConfig& config, const std::vector<Step>& steps,
                 const EquationLog& eq_log, const BoundaryLog& b_log, int cycle);
+
+    bool HasStepPressures(int cycle) const { return step_pressures_.find(cycle) != step_pressures_.end(); }
+    // The step-end pressures of one cycle (empty when it was not recorded).
+    const std::vector<StepEndPressure>& StepPressures(int cycle) const;
 
     bool Has(int cycle) const { return records_.find(cycle) != records_.end(); }
     // The records of one cycle (empty when it was not recorded).
@@ -172,6 +182,7 @@ namespace adsim {
 
   private:
     std::map<int, std::vector<KPIRecord>> records_;
+    std::map<int, std::vector<StepEndPressure>> step_pressures_;
   };
 
 }  // namespace adsim

@@ -183,6 +183,35 @@ There are two distinct uses:
 1. **Power-controlled flow** — a *Pump* device on a Flow stream sets the molar flow from a specified power (constant or a polynomial in pressure). This affects the simulation.
 2. **Power for post-processing** — ticking **Calculate pump power** on a Pressure boundary or a *None* stream computes compression power and heating for reporting, without changing the flow the boundary imposes. The recorded power feeds the [energy-consumption KPI](performance-metrics.md).
 
+### Ultimate pressure of a vacuum pump
+
+!!! note "New in 0.9"
+    `endpoint[N].pump.ultimate_pressure`.
+
+A real vacuum pump cannot pull below its **ultimate (blank-off) pressure** $p_{ult}$. A *Pump* device on an outlet (a vacuum pump stream) takes one as `endpoint[N].pump.ultimate_pressure` [Pa] (alias `step[<step>].<end>[<stream>].pump.ultimate_pressure`). The flow that the power gives is multiplied by the effective-speed factor of a rotary pump,
+
+$$
+f = 1 - \frac{p_{ult}}{P_1},
+$$
+
+with $P_1$ the bed-end (suction) pressure. Within 2 % of the ultimate pressure ($f < 0.02$) the factor is rounded to $2u^2/d - u^3/d^2$ ($u = 1 - p_{ult}/P_1$, $d = 0.02$), so it falls to zero with a zero slope: the residual stays smooth for the integrator. At and below $p_{ult}$ the pump delivers no gas, so the bed pressure approaches $p_{ult}$ from above and is held there. The shaft power is unchanged (the pump keeps running at blank-off), so the energy KPIs still count it. The default, 0, turns the factor off, and a deck saved before 0.9 loads with it off. An inlet (compressor) stream has no ultimate pressure.
+
+```python
+import skarstrom as sk
+from skarstrom import ureg as u
+
+sim = sk.examples.Perez2019_A.load()
+evac = sim.steps["Evacuation"]
+evac.bottom.set_streams("outlet", [sk.PumpStream("Vacuum pump", power=10,
+                                                 pump=sk.Pump("vacuum_pump", efficiency_model="vacuum_pump",
+                                                              discharge_pressure=1e5, ultimate_pressure=10 * u.kPa))])
+sim.run(cycles=1)
+end = next(r for r in sim.step_end_pressures() if r.step_name == "Evacuation")
+print(end.bottom)   # >= 1e4 Pa
+```
+
+To bound the pressure an evacuation ends at in a study or an optimisation, use the [step-end pressure](performance-metrics.md#step-end-pressures) outputs.
+
 ---
 
 ## Drawing gas from another step (buffer tank)

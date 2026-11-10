@@ -61,6 +61,7 @@ from ._core import (
     RunHealthWarning,
     RunResult,
     StateCache,
+    StepEndPressure,
     StepOperatingSummary,
     TimeSeries,
     WallDesignResult,
@@ -152,6 +153,7 @@ __all__ = [
     "Isotherm",
     "KPIConfig",
     "KPIRecord",
+    "StepEndPressure",
     "Kinetics",
     "Layer",
     "NodeMap",
@@ -1054,6 +1056,17 @@ class Simulation:
         import pandas as pd
 
         return pd.DataFrame([k.as_dict() for k in self.kpis(cycle)])
+
+    def step_end_pressures(self, cycle: int = -1) -> List[StepEndPressure]:
+        """The pressure [Pa] each step of one cycle (-1 = the last logged one)
+        ended at, one :class:`StepEndPressure` per step in cycle order:
+        ``bottom`` and ``top`` (the bed-end values of :meth:`series`
+        ``("pressure", location=...)`` at the step's last instant), and
+        ``bed_min``, ``bed_mean``, ``bed_max`` over the packed cells. Recorded
+        when each cycle completes, so every cycle of the run is available. A
+        study or the optimiser reads them as ``step[<ID or name>].end_pressure_bottom``
+        (``_top``, ``_min``, ``_mean``, ``_max``)."""
+        return self._sim.step_end_pressures(cycle)
 
     def css_history(self) -> List[CSSRecord]:
         """The deck's cyclic-steady-state check at every cycle of the run. Cycles the log

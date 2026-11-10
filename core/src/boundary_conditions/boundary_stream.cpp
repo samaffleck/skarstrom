@@ -6,6 +6,7 @@
  */
 #include "../pch.h"
 #include "adsim/boundary_conditions/boundary_stream.h"
+#include <cmath>
 #include "adsim/boundary_conditions/boundary_value.h"
 #include "adsim/boundary_conditions/step.h"
 #include "adsim/math/constants.h"
@@ -377,7 +378,8 @@ namespace adsim {
         else
           return mol_flow;
       } else { // Outlet -> Vacuum pump
-        double mol_flow = pump_->CalculateMolarFlow(P_boundary, power_->CalculatePower(PumpPowerModelParams{P_boundary}), T_boundary);
+        double mol_flow = pump_->CalculateMolarFlow(P_boundary, power_->CalculatePower(PumpPowerModelParams{P_boundary}), T_boundary)
+                          * UltimatePressureFactor(P_boundary, ultimate_pressure_);
         if (loc == BoundaryLocation::TOP)
           return mol_flow;
         else
@@ -415,7 +417,8 @@ namespace adsim {
         if (auto* vp = dynamic_cast<VacuumPump*>(pump_.get())){
           // Suction side of the vacuum pump is the bed, so use the bed-side
           // temperature as the unconnected branch does.
-          double mol_flow = vp->CalculateMolarFlow(P_boundary, power_->CalculatePower(PumpPowerModelParams{P_boundary}), T_boundary, P_connected);
+          double mol_flow = vp->CalculateMolarFlow(P_boundary, power_->CalculatePower(PumpPowerModelParams{P_boundary}), T_boundary, P_connected)
+                            * UltimatePressureFactor(P_boundary, ultimate_pressure_);
           if (loc == BoundaryLocation::TOP)
             return mol_flow;
           else
@@ -460,6 +463,13 @@ namespace adsim {
 
     if (!pump_->PerformChecks(error_msg)) {
       error_msg += "(pump of stream '" + name_ + "') ";
+      return false;
+    }
+
+    const double p_ult = ultimate_pressure_;
+    if (!std::isfinite(p_ult) || p_ult < 0.0) {
+      error_msg += "Pump ultimate pressure must be >= 0 Pa (0 turns it off; got " + std::to_string(p_ult) +
+                   ") (stream '" + name_ + "'). ";
       return false;
     }
 

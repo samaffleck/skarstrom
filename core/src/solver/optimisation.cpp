@@ -30,9 +30,26 @@ namespace adsim {
         case KPIType::THERMAL_ENERGY: return k.thermal_energy;
         case KPIType::COOLING_DUTY: return k.cooling_duty;
         case KPIType::LCOC: return kNaN;
+        default: return kNaN;  // the step KPI types: StepKPIValue
       }
       return kNaN;
     }
+
+    // The step output of a step-end pressure record for a step KPI type.
+    double StepKPIValue(const StepEndPressure& r, KPIType type) {
+      switch (type) {
+        case KPIType::END_PRESSURE_BOTTOM: return r.bottom;
+        case KPIType::END_PRESSURE_TOP: return r.top;
+        case KPIType::END_PRESSURE_MIN: return r.bed_min;
+        case KPIType::END_PRESSURE_MEAN: return r.bed_mean;
+        case KPIType::END_PRESSURE_MAX: return r.bed_max;
+        default: return kNaN;
+      }
+    }
+
+    constexpr KPIType kStepKPIs[] = {KPIType::END_PRESSURE_BOTTOM, KPIType::END_PRESSURE_TOP,
+                                     KPIType::END_PRESSURE_MIN, KPIType::END_PRESSURE_MEAN,
+                                     KPIType::END_PRESSURE_MAX};
 
     constexpr KPIType kRunKPIs[] = {KPIType::PURITY,           KPIType::RECOVERY,
                                     KPIType::PRODUCTIVITY_MASS, KPIType::PRODUCTIVITY_VOLUME,
@@ -91,8 +108,17 @@ namespace adsim {
       if (!ev.accepted) return ev;
 
       const std::vector<KPIRecord> records = sim.KPIs(-1);
+      std::vector<StepEndPressure> step_pressures;
       for (const std::string& component : cost.GetReferencedComponents()) {
         auto& values = ev.kpis[component];
+        if (IsStepReference(component)) {
+          for (KPIType t : kStepKPIs) values[t] = kNaN;
+          if (step_pressures.empty()) step_pressures = sim.StepEndPressures(-1);
+          const int s = ResolveStepReference(sim.Data().cycle.step_list_, component);
+          if (s >= 0 && static_cast<size_t>(s) < step_pressures.size())
+            for (KPIType t : kStepKPIs) values[t] = StepKPIValue(step_pressures[static_cast<size_t>(s)], t);
+          continue;
+        }
         for (KPIType t : kRunKPIs) values[t] = kNaN;
         for (const auto& k : records) {
           if (k.component != component) continue;
@@ -131,6 +157,20 @@ namespace adsim {
     auto CheckTerm = [&](const std::string& component, KPIType type) {
       if (type == KPIType::LCOC) {
         throw std::invalid_argument("the levelised cost (LCOC) is not available to OptimizeSimulation");
+      }
+      if (IsStepReference(component) != IsStepKPIType(type)) {
+        throw std::invalid_argument(IsStepReference(component)
+                                        ? "'" + component + "' is a step: its terms take a step-end pressure KPI"
+                                        : "a step-end pressure KPI needs a step reference step[<ID or name>], not '" +
+                                              component + "'");
+      }
+      if (IsStepReference(component)) {
+        try {
+          ResolveStepReference(sim.Data().cycle.step_list_, component);
+        } catch (const std::exception& e) {
+          throw std::invalid_argument(e.what());
+        }
+        return;
       }
       bool tracked = false;
       for (const auto& c : sim.Data().kpi_config.per_component)

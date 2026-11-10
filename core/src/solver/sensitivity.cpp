@@ -434,6 +434,14 @@ Output ParseOutput(std::string_view name) {
     throw std::invalid_argument("output '" + std::string(name) + "' must be Component.kpi (e.g. CarbonDioxide.purity)");
   }
   Output out{std::string(name.substr(0, dot)), std::string(name.substr(dot + 1))};
+  if (IsStepReference(out.component)) {
+    const auto& names = StepOutputNames();
+    if (std::find(names.begin(), names.end(), out.kpi) == names.end()) {
+      throw std::invalid_argument("output '" + std::string(name) + "': unknown step output '" + out.kpi +
+                                  "' (expected one of " + Join(names) + ")");
+    }
+    return out;
+  }
   const auto& kpis = KPINames();
   if (std::find(kpis.begin(), kpis.end(), out.kpi) == kpis.end()) {
     throw std::invalid_argument("output '" + std::string(name) + "': unknown KPI '" + out.kpi + "' (expected one of " +
@@ -509,6 +517,18 @@ void CheckStudy(const std::string& deck_json, const std::vector<Input>& inputs, 
   }
   const auto& kpis = KPINames();
   for (const auto& o : outputs) {
+    if (IsStepReference(o.component)) {
+      const auto& names = StepOutputNames();
+      if (std::find(names.begin(), names.end(), o.kpi) == names.end()) {
+        throw std::invalid_argument("output '" + o.Name() + "': unknown step output '" + o.kpi + "'");
+      }
+      try {
+        ResolveStepReference(sim.Data().cycle.step_list_, o.component);
+      } catch (const std::exception& e) {
+        throw std::invalid_argument("output '" + o.Name() + "': " + e.what());
+      }
+      continue;
+    }
     if (std::find(kpis.begin(), kpis.end(), o.kpi) == kpis.end()) {
       throw std::invalid_argument("output '" + o.Name() + "': unknown KPI '" + o.kpi + "'");
     }
@@ -590,7 +610,15 @@ SampleOutcome EvaluateSample(const std::string& deck_json, const std::vector<Inp
   if (!out.accepted) return out;
 
   const std::vector<KPIRecord> kpis = sim.KPIs(-1);
+  std::vector<StepEndPressure> step_pressures;
   for (size_t o = 0; o < outputs.size(); ++o) {
+    if (IsStepReference(outputs[o].component)) {
+      if (step_pressures.empty()) step_pressures = sim.StepEndPressures(-1);
+      const int s = ResolveStepReference(sim.Data().cycle.step_list_, outputs[o].component);
+      if (s >= 0 && static_cast<size_t>(s) < step_pressures.size())
+        out.outputs[o] = StepOutputValue(step_pressures[static_cast<size_t>(s)], outputs[o].kpi);
+      continue;
+    }
     for (const auto& k : kpis) {
       if (k.component == outputs[o].component) {
         out.outputs[o] = KPIValue(k, outputs[o].kpi);
