@@ -894,6 +894,14 @@ namespace adsim {
     return ComputeCycleKPIs(data_->kpi_config, data_->cycle.step_list_, Log(), Boundaries(), c);
   }
 
+  std::vector<StepEndPressure> Simulation::StepEndPressures(int cycle) const {
+    const auto& log = Log().GetSimulationLog();
+    if (cycle >= 0 && log.find(cycle) == log.end() && KPIHistoryRecords().HasStepPressures(cycle))
+      return KPIHistoryRecords().StepPressures(cycle);
+    if (!HasResults()) return {};
+    return ComputeStepEndPressures(data_->cycle.step_list_, Log(), Boundaries(), ResolveCycle(cycle));
+  }
+
   std::vector<KPIRecord> Simulation::KPIs() const {
     std::vector<KPIRecord> out;
     for (int c : KPICycles()) {

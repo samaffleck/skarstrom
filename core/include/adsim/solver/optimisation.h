@@ -47,6 +47,13 @@ namespace adsim {
     LCOC,
     THERMAL_ENERGY,
     COOLING_DUTY,
+    // Step outputs (step_end_pressure.h): the term's product_component is a
+    // step reference "step[<ID or name>]" instead of a component.
+    END_PRESSURE_BOTTOM,
+    END_PRESSURE_TOP,
+    END_PRESSURE_MIN,
+    END_PRESSURE_MEAN,
+    END_PRESSURE_MAX,
     // Aliases last: an enumerator after them would take the alias's value + 1.
     ELECTRICAL_ENERGY = ENERGY_CONSUMPTION
   };
@@ -60,8 +67,20 @@ namespace adsim {
     "Production Rate",
     "LCOC",
     "Thermal Energy",
-    "Cooling Duty"
+    "Cooling Duty",
+    "End Pressure (bottom)",
+    "End Pressure (top)",
+    "End Pressure (bed min)",
+    "End Pressure (bed mean)",
+    "End Pressure (bed max)"
   };
+
+  // True for the KPI types a step reference carries (END_PRESSURE_*).
+  inline constexpr bool IsStepKPIType(KPIType type) {
+    return type == KPIType::END_PRESSURE_BOTTOM || type == KPIType::END_PRESSURE_TOP ||
+           type == KPIType::END_PRESSURE_MIN || type == KPIType::END_PRESSURE_MEAN ||
+           type == KPIType::END_PRESSURE_MAX;
+  }
 
   static std::string GetKPITypeUnits(KPIType type) {
     switch (type) {
@@ -74,6 +93,11 @@ namespace adsim {
       case KPIType::LCOC: return "[£/kg]";
       case KPIType::THERMAL_ENERGY: return "[J/kg]";
       case KPIType::COOLING_DUTY: return "[J/kg]";
+      case KPIType::END_PRESSURE_BOTTOM:
+      case KPIType::END_PRESSURE_TOP:
+      case KPIType::END_PRESSURE_MIN:
+      case KPIType::END_PRESSURE_MEAN:
+      case KPIType::END_PRESSURE_MAX: return "[Pa]";
       default: return "[-]";
     }
   }
@@ -548,7 +572,8 @@ namespace adsim {
   // Checks the set-up without running: the deck loads, every variable is a
   // tunable parameter with finite bounds lower < upper (no path twice), every
   // cost term names a component the deck's KPI configuration tracks and a KPI
-  // a run reports (not LCOC), and there is at least one objective. Throws
+  // a run reports (not LCOC), or a step of the cycle ("step[<ID or name>]")
+  // and a step KPI type (END_PRESSURE_*), and there is at least one objective. Throws
   // std::invalid_argument with the reason.
   void CheckOptimization(const std::string& deck_json, const std::vector<OptimizationVariable>& variables,
                          const OptimizationCostFunction& cost, const SimulationOptimizerSettings& settings = {});

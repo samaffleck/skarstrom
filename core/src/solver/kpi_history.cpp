@@ -290,6 +290,13 @@ namespace adsim {
   void KPIHistory::Record(const KPIConfig& config, const std::vector<Step>& steps,
                           const EquationLog& eq_log, const BoundaryLog& b_log, int cycle) {
     records_[cycle] = ComputeCycleKPIs(config, steps, eq_log, b_log, cycle);
+    step_pressures_[cycle] = ComputeStepEndPressures(steps, eq_log, b_log, cycle);
+  }
+
+  const std::vector<StepEndPressure>& KPIHistory::StepPressures(int cycle) const {
+    static const std::vector<StepEndPressure> kEmpty;
+    const auto it = step_pressures_.find(cycle);
+    return it == step_pressures_.end() ? kEmpty : it->second;
   }
 
   const std::vector<KPIRecord>& KPIHistory::Cycle(int cycle) const {

@@ -713,6 +713,10 @@ namespace adsim {
       } else if (auto* p = dynamic_cast<PumpBoundaryStream*>(stream)) {
         AddPumpPower(p->power_.get(), ep);
         AddPump(p->pump_.get(), ep);
+        // A vacuum pump's ultimate (blank-off) pressure; 0 turns it off.
+        if (!inlet)
+          Emplace(ep.path + ".pump.ultimate_pressure", ep.alias + ".pump.ultimate_pressure", "cycle",
+                  ep.subcategory, "vacuum pump ultimate pressure (0: none)", "Pa", p->ultimate_pressure_, 0.0, 5e4);
       }
       AddBufferTank(stream->buffer_tank_, ep);
     }

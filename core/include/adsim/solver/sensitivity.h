@@ -111,16 +111,19 @@ Plan MonteCarloPlan(const std::vector<Input>& inputs, int runs, std::uint64_t se
 // (DeckSuppliesHeat).
 const std::vector<std::string>& KPINames();
 
-// One watched value: a tracked component's KPI at the last logged cycle.
+// One watched value at the last logged cycle: a tracked component's KPI, or
+// a step output (step_end_pressure.h) when `component` is a step reference
+// "step[<ID or name>]", e.g. step[Evacuation].end_pressure_bottom.
 struct Output {
-  std::string component;  // CoolProp name, as in the deck's KPI configuration
-  std::string kpi;        // one of KPINames()
+  std::string component;  // CoolProp name, as in the deck's KPI configuration, or step[...]
+  std::string kpi;        // one of KPINames(), or of StepOutputNames() for a step
 
   std::string Name() const { return component + "." + kpi; }
 };
 
-// Parses "Component.kpi" (the component may itself contain dots: the KPI is
-// the text after the last one). Throws std::invalid_argument.
+// Parses "Component.kpi" or "step[<ID or name>].<step output>" (the subject
+// may itself contain dots: the KPI is the text after the last one). Throws
+// std::invalid_argument.
 Output ParseOutput(std::string_view name);
 
 // True when at least one step supplies heat: an enabled energy source with

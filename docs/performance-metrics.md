@@ -160,6 +160,38 @@ plt.plot([k.cycle + 1 for k in rows], [k.purity for k in rows])
 
 In C++ the same numbers come from `adsim::Simulation::KPIs` (adsim/simulation.h) or the lower-level `KPIParams` (adsim/solver/kpis.h).
 
+## Step-end pressures
+
+!!! note "New in 0.9"
+    `sim.step_end_pressures()`, the `step[...]` outputs of a study and the `end_pressure_*` KPIs of the optimiser.
+
+A design is often bounded by the pressure a step ends at: an evacuation must not go below the vacuum pump's floor, a pressurisation must reach the feed pressure. `sim.step_end_pressures(cycle=-1)` returns one record per step of a cycle, in cycle order, with the pressure at the step's last instant [Pa]:
+
+| Field | Value |
+|---|---|
+| `bottom`, `top` | The bed-end pressure, the last value of the step in `sim.series("pressure", location="bottom")` (or `"top"`): the endpoint's face pressure where the step has an endpoint at that end, else the face value |
+| `bed_min`, `bed_mean`, `bed_max` | Over the packed cells (no ghost or void cells); the mean is weighted by the cell widths |
+| `step`, `step_id`, `step_name`, `cycle`, `time` | The step's index in the cycle, its deck ID and name, the cycle, and the step's end [s from the cycle start] |
+
+```python
+for r in sim.step_end_pressures():
+    print(r.step_name, r.bottom, r.top, r.bed_min)
+```
+
+The solver records them when each cycle completes, with the KPIs, so every cycle of the run is available. The CLI's `--json` output lists the last cycle's records as `step_end_pressures`.
+
+A [sensitivity study](sensitivity.md) and the [optimiser](python.md#optimisation) read them as outputs of a step reference, `step[<ID or name>]` (the deck ID, or the step's name), in place of a component: `end_pressure_bottom`, `end_pressure_top`, `end_pressure_min`, `end_pressure_mean` and `end_pressure_max` (`sa.step_output_names()`). For example, an evacuation that must end at 10 kPa or more:
+
+<!-- no-run: an optimisation of the full deck is too slow for the docs runner -->
+```python
+from skarstrom import optimisation as opt
+opt.optimise(sim, {"step[Evacuation].time": (60, 200)},
+             objectives=[opt.maximise("CarbonDioxide", "recovery")],
+             constraints=[opt.at_least("step[Evacuation]", "end_pressure_bottom", 1e4, penalty=1e-3)])
+```
+
+The violation of a constraint is in the KPI's unit, Pa here, so scale its `penalty` to it. In a study, the output `"step[Evacuation].end_pressure_bottom"` reads the same value.
+
 ## How the KPIs are integrated, and the mole balance
 
 !!! note "Changed in 0.9"

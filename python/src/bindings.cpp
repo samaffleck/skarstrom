@@ -273,9 +273,15 @@ adsim::KPIType KPITypeFromName(const std::string& name) {
   if (name == "production_rate") return adsim::KPIType::PRODUCTION_RATE;
   if (name == "thermal_energy") return adsim::KPIType::THERMAL_ENERGY;
   if (name == "cooling_duty") return adsim::KPIType::COOLING_DUTY;
+  if (name == "end_pressure_bottom") return adsim::KPIType::END_PRESSURE_BOTTOM;
+  if (name == "end_pressure_top") return adsim::KPIType::END_PRESSURE_TOP;
+  if (name == "end_pressure_min") return adsim::KPIType::END_PRESSURE_MIN;
+  if (name == "end_pressure_mean") return adsim::KPIType::END_PRESSURE_MEAN;
+  if (name == "end_pressure_max") return adsim::KPIType::END_PRESSURE_MAX;
   throw std::invalid_argument("unknown KPI '" + name +
                               "' (purity, recovery, productivity_mass, productivity_volume, energy_consumption, "
-                              "production_rate, thermal_energy, cooling_duty)");
+                              "production_rate, thermal_energy, cooling_duty; for a step[...]: end_pressure_bottom, "
+                              "end_pressure_top, end_pressure_min, end_pressure_mean, end_pressure_max)");
 }
 
 const char* KPITypeKey(adsim::KPIType t) {
@@ -289,6 +295,11 @@ const char* KPITypeKey(adsim::KPIType t) {
     case adsim::KPIType::THERMAL_ENERGY: return "thermal_energy";
     case adsim::KPIType::COOLING_DUTY: return "cooling_duty";
     case adsim::KPIType::LCOC: return "lcoc";
+    case adsim::KPIType::END_PRESSURE_BOTTOM: return "end_pressure_bottom";
+    case adsim::KPIType::END_PRESSURE_TOP: return "end_pressure_top";
+    case adsim::KPIType::END_PRESSURE_MIN: return "end_pressure_min";
+    case adsim::KPIType::END_PRESSURE_MEAN: return "end_pressure_mean";
+    case adsim::KPIType::END_PRESSURE_MAX: return "end_pressure_max";
   }
   return "unknown";
 }
@@ -480,6 +491,36 @@ PYBIND11_MODULE(_core, m) {
       })
       .def("__repr__", [](const adsim::RunResult& r) {
         return "<RunResult " + std::string(adsim::RunStatusName(r.status)) + ": " + r.message + ">";
+      });
+
+  py::class_<adsim::StepEndPressure>(m, "StepEndPressure")
+      .def_readonly("cycle", &adsim::StepEndPressure::cycle)
+      .def_readonly("step", &adsim::StepEndPressure::step)
+      .def_readonly("step_id", &adsim::StepEndPressure::step_id)
+      .def_readonly("step_name", &adsim::StepEndPressure::step_name)
+      .def_readonly("time", &adsim::StepEndPressure::time)
+      .def_readonly("bottom", &adsim::StepEndPressure::bottom)
+      .def_readonly("top", &adsim::StepEndPressure::top)
+      .def_readonly("bed_min", &adsim::StepEndPressure::bed_min)
+      .def_readonly("bed_mean", &adsim::StepEndPressure::bed_mean)
+      .def_readonly("bed_max", &adsim::StepEndPressure::bed_max)
+      .def("as_dict", [](const adsim::StepEndPressure& r) {
+        py::dict d;
+        d["cycle"] = r.cycle;
+        d["step"] = r.step;
+        d["step_id"] = r.step_id;
+        d["step_name"] = r.step_name;
+        d["time"] = r.time;
+        d["bottom"] = r.bottom;
+        d["top"] = r.top;
+        d["bed_min"] = r.bed_min;
+        d["bed_mean"] = r.bed_mean;
+        d["bed_max"] = r.bed_max;
+        return d;
+      })
+      .def("__repr__", [](const adsim::StepEndPressure& r) {
+        return "StepEndPressure(cycle=" + std::to_string(r.cycle) + ", step='" + r.step_name +
+               "', bottom=" + std::to_string(r.bottom) + ", top=" + std::to_string(r.top) + ")";
       });
 
   py::class_<adsim::KPIRecord>(m, "KPIRecord")
@@ -888,6 +929,7 @@ PYBIND11_MODULE(_core, m) {
       .def("kpis", [](const adsim::Simulation& s, std::optional<int> cycle) {
         return cycle ? s.KPIs(*cycle) : s.KPIs();
       }, py::arg("cycle") = py::none())
+      .def("step_end_pressures", &adsim::Simulation::StepEndPressures, py::arg("cycle") = -1)
       .def("css_history", &adsim::Simulation::CSSHistory)
       .def("operating_limits", &adsim::Simulation::OperatingLimits, py::arg("cycle") = -1)
       .def("run_health", &adsim::Simulation::RunHealth, py::return_value_policy::copy)
@@ -1721,6 +1763,7 @@ PYBIND11_MODULE(_core, m) {
     return ToArray(out);
   }, py::arg("input"), py::arg("u"));
   m.def("sensitivity_kpi_names", &sa::KPINames);
+  m.def("step_output_names", &adsim::StepOutputNames);
   // ---- warm-start cache and optimisation (state_cache.h, optimisation.h) ----
   py::class_<adsim::CycleStateCache>(m, "StateCache")
       .def(py::init<size_t>(), py::arg("capacity") = adsim::CycleStateCache::kDefaultCapacity)

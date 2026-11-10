@@ -67,11 +67,20 @@ __all__ = [
 
 KPIS = ("purity", "recovery", "productivity_mass", "productivity_volume", "energy_consumption",
         "electrical_energy", "production_rate", "thermal_energy", "cooling_duty")
+# The KPIs of a step reference "step[<ID or name>]": the pressure the step ends at [Pa].
+STEP_KPIS = ("end_pressure_bottom", "end_pressure_top", "end_pressure_min", "end_pressure_mean",
+             "end_pressure_max")
 
 
 @dataclass(frozen=True)
 class Objective:
-    """One objective term: a tracked component's KPI, minimised or maximised."""
+    """One objective term: a tracked component's KPI, minimised or maximised.
+
+    ``component`` may instead be a step reference ``"step[<ID or name>]"`` with
+    a step-end pressure ``kpi`` (``end_pressure_bottom``, ``end_pressure_top``,
+    ``end_pressure_min``, ``end_pressure_mean``, ``end_pressure_max``; Pa), e.g.
+    ``at_least("step[Evacuation]", "end_pressure_bottom", 1e4)``.
+    """
 
     component: str
     kpi: str
@@ -81,7 +90,12 @@ class Objective:
 
 @dataclass(frozen=True)
 class Constraint:
-    """One soft constraint: ``penalty * violation`` is added to the cost."""
+    """One soft constraint: ``penalty * violation`` is added to the cost.
+
+    The violation is in the KPI's unit (Pa for a step-end pressure), so scale
+    ``penalty`` to it. ``component`` is a tracked component or a step
+    reference, as for :class:`Objective`.
+    """
 
     component: str
     kpi: str
@@ -222,7 +236,10 @@ def optimise(
     if not objectives:
         raise ValueError("an optimisation needs at least one objective")
     for term in list(objectives) + list(constraints):
-        if term.kpi not in KPIS:
+        if term.component.startswith("step[") and term.component.endswith("]"):
+            if term.kpi not in STEP_KPIS:
+                raise ValueError(f"unknown step KPI {term.kpi!r} for {term.component} ({', '.join(STEP_KPIS)})")
+        elif term.kpi not in KPIS:
             raise ValueError(f"unknown KPI {term.kpi!r} ({', '.join(KPIS)})")
     paths = list(variables)
     var_list = []

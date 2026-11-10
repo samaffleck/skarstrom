@@ -398,6 +398,12 @@ namespace adsim {
     std::vector<int> KPICycles() const;
     // The KPIs the solver recorded at the end of each completed cycle.
     const KPIHistory& KPIHistoryRecords() const;
+    // The pressure each step of one cycle ended at (step_end_pressure.h), one
+    // record per step in cycle order (-1 = the last logged cycle). Like
+    // KPIs(cycle): a logged cycle is computed from the log, an evicted one
+    // comes from the record made when it completed. Throws std::out_of_range
+    // for a cycle that is neither logged nor recorded; empty without results.
+    std::vector<StepEndPressure> StepEndPressures(int cycle = -1) const;
     // The deck's CSS check evaluated at every logged cycle. The consecutive-
     // cycles rule only sees logged cycles, so the earliest logged cycles can
     // show fewer passing cycles than the run counted.
