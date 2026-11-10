@@ -926,9 +926,8 @@ namespace adsim {
       // 2 = isosteric heat from -dU + R*T at the local temperature.
       EmplaceEnum("fluid.heat_of_adsorption_convention", "", "fluid", "fluid", "heat of adsorption convention",
                   fluid.heat_of_adsorption_convention_, "isosteric,internal_energy,isosteric_rt");
-      // 0 = ideal-gas Cp(T) polynomials (held CoolProp value for a component
-      // without one), 1 = constant (fluid.gas_heat_capacity). "coolprop" is
-      // the old name of 0.
+      // 0 = ideal-gas Cp(T) polynomials, 1 = constant (fluid.gas_heat_capacity).
+      // "coolprop" is the old name of 0.
       EmplaceEnum("fluid.gas_heat_capacity_mode", "", "fluid", "fluid", "gas heat capacity mode",
                   fluid.gas_heat_capacity_mode_, "ideal_gas,constant");
       out.back().info_.choice_aliases = {{"coolprop", 0}};

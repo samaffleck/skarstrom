@@ -30,14 +30,13 @@
 #include "adsim/objects/viscosity_coefficients.h"
 #include "adsim/objects/ideal_gas_heat_capacity.h"
 #include "adsim/objects/thermal_conductivity_coefficients.h"
+#include "adsim/objects/component_properties.h"
 #include <cereal/types/memory.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/access.hpp>
 #include <cereal/cereal.hpp>
-
-// CoolProp includes
-#include "CoolProp.h"
+#include <stdexcept>
 
 
 namespace adsim {
@@ -50,7 +49,7 @@ namespace adsim {
     IsomerStandIn      // estimate: the n-pentane row stands in for the isomer
   };
 
-  // Contains component data that can not be found in coolprop
+  // Lennard-Jones parameters of a component (not in component_properties.h)
   struct ComponentData  {
     // Air as default params
     double eps = 78.6; // = e/k_b [=] [K]
@@ -79,7 +78,6 @@ namespace adsim {
       "Ethylene", 
       "Fluorine",
       "Helium", 
-      "Hexane", 
       "Hydrogen", 
       "HydrogenSulfide", 
       "Isobutane", 
@@ -156,7 +154,6 @@ namespace adsim {
       { "Fluorine",           { 112.6, 3.357 } },  // F2
 
       { "Helium",             { 10.22, 2.551 } }, // He
-      { "Hexane",             { 399.3, 5.949 } },  // n-C6H14
       { "Hydrogen",           {  59.7, 2.827 } },  // H2
       { "HydrogenBromide",    { 449.0, 3.353 } },  // HBr
       { "HydrogenChloride",   { 344.7, 3.339 } },  // HCl
@@ -261,7 +258,6 @@ namespace adsim {
       { "Ethylene",           { {"C", 2}, {"H", 4} } },
       { "Fluorine",           { {"F", 2} } },
       { "Helium",             { {"He", 1} } },
-      { "Hexane",             { {"C", 6}, {"H", 14} } },
       { "Hydrogen",           { {"H", 2} } },
       { "HydrogenSulfide",    { {"H", 2}, {"S", 1} } },
       { "Isobutane",          { {"C", 4}, {"H", 10} } },
@@ -289,6 +285,13 @@ namespace adsim {
       auto it = elementFormulas.find(name);
       return it == elementFormulas.end() ? nullptr : &it->second;
     }
+
+    // Components that earlier engines accepted and this one does not, with the
+    // reason. A deck that has one fails to load (Fluid::serialize) with an
+    // error that names the component.
+    inline const std::map<std::string, std::string> removedComponents = {
+      { "Hexane", "it had no ideal-gas heat capacity polynomial" },
+    };
 
   }
 
@@ -337,11 +340,10 @@ namespace adsim {
   // Source of the pure-component gas heat capacities C_p,i.
   //   IDEAL_GAS - the ideal-gas C_p0,i(T) of the NASA 7-coefficient polynomials
   //               (ideal_gas_heat_capacity.h, one set to 1000 K), evaluated at
-  //               the local gas temperature in every cell (default). A component without a
-  //               polynomial keeps the CoolProp value at the initial-condition
-  //               pressure and temperature, held for the run (the run-start
-  //               warnings name it). Engines up to 0.8 held the CoolProp value
-  //               for every component in this mode; COOLPROP is its old name.
+  //               the local gas temperature in every cell (default). Every
+  //               component of Components::componentNames has a polynomial.
+  //               Engines up to 0.8 held the CoolProp value for every
+  //               component in this mode; COOLPROP is its old name.
   //   CONSTANT  - the user's molar value per component, gas_heat_capacity_
   //               [J/(mol-K)] (e.g. the constant 30.7 J/(mol-K) of
   //               Yancy-Caballero 2020 and Haghpanah 2013).
@@ -473,33 +475,24 @@ namespace adsim {
       return h(T);
     }
 
-    // The polynomial the run uses for `component` (IDEAL_GAS mode and a
-    // polynomial exists), or null: the component then has the held value of
-    // heat_capacity_. Requires Initialise().
+    // The polynomial the run uses for `component` (IDEAL_GAS mode), or null:
+    // the component then has the constant value of heat_capacity_ (CONSTANT
+    // mode). Requires Initialise().
     const NasaPolynomial* HeatCapacityPolynomial(const std::string& component) const {
       auto it = cp_polynomial_.find(component);
       return it == cp_polynomial_.end() ? nullptr : it->second;
     }
-    // Components of the IDEAL_GAS mode that have no polynomial, so keep the
-    // CoolProp value held at the initial conditions (empty in CONSTANT mode).
-    std::vector<std::string> ComponentsWithHeldHeatCapacity() const {
-      std::vector<std::string> out;
-      if (gas_heat_capacity_mode_ != GasHeatCapacityMode::IDEAL_GAS) return out;
-      for (const auto& c : components_)
-        if (!IdealGasCoeffs(c)) out.push_back(c);
-      return out;
-    }
 
     // Gas-phase heat capacity of a pure component on a molar basis at the
-    // temperature T [K], C_p,i(T) M_i [J/(mol.K)]: its polynomial, or the held
-    // per-kilogram heat_capacity_ times M_i. Requires Initialise() (a fluid
-    // that was not initialised uses heat_capacity_ for every component).
+    // temperature T [K], C_p,i(T) M_i [J/(mol.K)]: its polynomial, or the
+    // constant per-kilogram heat_capacity_ times M_i. Requires Initialise() (a
+    // fluid that was not initialised uses heat_capacity_ for every component).
     double MolarHeatCapacity(const std::string& component, double T) const {
       if (const NasaPolynomial* p = HeatCapacityPolynomial(component)) return EvalIdealGasHeatCapacity(*p, T);
       return heat_capacity_.at(component) * molar_mass_.at(component);
     }
     // integral of C_p,i M_i dT from T1 to T2 [J/mol], consistent with
-    // MolarHeatCapacity (exact for the polynomial; C_p (T2 - T1) when held).
+    // MolarHeatCapacity (exact for the polynomial; C_p (T2 - T1) when constant).
     double MolarEnthalpyChange(const std::string& component, double T1, double T2) const {
       if (const NasaPolynomial* p = HeatCapacityPolynomial(component))
         return EvalIdealGasEnthalpy(*p, T2) - EvalIdealGasEnthalpy(*p, T1);
@@ -548,11 +541,10 @@ namespace adsim {
     std::vector<std::string> components_{};
     std::unordered_map<std::string, double> molar_mass_{};
     std::unordered_map<std::string, ExpressionParam> adsorbed_heat_capacity_{}; // [J/(mol-K)] - used when mode is CONSTANT
-    // [J/(kg-K)] pure-component, cached by Initialise: the held value of a
-    // component without a polynomial (CoolProp at the initial conditions) or of
-    // the CONSTANT mode (gas_heat_capacity_ / M_i). A component with a
-    // polynomial gets its C_p0 at the initial temperature, for display only:
-    // the solver evaluates the polynomial (MolarHeatCapacity).
+    // [J/(kg-K)] pure-component, cached by Initialise: the value of the
+    // CONSTANT mode (gas_heat_capacity_ / M_i). In the IDEAL_GAS mode, the C_p0
+    // of the polynomial at the initial temperature, for display only: the
+    // solver evaluates the polynomial (MolarHeatCapacity).
     std::unordered_map<std::string, double> heat_capacity_{};
     // Transient (set by Initialise): the polynomial of each component that has
     // one, in IDEAL_GAS mode. Not serialised.
@@ -574,6 +566,14 @@ namespace adsim {
     template <class Archive>
     void serialize(Archive& ar, std::uint32_t const version) {
       ar(cereal::make_nvp("Components", components_));
+      if constexpr (Archive::is_loading::value) {
+        for (const auto& c : components_) {
+          auto removed = Components::removedComponents.find(c);
+          if (removed != Components::removedComponents.end())
+            throw std::invalid_argument("The deck has the component " + c + ", which was removed from the engine (" +
+                                        removed->second + "). Remove " + c + " from the deck to load it.");
+        }
+      }
       SerializeMap(ar, "Adsorbed_Heat_Capacity", adsorbed_heat_capacity_);
       if (version >= 2) {
         ar(cereal::make_nvp("Adsorbed_Heat_Capacity_Mode", adsorbed_heat_capacity_mode_));
@@ -598,67 +598,11 @@ namespace adsim {
     }
   };
   
-  inline static double GetHeatCapacity(const std::string& component, double P, double T) {
-    double cp = 0.0; // failure sentinel, consistent with the other CoolProp getters below
-    try {
-      cp = CoolProp::PropsSI("C", "P", P, "T", T, component); // [J/(kg-K)]
-    }
-    catch (const CoolProp::CoolPropBaseError& e) {
-      std::cerr << "CoolProp Error: " << e.what() << std::endl;
-    }
-
-    return cp;
-  }
-
-  // Pure-component gas-phase heat capacity C_p,i [J/(kg-K)] at (P, T), the value
-  // the COOLPROP gas heat capacity mode caches. The gas in the bed is a vapour
-  // mixture, so a component whose pure state at (P, T) would be condensed (e.g.
-  // water, ethanol or toluene at 1 bar and 298 K, where CoolProp returns the
-  // liquid's ~4181 J/(kg-K) for water) takes its ideal-gas heat capacity
-  // C_p0(T) instead (water: ~1865 J/(kg-K)). Its partial pressure in the bed is
-  // at most its saturation pressure, where the vapour is close to ideal, and
-  // C_p0 depends on temperature only, so it is defined at every state (unlike
-  // the saturated-vapour state, which does not exist above T_c). A component in
-  // a gas or supercritical state keeps its real-gas C_p(P, T) unchanged, so
-  // permanent gases (N2, O2, CO2 below its saturation pressure, CH4, H2, Ar,
-  // He, ...) are not affected. Returns 0 if CoolProp fails, like the other
-  // getters.
-  double GetGasHeatCapacity(const std::string& component, double P, double T);
-
-  inline static double GetViscosity(const std::string& component, double P, double T) {
-    double vis = 0.0;
-    try {
-      vis = CoolProp::PropsSI("V", "P", P, "T", T, component); 
-    }
-    catch (const CoolProp::CoolPropBaseError& e) {
-      std::cerr << "CoolProp Error: " << e.what() << std::endl;
-    }
-
-    return vis;
-  }
-
-  inline static double GetThermalConductivity(const std::string& component, double P, double T) {
-    double k = 0.0;
-    try {
-      k = CoolProp::PropsSI("CONDUCTIVITY", "P", P, "T", T, component); 
-    }
-    catch (const CoolProp::CoolPropBaseError& e) {
-      std::cerr << "CoolProp Error: " << e.what() << std::endl;
-    }
-
-    return k;
-  }
-
-  inline static double GetMolarMass(const std::string& component) {
-    double mr = 0.0;
-    try {
-      mr = CoolProp::Props1SI(component, "molar_mass");
-    }
-    catch (const CoolProp::CoolPropBaseError& e) {
-      std::cerr << "CoolProp Error: " << e.what() << std::endl;
-    }
-
-    return mr;
+  // Molar mass [kg/mol] of a component (component_properties.h), or 0 for a
+  // component the table does not have.
+  inline double GetMolarMass(const std::string& component) {
+    const ComponentProperties* c = FindComponentProperties(component);
+    return c ? c->molar_mass : 0.0;
   }
 
 } // end adsim namespace

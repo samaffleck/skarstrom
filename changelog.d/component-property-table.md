@@ -1,0 +1,8 @@
+### Changed — component constants come from a generated table
+- The engine no longer calls CoolProp at run time. The molar mass, formula, CAS number and aliases of each component, and the critical point, triple point and vapour-pressure equation that give the saturation pressure of the GAB isotherms, are in the generated table `core/include/adsim/objects/component_properties.h`. `scripts/gen_component_properties.py` writes it from the CoolProp fluid files (`--check` fails when the committed table differs; CI runs it). The values are the ones CoolProp gave, so no result changes.
+- `fluid.h` and the precompiled header no longer include `CoolProp.h` (and CoolProp's fmt). CoolProp is still built and linked in this release.
+- The component manifest's `properties_source` names the table ("CoolProp 6.7.0 fluid files (generated table)") instead of "CoolProp". Its `heat_capacity_held` field is always false; it stays for one release.
+
+### Removed — Hexane
+- Hexane is no longer a component. It was the only component without an ideal-gas heat capacity polynomial (NASA TM-4513), so its heat capacity was CoolProp's value held at the initial conditions. No example deck, adsorbent library entry or cycle template used it. A deck that has Hexane does not load: the error names the component and says that it was removed.
+- With it go the held heat-capacity path (`GetGasHeatCapacity`, `Fluid::ComponentsWithHeldHeatCapacity`), the `gas_heat_capacity` run-start warning, and the unused `GetHeatCapacity`, `GetViscosity` and `GetThermalConductivity` CoolProp getters of `fluid.h`. `skarstrom.components_with_held_heat_capacity()` now returns an empty list.

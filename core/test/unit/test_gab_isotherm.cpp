@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#include "CoolProp.h"
+#include "coolprop_reference_values.h"
 #include "adsim/equations/equation.h"
 #include "adsim/equations/isotherm.h"
 #include "adsim/equations/isotherm_kinds.h"
@@ -135,8 +135,9 @@ TEST(GabIsotherm, ContinuationNearThePole) {
   EXPECT_NEAR(GabLoading(2.0, 10.0, 0.8, 1.0), at1, 1e-12 * at1);
 }
 
-// p_sat from CoolProp's saturation ancillary: within 2e-4 of the full
-// Helmholtz-energy saturation pressure and of the IAPWS correlation pyDAC uses
+// p_sat from the saturation ancillary of CoolProp's water file: within 2e-4 of
+// the full Helmholtz-energy saturation pressure (recorded from CoolProp) and of
+// the IAPWS correlation pyDAC uses
 // (Wagner and Pruss, 1993); p_c above T_c; NaN for an unknown fluid.
 TEST(GabIsotherm, SaturationPressure) {
   // pyDAC water_saturation_pressure(T) at these temperatures (see the
@@ -144,11 +145,10 @@ TEST(GabIsotherm, SaturationPressure) {
   const std::vector<std::pair<double, double>> wagner = {
       {288.15, 1705.676858}, {298.15, 3169.824241}, {313.15, 7385.109965},
       {343.15, 31202.19682}, {373.15, 101417.9895}};
-  for (const auto& [T, ps] : wagner) {
+  for (const auto& [T, ps] : wagner) EXPECT_LT(Rel(SaturationPressure(kWater, T), ps), 2e-4) << T;
+  for (const auto& [T, ps] : coolprop_reference::kWaterSaturationPressure)
     EXPECT_LT(Rel(SaturationPressure(kWater, T), ps), 2e-4) << T;
-    EXPECT_LT(Rel(SaturationPressure(kWater, T), CoolProp::PropsSI("P", "T", T, "Q", 1, kWater)), 2e-4) << T;
-  }
-  EXPECT_NEAR(SaturationPressure(kWater, 700.0), CoolProp::PropsSI("pcrit", "", 0, "", 0, kWater), 1.0);
+  EXPECT_NEAR(SaturationPressure(kWater, 700.0), coolprop_reference::kWaterCriticalPressure, 1.0);
   EXPECT_GT(SaturationPressure(kWater, 253.15), 0.0);  // below the triple point: extrapolated, finite
   EXPECT_TRUE(std::isnan(SaturationPressure("NotAFluid", 300.0)));
 }

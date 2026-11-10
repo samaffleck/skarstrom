@@ -2,10 +2,10 @@
 // NASA 7-coefficient polynomials of McBride, Gordon and Reno 1993, NASA
 // TM-4513). These tests pin:
 //   * the polynomials agree with CoolProp's ideal-gas C_p0 (the reference
-//     equations of state) within a stated bound over 200-800 K;
-//   * every engine component has a polynomial except those listed as held;
-//   * the solver's cell heat capacity follows each cell's temperature, and a
-//     component without a polynomial keeps the value held at the initial state;
+//     equations of state; values recorded in coolprop_reference_values.h)
+//     within a stated bound over 200-800 K;
+//   * every engine component has a polynomial;
+//   * the solver's cell heat capacity follows each cell's temperature;
 //   * the enthalpy is the integral of C_p0 (Kirchhoff heats of reaction);
 //   * the registry name of the mode, and its former name.
 
@@ -15,16 +15,15 @@
 #include <string>
 #include <vector>
 
-#include <CoolProp.h>
 #include <gtest/gtest.h>
 
 #include "../fixtures/user_data_test.h"
+#include "coolprop_reference_values.h"
 #include "adsim/equations/adsorbent_equations.h"
 #include "adsim/equations/isotherm.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/objects/reaction.h"
 #include "adsim/parameters/parameter_registry.h"
-#include "adsim/solver/deck_warnings.h"
 
 namespace adsim {
 namespace {
@@ -44,20 +43,11 @@ const std::set<std::string> kLightGases = {"Air",    "Argon",    "CarbonDioxide"
                                            "Hydrogen", "Krypton", "Methane",       "Neon",           "Nitrogen",
                                            "Oxygen", "Xenon"};
 
-// Components of Components::componentNames without a TM-4513 polynomial.
-const std::set<std::string> kHeld = {"Hexane"};
-
-double CoolPropCp0(const std::string& c, double T) {
-  return CoolProp::PropsSI("CP0MOLAR", "T", T, "Dmolar", 1e-3, c);  // [J/(mol.K)]
-}
 
 }  // namespace
 
-TEST(IdealGasHeatCapacity, EveryComponentHasAPolynomialExceptTheHeldOnes) {
-  for (const auto& c : Components::componentNames) {
-    if (kHeld.count(c)) EXPECT_EQ(Fluid::IdealGasCoeffs(c), nullptr) << c;
-    else EXPECT_NE(Fluid::IdealGasCoeffs(c), nullptr) << c;
-  }
+TEST(IdealGasHeatCapacity, EveryComponentHasAPolynomial) {
+  for (const auto& c : Components::componentNames) EXPECT_NE(Fluid::IdealGasCoeffs(c), nullptr) << c;
   for (const auto& [c, p] : kIdealGasHeatCapacity) {
     EXPECT_NE(std::find(Components::componentNames.begin(), Components::componentNames.end(), c),
               Components::componentNames.end()) << c << " is not an engine component";
@@ -75,13 +65,6 @@ TEST(IdealGasHeatCapacity, ProvenanceIsData) {
   }
   EXPECT_EQ(Fluid::IdealGasCoeffs("Butane")->species, "C4H10,n-butane");
   EXPECT_EQ(Fluid::IdealGasCoeffs("Butane")->source, "L 6/90");
-  // Held components have no entry, hence no provenance.
-  Fluid f;
-  f.AddComponent("Butane");
-  f.AddComponent("Hexane");
-  InitialConditions ic;
-  f.Initialise(ic);
-  EXPECT_EQ(f.ComponentsWithHeldHeatCapacity(), std::vector<std::string>{"Hexane"});
 }
 
 // The table of docs/equation-of-state.md comes from this test's output.
@@ -89,17 +72,19 @@ TEST(IdealGasHeatCapacity, AgreesWithCoolPropIdealGasHeatCapacity) {
   std::printf("| Component | Fit range [K] | Compared [K] | Max error | at [K] | C_p0(298.15 K) [J/(mol K)] |\n");
   for (const auto& c : Components::componentNames) {
     const NasaPolynomial* p = Fluid::IdealGasCoeffs(c);
-    if (!p) continue;
+    ASSERT_NE(p, nullptr) << c;
+    // From 200 K, or from the fit's lower limit or the triple point if higher.
     double t_lo = std::max(kCompareTmin, p->t_min);
-    double t_triple = 0.0;
-    try {
-      t_triple = CoolProp::PropsSI("Ttriple", "", 0, "", 0, c);
-    } catch (...) {
-    }
-    if (std::isfinite(t_triple)) t_lo = std::max(t_lo, std::ceil(t_triple));
+    const ComponentProperties* props = FindComponentProperties(c);
+    ASSERT_NE(props, nullptr) << c;
+    t_lo = std::max(t_lo, std::ceil(props->T_triple));
+    const auto& ref_table = coolprop_reference::kIdealGasHeatCapacity.at(c);
+    ASSERT_EQ(ref_table.t_start, t_lo) << c;  // the values were recorded on this grid
     double worst = 0.0, at = t_lo;
-    for (double T = t_lo; T <= kCompareTmax + 1e-9; T += 5.0) {
-      const double ref = CoolPropCp0(c, T);
+    size_t i = 0;
+    for (double T = t_lo; T <= kCompareTmax + 1e-9; T += coolprop_reference::kCp0Step, ++i) {
+      ASSERT_LT(i, ref_table.cp0.size()) << c;
+      const double ref = ref_table.cp0[i];
       ASSERT_TRUE(std::isfinite(ref) && ref > 0.0) << c << " at " << T;
       const double err = Fluid::EvalIdealGasHeatCapacity(*p, T) / ref - 1.0;
       if (std::abs(err) > std::abs(worst)) { worst = err; at = T; }
@@ -145,44 +130,33 @@ TEST(IdealGasHeatCapacity, AirIsTheMixtureOfItsConstituents) {
   }
 }
 
-TEST(IdealGasHeatCapacity, FluidUsesThePolynomialOrTheHeldValue) {
+TEST(IdealGasHeatCapacity, FluidUsesThePolynomialOrTheConstantValue) {
   InitialConditions ic;
   ic.pressure = 1.0e5;
   ic.temperature = 320.0;
   Fluid f;
   f.AddComponent("Nitrogen");
-  f.AddComponent("Hexane");
+  f.AddComponent("Water");
   f.Initialise(ic);
   ASSERT_NE(f.HeatCapacityPolynomial("Nitrogen"), nullptr);
-  EXPECT_EQ(f.HeatCapacityPolynomial("Hexane"), nullptr);
-  EXPECT_EQ(f.ComponentsWithHeldHeatCapacity(), std::vector<std::string>{"Hexane"});
+  ASSERT_NE(f.HeatCapacityPolynomial("Water"), nullptr);
 
-  // N2 follows the temperature; hexane keeps its value at the initial state.
+  // N2 follows the temperature.
   const auto& n2 = *Fluid::IdealGasCoeffs("Nitrogen");
   EXPECT_DOUBLE_EQ(f.MolarHeatCapacity("Nitrogen", 450.0), Fluid::EvalIdealGasHeatCapacity(n2, 450.0));
   EXPECT_GT(f.MolarHeatCapacity("Nitrogen", 450.0), f.MolarHeatCapacity("Nitrogen", 300.0));
-  const double held = GetGasHeatCapacity("Hexane", 1.0e5, 320.0) * f.molar_mass_.at("Hexane");
-  EXPECT_DOUBLE_EQ(f.MolarHeatCapacity("Hexane", 300.0), held);
-  EXPECT_DOUBLE_EQ(f.MolarHeatCapacity("Hexane", 450.0), held);
-  EXPECT_DOUBLE_EQ(f.MolarEnthalpyChange("Hexane", 300.0, 310.0), 10.0 * held);
 
   // The cached per-kilogram value of a polynomial component is its value at
   // the initial temperature (for display).
   EXPECT_DOUBLE_EQ(f.heat_capacity_.at("Nitrogen"),
                    Fluid::EvalIdealGasHeatCapacity(n2, 320.0) / f.molar_mass_.at("Nitrogen"));
 
-  // The run-start warning names the held component.
-  const auto warnings = GasHeatCapacityWarnings(f);
-  ASSERT_EQ(warnings.size(), 1u);
-  EXPECT_NE(warnings[0].find("Hexane has no ideal-gas heat capacity polynomial"), std::string::npos) << warnings[0];
-
-  // CONSTANT mode: no polynomial, nothing held from CoolProp, no warning.
+  // CONSTANT mode: no polynomial; the constant at every temperature.
   f.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
   f.Initialise(ic);
-  EXPECT_TRUE(GasHeatCapacityWarnings(f).empty());
   EXPECT_EQ(f.HeatCapacityPolynomial("Nitrogen"), nullptr);
-  EXPECT_TRUE(f.ComponentsWithHeldHeatCapacity().empty());
   EXPECT_DOUBLE_EQ(f.MolarHeatCapacity("Nitrogen", 450.0), Fluid::kDefaultGasHeatCapacity);
+  EXPECT_DOUBLE_EQ(f.MolarEnthalpyChange("Nitrogen", 300.0, 310.0), 10.0 * Fluid::kDefaultGasHeatCapacity);
 
   // GAS_PHASE adsorbed heat capacity follows the adsorbed-phase temperature.
   f.gas_heat_capacity_mode_ = GasHeatCapacityMode::IDEAL_GAS;

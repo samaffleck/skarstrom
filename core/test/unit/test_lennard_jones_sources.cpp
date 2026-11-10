@@ -1,38 +1,16 @@
-// Lennard-Jones parameters: provenance, and agreement with CoolProp.
+// Lennard-Jones parameters: provenance, and agreement with CoolProp (values
+// recorded in coolprop_reference_values.h).
 #include <cmath>
+#include <iostream>
 #include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
 
-#include "CoolProp.h"
 #include "adsim/objects/fluid.h"
+#include "coolprop_reference_values.h"
 
 namespace adsim {
-
-  namespace {
-    // Number after `"key":` in a JSON text (cereal and CoolProp bundle clashing
-    // rapidjson copies, so the two values are read from the text).
-    bool JsonNumber(const std::string& js, const std::string& key, double& out) {
-      const auto k = js.find("\"" + key + "\"");
-      if (k == std::string::npos) return false;
-      const auto c = js.find(':', k);
-      if (c == std::string::npos) return false;
-      try { out = std::stod(js.substr(c + 1)); } catch (...) { return false; }
-      return true;
-    }
-
-    // CoolProp's own LJ pair for the viscosity model, or false if it has none.
-    bool CoolPropPair(const std::string& fluid, double& eps, double& sigma) {
-      try {
-        const std::string js = CoolProp::get_fluid_param_string(fluid, "JSON");
-        double s_m;
-        if (!JsonNumber(js, "sigma_eta", s_m) || !JsonNumber(js, "epsilon_over_k", eps)) return false;
-        sigma = s_m * 1e10;  // m -> Angstrom
-        return true;
-      } catch (...) { return false; }
-    }
-  }
 
   // The engine's viscosity (polynomial) is within 2 % of CoolProp's
   // dilute-gas viscosity at 300 K and 500 K for every component CoolProp has a
@@ -42,12 +20,11 @@ namespace adsim {
     double worst = 0.0; std::string worst_name;
     int checked = 0;
     for (const std::string& name : Components::componentNames) {
-      double e, s;
-      if (!CoolPropPair(name, e, s)) continue;
+      const auto it = coolprop_reference::kViscosity.find(name);
+      if (it == coolprop_reference::kViscosity.end()) continue;
       for (double T : {300.0, 500.0}) {
-        double ref;
-        try { ref = CoolProp::PropsSI("V", "T", T, "P", 1.0e3, name); } catch (...) { continue; }
-        if (!std::isfinite(ref) || ref <= 0) continue;
+        const double ref = T == 300.0 ? it->second.mu300 : it->second.mu500;
+        ASSERT_TRUE(std::isfinite(ref) && ref > 0) << name;
         const double mu = Fluid::GetComponentViscosity(name, T);
         const double err = std::abs(mu - ref) / ref;
         if (err > worst) { worst = err; worst_name = name; }
@@ -59,17 +36,14 @@ namespace adsim {
     std::cout << "worst viscosity deviation " << 100 * worst << " % (" << worst_name << ")\n";
   }
 
-  // The CoolProp-sourced pairs equal what CoolProp reports, so a CoolProp
-  // upgrade that changes them is noticed.
+  // The CoolProp-sourced pairs equal what CoolProp reports (recorded from the
+  // n-Octane and Toluene fluid files).
   TEST(TransportProperties, CoolPropSourcedPairsEqualCoolProp) {
-    const std::vector<std::pair<std::string, std::string>> cp = {
-      {"Octane", "n-Octane"}, {"Toluene", "Toluene"}};
-    for (const auto& [name, fluid] : cp) {
-      double e, s;
-      ASSERT_TRUE(CoolPropPair(fluid, e, s)) << fluid;
+    for (const std::string name : {"Octane", "Toluene"}) {
+      const auto& ref = coolprop_reference::kViscosity.at(name);
       const auto& d = Components::GetComponentData(name);
-      EXPECT_NEAR(d.eps, e, 0.01) << name;
-      EXPECT_NEAR(d.sigma, s, 0.001) << name;
+      EXPECT_NEAR(d.eps, ref.eps, 0.01) << name;
+      EXPECT_NEAR(d.sigma, ref.sigma, 0.001) << name;
     }
   }
 

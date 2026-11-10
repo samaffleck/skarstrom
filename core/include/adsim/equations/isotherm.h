@@ -290,7 +290,7 @@ namespace adsim {
   //   q_m(T) = q_m0 exp(dH_m / (R T)),  C(T) = C0 exp(dH_C / (R T)),
   //   K(T)   = K0 exp(dH_K / (R T)).
   // BET is the special case K = 1 (K0 = 1, dH_K = 0). p_sat is the pure
-  // component's saturation pressure from CoolProp (SaturationPressure). Near
+  // component's saturation pressure (SaturationPressure). Near
   // the pole K x -> 1, and for x < 0, the loading is continued as described at
   // GabLoading.
   class GabIsothermParameters {
@@ -695,12 +695,13 @@ namespace adsim {
   double GabLoading(double q_m, double C, double K, double x);
 
   // Saturation pressure p_sat(T) [Pa] of a pure component (a CoolProp fluid
-  // name), from CoolProp's saturation (vapour) ancillary equation: a closed-form
+  // name), from the vapour-pressure ancillary equation of the CoolProp fluid
+  // file, held in the generated table component_properties.h: a closed-form
   // fit of the full Helmholtz-energy saturation curve, about 0.1 us per call
   // (water: within 0.02 % of the IAPWS-95 saturation pressure, 273-647 K). T is
-  // clamped to [0.75 T_triple, T_c]; above T_c the result is p_c. NaN if
-  // CoolProp has no such fluid or no ancillary for it. Thread-safe (one
-  // CoolProp state per component and thread).
+  // clamped to [0.75 T_triple, T_c]; above T_c the result is p_c. NaN for a
+  // component the table does not have or without an ancillary. Thread-safe
+  // (the table is constant).
   double SaturationPressure(const std::string& component, double T);
 
   struct IsothermUpdateParams {

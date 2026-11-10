@@ -113,7 +113,7 @@ void EnsureIsothermComponent(IIsotherm* iso, const std::string& component);
 // pressure P [Pa], mole fraction yi) using the direct IsothermFunction free
 // functions. For a single-component (pure) plot pass yi=1 so partial pressure =
 // P. Extended/competitive variants reuse the base function (pure-component limit).
-// The GAB kinds take the component's saturation pressure from CoolProp. The
+// The GAB kinds take the component's saturation pressure (SaturationPressure). The
 // water-coupled kinds (IsWaterCoupledIsothermKind) take the adsorbed water
 // loading q_water [mol/kg]; 0 gives their dry isotherm. Other kinds ignore it.
 double EvalIsotherm(IIsotherm* iso, const std::string& component, double T, double P, double yi,

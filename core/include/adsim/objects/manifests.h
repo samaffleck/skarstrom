@@ -126,22 +126,23 @@ namespace adsim {
 
   struct ComponentInfo {
     std::string name;                  // CoolProp fluid name, as decks write it
-    std::string formula;               // e.g. "CO2" ("" when CoolProp has none)
+    std::string formula;               // e.g. "CO2" ("N/A" for Air, "" for an unknown name)
     std::string cas;                   // CAS registry number ("" when none)
     std::vector<std::string> aliases;  // CoolProp's other names for the fluid
     double molar_mass = 0.0;           // [kg/mol]
     // An ideal-gas Cp(T) polynomial exists, so in the ideal-gas mode the gas
-    // heat capacity follows the temperature; without one it is held at the
-    // initial conditions (Fluid::ComponentsWithHeldHeatCapacity).
+    // heat capacity follows the temperature (true for every component of
+    // Components::componentNames).
     bool ideal_gas_heat_capacity = false;
     // Provenance of that polynomial (NasaPolynomial::species / source); both
-    // empty when the heat capacity is held.
+    // empty when there is none.
     std::string cp_species;
     std::string cp_source;
   };
 
-  // Formula, CAS and molar mass come from CoolProp; empty / 0 for a name
-  // CoolProp does not know.
+  // Formula, CAS, aliases and molar mass come from the generated table
+  // component_properties.h (CoolProp fluid files); empty / 0 for a name the
+  // table does not have.
   ComponentInfo DescribeComponent(const std::string& name);
   // Every component a deck can add (Components::componentNames): an object
   // with `cp_reference` (the source table of the polynomials) and `components`.

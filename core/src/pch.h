@@ -31,9 +31,6 @@
 #include <iostream>
 #include <charconv>
 
-// CoolProp includes
-#include <CoolProp.h>
-
 // SUNDIALS includes
 #include <ida/ida.h>
 #include <nvector/nvector_serial.h>

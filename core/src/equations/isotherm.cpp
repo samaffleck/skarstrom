@@ -14,7 +14,7 @@
 #include <limits>
 #include <memory>
 
-#include "AbstractState.h"
+#include "adsim/objects/component_properties.h"
 
 
 namespace adsim {
@@ -843,52 +843,21 @@ namespace adsim {
   // --- GAB (Guggenheim-Anderson-de Boer) -------------------------------------
 
   namespace {
-    // One CoolProp state per component, holding the saturation ancillary and
-    // the triple and critical points. Built on first use in each thread.
-    struct SaturationCurve {
-      std::unique_ptr<CoolProp::AbstractState> state;
-      double T_min = 0.0, T_c = 0.0, p_c = 0.0;
-      bool ok = false;
-    };
-
-    SaturationCurve MakeSaturationCurve(const std::string& component) {
-      SaturationCurve curve;
-      try {
-        curve.state.reset(CoolProp::AbstractState::factory("HEOS", component));
-        curve.T_c = curve.state->T_critical();
-        curve.p_c = curve.state->p_critical();
-        curve.T_min = 0.75 * curve.state->Ttriple();
-        // Check the ancillary exists and is finite once, at a valid state.
-        const double T_check = 0.5 * (curve.state->Ttriple() + curve.T_c);
-        curve.ok = std::isfinite(curve.state->saturation_ancillary(CoolProp::iP, 1, CoolProp::iT, T_check));
-      }
-      catch (const std::exception& e) {
-        std::cerr << "CoolProp Error (saturation pressure of " << component << "): " << e.what() << std::endl;
-        curve.ok = false;
-      }
-      return curve;
+    // The saturation curve of a component: the vapour-pressure ancillary of
+    // the generated table (component_properties.h) and the triple and critical
+    // points. Null for a component the table does not have or without an
+    // ancillary: the saturation pressure is then NaN.
+    const ComponentProperties* SaturationCurveFor(const std::string& component) {
+      const ComponentProperties* c = FindComponentProperties(component);
+      return c && c->p_sat.valid ? c : nullptr;
     }
 
-    // CoolPropTools.h redefines the keyword thread_local as a macro
-    // (__declspec(thread) on MSVC, __thread on GCC), which cannot hold a
-    // non-trivial type such as std::map: use the language keyword here.
-#pragma push_macro("thread_local")
-#undef thread_local
-    thread_local std::map<std::string, SaturationCurve> t_saturation_curves;
-#pragma pop_macro("thread_local")
-
-    const SaturationCurve& SaturationCurveFor(const std::string& component) {
-      auto& curves = t_saturation_curves;
-      auto it = curves.find(component);
-      if (it == curves.end()) it = curves.emplace(component, MakeSaturationCurve(component)).first;
-      return it->second;
-    }
-
-    double SaturationPressureOn(const SaturationCurve& curve, double T) {
-      if (!curve.ok || !(T > 0.0)) return std::numeric_limits<double>::quiet_NaN();
-      if (T >= curve.T_c) return curve.p_c;
-      const double Tc = std::max(T, curve.T_min);
-      return curve.state->saturation_ancillary(CoolProp::iP, 1, CoolProp::iT, Tc);
+    // Above T_c, p_c; below 0.75 T_triple, the value at 0.75 T_triple.
+    double SaturationPressureOn(const ComponentProperties* curve, double T) {
+      if (!curve || !(T > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+      if (T >= curve->T_critical) return curve->p_critical;
+      const double Tc = std::max(T, 0.75 * curve->T_triple);
+      return curve->p_sat.Evaluate(Tc);
     }
 
     inline double GabExact(double A, double K, double C, double x) {
@@ -948,7 +917,7 @@ namespace adsim {
       const auto& yi = state.yi_map.at(state.component).var;
       const auto& T = state.T;
       const auto& P = state.P;
-      const SaturationCurve& curve = SaturationCurveFor(state.component);
+      const ComponentProperties* curve = SaturationCurveFor(state.component);
       for (int n = state.start_index; n <= state.end_index; ++n) {
         const GabConstants g = GabConstantsAt(T[n], params);
         qi_sat[n] = GabLoading(g.q_m, g.C, g.K, P[n] * yi[n] / SaturationPressureOn(curve, T[n]));

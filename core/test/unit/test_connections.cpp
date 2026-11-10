@@ -17,8 +17,6 @@
 // Gtest includes
 #include <gtest/gtest.h>
 
-// CoolProp includes
-#include "CoolProp.h"
 
 
 namespace adsim {
