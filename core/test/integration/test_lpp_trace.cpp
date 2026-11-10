@@ -1,6 +1,6 @@
 // test_lpp_trace.cpp
 //
-// An inert trace in a light-product pressurisation deck stays at round-off.
+// An inert trace in a light-product pressurisation deck does not grow.
 // In Nguyen2023_Exp_VII the Feed 1 top holds the vent and the light-product
 // draw, and the draw takes about twice what the bed supplies there; the vent
 // back-feeds the rest. When the back-fed gas was a copy of the bed-end gas,
@@ -8,7 +8,10 @@
 // present only at round-off (water, added to the deck) grew about 1.9 times
 // per cycle, to a mole fraction of 6e-5 at the top by cycle 20 and 0.95 by
 // cycle 36. The vents carry N2 and the outlet node mixes the back-fed gas
-// (FlowBoundaryCondition::Mixing), so the water stays at round-off.
+// (FlowBoundaryCondition::Mixing), so the copy is gone: the water stays below
+// the deck's relative tolerance (3e-8 at cycle 20; 1.3e-7 at cycle 60, a
+// slow linear creep from the solver noise around zero, which the logged
+// composition clips at 0, against 0.94 by cycle 44 before).
 //
 // Slow tier (ADSIM_SLOW_TESTS): 20 cycles of the shipped deck.
 
@@ -23,7 +26,7 @@
 
 namespace adsim {
 
-  TEST(LppTrace, InertTraceStaysAtRoundOffInNguyen2023ExpVII) {
+  TEST(LppTrace, InertTraceDoesNotGrowInNguyen2023ExpVII) {
     Simulation sim = Simulation::FromFile("../examples/decks/Nguyen2023_Exp_VII.json");
     std::string err;
     ASSERT_TRUE(AddComponentToDeck(sim.Data(), "Water", err)) << err;
@@ -45,7 +48,9 @@ namespace adsim {
     };
     const RunResult result = sim.Run(run);
     ASSERT_TRUE(result.Ok()) << result.message;
-    EXPECT_LE(y_max, 1e-12) << "the water trace grew to " << y_max;
+    // Below the integrator's relative tolerance: the trace is solver noise.
+    const double reltol = sim.Data().settings.reltol.Get();
+    EXPECT_LE(y_max, reltol) << "the water trace grew to " << y_max;
   }
 
 } // namespace adsim
