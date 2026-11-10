@@ -12,7 +12,7 @@
 
 | File | Purpose |
 |------|---------|
-| `streb_2021.cpp` | `Streb2021Test` fixture + reproduced breakthrough cases |
+| `streb_2021.cpp` | `Streb2021Test` fixture + reproduced breakthrough cases, the IAST variant of each (recorded only) and the IAST pure-limit check |
 
 ## Reproduced cases
 
@@ -41,7 +41,7 @@
 | Adsorbent C_p | 1100 J/(kg K) | Table 1 | |
 | Adsorbent thermal conductivity | 0.15 W/(m K) | not in the paper | enters only the Dixon coefficient's static term |
 | Isotherm | extended Sips (Eqs. 1–4, 6) | Table 3 (CO₂ from ref. [14]) | B_1 converted from 10⁻⁴ bar⁻¹ to Pa⁻¹, B_2 from kJ/mol to J/mol; T_ref 25 °C |
-| Competition | **extended Sips** | Sect. 4.2.1: the k values in Table 4 were estimated with IAST; IAST and RAST "predict the time when CH₄ breakthrough occurs and the shape of the CO₂ breakthrough front better than extended isotherms" | the engine has no IAST for Sips |
+| Competition | **extended Sips** | Sect. 4.2.1: the k values in Table 4 were estimated with IAST; IAST and RAST "predict the time when CH₄ breakthrough occurs and the shape of the CO₂ breakthrough front better than extended isotherms" | IAST over the same pure Sips terms is recorded for every case (`*_IAST_RecordOnly`); it fits worse overall, see "IAST versus extended Sips" |
 | LDF coefficients | CO₂ 0.06, CH₄ 0.2, H₂ 1.0 s⁻¹ | Table 4 (a, b) | the ternary-fitted values (0.09, 0.4, 1.2; footnote c) were not used by the paper for prediction either |
 | Heats of adsorption | 36.3, 18.8, 10.7 kJ/mol | Sect. 3.1.1 (temperature-averaged isosteric heats) | constant, as the paper assumes |
 | Axial dispersion, axial conduction | 0, 0 | Sect. 3.2 assumptions ("diffusion is neglected"; Eq. 18 has no conduction term) | |
@@ -167,5 +167,133 @@ late *relative to* the CH₄ front, which is what the paper reports for extended
 isotherms against IAST/RAST (Sect. 4.2.1). The sampling line as a void at
 column pressure delays both fronts by 3–7 % and is not what the paper models
 (plug flow at column pressure to the BPR, ambient after it). The remaining
-disagreement is therefore attributed to the competition model, not to the
-column model; an IAST option for the Sips isotherm is the open item (WP10-E3).
+disagreement was therefore attributed to the competition model, not to the
+column model. The IAST comparison below tests that attribution: IAST moves the
+CO₂ front later, not earlier, so the competition model does not explain it.
+
+### IAST versus extended Sips (2026-11-10)
+
+Every case was run a second time with the adsorbent's mixing rule set to IAST
+over the pure Sips 2 terms of the same Table 3 parameters
+(`Experiment<case>_IAST_RecordOnly`, recorded on the validation page as
+`Experiment<case>_IAST`, without assertion). The pure-component limits are
+identical: `IastPureLimitsMatchExtendedSips` checks that IAST at y_i = 1
+gives the extended-Sips loading to 1e-10 for every component at 25, 45 and
+65 °C from 1 mbar to 25 bar. Only the competition changes. It changes a lot
+for this pair: at 50:50 CO₂/CH₄, 10 bar, 25 °C, extended Sips gives 5.34 mol/kg
+CO₂ and 0.58 mol/kg CH₄, IAST gives 6.13 and 0.005 mol/kg. CO₂'s small Sips
+exponent (n = 0.425) gives it a spreading pressure that excludes CH₄ almost
+completely.
+
+Errors (fractions for the curves and front times, K for the thermocouples).
+Before = extended Sips, the decks' model and its bound; after = IAST.
+Bold: IAST better.
+
+| Case | Quantity | Extended Sips | IAST | Bound (extended Sips) |
+|---|---|---|---|---|
+| A1 | outlet y_CO2 NRMSE | 0.447 | 0.507 | 0.53 |
+| A1 | outlet y_CH4 NRMSE | 0.524 | **0.427** | 0.83 |
+| A1 | CO2 front time | 0.0728 (3929 s) | 0.0986 (4024 s) | 0.098 |
+| A1 | CH4 front time | 0.0374 (476 s) | **0.0203** (468 s) | 0.12 |
+| A1 | thermocouple RMSE | 20.3 | 21.6 | 25 |
+| A2 | outlet y_CO2 NRMSE | 0.360 | **0.358** | 0.37 |
+| A2 | outlet y_CH4 NRMSE | 0.841 | **0.829** | 0.96 |
+| A2 | CO2 front time | 0.0563 (911 s) | **0.0497** (1014 s) | 0.058 |
+| A2 | CH4 front time | 0.106 (326 s) | 0.125 (319 s) | 0.13 |
+| A2 | thermocouple RMSE | 19.9 | **19.5** | 22 |
+| A3 | outlet y_CO2 NRMSE | 0.178 | 0.318 | 0.27 |
+| A3 | outlet y_CH4 NRMSE | 0.609 | 0.657 | 0.73 |
+| A3 | CO2 front time | 0.0444 (433 s) | 0.148 (476 s) | 0.08 |
+| A3 | CH4 front time | 0.0333 (151 s) | 0.0551 (148 s) | 0.041 |
+| A3 | thermocouple RMSE | 11.4 | 17.9 | 19 |
+| A3 | CH4 breakthrough (y > 0.01), text: about 140 s | 150 s | **146 s** | – |
+| A3 | CO2 breakthrough (y > 0.01), text: about 400 s | 420 s | 465 s | – |
+| A4 | outlet y_CO2 NRMSE | 0.295 | **0.104** | 0.35 |
+| A4 | outlet y_CH4 NRMSE | 0.794 | **0.770** | 0.91 |
+| A4 | CO2 front time | 0.104 (203 s) | **0.0268** (220 s) | 0.105 |
+| A4 | CH4 front time | 0.180 (70.3 s) | 0.202 (68.4 s) | 0.195 |
+| A4 | thermocouple RMSE | 16.4 | **10.5** | 20 |
+| A5 | outlet y_CO2 NRMSE | 0.185 | 0.211 | 0.19 |
+| A5 | outlet y_CH4 NRMSE | 0.663 | 0.670 | 0.76 |
+| A5 | CO2 front time | 0.0648 (177 s) | 0.0700 (203 s) | 0.066 |
+| A5 | CH4 front time | 0.149 (80.8 s) | 0.167 (79.2 s) | 0.17 |
+| A5 | thermocouple RMSE | 14.3 | 14.6 | 21 |
+| A6 | outlet y_CO2 NRMSE | 0.171 | 0.248 | 0.175 |
+| A6 | outlet y_CH4 NRMSE | 0.752 | 0.766 | 0.85 |
+| A6 | CO2 front time | 0.0292 (435 s) | 0.0468 (469 s) | 0.030 |
+| A6 | CH4 front time | 0.116 (142 s) | 0.137 (139 s) | 0.14 |
+| A6 | thermocouple RMSE | 11.6 | 14.0 | 13 |
+| A7 | outlet y_CO2 NRMSE | 0.0244 | 0.240 | 0.14 |
+| A7 | outlet y_CH4 NRMSE | 0.691 | 0.726 | 0.72 |
+| A7 | CO2 front time | 0.0031 (428 s) | 0.0670 (455 s) | 0.04 |
+| A7 | CH4 front time | 0.0994 (132 s) | 0.120 (129 s) | 0.12 |
+| A7 | thermocouple RMSE | 8.7 | 13.0 | 14 |
+| B1 | outlet y_CO2 NRMSE | 0.377 | 0.386 | 0.45 |
+| B1 | outlet y_CH4 NRMSE | 0.127 | 0.136 | 0.15 |
+| B1 | outlet y_H2 NRMSE | 0.372 | 0.372 | 0.42 |
+| B1 | CO2 front time | 0.0643 (9019 s) | 0.0685 (9055 s) | 0.081 |
+| B1 | CH4 front time | 0.0018 (337 s) | 0.0021 (337 s) | 0.004 |
+| B1 | thermocouple RMSE | 17.9 | 18.2 | 20 |
+| B2 | outlet y_CO2 NRMSE | 0.450 | **0.419** | 0.57 |
+| B2 | outlet y_CH4 NRMSE | 0.328 | 0.346 | 0.35 |
+| B2 | outlet y_H2 NRMSE | 0.398 | **0.397** | 0.46 |
+| B2 | CO2 front time | 0.108 (2405 s) | **0.0861** (2462 s) | 0.11 |
+| B2 | CH4 front time | 0.116 (631 s) | 0.128 (622 s) | 0.15 |
+| B2 | thermocouple RMSE | 28.5 | **27.5** | 38 |
+
+IAST is better on 14 of the 47 asserted metrics and worse on 33. It would
+exceed 14 of the current bounds (A1, A3, A4, A5, A6, A7; none in A2, B1 or B2).
+So extended Sips stays the decks' mixing rule, no bound changed, and IAST is
+recorded only.
+
+**What the competition model explains.** IAST holds more CO₂ and almost no
+CH₄, so every CO₂ front comes later (A1 +2.4 %, A2 +11 %, A3 +9.9 %, A4 +8.6 %,
+A5 +14 %, A6 +7.8 %, A7 +6.4 %, B1 +0.4 %, B2 +2.4 %) and every CH₄ half-feed
+front 1.4–2.7 % earlier. This helps where extended Sips was early (the CO₂
+fronts of A2, A4 and B2) and hurts where it was on time or late (A1, A3, A5–A7).
+The CH₄ breakthrough of the reference experiment A3 moves from 150 to 146 s,
+nearer the "after 140 s" of the text. That agrees with the paper's statement
+about the CH₄ breakthrough time. With the Table 3 pure isotherms and the
+Table 4 LDF coefficients, we could not reproduce the paper's statement about
+the CO₂ front.
+
+**What remains.**
+
+- *Feed velocity.* A2, A3 and A4 differ only in flow (10, 20 and 40 cm³/s at
+  10 bar and 25 °C), so their equilibrium is the same. Their extended-Sips CO₂
+  front errors still have opposite signs (−5.6 %, +4.4 %, −10.4 %). A
+  competition model shifts all three the same way, so it cannot remove this
+  pattern. A per-experiment flow error can, and that is what the paper's
+  velocity fit (within ±2 % of the MFC full scale, Sect. 3.2.1) absorbs.
+- *Sampling line.* The CH₄ half-feed fronts are 10–20 % early at 10–25 bar
+  with either model, and IAST makes them earlier still. The unmodelled
+  sampling line delays both fronts by the same seconds. That delay is a larger
+  fraction of a 70–160 s CH₄ front than of a 200–4000 s CO₂ front.
+- *Centre-line temperature.* The thermocouple RMSE follows the CO₂ front
+  timing (IAST −6 K in A4, +6 K in A3). The remaining 9–28 K is the timing
+  and height of the temperature fronts at the centre line, which the paper
+  also notes its 1D model does not capture.
+
+**Engine changes this needed (`core/src/equations/iast.cpp`).** Under IAST
+the decks first failed within 10⁻¹⁰ s. There were two independent causes:
+
+- The front toes reach subnormal mole fractions (y = 5 × 10⁻³²¹), where the
+  spreading pressure underflows and the solve returned NaN. Mole fractions
+  at or below 10⁻¹⁵⁰ now take IAST's first-order dilute limit. With equal
+  capacities and unit exponents (IAST = extended Langmuir) the A3 run now
+  reproduces the extended run (CO₂ front 542.57 s against 542.57 s); before
+  the fix it failed although the residuals agreed to 10⁻²⁰.
+- CO₂'s Sips term (n < 1) has an infinite Henry slope, so the dilute loading
+  of an absent component diverged (−1.3 × 10⁷ mol/kg at y = −10⁻¹⁴). Inside
+  the IAST solve the pure term is continued below p₀ = 10⁻⁴ P by a monotone C¹
+  form whose spreading pressure at p₀ is exact. IAST is therefore unchanged
+  for every component with y ≥ 10⁻⁴. At 10⁻⁵ the continuation is too steep
+  (A3 covered 0.1 s of 4100 s in a minute). At 10⁻⁴ and at 10⁻³ every metric
+  above agrees to 0.001.
+
+**Run time.** Wall time per case, measured with two cases at a time on four
+cores (extended Sips → IAST): A1 21 → 162 s, A2 10 → 46 s, A3 9 → 39 s,
+A4 6 → 32 s, A5 6 → 28 s, A6 7 → 34 s, A7 6 → 31 s, B1 60 → 214 s,
+B2 29 → 86 s. That is 3–8 times slower (IAST cost per residual, issue #162).
+The nine recorded IAST cases add about 11 CPU-minutes to the paper tier,
+whose per-test limit is 3600 s.

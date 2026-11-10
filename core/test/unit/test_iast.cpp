@@ -15,7 +15,8 @@
 //  * the solve: the pure limit, the classic identity (equal-capacity Langmuir
 //    IAST == extended Langmuir), a binary against a brute-force bisection,
 //    the Raoult / Gibbs relations in a ternary with an inert and an absent
-//    component, and the warm start;
+//    component, the warm start, the trace continuation of a steep Sips term
+//    and vanishing (subnormal) mole fractions;
 //  * the deck: the mixing rule in the registry, in a save / load round trip,
 //    the old-deck default, the deck warning, and a breakthrough run under IAST
 //    that reproduces the extended-Langmuir run with equal capacities.
@@ -493,6 +494,86 @@ TEST(Iast, CompetitiveKindsAndTheirPureCounterparts) {
   EXPECT_FALSE(PairedIsothermKind(IsothermType::EXTENDED_LANGMUIR_FREUNDLICH, none));
   EXPECT_FALSE(PairedIsothermKind(IsothermType::TOTH, none));
   EXPECT_FALSE(PairedIsothermKind(IsothermType::INERT, none));
+}
+
+// A Sips term with n < 1 has an infinite Henry slope. Without the trace
+// continuation (iast.cpp, SolveSipsTrace) a mole fraction of -1e-14, which the
+// integrator produces ahead of a front, took the dilute loading
+// y P q_T / P°(psi) with P°(psi) -> 0, and gave about -1e7 mol/kg at the edge
+// of a bed starting in an inert gas. The continuation below p0 = 1e-4 P keeps
+// every loading bounded and smooth, and leaves IAST exact for y >= 1e-4.
+TEST(Iast, SteepSipsTermIsContinuedBelowATraceMoleFraction) {
+  constexpr double kY0 = 1e-4;  // kIastTraceY0 in iast.cpp
+  // Streb & Mazzotti (2021) Table 3: CO2 (n = 0.425) and CH4 (n = 1.073) on 13X.
+  auto a = Make(IsothermType::SIPS_2, {{"A1", 7.268}, {"A2", -0.6168}, {"B1", 1.129e-9}, {"B2", 28389},
+                                       {"C1", 0.425}, {"C2", 0.7238}, {"T_ref", 298}});
+  auto b = Make(IsothermType::SIPS_2, {{"A1", 4.473}, {"A2", -0.6569}, {"B1", 3.605e-9}, {"B2", 15561},
+                                       {"C1", 1.073}, {"C2", 0.0}, {"T_ref", 298}});
+  auto inert = Make(IsothermType::INERT);
+  std::vector<IIsotherm*> isos{a.get(), b.get(), inert.get()};
+  std::vector<std::string> names(3, kComp);
+  const double T = 298.0, P = 1e6;
+  auto solve = [&](double ya, double yb) {
+    std::vector<double> q;
+    EXPECT_TRUE(EvalIastMixture(isos, names, T, P, {ya, yb, 1.0 - ya - yb}, q).converged) << ya << " " << yb;
+    return q;
+  };
+
+  // Bounded with b at a trace level (was about -1e7 mol/kg), and smooth
+  // through y_a = 0 ahead of a CO2 front in CH4.
+  EXPECT_LT(std::abs(solve(-1e-14, 1e-12)[0]), 1e-6);
+  const double h = 1e-12;
+  const auto minus = solve(-h, 0.5), zero = solve(0.0, 0.5), plus = solve(h, 0.5);
+  EXPECT_LT(minus[0], 0.0);
+  EXPECT_EQ(zero[0], 0.0);
+  const double slope_left = (zero[0] - minus[0]) / h, slope_right = (plus[0] - zero[0]) / h;
+  EXPECT_NEAR(slope_left, slope_right, 1e-4 * slope_right);
+  EXPECT_NEAR(minus[1], plus[1], 1e-7 * plus[1]);
+
+  // Nothing else in the gas: a finite Henry slope (linear in y at trace levels).
+  EXPECT_NEAR(solve(2e-16, 0.0)[0] / solve(1e-16, 0.0)[0], 2.0, 1e-4);
+
+  // Alone in an inert, the continued loading meets the Sips value and slope
+  // at y0 (C1).
+  const double e = 1e-7;
+  const double q_lo = solve(kY0 * (1 - e), 0.0)[0], q_0 = solve(kY0, 0.0)[0], q_hi = solve(kY0 * (1 + e), 0.0)[0];
+  EXPECT_NEAR(q_lo, q_0, 1e-6 * q_0);
+  EXPECT_NEAR(q_hi, q_0, 1e-6 * q_0);
+  EXPECT_NEAR((q_0 - q_lo) / (kY0 * e), (q_hi - q_0) / (kY0 * e), 1e-3 * (q_hi - q_0) / (kY0 * e));
+  EXPECT_DOUBLE_EQ(q_hi, EvalIsotherm(a.get(), kComp, T, P, kY0 * (1 + e)));
+
+  // Above y0 the solve is exact IAST over the uncontinued Sips terms: equal
+  // spreading pressures at P_i° = y_i P / x_i and 1/q_T = sum x_i / q_i°(P_i°).
+  const PureIsotherm pa = PreparePureIsotherm(a.get(), kComp, T), pb = PreparePureIsotherm(b.get(), kComp, T);
+  for (double ya : {kY0 * 1.01, 1e-3, 0.1, 0.5}) {
+    const double yb = 0.5;
+    const auto q = solve(ya, yb);
+    const double qT = q[0] + q[1], xa = q[0] / qT, xb = q[1] / qT;
+    const double Pa = ya * P / xa, Pb = yb * P / xb;
+    EXPECT_NEAR(ReducedSpreadingPressure(pa, Pa), ReducedSpreadingPressure(pb, Pb), 1e-10 * ReducedSpreadingPressure(pb, Pb)) << ya;
+    EXPECT_NEAR(1.0 / qT, xa / PureLoading(pa, Pa) + xb / PureLoading(pb, Pb), 1e-10 / qT) << ya;
+  }
+}
+
+// The integrator's decaying front toes reach subnormal mole fractions (5e-321
+// in the Streb 2021 decks), where the spreading pressure and its inverse
+// underflow. Such values take the dilute limit instead of failing the solve.
+TEST(Iast, VanishingMoleFractionsTakeTheDiluteLimit) {
+  // Single-site Langmuir with no heat term: q = m1 b1 P / (1 + b1 P).
+  auto a = Make(IsothermType::SINGLE_SITE_LANGMUIR_P, {{"m1", 4.0}, {"b1", 2e-5}, {"q1", 0.0}});
+  auto b = Make(IsothermType::SINGLE_SITE_LANGMUIR_P, {{"m1", 4.0}, {"b1", 5e-6}, {"q1", 0.0}});
+  auto inert = Make(IsothermType::INERT);
+  std::vector<IIsotherm*> isos{a.get(), b.get(), inert.get()};
+  std::vector<std::string> names(3, kComp);
+  const double P = 1e6, tiny = 4.925834489037228e-321;
+  std::vector<double> q;
+  ASSERT_TRUE(EvalIastMixture(isos, names, kT, P, {tiny, tiny, 1.0}, q).converged);
+  EXPECT_TRUE(std::isfinite(q[0]) && std::isfinite(q[1]));
+  EXPECT_GE(q[0], 0.0);
+  ASSERT_TRUE(EvalIastMixture(isos, names, kT, P, {tiny, 0.3, 0.7}, q).converged);
+  EXPECT_TRUE(std::isfinite(q[0]));
+  // Equal capacities: IAST is extended Langmuir, q_b = m b P y / (1 + b P y).
+  EXPECT_NEAR(q[1], 4.0 * 5e-6 * P * 0.3 / (1.0 + 5e-6 * P * 0.3), 1e-12);
 }
 
 // ---- the deck -----------------------------------------------------------------------
