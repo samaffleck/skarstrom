@@ -1307,16 +1307,16 @@
                 {
                     "key": "Nitrogen",
                     "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
+                        "Value": 29.12,
+                        "Expression": "29.12",
                         "DisplayUnitIndex": 0
                     }
                 },
                 {
                     "key": "Oxygen",
                     "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
+                        "Value": 29.38,
+                        "Expression": "29.38",
                         "DisplayUnitIndex": 0
                     }
                 }

@@ -806,24 +806,24 @@
                 {
                     "key": "CarbonDioxide",
                     "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
+                        "Value": 37.14,
+                        "Expression": "37.14",
                         "DisplayUnitIndex": 0
                     }
                 },
                 {
                     "key": "Nitrogen",
                     "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
+                        "Value": 29.12,
+                        "Expression": "29.12",
                         "DisplayUnitIndex": 0
                     }
                 },
                 {
                     "key": "Water",
                     "value": {
-                        "Value": 29.1,
-                        "Expression": "29.1",
+                        "Value": 33.59,
+                        "Expression": "33.59",
                         "DisplayUnitIndex": 0
                     }
                 }
