@@ -54,6 +54,8 @@ __all__ = [
     "Nguyen2023_Exp_VII",
     "Nguyen2023_Exp_VIII",
     "Nguyen2023_Exp_X",
+    "Nguyen2024_A0",
+    "Nguyen2024_B0",
     "Perez2019_A",
     "Perez2019_B",
     "Perez2019_C1",
@@ -288,6 +290,20 @@ Four-step LPP cycle for a binary CO2/N2 VPSA cycle using CALF-20 taken from
 https://doi.org/10.1016/j.cej.2022.139550. This configuration corresponds to experiment
 X in the paper."""
 
+Nguyen2024_A0 = Example('Nguyen2024_A0', 'Nguyen 2024 - Case 1, dry (A0).', 'Four-step LPP CO2/N2 VSA cycle on CALF-20, dry feed, case study 1 (A0) of Table 1 of https://doi.org/10.1007/s10450-025-00600-z, built from the Nguyen2023_Exp_VII deck at P_H = 0.96 bar and 22 C.')
+"""Nguyen 2024 - Case 1, dry (A0).
+
+Four-step LPP CO2/N2 VSA cycle on CALF-20, dry feed, case study 1 (A0) of Table 1 of
+https://doi.org/10.1007/s10450-025-00600-z, built from the Nguyen2023_Exp_VII deck at
+P_H = 0.96 bar and 22 C."""
+
+Nguyen2024_B0 = Example('Nguyen2024_B0', 'Nguyen 2024 - Case 2, dry (B0).', 'Four-step LPP CO2/N2 VSA cycle on CALF-20, dry feed, case study 2 (B0) of Table 1 of https://doi.org/10.1007/s10450-025-00600-z, built from the Nguyen2023_Exp_VII deck at P_H = 0.96 bar and 22 C.')
+"""Nguyen 2024 - Case 2, dry (B0).
+
+Four-step LPP CO2/N2 VSA cycle on CALF-20, dry feed, case study 2 (B0) of Table 1 of
+https://doi.org/10.1007/s10450-025-00600-z, built from the Nguyen2023_Exp_VII deck at
+P_H = 0.96 bar and 22 C."""
+
 Perez2019_A = Example('Perez2019_A', 'Config A', 'Config A - Perez et al. (2019) basic four-step VSA cycle, CO2/N2 on 13X.')
 """Config A
 
@@ -482,6 +498,8 @@ ALL: Tuple[Example, ...] = (
     Nguyen2023_Exp_VII,
     Nguyen2023_Exp_VIII,
     Nguyen2023_Exp_X,
+    Nguyen2024_A0,
+    Nguyen2024_B0,
     Perez2019_A,
     Perez2019_B,
     Perez2019_C1,

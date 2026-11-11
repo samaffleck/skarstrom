@@ -1,0 +1,47 @@
+case,quantity,value,unit,source,note
+CaseA0,CO2_purity_exp,98.3,%,"Table 1, p. 6, Case 1, 0 % RH (A0), purity","measured at CSS, dry basis (Eq. 2); printed uncertainty +/- 0.88"
+CaseA0,CO2_purity_exp_uncertainty,0.88,%,"Table 1, p. 6, A0","printed uncertainty of the purity"
+CaseA0,CO2_recovery_exp,71.2,%,"Table 1, p. 6, Case 1, 0 % RH (A0), recovery","measured at CSS (Eq. 3); printed uncertainty +/- 1.46"
+CaseA0,CO2_recovery_exp_uncertainty,1.46,%,"Table 1, p. 6, A0","printed uncertainty of the recovery"
+CaseA0,CO2_productivity_exp,0.577,mol CO2/(m3 s),"Table 1, p. 6, Case 1, 0 % RH (A0), productivity","per m3 of adsorbent per second (Eq. 4); printed uncertainty +/- 0.014"
+CaseA0,CO2_productivity_exp_uncertainty,0.014,mol CO2/(m3 s),"Table 1, p. 6, A0","printed uncertainty of the productivity"
+CaseA0,t_ads,180,s,"Table 1, p. 6, Case 1","adsorption time (Feed 1 + Feed 2)"
+CaseA0,P_I,0.119,bar,"Table 1, p. 6, Case 1","intermediate pressure: end of blowdown"
+CaseA0,P_L,0.032,bar,"Table 1, p. 6, Case 1","low pressure: end of evacuation"
+CaseA0,v_feed,0.081,m/s,"Table 1, p. 6, Case 1","feed velocity; read as interstitial (README)"
+CaseB0,CO2_purity_exp,92.4,%,"Table 1, p. 6, Case 2, 0 % RH (B0), purity","measured at CSS, dry basis (Eq. 2); printed uncertainty +/- 1.31"
+CaseB0,CO2_purity_exp_uncertainty,1.31,%,"Table 1, p. 6, B0","printed uncertainty of the purity"
+CaseB0,CO2_recovery_exp,83.3,%,"Table 1, p. 6, Case 2, 0 % RH (B0), recovery","measured at CSS (Eq. 3); printed uncertainty +/- 1.97"
+CaseB0,CO2_recovery_exp_uncertainty,1.97,%,"Table 1, p. 6, B0","printed uncertainty of the recovery"
+CaseB0,CO2_productivity_exp,0.147,mol CO2/(m3 s),"Table 1, p. 6, Case 2, 0 % RH (B0), productivity","per m3 of adsorbent per second (Eq. 4); printed uncertainty +/- 0.005"
+CaseB0,CO2_productivity_exp_uncertainty,0.005,mol CO2/(m3 s),"Table 1, p. 6, B0","printed uncertainty of the productivity"
+CaseB0,t_ads,157,s,"Table 1, p. 6, Case 2","adsorption time (Feed 1 + Feed 2)"
+CaseB0,P_I,0.046,bar,"Table 1, p. 6, Case 2","intermediate pressure: end of blowdown"
+CaseB0,P_L,0.031,bar,"Table 1, p. 6, Case 2","low pressure: end of evacuation"
+CaseB0,v_feed,0.024,m/s,"Table 1, p. 6, Case 2","feed velocity; read as interstitial (README)"
+All,P_H,0.96,bar,"Table 1 caption; p. 5 (atmospheric pressure P_H = 0.96 bar)","high (feed) pressure"
+All,T_ambient,22,C,"Table 1 caption","ambient and feed temperature; 295.15 K in the deck"
+All,y_CO2_feed,0.15,-,"p. 2","premixed cylinder, balance N2"
+All,column_length,0.267,m,"SI Table A.1 (measured)","the text (p. 2) says 26.5 cm"
+All,column_inner_diameter,0.021,m,"SI Table A.1 (measured)",
+All,column_outer_diameter,0.025,m,"SI Table A.1 (measured)",
+All,adsorbent_mass,36.0,g,"SI Table A.1 (measured)","per column"
+All,gas_constant,8.314e-5,m3 bar/(mol K),"SI Table A.1 (standard)",
+All,particle_density,570,kg/m3,"SI Table A.1 (measured)",
+All,wall_density,7800,kg/m3,"SI Table A.1 (standard)",
+All,gas_heat_capacity_N2,1040,J/(kg K),"SI Table A.1 (NIST database)",
+All,gas_heat_capacity_CO2,841,J/(kg K),"SI Table A.1 (NIST database)",
+All,gas_heat_capacity_H2O,4165,J/(kg K),"SI Table A.1 (NIST database)","a liquid-water value; not used by the dry cases"
+All,adsorbent_heat_capacity,1350,J/(kg K),"SI Table A.1 (fitted)",
+All,wall_heat_capacity,502,J/(kg K),"SI Table A.1 (standard)",
+All,molecular_diffusion,1.496e-5,m2/s,"SI Table A.1 (standard)","printed unit m s-2; read as m2/s"
+All,effective_gas_thermal_conductivity,0.4,W/(m K),"SI Table A.1 (fitted)",
+All,wall_thermal_conductivity,10,W/(m K),"SI Table A.1 (standard)",
+All,internal_heat_transfer_coefficient,8,W/(m2 K),"SI Table A.1 (fitted)",
+All,external_heat_transfer_coefficient,10,W/(m2 K),"SI Table A.1 (fitted)",
+All,viscosity,1.812e-5,kg/(m s),"SI Table A.1 (standard)",
+All,alpha_BD,0.153,1/s,"SI Table A.1 (fitted)","blowdown exponential constant"
+All,alpha_EVAC,0.075,1/s,"SI Table A.1 (fitted)","evacuation exponential constant"
+All,thermocouple_T1_position,1,cm,"p. 3","from the feed end"
+All,thermocouple_T3_position,7.8,cm,"p. 3","from the feed end; Fig. 3 caption rounds it to 8"
+All,thermocouple_T6_position,19,cm,"p. 3","from the feed end"

@@ -16,7 +16,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 
 ## Summary
 
-66 cases from 12 publications; 232 asserted comparisons (0 outside their recorded tolerance) and 126 informational ones. Summary generated on 2026-11-10.
+68 cases from 13 publications; 234 asserted comparisons (0 outside their recorded tolerance) and 130 informational ones. Summary generated on 2026-11-11.
 
 | Publication | Cases | Against | Comparisons | Median error | Worst error |
 |---|---|---|---|---|---|
@@ -26,6 +26,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Haghpanah et al. (2013) / Glover et al. (2026)](#haghpanah-2013) | 7 | reference | 23 | 4.10e-4 (abs. error)<br/>0.61 pp (abs. error)<br/>2.77 % (rel. error) | 4.10e-4 (abs. error)<br/>1.59 pp (abs. error)<br/>4.11 % (rel. error) |
 | [Nguyen et al. (2022)](#nguyen-2022) | 6 | experiment | 12 | 9.71 % (NRMSE)<br/>0.751 % (rel. error) | 13.7 % (NRMSE)<br/>4.81 % (rel. error) |
 | [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.05 pp (abs. error)<br/>8.42 % (rel. error) | 8.39 pp (abs. error)<br/>15.9 % (rel. error) |
+| [Nguyen et al. (2025)](#nguyen-2024) | 2 | experiment | 2 | 0.931 pp (abs. error)<br/>2.01 % (rel. error) | 0.931 pp (abs. error)<br/>2.01 % (rel. error) |
 | [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 2.02 pp (abs. error) | 5.81 pp (abs. error) |
 | [Streb & Mazzotti (2021)](#streb-2021) | 18 | experiment | 47 | 37.7 % (NRMSE)<br/>6.48 % (rel. error)<br/>16.4 K (RMSE) | 84.1 % (NRMSE)<br/>18 % (rel. error)<br/>28.5 K (RMSE) |
 | [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.89 % (rel. error)<br/>0.251 K (abs. error)<br/>1.93 pp (abs. error) | 3.92 % (rel. error)<br/>0.251 K (abs. error)<br/>33.5 pp (abs. error) |
@@ -345,6 +346,38 @@ T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, CO2/N2 separation by vacuum swing a
     - repeat experiment; repeat run of VII
 
 Input decks, assumptions and known discrepancies: [`core/test/papers/nguyen_2023/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/nguyen_2023/README.md).
+
+## Nguyen et al. (2025) {#nguyen-2024}
+
+T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, Experimental demonstration of humid post-combustion CO2 capture by vacuum swing adsorption using CALF-20, Adsorption 31 (2025) 45. [doi:10.1007/s10450-025-00600-z](https://doi.org/10.1007/s10450-025-00600-z)
+
+*System:* CO2/N2 VSA with light-product pressurisation on CALF-20 (dry cases of a humid-feed study). *Compared against:* experimental purity/recovery/productivity of the dry cases (Table 1).
+
+**Findings.**
+
+- Dry case B0 (the operating point of Nguyen 2023 Exp. VII): CO2 purity within 0.9 pp and productivity within 2 % of Table 1, inside the printed uncertainty; the productivity agreement is partly compensation, because the engine's recovery is 11.6 pp high. Dry case A0: purity 3.4 pp low (recorded).
+- Recovery is about 11 pp high in both cases, the light-product over-recovery of the Nguyen 2023 LPP decks; none of the printed parameters closes it (README attribution: the SI's fitted blowdown and evacuation decay rates lower it by up to 5 pp and raise the purity, the measured 0.267 m column raises it by about 2 pp). A0's printed productivity is inconsistent with its own cycle time and is recorded, not asserted.
+- The decks are the Nguyen2023_Exp_VII deck at 0.96 bar and 22 C. The main text was not read here (the SI was); the humid cases are not reproduced: the paper prints no water isotherm, and the engine has no competitive CO2/H2O kind for a physisorbent (#272).
+
+| Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
+|---|---|---|---|---|---|---|---|
+| CaseA0 | CO2 purity vs experiment | experiment | 94.89 % | 98.3 % | 3.41 pp abs. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), purity |
+| CaseA0 | CO2 recovery vs experiment | experiment | 81.98 % | 71.2 % | 10.8 pp abs. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), recovery |
+| CaseA0 | CO2 productivity vs experiment | experiment | 0.4671 mol CO2/(m3 s) | 0.577 mol CO2/(m3 s) | 19.1 % rel. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), productivity |
+| CaseB0 | CO2 purity vs experiment | experiment | 93.33 % | 92.4 % | 0.931 pp abs. error | 1 pp | Table 1, p. 6, Case 2, 0 % RH (B0), purity |
+| CaseB0 | CO2 productivity vs experiment | experiment | 0.15 mol CO2/(m3 s) | 0.147 mol CO2/(m3 s) | 2.01 % rel. error | 2.5 % | Table 1, p. 6, Case 2, 0 % RH (B0), productivity |
+| CaseB0 | CO2 recovery vs experiment | experiment | 94.87 % | 83.3 % | 11.6 pp abs. error | info | Table 1, p. 6, Case 2, 0 % RH (B0), recovery |
+
+??? note "Notes on these comparisons"
+
+    - measured at CSS, dry basis (Eq. 2); printed uncertainty +/- 0.88; recorded: 3.4 pp below, outside the printed uncertainty (README)
+    - measured at CSS (Eq. 3); printed uncertainty +/- 1.46; recorded: LPP over-recovery (README)
+    - per m3 of adsorbent per second (Eq. 4); printed uncertainty +/- 0.014; recorded: the printed value is inconsistent with the cycle time (README)
+    - measured at CSS, dry basis (Eq. 2); printed uncertainty +/- 1.31
+    - per m3 of adsorbent per second (Eq. 4); printed uncertainty +/- 0.005
+    - measured at CSS (Eq. 3); printed uncertainty +/- 1.97; recorded: LPP over-recovery (README)
+
+Input decks, assumptions and known discrepancies: [`core/test/papers/nguyen_2024/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/nguyen_2024/README.md).
 
 ## Estupiñan Perez et al. (2019) {#perez-2019}
 

@@ -1,6 +1,6 @@
 # Examples
 
-Skarstrom ships 45 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
+Skarstrom ships 47 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
 
 Every paper-based deck is also an automated validation test; the [Validation](validation.md) page lists the simulated and published values and the error metric for each case, including where Skarstrom and the paper disagree, and why.
 
@@ -54,6 +54,7 @@ Four executed notebooks are in `examples/notebooks/`: a parametric study of the 
 | **Haghpanah (2013)** | `Haghpanah2013_Sec61`, `Haghpanah2013_PL002` … `_PL010`, `Haghpanah2013_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on zeolite 13X (pressurisation, adsorption, forward blowdown, reverse evacuation) with compressor and vacuum-pump energy: the Sect. 6.1 reference design, the five minimum-energy designs of Table 6, and the CSS benchmark design of Glover et al. (2026) |
 | **Nguyen (2022)** | `Nguyen2022_Fig4`, `Nguyen2022_Fig5` | CO₂/He breakthrough (70 % and 15 % CO₂) into a helium-filled bed of CALF-20 (Figs. 4 and 5) |
 | **Nguyen (2023)** | `Nguyen2023_Exp_I` … `Nguyen2023_Exp_X` | CO₂/N₂ VPSA on structured CALF-20: experiments I–V use the basic 4-step cycle, VI–X the 4-step cycle with light-product pressurisation (Table 2) |
+| **Nguyen (2025)** | `Nguyen2024_A0`, `Nguyen2024_B0` | The dry cases A0 and B0 (Table 1) of the humid-feed VSA experiments on structured CALF-20 (Adsorption 31 (2025) 45): the `Nguyen2023_Exp_VII` light-product-pressurisation deck at 0.96 bar and 22 °C. *New in 0.10.* |
 | **Perez (2019)** | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on zeolite 13X: A, B and C1 are the basic 4-step cycle, D1, E and F add light-product pressurisation (Table 3) ; `Perez2019_CaseStudy_Base` and `_Base_LPP` run A and D1 by devices on a 3-bed schedule ([case study](case-study-vsa.md), *New in 0.9.*) |
 | **Streb (2021)** | `Streb2021_A1`, `Streb2021_A3` | CO₂/CH₄ breakthrough on zeolite 13X with thermocouple data |
 | **Vysyaraju (2024)** | `Vysyaraju2024_PSA_exp1` | He/N₂ separation on binderless zeolite 5A, 5-step PSA |
