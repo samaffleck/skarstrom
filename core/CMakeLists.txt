@@ -1,5 +1,5 @@
 # adsim - Adsorption Simulator Library
-# Dependencies (sundials, CoolProp, cereal, Eigen) are managed by the root CMakeLists.txt
+# Dependencies (sundials, cereal, Eigen, muparser, dlib, units) are managed by the root CMakeLists.txt
 
 include(GNUInstallDirs)
 
@@ -30,11 +30,10 @@ target_include_directories(adsim PUBLIC
     $<BUILD_INTERFACE:${ADSIM_GENERATED_INCLUDE_DIR}>
 )
 # Installed layout: <prefix>/include/adsim/... (public + generated headers) and
-# <prefix>/include/adsim/third_party/{Eigen,cereal,CoolProp}.
+# <prefix>/include/adsim/third_party/{Eigen,cereal}.
 target_include_directories(adsim PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/adsim/third_party>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/adsim/third_party/CoolProp>
 )
 
 # Cereal (header-only)
@@ -45,12 +44,6 @@ target_include_directories(adsim PUBLIC
 # Guarantee only MPL2-licensed Eigen code is compiled in (excludes the
 # LGPL-licensed Eigen files), so binaries carry no LGPL obligations.
 target_compile_definitions(adsim PUBLIC EIGEN_MPL2_ONLY)
-
-# The public headers include CoolProp.h, which pulls in CoolProp's bundled fmt;
-# every consumer needs the same consteval workaround the engine is built with
-# (see the root CMakeLists.txt). The installed package gets it through
-# Adsim::CoolProp (cmake/AdsimConfig.cmake.in).
-target_compile_definitions(adsim PUBLIC $<BUILD_INTERFACE:FMT_CONSTEVAL=>)
 
 # Add all .cpp files in the src directory
 file(GLOB_RECURSE ADS_SRC CONFIGURE_DEPENDS
@@ -86,18 +79,13 @@ set_source_files_properties(${_adsim_units_src} PROPERTIES
 target_include_directories(adsim PRIVATE ${ADSIM_SOURCE_DIR}/external/units)
 target_compile_definitions(adsim PRIVATE UNITS_DISABLE_EXTRA_UNIT_STANDARDS=1)
 
-# Link dependencies. CoolProp has no CMake export of its own (and its include
-# paths point into the source tree), so the installed package re-creates it as
-# the imported target Adsim::CoolProp (see cmake/AdsimConfig.cmake.in).
+# Link dependencies.
 #
 # SUNDIALS: IDAS only. It has every IDA entry point (same names, same
 # arithmetic) plus forward sensitivities (solver/cycle_sensitivity.cpp), which
 # must act on the integrator the solver created. Linking IDA as well would
 # resolve those shared names to IDA, whose memory layout IDAS cannot use.
-target_link_libraries(adsim PUBLIC
-    $<BUILD_INTERFACE:CoolProp>
-    $<INSTALL_INTERFACE:Adsim::CoolProp>
-    sundials_idas dlib::dlib muparser)
+target_link_libraries(adsim PUBLIC sundials_idas dlib::dlib muparser)
 
 # Set C++ standard
 target_compile_features(adsim PUBLIC cxx_std_20)
@@ -133,11 +121,11 @@ endif()
 # Install + CMake package (find_package(Adsim)) — opt-in via ADSIM_INSTALL
 # ============================================================
 # Installed tree (relative to CMAKE_INSTALL_PREFIX):
-#   lib/libadsim.a, lib/libdlib.a, lib/libCoolProp.a      (static libraries)
+#   lib/libadsim.a, lib/libdlib.a                         (static libraries)
 #   lib/libsundials_*.a, lib/libmuparser.a                (installed by SUNDIALS /
 #   lib/cmake/sundials, lib/cmake/muparser                 muparser's own rules)
 #   include/adsim/...                                      (public API + version.h)
-#   include/adsim/third_party/{Eigen,cereal,CoolProp,CoolProp/fmt} (headers the API includes)
+#   include/adsim/third_party/{Eigen,cereal}               (headers the API includes)
 #   include/dlib, include/sundials, include/ida, ...       (dlib / SUNDIALS headers)
 #   lib/cmake/Adsim/AdsimConfig.cmake (+ Version, Targets)
 # Consumers: find_package(Adsim CONFIG REQUIRED) and link Adsim::adsim.
@@ -166,21 +154,6 @@ if(ADSIM_INSTALL)
     set(_adsim_tp ${CMAKE_INSTALL_INCLUDEDIR}/adsim/third_party)
     install(DIRECTORY ${EIGEN_DIR}/Eigen DESTINATION ${_adsim_tp})
     install(DIRECTORY ${ADSIM_SOURCE_DIR}/external/cereal/include/cereal DESTINATION ${_adsim_tp})
-    # Only the CoolProp.h include closure is part of adsim's API (objects/fluid.h).
-    set(_adsim_coolprop_inc ${ADSIM_SOURCE_DIR}/external/CoolProp/include)
-    install(FILES
-        ${_adsim_coolprop_inc}/CoolProp.h
-        ${_adsim_coolprop_inc}/DataStructures.h
-        ${_adsim_coolprop_inc}/CPnumerics.h
-        ${_adsim_coolprop_inc}/CPstrings.h
-        ${_adsim_coolprop_inc}/Exceptions.h
-        ${_adsim_coolprop_inc}/PlatformDetermination.h
-        DESTINATION ${_adsim_tp}/CoolProp)
-    # CPstrings.h pulls in CoolProp's bundled fmt (header-only mode), which is
-    # also why consumers get FMT_CONSTEVAL= (see AdsimConfig.cmake.in).
-    install(DIRECTORY ${ADSIM_SOURCE_DIR}/external/CoolProp/externals/fmtlib/include/fmt
-        DESTINATION ${_adsim_tp}/CoolProp)
-    install(FILES $<TARGET_FILE:CoolProp> DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
     # dlib headers (dlib's own install rule is skipped in project-build mode).
     install(DIRECTORY ${ADSIM_SOURCE_DIR}/external/dlib/dlib/
@@ -198,8 +171,6 @@ if(ADSIM_INSTALL)
         DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim)
     install(FILES ${EIGEN_DIR}/COPYING.MPL2 DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/Eigen)
     install(FILES ${ADSIM_SOURCE_DIR}/external/cereal/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/cereal)
-    install(FILES ${ADSIM_SOURCE_DIR}/external/CoolProp/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/CoolProp)
-    install(FILES ${ADSIM_SOURCE_DIR}/external/CoolProp/externals/fmtlib/LICENSE.rst DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/fmt)
     install(FILES ${ADSIM_SOURCE_DIR}/external/dlib/LICENSE.txt DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/dlib)
     install(FILES ${ADSIM_SOURCE_DIR}/external/units/LICENSE ${ADSIM_SOURCE_DIR}/external/units/NOTICE
         DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/Adsim/licenses/units)

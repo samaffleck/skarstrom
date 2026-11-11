@@ -6,8 +6,9 @@ contributors (https://github.com/samaffleck/skarstrom), licensed under the
 Apache License, Version 2.0 (see LICENSE).
 
 Skarstrom builds on third-party components that are distributed under their
-own licences (SUNDIALS, CoolProp, Eigen, cereal, muparser, dlib, pybind11 and
-the components they bundle). See THIRD_PARTY_NOTICES.md for the list, their
+own licences (SUNDIALS, Eigen, cereal, muparser, dlib, pybind11 and the
+components they bundle; the component constants are generated from CoolProp's
+fluid data). See THIRD_PARTY_NOTICES.md for the list, their
 copyright holders and licence texts.
 
 The digitised experimental curves in core/data/ and the reference values in

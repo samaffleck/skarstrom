@@ -47,7 +47,7 @@ target_link_libraries(my_app PRIVATE Adsim::adsim)
 
 The package accepts a request only for its own major.minor version (CMake's `SameMinorVersion`), so `0.1` finds a 0.1.x install but not 0.2.0. Ask for the version you installed.
 
-The install tree contains the static libraries (adsim, SUNDIALS, muparser, dlib, CoolProp), the public headers with the third-party headers they include (under `include/adsim/third_party`), the CMake package files and the licence texts. `scripts/test_install_consumer.sh` builds `core/install_consumer/` against a fresh install to prove it works.
+The install tree contains the static libraries (adsim, SUNDIALS, muparser, dlib), the public headers with the third-party headers they include (under `include/adsim/third_party`), the CMake package files and the licence texts. `scripts/test_install_consumer.sh` builds `core/install_consumer/` against a fresh install to prove it works.
 
 ## As a subproject (`add_subdirectory`)
 
@@ -59,16 +59,16 @@ target_link_libraries(my_frontend PRIVATE Adsim::adsim)
 ```
 
 - The options default to what a front end wants: `ADSIM_BUILD_TESTS`, `ADSIM_BUILD_BENCH` and `ADSIM_INSTALL` are `OFF` when the engine is not the top-level project. Set them before `add_subdirectory` to override.
-- The engine's settings are directory-scoped (C++20, the `FMT_CONSTEVAL=` and `CMAKE_POLICY_VERSION_MINIMUM` workarounds for CoolProp) and do not change the parent's. The dependency options it sets (`BUILD_SHARED_LIBS`, the SUNDIALS and dlib switches) are cache entries without `FORCE`, so a value the parent already set wins.
-- `Adsim::adsim` carries the include directories, `EIGEN_MPL2_ONLY` and `FMT_CONSTEVAL=` to your targets.
-- The engine's targets (`adsim`, `CoolProp`, `dlib`, `muparser`, the `sundials_*` libraries) must not clash with targets of the same name in the parent.
+- The engine's settings are directory-scoped (C++20, the Emscripten exception flag) and do not change the parent's. The dependency options it sets (`BUILD_SHARED_LIBS`, the SUNDIALS and dlib switches) are cache entries without `FORCE`, so a value the parent already set wins.
+- `Adsim::adsim` carries the include directories and `EIGEN_MPL2_ONLY` to your targets.
+- The engine's targets (`adsim`, `dlib`, `muparser`, the `sundials_*` libraries) must not clash with targets of the same name in the parent.
 - The bundled data are at `examples/decks/`, `data/adsorbents/` and `data/cycles/` of the checkout, for front ends that ship them as assets. File names there are shell-safe (checked by the `DataFileNamesAreShellSafe` test).
 
 `core/subproject_consumer/` is a minimal front end built this way, and `scripts/test_subproject_consumer.sh` builds and runs it.
 
 ## WebAssembly (Emscripten)
 
-The engine compiles with Emscripten, as a subproject of a front end configured with `emcmake`. The engine, cereal and CoolProp throw and catch C++ exceptions, and `ADSIM_EMSCRIPTEN_EXCEPTIONS` chooses how:
+The engine compiles with Emscripten, as a subproject of a front end configured with `emcmake`. The engine and cereal throw and catch C++ exceptions, and `ADSIM_EMSCRIPTEN_EXCEPTIONS` chooses how:
 
 | `ADSIM_EMSCRIPTEN_EXCEPTIONS` | Flag | Notes |
 |---|---|---|

@@ -5,9 +5,10 @@
  * Licensed under the terms in the LICENSE file at the repository root.
  */
 // Reference values recorded from CoolProp 6.7.0 (git e84ec7a8ab16, the
-// external/CoolProp submodule) with the calls named at each table. The
-// engine does not call CoolProp; the tests compare the engine's polynomials
-// and its generated table (component_properties.h) with these values.
+// commit scripts/gen_component_properties.py is pinned to) with the calls
+// named at each table. The engine does not build or call CoolProp; the tests
+// compare the engine's polynomials and its generated table
+// (component_properties.h) with these values.
 #pragma once
 
 #include <cmath>

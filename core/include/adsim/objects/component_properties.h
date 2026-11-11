@@ -17,9 +17,10 @@
 // Fixed per-component constants of every component in
 // Components::componentNames (fluid.h).
 //
-// Source: the CoolProp 6.7.0 fluid files (external/CoolProp/dev/fluids/*.json,
-// one file per row, named in the comment above the row). CoolProp is a
-// development-time data source only: run the generator again to update.
+// Source: the CoolProp 6.7.0 fluid files, dev/fluids/*.json at CoolProp
+// commit e84ec7a8ab16 (one file per row, named in the comment above the
+// row; pinned by SHA-256 in the generator). CoolProp is a development-time
+// data source only: the engine does not build or link it.
 //   molar_mass        EOS[0].molar_mass [kg/mol]
 //   T_critical        STATES.critical.T [K]
 //   p_critical        STATES.critical.p [Pa]
