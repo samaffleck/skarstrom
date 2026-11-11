@@ -26,13 +26,19 @@ def test_trapezoid_kpis_sit_beside_the_reported_kpis():
         assert math.isfinite(k.trapezoid_mass_balance_error)
 
 
-@pytest.mark.parametrize("name, expect_inflow", [("Perez2019_A", False), ("Perez2019_B", False),
-                                                 ("Perez2019_C1", False), ("Perez2019_D1", True)])
-def test_uncounted_inflow_diagnostic(name, expect_inflow):
-    """Gross inflow through unconnected endpoints that are not feed or recycle: negligible
+@pytest.mark.parametrize("name, vent_gas, expect_inflow", [("Perez2019_A", True, False), ("Perez2019_B", True, False),
+                                                           ("Perez2019_C1", True, False), ("Perez2019_D1", True, False),
+                                                           ("Perez2019_D1", False, True)])
+def test_uncounted_inflow_diagnostic(name, vent_gas, expect_inflow):
+    """Gross CO2 inflow through unconnected endpoints that are not feed or recycle: negligible
     (about 1e-6 of the feed, a start-of-step transient at the Feed outlet) for the Perez 2019 A,
-    B and C1 decks, and about 0.4 % of the feed on D1, from its vent valves."""
+    B and C1 decks. D1's vent valves back-feed, but their gas is N2, so no CO2 enters there.
+    With the vents' composition all zero (`vent_gas` False) the back-fed gas is the bed-end gas,
+    and about 0.4 % of the CO2 feed enters through them."""
     sim = getattr(sk.examples, name).load()
+    if not vent_gas:
+        for endpoint in (2, 5):  # the Feed 1 and Feed 2 vents
+            sim[f"endpoint[{endpoint}].y[Nitrogen]"] = 0.0
     for layer in sim.layers:
         layer.cells = 20
     result = sim.run(cycles=2)

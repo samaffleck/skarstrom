@@ -139,9 +139,21 @@ namespace adsim {
     const double draw_out = MolesOut(draw);
     ASSERT_LT(vent_out, -0.1 * draw_out) << "the vent does not back-feed the draw";
 
-    // The back-fed gas is the vent's N2, in the component flows and the log.
-    EXPECT_LE(std::abs(MolesOut(vent, "CarbonDioxide")), 1e-12);
-    EXPECT_LE(MaxMoleFraction(vent, "CarbonDioxide"), 1e-12);
+    // The back-fed gas is the vent's N2, in the component flows and the log:
+    // exactly, at every sample where the vent feeds the draw (the vent flows
+    // in while the draw flows out). When the vent flows out it carries the
+    // node's mix; when nothing leaves, what it lets in goes into the bed at the
+    // bed-end composition (the outlet's zero-gradient closure).
+    ASSERT_EQ(vent.time_series_.size(), draw.time_series_.size());
+    int back_fed = 0;
+    for (size_t k = 0; k < vent.time_series_.size(); ++k) {
+      const double t = vent.time_series_[k];
+      if (!(vent.GetOutflow(t) < 0.0 && draw.GetOutflow(t) > 0.0)) continue;
+      ++back_fed;
+      EXPECT_EQ(vent.component_molar_flow_.at("CarbonDioxide")[k], 0.0) << "t = " << vent.time_series_[k] << " s";
+      EXPECT_EQ(vent.mole_fraction_boundary_.at("CarbonDioxide")[k], 0.0) << "t = " << vent.time_series_[k] << " s";
+    }
+    EXPECT_GT(back_fed, 10);
 
     // The node balance of CO2: what the draw carries is what leaves the bed
     // through the top, which is at most the bed-end fraction of the net
