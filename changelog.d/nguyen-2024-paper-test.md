@@ -1,0 +1,4 @@
+### Added — Nguyen et al. (2025) dry VSA cases on CALF-20
+- A paper validation suite `core/test/papers/nguyen_2024/` (`Nguyen2024Test.CaseA0`, `CaseB0`) for the two dry cases of Table 1 of Nguyen, Shimizu & Rajendran, Adsorption 31 (2025) 45 (doi:10.1007/s10450-025-00600-z). The decks are the `Nguyen2023_Exp_VII` four-step light-product-pressurisation deck at this paper's conditions (0.96 bar, 22 °C, each case's adsorption time, feed velocity and blowdown and evacuation pressures); the light-product connection is unchanged. The suite asserts the purity of both cases and the productivity of B0, and records the recovery, which the engine over-predicts (README).
+- Two example decks, `Nguyen2024_A0` and `Nguyen2024_B0`, saved by the suite.
+- The humid cases of the paper are not reproduced: the paper prints no water isotherm for CALF-20, and the engine has no competitive CO₂/H₂O kind for a physisorbent.
