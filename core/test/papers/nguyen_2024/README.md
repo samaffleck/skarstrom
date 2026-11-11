@@ -139,7 +139,38 @@ One change at a time from the deck, both cases
 `--gtest_also_run_disabled_tests --gtest_filter='Nguyen2024Test.DISABLED_*'`
 from `core/`).
 
-ATTRIBUTION_TABLE
+Purity and recovery in %, productivity in mol CO₂/(m³ adsorbent s); the
+change from the deck in brackets (pp, or relative for productivity).
+
+| Run | A0 purity | A0 recovery | A0 productivity | B0 purity | B0 recovery | B0 productivity |
+|---|---|---|---|---|---|---|
+| Paper (Table 1) | 98.3 ± 0.88 | 71.2 ± 1.46 | 0.577 ± 0.014 | 92.4 ± 1.31 | 83.3 ± 1.97 | 0.147 ± 0.005 |
+| Deck | 94.89 | 81.98 | 0.467 | 93.33 | 94.87 | 0.1500 |
+| (1) SI decay rates α_BD 0.153, α_EVAC 0.075 s⁻¹ (F = e^(α t_step): 9.7e3 and 20.1) | 96.03 (+1.15) | 76.67 (−5.31) | 0.437 (−6.5 %) | 97.14 (+3.81) | 91.16 (−3.71) | 0.1441 (−3.9 %) |
+| (2) Measured column, L 0.267 m, ε 0.317 (36.0 g), same interstitial velocity | 93.03 (−1.86) | 84.26 (+2.27) | 0.381 (−18.4 %) | 91.04 (−2.29) | 96.56 (+1.69) | 0.1210 (−19.3 %) |
+| (3) SI D_m 1.496e-5 m²/s and μ 1.812e-5 Pa s, constant | 94.91 (+0.02) | 81.18 (−0.81) | 0.462 (−1.0 %) | 93.32 (−0.01) | 94.83 (−0.04) | 0.1499 (−0.1 %) |
+| (4) Blake–Kozeny (150) | 94.88 (−0.01) | 82.51 (+0.52) | 0.470 (+0.6 %) | 93.35 (+0.02) | 94.89 (+0.02) | 0.1500 (0.0 %) |
+
+Cycles to CSS: deck 39 / 326; (1) 35 / 160; (2) 51 / 510; (3) 38 / 319;
+(4) 39 / 336 (A0 / B0).
+
+- **(1) The pressure decay is the largest single factor.** The SI's fitted
+  blowdown rate is twice the deck's, so blowdown reaches P_I early and removes
+  more N₂ (purity +1.2 and +3.8 pp); the slower evacuation leaves the column
+  above P_L for most of the 40 s step (recovery −5.3 and −3.7 pp). It moves
+  the recovery toward the experiment but does not close the gap (A0 +5.5 pp,
+  B0 +7.9 pp remain), and it moves B0's purity 4.7 pp above the measured value.
+  The deck keeps F = 100 because the experiment ends both steps on a pressure
+  trigger, not after 60 and 40 s (open item 2): with fixed step times the
+  fitted rate and the step time cannot both be right.
+- **(2) The measured column** raises recovery by 1.7–2.3 pp and lowers purity
+  by 1.9–2.3 pp: same inventory, shorter column. At the same interstitial
+  velocity the feed flow drops with ε (0.317 against 0.4), so the
+  productivity drops by about 19 %. It moves the recovery away from the
+  experiment.
+- **(3) and (4)** move every KPI by less than 0.9 pp or 1 %.
+
+No printed parameter closes the recovery gap.
 
 ### 7. Measured errors
 
@@ -168,9 +199,12 @@ LPP over-recovery of the Nguyen 2023 LPP decks (Exp. VII: 95.25 % against
 88.4 %), and it is larger here because the measured recoveries of this paper
 are lower than those of Nguyen 2023 at the same operating point (B0 83.3 %
 against VII 88.4 %). None of the printed
-parameters closes it (attribution); in the model the CO₂ front stays inside
-the bed, so the raffinate and the blowdown gas carry less CO₂ than the
-outlet mole fractions of the paper's Fig. 4 show.
+parameters closes it (attribution: the SI's decay rates come closest and leave
+5.5 and 7.9 pp); at CSS the model loses 18.0 % (A0) and 5.1 % (B0)
+of the fed CO₂ through the raffinate and the blowdown gas, against 28.8 % and
+16.7 % in the experiment: the model keeps more of the CO₂ front inside the
+bed. A comparison with the measured outlet mole fractions (the paper's Fig. 4)
+would locate the loss; those curves are not digitised here (open item 5).
 
 ## Open items
 
