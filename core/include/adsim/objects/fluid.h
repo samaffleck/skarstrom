@@ -15,6 +15,7 @@
 #include <functional>
 #include <fstream>
 #include <cctype>
+#include <cmath>
 #include <iostream>
 
 // Eigen includes
@@ -382,9 +383,11 @@ namespace adsim {
 
   class Fluid {
   public:
-    // Seed of a component's constant gas heat capacity [J/(mol-K)]: 7/2 R, the
-    // ideal diatomic gas. Only used once the CONSTANT mode is chosen.
+    // Fallback seed of a constant gas heat capacity [J/(mol-K)]: 7/2 R, the
+    // ideal diatomic gas, for a component without a NASA polynomial.
     static constexpr double kDefaultGasHeatCapacity = 29.1;
+    // Temperature of the seed of a constant gas heat capacity [K] (25 degC).
+    static constexpr double kGasHeatCapacitySeedTemperature = 298.15;
 
     void AddComponent(const std::string& component_name);
     void RemoveComponent(const std::string& component_name);
@@ -473,6 +476,16 @@ namespace adsim {
       if (T < p.t_min) return h(p.t_min) + EvalIdealGasHeatCapacity(p, p.t_min) * (T - p.t_min);
       if (T > p.t_max) return h(p.t_max) + EvalIdealGasHeatCapacity(p, p.t_max) * (T - p.t_max);
       return h(T);
+    }
+
+    // Seed of the constant gas heat capacity of `component` [J/(mol-K)]: its
+    // ideal-gas C_p0 at 25 degC (kGasHeatCapacitySeedTemperature), rounded to
+    // 0.01 J/(mol-K), or kDefaultGasHeatCapacity without a polynomial. The user
+    // can change the value; it is only used once the CONSTANT mode is chosen.
+    static double DefaultGasHeatCapacity(const std::string& component) {
+      const NasaPolynomial* p = IdealGasCoeffs(component);
+      if (!p) return kDefaultGasHeatCapacity;
+      return std::round(EvalIdealGasHeatCapacity(*p, kGasHeatCapacitySeedTemperature) * 100.0) / 100.0;
     }
 
     // The polynomial the run uses for `component` (IDEAL_GAS mode), or null:
@@ -593,7 +606,7 @@ namespace adsim {
       // On load, seed an editable constant heat capacity for every component
       // without one (as AddComponentToDeck does), so the map lists them all.
       if constexpr (Archive::is_loading::value) {
-        for (const auto& c : components_) gas_heat_capacity_.try_emplace(c, kDefaultGasHeatCapacity);
+        for (const auto& c : components_) gas_heat_capacity_.try_emplace(c, DefaultGasHeatCapacity(c));
       }
     }
   };

@@ -317,7 +317,8 @@ def test_constant_gas_properties_and_isosteric_rt_build_and_round_trip():
     assert fl.gas_heat_capacity_mode == "ideal_gas" and fl.viscosity_mode == "polynomial"
     fl.gas_heat_capacity_mode = "coolprop"  # the former name of ideal_gas is still accepted
     assert fl.gas_heat_capacity_mode == "ideal_gas"
-    assert fl.gas_heat_capacity["N2"] == pytest.approx(29.1)  # seeded, unused until "constant"
+    assert fl.gas_heat_capacity["N2"] == pytest.approx(29.12)  # seeded (Cp0 at 25 degC), unused until "constant"
+    assert fl.gas_heat_capacity["CO2"] == pytest.approx(37.14)
     fl.gas_heat_capacity_mode = "constant"
     fl.gas_heat_capacity["CO2"] = "30.7 J/(mol*K)"
     fl.gas_heat_capacity["N2"] = 30.7

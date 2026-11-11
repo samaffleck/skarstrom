@@ -1,0 +1,3 @@
+### Changed — constant gas heat capacity seed
+- A component's constant gas heat capacity (`fluid.gas_heat_capacity[<component>]`, used in the `constant` mode) now starts at its ideal-gas heat capacity at 25 °C, from its NASA polynomial at 298.15 K rounded to 0.01 J/(mol·K), for example 37.14 for CO2 and 29.12 for N2. It was 29.1 J/(mol·K) (7/2 R) for every component. The value stays editable. `Fluid::DefaultGasHeatCapacity(component)` gives the seed.
+- The example decks in the `ideal_gas` mode carry the new seeds. Their results do not change, because that mode does not use the constants. A deck that already has a value keeps it.

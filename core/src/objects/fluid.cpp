@@ -49,7 +49,7 @@ namespace adsim {
 		cp_polynomial_.clear();
 		for (const std::string& component : components_) {
 			molar_mass_[component] = GetMolarMass(component);
-			auto cp_it = gas_heat_capacity_.try_emplace(component, kDefaultGasHeatCapacity).first;
+			auto cp_it = gas_heat_capacity_.try_emplace(component, DefaultGasHeatCapacity(component)).first;
 			if (gas_heat_capacity_mode_ == GasHeatCapacityMode::CONSTANT) {
 				heat_capacity_[component] = cp_it->second.Get() / molar_mass_[component];  // [J/(mol-K)] -> [J/(kg-K)]
 			} else if (const NasaPolynomial* p = IdealGasCoeffs(component)) {
