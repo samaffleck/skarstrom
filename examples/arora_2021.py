@@ -87,6 +87,8 @@ def build(case: str) -> sk.Simulation:
     sim.add_component("Oxygen")
     sim.add_component("Nitrogen")
     sim.fluid.adsorbed_heat_capacity_mode = "constant"
+    for component in ("Oxygen", "Nitrogen"):  # the adsorbed phase carries no heat capacity
+        sim.fluid.adsorbed_heat_capacity[component] = 0 * u.J / (u.mol * u.K)
     sim.fluid.heat_of_adsorption_convention = "isosteric"
 
     # ---- adsorbents ------------------------------------------------------------------------
