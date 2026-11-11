@@ -213,6 +213,20 @@
       "summary": "Four-step CO2/N2 VPSA cycle with light product pressurisation on CALF-20, experiment X"
     },
     {
+      "file": "Nguyen2024_A0.json",
+      "family": "Nguyen (2025)",
+      "family_key": "Nguyen2024",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VSA cycle with light product pressurisation on CALF-20, dry case A0 (case study 1) of the humid-feed paper"
+    },
+    {
+      "file": "Nguyen2024_B0.json",
+      "family": "Nguyen (2025)",
+      "family_key": "Nguyen2024",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 VSA cycle with light product pressurisation on CALF-20, dry case B0 (case study 2) of the humid-feed paper"
+    },
+    {
       "file": "Perez2019_A.json",
       "family": "Perez (2019)",
       "family_key": "Perez2019",

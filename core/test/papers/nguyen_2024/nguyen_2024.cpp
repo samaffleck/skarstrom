@@ -292,22 +292,28 @@ namespace adsim {
       "CaseA0", "Nguyen2024_A0", "Nguyen 2024 - Case 1, dry (A0).",
       "Four-step LPP CO2/N2 VSA cycle on CALF-20, dry feed, case study 1 (A0) of Table 1 of "
       "https://doi.org/10.1007/s10450-025-00600-z, built from the Nguyen2023_Exp_VII deck at P_H = 0.96 bar and 22 C.",
-      180, 0.081, 0.119e5, 0.032e5, 60 };
+      180, 0.081, 0.119e5, 0.032e5, 50 };  // CSS after 39 cycles
     const Nguyen2024Case kB0{
       "CaseB0", "Nguyen2024_B0", "Nguyen 2024 - Case 2, dry (B0).",
       "Four-step LPP CO2/N2 VSA cycle on CALF-20, dry feed, case study 2 (B0) of Table 1 of "
       "https://doi.org/10.1007/s10450-025-00600-z, built from the Nguyen2023_Exp_VII deck at P_H = 0.96 bar and 22 C.",
-      157, 0.024, 0.046e5, 0.031e5, 430 };
+      157, 0.024, 0.046e5, 0.031e5, 430 };  // CSS after 326 cycles
 
   }  // namespace
 
-  // Measured errors and bounds: see each case. Tolerances are the measured
-  // error rounded up (README.md "Measured errors").
+  // Tolerances are the measured error rounded up, with the measured value in a
+  // comment (README.md "Measured errors"). Only what reproduces within the
+  // printed uncertainty is asserted; the rest is recorded (Info).
   TEST_F(Nguyen2024Test, CaseA0) {
     using namespace validation;
     const auto r = RunNguyen2024(*this, kA0, {}, true);
     CaseReport report("nguyen_2024", "CaseA0");
-    report.CheckAbs("CO2 purity vs experiment", r.purity, Reference("nguyen_2024", "CaseA0", "CO2_purity_exp"), 99);
+    // Recorded, not asserted: purity 94.89 % against 98.3 +/- 0.88 (3.41 pp,
+    // outside the printed uncertainty), recovery 81.98 % against 71.2 (LPP
+    // over-recovery), productivity 0.467 against 0.577 (the printed value is
+    // inconsistent with the cycle time). README.md "Measured errors".
+    report.Info("CO2 purity vs experiment", r.purity, Reference("nguyen_2024", "CaseA0", "CO2_purity_exp"),
+                "abs_error", "recorded: 3.4 pp below, outside the printed uncertainty (README)");
     report.Info("CO2 recovery vs experiment", r.recovery, Reference("nguyen_2024", "CaseA0", "CO2_recovery_exp"),
                 "abs_error", "recorded: LPP over-recovery (README)");
     report.Info("CO2 productivity vs experiment", r.productivity,
@@ -319,9 +325,12 @@ namespace adsim {
     using namespace validation;
     const auto r = RunNguyen2024(*this, kB0, {}, true);
     CaseReport report("nguyen_2024", "CaseB0");
-    report.CheckAbs("CO2 purity vs experiment", r.purity, Reference("nguyen_2024", "CaseB0", "CO2_purity_exp"), 99);
+    // measured: 0.9311 pp (93.33 % against 92.4 +/- 1.31)
+    report.CheckAbs("CO2 purity vs experiment", r.purity, Reference("nguyen_2024", "CaseB0", "CO2_purity_exp"), 1.0);
+    // measured: 0.0201 rel (0.1500 against 0.147 +/- 0.005)
     report.CheckRel("CO2 productivity vs experiment", r.productivity,
-                    Reference("nguyen_2024", "CaseB0", "CO2_productivity_exp"), 99);
+                    Reference("nguyen_2024", "CaseB0", "CO2_productivity_exp"), 0.025);
+    // Recorded: recovery 94.87 % against 83.3 +/- 1.97 (11.6 pp, LPP over-recovery).
     report.Info("CO2 recovery vs experiment", r.recovery, Reference("nguyen_2024", "CaseB0", "CO2_recovery_exp"),
                 "abs_error", "recorded: LPP over-recovery (README)");
   }

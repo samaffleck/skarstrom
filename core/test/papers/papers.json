@@ -80,6 +80,19 @@
       ]
     },
     {
+      "citation": "T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, Experimental demonstration of humid post-combustion CO2 capture by vacuum swing adsorption using CALF-20, Adsorption 31 (2025) 45.",
+      "doi": "10.1007/s10450-025-00600-z",
+      "findings": [
+        "Dry case B0 (the operating point of Nguyen 2023 Exp. VII): CO2 purity within 0.9 pp and productivity within 2 % of Table 1, inside the printed uncertainty; the productivity agreement is partly compensation, because the engine's recovery is 11.6 pp high. Dry case A0: purity 3.4 pp low (recorded).",
+        "Recovery is about 11 pp high in both cases, the light-product over-recovery of the Nguyen 2023 LPP decks; none of the printed parameters closes it (README attribution: the SI's fitted blowdown and evacuation decay rates lower it by up to 5 pp and raise the purity, the measured 0.267 m column raises it by about 2 pp). A0's printed productivity is inconsistent with its own cycle time and is recorded, not asserted.",
+        "The decks are the Nguyen2023_Exp_VII deck at 0.96 bar and 22 C. The main text was not read here (the SI was); the humid cases are not reproduced: the paper prints no water isotherm, and the engine has no competitive CO2/H2O kind for a physisorbent (#272)."
+      ],
+      "id": "nguyen_2024",
+      "label": "Nguyen et al. (2025)",
+      "reference_kind": "experimental purity/recovery/productivity of the dry cases (Table 1)",
+      "system": "CO2/N2 VSA with light-product pressurisation on CALF-20 (dry cases of a humid-feed study)"
+    },
+    {
       "id": "perez_2019",
       "label": "Estupiñan Perez et al. (2019)",
       "citation": "L. Estupiñan Perez, P. Sarkar, A. Rajendran, Experimental validation of multi-objective optimization techniques for design of vacuum swing adsorption processes, Separation and Purification Technology 224 (2019) 553-563.",
