@@ -42,7 +42,7 @@ The **Model** section documents the physics behind the solver:
 - [Isotherms](isotherms.md) — the equilibrium models and their parameters.
 - [Kinetic Models](kinetic-models.md) — linear driving force and the mass-transfer coefficient correlations.
 - [Transport Correlations](transport-correlations.md) — axial dispersion, thermal conductivity and heat transfer coefficients.
-- [Equation of State and Fluid Properties](equation-of-state.md) — the gas model and CoolProp.
+- [Equation of State and Fluid Properties](equation-of-state.md) — the gas model and the component constants.
 
 ## Simulating a process
 
