@@ -124,21 +124,10 @@ option(ADSIM_INSTALL "Install the adsim library, its headers and the Adsim CMake
 option(ADSIM_NATIVE_ARCH "Compile Release builds with -march=native (non-portable binaries)" OFF)
 
 # ============================================================
-# Workarounds every build needs (previously passed on the command line)
+# Emscripten exceptions
 # ============================================================
-# The CoolProp submodule (and some of its externals) still declare
-# cmake_minimum_required() below 3.5, which CMake 4 rejects. This variable is
-# read by those calls; older CMake versions ignore it.
-if(NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
-    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-endif()
-# CoolProp's bundled fmt 10 uses consteval format strings that recent compilers
-# reject in CoolProp's code; disable consteval for every target. The installed
-# Adsim package propagates the same definition to consumers.
-add_compile_definitions(FMT_CONSTEVAL=)
-
 # Emscripten (a front end compiling the engine to WebAssembly with emcmake):
-# the engine, cereal and CoolProp throw and catch C++ exceptions, which
+# the engine and cereal throw and catch C++ exceptions, which
 # Emscripten disables by default. ADSIM_EMSCRIPTEN_EXCEPTIONS picks the scheme:
 #   wasm (default)  native WebAssembly exceptions (-fwasm-exceptions): throw and
 #                   catch stay inside the module. Measured on the web solver:
@@ -200,7 +189,7 @@ endif()
 # Third-party dependencies (git submodules in external/, plus the vendored
 # external/eigen-3.4.0)
 # ============================================================
-foreach(_adsim_dep sundials CoolProp cereal muparser dlib units)
+foreach(_adsim_dep sundials cereal muparser dlib units)
     if(NOT EXISTS "${ADSIM_SOURCE_DIR}/external/${_adsim_dep}/CMakeLists.txt"
        AND NOT EXISTS "${ADSIM_SOURCE_DIR}/external/${_adsim_dep}/include")
         message(FATAL_ERROR
@@ -227,20 +216,6 @@ set(BUILD_CVODES OFF CACHE BOOL "Build CVODES")
 set(BUILD_ARKODE OFF CACHE BOOL "Build ARKODE")
 set(BUILD_KINSOL OFF CACHE BOOL "Build KINSOL")
 add_subdirectory(external/sundials)
-
-# -- CoolProp --
-set(COOLPROP_STATIC_LIBRARY ON CACHE BOOL "Build CoolProp as a static library")
-# Build CoolProp for the native architecture. Without this, CoolProp adds
-# -m64 to its compile and link flags on every non-MSVC 64-bit host; GCC on
-# aarch64 (Linux ARM wheels) rejects that flag ("unrecognized command-line
-# option '-m64'"). Apple clang happens to ignore it, and on x86-64 it is a
-# no-op, so native is correct everywhere we build.
-set(FORCE_BITNESS_NATIVE ON CACHE BOOL "Build CoolProp for the native architecture")
-add_subdirectory(external/CoolProp)
-# CoolProp bundles its own Eigen (externals/Eigen). Hold it to the MPL-2.0-only
-# subset too, so an LGPL Eigen header can never be compiled in (see
-# THIRD_PARTY_NOTICES.md; the adsim target sets the same define).
-target_compile_definitions(CoolProp PRIVATE EIGEN_MPL2_ONLY)
 
 # -- muparser (expression evaluator) --
 set(ENABLE_SAMPLES OFF CACHE BOOL "Don't build muparser samples")

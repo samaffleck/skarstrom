@@ -164,11 +164,6 @@ jobs:
         with:
           submodules: recursive
 
-      # CoolProp runs Python at configure/build time to generate its fluid headers.
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Install Ninja (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ninja-build
@@ -384,12 +379,10 @@ jobs:
         run: python scripts/release.py check-dev
       - name: Examples module is up to date
         run: python scripts/gen_examples_module.py --check
-      # The generator reads the CoolProp fluid files (a development-time data
-      # source; the engine does not call CoolProp).
+      # The generator downloads the CoolProp fluid files it is pinned to (by
+      # commit and SHA-256); CoolProp is not part of the build.
       - name: Component property table is up to date
-        run: |
-          git submodule update --init --depth 1 external/CoolProp
-          python scripts/gen_component_properties.py --check
+        run: python scripts/gen_component_properties.py --check
       - uses: ./.github/actions/docs-checks
 
   lint:

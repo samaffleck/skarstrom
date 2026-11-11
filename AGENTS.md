@@ -301,7 +301,7 @@ data/adsorbents/       curated adsorbent library: library.json + <key>.json
 data/cycles/           cycle templates (written by test_cycle_designs.cpp)
 docs/                  MkDocs sources (validation.md and adsorbent-library.md are GENERATED)
 scripts/               docs generators (scripts/docs/), release and consumer test scripts
-external/              submodules (sundials, CoolProp, cereal, muparser, dlib, googletest) + vendored eigen-3.4.0
+external/              submodules (sundials, cereal, muparser, dlib, units, googletest) + vendored eigen-3.4.0
 ```
 
 ### Build and test

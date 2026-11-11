@@ -14,8 +14,8 @@ cmake --build --preset linux-release
 ```
 
 You need CMake 3.25+ for the presets (3.15+ without them), a C++20 compiler
-(GCC 11+, Clang 14+, Apple clang from Xcode 15+, MSVC 2022), Python 3 (CoolProp
-runs it at build time) and, recommended, Ninja. Forgot `--recursive`? Run
+(GCC 11+, Clang 14+, Apple clang from Xcode 15+, MSVC 2022) and, recommended,
+Ninja. Forgot `--recursive`? Run
 `git submodule update --init --recursive`.
 
 ## Running the tests

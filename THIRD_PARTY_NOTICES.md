@@ -23,13 +23,9 @@ submodules in `external/`, except Eigen 3.4.0, which is vendored in
 | Component | Copyright | Licence |
 |---|---|---|
 | [SUNDIALS](https://github.com/LLNL/sundials) (IDA, IDAS) | Lawrence Livermore National Security and Southern Methodist University | BSD-3-Clause |
-| [CoolProp](https://github.com/CoolProp/CoolProp) | Ian Bell and the CoolProp team | MIT |
-| fmt (bundled with CoolProp) | Victor Zverovich | MIT |
-| RapidJSON (bundled with CoolProp and with cereal) | THL A29 Limited, a Tencent company, and Milo Yip | MIT |
-| msgpack-c (bundled with CoolProp) | msgpack-c developers | Boost Software License 1.0 |
-| IF97 (bundled with CoolProp) | Ian Bell and the IF97 team | MIT |
-| miniz 1.15 (bundled with CoolProp) | Rich Geldreich | Public domain (Unlicense) |
-| [Eigen](https://eigen.tuxfamily.org) 3.4.0, plus the Eigen 3.3.5 headers bundled with CoolProp (including the unsupported `Polynomials` module) | Eigen contributors | MPL-2.0 (both compiled with `EIGEN_MPL2_ONLY`; no LGPL-licensed Eigen files are included) |
+| [CoolProp](https://github.com/CoolProp/CoolProp) fluid data: the component constants in `core/include/adsim/objects/component_properties.h`, generated from CoolProp's fluid files (CoolProp itself is not built or linked) | Ian Bell and the CoolProp team | MIT |
+| RapidJSON (bundled with cereal) | THL A29 Limited, a Tencent company, and Milo Yip | MIT |
+| [Eigen](https://eigen.tuxfamily.org) 3.4.0 | Eigen contributors | MPL-2.0 (compiled with `EIGEN_MPL2_ONLY`; no LGPL-licensed Eigen files are included) |
 | [cereal](https://github.com/USCiLab/cereal) | Randolph Voorhies, Shane Grant | BSD-3-Clause |
 | base64 (bundled with cereal) | René Nyffenegger | Zlib |
 | [muparser](https://github.com/beltoforion/muparser) | Ingo Berg | BSD-2-Clause |
@@ -48,7 +44,7 @@ submodules in `external/`, except Eigen 3.4.0, which is vendored in
 
 ### MIT License
 
-Applies to: CoolProp, fmt, RapidJSON, IF97.
+Applies to: CoolProp (fluid data), RapidJSON.
 
 > Permission is hereby granted, free of charge, to any person obtaining a copy
 > of this software and associated documentation files (the "Software"), to deal
@@ -123,7 +119,7 @@ Applies to: muparser.
 
 ### Boost Software License 1.0
 
-Applies to: dlib, msgpack-c.
+Applies to: dlib.
 
 > Permission is hereby granted, free of charge, to any person or organization
 > obtaining a copy of the software and accompanying documentation covered by
@@ -169,8 +165,7 @@ Applies to: base64 (cereal).
 
 ### Mozilla Public License 2.0
 
-Applies to: Eigen 3.4.0 and the Eigen 3.3.5 headers bundled with CoolProp (both
-compiled with `EIGEN_MPL2_ONLY`, which excludes the LGPL-licensed portions of
-Eigen). Eigen is used in unmodified form; its source
+Applies to: Eigen 3.4.0 (compiled with `EIGEN_MPL2_ONLY`, which excludes the
+LGPL-licensed portions of Eigen). Eigen is used in unmodified form; its source
 code is available at <https://eigen.tuxfamily.org> and the full MPL-2.0 text at
 <https://www.mozilla.org/MPL/2.0/>.
