@@ -785,8 +785,8 @@
                                                         {
                                                             "key": "Nitrogen",
                                                             "value": {
-                                                                "Value": 0.0,
-                                                                "Expression": "0",
+                                                                "Value": 1.0,
+                                                                "Expression": "1",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -1200,8 +1200,8 @@
                                                         {
                                                             "key": "Nitrogen",
                                                             "value": {
-                                                                "Value": 0.0,
-                                                                "Expression": "0",
+                                                                "Value": 1.0,
+                                                                "Expression": "1",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }

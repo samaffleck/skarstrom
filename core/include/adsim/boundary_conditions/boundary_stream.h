@@ -105,6 +105,22 @@ namespace adsim {
 		std::unordered_map<std::string, double> mole_fraction{};         // [-]
 	};
 
+	// Mixing at an outlet flow boundary with several streams
+	// (FlowBoundaryCondition::Mixing). When some streams leave the bed and
+	// others flow back in through the same end (a vent that back-feeds a
+	// light-product draw), the gas the leaving streams carry is the mix of
+	// the bed's net outflow (bed-end gas) and the inflowing streams' own gas,
+	// so every component is conserved at the node. Without it, every stream
+	// carried the bed-end gas and the back-fed gas became a copy of it.
+	struct NodeMixing {
+		bool active = false;  // false: every stream keeps the bed-end gas
+		// Composition of the gas the leaving streams carry: on the face basis
+		// of the component flows (BedEndFaceMoleFraction) and on the bed-end
+		// basis of the logged composition (ghost and end cell average).
+		std::unordered_map<std::string, double> y_face{};
+		std::unordered_map<std::string, double> y_logged{};
+	};
+
 	// Time integrals of one endpoint over one step, integrated by IDAS as
 	// quadrature states alongside the solution (SolverData's KPI quadratures)
 	// instead of the trapezoid over the logged samples. Flows use the KPI
@@ -238,7 +254,18 @@ namespace adsim {
     void Log(const Equations& state, double time, BoundaryLocation location);
     // The values Log records at `time` (seconds since the step start), without
     // recording them.
-    EndpointSample Sample(const Equations& state, double time, BoundaryLocation location);
+    // `mix`: the outlet node's mixing (FlowBoundaryCondition::Mixing); null
+    // or inactive keeps the bed-end gas for every stream.
+    void Log(const Equations& state, double time, BoundaryLocation location, const NodeMixing* mix);
+    EndpointSample Sample(const Equations& state, double time, BoundaryLocation location,
+                          const NodeMixing* mix = nullptr);
+    // The gas this stream brings in when it flows back into the bed through
+    // an outlet: its own composition (the connected partner's, a buffer
+    // tank's or its mole fractions; see InletMoleFraction), normalised. False
+    // when that composition is all zero ("no backflow composition"): the
+    // back-fed gas is then the bed-end gas, as without mixing.
+    bool BackflowComposition(double time, const std::vector<std::string>& components,
+                             std::unordered_map<std::string, double>& y) const;
     bool PerformChecks(std::string& error_msg, const Fluid& fluid);
 		void SetDirection(BoundaryDirection dir) { direction_ = dir; }
 

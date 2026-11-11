@@ -335,6 +335,11 @@ namespace adsim {
       ambient_valve_cv
     );
     feed1_ambient_stream->name_ = "Feed 1 ambient Stream";
+    // The vents back-feed N2 (the feed's inert): the light-product draw takes
+    // more gas than the bed supplies at the top, and the vent makes up the
+    // rest (FlowBoundaryCondition::Mixing).
+    feed1_ambient_stream->mole_fraction[CO2] = 0.0;
+    feed1_ambient_stream->mole_fraction[N2] = 1.0;
     
     auto feed1_LPP_stream = test_fixture.CreateNoValveOutletStream(
       test_fixture.CreateVelocityBC(0.0)
@@ -361,6 +366,8 @@ namespace adsim {
       ambient_valve_cv
     );
     feed2_ambient_stream->name_ = "Feed 2 ambient Stream";
+    feed2_ambient_stream->mole_fraction[CO2] = 0.0;
+    feed2_ambient_stream->mole_fraction[N2] = 1.0;
     
     auto feed2_flow_bc_out = std::make_unique<FlowBoundaryCondition>();
     feed2_flow_bc_out->direction_ = BoundaryDirection::OUTLET;

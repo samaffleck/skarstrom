@@ -450,6 +450,11 @@ namespace adsim {
       )
     );
     feed1_out_streams[0]->name_ = "Ambient Stream";
+    // The vents back-feed N2 (the feed's inert) when a light-product draw
+    // takes more gas than the bed supplies at the top
+    // (FlowBoundaryCondition::Mixing).
+    feed1_out_streams[0]->mole_fraction["CarbonDioxide"] = 0.0;
+    feed1_out_streams[0]->mole_fraction["Nitrogen"] = 1.0;
 
     auto feed_press_stream = CreateNoValveOutletStream(
       CreateVelocityBC(0)
@@ -482,6 +487,8 @@ namespace adsim {
       )
     );
     feed2_out_streams[0]->name_ = "Ambient Stream";
+    feed2_out_streams[0]->mole_fraction["CarbonDioxide"] = 0.0;
+    feed2_out_streams[0]->mole_fraction["Nitrogen"] = 1.0;
 
     auto feed_purge_stream = CreateNoValveOutletStream(
       CreateVelocityBC(0)

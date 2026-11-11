@@ -77,6 +77,9 @@ set(ADSIM_SLOW_TESTS
     # Grid sequencing: coarse-to-fine warm starts against a cold fine grid on
     # six decks, three paths each (2-8 min per deck).
     "*GridSequencing.*"
+    # An inert trace in Nguyen2023_Exp_VII stays at round-off: 20 cycles of the
+    # shipped deck, the growth it guards against shows from cycle ~10 (~15 s).
+    "LppTrace.*"
     # CSS behaviour on a slow (rate 0.97) cycle: needs 100+ cycles.
     "CSSConvergence.SlowCycleFollowsTheGeometricModel"
     "CSSConvergence.AitkenAccelerationReachesTheSameKpis"

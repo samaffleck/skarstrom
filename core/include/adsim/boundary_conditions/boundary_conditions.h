@@ -184,6 +184,20 @@ namespace adsim {
 		void AddStream(const std::string& stream_name);
 		void RemoveStream(const std::string& stream_name);
 
+		// The mixing at this boundary at `time` (NodeMixing): active for an
+		// outlet with at least one stream leaving the bed and one flowing back
+		// in. The leaving streams then carry
+		//   y_out = (max(N, 0) y_bed + sum_k F_k y_k) / (max(N, 0) + sum_k F_k),
+		// with F_k the inflowing streams' flows, y_k their own gas
+		// (IBoundaryStream::BackflowComposition, else the bed-end gas) and N
+		// the bed's net outflow. For N >= 0 the moles of every component that
+		// leave through the streams are those that leave the bed plus those
+		// the inflowing streams bring. (For N < 0 the bed takes in the
+		// remainder at the bed-end composition, the outlet's zero-gradient
+		// closure, as before.) The residuals do not use it: an outlet's
+		// composition is zero-gradient.
+		NodeMixing Mixing(const Equations& state, double time) const;
+
 		std::vector<std::unique_ptr<IBoundaryStream>> streams_{};
 
 	private:

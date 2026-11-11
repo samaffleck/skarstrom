@@ -205,8 +205,17 @@ namespace adsim {
   }
 
   void Step::SampleEndpoints(const Equations& state, double time, std::vector<EndpointSample>& out) {
+    // The outlet node mixing of each end (FlowBoundaryCondition::Mixing), as
+    // FlowBoundaryCondition::Log applies it.
+    auto mixing = [&](IBoundaryCondition* bc) {
+      const auto* fbc = dynamic_cast<const FlowBoundaryCondition*>(bc);
+      return fbc ? fbc->Mixing(state, time) : NodeMixing{};
+    };
+    const NodeMixing bottom = mixing(bottom_boundary_condition_.get());
+    const NodeMixing top = mixing(top_boundary_condition_.get());
     for (const auto& ep : LoggedEndpoints()) {
-      if (ep.stream) out.push_back(ep.stream->Sample(state, time, ep.location));
+      if (ep.stream) out.push_back(ep.stream->Sample(state, time, ep.location,
+                                                     ep.location == BoundaryLocation::TOP ? &top : &bottom));
       else if (ep.pressure) out.push_back(ep.pressure->Sample(state, time));
     }
   }

@@ -101,8 +101,8 @@ At cyclic steady state (this engine version, 80 cells; specific energy = vacuum-
 | Blowdown: time / end pressure | 19 s / 7.21 kPa | 20.3 s / 7.19 kPa (−0.2 %) | 21 s / 8.16 kPa | 33.7 s / 8.08 kPa (−1.0 %) |
 | Evacuation: time / end pressure | 57 s / 4.00 kPa | 78.7 s / 4.01 kPa (+0.4 %) | 167 s / 3.11 kPa | 110.8 s / 3.12 kPa (+0.0 %) |
 | Pressurisation: time / end pressure | 30 s / 99.98 kPa | 99 s / 100.00 kPa (within 2 % after 31.7 s) | 27.5 s / 101.30 kPa | 27.5 s / 99.84 kPa (−1.4 %, within 2 % after 19.6 s) |
-| CO₂ purity | 99.55 % | 99.57 % | 94.08 % | 94.24 % |
-| CO₂ recovery | 60.1 % | 59.5 % | 89.5 % | 89.4 % |
+| CO₂ purity | 99.55 % | 99.57 % | 94.08 % | 94.36 % |
+| CO₂ recovery | 60.1 % | 59.5 % | 89.5 % | 89.3 % |
 | Productivity, 10⁻⁵ kg kg⁻¹ s⁻¹ | 3.68 | 2.53 | 1.56 | 1.29 |
 | Specific energy, MJ kg⁻¹ | 0.752 | 0.743 | 0.821 | 0.810 |
 | Cyclic steady state | cycle 48 | cycle 49, 43 s | cycle 92 | cycle 101, 59 s |
@@ -210,8 +210,8 @@ The base points are infeasible. The table gives their values (`--base-only`):
 
 | Constraint | `Perez2019_CaseStudy_Base` | `Perez2019_CaseStudy_Base_LPP` |
 |---|---|---|
-| Purity ≥ 95 % | 99.6 % | 94.2 % (fails) |
-| Recovery ≥ 90 % | 59.5 % (fails) | 89.4 % (fails) |
+| Purity ≥ 95 % | 99.6 % | 94.4 % (fails) |
+| Recovery ≥ 90 % | 59.5 % (fails) | 89.3 % (fails) |
 | Approach to fluidisation ≤ 1 | 0.98, evacuation (0.95 in pressurisation; 3.62 without the ramp) | 0.30 |
 | Pressure drop ≤ 10 kPa m⁻¹ | 3.7 kPa m⁻¹, pressurisation (14.1 without the ramp) | 5.7 kPa m⁻¹, LPP from the top (16.2 without the ramp) |
 | Lowest vacuum pressure ≥ 10 kPa | 3.9 kPa (fails) | 3.1 kPa (fails) |
