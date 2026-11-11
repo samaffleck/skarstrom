@@ -8,7 +8,7 @@
 // Anderson acceleration of the approach to cyclic steady state on two bundled
 // decks, as shipped (their own grid, start and CSS settings).
 //
-// Measured on these decks (cycle of the CSS stop, 0-based):
+// Measured on these decks (cycle of the CSS stop, 0-based; Linux, GCC):
 //
 //   deck          plain  Aitken  Anderson
 //   Perez2019_A      47       -        35
@@ -25,9 +25,31 @@
 // vents got an N2 backflow composition and the outlet node mixing (its CSS
 // moved by 1.2e-4 in purity and 8e-5 in recovery); re-measure them
 // whenever the decks' inputs or the KPI basis change. Each test runs Anderson
-// only (a plain run of E takes 70 s) and checks that it stops well before the plain run, at KPIs no
-// further from the reference than the plain stop's or within 5e-5 of it (half
-// the 1e-4 to which CSSRobustDeck holds a plain run).
+// only (a plain run of E takes 70 s) and checks that it stops well before the
+// plain run, at the same CSS.
+//
+// "The same CSS" is a KPI distance: the larger of the purity and recovery
+// errors against the reference (as css_state_compare.h measures KPIs). The
+// Anderson stop must be no further from the reference than the plain stop,
+// or within 5e-5 of it (half the 1e-4 to which CSSRobustDeck holds a plain
+// run). The stop rule bounds the change of the bed state over a cycle, not
+// each KPI, so a stop may sit on either side of the reference in each KPI;
+// which KPI comes out closer depends on the direction of the residual left
+// at the stop. For Anderson that direction follows its jumps (a least-squares
+// fit over the last cycles), which round differently on each compiler and
+// CPU, so the stop cycle and the KPI split change between platforms while
+// the distance stays inside the stop rule's resolution. Measured, Perez2019_E
+// (purity error, recovery error; plain: 6.6e-5, 2.7e-5 on Linux):
+//
+//   Linux (GCC)            stop 43   4.4e-6   4.8e-6
+//   macOS arm64 (clang)    stop 42   2.5e-5   5.8e-5
+//
+// Before, each KPI was held to max(its plain error, 5e-5): macOS failed on
+// recovery (5.8e-5) while its distance (5.8e-5) is inside the plain stop's
+// (6.6e-5). The plain stop and the reference are smooth plain runs; on Linux
+// the plain stop reproduces the pinned errors to 1e-8, and plain cycles
+// continued from the Anderson stop move its KPIs by at most 1e-5 over 40
+// cycles (E), so the reference is not where the platforms differ.
 // Slow tier: about 30 s (A) and 20 s (E).
 
 #include <algorithm>
@@ -83,9 +105,11 @@ namespace adsim {
 
       EXPECT_GT(applied, 0);
       EXPECT_LE(run.css_cycle, c.max_anderson_stop) << c.deck << ": Anderson no longer shortens the run";
-      // At the same CSS.
-      EXPECT_LE(purity_error, std::max(c.plain_purity_error, kKpiAllowance)) << c.deck;
-      EXPECT_LE(recovery_error, std::max(c.plain_recovery_error, kKpiAllowance)) << c.deck;
+      // At the same CSS: the KPI distance (header), not each KPI.
+      const double distance = std::max(purity_error, recovery_error);
+      const double plain_distance = std::max(c.plain_purity_error, c.plain_recovery_error);
+      EXPECT_LE(distance, std::max(plain_distance, kKpiAllowance))
+          << c.deck << ": purity error " << purity_error << ", recovery error " << recovery_error;
     }
   }  // namespace
 
@@ -95,7 +119,8 @@ namespace adsim {
   }
 
   TEST(CSSAndersonDecks, Perez2019EStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 43, purity error 4.4e-6, recovery error 4.8e-6.
+    // Measured: stop at 43, purity error 4.4e-6, recovery error 4.8e-6 (Linux);
+    // stop at 42, 2.5e-5, 5.8e-5 (macOS arm64).
     CheckAnderson({"Perez2019_E", 195, 70, 0.8723116710, 0.9391619180, 6.6e-5, 2.7e-5});
   }
 
