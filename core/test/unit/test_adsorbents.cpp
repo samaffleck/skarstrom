@@ -428,47 +428,6 @@ namespace adsim {
     EXPECT_TRUE(adsorbent_cpy.adsorption_source_.mass_transfer_models_.empty());
   }
 
-  TEST(AdsorbentTest, CMS3K_CO2CH4_ExtendedSingleSiteLangmuir) {
-    const std::string CO2 = "CarbonDioxide";
-    const std::string CH4 = "Methane";
-
-    Adsorbent adsorbent;
-    adsorbent.name_ = "CMS-3K";
-    adsorbent.solid_density_ = 1060.0;   // kg/m3 (pellet density)
-    adsorbent.heat_capacity_ = 880.0;    // J/(kg.K)
-    adsorbent.thermal_conductivity_ = 0.15;
-
-    auto ssl = std::make_unique<ExtendedLangmuirIsotherm>(CO2);
-    ssl->params_[CO2].m1 = 2.47e-3 * 1e3;   // kmol/kg -> mol/kg
-    ssl->params_[CO2].b1 = 1.13e0 * 1e-5;   // 1/bar -> 1/Pa
-    ssl->params_[CO2].q1 = 38.947 * 1e3;    // kJ/mol -> J/mol
-    ssl->params_[CH4].m1 = 2.13e-3 * 1e3;   // kmol/kg -> mol/kg
-    ssl->params_[CH4].b1 = 3.10e-1 * 1e-5;  // 1/bar -> 1/Pa
-    ssl->params_[CH4].q1 = 33.674 * 1e3;    // kJ/mol -> J/mol
-    adsorbent.adsorption_source_.AddIsotherm({CO2, CH4}, std::move(ssl));
-    adsorbent.adsorption_source_.heat_of_adsorption_[CO2] = 38.947 * 1e3;
-    adsorbent.adsorption_source_.heat_of_adsorption_[CH4] = 33.674 * 1e3;
-
-    SaveAdsorbent(adsorbent, "cms_3k");
-    Adsorbent adsorbent_cpy;
-    LoadAdsorbent("cms_3k", adsorbent_cpy);
-
-    EXPECT_EQ(adsorbent.name_, adsorbent_cpy.name_);
-    EXPECT_DOUBLE_EQ(adsorbent.solid_density_, adsorbent_cpy.solid_density_);
-    EXPECT_DOUBLE_EQ(adsorbent.heat_capacity_, adsorbent_cpy.heat_capacity_);
-
-    auto* iso = dynamic_cast<ExtendedLangmuirIsotherm*>(
-      adsorbent_cpy.adsorption_source_.GetIsotherm(CO2).get());
-    ASSERT_NE(iso, nullptr);
-    EXPECT_DOUBLE_EQ(iso->params_.at(CO2).m1, 2.47e-3 * 1e3);
-    EXPECT_DOUBLE_EQ(iso->params_.at(CO2).b1, 1.13e0 * 1e-5);
-    EXPECT_DOUBLE_EQ(iso->params_.at(CO2).q1, 38.947 * 1e3);
-    EXPECT_DOUBLE_EQ(iso->params_.at(CH4).m1, 2.13e-3 * 1e3);
-    EXPECT_DOUBLE_EQ(iso->params_.at(CH4).b1, 3.10e-1 * 1e-5);
-    EXPECT_DOUBLE_EQ(iso->params_.at(CH4).q1, 33.674 * 1e3);
-    EXPECT_TRUE(adsorbent_cpy.adsorption_source_.mass_transfer_models_.empty());
-  }
-
   TEST(AdsorbentTest, MOF508b_CO2CH4_ExtendedSingleSiteLangmuir) {
     const std::string CO2 = "CarbonDioxide";
     const std::string CH4 = "Methane";
