@@ -81,7 +81,7 @@ To turn any deck (yours, or one written by a front end) into builder code
 like these scripts, use `skarstrom.to_script(sim)` (see
 [Building a simulation in Python](../docs/python.md#building-a-simulation-in-python)).
 
-`decks/` holds the 41 example decks (also bundled in the Python package:
+`decks/` holds the 47 example decks (also bundled in the Python package:
 `skarstrom examples`). Their file names must stay shell-safe (checked by the
 `DataFileNamesAreShellSafe` test). The test suite re-saves several of them; small
 changes to the embedded numbers are expected and should be committed with the
