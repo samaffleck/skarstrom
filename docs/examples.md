@@ -1,6 +1,6 @@
 # Examples
 
-Skarstrom ships 47 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
+Skarstrom ships 58 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
 
 Every paper-based deck is also an automated validation test; the [Validation](validation.md) page lists the simulated and published values and the error metric for each case, including where Skarstrom and the paper disagree, and why.
 
@@ -18,8 +18,8 @@ python examples/ward_2022.py --case 100  # the fastest: about a second
 |---|---|---|---|---|
 | [`ward_2022.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/ward_2022.py) | `Ward2022_Q50ccm`, `_Q100ccm`, `_Q200ccm` | CO₂ breakthrough on activated carbon, three flow rates | digitised outlet y_CO₂ and thermocouple; paper-model breakthrough-time interval | 2 s |
 | [`casas_2012.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/casas_2012.py) | `Casas2012_Fig4_*`, `Casas2012_Fig6_*` (3) | CO₂/H₂ breakthrough on AP3-60 at 15 bar | paper-model breakthrough times (Table 5) | 8 s |
-| [`nguyen_2022.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/nguyen_2022.py) | `Nguyen2022_Fig4`, `_Fig5` | CO₂/He breakthrough on CALF-20 | digitised outlet y_CO₂ (NRMSE, half-feed crossing time) | 1 s |
-| [`streb_2021.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/streb_2021.py) | `Streb2021_A1`, `_A3` | CO₂/CH₄ breakthrough on 13X with thermocouples | digitised outlet mole fractions and five thermocouples | 16 s |
+| [`nguyen_2022.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/nguyen_2022.py) | `Nguyen2022_Fig4`, `_Fig4_50pct`, `_Fig4_100pct`, `Nguyen2022_Fig5`, `_Fig5_5pct`, `_Fig5_30pct` | CO₂/He and CO₂/N₂ breakthrough on CALF-20, six runs | measured outlet y_CO₂ (NRMSE, half-feed crossing time) and thermocouple (RMSE) | 2 s |
+| [`streb_2021.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/streb_2021.py) | `Streb2021_A1`–`_A7`, `_B1`, `_B2` | CO₂/CH₄ and H₂/CO₂/CH₄ breakthrough on 13X with thermocouples, nine runs | digitised outlet mole fractions and five thermocouples | 16 s (A1, A3; all nine about 3 min) |
 | [`arora_2021.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/arora_2021.py) | `Arora2021_LiLSX_PSA`, `_PVSA` | O₂ PSA and PVSA on LiLSX (50 cycles) | paper-model O₂ purity and net recovery (Table 4) | 2 min |
 | [`ferre_2026.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/ferre_2026.py) | `Ferre2026_NaYF` | Biogas CO₂/CH₄ PVSA on NaY, to CSS | paper-model purity and recovery of both products (Table 5) | 4 min |
 | [`nguyen_2023.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/nguyen_2023.py) | `Nguyen2023_Exp_I` … `_X` (10) | CO₂/N₂ VPSA on CALF-20, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 2) | 22 min |
@@ -54,11 +54,11 @@ Five executed notebooks are in `examples/notebooks/`: a parametric study of the 
 | **Casas (2012)** | `Casas2012_Fig4_50_50_15bar_25C`, `Casas2012_Fig6_25_75_15bar_25C`, `Casas2012_Fig6_75_25_15bar_25C` | CO₂/H₂ breakthrough on activated carbon AP3-60 at 15 bar and 25 °C, three feed compositions (Figs. 4 and 6) |
 | **Ferré (2026)** | `Ferre2026_NaYF` | CO₂/CH₄ biogas upgrading, 4-step PVSA on zeolite NaY (Table 5) |
 | **Haghpanah (2013)** | `Haghpanah2013_Sec61`, `Haghpanah2013_PL002` … `_PL010`, `Haghpanah2013_Fig5Benchmark` | CO₂/N₂ 4-step PVSA on zeolite 13X (pressurisation, adsorption, forward blowdown, reverse evacuation) with compressor and vacuum-pump energy: the Sect. 6.1 reference design, the five minimum-energy designs of Table 6, and the CSS benchmark design of Glover et al. (2026) |
-| **Nguyen (2022)** | `Nguyen2022_Fig4`, `Nguyen2022_Fig5` | CO₂/He breakthrough (70 % and 15 % CO₂) into a helium-filled bed of CALF-20 (Figs. 4 and 5) |
+| **Nguyen (2022)** | `Nguyen2022_Fig4` (70 % CO₂), `Nguyen2022_Fig4_50pct`, `Nguyen2022_Fig4_100pct`, `Nguyen2022_Fig5` (15 % CO₂), `Nguyen2022_Fig5_5pct`, `Nguyen2022_Fig5_30pct` | CO₂ in helium (Fig. 4) and CO₂ in nitrogen (Fig. 5) fed into a helium-filled bed of CALF-20 |
 | **Nguyen (2023)** | `Nguyen2023_Exp_I` … `Nguyen2023_Exp_X` | CO₂/N₂ VPSA on structured CALF-20: experiments I–V use the basic 4-step cycle, VI–X the 4-step cycle with light-product pressurisation (Table 2) |
 | **Nguyen (2025)** | `Nguyen2024_A0`, `Nguyen2024_B0` | The dry cases A0 and B0 (Table 1) of the humid-feed VSA experiments on structured CALF-20 (Adsorption 31 (2025) 45): the `Nguyen2023_Exp_VII` light-product-pressurisation deck at 0.96 bar and 22 °C. *New in 0.10.* |
 | **Perez (2019)** | `Perez2019_A`, `_B`, `_C1`, `_D1`, `_E`, `_F` | CO₂/N₂ VSA on zeolite 13X: A, B and C1 are the basic 4-step cycle, D1, E and F add light-product pressurisation (Table 3) ; `Perez2019_CaseStudy_Base` and `_Base_LPP` run A and D1 by devices on a 3-bed schedule ([case study](case-study-vsa.md), *New in 0.9.*) |
-| **Streb (2021)** | `Streb2021_A1`, `Streb2021_A3` | CO₂/CH₄ breakthrough on zeolite 13X with thermocouple data |
+| **Streb (2021)** | `Streb2021_A1` … `Streb2021_A7`, `Streb2021_B1`, `Streb2021_B2` | CO₂/CH₄ (A) and H₂/CO₂/CH₄ (B) breakthrough on zeolite 13X with thermocouple data, calibrated on A3 |
 | **Vysyaraju (2024)** | `Vysyaraju2024_PSA_exp1` | He/N₂ separation on binderless zeolite 5A, 5-step PSA |
 | **Ward (2022)** | `Ward2022_Q50ccm`, `Ward2022_Q100ccm`, `Ward2022_Q200ccm` | CO₂ breakthrough on activated carbon at three feed flow rates |
 | **Ward (2024)** | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74 (Table 4) |

@@ -1,6 +1,6 @@
 """Streb & Mazzotti (2021): CO2/CH4 breakthrough on zeolite 13X with thermocouples.
 
-Builds each case from scratch in code: the CO2/CH4/He fluid, zeolite 13X with
+Builds each case from scratch in code: the CO2/CH4(/H2)/He fluid, zeolite 13X with
 the paper's extended-Sips competitive isotherm, the 1.2 m column, the sampling
 line to the mass spectrometer, the single feed step and the solver settings.
 Every value is set explicitly, with its unit.
@@ -11,13 +11,14 @@ thermofluid coefficient and the gas volume of the sampling line. Each case's
 feed flow is its Table 2 set point times a flow factor fitted to the speed of
 its own CO2 temperature front between the thermocouples at 35 and 110 cm.
 
-Experiments A1 (1 bar) and A3 (10 bar, the reference experiment) feed a
-50:50 CO2/CH4 mixture into a helium-filled column. The outlet mole fractions
-and the five centre-line thermocouples (z = 10, 35, 60, 85, 110 cm) are
-compared with the digitised experiments (core/data/streb_2021/).
+The nine experiments of Table 2 with digitised data feed a 50:50 CO2/CH4 mixture
+(A1-A7: 1-25 bar, 25-65 C, 10-40 cm3/s) or a 75:20:5 H2/CO2/CH4 mixture (B1, B2)
+into a helium-filled column. The outlet CO2 and CH4 mole fractions and the five
+centre-line thermocouples (z = 10, 35, 60, 85, 110 cm) are compared with the
+digitised experiments (core/data/streb_2021/).
 
-    python examples/streb_2021.py
-    python examples/streb_2021.py --case A3
+    python examples/streb_2021.py               # A1 and A3
+    python examples/streb_2021.py --case B2     # any of the nine (--case repeatable)
 
 ``build("A3")`` returns the configured simulation without running it
 (python/tests/test_examples_build.py checks it against examples/decks/).
@@ -37,17 +38,22 @@ import _common as c
 import skarstrom as sk
 from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 
-# The two experiments differ in the column pressure (Table 2); both run at 25 C
-# with a 20 cm3/s set point (at column conditions) for 4100 s. The flow factor is
-# the actual flow over the set point, from the speed of the CO2 temperature front
-# (A3 calibrated within 2 % of the set point; A1 needs +5.1 %).
+# The nine experiments of Table 2 with digitised data: column pressure, temperature
+# (feed = initial = thermostat), flow set point (at column conditions), feed time
+# (covers the digitised record) and feed (binary CO2:CH4 = 50:50, ternary
+# H2:CO2:CH4 = 75:20:5). The flow factor is the actual flow over the set point, from
+# the speed of the CO2 temperature front (A3 calibrated within 2 % of the set point;
+# README "Calibration on A3").
 EXPERIMENTS = {
-    "A1": dict(pressure=1 * u.bar, flow_factor=1.051, title="Streb 2021 - Experiment A1",
-               description="Binary CO2/CH4 breakthrough on zeolite 13X at 1 bar (Streb & Mazzotti 2021, "
-                           "experiment A1); the bed is initially full of helium."),
-    "A3": dict(pressure=10 * u.bar, flow_factor=1.020, title="Streb 2021 - Experiment A3",
-               description="Binary CO2/CH4 breakthrough on zeolite 13X at 10 bar, the reference experiment "
-                           "(Streb & Mazzotti 2021, experiment A3); the bed is initially full of helium."),
+    "A1": dict(pressure=1, temperature=298.0, flow=20, flow_factor=1.051, time=4100.0, ternary=False),
+    "A2": dict(pressure=10, temperature=298.0, flow=10, flow_factor=0.939, time=1500.0, ternary=False),
+    "A3": dict(pressure=10, temperature=298.0, flow=20, flow_factor=1.020, time=4100.0, ternary=False),
+    "A4": dict(pressure=10, temperature=298.0, flow=40, flow_factor=0.906, time=1000.0, ternary=False),
+    "A5": dict(pressure=25, temperature=298.0, flow=20, flow_factor=0.978, time=750.0, ternary=False),
+    "A6": dict(pressure=10, temperature=318.15, flow=20, flow_factor=0.965, time=1050.0, ternary=False),
+    "A7": dict(pressure=10, temperature=338.15, flow=20, flow_factor=0.995, time=1100.0, ternary=False),
+    "B1": dict(pressure=1, temperature=298.0, flow=20, flow_factor=1.057, time=10400.0, ternary=True),
+    "B2": dict(pressure=10, temperature=298.0, flow=10, flow_factor=0.887, time=3350.0, ternary=True),
 }
 
 # Densities of the 13X beads and the packed bed (Table 1) give both voidages.
@@ -67,47 +73,64 @@ COLUMN_AREA = math.pi * (2.5 * u.cm) ** 2 / 4
 
 
 def build(case: str) -> sk.Simulation:
-    """The simulation of one experiment ("A1" or "A3"), ready to run."""
+    """The simulation of one experiment (a key of EXPERIMENTS), ready to run."""
     exp = EXPERIMENTS[case]
-    sim = sk.Simulation.new(title=exp["title"], description=exp["description"], author="Skarstrom examples")
+    ternary = exp["ternary"]
+    T = exp["temperature"] * u.K
+    P = exp["pressure"] * u.bar
+    feed_name = "ternary H2/CO2/CH4 75:20:5" if ternary else "binary CO2/CH4 50:50"
+    sim = sk.Simulation.new(title=f"Streb 2021 - Experiment {case}",
+                            description=f"Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment {case}, {feed_name}) "
+                                        "into a column full of helium.",
+                            author="Skarstrom examples")
+    adsorbing = ["CarbonDioxide", "Methane"] + (["Hydrogen"] if ternary else [])
+    components = adsorbing + ["Helium"]
 
-    # ---- fluid: CO2 and CH4 adsorb, helium is the inert initial gas ----------------
-    for component in ("CarbonDioxide", "Methane", "Helium"):
+    # ---- fluid: CO2, CH4 (and H2) adsorb, helium is the inert initial gas --------------
+    for component in components:
         sim.add_component(component)
     sim.fluid.adsorbed_heat_capacity_mode = "constant"
     sim.fluid.heat_of_adsorption_convention = "isosteric"
-    for component in ("CarbonDioxide", "Methane", "Helium"):
+    for component in components:
         sim.fluid.adsorbed_heat_capacity[component] = 0 * u.J / (u.mol * u.K)
     # The paper uses constant, average gas heat capacities and prints none; ours is
-    # each component's ideal-gas Cp0 at the feed temperature (298 K).
+    # each component's ideal-gas Cp0 at the feed temperature.
     sim.fluid.gas_heat_capacity_mode = "constant"
-    for component in ("CarbonDioxide", "Methane", "Helium"):
-        sim.fluid.gas_heat_capacity[component] = sk.ideal_gas_heat_capacity(component, 298.0)
+    for component in components:
+        sim.fluid.gas_heat_capacity[component] = sk.ideal_gas_heat_capacity(component, exp["temperature"])
 
     # ---- adsorbent: zeolite 13X, extended-Sips competitive isotherm (Table 3) ---------
     zeolite = sim.add_adsorbent("13X", solid_density=PARTICLE_DENSITY * u.kg / u.m**3,
                                 heat_capacity=1100 * u.J / (u.kg * u.K), thermal_conductivity=0.15 * u.W / (u.m * u.K),
                                 particle_void_fraction=PARTICLE_VOID_FRACTION)
     # Extended Sips with temperature-dependent capacity and exponent (Table 3).
-    zeolite.set_isotherm("extended_sips_2", {
+    sips = {
         "CarbonDioxide": {"A1": 7.268 * u.mol / u.kg, "A2": -0.6168, "B1": 1.129e-4 / u.bar, "B2": 28.389 * u.kJ / u.mol,
                           "C1": 0.425, "C2": 0.7238, "T_ref": 298 * u.K},
         "Methane":       {"A1": 4.473 * u.mol / u.kg, "A2": -0.6569, "B1": 3.605e-4 / u.bar, "B2": 15.561 * u.kJ / u.mol,
                           "C1": 1.073, "C2": 0.0, "T_ref": 298 * u.K},
-    }, components=["CarbonDioxide", "Methane"])
+    }
+    if ternary:
+        sips["Hydrogen"] = {"A1": 5.013 * u.mol / u.kg, "A2": 0.0, "B1": 1.034e-4 / u.bar, "B2": 9.453 * u.kJ / u.mol,
+                            "C1": 1.006, "C2": 0.0, "T_ref": 298 * u.K}
+    zeolite.set_isotherm("extended_sips_2", sips, components=adsorbing)
     zeolite.set_isotherm("inert", components=["Helium"])
     # LDF coefficients calibrated on A3 (Table 4: 0.06 and 0.2 1/s).
     zeolite.set_rate_model("CarbonDioxide", "ldf", "constant", k=LDF_CO2)
     zeolite.set_rate_model("Methane", "ldf", "constant", k=LDF_CH4)
+    if ternary:
+        zeolite.set_rate_model("Hydrogen", "ldf", "constant", k=1.0 / u.s)     # Table 4 (b): assumed
     zeolite.set_rate_model("Helium", "ldf", "constant", k=0.5 / u.s)
     # Loading-averaged isosteric heats (Sect. 4.1).
     zeolite.heat_of_adsorption["CarbonDioxide"] = 36.3 * u.kJ / u.mol
     zeolite.heat_of_adsorption["Methane"] = 18.8 * u.kJ / u.mol
+    if ternary:
+        zeolite.heat_of_adsorption["Hydrogen"] = 10.7 * u.kJ / u.mol
     zeolite.heat_of_adsorption["Helium"] = 0 * u.kJ / u.mol
 
-    # ---- column: 1.2 m x 2.5 cm, thermostatted at 25 C --------------------------------
+    # ---- column: 1.2 m x 2.5 cm, thermostatted at the experiment's temperature -----------
     sim.bed.set_shape("cylinder", diameter=2.5 * u.cm)
-    sim.bed.ambient_temperature = 298 * u.K
+    sim.bed.ambient_temperature = T
     sim.bed.set_thermal_equilibrium("lte")
     sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
     for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
@@ -133,8 +156,8 @@ def build(case: str) -> sk.Simulation:
     line_solid = sim.add_adsorbent("Sampling line", solid_density=1000 * u.kg / u.m**3,
                                    heat_capacity=500 * u.J / (u.kg * u.K), thermal_conductivity=0.15 * u.W / (u.m * u.K),
                                    particle_void_fraction=0.0)
-    line_solid.set_isotherm("inert", components=["CarbonDioxide", "Methane", "Helium"])
-    for component in ("CarbonDioxide", "Methane", "Helium"):
+    line_solid.set_isotherm("inert", components=components)
+    for component in components:
         line_solid.set_rate_model(component, "ldf", "constant", k=0.5 / u.s)
         line_solid.heat_of_adsorption[component] = 0 * u.kJ / u.mol
     line = sim.add_layer("Sampling line", composition={"Sampling line": 1.0}, momentum="kozeny_carman",
@@ -146,23 +169,24 @@ def build(case: str) -> sk.Simulation:
     line.set_external_heat_transfer("constant", external_htc=0 * u.W / (u.m**2 * u.K))
 
     # ---- initial state: the column full of helium at the experiment's pressure -----------
-    sim.initial_conditions.pressure = exp["pressure"]
-    sim.initial_conditions.temperature = 298 * u.K
-    sim.initial_conditions.wall_temperature = 298 * u.K
+    sim.initial_conditions.pressure = P
+    sim.initial_conditions.temperature = T
+    sim.initial_conditions.wall_temperature = T
     sim.initial_conditions.velocity = 0 * u.m / u.s
-    sim.initial_conditions.y["Helium"] = 1.0
-    sim.initial_conditions.y["Methane"] = 0.0
-    sim.initial_conditions.y["CarbonDioxide"] = 0.0
+    for component in components:
+        sim.initial_conditions.y[component] = 1.0 if component == "Helium" else 0.0
 
-    # ---- one feed step: 50:50 CO2/CH4 breakthrough ---------------------------------------
+    # ---- one feed step ----------------------------------------------------------------------
+    feed_y = ({"CarbonDioxide": 0.20, "Methane": 0.05, "Hydrogen": 0.75, "Helium": 0.0} if ternary
+              else {"CarbonDioxide": 0.5, "Methane": 0.5, "Helium": 0.0})
     sim.cycle.number_of_cycles = 1
     sim.cycle.step_time_mode = "time"
-    feed = sim.add_step("Feed", time=4100 * u.s)
+    feed = sim.add_step("Feed", time=exp["time"] * u.s)
     feed.bottom.set_streams("inlet", [
-        sk.Stream("Binary Feed", flow=sk.volumetric_flow(20e-6 * exp["flow_factor"] * u.m**3 / u.s),
-                  y={"Helium": 0.0, "Methane": 0.5, "CarbonDioxide": 0.5}, temperature=298 * u.K),
+        sk.Stream("Ternary Feed" if ternary else "Binary Feed",
+                  flow=sk.volumetric_flow(exp["flow"] * 1e-6 * exp["flow_factor"] * u.m**3 / u.s), y=feed_y, temperature=T),
     ])
-    feed.top.set_pressure("outlet", exp["pressure"], y={"CarbonDioxide": 0.0, "Methane": 0.0, "Helium": 1.0},
+    feed.top.set_pressure("outlet", P, y={component: (1.0 if component == "Helium" else 0.0) for component in components},
                           temperature=293 * u.K)
 
     # ---- solver (SUNDIALS IDA); a single step, so no cyclic-steady-state check --------------
@@ -193,12 +217,12 @@ def build(case: str) -> sk.Simulation:
 
 
 CASES = list(EXPERIMENTS)
-DECKS = {"A1": "Streb2021_A1", "A3": "Streb2021_A3"}       # the shipped deck of each case
+DECKS = {case: f"Streb2021_{case}" for case in EXPERIMENTS}   # the shipped deck of each case
 Z_CM = [10, 35, 60, 85, 110]                                # thermocouple positions [cm]
 
 
 def main(argv=None) -> int:
-    args = c.parser(__doc__.splitlines()[0], list(CASES)).parse_args(argv)
+    args = c.parser(__doc__.splitlines()[0], list(CASES), default=["A1", "A3"]).parse_args(argv)
     plt = c.pyplot(args)
     rows = []
     for name in c.selected(args):

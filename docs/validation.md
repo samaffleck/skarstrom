@@ -16,7 +16,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 
 ## Summary
 
-68 cases from 13 publications; 234 asserted comparisons (0 outside their recorded tolerance) and 130 informational ones. Summary generated on 2026-11-12.
+68 cases from 13 publications; 255 asserted comparisons (0 outside their recorded tolerance) and 130 informational ones. Summary generated on 2026-11-12.
 
 | Publication | Cases | Against | Comparisons | Median error | Worst error |
 |---|---|---|---|---|---|
@@ -24,7 +24,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Casas et al. (2012) / Schell et al. (2012)](#casas-2012) | 4 | paper model, isotherm fit | 8 | 3.35 % (rel. error)<br/>0.595 % (max rel. error) | 16.8 % (rel. error)<br/>6.99 % (max rel. error) |
 | [Ferré et al. (2026)](#ferre-2026) | 4 | paper model | 20 | 0.787 pp (abs. error)<br/>6.74 % (rel. error) | 11.5 pp (abs. error)<br/>59.4 % (rel. error) |
 | [Haghpanah et al. (2013) / Glover et al. (2026)](#haghpanah-2013) | 7 | reference | 23 | 4.10e-4 (abs. error)<br/>0.61 pp (abs. error)<br/>2.77 % (rel. error) | 4.10e-4 (abs. error)<br/>1.59 pp (abs. error)<br/>4.11 % (rel. error) |
-| [Nguyen et al. (2022)](#nguyen-2022) | 6 | experiment | 12 | 9.71 % (NRMSE)<br/>0.751 % (rel. error) | 13.7 % (NRMSE)<br/>4.81 % (rel. error) |
+| [Nguyen et al. (2022)](#nguyen-2022) | 6 | experiment, paper model | 33 | 11.8 % (NRMSE)<br/>4.01 % (rel. error)<br/>1.72 K (RMSE) | 29.4 % (NRMSE)<br/>10.9 % (rel. error)<br/>7.97 K (RMSE) |
 | [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.05 pp (abs. error)<br/>8.42 % (rel. error) | 8.39 pp (abs. error)<br/>15.9 % (rel. error) |
 | [Nguyen et al. (2025)](#nguyen-2024) | 2 | experiment | 2 | 0.931 pp (abs. error)<br/>2.01 % (rel. error) | 0.931 pp (abs. error)<br/>2.01 % (rel. error) |
 | [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 2.02 pp (abs. error) | 5.81 pp (abs. error) |
@@ -218,42 +218,79 @@ Input decks, assumptions and known discrepancies: [`core/test/papers/haghpanah_2
 
 T.T.T. Nguyen, J.-B. Lin, G.K.H. Shimizu, A. Rajendran, Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20, Chemical Engineering Journal 442 (2022) 136263. [doi:10.1016/j.cej.2022.136263](https://doi.org/10.1016/j.cej.2022.136263)
 
-*System:* CO2 breakthrough on CALF-20. *Compared against:* digitised experimental breakthrough curves (Figs. 4, 5).
+*System:* CO2/He and CO2/N2 breakthrough on CALF-20 (six runs of Figs. 4 and 5). *Compared against:* measured markers re-digitised from Figs. 4 and 5 (outlet y_CO2, y_N2, thermocouple); the paper's model curves (code to code).
 
 **Findings.**
 
-- Outlet CO2 curves agree with the digitised Figs. 4 and 5 to an NRMSE of 8-12 % and the CO2 front position (half the feed fraction) to 0.7-5 %.
-- The paper text is not in the repo. The four additional feed fractions assume the same flow as the bundled case of the same figure (50 ccm for Fig. 4, 100 ccm for Fig. 5); Fig. 5 is described as a CO2/N2/He experiment but the deck feeds CO2 in He. Particle diameter and ambient temperature are assumptions (see the README).
+- The curves used until 2026-11-12 as the experiment were the paper's model lines, digitised; the measured markers were re-digitised from the 300 dpi figures, with each run's flow, temperature and pressure from the author's thesis (Table A2.1). Fig. 5 is a CO2/N2 feed (the decks fed CO2 in helium before).
+- With the paper's parameters and model forms (nothing fitted), the CO2 fronts are +6.5, +3.2, +10.9 % (Fig. 4: 100, 70, 50 % CO2) and -7.2, +5.6, -9.7 % (Fig. 5: 30, 15, 5 %) from the measurements; the paper's own model is +7.6, +5.0, +15.4, -9.6, +10.0, -5.8 %. Code to code the fronts agree with the paper's model within 0.1-4.1 %.
+- Fig. 5 thermocouple RMSE 1.0-2.7 K and outlet N2 RMSE 0.04-0.28; the Fig. 4 temperature peaks are 6-8 K above the measurement and 5-6 K above the paper's model (open item). Calibrating the thermal values on Fig. 4, as the paper did, makes the Fig. 5 temperatures worse, so no calibration is shipped. The particle diameter (1.5 mm, pellets 1-3 mm) and the wall-end condition are assumptions.
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| Fig4_BinaryBreakthrough | outlet y_CO2 | experiment | curve | digitised data | 8.9 % NRMSE | 10 % | Fig. 4 (digitised) |
-| Fig4_BinaryBreakthrough | CO2 front time (y_CO2 = y_feed/2) | experiment | 1734 s | 1747 s | 0.751 % rel. error | 2.7 % | Fig. 4 (digitised) |
-| Fig4_Binary_100pct | outlet y_CO2 | experiment | curve | digitised data | 10.4 % NRMSE | 12 % | Fig. 4 (digitised) |
-| Fig4_Binary_100pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1251 s | 1258 s | 0.58 % rel. error | 1.7 % | Fig. 4 (digitised) |
-| Fig4_Binary_50pct | outlet y_CO2 | experiment | curve | digitised data | 9.71 % NRMSE | 14 % | Fig. 4 (digitised) |
-| Fig4_Binary_50pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 2364 s | 2441 s | 3.15 % rel. error | 6 % | Fig. 4 (digitised) |
-| Fig5_TernaryBreakthrough | outlet y_CO2 | experiment | curve | digitised data | 8.49 % NRMSE | 9.7 % | Fig. 5 (digitised) |
-| Fig5_TernaryBreakthrough | CO2 front time (y_CO2 = y_feed/2) | experiment | 3202 s | 3364 s | 4.81 % rel. error | 5.9 % | Fig. 5 (digitised) |
-| Fig5_Ternary_30pct | outlet y_CO2 | experiment | curve | digitised data | 10.1 % NRMSE | 13 % | Fig. 5 (digitised) |
-| Fig5_Ternary_30pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1728 s | 1708 s | 1.15 % rel. error | 3.9 % | Fig. 5 (digitised) |
-| Fig5_Ternary_5pct | outlet y_CO2 | experiment | curve | digitised data | 13.7 % NRMSE | 15 % | Fig. 5 (digitised) |
-| Fig5_Ternary_5pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 7401 s | 7397 s | 0.0573 % rel. error | 0.26 % | Fig. 5 (digitised) |
+| Fig4_100pct | outlet y_CO2 | experiment | curve | digitised data | 29.4 % NRMSE | 33 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_100pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1236 s | 1160 s | 6.52 % rel. error | 7.5 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_100pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 7.97 K RMSE | 9 K | Fig. 4 (measured markers, re-digitised) |
+| Fig4_100pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 15.3 % NRMSE | 17 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_100pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1236 s | 1258 s | 1.79 % rel. error | 2 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_50pct | outlet y_CO2 | experiment | curve | digitised data | 18.8 % NRMSE | 21 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_50pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 2346 s | 2116 s | 10.9 % rel. error | 12 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_50pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 6.28 K RMSE | 7 K | Fig. 4 (measured markers, re-digitised) |
+| Fig4_50pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 10.7 % NRMSE | 12 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_50pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 2346 s | 2441 s | 3.89 % rel. error | 4.5 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_70pct | outlet y_CO2 | experiment | curve | digitised data | 11.8 % NRMSE | 13 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_70pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1718 s | 1664 s | 3.25 % rel. error | 4 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_70pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 5.23 K RMSE | 6 K | Fig. 4 (measured markers, re-digitised) |
+| Fig4_70pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 8.88 % NRMSE | 10 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_70pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1718 s | 1747 s | 1.65 % rel. error | 2 % | Fig. 4 (paper's model curve, digitised) |
+| Fig5_15pct | outlet y_CO2 | experiment | curve | digitised data | 13.4 % NRMSE | 15 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_15pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 3229 s | 3059 s | 5.56 % rel. error | 6.5 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_15pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 1.03 K RMSE | 1.25 K | Fig. 5 (measured markers, re-digitised) |
+| Fig5_15pct | outlet y_N2 | experiment | curve | digitised data | 0.139 RMSE | 0.16 | Fig. 5 (measured markers, re-digitised) |
+| Fig5_15pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 8.49 % NRMSE | 10 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_15pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 3229 s | 3364 s | 4.01 % rel. error | 4.5 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_30pct | outlet y_CO2 | experiment | curve | digitised data | 15.2 % NRMSE | 17 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_30pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1706 s | 1839 s | 7.25 % rel. error | 8 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_30pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 2.66 K RMSE | 3 K | Fig. 5 (measured markers, re-digitised) |
+| Fig5_30pct | outlet y_N2 | experiment | curve | digitised data | 0.282 RMSE | 0.32 | Fig. 5 (measured markers, re-digitised) |
+| Fig5_30pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 9.94 % NRMSE | 11 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_30pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1706 s | 1708 s | 0.146 % rel. error | 0.5 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_5pct | outlet y_CO2 | experiment | curve | digitised data | 9.49 % NRMSE | 11 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_5pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 7091 s | 7849 s | 9.66 % rel. error | 11 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_5pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 1.72 K RMSE | 2 K | Fig. 5 (measured markers, re-digitised) |
+| Fig5_5pct | outlet y_N2 | experiment | curve | digitised data | 0.0355 RMSE | 0.04 | Fig. 5 (measured markers, re-digitised) |
+| Fig5_5pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 13 % NRMSE | 15 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_5pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 7091 s | 7397 s | 4.14 % rel. error | 5 % | Fig. 5 (paper's model curve, digitised) |
 
 ??? note "Notes on these comparisons"
 
-    - RMSE over 21 digitised points; normalised by 0.7 -
-    - first time the curve reaches 0.35 (reference time interpolated from the digitised points)
-    - RMSE over 15 digitised points; normalised by 1 -
+    - RMSE over 13 digitised points; normalised by 1 -
     - first time the curve reaches 0.5 (reference time interpolated from the digitised points)
-    - RMSE over 24 digitised points; normalised by 0.5 -
+    - RMSE over 25 digitised points
+    - RMSE over 15 digitised points; normalised by 1 -
+    - RMSE over 64 digitised points; normalised by 0.5 -
     - first time the curve reaches 0.25 (reference time interpolated from the digitised points)
-    - RMSE over 31 digitised points; normalised by 0.15 -
+    - RMSE over 31 digitised points
+    - RMSE over 24 digitised points; normalised by 0.5 -
+    - RMSE over 70 digitised points; normalised by 0.7 -
+    - first time the curve reaches 0.35 (reference time interpolated from the digitised points)
+    - RMSE over 34 digitised points
+    - RMSE over 22 digitised points; normalised by 0.7 -
+    - RMSE over 45 digitised points; normalised by 0.15 -
     - first time the curve reaches 0.075 (reference time interpolated from the digitised points)
-    - RMSE over 32 digitised points; normalised by 0.3 -
+    - RMSE over 38 digitised points
+    - RMSE over 28 digitised points
+    - RMSE over 31 digitised points; normalised by 0.15 -
+    - RMSE over 26 digitised points; normalised by 0.3 -
     - first time the curve reaches 0.15 (reference time interpolated from the digitised points)
-    - RMSE over 16 digitised points; normalised by 0.05 -
+    - RMSE over 29 digitised points
+    - RMSE over 14 digitised points
+    - RMSE over 32 digitised points; normalised by 0.3 -
+    - RMSE over 81 digitised points; normalised by 0.05 -
     - first time the curve reaches 0.025 (reference time interpolated from the digitised points)
+    - RMSE over 69 digitised points
+    - RMSE over 48 digitised points
+    - RMSE over 16 digitised points; normalised by 0.05 -
 
 Input decks, assumptions and known discrepancies: [`core/test/papers/nguyen_2022/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/nguyen_2022/README.md).
 

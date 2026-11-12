@@ -19,7 +19,7 @@ FAST = {
     "calibrate_ward_2022": ["--quick"],
     "calibrate_cycle_kpis": ["--quick"],
     "casas_2012": ["--case", "Fig4_50_50"],
-    "nguyen_2022": ["--case", "Fig5"],
+    "nguyen_2022": ["--case", "Fig5_15pct"],
     "streb_2021": ["--case", "A1"],
     "arora_2021": ["--case", "LiLSX_PSA", "--cycles", "2"],
     "ferre_2026": ["--cycles", "2"],
