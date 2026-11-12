@@ -13,7 +13,8 @@
 // isotherm and rate-model kinds, reactions), the column and its wall, layers,
 // steps with their bottom and top ends (closed, pressure or flow; streams,
 // profiles, pumps, buffer tanks), heating media and energy sources,
-// connections, the KPI configuration, user variables -- and attaches to each
+// connections, the KPI configuration, user variables, the experimental
+// datasets with their points and observable bindings -- and attaches to each
 // node the EDITABLE VALUES that belong to it. Every value is an entry of the
 // parameter registry (adsim/parameters/parameter_registry.h), given with its
 // registry path and the registry's value, text, unit, bounds, kind, choices

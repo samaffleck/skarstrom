@@ -205,7 +205,7 @@ sim.kpi.track("CO2", feed=[feed.bottom], product=[evac.bottom])
 - **User variables:** `sim.add_variable("t_feed", 60 * u.s, category="time")`, then `time="t_feed"`. `formula="t_feed / 3"` makes a variable from other variables.
 - **Pump-driven streams:** `sk.PumpStream(name, power=, pump=)`. The power is a constant or `sk.polynomial_power(a, b, ...)`.
 - **Buffer tanks:** `inlet.set_buffer_tank(source, percentage=)`.
-- **Measured data in the deck:** `sim.experimental_data` (`add`, `load_csv`, `[name].compare(x, y)`).
+- **Measured data in the deck:** `sim.experimental_data` (`add`, `load_csv`, `[name].compare(x, y)`). A dataset can record what it measures: `add(..., observable=sk.Observable("mole_fraction", "CO2", location="top"), x_unit="min", y_unit="%")`, then `[name].simulated(sim)` and `[name].compare(sim)` after a run.
 - The builder does not make cost data.
 
 ### Results

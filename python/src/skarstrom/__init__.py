@@ -146,6 +146,7 @@ __all__ = [
     "EnergySource",
     "ExperimentalData",
     "ExperimentalSeries",
+    "Observable",
     "Endpoint",
     "Example",
     "Flow",
@@ -325,25 +326,239 @@ def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool)
 
 
-@dataclass(frozen=True)
+class Observable:
+    """What a dataset measures: the simulated quantity it is compared with
+    (``adsim/solver/experimental_data.h``).
+
+    ``variable`` is a bulk series name (:func:`bulk_variables`: ``"temperature"``,
+    ``"pressure"``...), a component series name (:func:`component_variables`:
+    ``"mole_fraction"``...; give ``component``) or a per-cycle KPI
+    (``sensitivity.kpi_names()``: ``"purity"``, ``"recovery"``...; give the
+    tracked ``component``). The kind (``"bulk"``, ``"component"``, ``"kpi"``) is
+    inferred from the name unless ``kind`` is given.
+
+    For a time series, ``location`` is ``"top"``, ``"bottom"`` or a position z
+    [m] from the bottom of the column (a number, or a pint length), and
+    ``cycle`` is the 0-based cycle (-1: the last logged one); x is time from
+    the start of that cycle. For a KPI, x is the cycle number and the solver's
+    0-based cycle index is ``x + cycle_offset`` (``cycle_offset=-1`` for
+    1-based data).
+    """
+
+    __slots__ = ("kind", "variable", "component", "location", "z", "cycle", "cycle_offset")
+
+    def __init__(self, variable: str, component: str = "", location: Any = "top", cycle: int = -1,
+                 cycle_offset: int = 0, kind: Optional[str] = None) -> None:
+        if kind is None:
+            if variable in _core.bulk_variables():
+                kind = "bulk"
+            elif variable in _core.component_variables():
+                kind = "component"
+            elif variable in sensitivity.kpi_names():
+                kind = "kpi"
+            else:
+                raise ValueError(f"unknown observable {variable!r}: not a bulk or component series name "
+                                 "(skarstrom.bulk_variables(), skarstrom.component_variables()) or a KPI "
+                                 "(skarstrom.sensitivity.kpi_names())")
+        z = 0.0
+        if isinstance(location, str):
+            if location not in ("top", "bottom", "position"):
+                raise ValueError(f"location must be 'top', 'bottom' or a position z [m]; got {location!r}")
+        else:
+            z = units._quantity_to(location, "m", "location") if units.is_quantity(location) else float(location)
+            location = "position"
+        for name, value in (("kind", kind), ("variable", variable), ("component", component or ""),
+                            ("location", location), ("z", z), ("cycle", int(cycle)),
+                            ("cycle_offset", int(cycle_offset))):
+            object.__setattr__(self, name, value)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise AttributeError("Observable is immutable; make a new one")
+
+    @classmethod
+    def from_dict(cls, d: Mapping[str, Any]) -> Optional["Observable"]:
+        """The binding of the engine's dict form (``None`` for kind ``"none"``)."""
+        if d.get("kind", "none") == "none":
+            return None
+        loc = d.get("z", 0.0) if d.get("location") == "position" else d.get("location", "top")
+        return cls(d["variable"], d.get("component", ""), loc, d.get("cycle", -1), d.get("cycle_offset", 0),
+                   kind=d["kind"])
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {name: getattr(self, name) for name in self.__slots__}
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Observable) and self.to_dict() == other.to_dict()
+
+    def __hash__(self) -> int:
+        return hash(tuple(self.to_dict().values()))
+
+    def __repr__(self) -> str:
+        args = [repr(self.variable)]
+        if self.component:
+            args.append(f"component={self.component!r}")
+        if self.kind == "kpi":
+            if self.cycle_offset:
+                args.append(f"cycle_offset={self.cycle_offset}")
+        else:
+            args.append(f"location={self.z!r}" if self.location == "position" else f"location={self.location!r}")
+            if self.cycle != -1:
+                args.append(f"cycle={self.cycle}")
+        return f"Observable({', '.join(args)})"
+
+
+ObservableLike = Union[Observable, Mapping[str, Any], None]
+
+
+def _observable_dict(observable: ObservableLike, x_unit: Optional[str], y_unit: Optional[str],
+                     uncertainty: Optional[Sequence[float]], weight: Optional[float],
+                     base: Optional[Mapping[str, Any]] = None, sim: Optional["Simulation"] = None) -> Dict[str, Any]:
+    """The engine's binding dict: the observable, units, uncertainty and weight
+    (``None`` keeps the value in ``base``, the dataset's current binding). With
+    ``sim``, a component given by formula or alias ("CO2") takes the deck's name."""
+    d: Dict[str, Any] = dict(base) if base else {}
+    d.pop("si_unit", None)
+    d.pop("x_axis", None)
+    if isinstance(observable, Mapping):
+        observable = Observable.from_dict({"kind": None, **observable})  # kind inferred when absent
+        if observable is None:
+            d["kind"] = "none"
+    if isinstance(observable, Observable):
+        d.update(observable.to_dict())
+    elif observable is not None:
+        raise TypeError(f"observable must be an Observable, a dict or None; got {observable!r}")
+    if x_unit is not None:
+        d["x_unit"] = x_unit
+    if y_unit is not None:
+        d["y_unit"] = y_unit
+    if uncertainty is not None:
+        d["uncertainty"] = [float(v) for v in uncertainty]
+    if weight is not None:
+        d["weight"] = float(weight)
+    if sim is not None and d.get("component"):
+        try:
+            d["component"] = sim._component(d["component"])
+        except KeyError:
+            pass  # the engine names the problem
+    return {k: v for k, v in d.items() if v is not None}
+
+
 class ExperimentalSeries:
-    """One set of measured (x, y) points stored in the deck."""
+    """One set of measured (x, y) points stored in the deck, and what they measure.
 
-    name: str
-    x: np.ndarray
-    y: np.ndarray
-    x_label: str = ""
-    y_label: str = ""
+    ``observable`` (an :class:`Observable`, or ``None`` when not bound),
+    ``x_unit``, ``y_unit``, ``uncertainty`` and ``weight`` are written back to
+    the deck when assigned. The points are kept as measured, in ``x_unit``
+    (a time unit, or ``"cycle"`` for a KPI) and ``y_unit`` (empty: the
+    observable's SI unit, ``si_unit``).
+    """
 
-    def compare(self, x: Any, y: Any, normalise: Optional[float] = None) -> Dict[str, float]:
-        """Compare a simulated curve (``x``, ``y``, e.g. a :class:`TimeSeries`'s ``time`` and
-        ``values``) with these points.
+    def __init__(self, name: str, x: np.ndarray, y: np.ndarray, x_label: str = "", y_label: str = "",
+                 binding: Optional[Mapping[str, Any]] = None, _owner: Optional["ExperimentalData"] = None,
+                 _index: Optional[int] = None) -> None:
+        self.name = name
+        self.x = np.asarray(x, dtype=float)
+        self.y = np.asarray(y, dtype=float)
+        self.x_label = x_label
+        self.y_label = y_label
+        self._binding: Dict[str, Any] = dict(binding) if binding else {"kind": "none", "x_unit": "s", "y_unit": "",
+                                                                        "uncertainty": None, "weight": 1.0}
+        self._owner = _owner
+        self._index = _index
 
-        The simulation is interpolated linearly at the measured x values that it
-        covers. Returns ``rmse``, ``nrmse`` (the RMSE over ``normalise``, by
-        default the range of the measured y), ``max_abs_error`` and ``points``
-        (how many measured points were compared).
+    # -- the binding (read; write-through when the series is in a deck) --------
+    def _rebind(self, **changes: Any) -> None:
+        sim = self._owner._sim if self._owner is not None else None
+        d = _observable_dict(changes.pop("observable", None), base=self._binding, sim=sim, **{
+            k: changes.get(k) for k in ("x_unit", "y_unit", "uncertainty", "weight")})
+        if "unbind" in changes:
+            d["kind"] = "none"
+        if self._owner is not None and self._index is not None:
+            self._owner._sim._sim.set_experimental_data_binding(self._index, d)
+            self._binding = dict(self._owner._sim._sim.experimental_data()[self._index]["observable"])
+        else:
+            self._binding = d
+
+    @property
+    def observable(self) -> Optional[Observable]:
+        return Observable.from_dict(self._binding)
+
+    @observable.setter
+    def observable(self, value: ObservableLike) -> None:
+        if value is None:
+            self._rebind(unbind=True)
+        else:
+            self._rebind(observable=value)
+
+    @property
+    def x_unit(self) -> str:
+        return self._binding.get("x_unit", "s")
+
+    @x_unit.setter
+    def x_unit(self, value: str) -> None:
+        self._rebind(x_unit=value)
+
+    @property
+    def y_unit(self) -> str:
+        return self._binding.get("y_unit", "")
+
+    @y_unit.setter
+    def y_unit(self, value: str) -> None:
+        self._rebind(y_unit=value)
+
+    @property
+    def si_unit(self) -> str:
+        """The observable's SI unit (empty when not bound)."""
+        return self._binding.get("si_unit", "")
+
+    @property
+    def uncertainty(self) -> Optional[np.ndarray]:
+        u = self._binding.get("uncertainty")
+        return None if u is None else np.asarray(u, dtype=float)
+
+    @uncertainty.setter
+    def uncertainty(self, value: Optional[Sequence[float]]) -> None:
+        self._rebind(uncertainty=[] if value is None else value)
+
+    @property
+    def weight(self) -> float:
+        return float(self._binding.get("weight", 1.0))
+
+    @weight.setter
+    def weight(self, value: float) -> None:
+        self._rebind(weight=value)
+
+    # -- the simulation side ------------------------------------------------------
+    def simulated(self, sim: "Simulation") -> tuple:
+        """The simulated counterpart of these points after ``sim`` ran: ``(x, y)``
+        NumPy arrays in this dataset's units (time from the cycle start in
+        ``x_unit``, or the cycle number for a KPI; y in ``y_unit``). Requires an
+        :attr:`observable`."""
+        if self.observable is None:
+            raise ValueError(f"dataset {self.name!r} is not bound to an observable; set .observable first")
+        return sim._sim.simulated_dataset(self.name, self.x.tolist(), self.y.tolist(), self._engine_binding(sim))
+
+    def compare(self, x: Any, y: Any = None, normalise: Optional[float] = None) -> Dict[str, float]:
+        """Compare these points with a simulation.
+
+        ``compare(sim)``: the engine extracts the bound observable from ``sim``'s
+        last run (:meth:`simulated`) and compares in this dataset's units.
+        Returns ``rmse``, ``nrmse`` (RMSE over the range of the measured y),
+        ``max_abs_error``, ``points`` (measured points compared; a time series is
+        interpolated at the measured times it covers, a KPI matched by cycle)
+        and ``weighted_sse`` (``weight * sum((r / uncertainty)**2)``).
+
+        ``compare(x, y)``: a simulated curve given directly (e.g. a
+        :class:`TimeSeries`'s ``time`` and ``values``), interpolated linearly at
+        the measured x it covers; ``nrmse`` is the RMSE over ``normalise``
+        (default: the range of the measured y).
         """
+        if y is None and isinstance(x, Simulation):
+            if self.observable is None:
+                raise ValueError(f"dataset {self.name!r} is not bound to an observable; set .observable first")
+            return dict(x._sim.compare_dataset(self.name, self.x.tolist(), self.y.tolist(), self._engine_binding(x)))
+        if y is None:
+            raise TypeError("compare takes a Simulation, or the simulated x and y")
         xs = np.asarray(x, dtype=float)
         ys = np.asarray(y, dtype=float)
         inside = (self.x >= xs.min()) & (self.x <= xs.max())
@@ -355,11 +570,20 @@ class ExperimentalSeries:
         return {"rmse": rmse, "nrmse": rmse / scale if scale > 0 else math.nan,
                 "max_abs_error": float(np.max(np.abs(err))), "points": int(inside.sum())}
 
+    def _engine_binding(self, sim: Optional["Simulation"] = None) -> Dict[str, Any]:
+        return _observable_dict(None, None, None, None, None, base=self._binding, sim=sim)
+
+    def __repr__(self) -> str:
+        bound = f", observable={self.observable!r}" if self.observable is not None else ""
+        return f"<ExperimentalSeries {self.name!r}: {len(self.x)} points{bound}>"
+
 
 class ExperimentalData:
     """Measured data stored in the deck (``sim.experimental_data``): breakthrough
     curves, temperature histories, KPIs per cycle... It is saved with the deck,
-    so a case and the data it is checked against travel together.
+    so a case and the data it is checked against travel together. Each dataset
+    can record what it measures (its :class:`Observable`), so
+    ``dataset.compare(sim)`` needs no further description.
 
     Index by name or position; ``add``, ``load_csv``, ``remove`` and ``clear``
     change it.
@@ -369,22 +593,39 @@ class ExperimentalData:
         self._sim = sim
 
     def _all(self) -> List[ExperimentalSeries]:
-        return [ExperimentalSeries(d["name"], np.asarray(d["x"]), np.asarray(d["y"]), d["x_label"], d["y_label"])
-                for d in self._sim._sim.experimental_data()]
+        return [ExperimentalSeries(d["name"], np.asarray(d["x"]), np.asarray(d["y"]), d["x_label"], d["y_label"],
+                                   d["observable"], _owner=self, _index=i)
+                for i, d in enumerate(self._sim._sim.experimental_data())]
 
-    def add(self, name: str, x: Sequence[float], y: Sequence[float], x_label: str = "",
-            y_label: str = "") -> ExperimentalSeries:
-        """Store a set of points; ``x_label`` and ``y_label`` describe the columns (e.g. ``"time [s]"``)."""
-        self._sim._sim.add_experimental_data(name, [float(v) for v in x], [float(v) for v in y], x_label, y_label)
+    def add(self, name: str, x: Sequence[float], y: Sequence[float], x_label: str = "", y_label: str = "",
+            observable: ObservableLike = None, x_unit: Optional[str] = None, y_unit: Optional[str] = None,
+            uncertainty: Optional[Sequence[float]] = None, weight: Optional[float] = None) -> ExperimentalSeries:
+        """Store a set of points.
+
+        ``x_label`` and ``y_label`` describe the columns (e.g. ``"time [s]"``).
+        ``observable`` (an :class:`Observable`) says what they measure;
+        ``x_unit`` (a time unit, default ``"s"``) and ``y_unit`` (default: the
+        observable's SI unit) the units they are in; ``uncertainty`` a per-point
+        standard deviation in ``y_unit`` and ``weight`` the dataset's weight in
+        a fit. The engine checks the binding against the deck (ValueError).
+        """
+        binding = _observable_dict(observable, x_unit, y_unit, uncertainty, weight, sim=self._sim)
+        self._sim._sim.add_experimental_data(name, [float(v) for v in x], [float(v) for v in y], x_label, y_label,
+                                             binding)
         return self[-1]
 
     def load_csv(self, path: PathLike, name: Optional[str] = None, x_column: Union[int, str] = 0,
-                 y_column: Union[int, str] = 1, delimiter: Optional[str] = None) -> ExperimentalSeries:
+                 y_column: Union[int, str] = 1, delimiter: Optional[str] = None, observable: ObservableLike = None,
+                 x_unit: Optional[str] = None, y_unit: Optional[str] = None,
+                 uncertainty_column: Union[int, str, None] = None,
+                 weight: Optional[float] = None) -> ExperimentalSeries:
         """Read two columns of a delimited text file (comma, semicolon, tab or
         whitespace; a header row is detected and gives the labels).
 
         Columns are chosen by position or by header name. ``name`` defaults to
-        the file name without its extension.
+        the file name without its extension. ``uncertainty_column`` reads a
+        per-point standard deviation; ``observable``, ``x_unit``, ``y_unit`` and
+        ``weight`` are as in :meth:`add`.
         """
         import csv
 
@@ -412,14 +653,18 @@ class ExperimentalData:
                 raise KeyError(f"no column {column!r} in {os.fspath(path)}")
             return header.index(column)
 
-        ix, iy = index(x_column), index(y_column)
-        pts = [(number(r[ix]), number(r[iy])) for r in body if len(r) > max(ix, iy)]
-        pts = [(a, b) for a, b in pts if a is not None and b is not None]
+        cols = [index(x_column), index(y_column)]
+        if uncertainty_column is not None:
+            cols.append(index(uncertainty_column))
+        pts = [tuple(number(r[i]) for i in cols) for r in body if len(r) > max(cols)]
+        pts = [p for p in pts if all(v is not None for v in p)]
         if not pts:
             raise ValueError(f"no numeric rows in {os.fspath(path)}")
         label = (lambda i: header[i] if header else "")
         return self.add(name or os.path.splitext(os.path.basename(os.fspath(path)))[0],
-                        [a for a, _ in pts], [b for _, b in pts], label(ix), label(iy))
+                        [p[0] for p in pts], [p[1] for p in pts], label(cols[0]), label(cols[1]),
+                        observable=observable, x_unit=x_unit, y_unit=y_unit,
+                        uncertainty=[p[2] for p in pts] if uncertainty_column is not None else None, weight=weight)
 
     def remove(self, key: Union[int, str]) -> None:
         """Delete one set (by name or position)."""
@@ -455,8 +700,15 @@ class ExperimentalData:
     def __contains__(self, name: object) -> bool:
         return name in self.names()
 
+    def compare(self, sim: "Simulation") -> Dict[str, Dict[str, float]]:
+        """``compare(sim)`` of every bound dataset, by name."""
+        return {s.name: s.compare(sim) for s in self._all() if s.observable is not None}
+
     def __repr__(self) -> str:
-        rows = [f"  {s.name!r}: {len(s.x)} points ({s.x_label or 'x'} vs {s.y_label or 'y'})" for s in self._all()]
+        def row(s: ExperimentalSeries) -> str:
+            what = f" -> {s.observable!r}" if s.observable is not None else ""
+            return f"  {s.name!r}: {len(s.x)} points ({s.x_label or 'x'} vs {s.y_label or 'y'}){what}"
+        rows = [row(s) for s in self._all()]
         return "<experimental data" + (":\n" + "\n".join(rows) if rows else ": none") + ">"
 
 

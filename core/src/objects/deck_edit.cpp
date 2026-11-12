@@ -1290,4 +1290,43 @@ bool SetPumpPowerKind(UserData& data, size_t endpoint_id, PumpPowerType kind, st
   return true;
 }
 
+// ---- experimental datasets ------------------------------------------------------
+
+bool AddExperimentalData(UserData& data, XYData dataset, size_t& index, std::string& err) {
+  if (dataset.x.size() != dataset.y.size()) {
+    err = "x and y differ in length";
+    return false;
+  }
+  if (dataset.x.empty()) {
+    err = "no data points";
+    return false;
+  }
+  if (!NormaliseObservableBinding(dataset.observable, dataset, data.fluid.components_, err)) return false;
+  auto& all = data.exp_data_.GetAllData();
+  all.push_back(std::move(dataset));
+  index = all.size() - 1;
+  return true;
+}
+
+bool SetExperimentalDataBinding(UserData& data, size_t index, ObservableBinding binding, std::string& err) {
+  auto& all = data.exp_data_.GetAllData();
+  if (index >= all.size()) {
+    err = "no experimental dataset " + std::to_string(index) + " (the deck has " + std::to_string(all.size()) + ")";
+    return false;
+  }
+  if (!NormaliseObservableBinding(binding, all[index], data.fluid.components_, err)) return false;
+  all[index].observable = std::move(binding);
+  return true;
+}
+
+bool RemoveExperimentalData(UserData& data, size_t index, std::string& err) {
+  if (!data.exp_data_.DeleteDataByIndex(index)) {
+    err = "no experimental dataset " + std::to_string(index) + " (the deck has " +
+          std::to_string(data.exp_data_.size()) + ")";
+    return false;
+  }
+  return true;
+}
+
 }  // namespace adsim
+

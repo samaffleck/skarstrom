@@ -196,6 +196,8 @@ const std::vector<Pinned>& PinnedVersions() {
       // solver
       ADSIM_PIN(adsim::Cycle, 2),
       ADSIM_PIN(adsim::ExperimentalData, 1),
+      ADSIM_PIN(adsim::XYData, 1),
+      ADSIM_PIN(adsim::ObservableBinding, 0),
       ADSIM_PIN(adsim::CyclicSteadyState, 2),
       ADSIM_PIN(adsim::AccelerateCyclicSteadyState, 0),
       ADSIM_PIN(adsim::IDASettings, 7),

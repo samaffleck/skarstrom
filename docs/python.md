@@ -414,6 +414,64 @@ data["outlet_CO2"].compare(y.time, y.values)               # rmse, nrmse, max_ab
 data.remove("T at 7 cm"); data.clear()
 ```
 
+#### What a dataset measures
+
+!!! note "New in 0.10"
+    `sk.Observable`, the `observable`, `x_unit`, `y_unit`, `uncertainty` and `weight` of a dataset
+    (arguments of `add` and `load_csv`, and writable properties), `uncertainty_column` of
+    `load_csv`, `dataset.simulated(sim)`, `dataset.compare(sim)` and `data.compare(sim)`.
+
+A dataset can record the simulated quantity it measures, its *observable*. The deck stores it with
+the points, so the comparison needs no further description:
+
+```python
+import skarstrom as sk
+
+sim = sk.examples.Ward2022_Q100ccm.load()        # outlet CO2, outlet flow and a thermocouple, bound
+sim["layer[1].cells"] = 20                       # a coarse grid for this example
+sim.run()
+outlet = sim.experimental_data[0]
+outlet.observable                                # Observable('mole_fraction', component='CarbonDioxide', location='top')
+t, y = outlet.simulated(sim)                     # the simulated counterpart, in the dataset's units
+outlet.compare(sim)                              # rmse, nrmse, max_abs_error, points, weighted_sse
+sim.experimental_data.compare(sim)               # every bound dataset, by name
+
+# Bind a dataset: a thermocouple at z = 0.0715 m, recorded in minutes and degC
+T = sim.experimental_data.add("T (degC)", [0, 10, 20, 50], [20.0, 33.1, 27.5, 20.2],
+                              observable=sk.Observable("temperature", location=0.0715),
+                              x_unit="min", y_unit="degC", uncertainty=[0.5] * 4)
+T.compare(sim)["points"]
+T.weight = 2.0                                   # written back to the deck
+T.observable = None                              # unbind
+```
+
+| Field | Meaning |
+|---|---|
+| `Observable(variable, component="", location="top", cycle=-1, cycle_offset=0)` | `variable` is a bulk series name (`sk.bulk_variables()`), a component series name (`sk.component_variables()`, with `component`) or a per-cycle KPI (`sk.sensitivity.kpi_names()`, with the tracked `component`). The kind (`bulk`, `component`, `kpi`) is inferred from the name |
+| `location` | `"top"`, `"bottom"` or a position z [m] from the bottom of the column (a number or a length quantity) |
+| `cycle` | The 0-based cycle of a time series; -1 is the last logged cycle. x is the time from the start of that cycle |
+| `cycle_offset` | For a KPI, x is the cycle number and the solver's 0-based cycle is `x + cycle_offset` (-1 for 1-based data) |
+| `x_unit` | A time unit (`s`, `ms`, `min`, `h`...; default `s`); `cycle` for a KPI |
+| `y_unit` | Any unit of the observable's dimension (`K`, `degC`, `%`, `kPa`, `ccm`...); empty is the SI unit (`si_unit`) |
+| `uncertainty` | A per-point standard deviation in `y_unit` (optional) |
+| `weight` | The dataset's weight in a fit (default 1) |
+
+The points stay as measured: a unit names what they are in, and the engine converts the simulation
+to it. `compare(sim)` interpolates a time series at the measured times that the simulation covers
+(it does not extrapolate) and matches a KPI by cycle. `nrmse` is the RMSE over the range of the
+measured y. `weighted_sse` is `weight * sum((r / uncertainty)**2)` (uncertainty 1 when not given),
+the dataset's least-squares term. The engine checks a binding when it is set: an unknown variable, a
+component the deck does not have, or a unit of the wrong dimension is a `ValueError`. The bundled
+decks with data (Ward 2022, Streb 2021, Nguyen 2022 and the diluted-bed example) are bound, except
+the Nguyen temperatures, whose thermocouple position is not stated, and the Nguyen curves of the
+feeds that the deck does not simulate.
+
+In C++ the binding is `XYData::observable` (`adsim/solver/experimental_data.h`). `SimulatedSeries`
+and `CompareWithSimulation` (`adsim/solver/parameterisation.h`) give the counterpart and the
+comparison. The structural edits `AddExperimentalData`, `SetExperimentalDataBinding` and
+`RemoveExperimentalData` are in `adsim/objects/deck_edit.h`. The [deck view](deck-view.md) lists
+each dataset with its points and binding.
+
 What the builder does not create: cost data. Load a deck that has it, or add it in a front end.
 
 ## Results
