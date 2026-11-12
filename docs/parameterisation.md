@@ -7,7 +7,7 @@ base = skarstrom.examples.Perez2019_A.load()
 os.symlink(os.environ["SKARSTROM_DOC_REPO"] + "/core", "core")   # the page reads the repository's measured data
 -->
 
-Every settable deck value is a parameter with a stable path ([Python and the Command Line](python.md#parameter-paths)), so studies are ordinary Python loops around `sim.set(...)` and `sim.run()`. This page shows the three common patterns: a **parametric study** (sweep one input and watch a KPI), an **optimisation** (search inputs for the best KPI), and a **parameterisation** (fit deck parameters to measured data). If you only need isotherm parameters from equilibrium uptake data, use [Isotherm Fitting](isotherm-fitting.md) instead: it fits the isotherm directly, with no column simulation, and is far faster.
+Every settable deck value is a parameter with a stable path ([Python and the Command Line](python.md#parameter-paths)), so studies are ordinary Python loops around `sim.set(...)` and `sim.run()`. This page shows the three common patterns: a **parametric study** (sweep one input and watch a KPI), an **optimisation** (search inputs for the best KPI), and a **parameterisation** (fit deck parameters to measured data with `skarstrom.calibrate`). If you only need isotherm parameters from equilibrium uptake data, use [Isotherm Fitting](isotherm-fitting.md) instead: it fits the isotherm directly, with no column simulation, and is far faster.
 
 Each trial is a full cycle simulation. Start from a copy of the deck (`sim.copy()`) so every trial begins from the same inputs, and keep the number of trials small.
 
@@ -98,58 +98,198 @@ The C++ engine also has a derivative-free global optimiser (`adsim/solver/optimi
 
 ## Fitting parameters to measured data
 
-To fit, for example, a saturation capacity of the isotherm to a measured breakthrough curve, minimise the root-mean-square error between the simulated series and the data:
+!!! note "New in 0.12"
+    `skarstrom.calibrate`, `Simulation.calibrate`, `skarstrom.calibration` (`Case`, `Parameter`,
+    `CalibrationResult`, `CancelToken`), `skarstrom calibrate` on the command line, and the C++
+    object `adsim/solver/calibration.h`.
 
-$$
-\mathrm{RMSE} = \sqrt{\frac{1}{N}\sum_{k=1}^{N}\left(y_{sim}(x_k) - y_k\right)^2}
-$$
+To fit deck parameters to measurements (a saturation capacity to a breakthrough curve, a
+dispersion coefficient per flow rate, a heat-transfer coefficient to a thermocouple), call
+`sim.calibrate` for one deck or `skarstrom.calibrate` for several. Do not write your own optimiser
+loop: the calibration object handles bounds, log scales, several datasets and several experiments,
+runs the simulations in parallel threads, and gives standard errors and correlations.
 
-with $y_{sim}$ interpolated linearly at each data time $x_k$:
+It fits the measured data stored in the deck ([Experimental data](python.md#experimental-data)).
+Each dataset must be bound to the quantity it measures (`dataset.observable`, see
+[What a dataset measures](python.md#what-a-dataset-measures)); the bundled decks with data are
+bound already.
+
+### One deck
 
 ```python
-import numpy as np
-from scipy.optimize import minimize_scalar
+import skarstrom
+from skarstrom import calibration as cal
 
-base = skarstrom.examples.Ward2022_Q100ccm.load()
-t_data, y_data = np.loadtxt(
-    "core/data/ward_2022/Qin=100/outlet_CO2_mole_fraction[-]_Qin=100[ccm].csv",
-    delimiter=",", skiprows=1, unpack=True)
+sim = skarstrom.examples.Illustrative_Diluted_Bed.load()
+sim["layer[1].cells"] = 12                     # a coarse grid keeps this example quick
+sim.experimental_data                          # outlet CO2, outlet flow and a thermocouple, all bound
 
-path = "adsorbent[1].isotherm[CarbonDioxide].m2"     # see base.parameters(tunable_only=True)
-
-def rmse(log10_k):
-    sim = base.copy()
-    sim[path] = 10.0 ** log10_k
-    if not sim.run().ok:
-        return 1.0
-    y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=0)
-    return float(np.sqrt(np.mean((np.interp(t_data, y.time, y.values) - y_data) ** 2)))
-
-base_value = base[path]
-res = minimize_scalar(rmse, bounds=(np.log10(base_value) - 0.3, np.log10(base_value) + 0.3),
-                      method="bounded", options={"maxiter": 20})
+result = sim.calibrate(
+    [cal.Parameter("adsorbent[1].isotherm[CarbonDioxide].m2", 4, 8)],   # path, lower, upper (SI)
+    datasets=["outlet_CO2_mole_fraction[-]_Qin=100[ccm]"],               # default: every bound dataset
+    max_simulations=20)
+print(result.table())
 ```
 
-In our run this took 17 simulations (about 6 s) and moved `m2` from 5.89 to 5.90 mol/kg, lowering the RMSE from 0.027 to 0.021. The shipped deck is already calibrated against these curves (`m2` among the calibrated values; see [Validation](validation.md#ward-2022)), so the search only refines it; on an uncalibrated deck it moves further. That is a demonstration, not a recommendation: a fitted capacity also absorbs whatever else moves the measured front (dead volume, the detector, the bed temperature), so check a fitted value against independent data.
+<!-- no-run: printed output -->
+```console
+parameter                                estimate  std error  rel.     unit    start  bounds  scale
+---------------------------------------  --------  ---------  -------  ------  -----  ------  ------
+adsorbent[1].isotherm[CarbonDioxide].m2  6.86277   0.0147849  0.215 %  mol/kg  6.04   4 .. 8  linear
 
-Points to keep in mind:
+dataset                                   case    points  rmse      nrmse      max |error|  weight
+----------------------------------------  ------  ------  --------  ---------  -----------  ------
+outlet_CO2_mole_fraction[-]_Qin=100[ccm]  case 1  29      0.059729  0.0599598  0.139976     1
 
-- **What to compare.** `sim.series(variable, component, location="top" | "bottom", z=...)` gives bulk and component variables at the bed ends or at a position $z$ [m] from the bottom of the column, with time from the start of the cycle. At the bed ends these are the boundary values (an outlet composition is the composition leaving the bed; see [Results](python.md#results)); a thermocouple at height $z$ reads the profile interpolated between the cell centres. Stream quantities (outlet molar flow, compressor power) come from `sim.stream_series(...)`, KPIs per cycle from `sim.kpis()`.
-- **Which cycle.** A breakthrough deck has one cycle (`cycle=0`); for a cyclic process compare the last cycle (`cycle=-1`) at cyclic steady state, or KPIs against the cycle number.
-- **Search in log space** for positive scale parameters that span decades (rate coefficients, affinities, capacities).
-- **Check the sensitivity first.** A parameter the measured quantity barely responds to cannot be fitted; vary it by a factor of two and look at the change in the objective before starting a search.
-- **Identifiability.** Fit as few parameters as the data can determine; check the result by fitting a second dataset (another flow rate or feed composition) with the same parameters.
+objective S = 0.00359518, sigma^2 = 1.2840e-04, 29 residuals
+least_squares: budget after 11 iterations, 20 simulations, 0.9 s
+reached the budget of 20 runs
+```
 
-The engine also exposes the same extraction and RMSE helpers in C++ (`adsim/solver/parameterisation.h`: `ExtractBulkTimeSeries`, `ExtractComponentTimeSeries`, `ComputeRMSE`, `ComputeKPIRMSE`), which front ends use to offer fitting with the same objective. Pass the run's boundary log and steps (`BedBoundarySources`) to the extraction helpers so their bed-end values are the endpoint logs, as `sim.series` does (`adsim/solver/bed_series.h`).
+The numbers depend on the grid: a 12-cell bed is too coarse for a real fit. Read the result:
 
-## Calibration from C++
+```python
+est = result["adsorbent[1].isotherm[CarbonDioxide].m2"]
+est.value, est.std_error, est.at_bound          # SI units (mol/kg here)
+fit = result.datasets[0]
+fit.rmse, fit.nrmse, fit.points                 # in the dataset's own units
+fit.x, fit.measured, fit.simulated, fit.residuals   # NumPy arrays at the measured points
+result.objective_trace, result.simulations, result.stop_reason, result.notes
+result.apply(sim)                               # write the estimate into the deck (a normal edit)
+calibrated = result.calibrated()                # or a new Simulation with it
+result.to_json("fit.json")                      # everything, including the calibrated deck
+```
 
-!!! note "New in 0.11"
-    `adsim/solver/calibration.h`. The Python interface follows in a later release.
+`result.plot()` (matplotlib) shows each dataset with the simulation at the start and at the
+estimate, and the residuals below. The deck passed to `calibrate` is never changed by the fit.
 
-The engine has a calibration object for problems larger than a one-parameter search: several datasets, several experiments (decks) at different conditions that share some parameters, and standard errors on the estimates. It works on the datasets stored in each deck, each bound to the quantity it measures ([Results](python.md#results), `XYData::observable`).
+A parameter is a registry path (`sim.parameters(tunable_only=True)` lists them). A bare path,
+`sim.calibrate(["adsorbent[1].isotherm[CarbonDioxide].m2"])`, takes the registry's suggested bounds;
+`cal.Parameter(path, lower, upper, scale="linear"|"log", shared=True, start=None)` sets them.
+Bounds and the start are in SI units, or carry their own like everywhere else in the package:
+`cal.Parameter("step[1].time", "10 min", "1 h")`, `cal.Parameter("step[1].time", 10, 60, unit="min")`
+or a pint quantity. The start defaults to the deck's value.
 
-The objects (namespace `adsim::calibration`):
+### The objective
+
+The objective is a weighted sum of squares over every measured point $k$ of every dataset $d$:
+
+$$
+S = \sum_k r_k^2, \qquad r_k = \sqrt{\frac{w_d}{n_d}}\;\frac{y_{sim}(x_k) - y_k}{s_k}
+$$
+
+with $y_{sim}$ interpolated linearly at each measured $x_k$ (a KPI is matched by cycle). $s_k$ is
+the point's uncertainty when the dataset gives one, else the range of the dataset's $y$ values, so
+datasets in different units are comparable. $w_d$ is the dataset's weight and $n_d$ its number of
+points, so a densely sampled curve does not outweigh a sparse one. Points that the simulation does
+not cover (measured after the end of the simulated cycle) are left out and counted
+(`fit.skipped`, with a note).
+
+### Several experiments: shared and per-case parameters
+
+Experiments at different conditions (flow rates, feed compositions) are fitted together as
+*cases*. A **shared** parameter takes one value for every case (an isotherm capacity); a
+**per-case** parameter takes one value in each (a dispersion coefficient, which depends on the
+flow). The three Ward 2022 breakthrough runs, with the outlet CO₂ and a thermocouple at half weight:
+
+```python
+cases = []
+for q in (50, 100, 200):
+    deck = skarstrom.examples.get(f"Ward2022_Q{q}ccm").load()
+    deck["layer[1].cells"] = 20                                    # coarse, for this example
+    cases.append(cal.Case(deck, [f"outlet_CO2_mole_fraction[-]_Qin={q}[ccm]",
+                                 (f"temperature[K]_z=0.0715[m]_Qin={q}[ccm]", 0.5)],   # (name, weight)
+                          name=f"{q} ccm"))
+
+result = skarstrom.calibrate(
+    cases,
+    [cal.Parameter("adsorbent[1].isotherm[CarbonDioxide].m2", 3, 8),             # shared
+     cal.Parameter("layer[1].dispersion_coefficient", 1e-6, 1e-3, scale="log", shared=False)],
+    differences="central", max_simulations=60)
+for p in result.parameters:
+    print(f"{p.name}  {p.value:.4g} +- {p.std_error:.2g}")
+result.correlation                              # NumPy matrix, in the order of result.parameters
+```
+
+<!-- no-run: printed output -->
+```console
+adsorbent[1].isotherm[CarbonDioxide].m2  5.9 +- 0.0036
+layer[1].dispersion_coefficient [50 ccm]  3.411e-05 +- 2.6e-06
+layer[1].dispersion_coefficient [100 ccm]  3.656e-05 +- 5.5e-06
+layer[1].dispersion_coefficient [200 ccm]  9.82e-05 +- 1.2e-05
+```
+
+This took 60 simulations (about 3 s on four threads). A case is a `cal.Case(sim, datasets, weight=,
+name=, cycles=, require_css=, settings=)`, a `(sim, [dataset names], weight)` tuple or just a
+Simulation (every bound dataset). A per-case parameter can have bounds and a start per case
+(`case_bounds=`, `case_start=`). `result.apply(i)` writes case `i`'s values into its own deck, and
+`result.calibrated()` returns one calibrated Simulation per case. The deck is not changed by the
+fit, and the shipped Ward decks are already calibrated against these curves (see
+[Validation](validation.md#ward-2022)): the example is a demonstration, not a recommendation.
+
+### Reading the standard errors and correlations
+
+The standard errors come from the Jacobian $J$ at the estimate, $\mathrm{cov} = \sigma^2 (J^\mathsf{T}
+J)^{-1}$ with $\sigma^2 = S / (N - p)$ for $N$ residuals and $p$ estimated values (`result.sigma2`).
+When the datasets give uncertainties, $\sigma^2$ near 1 means that the residuals match them. For a
+log-scale parameter the standard error is the value times the standard error of its logarithm.
+
+- A **large relative error** (`est.relative_error`) means the data barely fix the value. Fit fewer
+  parameters, or add a dataset that responds to it.
+- A **correlation** near ±1 (`result.correlation`) means two parameters change the fit in the same
+  way, and the data fix only a combination of them (an isotherm capacity and affinity, typically).
+  Their individual standard errors are then large; fix one of them, or add data at other conditions.
+- A standard error of **NaN** means the data do not depend on a parameter at all, or $N \le p$:
+  `result.notes` says which.
+- At a bound (`est.at_bound`), the standard error is only a local statement: widen the bounds if
+  the bound is not physical.
+
+A fitted value absorbs whatever else moves the measured curve (dead volume, the detector, the bed
+temperature), so check it against independent data: fit one flow rate and compare with another.
+
+### Choosing the method
+
+- `method="least_squares"` (the default) is a bounded Levenberg–Marquardt method with a
+  finite-difference Jacobian. Each Jacobian column is one run per case that the parameter affects,
+  and the columns run in parallel threads (`threads=`, default the cores minus one). It is the fast
+  choice from a reasonable start, and the only one that gives standard errors along the way.
+- `method="global"` is a derivative-free MaxLIPO search over the bounds (`global_evaluations=`
+  candidates, default 30; the cases of a candidate run in parallel). Choose it when the start is
+  poor or the objective may have several minima. `refine=True` then polishes its best point with
+  least squares, which also gives the standard errors.
+- `differences="central"` doubles the cost of each Jacobian but is needed for strongly correlated
+  parameters: forward differences can stall the fit in the narrow valley of the objective.
+- `max_simulations` caps the runs (one case run is one simulation); `ftol` and `xtol` stop least
+  squares when the objective or the values stop changing.
+
+```python
+result = sim.calibrate([("adsorbent[1].isotherm[CarbonDioxide].m2", 4, 8)], method="global",
+                       global_evaluations=4, threads=2)      # (path, lower, upper) also works
+result.stop_reason                              # "global_done"
+```
+
+`progress=f` calls `f(info)` after each iteration (`info["iteration"]`, `["objective"]`,
+`["values"]`, `["simulations"]`); return `False` to stop. Ctrl-C stops the fit and raises
+`KeyboardInterrupt`; a `cal.CancelToken()` passed as `cancel=` stops it from another thread, and
+the result is then the best point so far (`result.cancelled`). For a cyclic deck, runs start from
+the cyclic steady state of the nearest point already run (`warm_start=True`); tighten the CSS
+tolerance in the case's `settings` so that it does not add noise to the finite differences.
+
+From a terminal, `skarstrom calibrate` does the same
+([Command line](python.md#command-line)):
+
+```bash
+skarstrom examples copy Illustrative_Diluted_Bed .
+skarstrom calibrate Illustrative_Diluted_Bed.json --set "layer[1].cells=12" \
+    --param "adsorbent[1].isotherm[CarbonDioxide].m2:4:8" \
+    --dataset "outlet_CO2_mole_fraction[-]_Qin=100[ccm]" \
+    --max-simulations 20 --out calibrated.json --json fit.json -q
+```
+
+### Calibration from C++
+
+The engine's object is `adsim/solver/calibration.h` (namespace `adsim::calibration`), which the
+Python API wraps:
 
 | Object | What it holds |
 |---|---|
@@ -159,31 +299,16 @@ The objects (namespace `adsim::calibration`):
 | `Options` | The solver (`Solver::LeastSquares`, the default, or `Solver::Global` with `refine`), the run budget (`max_simulations`), stopping tolerances, the finite-difference scheme and step, the number of threads, warm starts, and the `progress` and `cancel` callbacks. |
 | `Result` | Per parameter: the estimate, its standard error, whether it is at a bound. The correlation matrix. Per dataset: RMSE, NRMSE, the maximum error, the points used, the residuals and the simulated series at the estimate. The objective trace, the runs made and failed, the solver and why it stopped, and one calibrated deck per case. |
 
-The objective is a weighted sum of squares over every measured point $k$ of every dataset $d$:
-
-$$
-S = \sum_k r_k^2, \qquad r_k = \sqrt{\frac{w_d}{n_d}}\;\frac{y_{sim}(x_k) - y_k}{s_k}
-$$
-
-where $s_k$ is the point's uncertainty when the dataset gives one, else the range of the dataset's $y$ values, $w_d$ is the dataset's weight and $n_d$ its number of points (so a densely sampled curve does not outweigh a sparse one). The default solver is a bounded Levenberg–Marquardt method with a finite-difference Jacobian; each Jacobian column is one run per case the parameter affects, and the columns run in parallel threads. The global solver is the optimiser's MaxLIPO search on $S$; `refine = true` polishes its best point with least squares.
-
-Standard errors come from the Jacobian $J$ at the estimate, $\mathrm{cov} = \sigma^2 (J^\mathsf{T} J)^{-1}$ with $\sigma^2 = S / (N - p)$ for $N$ residuals and $p$ estimated values. For a log-scale parameter the covariance is in $\ln$ of the value, and the standard error in model units is the value times $\mathrm{se}(\ln x)$. When $N \le p$ or $J^\mathsf{T} J$ is singular, the standard errors are NaN and `Result::notes` says why. A run that fails never stops the fit: it is counted in `failed_simulations` and the step that needed it is rejected.
-
-For strongly correlated parameters (two that the data mostly fix in combination, such as an isotherm's capacity and affinity), set `options.difference = Difference::Central`: forward differences are cheaper but their error can stall the fit in the narrow valley of the objective.
-
-A fit of three breakthrough runs with a shared isotherm capacity and a heat-transfer coefficient per run:
-
 ```cpp
 #include "adsim/solver/calibration.h"
 namespace cal = adsim::calibration;
 
 std::vector<cal::Case> cases = {
     cal::Case::FromFile("Q50.json", {cal::Dataset("outlet_CO2"), cal::Dataset("T_z=0.0715", 0.5)}),
-    cal::Case::FromFile("Q100.json", {cal::Dataset("outlet_CO2"), cal::Dataset("T_z=0.0715", 0.5)}),
-    cal::Case::FromFile("Q200.json", {cal::Dataset("outlet_CO2"), cal::Dataset("T_z=0.0715", 0.5)})};
+    cal::Case::FromFile("Q100.json", {cal::Dataset("outlet_CO2"), cal::Dataset("T_z=0.0715", 0.5)})};
 std::vector<cal::Parameter> parameters = {
     cal::Shared("adsorbent[1].isotherm[CarbonDioxide].m2", 3.0, 8.0),
-    cal::PerCase("step[1].medium.heat_transfer_coefficient", 1.0, 500.0, cal::Scale::Log)};
+    cal::PerCase("layer[1].dispersion_coefficient", 1e-6, 1e-3, cal::Scale::Log)};
 cal::Problem problem(cases, parameters);
 
 cal::Options options;
@@ -194,4 +319,34 @@ for (const auto& p : r.parameters)
   std::printf("%s = %g +- %g%s\n", p.label.c_str(), p.estimate, p.standard_error, p.at_lower || p.at_upper ? " (at a bound)" : "");
 ```
 
-The deck and dataset names in the example are illustrative: list a deck's tunable paths with `skarstrom params deck.json`. The cases run on fresh copies of their decks, so the decks you pass are not changed; `Result::calibrated_decks` holds a copy of each with the estimates applied. The header (`core/include/adsim/solver/calibration.h`) documents every option, the treatment of points the simulation does not cover, warm starts and determinism.
+The deck and dataset names in the C++ example are illustrative. The header documents every option,
+the treatment of points the simulation does not cover, warm starts and determinism. The engine also
+has the lower-level extraction and RMSE helpers (`adsim/solver/parameterisation.h`:
+`SimulatedSeries`, `CompareWithSimulation`, `ExtractBulkTimeSeries`, `ComputeRMSE`), which front
+ends use.
+
+### Rolling your own
+
+For an objective the calibration object does not cover, wrap a run in any optimiser. Read the
+simulated counterpart of a bound dataset with `dataset.simulated(sim)` or compare with
+`dataset.compare(sim)`:
+
+```python
+from scipy.optimize import minimize_scalar
+
+base = skarstrom.examples.Ward2022_Q100ccm.load()
+base["layer[1].cells"] = 20
+path = "adsorbent[1].isotherm[CarbonDioxide].m2"
+
+def rmse(m2):
+    trial = base.copy()
+    trial[path] = m2
+    if not trial.run().ok:
+        return 1.0
+    return trial.experimental_data[0].compare(trial)["rmse"]
+
+res = minimize_scalar(rmse, bounds=(5.0, 7.0), method="bounded", options={"maxiter": 8})
+```
+
+Search positive scale parameters in log space, check that the objective responds to a parameter
+before fitting it, and keep the number of runs small: each one is a full simulation.

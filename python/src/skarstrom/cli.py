@@ -3,6 +3,7 @@
     skarstrom run deck.json [--cycles N] [--set PATH=VALUE ...] [--csv DIR] [--json]
     skarstrom params deck.json [--all] [--search TEXT] [--json]
     skarstrom sensitivity deck.json [--input PATH=SPEC ...] [--output COMPONENT.KPI ...] [--method both]
+    skarstrom calibrate deck.json --param PATH[:LO:HI[:log]] ... [--dataset NAME[:WEIGHT] ...] [--case OTHER.json ...]
     skarstrom examples [list] [--json]
     skarstrom examples run NAME [run options]
     skarstrom examples path NAME
@@ -22,6 +23,7 @@ import sys
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import Simulation, __version__, examples, manifests
+from . import calibration as cal
 from . import sensitivity as sa
 from ._core import CSS_DISTANCE_WARNING_RATIO
 
@@ -491,6 +493,82 @@ def _example(name: str) -> "examples.Example":
         raise SystemExit(f"skarstrom: {e.args[0]}") from None
 
 
+_PARAM_FLAGS = ("log", "linear", "per_case", "shared")
+
+
+def _parse_param(text: str) -> "cal.Parameter":
+    """PATH[:LO:HI][:log][:per_case]: bounds in SI units (or quantities such as '2 min');
+    without them, the registry's suggested bounds."""
+    parts = text.split(":")
+    flags = []
+    while len(parts) > 1 and parts[-1].strip().lower() in _PARAM_FLAGS:
+        flags.append(parts.pop().strip().lower())
+    lower = upper = None
+    if len(parts) >= 3:
+        lower, upper = parts[-2].strip(), parts[-1].strip()
+        parts = parts[:-2]
+    path = ":".join(parts).strip()
+    if not path:
+        raise SystemExit(f"skarstrom: --param expects PATH[:LO:HI[:log]], got {text!r}")
+    return cal.Parameter(path, lower, upper, scale="log" if "log" in flags else "linear",
+                         shared="per_case" not in flags)
+
+
+def _parse_dataset(text: str) -> Tuple[str, Optional[float]]:
+    """NAME[:WEIGHT]."""
+    name, sep, weight = text.rpartition(":")
+    if sep:
+        try:
+            return name, float(weight)
+        except ValueError:
+            pass
+    return text, None
+
+
+def cmd_calibrate(args: argparse.Namespace) -> int:
+    decks = [args.deck] + list(args.case or [])
+    datasets = [_parse_dataset(t) for t in args.dataset or []] or None
+    cases = []
+    for i, deck in enumerate(decks):
+        sim = Simulation.from_file(_resolve_deck(deck))
+        _apply_sets(sim, args.set or [])
+        name = os.path.splitext(os.path.basename(deck))[0]
+        if len(decks) > 1 and name in [c.name for c in cases]:
+            name = f"{name} ({i + 1})"
+        cases.append(cal.Case(sim, datasets, name=name, cycles=args.cycles))
+    params = [_parse_param(t) for t in args.param]
+
+    def progress(p: dict) -> None:
+        if not args.quiet:
+            print(f"\r  {p['solver']} iteration {p['iteration']}: S = {p['objective']:.6g}, "
+                  f"{p['simulations']} simulations", end="", file=sys.stderr, flush=True)
+
+    try:
+        result = cal.calibrate(cases, params, method=args.method, refine=args.refine, threads=args.threads,
+                               max_simulations=args.max_simulations, differences=args.differences,
+                               global_evaluations=args.global_evaluations, progress=progress)
+    except KeyboardInterrupt:
+        print("\nskarstrom: interrupted", file=sys.stderr)
+        return 130
+    except KeyError as e:
+        raise SystemExit(f"skarstrom: {e.args[0]}") from None
+    if not args.quiet:
+        print("", file=sys.stderr)
+    print(result.table())
+    if args.json:
+        result.to_json(args.json)
+        print(f"Wrote {args.json}")
+    if result.ok and args.out:
+        outs = [args.out] if len(cases) == 1 else [
+            f"{os.path.splitext(args.out)[0]}_{i + 1}{os.path.splitext(args.out)[1] or '.json'}"
+            for i in range(len(cases))]
+        for i, out in enumerate(outs):
+            calibrated = result.calibrated(case=i)
+            calibrated.save(out)
+            print(f"Wrote {out}")
+    return 0 if result.ok and not result.cancelled else 1
+
+
 def cmd_examples(args: argparse.Namespace) -> int:
     action = getattr(args, "action", None) or "list"
     if action == "list":
@@ -584,6 +662,32 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true", help="print the study and results as JSON")
     s.add_argument("-q", "--quiet", action="store_true", help="no progress line")
     s.set_defaults(func=cmd_sensitivity)
+
+    c = sub.add_parser("calibrate", help="fit deck parameters to the measured datasets stored in the deck(s)")
+    c.add_argument("deck", help="deck file whose experimental data are bound to observables")
+    c.add_argument("--param", action="append", required=True, metavar="PATH[:LO:HI[:log]]",
+                   help="a parameter to estimate (repeatable): bounds in SI units or as quantities ('2 min'); "
+                        "without bounds, the registry's suggested bounds. Add ':log' to search its logarithm "
+                        "and ':per_case' for one value per deck (with --case)")
+    c.add_argument("--dataset", action="append", metavar="NAME[:WEIGHT]",
+                   help="a dataset to fit, in every deck (repeatable); default: every bound dataset")
+    c.add_argument("--case", action="append", metavar="OTHER.json",
+                   help="another experiment (deck) fitted at the same time (repeatable); shared parameters "
+                        "take one value for all decks")
+    c.add_argument("--method", choices=list(cal.METHODS), default="least_squares",
+                   help="least_squares (default: fast, gives standard errors) or global (MaxLIPO search)")
+    c.add_argument("--refine", action="store_true", help="with --method global, polish with least squares")
+    c.add_argument("--differences", choices=list(cal.DIFFERENCES), default="forward",
+                   help="finite differences for the Jacobian (central: for strongly correlated parameters)")
+    c.add_argument("--global-evaluations", type=int, default=30, help="candidates of the global search (default 30)")
+    c.add_argument("--threads", type=int, help="simulations run at once (default: the cores - 1)")
+    c.add_argument("--max-simulations", type=int, default=500, help="run budget (default 500)")
+    c.add_argument("--cycles", type=int, help="override the decks' number of cycles")
+    c.add_argument("--set", action="append", metavar="PATH=VALUE", help="change every deck before the fit")
+    c.add_argument("--out", metavar="FILE", help="write the calibrated deck (FILE_<i>.json per deck with --case)")
+    c.add_argument("--json", metavar="FILE", help="write the full result as JSON")
+    c.add_argument("-q", "--quiet", action="store_true", help="no progress line")
+    c.set_defaults(func=cmd_calibrate)
 
     e = sub.add_parser("examples", help="list, run or copy the example decks shipped with the package")
     e.add_argument("--json", action="store_true", help="list as JSON (name, family, path)")

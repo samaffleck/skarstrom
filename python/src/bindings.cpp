@@ -14,6 +14,7 @@
 #include <type_traits>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <pybind11/functional.h>
@@ -32,6 +33,7 @@
 #include "adsim/objects/deck_view.h"
 #include "adsim/objects/manifests.h"
 #include "adsim/objects/model_kinds.h"
+#include "adsim/solver/calibration.h"
 #include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/isotherm_fit.h"
 #include "adsim/solver/optimisation.h"
@@ -506,6 +508,220 @@ adsim::SimulatedCounterpart Simulated(const adsim::Simulation& s, const adsim::X
   if (xy.observable.kind == adsim::ObservableKind::Kpi) kpis = s.KPIs();
   const adsim::BedBoundarySources sources{&s.Boundaries(), &s.Data().cycle.step_list_};
   return adsim::SimulatedSeries(xy, s.Log(), kpis, sources);
+}
+
+}  // namespace
+
+// ---- calibration (adsim/solver/calibration.h) --------------------------------
+
+namespace cal = adsim::calibration;
+
+// A flag Python can raise from any thread (a progress callback, another
+// thread, a GUI) to stop a calibration: the fit returns its best point.
+struct CalibrationCancel {
+  std::atomic<bool> flag{false};
+  void Cancel() { flag = true; }
+  bool Cancelled() const { return flag.load(); }
+  void Reset() { flag = false; }
+};
+
+namespace {
+
+double OptionalDouble(const py::dict& d, const char* key) {
+  if (!d.contains(key) || d[key].is_none()) return cal::kNaN;
+  return d[key].cast<double>();
+}
+
+cal::Scale ScaleFromName(const std::string& s) {
+  if (s == "linear") return cal::Scale::Linear;
+  if (s == "log") return cal::Scale::Log;
+  throw std::invalid_argument("a parameter's scale is 'linear' or 'log'; got '" + s + "'");
+}
+
+cal::Case CaseFromDict(const py::dict& d) {
+  cal::Case c;
+  if (d.contains("name") && !d["name"].is_none()) c.name = d["name"].cast<std::string>();
+  c.deck_json = d["deck_json"].cast<std::string>();
+  if (d.contains("datasets")) {
+    for (auto item : d["datasets"].cast<py::list>()) {
+      auto t = item.cast<py::tuple>();
+      const double w = t[1].is_none() ? cal::kNaN : t[1].cast<double>();
+      if (py::isinstance<py::int_>(t[0])) {
+        c.datasets.push_back(cal::Dataset(t[0].cast<int>(), w));
+      } else {
+        c.datasets.push_back(cal::Dataset(t[0].cast<std::string>(), w));
+      }
+    }
+  }
+  c.policy.require_css = d.contains("require_css") && d["require_css"].cast<bool>();
+  if (d.contains("cycles") && !d["cycles"].is_none()) c.policy.cycles = d["cycles"].cast<int>();
+  if (d.contains("settings")) {
+    for (auto item : d["settings"].cast<py::dict>())
+      c.policy.settings.emplace_back(item.first.cast<std::string>(), py::str(item.second).cast<std::string>());
+  }
+  return c;
+}
+
+cal::Parameter CalParameterFromDict(const py::dict& d) {
+  cal::Parameter p;
+  p.path = d["path"].cast<std::string>();
+  p.lower = OptionalDouble(d, "lower");
+  p.upper = OptionalDouble(d, "upper");
+  if (d.contains("scale")) p.scale = ScaleFromName(d["scale"].cast<std::string>());
+  if (d.contains("shared")) p.sharing = d["shared"].cast<bool>() ? cal::Sharing::Shared : cal::Sharing::PerCase;
+  p.initial = OptionalDouble(d, "initial");
+  if (d.contains("case_bounds") && !d["case_bounds"].is_none()) {
+    for (auto item : d["case_bounds"].cast<py::list>()) {
+      cal::Bounds b;
+      if (!item.is_none()) {
+        auto t = item.cast<py::tuple>();
+        b.lower = t[0].is_none() ? cal::kNaN : t[0].cast<double>();
+        b.upper = t[1].is_none() ? cal::kNaN : t[1].cast<double>();
+      }
+      p.case_bounds.push_back(b);
+    }
+  }
+  if (d.contains("case_initial") && !d["case_initial"].is_none()) {
+    for (auto item : d["case_initial"].cast<py::list>())
+      p.case_initial.push_back(item.is_none() ? cal::kNaN : item.cast<double>());
+  }
+  return p;
+}
+
+cal::Problem ProblemFromLists(const py::list& cases, const py::list& parameters) {
+  std::vector<cal::Case> cs;
+  for (auto item : cases) cs.push_back(CaseFromDict(item.cast<py::dict>()));
+  std::vector<cal::Parameter> ps;
+  for (auto item : parameters) ps.push_back(CalParameterFromDict(item.cast<py::dict>()));
+  return cal::Problem(std::move(cs), std::move(ps));
+}
+
+cal::Options CalOptionsFromDict(const py::dict& d) {
+  cal::Options o;
+  if (d.contains("method")) {
+    const std::string m = d["method"].cast<std::string>();
+    if (m == "least_squares") o.solver = cal::Solver::LeastSquares;
+    else if (m == "global") o.solver = cal::Solver::Global;
+    else throw std::invalid_argument("method is 'least_squares' or 'global'; got '" + m + "'");
+  }
+  if (d.contains("refine")) o.refine = d["refine"].cast<bool>();
+  if (d.contains("max_simulations")) o.max_simulations = d["max_simulations"].cast<int>();
+  if (d.contains("max_iterations")) o.max_iterations = d["max_iterations"].cast<int>();
+  if (d.contains("ftol")) o.ftol = d["ftol"].cast<double>();
+  if (d.contains("xtol")) o.xtol = d["xtol"].cast<double>();
+  if (d.contains("differences")) {
+    const std::string s = d["differences"].cast<std::string>();
+    if (s == "forward") o.difference = cal::Difference::Forward;
+    else if (s == "central") o.difference = cal::Difference::Central;
+    else throw std::invalid_argument("differences is 'forward' or 'central'; got '" + s + "'");
+  }
+  if (d.contains("fd_step")) o.fd_step = d["fd_step"].cast<double>();
+  if (d.contains("global_evaluations")) o.global_evaluations = d["global_evaluations"].cast<int>();
+  if (d.contains("threads") && !d["threads"].is_none()) o.threads = d["threads"].cast<int>();
+  if (d.contains("warm_start")) o.warm_start = d["warm_start"].cast<bool>();
+  if (d.contains("cache_capacity")) o.cache_capacity = d["cache_capacity"].cast<size_t>();
+  if (d.contains("standard_errors")) o.standard_errors = d["standard_errors"].cast<bool>();
+  return o;
+}
+
+py::array_t<double> NumpyMatrix(const std::vector<std::vector<double>>& m) {
+  const py::ssize_t n = static_cast<py::ssize_t>(m.size());
+  const py::ssize_t k = n > 0 ? static_cast<py::ssize_t>(m[0].size()) : 0;
+  py::array_t<double> a({n, k});
+  auto r = a.mutable_unchecked<2>();
+  for (py::ssize_t i = 0; i < n; ++i)
+    for (py::ssize_t j = 0; j < k; ++j) r(i, j) = m[i][j];
+  return a;
+}
+
+py::dict CalResultToDict(const cal::Result& r) {
+  py::list params;
+  for (const auto& p : r.parameters) {
+    py::dict d;
+    d["path"] = p.path;
+    d["label"] = p.label;
+    d["case_index"] = p.case_index;
+    d["estimate"] = p.estimate;
+    d["standard_error"] = p.standard_error;
+    d["initial"] = p.initial;
+    d["lower"] = p.lower;
+    d["upper"] = p.upper;
+    d["at_lower"] = p.at_lower;
+    d["at_upper"] = p.at_upper;
+    d["scale"] = cal::ScaleName(p.scale);
+    params.append(d);
+  }
+  py::list datasets;
+  for (const auto& f : r.datasets) {
+    py::dict d;
+    d["case_index"] = f.case_index;
+    d["case_name"] = f.case_name;
+    d["name"] = f.name;
+    d["weight"] = f.weight;
+    d["points"] = f.points;
+    d["skipped"] = f.skipped;
+    d["rmse"] = f.rmse;
+    d["nrmse"] = f.nrmse;
+    d["max_abs_error"] = f.max_abs_error;
+    d["objective"] = f.objective;
+    d["x"] = ToArray(f.x);
+    d["measured"] = ToArray(f.measured);
+    d["simulated"] = ToArray(f.simulated);
+    d["residuals"] = ToArray(f.residuals);
+    d["weighted_residuals"] = ToArray(f.weighted_residuals);
+    d["series_x"] = ToArray(f.series.x);
+    d["series_y"] = ToArray(f.series.y);
+    d["series_si_unit"] = f.series.si_unit;
+    datasets.append(d);
+  }
+  py::list trace;
+  for (const auto& t : r.trace) {
+    py::dict d;
+    d["solver"] = cal::SolverName(t.solver);
+    d["iteration"] = t.iteration;
+    d["objective"] = t.objective;
+    d["values"] = ToArray(t.values);
+    d["simulations"] = t.simulations;
+    trace.append(d);
+  }
+  py::dict d;
+  d["parameters"] = params;
+  d["correlation"] = NumpyMatrix(r.correlation);
+  d["datasets"] = datasets;
+  d["trace"] = trace;
+  d["objective"] = r.objective;
+  d["sigma2"] = r.sigma2;
+  d["residuals"] = r.residuals;
+  d["simulations"] = r.simulations;
+  d["failed_simulations"] = r.failed_simulations;
+  d["iterations"] = r.iterations;
+  d["wall_time_s"] = r.wall_time_s;
+  d["solver"] = cal::SolverName(r.solver);
+  d["refined"] = r.refined;
+  d["stop_reason"] = cal::StopReasonName(r.stop);
+  d["message"] = r.message;
+  d["notes"] = r.notes;
+  d["cancelled"] = r.cancelled;
+  d["ok"] = r.Ok();
+  d["calibrated_decks"] = r.calibrated_decks;
+  return d;
+}
+
+py::list UnknownsToList(const cal::Problem& p) {
+  py::list out;
+  for (const auto& u : p.Unknowns()) {
+    py::dict d;
+    d["parameter"] = u.parameter;
+    d["case_index"] = u.case_index;
+    d["path"] = u.path;
+    d["label"] = u.label;
+    d["lower"] = u.lower;
+    d["upper"] = u.upper;
+    d["initial"] = u.initial;
+    d["scale"] = cal::ScaleName(u.scale);
+    out.append(d);
+  }
+  return out;
 }
 
 }  // namespace
@@ -2162,4 +2378,92 @@ PYBIND11_MODULE(_core, m) {
     return d;
   }, py::arg("inputs"), py::arg("values"), py::arg("names"), py::arg("y"), py::arg("seed"),
      py::arg("bootstrap") = 1000, py::arg("rel_tol") = 0.1);
+
+  // ---- calibration ---------------------------------------------------------------
+  py::class_<CalibrationCancel>(m, "CalibrationCancel")
+      .def(py::init<>())
+      .def("cancel", &CalibrationCancel::Cancel)
+      .def("reset", &CalibrationCancel::Reset)
+      .def_property_readonly("cancelled", &CalibrationCancel::Cancelled)
+      .def("__repr__", [](const CalibrationCancel& c) {
+        return std::string("<CalibrationCancel ") + (c.Cancelled() ? "cancelled>" : "armed>");
+      });
+  // Validates the problem (no runs) and returns its unknowns, in order.
+  m.def("calibration_check", [](const py::list& cases, const py::list& parameters) {
+    return UnknownsToList(ProblemFromLists(cases, parameters));
+  }, py::arg("cases"), py::arg("parameters"));
+  // A blocking fit. The GIL is released while the engine's threads run;
+  // `progress(dict)` re-acquires it (returning False cancels). Ctrl-C, or
+  // `cancel.cancel()` from any thread, stops the fit at its best point so far;
+  // a KeyboardInterrupt (or an error raised by `progress`) is re-raised after.
+  m.def("calibrate", [](const py::list& cases, const py::list& parameters, const py::dict& options,
+                        py::object progress, CalibrationCancel* token) {
+    const cal::Problem problem = ProblemFromLists(cases, parameters);
+    cal::Options opt = CalOptionsFromDict(options);
+    std::atomic<bool> stop{false};
+    std::optional<py::error_already_set> pending;  // touched with the GIL held
+    const auto caller = std::this_thread::get_id();
+    auto last_check = std::chrono::steady_clock::now();  // the calling thread only
+    opt.cancel = [&]() {
+      if (stop.load() || (token != nullptr && token->Cancelled())) return true;
+      // Python handles signals only on its main thread: poll from the thread
+      // that called (it takes a share of every batch's runs).
+      if (std::this_thread::get_id() != caller) return false;
+      const auto now = std::chrono::steady_clock::now();
+      if (now - last_check < std::chrono::milliseconds(100)) return false;
+      last_check = now;
+      py::gil_scoped_acquire gil;
+      if (PyErr_CheckSignals() != 0) {
+        if (!pending) pending.emplace();
+        else PyErr_Clear();
+        stop = true;
+        return true;
+      }
+      return false;
+    };
+    if (!progress.is_none()) {
+      opt.progress = [&](const cal::Progress& p) {
+        py::gil_scoped_acquire gil;
+        if (pending) return;
+        try {
+          py::dict d;
+          d["solver"] = cal::SolverName(p.solver);
+          d["iteration"] = p.iteration;
+          d["objective"] = p.objective;
+          d["values"] = ToArray(p.values);
+          d["simulations"] = p.simulations;
+          py::object r = progress(d);
+          if (!r.is_none() && !r.cast<bool>()) stop = true;
+        } catch (py::error_already_set& e) {
+          pending.emplace(std::move(e));
+          stop = true;
+        }
+      };
+    }
+    cal::Result r;
+    {
+      py::gil_scoped_release release;
+      r = cal::Calibrate(problem, opt);
+    }
+    if (pending) throw std::move(*pending);
+    return CalResultToDict(r);
+  }, py::arg("cases"), py::arg("parameters"), py::arg("options"), py::arg("progress") = py::none(),
+     py::arg("cancel") = nullptr);
+  // The objective and residuals at a point (per unknown, SI units): one run per case.
+  m.def("calibration_evaluate", [](const py::list& cases, const py::list& parameters,
+                                   const std::vector<double>& values, const py::dict& options) {
+    const cal::Problem problem = ProblemFromLists(cases, parameters);
+    const cal::Options opt = CalOptionsFromDict(options);
+    cal::Evaluation e;
+    {
+      py::gil_scoped_release release;
+      e = cal::Evaluate(problem, values, opt);
+    }
+    py::dict d;
+    d["ok"] = e.ok;
+    d["objective"] = e.objective;
+    d["residuals"] = ToArray(e.residuals);
+    d["message"] = e.message;
+    return d;
+  }, py::arg("cases"), py::arg("parameters"), py::arg("values"), py::arg("options"));
 }

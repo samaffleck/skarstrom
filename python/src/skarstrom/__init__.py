@@ -36,7 +36,8 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
-from . import _core, examples, optimisation, sensitivity, units
+from . import _core, calibration, examples, optimisation, sensitivity, units
+from .calibration import CalibrationResult, calibrate
 from .manifests import (
     check_unit,
     component_aliases,
@@ -122,6 +123,9 @@ from .edit import Editor, model_kinds
 __version__: str = _core.__version__
 
 __all__ = [
+    "CalibrationResult",
+    "calibrate",
+    "calibration",
     "Adsorbent",
     "Reaction",
     "Editor",
@@ -1010,6 +1014,15 @@ class Simulation:
 
     def __setitem__(self, path: str, value: Union[float, int, str, Any]) -> None:
         self.set(path, value)
+
+    def calibrate(self, parameters: Sequence[Any], datasets: Optional[Sequence[Any]] = None,
+                  **options: Any) -> "CalibrationResult":
+        """Fit ``parameters`` to this deck's measured ``datasets`` (default: every
+        dataset bound to an observable). Shorthand for
+        ``skarstrom.calibrate(skarstrom.calibration.Case(sim, datasets), parameters, **options)``;
+        see :func:`skarstrom.calibrate` for the parameters and options. The deck
+        is not changed: ``result.apply()`` writes the estimates into it."""
+        return calibration.calibrate(calibration.Case(self, datasets), parameters, **options)
 
     # ---- run -------------------------------------------------------------------
     def run(
