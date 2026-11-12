@@ -764,6 +764,20 @@ namespace adsim {
         return;
       }
 
+      // Warm start (SetInitialState): refused before anything is set up when
+      // the state does not fit the deck (as CoupledSolver::IntegrateCycle).
+      warm_ = initial_state_ != nullptr;
+      start_cycles_ = warm_ ? initial_state_->cycles : 0;
+      if (warm_) {
+        const std::string why = CycleStateIncompatibility(*initial_state_, user_data_);
+        if (!why.empty()) {
+          const std::string text = "the initial state does not fit the deck: " + why;
+          LogMessage(LogLevel::LOW, "Initialisation failed: " + text);
+          status_.Failed("Initialisation failed! " + text, IDA_ILL_INPUT);
+          return;
+        }
+      }
+
       // Initialise member variables
       user_data_.Initialise();
       equation_log_.Initialise(user_data_);
@@ -783,12 +797,31 @@ namespace adsim {
         step.ClearOutletConditions();
         step.ClearCycleSummary();
       }
+      // A warm start's endpoint histories and summaries stand in for the ones
+      // a fresh run starts without; restored before the consistent-IC solve
+      // reads the first step's inlets.
+      if (warm_) ApplyCycleStateHistories(*initial_state_, user_data_);
 
       // Set current step for initial conditions
       Step& first_step = cycle.step_list_[0];
       state.SetCurrentStep(&first_step);
       user_data_.step_start_time_ = 0.0;
       first_step.Initialise(state);
+
+      // Warm start: replace the initial conditions with the state, then set
+      // the first step's boundary conditions up again so anything they take
+      // from the bed state (a pressure ramp's start) sees the restored state.
+      if (warm_) {
+        const std::string mismatch = CycleStateLayoutMismatch(*initial_state_, user_data_);
+        if (!mismatch.empty()) {
+          const std::string text = "the initial state does not fit the deck: " + mismatch;
+          LogMessage(LogLevel::LOW, "Initialisation failed: " + text);
+          status_.Failed("Initialisation failed! " + text, IDA_ILL_INPUT);
+          return;
+        }
+        ApplyCycleStateDAE(*initial_state_, user_data_);
+        first_step.Initialise(state);
+      }
 
       int flag = solver_data_.Initialise(user_data_, error_message);
       if (flag != IDA_SUCCESS) {
@@ -859,9 +892,15 @@ namespace adsim {
                             cycle_stats_end);
         cycle_stats_start_ = cycle_stats_end;
 
-        // Check for cyclic steady state before moving to next cycle
+        // Check for cyclic steady state before moving to next cycle. A warm
+        // start continues the cycles behind its state: the minimum number of
+        // cycles counts them (only for this check, so the deck is unchanged
+        // between chunks).
+        const int saved_min_cycles = css.min_cycles_;
+        if (warm_) css.min_cycles_ = std::max(1, css.min_cycles_ - start_cycles_);
         const CSSResult css_result = css.CheckCSS(equation_log_, status_.GetCycleIndex(),
                                                   [this](int c) { return jump_cycles_.count(c) > 0; });
+        css.min_cycles_ = saved_min_cycles;
         css_history_.Record(status_.GetCycleIndex(), css_result);
         if (css_result.converged) {
           LogMessage(LogLevel::LOW, "CSS reached at cycle "

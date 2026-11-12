@@ -244,7 +244,10 @@ gx.field("Mole Fraction", "CarbonDioxide")
 - A state that does not fit the deck is refused with the reason (`check_state`; `set_initial_state` raises `ValueError`). That happens when the components, layers or void regions differ, or the steps or endpoints differ. Different cell counts and step times are not reasons: the run adapts the state (see below). A different state layout, such as another energy-balance mode, fails the run with the reason.
 - The state lives for the session only. It is never written to the deck file. It is cleared by the next run and by loading a deck; the warm-start state stays until `clear_initial_state()` or a deck load.
 
-In C++ the same is `Simulation::FinalState`, `RunOptions::initial_state`, `SetInitialState`, `RunCycle` and `CheckState`, with the state in `adsim/solver/cycle_state.h`. The chunked run (`Start` / `Advance`) always starts from the initial conditions.
+In C++ the same is `Simulation::FinalState`, `RunOptions::initial_state`, `SetInitialState`, `RunCycle` and `CheckState`, with the state in `adsim/solver/cycle_state.h`.
+
+!!! note "New in 0.12"
+    The chunked run (`Start` / `Advance`, for a caller that drives the solver itself) behaves as a blocking run. `Start(log_level, on_message, &state)` starts from a state, and without one `Start` uses the `SetInitialState` state if set. The state is adapted to the deck first, and its cycles count towards the minimum cycles. A state that does not fit makes `Start` return false with the reason in the result message. A chunked run that completes or reaches CSS keeps its `FinalState()`. A failed or stopped run has none. To use the [state cache](#warm-started-optimisation-and-studies) in such a loop, see the comment at the top of `adsim/solver/state_cache.h`.
 
 ### Moving a state to another grid
 
