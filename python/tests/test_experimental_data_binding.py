@@ -59,12 +59,14 @@ def test_binding_is_checked_written_back_and_saved():
     assert "bad" not in data
 
     s.weight = 3.0                                                     # written back
-    s.observable = sk.Observable("mole_fraction", "CO2", location="top")  # formula -> deck name
+    with pytest.raises(ValueError, match="y unit"):                   # y_unit is still degC
+        s.observable = sk.Observable("mole_fraction", "CarbonDioxide")
+    s.bind(sk.Observable("mole_fraction", "CO2", location="top"), y_unit="%")  # formula -> deck name
     assert data["T"].weight == 3.0
     assert data["T"].observable == sk.Observable("mole_fraction", "CarbonDioxide")
     with pytest.raises(ValueError):
         s.y_unit = "degC"                                              # a mole fraction is not a temperature
-    s.y_unit = "%"
+    assert s.y_unit == "%"
     s.uncertainty = None
 
     copy = sk.Simulation.from_json(sim.to_json())

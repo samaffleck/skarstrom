@@ -419,7 +419,8 @@ data.remove("T at 7 cm"); data.clear()
 !!! note "New in 0.10"
     `sk.Observable`, the `observable`, `x_unit`, `y_unit`, `uncertainty` and `weight` of a dataset
     (arguments of `add` and `load_csv`, and writable properties), `uncertainty_column` of
-    `load_csv`, `dataset.simulated(sim)`, `dataset.compare(sim)` and `data.compare(sim)`.
+    `load_csv`, `dataset.bind(...)`, `dataset.simulated(sim)`, `dataset.compare(sim)` and
+    `data.compare(sim)`.
 
 A dataset can record the simulated quantity it measures, its *observable*. The deck stores it with
 the points, so the comparison needs no further description:
@@ -427,21 +428,22 @@ the points, so the comparison needs no further description:
 ```python
 import skarstrom as sk
 
-sim = sk.examples.Ward2022_Q100ccm.load()        # outlet CO2, outlet flow and a thermocouple, bound
-sim["layer[1].cells"] = 20                       # a coarse grid for this example
-sim.run()
-outlet = sim.experimental_data[0]
+ward = sk.examples.Ward2022_Q100ccm.load()       # outlet CO2, outlet flow and a thermocouple, bound
+ward["layer[1].cells"] = 20                      # a coarse grid for this example
+ward.run()
+outlet = ward.experimental_data[0]
 outlet.observable                                # Observable('mole_fraction', component='CarbonDioxide', location='top')
-t, y = outlet.simulated(sim)                     # the simulated counterpart, in the dataset's units
-outlet.compare(sim)                              # rmse, nrmse, max_abs_error, points, weighted_sse
-sim.experimental_data.compare(sim)               # every bound dataset, by name
+t, y = outlet.simulated(ward)                    # the simulated counterpart, in the dataset's units
+outlet.compare(ward)                             # rmse, nrmse, max_abs_error, points, weighted_sse
+ward.experimental_data.compare(ward)             # every bound dataset, by name
 
 # Bind a dataset: a thermocouple at z = 0.0715 m, recorded in minutes and degC
-T = sim.experimental_data.add("T (degC)", [0, 10, 20, 50], [20.0, 33.1, 27.5, 20.2],
-                              observable=sk.Observable("temperature", location=0.0715),
-                              x_unit="min", y_unit="degC", uncertainty=[0.5] * 4)
-T.compare(sim)["points"]
+T = ward.experimental_data.add("T (degC)", [0, 10, 20, 50], [20.0, 33.1, 27.5, 20.2],
+                               observable=sk.Observable("temperature", location=0.0715),
+                               x_unit="min", y_unit="degC", uncertainty=[0.5] * 4)
+T.compare(ward)["points"]
 T.weight = 2.0                                   # written back to the deck
+T.bind(sk.Observable("pressure", location="top"), y_unit="kPa")   # observable and units in one change
 T.observable = None                              # unbind
 ```
 

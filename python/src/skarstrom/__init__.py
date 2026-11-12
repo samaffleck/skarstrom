@@ -479,6 +479,20 @@ class ExperimentalSeries:
         else:
             self._binding = d
 
+    def bind(self, observable: ObservableLike, x_unit: Optional[str] = None, y_unit: Optional[str] = None,
+             uncertainty: Optional[Sequence[float]] = None, weight: Optional[float] = None) -> "ExperimentalSeries":
+        """Set the observable and, in the same change, any of the units,
+        uncertainty and weight (``None`` keeps a value): needed when the new
+        observable has another dimension than the current ``y_unit``.
+        ``observable=None`` unbinds. Returns the series."""
+        changes: Dict[str, Any] = {"x_unit": x_unit, "y_unit": y_unit, "uncertainty": uncertainty, "weight": weight}
+        if observable is None:
+            changes["unbind"] = True
+        else:
+            changes["observable"] = observable
+        self._rebind(**changes)
+        return self
+
     @property
     def observable(self) -> Optional[Observable]:
         return Observable.from_dict(self._binding)
