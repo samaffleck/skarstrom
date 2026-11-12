@@ -43,7 +43,11 @@ __all__ = [
     "Illustrative_Humid_DAC_Breakthrough",
     "Illustrative_TSA_13X",
     "Nguyen2022_Fig4",
+    "Nguyen2022_Fig4_100pct",
+    "Nguyen2022_Fig4_50pct",
     "Nguyen2022_Fig5",
+    "Nguyen2022_Fig5_30pct",
+    "Nguyen2022_Fig5_5pct",
     "Nguyen2023_Exp_I",
     "Nguyen2023_Exp_II",
     "Nguyen2023_Exp_III",
@@ -65,7 +69,14 @@ __all__ = [
     "Perez2019_E",
     "Perez2019_F",
     "Streb2021_A1",
+    "Streb2021_A2",
     "Streb2021_A3",
+    "Streb2021_A4",
+    "Streb2021_A5",
+    "Streb2021_A6",
+    "Streb2021_A7",
+    "Streb2021_B1",
+    "Streb2021_B2",
     "Vysyaraju2024_PSA_exp1",
     "Ward2022_Q100ccm",
     "Ward2022_Q200ccm",
@@ -204,21 +215,53 @@ flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and he
 transfer from the Perez2019 decks. Operating conditions are round numbers for the docs
 tutorial; heating goes above the isotherm's 298-348 K fit range."""
 
-Nguyen2022_Fig4 = Example('Nguyen2022_Fig4', 'Nguyen 2022 - Fig. 4', 'Binary CO2/He breakthrough experiment with CALF-20. Results correspond Fig 4 from the publication. The example is initialised with an inlet CO2 mole fraction of 0.7. Varying this value will correspond to the other cases in the paper. Experimental data from the publication is included in the example under the Data Plotter window.')
-"""Nguyen 2022 - Fig. 4
+Nguyen2022_Fig4 = Example('Nguyen2022_Fig4', 'Nguyen 2022 - Fig. 4, 70 % CO2 in He', "CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 4): 70 % CO2 in He fed at 50 cm3/min into a column full of helium. The measured outlet composition and the thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to the deck (Experimental Data).")
+"""Nguyen 2022 - Fig. 4, 70 % CO2 in He
 
-Binary CO2/He breakthrough experiment with CALF-20. Results correspond Fig 4 from the
-publication. The example is initialised with an inlet CO2 mole fraction of 0.7. Varying
-this value will correspond to the other cases in the paper. Experimental data from the
-publication is included in the example under the Data Plotter window."""
+CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 4): 70 % CO2 in He fed at 50
+cm3/min into a column full of helium. The measured outlet composition and the
+thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to
+the deck (Experimental Data)."""
 
-Nguyen2022_Fig5 = Example('Nguyen2022_Fig5', 'Nguyen 2022 - Fig. 5', 'Ternary CO2/N2/He breakthrough experiment with CALF-20. Results correspond Fig 5 from the publication. The example is initialised with an inlet CO2 mole fraction of 0.15. Varying this value will correspond to the other cases in the paper. Experimental data from the publication is included in the example under the Data Plotter window.')
-"""Nguyen 2022 - Fig. 5
+Nguyen2022_Fig4_100pct = Example('Nguyen2022_Fig4_100pct', 'Nguyen 2022 - Fig. 4, pure CO2 (balance He)', "CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 4): pure CO2 (balance He) fed at 50 cm3/min into a column full of helium. The measured outlet composition and the thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to the deck (Experimental Data).")
+"""Nguyen 2022 - Fig. 4, pure CO2 (balance He)
 
-Ternary CO2/N2/He breakthrough experiment with CALF-20. Results correspond Fig 5 from
-the publication. The example is initialised with an inlet CO2 mole fraction of 0.15.
-Varying this value will correspond to the other cases in the paper. Experimental data
-from the publication is included in the example under the Data Plotter window."""
+CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 4): pure CO2 (balance He) fed at
+50 cm3/min into a column full of helium. The measured outlet composition and the
+thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to
+the deck (Experimental Data)."""
+
+Nguyen2022_Fig4_50pct = Example('Nguyen2022_Fig4_50pct', 'Nguyen 2022 - Fig. 4, 50 % CO2 in He', "CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 4): 50 % CO2 in He fed at 50 cm3/min into a column full of helium. The measured outlet composition and the thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to the deck (Experimental Data).")
+"""Nguyen 2022 - Fig. 4, 50 % CO2 in He
+
+CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 4): 50 % CO2 in He fed at 50
+cm3/min into a column full of helium. The measured outlet composition and the
+thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to
+the deck (Experimental Data)."""
+
+Nguyen2022_Fig5 = Example('Nguyen2022_Fig5', 'Nguyen 2022 - Fig. 5, 15 % CO2 in N2', "CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 5): 15 % CO2 in N2 fed at 100 cm3/min into a column full of helium. The measured outlet composition and the thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to the deck (Experimental Data).")
+"""Nguyen 2022 - Fig. 5, 15 % CO2 in N2
+
+CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 5): 15 % CO2 in N2 fed at 100
+cm3/min into a column full of helium. The measured outlet composition and the
+thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to
+the deck (Experimental Data)."""
+
+Nguyen2022_Fig5_30pct = Example('Nguyen2022_Fig5_30pct', 'Nguyen 2022 - Fig. 5, 30 % CO2 in N2', "CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 5): 30 % CO2 in N2 fed at 100 cm3/min into a column full of helium. The measured outlet composition and the thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to the deck (Experimental Data).")
+"""Nguyen 2022 - Fig. 5, 30 % CO2 in N2
+
+CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 5): 30 % CO2 in N2 fed at 100
+cm3/min into a column full of helium. The measured outlet composition and the
+thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to
+the deck (Experimental Data)."""
+
+Nguyen2022_Fig5_5pct = Example('Nguyen2022_Fig5_5pct', 'Nguyen 2022 - Fig. 5, 5 % CO2 in N2', "CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 5): 5 % CO2 in N2 fed at 100 cm3/min into a column full of helium. The measured outlet composition and the thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to the deck (Experimental Data).")
+"""Nguyen 2022 - Fig. 5, 5 % CO2 in N2
+
+CO2 breakthrough on CALF-20 (Nguyen et al. 2022, Fig. 5): 5 % CO2 in N2 fed at 100
+cm3/min into a column full of helium. The measured outlet composition and the
+thermocouple 1.82 cm from the outlet, re-digitised from the paper's figure, are bound to
+the deck (Experimental Data)."""
 
 Nguyen2023_Exp_I = Example('Nguyen2023_Exp_I', 'Nguyen 2023 - Experiment I.', 'Basic four-step cycle for a binary CO2/N2 VPSA cycle using CALF-20 taken from https://doi.org/10.1016/j.cej.2022.139550. This configuration corresponds to experiment I in the paper.')
 """Nguyen 2023 - Experiment I.
@@ -407,6 +450,15 @@ neglected in this configuration. Experimental breakthrough data is included and 
 plotted to validate the solver performance. This test demonstrates the ability to model
 competitive adsorption in binary systems at atmospheric pressure conditions."""
 
+Streb2021_A2 = Example('Streb2021_A2', 'Streb 2021 - Experiment A2', 'Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A2: 25 C, 10 bar, 10 cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks\' calibration on A3 and this experiment\'s flow factor (README, "Calibration on A3"). The digitised outlet mole fractions and the five centre-line thermocouples are bound to the deck (Experimental Data).')
+"""Streb 2021 - Experiment A2
+
+Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A2: 25 C, 10 bar, 10
+cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks' calibration
+on A3 and this experiment's flow factor (README, "Calibration on A3"). The digitised
+outlet mole fractions and the five centre-line thermocouples are bound to the deck
+(Experimental Data)."""
+
 Streb2021_A3 = Example('Streb2021_A3', 'Streb 2021 - Experiment A3', 'Binary CO2/CH4 separation breakthrough test based on Streb et al. 2021, experiment A3. This simulation models a breakthrough experiment for 13X zeolite in a lab-scale test rig at elevated pressure (10 bar). The bed is initially saturated with helium and then fed with an equimolar binary mixture of CO2 and CH4. The adsorbent uses an Extended Sips2 isotherm model for both components and linear driving force models for mass transfer. The simulation includes coupled heat and mass transfer with internal and external heat transfer mechanisms. Wall heat transfer is neglected in this configuration. Experimental breakthrough data is included and can be plotted to validate the solver performance. This test demonstrates the ability to model competitive adsorption in binary systems at high pressure conditions.')
 """Streb 2021 - Experiment A3
 
@@ -420,6 +472,60 @@ transfer mechanisms. Wall heat transfer is neglected in this configuration. Expe
 breakthrough data is included and can be plotted to validate the solver performance.
 This test demonstrates the ability to model competitive adsorption in binary systems at
 high pressure conditions."""
+
+Streb2021_A4 = Example('Streb2021_A4', 'Streb 2021 - Experiment A4', 'Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A4: 25 C, 10 bar, 40 cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks\' calibration on A3 and this experiment\'s flow factor (README, "Calibration on A3"). The digitised outlet mole fractions and the five centre-line thermocouples are bound to the deck (Experimental Data).')
+"""Streb 2021 - Experiment A4
+
+Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A4: 25 C, 10 bar, 40
+cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks' calibration
+on A3 and this experiment's flow factor (README, "Calibration on A3"). The digitised
+outlet mole fractions and the five centre-line thermocouples are bound to the deck
+(Experimental Data)."""
+
+Streb2021_A5 = Example('Streb2021_A5', 'Streb 2021 - Experiment A5', 'Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A5: 25 C, 25 bar, 20 cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks\' calibration on A3 and this experiment\'s flow factor (README, "Calibration on A3"). The digitised outlet mole fractions and the five centre-line thermocouples are bound to the deck (Experimental Data).')
+"""Streb 2021 - Experiment A5
+
+Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A5: 25 C, 25 bar, 20
+cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks' calibration
+on A3 and this experiment's flow factor (README, "Calibration on A3"). The digitised
+outlet mole fractions and the five centre-line thermocouples are bound to the deck
+(Experimental Data)."""
+
+Streb2021_A6 = Example('Streb2021_A6', 'Streb 2021 - Experiment A6', 'Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A6: 45 C, 10 bar, 20 cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks\' calibration on A3 and this experiment\'s flow factor (README, "Calibration on A3"). The digitised outlet mole fractions and the five centre-line thermocouples are bound to the deck (Experimental Data).')
+"""Streb 2021 - Experiment A6
+
+Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A6: 45 C, 10 bar, 20
+cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks' calibration
+on A3 and this experiment's flow factor (README, "Calibration on A3"). The digitised
+outlet mole fractions and the five centre-line thermocouples are bound to the deck
+(Experimental Data)."""
+
+Streb2021_A7 = Example('Streb2021_A7', 'Streb 2021 - Experiment A7', 'Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A7: 65 C, 10 bar, 20 cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks\' calibration on A3 and this experiment\'s flow factor (README, "Calibration on A3"). The digitised outlet mole fractions and the five centre-line thermocouples are bound to the deck (Experimental Data).')
+"""Streb 2021 - Experiment A7
+
+Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A7: 65 C, 10 bar, 20
+cm3/s, binary CO2/CH4 50:50) into a column full of helium, with the decks' calibration
+on A3 and this experiment's flow factor (README, "Calibration on A3"). The digitised
+outlet mole fractions and the five centre-line thermocouples are bound to the deck
+(Experimental Data)."""
+
+Streb2021_B1 = Example('Streb2021_B1', 'Streb 2021 - Experiment B1', 'Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment B1: 25 C, 1 bar, 20 cm3/s, ternary H2/CO2/CH4 75:20:5) into a column full of helium, with the decks\' calibration on A3 and this experiment\'s flow factor (README, "Calibration on A3"). The digitised outlet mole fractions and the five centre-line thermocouples are bound to the deck (Experimental Data).')
+"""Streb 2021 - Experiment B1
+
+Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment B1: 25 C, 1 bar, 20
+cm3/s, ternary H2/CO2/CH4 75:20:5) into a column full of helium, with the decks'
+calibration on A3 and this experiment's flow factor (README, "Calibration on A3"). The
+digitised outlet mole fractions and the five centre-line thermocouples are bound to the
+deck (Experimental Data)."""
+
+Streb2021_B2 = Example('Streb2021_B2', 'Streb 2021 - Experiment B2', 'Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment B2: 25 C, 10 bar, 10 cm3/s, ternary H2/CO2/CH4 75:20:5) into a column full of helium, with the decks\' calibration on A3 and this experiment\'s flow factor (README, "Calibration on A3"). The digitised outlet mole fractions and the five centre-line thermocouples are bound to the deck (Experimental Data).')
+"""Streb 2021 - Experiment B2
+
+Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment B2: 25 C, 10 bar, 10
+cm3/s, ternary H2/CO2/CH4 75:20:5) into a column full of helium, with the decks'
+calibration on A3 and this experiment's flow factor (README, "Calibration on A3"). The
+digitised outlet mole fractions and the five centre-line thermocouples are bound to the
+deck (Experimental Data)."""
 
 Vysyaraju2024_PSA_exp1 = Example('Vysyaraju2024_PSA_exp1', 'Vysyaraju 2024 - PSA exp1', '')
 """Vysyaraju 2024 - PSA exp1"""
@@ -493,7 +599,11 @@ ALL: Tuple[Example, ...] = (
     Illustrative_Humid_DAC_Breakthrough,
     Illustrative_TSA_13X,
     Nguyen2022_Fig4,
+    Nguyen2022_Fig4_100pct,
+    Nguyen2022_Fig4_50pct,
     Nguyen2022_Fig5,
+    Nguyen2022_Fig5_30pct,
+    Nguyen2022_Fig5_5pct,
     Nguyen2023_Exp_I,
     Nguyen2023_Exp_II,
     Nguyen2023_Exp_III,
@@ -515,7 +625,14 @@ ALL: Tuple[Example, ...] = (
     Perez2019_E,
     Perez2019_F,
     Streb2021_A1,
+    Streb2021_A2,
     Streb2021_A3,
+    Streb2021_A4,
+    Streb2021_A5,
+    Streb2021_A6,
+    Streb2021_A7,
+    Streb2021_B1,
+    Streb2021_B2,
     Vysyaraju2024_PSA_exp1,
     Ward2022_Q100ccm,
     Ward2022_Q200ccm,

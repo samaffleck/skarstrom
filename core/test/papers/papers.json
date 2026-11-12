@@ -59,11 +59,12 @@
       "label": "Nguyen et al. (2022)",
       "citation": "T.T.T. Nguyen, J.-B. Lin, G.K.H. Shimizu, A. Rajendran, Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20, Chemical Engineering Journal 442 (2022) 136263.",
       "doi": "10.1016/j.cej.2022.136263",
-      "system": "CO2 breakthrough on CALF-20",
-      "reference_kind": "digitised experimental breakthrough curves (Figs. 4, 5)",
+      "system": "CO2/He and CO2/N2 breakthrough on CALF-20 (six runs of Figs. 4 and 5)",
+      "reference_kind": "measured markers re-digitised from Figs. 4 and 5 (outlet y_CO2, y_N2, thermocouple); the paper's model curves (code to code)",
       "findings": [
-        "Outlet CO2 curves agree with the digitised Figs. 4 and 5 to an NRMSE of 8-12 % and the CO2 front position (half the feed fraction) to 0.7-5 %.",
-        "The paper text is not in the repo. The four additional feed fractions assume the same flow as the bundled case of the same figure (50 ccm for Fig. 4, 100 ccm for Fig. 5); Fig. 5 is described as a CO2/N2/He experiment but the deck feeds CO2 in He. Particle diameter and ambient temperature are assumptions (see the README)."
+        "The curves used until 2026-11-12 as the experiment were the paper's model lines, digitised; the measured markers were re-digitised from the 300 dpi figures, with each run's flow, temperature and pressure from the author's thesis (Table A2.1). Fig. 5 is a CO2/N2 feed (the decks fed CO2 in helium before).",
+        "With the paper's parameters and model forms (nothing fitted), the CO2 fronts are +6.5, +3.2, +10.9 % (Fig. 4: 100, 70, 50 % CO2) and -7.2, +5.6, -9.7 % (Fig. 5: 30, 15, 5 %) from the measurements; the paper's own model is +7.6, +5.0, +15.4, -9.6, +10.0, -5.8 %. Code to code the fronts agree with the paper's model within 0.1-4.1 %.",
+        "Fig. 5 thermocouple RMSE 1.0-2.7 K and outlet N2 RMSE 0.04-0.28; the Fig. 4 temperature peaks are 6-8 K above the measurement and 5-6 K above the paper's model (open item). Calibrating the thermal values on Fig. 4, as the paper did, makes the Fig. 5 temperatures worse, so no calibration is shipped. The particle diameter (1.5 mm, pellets 1-3 mm) and the wall-end condition are assumptions."
       ]
     },
     {

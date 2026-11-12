@@ -133,14 +133,42 @@
       "family": "Nguyen (2022)",
       "family_key": "Nguyen2022",
       "hidden": false,
-      "summary": "Binary CO2/He breakthrough on CALF-20"
+      "summary": "CO2/He breakthrough on CALF-20, 70 % CO2 (Fig. 4)"
     },
     {
       "file": "Nguyen2022_Fig5.json",
       "family": "Nguyen (2022)",
       "family_key": "Nguyen2022",
       "hidden": false,
-      "summary": "Ternary CO2/N2/He breakthrough on CALF-20"
+      "summary": "CO2/N2 breakthrough on CALF-20, 15 % CO2 (Fig. 5)"
+    },
+    {
+      "file": "Nguyen2022_Fig4_100pct.json",
+      "family": "Nguyen (2022)",
+      "family_key": "Nguyen2022",
+      "hidden": false,
+      "summary": "CO2/He breakthrough on CALF-20, pure CO2 (Fig. 4)"
+    },
+    {
+      "file": "Nguyen2022_Fig4_50pct.json",
+      "family": "Nguyen (2022)",
+      "family_key": "Nguyen2022",
+      "hidden": false,
+      "summary": "CO2/He breakthrough on CALF-20, 50 % CO2 (Fig. 4)"
+    },
+    {
+      "file": "Nguyen2022_Fig5_30pct.json",
+      "family": "Nguyen (2022)",
+      "family_key": "Nguyen2022",
+      "hidden": false,
+      "summary": "CO2/N2 breakthrough on CALF-20, 30 % CO2 (Fig. 5)"
+    },
+    {
+      "file": "Nguyen2022_Fig5_5pct.json",
+      "family": "Nguyen (2022)",
+      "family_key": "Nguyen2022",
+      "hidden": false,
+      "summary": "CO2/N2 breakthrough on CALF-20, 5 % CO2 (Fig. 5)"
     },
     {
       "file": "Nguyen2023_Exp_I.json",
@@ -287,14 +315,63 @@
       "family": "Streb (2021)",
       "family_key": "Streb2021",
       "hidden": false,
-      "summary": "Binary CO2/CH4 breakthrough, case A1"
+      "summary": "Binary CO2/CH4 breakthrough, case A1 (1 bar)"
+    },
+    {
+      "file": "Streb2021_A2.json",
+      "family": "Streb (2021)",
+      "family_key": "Streb2021",
+      "hidden": false,
+      "summary": "Binary CO2/CH4 breakthrough, case A2 (10 bar, 10 cm3/s)"
     },
     {
       "file": "Streb2021_A3.json",
       "family": "Streb (2021)",
       "family_key": "Streb2021",
       "hidden": false,
-      "summary": "Binary CO2/CH4 breakthrough, case A3"
+      "summary": "Binary CO2/CH4 breakthrough, case A3 (10 bar, the reference)"
+    },
+    {
+      "file": "Streb2021_A4.json",
+      "family": "Streb (2021)",
+      "family_key": "Streb2021",
+      "hidden": false,
+      "summary": "Binary CO2/CH4 breakthrough, case A4 (10 bar, 40 cm3/s)"
+    },
+    {
+      "file": "Streb2021_A5.json",
+      "family": "Streb (2021)",
+      "family_key": "Streb2021",
+      "hidden": false,
+      "summary": "Binary CO2/CH4 breakthrough, case A5 (25 bar)"
+    },
+    {
+      "file": "Streb2021_A6.json",
+      "family": "Streb (2021)",
+      "family_key": "Streb2021",
+      "hidden": false,
+      "summary": "Binary CO2/CH4 breakthrough, case A6 (45 C)"
+    },
+    {
+      "file": "Streb2021_A7.json",
+      "family": "Streb (2021)",
+      "family_key": "Streb2021",
+      "hidden": false,
+      "summary": "Binary CO2/CH4 breakthrough, case A7 (65 C)"
+    },
+    {
+      "file": "Streb2021_B1.json",
+      "family": "Streb (2021)",
+      "family_key": "Streb2021",
+      "hidden": false,
+      "summary": "Ternary H2/CO2/CH4 breakthrough, case B1 (1 bar)"
+    },
+    {
+      "file": "Streb2021_B2.json",
+      "family": "Streb (2021)",
+      "family_key": "Streb2021",
+      "hidden": false,
+      "summary": "Ternary H2/CO2/CH4 breakthrough, case B2 (10 bar)"
     },
     {
       "file": "Vysyaraju2024_PSA_exp1.json",
