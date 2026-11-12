@@ -518,51 +518,86 @@ namespace adsim {
   // for which digitised data exist.
   TEST_F(Streb2021Test, ExperimentA2) {
     data.info.title = "Streb 2021 - Experiment A2";
+    data.info.description = "Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A2: 25 C, 10 bar, 10 cm3/s, binary CO2/CH4 50:50) into a "
+                            "column full of helium, with the decks' calibration on A3 and this experiment's flow factor (README, "
+                            "\"Calibration on A3\"). The digitised outlet mole fractions and the five centre-line thermocouples are "
+                            "bound to the deck (Experimental Data).";
+    data.info.author = "Sam Affleck";
     const StrebCase c = StrebCaseFor("A2");
     SetUpStreb(c);
-    RunAndValidate(c, false);
+    RunAndValidate(c, true);
   }
 
   TEST_F(Streb2021Test, ExperimentA4) {
     data.info.title = "Streb 2021 - Experiment A4";
+    data.info.description = "Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A4: 25 C, 10 bar, 40 cm3/s, binary CO2/CH4 50:50) into a "
+                            "column full of helium, with the decks' calibration on A3 and this experiment's flow factor (README, "
+                            "\"Calibration on A3\"). The digitised outlet mole fractions and the five centre-line thermocouples are "
+                            "bound to the deck (Experimental Data).";
+    data.info.author = "Sam Affleck";
     const StrebCase c = StrebCaseFor("A4");
     SetUpStreb(c);
-    RunAndValidate(c, false);
+    RunAndValidate(c, true);
   }
 
   TEST_F(Streb2021Test, ExperimentA5) {
     data.info.title = "Streb 2021 - Experiment A5";
+    data.info.description = "Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A5: 25 C, 25 bar, 20 cm3/s, binary CO2/CH4 50:50) into a "
+                            "column full of helium, with the decks' calibration on A3 and this experiment's flow factor (README, "
+                            "\"Calibration on A3\"). The digitised outlet mole fractions and the five centre-line thermocouples are "
+                            "bound to the deck (Experimental Data).";
+    data.info.author = "Sam Affleck";
     const StrebCase c = StrebCaseFor("A5");
     SetUpStreb(c);
-    RunAndValidate(c, false);
+    RunAndValidate(c, true);
   }
 
   TEST_F(Streb2021Test, ExperimentA6) {
     data.info.title = "Streb 2021 - Experiment A6";
+    data.info.description = "Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A6: 45 C, 10 bar, 20 cm3/s, binary CO2/CH4 50:50) into a "
+                            "column full of helium, with the decks' calibration on A3 and this experiment's flow factor (README, "
+                            "\"Calibration on A3\"). The digitised outlet mole fractions and the five centre-line thermocouples are "
+                            "bound to the deck (Experimental Data).";
+    data.info.author = "Sam Affleck";
     const StrebCase c = StrebCaseFor("A6");
     SetUpStreb(c);
-    RunAndValidate(c, false);
+    RunAndValidate(c, true);
   }
 
   TEST_F(Streb2021Test, ExperimentA7) {
     data.info.title = "Streb 2021 - Experiment A7";
+    data.info.description = "Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment A7: 65 C, 10 bar, 20 cm3/s, binary CO2/CH4 50:50) into a "
+                            "column full of helium, with the decks' calibration on A3 and this experiment's flow factor (README, "
+                            "\"Calibration on A3\"). The digitised outlet mole fractions and the five centre-line thermocouples are "
+                            "bound to the deck (Experimental Data).";
+    data.info.author = "Sam Affleck";
     const StrebCase c = StrebCaseFor("A7");
     SetUpStreb(c);
-    RunAndValidate(c, false);
+    RunAndValidate(c, true);
   }
 
   TEST_F(Streb2021Test, ExperimentB1) {
     data.info.title = "Streb 2021 - Experiment B1";
+    data.info.description = "Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment B1: 25 C, 1 bar, 20 cm3/s, ternary H2/CO2/CH4 75:20:5) into a "
+                            "column full of helium, with the decks' calibration on A3 and this experiment's flow factor (README, "
+                            "\"Calibration on A3\"). The digitised outlet mole fractions and the five centre-line thermocouples are "
+                            "bound to the deck (Experimental Data).";
+    data.info.author = "Sam Affleck";
     const StrebCase c = StrebCaseFor("B1");
     SetUpStreb(c);
-    RunAndValidate(c, false);
+    RunAndValidate(c, true);
   }
 
   TEST_F(Streb2021Test, ExperimentB2) {
     data.info.title = "Streb 2021 - Experiment B2";
+    data.info.description = "Breakthrough on zeolite 13X (Streb & Mazzotti 2021, experiment B2: 25 C, 10 bar, 10 cm3/s, ternary H2/CO2/CH4 75:20:5) into a "
+                            "column full of helium, with the decks' calibration on A3 and this experiment's flow factor (README, "
+                            "\"Calibration on A3\"). The digitised outlet mole fractions and the five centre-line thermocouples are "
+                            "bound to the deck (Experimental Data).";
+    data.info.author = "Sam Affleck";
     const StrebCase c = StrebCaseFor("B2");
     SetUpStreb(c);
-    RunAndValidate(c, false);
+    RunAndValidate(c, true);
   }
 
   // IAST over the pure Sips terms of Table 3 (the competition model the paper

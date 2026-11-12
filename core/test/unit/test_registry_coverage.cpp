@@ -76,7 +76,14 @@ void CollectUnchanged(const rj::Value& a, const rj::Value& b, const std::string&
     for (rj::SizeType i = 0; i < n; ++i) {
       const bool entry = a[i].IsObject() && a[i].HasMember("key") && a[i].HasMember("value");
       if (entry) {
-        CollectUnchanged(a[i]["value"], b[i]["value"], path + "[*]", out);
+        // The entry's key stays in the path, so the passes are intersected per
+        // entry; Generic() turns it into [*] for the exceptions and the report.
+        const rj::Value& key = a[i]["key"];
+        const std::string k = key.IsString() ? key.GetString()
+                              : key.IsInt64() ? std::to_string(key.GetInt64())
+                              : key.IsUint64() ? std::to_string(key.GetUint64())
+                                               : std::string("?");
+        CollectUnchanged(a[i]["value"], b[i]["value"], path + "[" + k + "]", out);
       } else {
         CollectUnchanged(a[i], b[i], path + "[]", out);
       }
@@ -241,9 +248,15 @@ std::set<std::string> Uncovered(UserData& d) {
       unchanged = both;
     }
   }
+  // A leaf is uncovered only when it is unchanged in every pass, so the passes
+  // are intersected on concrete paths (one map entry, e.g. one component's
+  // capacity-factor mode, can be unchanged in one pass and another entry in the
+  // next); the generic path ([*] for every map entry) is for the report.
   std::set<std::string> out;
-  for (const auto& path : unchanged)
-    if (!Excepted(path)) out.insert(path);
+  for (const auto& path : unchanged) {
+    const std::string generic = std::regex_replace(path, std::regex(R"(\[[^\]]+\])"), "[*]");
+    if (!Excepted(generic)) out.insert(generic);
+  }
   return out;
 }
 

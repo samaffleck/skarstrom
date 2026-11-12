@@ -33,8 +33,8 @@ configuration).
 |---|---|---|---|---|
 | [`ward_2022.py`](ward_2022.py) | `Ward2022_Q50ccm`, `_Q100ccm`, `_Q200ccm` | CO₂ breakthrough on activated carbon, three flow rates | digitised outlet y_CO₂ and thermocouple; paper-model breakthrough-time interval | 2 s |
 | [`casas_2012.py`](casas_2012.py) | `Casas2012_Fig4_*`, `Casas2012_Fig6_*` (3) | CO₂/H₂ breakthrough on AP3-60 at 15 bar | paper-model breakthrough times (Table 5) | 8 s |
-| [`nguyen_2022.py`](nguyen_2022.py) | `Nguyen2022_Fig4`, `_Fig5` | CO₂/He breakthrough on CALF-20 | digitised outlet y_CO₂ (NRMSE, half-feed crossing time) | 1 s |
-| [`streb_2021.py`](streb_2021.py) | `Streb2021_A1`, `_A3` | CO₂/CH₄ breakthrough on 13X with thermocouples | digitised outlet mole fractions and five thermocouples | 16 s |
+| [`nguyen_2022.py`](nguyen_2022.py) | `Nguyen2022_Fig4`, `_Fig4_50pct`, `_Fig4_100pct`, `Nguyen2022_Fig5`, `_Fig5_5pct`, `_Fig5_30pct` | CO₂/He and CO₂/N₂ breakthrough on CALF-20, six runs | measured outlet y_CO₂ (NRMSE, half-feed crossing time) and thermocouple (RMSE) | 2 s |
+| [`streb_2021.py`](streb_2021.py) | `Streb2021_A1`–`_A7`, `_B1`, `_B2` | CO₂/CH₄ and H₂/CO₂/CH₄ breakthrough on 13X with thermocouples, nine runs | digitised outlet mole fractions and five thermocouples | 16 s (A1, A3; all nine about 3 min) |
 | [`arora_2021.py`](arora_2021.py) | `Arora2021_LiLSX_PSA`, `_PVSA` | O₂ PSA and PVSA on LiLSX (50 cycles) | paper-model O₂ purity and net recovery (Table 4) | 2 min |
 | [`ferre_2026.py`](ferre_2026.py) | `Ferre2026_NaYF` | Biogas CO₂/CH₄ PVSA on NaY, to CSS | paper-model purity and recovery of both products (Table 5) | 4 min |
 | [`nguyen_2023.py`](nguyen_2023.py) | `Nguyen2023_Exp_I` … `_X` (10) | CO₂/N₂ VPSA on CALF-20, with and without LPP, to CSS | measured and paper-model CO₂ purity/recovery (Table 2) | 22 min |
