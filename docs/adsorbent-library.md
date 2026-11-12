@@ -755,7 +755,7 @@ print(entry["label"], iso["kind_label"], [(p["name"], p["unit"]) for p in iso["p
 | Quantity | Value | Provenance | Reference |
 |---|---|---|---|
 | Heat of adsorption, CarbonDioxide | 29.98 kJ/mol | repo deck/test | Not stated in source as a single value (checked: Ward &amp; Pini 2022 Table 2, DSL site energies only); \|dU\_1\| = 29.98 kJ/mol. The paper's energy balance (Eq. A4) releases -dU\_1 + RT per mole adsorbed, and the Ward\_2022 decks use that (32.42 kJ/mol at 293 K) |
-| Particle density | 799.632 kg/m3 | derived | Table 1: rho\_b / (1 - eps) = 435 / (1 - 0.456). The repo decks round this to 799. |
+| Particle density | 799.632 kg/m3 | derived | Table 1: rho\_b / (1 - eps) = 435 / (1 - 0.456). The Ward\_2022 decks use 435 / 0.544. |
 | Heat capacity | 1040 J/(kg K) | source | Table 1 |
 | Particle voidage | 0.59 | source | Table 1 (the repo decks set 0) |
 | Particle diameter | 0.003 m | source | Table 1, particle radius 1.5e-3 m |
@@ -767,6 +767,7 @@ print(entry["label"], iso["kind_label"], [(p["name"], p["unit"]) for p in iso["p
 
 - Concentration-form DSL from Table 2.
 - Includes the decks' Haynes-type macropore LDF model.
+- The Ward\_2022 decks calibrate the site-2 capacity to 5.89 mol/kg against the breakthrough experiments (core/test/papers/ward\_2022/README.md, Calibration); this entry keeps the published Table 2 value, 6.04 mol/kg, so it is not deck-checked.
 
 ---
 

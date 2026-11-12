@@ -29,6 +29,12 @@ Every deck value, with where it comes from. "Paper model" is what Ward & Pini's
 own 1D model used (Sect. 3, Appendix A); the experiment is that of their ref. [5]
 (Pini, Joss, Hejazi 2021).
 
+This table records the audit. Since the calibration (2026-11, see
+[Calibration](#calibration-2026-11) below) the decks replace four of these values
+with calibrated ones: the ambient and wall-end temperature, q_s,2, the factor on
+Eq. 4 and the inside HTC. They also use the particle density 435 / 0.544
+(799.6 kg/m³) in place of 799.
+
 | Deck value | Value | Source | Note |
 |---|---|---|---|
 | Column length | 0.286 m | Table 1, L | |
@@ -105,8 +111,8 @@ value in a comment next to it. Results of the last run:
 [validation page](../../../../docs/validation.md#ward-2022)
 (generated from `../validation_summary.json`).
 
-- The CO2 front (y = 0.5) arrives 4-6 % earlier than measured. The simulated front is much sharper than the measured one, so the curve NRMSE is 34-38 %; the thermocouple RMSE is 2.6-4.2 K, and the simulated temperature rise (15-33 K) is above the paper model's 95 % interval (7-27 K).
-- No transcription error was found (column length, radius, voidage, bed density, flows and isotherm match Tables 1-2). Likely causes: a single constant heat of adsorption of 29.98 kJ/mol (the site-1 internal energy, while most of the loading sits on site 2 at 20.4 kJ/mol) heats the bed more and lowers its capacity; the deck uses air as carrier where the paper uses He; the sampling line is not modelled. The ambient temperature was corrected to Table 1's 291.4 K.
+- With the calibrated decks ([Calibration](#calibration-2026-11)), the CO2 front (y = 0.5) is within 0.4 % of the measured time at all three flows, the outlet-curve NRMSE is 2.7-3.9 % and the thermocouple RMSE 0.18-1.40 K. The temperature rise per Table 9 is 6.7 / 13.1 / 20.9 K against the measured 6.4 / 13.1 / 20.3 K.
+- The sections below record the history of the decks, oldest first. Their numbers are the results at the time.
 
 ### Danckwerts inlet fix (2026-11)
 
@@ -166,3 +172,85 @@ bound).
 | Q50ccm | thermocouple T at z = 0.0715 m | 0 | 1.18 | 1.24 | 1.177 → 1.243 | 1.4 |
 | Q50ccm | breakthrough time (y_CO2,out = 0.5) | 2540.50 | 2681.75 | 2689.05 | 141.25 → 148.55 | – |
 | Q50ccm | temperature rise at z = 0.0715 m | 8.45 | 5.42 | 5.85 | 3.03 → 2.60 | – |
+
+### Calibration (2026-11)
+
+After the steps above the decks used the paper's model with the paper's values,
+and the CO2 front still arrived 1.7-4.5 % late (most at 50 ccm), with an
+outlet NRMSE of 14-35 % and a thermocouple RMSE of 1.15-2.56 K. A recheck of every
+deck value against Tables 1, 2, 4, 5 and 6 found no transcription error. The
+equations of the paper (Eqs. 4-10, Appendix A) were not available in readable
+form for this recheck. The only remaining difference was the particle density,
+which the decks rounded to 799 kg/m³ (Table 1 gives 435 / 0.544 = 799.6).
+
+The measured thermocouple gives the cause. It reads 291.5 K at the start (Table
+1's ambient, 291.4 K), but after the front it settles at about 293 K, the feed
+temperature, and stays there to the end of the run. With the wall ends held at
+291.4 K (Table 4), the simulated bed cools to 291.4 K behind the front. A cooler
+bed holds more CO2, so the front arrives late, and most at the lowest flow,
+where the bed has the most time to cool. Insulated wall ends (zero flux) do not
+fix this: the bed then keeps its heat and the front arrives 5-10 % early.
+
+The decks are now calibrated. A weighted least-squares fit (scipy
+`least_squares`; residual weights 0.03 in y and 0.5 K, the assumed digitising
+error) to the outlet y_CO2 and thermocouple points of all three flows together
+gave these values. The ambient temperature was set to 293 K from the measured
+thermocouple, not fitted.
+
+| Value | Calibrated (± 1 σ of the fit) | Paper |
+|---|---|---|
+| Ambient and wall-end temperature | 293 K (set) | 291.4 K (Table 1) |
+| q_s,2 | 5.89 ± 0.01 mol/kg | 6.04 mol/kg (Table 2); 95 % interval 5.64-6.42 (Table 7) |
+| Factor on Eq. 4 | 3.75 ± 0.12 | 4 (Sect. 3.2, itself fitted to the outlet curves) |
+| h_in, 50 / 100 / 200 ccm | 97.3 ± 6.6 / 81.5 ± 2.4 / 69.0 ± 1.1 W/(m² K) | 77.5 / 57.9 / 45.2 W/(m² K) (Table 6, fitted) |
+
+The rate model keeps the engine's Haynes coefficient (no capacity factor, the
+mixture's molecular diffusivity, tortuosity 3). The coefficient is about 40 1/s,
+so the bed is close to equilibrium. A fit with the capacity factor rho_p q*/c
+and the constant D_m of Table 1 in the coefficient (about 0.15 1/s) gave an
+almost equal fit (total cost 267 against 314). Eq. 6 of the paper could not be
+checked for the capacity factor, so the decks do not use it. A constant gas
+viscosity (Table 1: 1.72e-5 Pa s) had no measurable effect on the fit; the
+decks keep the engine's viscosity model, which keeps the 320-cell outlet in the
+regime that `FineGridBreakthrough` tests.
+
+One change at a time on the decks before the calibration (Python, the same
+runs as the paper test; front-time error, outlet NRMSE and ΔT_ads per Table 9;
+measured ΔT_ads 6.4 / 13.1 / 20.3 K):
+
+| Variant | 50 ccm | 100 ccm | 200 ccm |
+|---|---|---|---|
+| decks before the calibration | +4.5 %, 35.2 %, 5.9 K | +3.6 %, 26.5 %, 13.7 K | +1.7 %, 14.1 %, 23.4 K |
+| particle density 799.6 only | +4.6 %, 35.5 %, 5.9 K | +3.6 %, 26.9 %, 13.7 K | +1.8 %, 14.7 %, 23.4 K |
+| ambient and wall ends at 293 K only | +1.6 %, 16.1 %, 7.4 K | +0.7 %, 5.1 %, 15.1 K | −1.0 %, 9.0 %, 24.3 K |
+| q_s,2 5.89 only | +2.3 %, 22.2 %, 5.9 K | +1.4 %, 11.1 %, 13.6 K | −0.3 %, 4.2 %, 23.3 K |
+| factor 3.75 on Eq. 4 only | +4.6 %, 36.2 %, 6.1 K | +3.7 %, 27.5 %, 14.1 K | +1.8 %, 15.1 %, 23.8 K |
+| h_in 97.3 / 81.5 / 69.0 only | +4.8 %, 36.5 %, 4.8 K | +4.8 %, 31.9 %, 11.3 K | +5.2 %, 29.3 %, 19.5 K |
+| ambient + q_s,2 | −0.5 %, 5.4 %, 7.4 K | −1.4 %, 12.4 %, 15.1 K | −3.0 %, 21.3 %, 24.2 K |
+| all (the calibrated decks) | +0.0 %, 2.8 %, 6.7 K | −0.0 %, 2.7 %, 13.1 K | +0.4 %, 3.9 %, 20.9 K |
+
+The ambient temperature carries most of the front-time correction, and q_s,2
+the rest. The larger h_in then takes the excess heat out of the bed at the
+higher ambient, and the dispersion factor sets the front width.
+
+Results of the paper test (the decks as shipped):
+
+| Case | Front-time error, before → after | Outlet NRMSE, before → after | Thermocouple RMSE [K], before → after |
+|---|---|---|---|
+| 50 ccm | +4.49 % → +0.021 % | 0.352 → 0.0276 | 1.243 → 0.181 |
+| 100 ccm | +3.56 % → +0.019 % | 0.265 → 0.0272 | 1.147 → 0.675 |
+| 200 ccm | +1.73 % → +0.40 % | 0.141 → 0.0389 | 2.555 → 1.403 |
+
+The tolerances are re-measured (front-time bounds with a floor of 0.2 %).
+
+Limits:
+
+- The calibration is fitted to the same digitised curves that the test compares
+  with, so this is a calibration, not an independent validation. The raw data of
+  ref. [5] would allow an independent check.
+- At 200 ccm the simulated bed cools slightly too fast just after the
+  temperature peak. ΔT_ads at 50 ccm (6.7 K) is below the paper model's 95 %
+  interval [7.36, 9.53] K, as is the measured rise (6.4 K).
+- The adsorbent library entry `activated_carbon_ward2022` keeps the published
+  Table 2 isotherm (q_s,2 6.04 mol/kg). It is no longer deck-checked against
+  `Ward2022_Q50ccm`.

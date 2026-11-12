@@ -7169,7 +7169,7 @@
           "value": 799.6323529411765,
           "provenance": "derived",
           "provenance_label": "derived",
-          "ref": "Table 1: rho_b / (1 - eps) = 435 / (1 - 0.456). The repo decks round this to 799.",
+          "ref": "Table 1: rho_b / (1 - eps) = 435 / (1 - 0.456). The Ward_2022 decks use 435 / 0.544.",
           "temperature_table": null
         },
         {
@@ -7280,7 +7280,8 @@
       },
       "notes": [
         "Concentration-form DSL from Table 2.",
-        "Includes the decks' Haynes-type macropore LDF model."
+        "Includes the decks' Haynes-type macropore LDF model.",
+        "The Ward_2022 decks calibrate the site-2 capacity to 5.89 mol/kg against the breakthrough experiments (core/test/papers/ward_2022/README.md, Calibration); this entry keeps the published Table 2 value, 6.04 mol/kg, so it is not deck-checked."
       ]
     },
     {
