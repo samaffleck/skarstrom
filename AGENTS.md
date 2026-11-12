@@ -36,6 +36,7 @@ T_K = 298.15
   - The codes are `MOLE_FRACTION_SUM`, `MASS_BALANCE_STUCK`, `STEP_RETRIES` and `REACTION_STIFF`.
   - Each warning has its value, threshold, suspects and a hint. Refer to the docs page `run-health.md`. The names and hints are in `core/include/adsim/solver/run_health.h`.
 - **Do you compare with a different model or a paper?** First, read "Matching Another Model" (`docs/model-conventions.md`). It describes these items: bulk density and solid density, total voidage, the sign of the heat of adsorption, the composition that the rate uses, and the boundary profiles.
+- **Do you fit parameters to measured data?** Call `skarstrom.calibrate` or `sim.calibrate`. Do not write an optimiser loop. Refer to "Calibrating a model against measurements" below.
 - **Machine-readable pointers:**
   - `skarstrom examples --json`.
   - `skarstrom run ... --json -q`.
@@ -263,6 +264,23 @@ cache = opt.StateCache(lower, upper); run, info = opt.run_warm(cand, cache, x)  
 - To stop warm starts, use `warm_start=False` or `--no-warm-start`.
 - The cache keeps only CSS states.
 - C++: `adsim/solver/state_cache.h`, and `OptimizeSimulation` in `adsim/solver/optimisation.h`.
+
+### Calibrating a model against measurements
+
+- To fit deck parameters to measured data, call `skarstrom.calibrate` or `sim.calibrate`. Do not write an optimiser loop.
+- The datasets are the experimental data of the deck. Each dataset must be bound to an observable (`sim.experimental_data[name].observable`, `sk.Observable`). The bundled decks with data are bound.
+- A parameter is a registry path, or `cal.Parameter(path, lower, upper, scale="log", shared=False)`. `shared=False` gives one value for each case.
+- Examine `result.ok`, `result.stop_reason`, `result.notes` and the standard errors. A NaN standard error or a correlation near ±1 means that the data do not fix the value.
+- CLI: `skarstrom calibrate deck.json --param PATH[:LO:HI[:log]] --dataset NAME[:WEIGHT] [--case OTHER.json] [--out calibrated.json] [--json result.json]`. The exit code is 1 if the fit fails.
+- Guide: `docs/parameterisation.md` ("Fitting parameters to measured data"). C++: `adsim/solver/calibration.h`.
+
+```python
+import skarstrom
+from skarstrom import calibration as cal
+sim = skarstrom.examples.Illustrative_Diluted_Bed.load(); sim["layer[1].cells"] = 12
+result = sim.calibrate([cal.Parameter("adsorbent[1].isotherm[CarbonDioxide].m2", 4, 8)], max_simulations=10)
+print(result.table()); result.apply(sim)        # estimates, standard errors, fit per dataset; write them into the deck
+```
 
 ### Isotherms and the adsorbent library
 
