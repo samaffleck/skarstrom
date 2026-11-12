@@ -1449,7 +1449,7 @@
             "cereal_class_version": 1,
             "Data": [
                 {
-                    "cereal_class_version": 0,
+                    "cereal_class_version": 1,
                     "Name": "outlet_CO2_mole_fraction[-]_Qin=100[ccm]",
                     "x_data": [
                         0.0,
@@ -1514,7 +1514,22 @@
                         0.99487
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "y_CO2 [-]"
+                    "y_label": "y_CO2 [-]",
+                    "Observable": {
+                        "cereal_class_version": 0,
+                        "Kind": "component",
+                        "Variable": "mole_fraction",
+                        "Component": "CarbonDioxide",
+                        "Location": "top",
+                        "Z": 0.0,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 },
                 {
                     "Name": "outlet_volumetric_flowrate_Qin=100[ccm]",
@@ -1575,7 +1590,21 @@
                         0.00000168614
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "Outlet volumetric flowrate [m3/s]"
+                    "y_label": "Outlet volumetric flowrate [m3/s]",
+                    "Observable": {
+                        "Kind": "bulk",
+                        "Variable": "volumetric_flow_rate",
+                        "Component": "",
+                        "Location": "top",
+                        "Z": 0.0,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 },
                 {
                     "Name": "temperature[K]_z=0.0715[m]_Qin=100[ccm]",
@@ -1658,7 +1687,21 @@
                         293.00781
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "Temperature [K]"
+                    "y_label": "Temperature [K]",
+                    "Observable": {
+                        "Kind": "bulk",
+                        "Variable": "temperature",
+                        "Component": "",
+                        "Location": "position",
+                        "Z": 0.0715,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 }
             ]
         },

@@ -1351,7 +1351,7 @@
             "cereal_class_version": 1,
             "Data": [
                 {
-                    "cereal_class_version": 0,
+                    "cereal_class_version": 1,
                     "Name": "A1_mole_fraction_CH4",
                     "x_data": [
                         0.0,
@@ -1392,7 +1392,22 @@
                         0.566168821
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "Y_CH4 [-]"
+                    "y_label": "Y_CH4 [-]",
+                    "Observable": {
+                        "cereal_class_version": 0,
+                        "Kind": "component",
+                        "Variable": "mole_fraction",
+                        "Component": "Methane",
+                        "Location": "top",
+                        "Z": 0.0,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 },
                 {
                     "Name": "A1_mole_fraction_CO2",
@@ -1427,7 +1442,21 @@
                         0.43902089
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "Y_CO2 [-]"
+                    "y_label": "Y_CO2 [-]",
+                    "Observable": {
+                        "Kind": "component",
+                        "Variable": "mole_fraction",
+                        "Component": "CarbonDioxide",
+                        "Location": "top",
+                        "Z": 0.0,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 },
                 {
                     "Name": "A1_temperature_z=10[cm]",
@@ -1514,7 +1543,21 @@
                         297.2953646
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "T [K]"
+                    "y_label": "T [K]",
+                    "Observable": {
+                        "Kind": "bulk",
+                        "Variable": "temperature",
+                        "Component": "",
+                        "Location": "position",
+                        "Z": 0.1,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 },
                 {
                     "Name": "A1_temperature_z=110[cm]",
@@ -1587,7 +1630,21 @@
                         315.9151142
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "T [K]"
+                    "y_label": "T [K]",
+                    "Observable": {
+                        "Kind": "bulk",
+                        "Variable": "temperature",
+                        "Component": "",
+                        "Location": "position",
+                        "Z": 1.1,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 },
                 {
                     "Name": "A1_temperature_z=35[cm]",
@@ -1666,7 +1723,21 @@
                         298.2516
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "T [K]"
+                    "y_label": "T [K]",
+                    "Observable": {
+                        "Kind": "bulk",
+                        "Variable": "temperature",
+                        "Component": "",
+                        "Location": "position",
+                        "Z": 0.35,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 },
                 {
                     "Name": "A1_temperature_z=60[cm]",
@@ -1743,7 +1814,21 @@
                         299.2715845
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "T [K]"
+                    "y_label": "T [K]",
+                    "Observable": {
+                        "Kind": "bulk",
+                        "Variable": "temperature",
+                        "Component": "",
+                        "Location": "position",
+                        "Z": 0.6,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 },
                 {
                     "Name": "A1_temperature_z=85[cm]",
@@ -1830,7 +1915,21 @@
                         300.3838373
                     ],
                     "x_label": "Time [s]",
-                    "y_label": "T [K]"
+                    "y_label": "T [K]",
+                    "Observable": {
+                        "Kind": "bulk",
+                        "Variable": "temperature",
+                        "Component": "",
+                        "Location": "position",
+                        "Z": 0.85,
+                        "Cycle": -1,
+                        "Cycle_Offset": 0,
+                        "X_Unit": "s",
+                        "X_Scale": 1.0,
+                        "Y_Unit": "",
+                        "Uncertainty": [],
+                        "Weight": 1.0
+                    }
                 }
             ]
         },
