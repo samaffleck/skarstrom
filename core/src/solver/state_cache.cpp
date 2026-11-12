@@ -91,10 +91,10 @@ namespace adsim {
     return &best->state;
   }
 
-  RunResult RunWithStateCache(Simulation& sim, CycleStateCache* cache, const std::vector<double>& x,
-                              RunOptions options, CachedRunInfo* info) {
+  RunResult RunFromState(Simulation& sim, const CycleState* start, RunOptions options, CachedRunInfo* info,
+                         double distance) {
     if (options.initial_state) {
-      throw std::invalid_argument("RunWithStateCache chooses the initial state: options.initial_state must be null");
+      throw std::invalid_argument("RunFromState takes the start state as an argument: options.initial_state must be null");
     }
     CachedRunInfo local;
     CachedRunInfo& out = info ? *info : local;
@@ -105,10 +105,7 @@ namespace adsim {
       if (options.on_message) options.on_message(LogLevel::LOW, text);
     };
 
-    const CycleState* start = nullptr;
-    double distance = std::numeric_limits<double>::quiet_NaN();
-    if (cache && !cache->Empty()) {
-      start = cache->Nearest(x, &distance);
+    if (start) {
       std::string reason;
       try {
         reason = sim.CheckState(*start);
@@ -124,8 +121,6 @@ namespace adsim {
 
     RunResult r;
     if (start) {
-      // The cache may change in Add below; the run needs the state only
-      // during the call.
       options.initial_state = start;
       out.warm = true;
       out.distance = distance;
@@ -145,6 +140,23 @@ namespace adsim {
     } else {
       r = sim.Run(options);
     }
+    return r;
+  }
+
+  RunResult RunWithStateCache(Simulation& sim, CycleStateCache* cache, const std::vector<double>& x,
+                              RunOptions options, CachedRunInfo* info) {
+    if (options.initial_state) {
+      throw std::invalid_argument("RunWithStateCache chooses the initial state: options.initial_state must be null");
+    }
+    CachedRunInfo local;
+    CachedRunInfo& out = info ? *info : local;
+
+    const CycleState* start = nullptr;
+    double distance = std::numeric_limits<double>::quiet_NaN();
+    if (cache && !cache->Empty()) start = cache->Nearest(x, &distance);
+    // The cache may change in Add below; the run needs the state only during
+    // the call.
+    const RunResult r = RunFromState(sim, start, options, &out, distance);
 
     // Only a cyclic steady state is cached: the state at the end of a run that
     // stopped at the cycle limit depends on where that run started, so
@@ -155,7 +167,8 @@ namespace adsim {
         cache->Add(x, sim.FinalState());
         out.cached = true;
       } catch (const std::exception& e) {
-        Note(std::string("the final state was not cached: ") + e.what());
+        out.note += (out.note.empty() ? "" : "; ") + std::string("the final state was not cached: ") + e.what();
+        if (options.on_message) options.on_message(LogLevel::LOW, std::string("the final state was not cached: ") + e.what());
       }
     }
     return r;

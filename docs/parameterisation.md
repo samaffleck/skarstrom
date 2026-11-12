@@ -141,3 +141,57 @@ Points to keep in mind:
 - **Identifiability.** Fit as few parameters as the data can determine; check the result by fitting a second dataset (another flow rate or feed composition) with the same parameters.
 
 The engine also exposes the same extraction and RMSE helpers in C++ (`adsim/solver/parameterisation.h`: `ExtractBulkTimeSeries`, `ExtractComponentTimeSeries`, `ComputeRMSE`, `ComputeKPIRMSE`), which front ends use to offer fitting with the same objective. Pass the run's boundary log and steps (`BedBoundarySources`) to the extraction helpers so their bed-end values are the endpoint logs, as `sim.series` does (`adsim/solver/bed_series.h`).
+
+## Calibration from C++
+
+!!! note "New in 0.11"
+    `adsim/solver/calibration.h`. The Python interface follows in a later release.
+
+The engine has a calibration object for problems larger than a one-parameter search: several datasets, several experiments (decks) at different conditions that share some parameters, and standard errors on the estimates. It works on the datasets stored in each deck, each bound to the quantity it measures ([Results](python.md#results), `XYData::observable`).
+
+The objects (namespace `adsim::calibration`):
+
+| Object | What it holds |
+|---|---|
+| `Case` | One experiment: the deck (`Case::FromFile(path)`, `Case::FromData(user_data)`, or the JSON text in `deck_json`), the datasets to fit (`Dataset("name", weight)` or `Dataset(index)`; empty means every bound dataset) and a run policy (`sensitivity::RunPolicy`: a cycle cap, whether a run must reach cyclic steady state, registry text sets applied before the parameters). CSS is not required by default. |
+| `Parameter` | A tunable registry path, its bounds, `Scale::Linear` or `Scale::Log`, an optional start (default: the deck's value) and the sharing: `Shared(path, lower, upper)` gives one value for every case, `PerCase(path, lower, upper)` one value per case (with optional per-case bounds and starts). |
+| `Problem` | The cases and parameters, checked at construction against every deck: an unknown path, or a dataset that is missing or unbound, is an error that names the case. |
+| `Options` | The solver (`Solver::LeastSquares`, the default, or `Solver::Global` with `refine`), the run budget (`max_simulations`), stopping tolerances, the finite-difference scheme and step, the number of threads, warm starts, and the `progress` and `cancel` callbacks. |
+| `Result` | Per parameter: the estimate, its standard error, whether it is at a bound. The correlation matrix. Per dataset: RMSE, NRMSE, the maximum error, the points used, the residuals and the simulated series at the estimate. The objective trace, the runs made and failed, the solver and why it stopped, and one calibrated deck per case. |
+
+The objective is a weighted sum of squares over every measured point $k$ of every dataset $d$:
+
+$$
+S = \sum_k r_k^2, \qquad r_k = \sqrt{\frac{w_d}{n_d}}\;\frac{y_{sim}(x_k) - y_k}{s_k}
+$$
+
+where $s_k$ is the point's uncertainty when the dataset gives one, else the range of the dataset's $y$ values, $w_d$ is the dataset's weight and $n_d$ its number of points (so a densely sampled curve does not outweigh a sparse one). The default solver is a bounded Levenberg–Marquardt method with a finite-difference Jacobian; each Jacobian column is one run per case the parameter affects, and the columns run in parallel threads. The global solver is the optimiser's MaxLIPO search on $S$; `refine = true` polishes its best point with least squares.
+
+Standard errors come from the Jacobian $J$ at the estimate, $\mathrm{cov} = \sigma^2 (J^\mathsf{T} J)^{-1}$ with $\sigma^2 = S / (N - p)$ for $N$ residuals and $p$ estimated values. For a log-scale parameter the covariance is in $\ln$ of the value, and the standard error in model units is the value times $\mathrm{se}(\ln x)$. When $N \le p$ or $J^\mathsf{T} J$ is singular, the standard errors are NaN and `Result::notes` says why. A run that fails never stops the fit: it is counted in `failed_simulations` and the step that needed it is rejected.
+
+For strongly correlated parameters (two that the data mostly fix in combination, such as an isotherm's capacity and affinity), set `options.difference = Difference::Central`: forward differences are cheaper but their error can stall the fit in the narrow valley of the objective.
+
+A fit of three breakthrough runs with a shared isotherm capacity and a heat-transfer coefficient per run:
+
+```cpp
+#include "adsim/solver/calibration.h"
+namespace cal = adsim::calibration;
+
+std::vector<cal::Case> cases = {
+    cal::Case::FromFile("Q50.json", {cal::Dataset("outlet_CO2"), cal::Dataset("T_z=0.0715", 0.5)}),
+    cal::Case::FromFile("Q100.json", {cal::Dataset("outlet_CO2"), cal::Dataset("T_z=0.0715", 0.5)}),
+    cal::Case::FromFile("Q200.json", {cal::Dataset("outlet_CO2"), cal::Dataset("T_z=0.0715", 0.5)})};
+std::vector<cal::Parameter> parameters = {
+    cal::Shared("adsorbent[1].isotherm[CarbonDioxide].m2", 3.0, 8.0),
+    cal::PerCase("step[1].medium.heat_transfer_coefficient", 1.0, 500.0, cal::Scale::Log)};
+cal::Problem problem(cases, parameters);
+
+cal::Options options;
+options.max_simulations = 200;
+options.progress = [](const cal::Progress& p) { std::printf("%d  S = %g\n", p.iteration, p.objective); };
+cal::Result r = cal::Calibrate(problem, options);
+for (const auto& p : r.parameters)
+  std::printf("%s = %g +- %g%s\n", p.label.c_str(), p.estimate, p.standard_error, p.at_lower || p.at_upper ? " (at a bound)" : "");
+```
+
+The deck and dataset names in the example are illustrative: list a deck's tunable paths with `skarstrom params deck.json`. The cases run on fresh copies of their decks, so the decks you pass are not changed; `Result::calibrated_decks` holds a copy of each with the estimates applied. The header (`core/include/adsim/solver/calibration.h`) documents every option, the treatment of points the simulation does not cover, warm starts and determinism.

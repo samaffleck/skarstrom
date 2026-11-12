@@ -136,4 +136,16 @@ namespace adsim {
   RunResult RunWithStateCache(Simulation& sim, CycleStateCache* cache, const std::vector<double>& x,
                               RunOptions options = {}, CachedRunInfo* info = nullptr);
 
+  // The run half of RunWithStateCache, for callers that choose the start
+  // themselves and cache the final state later (a parallel batch, which looks
+  // every start up before the batch and caches after it, in a fixed order, so
+  // that the result does not depend on which run finished first). Runs `sim`
+  // from `start` (null: cold); a start that does not fit the deck is skipped
+  // with a note and a failed warm-started run is repeated cold, as above.
+  // `distance` is recorded in info->distance. Caches nothing. Several threads
+  // may run from the same `start` at once (it is only read).
+  RunResult RunFromState(Simulation& sim, const CycleState* start, RunOptions options = {},
+                         CachedRunInfo* info = nullptr,
+                         double distance = std::numeric_limits<double>::quiet_NaN());
+
 }  // namespace adsim
