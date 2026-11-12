@@ -16,7 +16,7 @@
 // Tolerance: a warm and a cold run stop at the same CSS within the bound the
 // CSS stopping rule leaves (Per-Component balance 0.5 %): the end states
 // differ by kCssStateTol relative to each field's RMS (measured on Linux/GCC:
-// 1e-4 on the buffer-tank deck).
+// 2.4e-4 on the buffer-tank deck).
 
 #include <algorithm>
 #include <cmath>
@@ -36,7 +36,7 @@ namespace {
 
 using namespace test_decks;
 
-constexpr double kCssStateTol = 1e-2;
+constexpr double kCssStateTol = 2e-3;
 
 // Largest relative difference between two states over the differential
 // entries of every field: max |a - b| / max(RMS(b), floor) per field.
