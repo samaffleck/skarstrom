@@ -185,6 +185,11 @@ points, so a densely sampled curve does not outweigh a sparse one. Points that t
 not cover (measured after the end of the simulated cycle) are left out and counted
 (`fit.skipped`, with a note).
 
+For a cyclic process measured once per cycle,
+[`examples/calibrate_cycle_kpis.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/calibrate_cycle_kpis.py)
+binds purity and recovery histories to KPI observables (`sk.Observable("recovery", "CarbonDioxide",
+cycle_offset=-1)`, x the cycle number) and fits two parameters of `Perez2019_A` to them. *New in 0.12.*
+
 ### Several experiments: shared and per-case parameters
 
 Experiments at different conditions (flow rates, feed compositions) are fitted together as
@@ -226,6 +231,11 @@ Simulation (every bound dataset). A per-case parameter can have bounds and a sta
 `result.calibrated()` returns one calibrated Simulation per case. The deck is not changed by the
 fit, and the shipped Ward decks are already calibrated against these curves (see
 [Validation](validation.md#ward-2022)): the example is a demonstration, not a recommendation.
+The full fit that calibrated those decks (shared q_s,2 and dispersion factor, one inside heat
+transfer coefficient per flow, the digitising errors as uncertainties) is
+[`examples/calibrate_ward_2022.py`](https://github.com/samaffleck/skarstrom/blob/main/examples/calibrate_ward_2022.py),
+which reproduces the published values and standard errors (with a notebook,
+`examples/notebooks/calibrate_ward_2022.ipynb`). *New in 0.12.*
 
 ### Reading the standard errors and correlations
 
