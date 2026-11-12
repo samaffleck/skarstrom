@@ -101,8 +101,8 @@
                                                                 },
                                                                 "Capacity_Factor_Mode": 0,
                                                                 "Mass_Transfer_Coefficient": {
-                                                                    "Value": 0.06,
-                                                                    "Expression": "0.06",
+                                                                    "Value": 0.0592,
+                                                                    "Expression": "0.0592",
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "Activation_Energy": {
@@ -281,8 +281,8 @@
                                                                 },
                                                                 "Capacity_Factor_Mode": 0,
                                                                 "Mass_Transfer_Coefficient": {
-                                                                    "Value": 0.2,
-                                                                    "Expression": "0.2",
+                                                                    "Value": 0.137,
+                                                                    "Expression": "0.137",
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "Activation_Energy": {
@@ -478,9 +478,382 @@
                             "Next_Reaction_ID": 0
                         }
                     }
+                },
+                {
+                    "key": 2,
+                    "value": {
+                        "Name": "Sampling line",
+                        "Density": {
+                            "Value": 1000.0,
+                            "Expression": "1e+03",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Specific_Heat_Capacity": {
+                            "Value": 500.0,
+                            "Expression": "5e+02",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Thermal_Conductivity": {
+                            "Value": 0.15,
+                            "Expression": "0.15",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Adsorption_Source": {
+                            "Mass_Transfer_Models": [
+                                {
+                                    "key": "CarbonDioxide",
+                                    "value": {
+                                        "polymorphic_id": 1,
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "value0": {
+                                                    "Mass_Transfer_Coefficient_Model": {
+                                                        "polymorphic_id": 2,
+                                                        "ptr_wrapper": {
+                                                            "valid": 1,
+                                                            "data": {
+                                                                "value0": {},
+                                                                "Film_Resistance_Factor": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Tortuosity": {
+                                                                    "Value": 3.0,
+                                                                    "Expression": "3",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Macropore_Void_Fraction": {
+                                                                    "Value": 0.35,
+                                                                    "Expression": "0.35",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Molecular_Diffusion_Coefficient": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Crystal_Radius": {
+                                                                    "Value": 0.000001,
+                                                                    "Expression": "1e-06",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Diffusivity": {
+                                                                    "Value": 1e-13,
+                                                                    "Expression": "1e-13",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Capacity_Factor": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Concentration_Floor": {
+                                                                    "Value": 0.001,
+                                                                    "Expression": "0.001",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Resistances": {
+                                                                    "Film": false,
+                                                                    "Macropore": false,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": false,
+                                                                    "Lumped": true
+                                                                },
+                                                                "Capacity_Factor_Mode": 0,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 0.5,
+                                                                    "Expression": "0.5",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
+                                                                    "DisplayUnitIndex": 0
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": "Helium",
+                                    "value": {
+                                        "polymorphic_id": 1,
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "value0": {
+                                                    "Mass_Transfer_Coefficient_Model": {
+                                                        "polymorphic_id": 2,
+                                                        "ptr_wrapper": {
+                                                            "valid": 1,
+                                                            "data": {
+                                                                "value0": {},
+                                                                "Film_Resistance_Factor": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Tortuosity": {
+                                                                    "Value": 3.0,
+                                                                    "Expression": "3",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Macropore_Void_Fraction": {
+                                                                    "Value": 0.35,
+                                                                    "Expression": "0.35",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Molecular_Diffusion_Coefficient": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Crystal_Radius": {
+                                                                    "Value": 0.000001,
+                                                                    "Expression": "1e-06",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Diffusivity": {
+                                                                    "Value": 1e-13,
+                                                                    "Expression": "1e-13",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Capacity_Factor": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Concentration_Floor": {
+                                                                    "Value": 0.001,
+                                                                    "Expression": "0.001",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Resistances": {
+                                                                    "Film": false,
+                                                                    "Macropore": false,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": false,
+                                                                    "Lumped": true
+                                                                },
+                                                                "Capacity_Factor_Mode": 0,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 0.5,
+                                                                    "Expression": "0.5",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
+                                                                    "DisplayUnitIndex": 0
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": "Methane",
+                                    "value": {
+                                        "polymorphic_id": 1,
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "value0": {
+                                                    "Mass_Transfer_Coefficient_Model": {
+                                                        "polymorphic_id": 2,
+                                                        "ptr_wrapper": {
+                                                            "valid": 1,
+                                                            "data": {
+                                                                "value0": {},
+                                                                "Film_Resistance_Factor": {
+                                                                    "Value": 1.0,
+                                                                    "Expression": "1",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Tortuosity": {
+                                                                    "Value": 3.0,
+                                                                    "Expression": "3",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Macropore_Void_Fraction": {
+                                                                    "Value": 0.35,
+                                                                    "Expression": "0.35",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Molecular_Diffusion_Coefficient": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Crystal_Radius": {
+                                                                    "Value": 0.000001,
+                                                                    "Expression": "1e-06",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Diffusivity": {
+                                                                    "Value": 1e-13,
+                                                                    "Expression": "1e-13",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Micropore_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Capacity_Factor": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Concentration_Floor": {
+                                                                    "Value": 0.001,
+                                                                    "Expression": "0.001",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Resistances": {
+                                                                    "Film": false,
+                                                                    "Macropore": false,
+                                                                    "Knudsen": false,
+                                                                    "Micropore": false,
+                                                                    "Lumped": true
+                                                                },
+                                                                "Capacity_Factor_Mode": 0,
+                                                                "Mass_Transfer_Coefficient": {
+                                                                    "Value": 0.5,
+                                                                    "Expression": "0.5",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Pore_Radius": {
+                                                                    "Value": 1e-9,
+                                                                    "Expression": "1e-09",
+                                                                    "DisplayUnitIndex": 0
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ],
+                            "Heat_Of_Adsorption": [
+                                {
+                                    "key": "CarbonDioxide",
+                                    "value": {
+                                        "Value": 0.0,
+                                        "Expression": "0",
+                                        "DisplayUnitIndex": 0
+                                    }
+                                },
+                                {
+                                    "key": "Helium",
+                                    "value": {
+                                        "Value": 0.0,
+                                        "Expression": "0",
+                                        "DisplayUnitIndex": 0
+                                    }
+                                },
+                                {
+                                    "key": "Methane",
+                                    "value": {
+                                        "Value": 0.0,
+                                        "Expression": "0",
+                                        "DisplayUnitIndex": 0
+                                    }
+                                }
+                            ],
+                            "Isotherms": [
+                                {
+                                    "key": 2,
+                                    "value": {
+                                        "polymorphic_id": 3,
+                                        "ptr_wrapper": {
+                                            "valid": 1,
+                                            "data": {
+                                                "value0": {},
+                                                "ISO_Params": [
+                                                    {
+                                                        "key": "CarbonDioxide",
+                                                        "value": {}
+                                                    },
+                                                    {
+                                                        "key": "Helium",
+                                                        "value": {}
+                                                    },
+                                                    {
+                                                        "key": "Methane",
+                                                        "value": {}
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                }
+                            ],
+                            "Isotherm_Map": [
+                                {
+                                    "key": "CarbonDioxide",
+                                    "value": 2
+                                },
+                                {
+                                    "key": "Helium",
+                                    "value": 2
+                                },
+                                {
+                                    "key": "Methane",
+                                    "value": 2
+                                }
+                            ],
+                            "Mixing_Rule": 0
+                        },
+                        "Particle_Void_Fraction": {
+                            "Value": 0.0,
+                            "Expression": "0",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Reaction_Source": {
+                            "Reactions": [],
+                            "Next_Reaction_ID": 0
+                        }
+                    }
                 }
             ],
-            "Next_ID": 1
+            "Next_ID": 2
         },
         "Bed": {
             "cereal_class_version": 4,
@@ -629,8 +1002,8 @@
                                             "cereal_class_version": 0
                                         },
                                         "Wall_Ambient_Heat_Transfer_Coefficient": {
-                                            "Value": 220.0,
-                                            "Expression": "2.2e+02",
+                                            "Value": 49.7,
+                                            "Expression": "49.7",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -685,14 +1058,143 @@
                         },
                         "Film_Correlation": 0,
                         "Particle_Shape": 0
+                    },
+                    {
+                        "Name": "Sampling line",
+                        "Domain": {
+                            "Number_Of_Cells": 40,
+                            "Length": {
+                                "Value": 0.2922020450139686,
+                                "Expression": "0.2922020450139686",
+                                "DisplayUnitIndex": 0
+                            }
+                        },
+                        "Bed_Void_Fraction": {
+                            "Value": 0.99,
+                            "Expression": "0.99",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Particle_Diameter": {
+                            "Value": 0.01,
+                            "Expression": "0.01",
+                            "DisplayUnitIndex": 0
+                        },
+                        "Momentum_Model": 0,
+                        "Layer_Equations": {
+                            "Dispersion_Model": {
+                                "polymorphic_id": 5,
+                                "ptr_wrapper": {
+                                    "valid": 1,
+                                    "data": {
+                                        "value0": {},
+                                        "Constant_Longitudinal_Dispersion": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    }
+                                }
+                            },
+                            "Heat_Dispersion_Model": {
+                                "polymorphic_id": 6,
+                                "ptr_wrapper": {
+                                    "valid": 1,
+                                    "data": {
+                                        "value0": {},
+                                        "Constant_Longitudinal_Heat_Dispersion": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    }
+                                }
+                            },
+                            "Internal_Heat_Transfer_Model": {
+                                "polymorphic_id": 2147483657,
+                                "polymorphic_name": "adsim::ConstantInternalHeatTransferModel",
+                                "ptr_wrapper": {
+                                    "valid": 1,
+                                    "data": {
+                                        "cereal_class_version": 1,
+                                        "value0": {},
+                                        "Gas_Wall_Heat_Transfer_Coefficient": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    }
+                                }
+                            },
+                            "External_Heat_Transfer_Model": {
+                                "polymorphic_id": 8,
+                                "ptr_wrapper": {
+                                    "valid": 1,
+                                    "data": {
+                                        "value0": {},
+                                        "Wall_Ambient_Heat_Transfer_Coefficient": {
+                                            "Value": 0.0,
+                                            "Expression": "0",
+                                            "DisplayUnitIndex": 0
+                                        }
+                                    }
+                                }
+                            },
+                            "Thermal_Equilibrium_Mode": 0,
+                            "Particle_Heat_Transfer_Model": {
+                                "polymorphic_id": 0
+                            }
+                        },
+                        "Composition": [
+                            {
+                                "key": 2,
+                                "value": {
+                                    "Value": 1.0,
+                                    "Expression": "1",
+                                    "DisplayUnitIndex": 0
+                                }
+                            }
+                        ],
+                        "ID": 2,
+                        "Kind": 0,
+                        "Structured_Geometry": {
+                            "Channel_Shape": 0,
+                            "Cell_Density": {
+                                "Value": 620000.0,
+                                "Expression": "6.2e+05",
+                                "DisplayUnitIndex": 0
+                            },
+                            "Wall_Thickness": {
+                                "Value": 0.000165,
+                                "Expression": "0.000165",
+                                "DisplayUnitIndex": 0
+                            },
+                            "Sheet_Thickness": {
+                                "Value": 0.0002,
+                                "Expression": "0.0002",
+                                "DisplayUnitIndex": 0
+                            },
+                            "Gap": {
+                                "Value": 0.0002,
+                                "Expression": "0.0002",
+                                "DisplayUnitIndex": 0
+                            },
+                            "Washcoat_Thickness": {
+                                "Value": 0.0,
+                                "Expression": "0",
+                                "DisplayUnitIndex": 0
+                            },
+                            "Entrance_Effects": false
+                        },
+                        "Film_Correlation": 0,
+                        "Particle_Shape": 0
                     }
                 ],
-                "Next_Layer_ID": 1
+                "Next_Layer_ID": 2
             },
             "Equations": {
                 "cereal_class_version": 2,
                 "Wall_Temperature_Boundary_Condition": {
-                    "polymorphic_id": 2147483657,
+                    "polymorphic_id": 2147483658,
                     "polymorphic_name": "adsim::WallTemperatureBoundaryConditionZeroFlux",
                     "ptr_wrapper": {
                         "valid": 1,
@@ -706,7 +1208,7 @@
                 },
                 "Thermal_Equilibrium_Mode": 0,
                 "Particle_Heat_Transfer_Model": {
-                    "polymorphic_id": 2147483658,
+                    "polymorphic_id": 2147483659,
                     "polymorphic_name": "adsim::ConstantParticleHeatTransferModel",
                     "ptr_wrapper": {
                         "valid": 1,
@@ -895,7 +1397,7 @@
                         "DisplayUnitIndex": 0
                     },
                     "Top_Boundary_Condition": {
-                        "polymorphic_id": 2147483659,
+                        "polymorphic_id": 2147483660,
                         "polymorphic_name": "adsim::PressureBoundaryCondition",
                         "ptr_wrapper": {
                             "id": 2147483649,
@@ -938,7 +1440,7 @@
                                     }
                                 ],
                                 "Boundary_Pressure": {
-                                    "polymorphic_id": 2147483660,
+                                    "polymorphic_id": 2147483661,
                                     "polymorphic_name": "adsim::ConstantBoundaryValue",
                                     "ptr_wrapper": {
                                         "valid": 1,
@@ -959,7 +1461,7 @@
                                     "Pair_ID": 0
                                 },
                                 "Pump": {
-                                    "polymorphic_id": 2147483661,
+                                    "polymorphic_id": 2147483662,
                                     "polymorphic_name": "adsim::Compressor",
                                     "ptr_wrapper": {
                                         "valid": 1,
@@ -974,7 +1476,7 @@
                                                     "DisplayUnitIndex": 0
                                                 },
                                                 "Energy_Equation": {
-                                                    "polymorphic_id": 2147483662,
+                                                    "polymorphic_id": 2147483663,
                                                     "polymorphic_name": "adsim::IsothermalCompressorEnergyModel",
                                                     "ptr_wrapper": {
                                                         "valid": 1,
@@ -987,7 +1489,7 @@
                                                     }
                                                 },
                                                 "Efficiency_Model": {
-                                                    "polymorphic_id": 2147483663,
+                                                    "polymorphic_id": 2147483664,
                                                     "polymorphic_name": "adsim::ConstantPumpEfficiencyModel",
                                                     "ptr_wrapper": {
                                                         "valid": 1,
@@ -1029,20 +1531,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 1.665431268925525,
-                                    "Average_Temperature": 302.50213828863397,
+                                    "Total_Moles": 1.8286217726123686,
+                                    "Average_Temperature": 305.8936071150335,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.023688623989139798
+                                            "value": 0.06297599651517862
                                         },
                                         {
                                             "key": "Methane",
-                                            "value": 0.9656369286057788
+                                            "value": 0.924168057470977
                                         },
                                         {
                                             "key": "Helium",
-                                            "value": 0.010674447405081429
+                                            "value": 0.012855946013844454
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -1055,7 +1557,7 @@
                         }
                     },
                     "Bottom_Boundary_Condition": {
-                        "polymorphic_id": 2147483664,
+                        "polymorphic_id": 2147483665,
                         "polymorphic_name": "adsim::FlowBoundaryCondition",
                         "ptr_wrapper": {
                             "id": 2147483650,
@@ -1067,7 +1569,7 @@
                                 },
                                 "Boundary_Stream_List": [
                                     {
-                                        "polymorphic_id": 2147483665,
+                                        "polymorphic_id": 2147483666,
                                         "polymorphic_name": "adsim::BoundaryStream",
                                         "ptr_wrapper": {
                                             "valid": 1,
@@ -1125,8 +1627,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 3.312383586186592,
-                                                        "Average_Temperature": 297.9999999999998,
+                                                        "Total_Moles": 3.4815749658598285,
+                                                        "Average_Temperature": 297.9999999999995,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Helium",
@@ -1149,7 +1651,7 @@
                                                     "Endpoint_ID": 1
                                                 },
                                                 "Boundary_Flow": {
-                                                    "polymorphic_id": 2147483666,
+                                                    "polymorphic_id": 2147483667,
                                                     "polymorphic_name": "adsim::VolumetricFlowBoundaryValue",
                                                     "ptr_wrapper": {
                                                         "valid": 1,
@@ -1157,14 +1659,14 @@
                                                             "cereal_class_version": 2,
                                                             "value0": {},
                                                             "Profile": {
-                                                                "polymorphic_id": 12,
+                                                                "polymorphic_id": 13,
                                                                 "ptr_wrapper": {
                                                                     "valid": 1,
                                                                     "data": {
                                                                         "value0": {},
                                                                         "Constant_Value": {
-                                                                            "Value": 0.00002,
-                                                                            "Expression": "2e-05",
+                                                                            "Value": 0.000021020000000000003,
+                                                                            "Expression": "2.1020000000000002e-05",
                                                                             "DisplayUnitIndex": 0
                                                                         }
                                                                     }
@@ -1174,7 +1676,7 @@
                                                     }
                                                 },
                                                 "Pump": {
-                                                    "polymorphic_id": 13,
+                                                    "polymorphic_id": 14,
                                                     "ptr_wrapper": {
                                                         "valid": 1,
                                                         "data": {
@@ -1186,7 +1688,7 @@
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "Energy_Equation": {
-                                                                    "polymorphic_id": 14,
+                                                                    "polymorphic_id": 15,
                                                                     "ptr_wrapper": {
                                                                         "valid": 1,
                                                                         "data": {
@@ -1195,7 +1697,7 @@
                                                                     }
                                                                 },
                                                                 "Efficiency_Model": {
-                                                                    "polymorphic_id": 15,
+                                                                    "polymorphic_id": 16,
                                                                     "ptr_wrapper": {
                                                                         "valid": 1,
                                                                         "data": {

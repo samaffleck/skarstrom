@@ -1,9 +1,15 @@
 """Streb & Mazzotti (2021): CO2/CH4 breakthrough on zeolite 13X with thermocouples.
 
 Builds each case from scratch in code: the CO2/CH4/He fluid, zeolite 13X with
-the paper's extended-Sips competitive isotherm and LDF coefficients, the 1.2 m
-column, the single feed step and the solver settings. Every value is set
-explicitly, with its unit.
+the paper's extended-Sips competitive isotherm, the 1.2 m column, the sampling
+line to the mass spectrometer, the single feed step and the solver settings.
+Every value is set explicitly, with its unit.
+
+The decks are calibrated on A3 (core/test/papers/streb_2021/README.md,
+"Calibration on A3"): the LDF coefficients of CO2 and CH4, the wall-to-
+thermofluid coefficient and the gas volume of the sampling line. Each case's
+feed flow is its Table 2 set point times a flow factor fitted to the speed of
+its own CO2 temperature front between the thermocouples at 35 and 110 cm.
 
 Experiments A1 (1 bar) and A3 (10 bar, the reference experiment) feed a
 50:50 CO2/CH4 mixture into a helium-filled column. The outlet mole fractions
@@ -31,13 +37,15 @@ import _common as c
 import skarstrom as sk
 from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 
-# The two experiments differ only in the column pressure (Table 2); both run at
-# 25 C with the same 20 cm3/s feed (at column conditions) for 4100 s.
+# The two experiments differ in the column pressure (Table 2); both run at 25 C
+# with a 20 cm3/s set point (at column conditions) for 4100 s. The flow factor is
+# the actual flow over the set point, from the speed of the CO2 temperature front
+# (A3 calibrated within 2 % of the set point; A1 needs +5.1 %).
 EXPERIMENTS = {
-    "A1": dict(pressure=1 * u.bar, title="Streb 2021 - Experiment A1",
+    "A1": dict(pressure=1 * u.bar, flow_factor=1.051, title="Streb 2021 - Experiment A1",
                description="Binary CO2/CH4 breakthrough on zeolite 13X at 1 bar (Streb & Mazzotti 2021, "
                            "experiment A1); the bed is initially full of helium."),
-    "A3": dict(pressure=10 * u.bar, title="Streb 2021 - Experiment A3",
+    "A3": dict(pressure=10 * u.bar, flow_factor=1.020, title="Streb 2021 - Experiment A3",
                description="Binary CO2/CH4 breakthrough on zeolite 13X at 10 bar, the reference experiment "
                            "(Streb & Mazzotti 2021, experiment A3); the bed is initially full of helium."),
 }
@@ -48,6 +56,14 @@ PARTICLE_DENSITY = 1085.0       # [kg/m3]
 BED_DENSITY = 595.0             # [kg/m3]
 PARTICLE_VOID_FRACTION = 1 - PARTICLE_DENSITY / SKELETAL_DENSITY
 BED_VOID_FRACTION = 1 - BED_DENSITY / PARTICLE_DENSITY
+
+# Calibrated on A3 (README "Calibration on A3"; the paper's values in brackets).
+LDF_CO2 = 0.0592 / u.s                          # (Table 4: 0.06 1/s)
+LDF_CH4 = 0.137 / u.s                           # (Table 4: 0.2 1/s)
+EXTERNAL_HTC = 49.7 * u.W / (u.m**2 * u.K)      # wall to thermofluid (Sect. 3.2.1: 220)
+LINE_VOLUME = 0.142 * u.L                       # gas volume of the sampling line
+LINE_VOID_FRACTION = 0.99
+COLUMN_AREA = math.pi * (2.5 * u.cm) ** 2 / 4
 
 
 def build(case: str) -> sk.Simulation:
@@ -80,9 +96,9 @@ def build(case: str) -> sk.Simulation:
                           "C1": 1.073, "C2": 0.0, "T_ref": 298 * u.K},
     }, components=["CarbonDioxide", "Methane"])
     zeolite.set_isotherm("inert", components=["Helium"])
-    # LDF coefficients estimated on A3 (Table 4).
-    zeolite.set_rate_model("CarbonDioxide", "ldf", "constant", k=0.06 / u.s)
-    zeolite.set_rate_model("Methane", "ldf", "constant", k=0.2 / u.s)
+    # LDF coefficients calibrated on A3 (Table 4: 0.06 and 0.2 1/s).
+    zeolite.set_rate_model("CarbonDioxide", "ldf", "constant", k=LDF_CO2)
+    zeolite.set_rate_model("Methane", "ldf", "constant", k=LDF_CH4)
     zeolite.set_rate_model("Helium", "ldf", "constant", k=0.5 / u.s)
     # Loading-averaged isosteric heats (Sect. 4.1).
     zeolite.heat_of_adsorption["CarbonDioxide"] = 36.3 * u.kJ / u.mol
@@ -109,7 +125,25 @@ def build(case: str) -> sk.Simulation:
     layer.set_dispersion("constant", dispersion_coefficient=0 * u.m**2 / u.s)         # no axial dispersion
     layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
     layer.set_internal_heat_transfer("dixon")                                  # Dixon (1996) correlation
-    layer.set_external_heat_transfer("constant", external_htc=220 * u.W / (u.m**2 * u.K))
+    layer.set_external_heat_transfer("constant", external_htc=EXTERNAL_HTC)      # calibrated on A3
+
+    # ---- sampling line to the MS: an inert, nearly empty, adiabatic layer above the bed ----
+    # It carries the outlet gas as plug flow over its 40 cells (the engine's void region is
+    # one well-mixed cell, which smears the CH4 front). Gas volume calibrated on A3.
+    line_solid = sim.add_adsorbent("Sampling line", solid_density=1000 * u.kg / u.m**3,
+                                   heat_capacity=500 * u.J / (u.kg * u.K), thermal_conductivity=0.15 * u.W / (u.m * u.K),
+                                   particle_void_fraction=0.0)
+    line_solid.set_isotherm("inert", components=["CarbonDioxide", "Methane", "Helium"])
+    for component in ("CarbonDioxide", "Methane", "Helium"):
+        line_solid.set_rate_model(component, "ldf", "constant", k=0.5 / u.s)
+        line_solid.heat_of_adsorption[component] = 0 * u.kJ / u.mol
+    line = sim.add_layer("Sampling line", composition={"Sampling line": 1.0}, momentum="kozeny_carman",
+                         length=LINE_VOLUME / (LINE_VOID_FRACTION * COLUMN_AREA), cells=40,
+                         bed_void_fraction=LINE_VOID_FRACTION, particle_diameter=10 * u.mm)
+    line.set_dispersion("constant", dispersion_coefficient=0 * u.m**2 / u.s)
+    line.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
+    line.set_internal_heat_transfer("constant", internal_htc=0 * u.W / (u.m**2 * u.K))
+    line.set_external_heat_transfer("constant", external_htc=0 * u.W / (u.m**2 * u.K))
 
     # ---- initial state: the column full of helium at the experiment's pressure -----------
     sim.initial_conditions.pressure = exp["pressure"]
@@ -125,7 +159,7 @@ def build(case: str) -> sk.Simulation:
     sim.cycle.step_time_mode = "time"
     feed = sim.add_step("Feed", time=4100 * u.s)
     feed.bottom.set_streams("inlet", [
-        sk.Stream("Binary Feed", flow=sk.volumetric_flow(20 * u.cm**3 / u.s),
+        sk.Stream("Binary Feed", flow=sk.volumetric_flow(20e-6 * exp["flow_factor"] * u.m**3 / u.s),
                   y={"Helium": 0.0, "Methane": 0.5, "CarbonDioxide": 0.5}, temperature=298 * u.K),
     ])
     feed.top.set_pressure("outlet", exp["pressure"], y={"CarbonDioxide": 0.0, "Methane": 0.0, "Helium": 1.0},

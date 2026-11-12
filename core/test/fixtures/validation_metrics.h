@@ -264,13 +264,17 @@ namespace adsim::validation {
   // A cell variable (e.g. gas temperature) sampled at axial position z [m] of a
   // single-layer bed of length L with n_cells cells, linearly interpolated
   // between cell centres. Handles logs that include one ghost cell at each end.
+  // `first_cell` is the log index of the layer's first cell: -1 detects it from
+  // the cell count (single-layer bed, with or without ghost cells); pass 1 for
+  // the bottom layer of a multi-layer bed whose log has ghost cells.
   inline Series CellVariableAt(const CoupledSolver& solver, VariableType type, double z,
-                               double L, int n_cells, int cycle_index = 0, int step_index = 0) {
+                               double L, int n_cells, int cycle_index = 0, int step_index = 0,
+                               int first_cell = -1) {
     const auto e = solver.GetLog().GetVariable(cycle_index, step_index, type);
     Series s;
     if (e.values.empty()) return s;
     const int n_total = static_cast<int>(e.values.front().size());
-    const int offset = (n_total == n_cells + 2) ? 1 : 0;
+    const int offset = first_cell >= 0 ? first_cell : ((n_total == n_cells + 2) ? 1 : 0);
     const double dz = L / n_cells;
     double xi = z / dz - 0.5;  // fractional cell-centre index
     xi = std::clamp(xi, 0.0, static_cast<double>(n_cells - 1));

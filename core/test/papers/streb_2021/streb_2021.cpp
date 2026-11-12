@@ -39,16 +39,21 @@
 //  Digitised outlet compositions and five centre-line thermocouples
 //  (z = 10, 35, 60, 85, 110 cm) live in core/data/streb_2021/<case>/.
 //
-//  Every case is a PREDICTION with the parameters estimated on A3 (Table 4) and
-//  the extended-Sips competitive isotherm of Table 3. The paper finds IAST/RAST
-//  predict the binary cases better than extended isotherms (Sect. 4.2.1); the
-//  *_IAST_RecordOnly tests run every case under IAST over the pure Sips terms
-//  of the same parameters and record it without assertion (README, "IAST
-//  versus extended Sips": IAST moves the CO2 fronts 0.4-14 % later). The paper
-//  also fits the feed velocity per experiment within the MFC uncertainty
-//  (Fig. 7, 12) and models ~10.5 m of downstream piping to the MS (Table 1);
-//  adsim uses the MFC set-point and no piping, which shifts the simulated
-//  outlet curves slightly earlier.
+//  CALIBRATED on A3 (README, "Calibration on A3"): the LDF coefficients of CO2
+//  and CH4, the wall-to-thermofluid coefficient and the volume of the sampling
+//  line to the MS (an inert, nearly empty layer above the bed, run as plug
+//  flow) are fitted to the outlet curves and thermocouples of A3 alone, with
+//  A3's feed flow held within 2 % of the set point. Every other case is a
+//  PREDICTION with those values and the extended-Sips competitive isotherm of
+//  Table 3, except its feed flow: like the paper, which fits the feed velocity
+//  per experiment (Sect. 3.2.1), each case's flow factor is fitted, here to the
+//  speed of its own CO2 temperature front between the thermocouples at 35 and
+//  110 cm. That uses none of the outlet data. Six cases are more than 2 % from
+//  the set point (A1 +5.1, A2 -6.1, A4 -9.4, A6 -3.5, B1 +5.7, B2 -11.3 %); the
+//  paper's bound is 2 % of the unprinted MFC full scale (README). The
+//  *_IAST_RecordOnly tests run every case under IAST over the pure
+//  Sips terms of the same parameters and record it without assertion (README,
+//  "IAST versus extended Sips").
 //
 //  Metrics (recorded in the validation summary):
 //    * outlet mole-fraction NRMSE per component = RMSE / feed mole fraction,
@@ -67,6 +72,7 @@ namespace adsim {
       double vol_flow;           // [m3/s] at column P and T (Table 2)
       bool ternary;              // false: CO2:CH4 = 50:50, true: H2:CO2:CH4 = 75:20:5
       double duration;           // [s]
+      double flow_factor;        // actual / Table 2 flow, from the CO2 thermal-front speed (README "Calibration on A3")
       // Regression tolerances (measured error, rounded up; see TEST_F comments)
       double tol_nrmse_co2;
       double tol_nrmse_ch4;
@@ -175,9 +181,10 @@ namespace adsim {
         AddIsotherm(StrebAdsorbing(c.ternary), ads_id, std::move(sips));
       }
 
-      // LDF coefficients estimated on A3 (Table 4); H2 assumed 1 1/s (Table 4, b).
-      AddLinearDrivingForceModel(ads_id, "CarbonDioxide", 0.06);
-      AddLinearDrivingForceModel(ads_id, "Methane", 0.2);
+      // LDF coefficients calibrated on A3 (README "Calibration on A3"; Table 4:
+      // 0.06 and 0.2 1/s); H2 assumed 1 1/s (Table 4, b).
+      AddLinearDrivingForceModel(ads_id, "CarbonDioxide", kLdfCO2);
+      AddLinearDrivingForceModel(ads_id, "Methane", kLdfCH4);
       if (c.ternary) AddLinearDrivingForceModel(ads_id, "Hydrogen", 1.0);
 
       // Loading-averaged isosteric heats (Sect. 4.1).
@@ -189,7 +196,40 @@ namespace adsim {
       layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::CONSTANT);
 
       layer.equations_.internal_heat_transfer_model_ = CreateInternalHeatTransferModel(InternalHeatTransferType::DIXON_1996);
-      AddConstantExternalHeatTransferCoefficientModel(220.0, layer_id); // [W/(m-K)]
+      // Wall-to-thermofluid coefficient calibrated on A3 (Sect. 3.2.1 takes
+      // 220 W/(m2 K) from ref. [23]).
+      AddConstantExternalHeatTransferCoefficientModel(kExternalHTC, layer_id); // [W/(m2 K)]
+
+      // The sampling line to the MS (Table 1: 10.51 m of 6 mm tube, modelled by
+      // the paper as plug flow at column pressure): an inert layer above the bed,
+      // nearly empty (bed voidage 0.99), adiabatic and without dispersion, so it
+      // carries the outlet gas as plug flow over its cells. Its gas volume
+      // (length x area x voidage) is calibrated on A3. The engine's void region
+      // is one well-mixed cell, which smears the CH4 front (README).
+      {
+        auto [line_id, line_ads] = AddLayer("Sampling line");
+        auto& line = GetLayer(line_id);
+        line.eb_ = kLineVoidFraction;
+        line.domain_.length = kLineVolume / (kLineVoidFraction * kArea);
+        line.domain_.n_cells = kLineCells;
+        line.particle_diameter_ = 0.01;
+        std::vector<std::string> line_components = StrebAdsorbing(c.ternary);
+        line_components.push_back("Helium");
+        auto line_inert = std::make_unique<InertIsotherm>();
+        for (const auto& component : line_components) line_inert->params_[component];
+        AddIsotherm(line_components, line_ads, std::move(line_inert));
+        auto& line_solid = GetAdsorbent(line_ads);
+        line_solid.solid_density_ = 1000;
+        line_solid.heat_capacity_ = 500;
+        line_solid.thermal_conductivity_ = 0.15;
+        line_solid.ep_ = 0.0;
+        line.equations_.dispersion_model_ = CreateAxialDispersionModel(AxialDispersionType::CONSTANT);
+        line.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::CONSTANT);
+        auto line_ihtc = std::make_unique<ConstantInternalHeatTransferModel>();
+        line_ihtc->heat_transfer_coefficient_ = 0.0;
+        line.equations_.internal_heat_transfer_model_ = std::move(line_ihtc);
+        AddConstantExternalHeatTransferCoefficientModel(0.0, line_id);
+      }
 
       std::unordered_map<std::string, double> y0 = {
         {"CarbonDioxide", 0.0 }, {"Methane", 0.0 }, {"Helium", 1.0 } };
@@ -202,7 +242,7 @@ namespace adsim {
       std::unordered_map<std::string, double> feed = c.ternary
         ? std::unordered_map<std::string, double>{ {"CarbonDioxide", 0.20}, {"Methane", 0.05}, {"Hydrogen", 0.75}, {"Helium", 0.0} }
         : std::unordered_map<std::string, double>{ {"CarbonDioxide", 0.5 }, {"Methane", 0.5 }, {"Helium", 0.0 } };
-      auto feed_inlet_stream = CreateNoValveInletStream(CreateVolumeFlowBC(c.vol_flow), feed, c.temperature);
+      auto feed_inlet_stream = CreateNoValveInletStream(CreateVolumeFlowBC(c.vol_flow * c.flow_factor), feed, c.temperature);
       feed_inlet_stream->name_ = c.ternary ? "Ternary Feed" : "Binary Feed";
 
       auto feed_flow_bc = std::make_unique<FlowBoundaryCondition>();
@@ -301,7 +341,7 @@ namespace adsim {
       double sum_sq = 0.0;
       size_t n_tot = 0;
       for (int z_cm : { 10, 35, 60, 85, 110 }) {
-        Series sim = CellVariableAt(solver, VariableType::TEMPERATURE, z_cm / 100.0, kLength, kCells);
+        Series sim = CellVariableAt(solver, VariableType::TEMPERATURE, z_cm / 100.0, kLength, kCells, 0, 0, /*first_cell=*/1);
         Series exp = LoadSeriesCsv(dir + "_temperature_z=" + std::to_string(z_cm) + "[cm].csv");
         size_t n = 0;
         const double rmse = CurveRMSE(sim, exp, &n);
@@ -327,6 +367,16 @@ namespace adsim {
     }
 
     static constexpr double kLength = 1.2;
+    static constexpr double kArea = 0.25 * 3.14159265358979323846 * 0.025 * 0.025;  // column cross-section [m2]
+
+    // Calibrated on A3 (README "Calibration on A3"; weighted least squares on
+    // the outlet y_CO2, y_CH4 and the five thermocouples, A3's flow within 2 %).
+    static constexpr double kLdfCO2 = 0.0592;        // [1/s] (+-4.7 %; Table 4: 0.06)
+    static constexpr double kLdfCH4 = 0.137;         // [1/s] (+-13 %; Table 4: 0.2)
+    static constexpr double kExternalHTC = 49.7;     // [W/(m2 K)] (+-6.7 %; Sect. 3.2.1: 220)
+    static constexpr double kLineVolume = 1.42e-4;   // [m3] gas volume of the sampling line (+-0.03e-4)
+    static constexpr double kLineVoidFraction = 0.99;
+    static constexpr int kLineCells = 40;
     static constexpr int kCells = 160;  // grid-converged with the default WENO scheme (README.md "Grid")
   };
 
@@ -340,43 +390,33 @@ namespace adsim {
     Streb2021Test::StrebCase StrebCaseFor(const std::string& name) {
       using StrebCase = Streb2021Test::StrebCase;
       static const std::vector<StrebCase> cases = {
-        // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.184339, y_CH4 0.603105, T RMSE 12.0664 K, front time CO2 0.046863, CH4 0.030998; upwind on 60 cells: y_CH4 0.5591).
-        StrebCase{ "A3", 10e5, 298, 20e-6, false, 4100.0,
-                   0.27, 0.73, kNotUsed, 19, 0.08, 0.041 },
-        // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.456647, y_CH4 0.721357, T RMSE 21.1045 K, front time CO2 0.0843783, CH4 0.0970627).
-        StrebCase{ "A1", 1e5, 298, 20e-6, false, 4100.0,
-                   0.53, 0.83, kNotUsed, 25, 0.098, 0.12 },
-        // Tolerances = measured error rounded up (re-measured after the molar-basis gas heat capacity fix, 2026-11; see README.md) (measured: NRMSE y_CO2 0.350419, y_CH4 0.838922, T RMSE 18.5785 K, front time CO2 0.0546649, CH4 0.110449; before: y_CO2 0.33839).
-        StrebCase{ "A2", 10e5, 298, 10e-6, false, 1500.0,
-                   0.37, 0.96, kNotUsed, 22, 0.058, 0.13 },
-        // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.290623, y_CH4 0.792805, T RMSE 16.6768 K, front time CO2 0.100904, CH4 0.177891; upwind on 60 cells: y_CO2 0.2865).
-        StrebCase{ "A4", 10e5, 298, 40e-6, false, 1000.0,
-                   0.35, 0.91, kNotUsed, 20, 0.105, 0.195 },
-        // Tolerances = measured error rounded up. y_CO2 NRMSE and CO2 front time
-        // re-measured with the paper's constant gas heat capacity (Cp0 at the feed
-        // temperature; 2026-11, owner-approved; see README.md): y_CO2 0.184734,
-        // CO2 front 0.0647726 (were 0.1728 and 0.0594 with the held CoolProp value).
-        // Earlier (molar-basis gas heat capacity fix): y_CH4 0.659749, T RMSE
-        // 16.0716 K, CH4 front 0.148211.
-        StrebCase{ "A5", 25e5, 298, 20e-6, false, 750.0,
-                   0.19, 0.76, kNotUsed, 21, 0.066, 0.17 },
-        // Tolerances = measured error rounded up. y_CO2 NRMSE and CO2 front time
-        // re-measured with the paper's constant gas heat capacity (Cp0 at the feed
-        // temperature; 2026-11, owner-approved; see README.md): y_CO2 0.170486,
-        // CO2 front 0.0292289 (were 0.1608 and 0.0273 with the held CoolProp value).
-        // Earlier (molar-basis gas heat capacity fix): y_CH4 0.749957, T RMSE
-        // 11.7501 K, CH4 front 0.122827.
-        StrebCase{ "A6", 10e5, 318.15, 20e-6, false, 1050.0,
-                   0.175, 0.85, kNotUsed, 13, 0.030, 0.14 },
-        // Tolerances = measured error rounded up (re-measured after the Danckwerts inlet and Darcy flow-face fixes, 2026-11; see README.md) (measured: NRMSE y_CO2 0.0794838, y_CH4 0.692014, T RMSE 11.1461 K, front time CO2 0.0195941, CH4 0.102098; before: CH4 front 0.0726965).
-        StrebCase{ "A7", 10e5, 338.15, 20e-6, false, 1100.0,
-                   0.14, 0.72, kNotUsed, 14, 0.04, 0.12 },
-        // Tolerances = measured error rounded up, with WENO on 160 cells (README.md "Grid and advection scheme") (measured: NRMSE y_CO2 0.376751, y_CH4 0.126405, y_H2 0.372369, T RMSE 17.6917 K, front time CO2 0.06425, CH4 0.001939; upwind on 60 cells: CH4 front 0.02382).
-        StrebCase{ "B1", 1e5, 298, 20e-6, true, 10400.0,
-                   0.45, 0.15, 0.42, 20, 0.081, 0.004 },
-        // Tolerances = measured error rounded up (measured: NRMSE y_CO2 0.488768, y_CH4 0.297433, y_H2 0.399014, T RMSE 32.6309 K, front time CO2 0.0912807, CH4 0.121991). After the WP19-1 competitive-Sips trace fix (2026-11): y_CO2 0.44785, y_CH4 0.32043, y_H2 0.39777, T RMSE 27.005 K, front time CO2 0.1072, CH4 0.13975 (before it, on the same main: y_CH4 0.31859, CH4 front 0.13722).
-        StrebCase{ "B2", 10e5, 298, 10e-6, true, 3350.0,
-                   0.57, 0.35, 0.46, 38, 0.11, 0.15 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.08258, y_CH4 0.1772, T RMSE 5.451 K, front time CO2 0.01426, CH4 0.02393).
+        StrebCase{ "A3", 10e5, 298, 20e-6, false, 4100.0, 1.020,
+                   0.1, 0.2, kNotUsed, 6, 0.02, 0.03 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.1646, y_CH4 0.2034, T RMSE 6.912 K, front time CO2 0.00639, CH4 0.01299).
+        StrebCase{ "A1", 1e5, 298, 20e-6, false, 4100.0, 1.051,
+                   0.19, 0.23, kNotUsed, 8, 0.01, 0.015 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.1046, y_CH4 0.264, T RMSE 8.513 K, front time CO2 0.007827, CH4 0.01764).
+        StrebCase{ "A2", 10e5, 298, 10e-6, false, 1500.0, 0.939,
+                   0.12, 0.3, kNotUsed, 9.5, 0.01, 0.02 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.02341, y_CH4 0.2891, T RMSE 7.072 K, front time CO2 0.003391, CH4 0.006905).
+        StrebCase{ "A4", 10e5, 298, 40e-6, false, 1000.0, 0.906,
+                   0.03, 0.32, kNotUsed, 8, 0.005, 0.01 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.04989, y_CH4 0.3121, T RMSE 11.4 K, front time CO2 0.01402, CH4 0.0101).
+        StrebCase{ "A5", 25e5, 298, 20e-6, false, 750.0, 0.978,
+                   0.06, 0.35, kNotUsed, 13, 0.02, 0.015 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.01319, y_CH4 0.1175, T RMSE 7.459 K, front time CO2 0.001863, CH4 0.001715).
+        StrebCase{ "A6", 10e5, 318.15, 20e-6, false, 1050.0, 0.965,
+                   0.02, 0.13, kNotUsed, 8.5, 0.005, 0.005 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.01381, y_CH4 0.2592, T RMSE 7.16 K, front time CO2 0.004063, CH4 0.002858).
+        StrebCase{ "A7", 10e5, 338.15, 20e-6, false, 1100.0, 0.995,
+                   0.02, 0.29, kNotUsed, 8, 0.005, 0.005 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.04515, y_CH4 0.06507, y_H2 0.2493, T RMSE 7.367 K, front time CO2 0.0009689, CH4 0.04696).
+        StrebCase{ "B1", 1e5, 298, 20e-6, true, 10400.0, 1.057,
+                   0.05, 0.08, 0.28, 8.5, 0.005, 0.055 },
+        // Tolerances = measured error x 1.1, rounded up; front times at least 0.002 (calibrated decks, README "Calibration on A3") (measured: NRMSE y_CO2 0.04955, y_CH4 0.04676, y_H2 0.2165, T RMSE 9.126 K, front time CO2 0.0006391, CH4 0.01669).
+        StrebCase{ "B2", 10e5, 298, 10e-6, true, 3350.0, 0.887,
+                   0.06, 0.06, 0.24, 10.5, 0.005, 0.02 },
       };
       for (const auto& c : cases)
         if (c.name == name) return c;

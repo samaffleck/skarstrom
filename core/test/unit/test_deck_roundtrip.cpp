@@ -267,8 +267,16 @@ TEST(DeckRoundTrip, ExampleDecksSurviveSaveAndReloadBitForBit) {
 // cereal writes a class's cereal_class_version only at its first occurrence.
 // Moves those markers from `from` (the old first map entry) to the same place
 // in `to` (the new first entry).
+// Polymorphic objects of different types (e.g. two adsorbents' first isotherms)
+// hold different classes, so their markers are not moved between them; map
+// entries are paired by key where both maps are keyed.
 void MoveClassVersions(rapidjson::Value& from, rapidjson::Value& to, rapidjson::Document::AllocatorType& alloc) {
   if (from.IsObject() && to.IsObject()) {
+    auto fid = from.FindMember("polymorphic_id");
+    auto tid = to.FindMember("polymorphic_id");
+    if (fid != from.MemberEnd() && tid != to.MemberEnd() && fid->value.IsUint() && tid->value.IsUint() &&
+        (fid->value.GetUint() & 0x7fffffffu) != (tid->value.GetUint() & 0x7fffffffu))
+      return;
     auto ver = from.FindMember("cereal_class_version");
     if (ver != from.MemberEnd() && !to.HasMember("cereal_class_version")) {
       // cereal reads it before the class's members: put it first.
@@ -284,7 +292,28 @@ void MoveClassVersions(rapidjson::Value& from, rapidjson::Value& to, rapidjson::
       if (t != to.MemberEnd()) MoveClassVersions(m->value, t->value, alloc);
     }
   } else if (from.IsArray() && to.IsArray()) {
-    if (from.Size() > 0 && to.Size() > 0) MoveClassVersions(from[0], to[0], alloc);
+    if (from.Size() == 0 || to.Size() == 0) return;
+    // A map of polymorphic values holds one class per type: each entry's
+    // markers go to the first entry of `to` with the same type. Any other map
+    // holds one class, whose markers go to `to`'s first entry.
+    auto poly_type = [](const rapidjson::Value& e) -> std::int64_t {
+      if (!IsKeyedEntry(e) || !e.HasMember("value") || !e["value"].IsObject()) return -1;
+      auto id = e["value"].FindMember("polymorphic_id");
+      if (id == e["value"].MemberEnd() || !id->value.IsUint()) return -1;
+      return id->value.GetUint() & 0x7fffffffu;
+    };
+    if (poly_type(from[0]) < 0) {
+      MoveClassVersions(from[0], to[0], alloc);
+      return;
+    }
+    for (auto& f : from.GetArray()) {
+      const std::int64_t type = poly_type(f);
+      for (auto& t : to.GetArray())
+        if (poly_type(t) == type) {
+          MoveClassVersions(f, t, alloc);
+          break;
+        }
+    }
   }
 }
 
