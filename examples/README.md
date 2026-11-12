@@ -48,6 +48,8 @@ configuration).
 | [`illustrative_dac_breakthrough.py`](illustrative_dac_breakthrough.py) | `Illustrative_DAC_Breakthrough` | Illustrative 400 ppm CO₂ breakthrough on Lewatit VP OC 1065 with dual-rate LDF and series-resistance kinetics | — (outlet times to 5, 50 and 95 % of the feed) | 2 s |
 | [`five_step_product_purge.py`](five_step_product_purge.py) | `FiveStepProductPurge` | CO₂/N₂ VSA template with product purge | — (CSS status, integrator statistics) | 4 s |
 | [`optimise_nsga2.py`](optimise_nsga2.py) | `Perez2019_A` | NSGA-II search (pymoo) of feed time and evacuation pressure, each candidate run to CSS in a process pool | — (the CO₂ purity / recovery Pareto front) | about 10 min (estimated: 60 runs of about 30 s, 4 cores) |
+| [`calibrate_ward_2022.py`](calibrate_ward_2022.py) | `Ward2022_Q50ccm`, `_Q100ccm`, `_Q200ccm` | `skarstrom.calibrate`: the three breakthrough runs fitted together (shared q_s,2 and dispersion factor, one h_in per flow), the reproducible method of the decks' calibration | the hand calibration (`core/test/papers/ward_2022/README.md`) | 40 s (`--quick`: 3 s) |
+| [`calibrate_cycle_kpis.py`](calibrate_cycle_kpis.py) | `Perez2019_A` | `skarstrom.calibrate` against per-cycle purity and recovery (KPI observables): a twin experiment that fits the CO₂ affinity and the bed voidage back | the values that made the data | 30 s (`--quick`: 13 s) |
 
 Runtimes: wall-clock time of a full run of each script (all cases, to cyclic
 steady state where the deck checks it) on one core of a shared 4-core Linux
@@ -66,14 +68,17 @@ published values are mostly the authors' optimised **model** results or
 
 ## Notebooks
 
-`notebooks/` holds four executed notebooks:
+`notebooks/` holds five executed notebooks:
 
 - `parametric_study.ipynb` — sweeps the feed-step time of a CO₂ VSA cycle and plots purity and recovery;
 - `sensitivity_analysis.ipynb` — screening of uncertain inputs and KPI error bars with `skarstrom.sensitivity`;
 - `isotherm_fit.ipynb` — single- and multi-temperature isotherm fits with the engine's fitter;
 - `case_study_vsa.ipynb` — the CO₂ VSA case study: the device-driven base decks, their operating-limit
   and KPI reports, a small optimisation, and the paper, unconstrained and constrained purity–recovery
-  fronts (from `case_study_results/`).
+  fronts (from `case_study_results/`);
+- `calibrate_ward_2022.ipynb` — `calibrate_ward_2022.py` step by step with the quick settings: the
+  cases, the parameters, the fit, the comparison with the hand calibration, and the overlay and
+  residual plots.
 
 ## Decks
 
