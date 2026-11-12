@@ -233,6 +233,14 @@ The ambient temperature carries most of the front-time correction, and q_s,2
 the rest. The larger h_in then takes the excess heat out of the bed at the
 higher ambient, and the dispersion factor sets the front width.
 
+The fit is reproducible with the calibration API: `examples/calibrate_ward_2022.py`
+(`skarstrom.calibrate`, the same cases, datasets, weights and parameters, from the
+paper's values) gives q_s,2 5.89 ± 0.01 mol/kg, the factor 3.74 ± 0.12 and h_in
+96.7 ± 6.7 / 81.6 ± 2.4 / 69.0 ± 1.1 W/(m² K), within 0.1 σ of the table above and
+with the same standard errors. Its estimate has a slightly lower objective than the
+rounded values above (S = 639.9 against 642.9), mostly from q_s,2 = 5.894 before
+rounding.
+
 Results of the paper test (the decks as shipped):
 
 | Case | Front-time error, before → after | Outlet NRMSE, before → after | Thermocouple RMSE [K], before → after |

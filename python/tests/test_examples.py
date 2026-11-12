@@ -16,6 +16,8 @@ EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 
 FAST = {
     "ward_2022": ["--case", "100"],
+    "calibrate_ward_2022": ["--quick"],
+    "calibrate_cycle_kpis": ["--quick"],
     "casas_2012": ["--case", "Fig4_50_50"],
     "nguyen_2022": ["--case", "Fig5"],
     "streb_2021": ["--case", "A1"],
