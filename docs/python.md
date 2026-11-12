@@ -10,7 +10,7 @@ q_molkg = np.array([1.06, 1.94, 2.76, 3.47, 4.01, 4.36])
 T_K = 298.15
 -->
 
-The `skarstrom` Python package wraps the C++ engine (`adsim`) and runs deck files. Use it for parametric studies, sensitivity analysis, isotherm fitting, your own cost functions and your own plots, or run decks from a terminal with the `skarstrom` command.
+The `skarstrom` Python package wraps the C++ engine (`adsim`) and runs deck files. Use it for parametric studies, sensitivity analysis, calibration against measured data, isotherm fitting, your own cost functions and your own plots, or run decks from a terminal with the `skarstrom` command.
 
 ## Install
 
@@ -546,6 +546,48 @@ info["warm"], info["distance"], info["note"]
 
 In C++ the same pieces are `CycleStateCache` and `RunWithStateCache` (`adsim/solver/state_cache.h`) and `OptimizeSimulation` (`adsim/solver/optimisation.h`).
 
+## Calibration
+
+!!! note "New in 0.12"
+    `skarstrom.calibrate`, `Simulation.calibrate`, the `skarstrom.calibration` module and
+    `skarstrom calibrate`.
+
+To fit deck parameters to the measured data stored in the deck, call `sim.calibrate` (one deck) or
+`skarstrom.calibrate` (several experiments, with shared and per-case parameters). The datasets must
+be bound to an observable ([What a dataset measures](#what-a-dataset-measures)). The guide, with the
+objective, the standard errors and the choice of method, is
+[Fitting parameters to measured data](parameterisation.md#fitting-parameters-to-measured-data).
+
+<!-- no-run: an API summary; the guide's examples run -->
+```python
+from skarstrom import calibration as cal
+
+result = sim.calibrate(["adsorbent[1].isotherm[CarbonDioxide].m2"])     # bounds from the registry
+result = skarstrom.calibrate(
+    [cal.Case(sim_a, ["outlet_CO2"], name="A"), (sim_b, ["outlet_CO2"], 1.0)],   # cases
+    [cal.Parameter(path, lower, upper, scale="log", shared=False, start=None)],  # one value per case
+    method="least_squares",       # or "global" (refine=True polishes with least squares)
+    differences="forward",        # "central" for strongly correlated parameters
+    threads=None, max_simulations=500, ftol=1e-6, xtol=1e-6,
+    progress=None, cancel=None)   # progress(info) -> False stops; cal.CancelToken().cancel()
+print(result.table())             # estimates, standard errors, fit per dataset, why it stopped
+result.parameters                 # Estimate: name, path, case, value, std_error, start, lower, upper,
+                                  # at_lower, at_upper, at_bound, relative_error, scale, unit
+result.correlation                # NumPy matrix in the order of result.parameters
+result.datasets                   # DatasetFit: rmse, nrmse, max_abs_error, points, skipped, x, measured,
+                                  # simulated, residuals, weighted_residuals, series_x, series_y
+result.objective, result.sigma2, result.objective_trace, result.simulations, result.iterations
+result.wall_time_s, result.stop_reason, result.message, result.notes, result.ok, result.cancelled
+result.apply(sim)                 # write the estimates into a deck; apply(i): case i's own deck
+result.calibrated()               # new Simulation(s) with the estimates
+result.plot()                     # data, start, calibrated and residuals (matplotlib)
+result.to_json("fit.json"); cal.CalibrationResult.from_json("fit.json")
+```
+
+Bounds and starts are SI numbers, pint quantities, texts such as `"2 min"`, or numbers with
+`unit=`. The runs are made in the engine's threads with the GIL released. Ctrl-C stops a fit and
+raises `KeyboardInterrupt`. In C++ the object is `adsim/solver/calibration.h`.
+
 ## Isotherms
 
 The isotherm functions use the engine's own isotherm code and the fitter behind the [Isotherm Fitting](isotherm-fitting.md) tool:
@@ -573,6 +615,9 @@ The GAB water kinds (`gab`, `gab_young`) take `component="Ethanol"` (a CoolProp 
 skarstrom run deck.json [--cycles N] [--set PATH=VALUE ...] [--csv DIR] [--json] [--log low|medium|high] [-q]
 skarstrom params deck.json [--all] [--search TEXT] [--json]
 skarstrom sensitivity deck.json --input PATH=SPEC ... [--output C.kpi ...] [--method both] [--workers N]
+skarstrom calibrate deck.json --param PATH[:LO:HI[:log][:per_case]] ... [--dataset NAME[:WEIGHT] ...]
+          [--case OTHER.json ...] [--method least_squares|global] [--threads N] [--max-simulations N]
+          [--out calibrated.json] [--json result.json]
 skarstrom examples [list] [--json]          # the bundled decks
 skarstrom examples run NAME [run options]   # run a bundled deck
 skarstrom examples path NAME                # where it is installed
@@ -590,6 +635,23 @@ The exit code is 0 when the run completes or reaches CSS, 1 when it fails and 13
 `skarstrom params` lists the tunable parameters of a deck with their values, units, suggested bounds and aliases. `--all` adds solver settings, integers and text fields; `--json` prints them as a list of objects.
 
 `skarstrom sensitivity` screens uncertain inputs and puts error bars on the KPIs; see [Sensitivity Analysis and Error Bars](sensitivity.md), which also covers the Python API (`skarstrom.sensitivity`).
+
+`skarstrom calibrate` fits deck parameters to the datasets stored in the deck (*New in 0.12*; see
+[Calibration](#calibration)). Each `--param` is a registry path with optional bounds (SI numbers or
+quantities such as `2 min`; without them, the suggested bounds), `:log` to search its logarithm and
+`:per_case` for one value per deck. `--dataset` picks the datasets to fit in every deck (default:
+every bound dataset), with an optional weight. `--case` adds another experiment that is fitted at
+the same time; the shared parameters take one value for all decks. It prints the estimates with
+their standard errors and the fit of each dataset. `--out` writes the calibrated deck
+(`FILE_<i>.json` per deck with `--case`), `--json` the full result. `--method global`,
+`--refine`, `--differences central`, `--set`, `--cycles` and `-q` are also accepted. The exit code
+is 1 when the fit fails (an invalid problem, or a failed run at the start) or is cancelled:
+
+```bash
+skarstrom examples copy Illustrative_Diluted_Bed .
+skarstrom calibrate Illustrative_Diluted_Bed.json --set "layer[1].cells=12" \
+    --param "adsorbent[1].isotherm[CarbonDioxide].m2:4:8" --max-simulations 10 -q
+```
 
 ## Bundled data
 
