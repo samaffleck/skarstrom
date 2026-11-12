@@ -301,8 +301,15 @@ namespace adsim {
     void RequestStop();
 
     // Chunked run. Start() returns false (and sets the result to Failed) when
-    // the deck fails its checks.
-    bool Start(LogLevel log_level = LogLevel::HIGH, SolverMessageCallback on_message = {});
+    // the deck fails its checks or the start state does not fit the deck.
+    // `initial_state` starts this run from a state, as RunOptions::initial_state
+    // does for a blocking run (it overrides SetInitialState for this run only;
+    // nullptr: the warm-start state if set, else the initial conditions). The
+    // state is adapted to the deck first (PrepareState; the note goes to the
+    // messages at LogLevel::LOW) and is copied, so it need not outlive the
+    // call; it may be FinalState().
+    bool Start(LogLevel log_level = LogLevel::HIGH, SolverMessageCallback on_message = {},
+               const CycleState* initial_state = nullptr);
     // Integrates for up to max_time_ms of wall clock. Returns the run status.
     RunStatus Advance(int max_time_ms);
     void Stop();
@@ -310,8 +317,8 @@ namespace adsim {
     double ProgressPercent() const;
 
     // ---- cycle state (cycle_state.h) ---------------------------------------
-    // The state at the end of the last completed blocking run (Run or
-    // RunCycle that finished or reached CSS): the DAE vector, the endpoint
+    // The state at the end of the last completed run (Run, RunCycle or a
+    // chunked run that finished or reached CSS): the DAE vector, the endpoint
     // histories and the buffer-tank summaries, enough to restart from it.
     // Kept for the session only; it is never saved in the deck. Cleared by the
     // next run, Load* and a failed or cancelled run.
@@ -319,15 +326,13 @@ namespace adsim {
     // Throws std::logic_error when there is none.
     const CycleState& FinalState() const;
 
-    // Warm start: every later blocking run (Run, RunCycle without a state)
+    // Warm start: every later run (Run, RunCycle without a state, Start)
     // starts from `state` instead of the deck's initial conditions, until
     // ClearInitialState or Load*. The deck's CSS minimum number of cycles
     // counts the cycles behind the state (CycleState::cycles), so a run from a
     // state at CSS can stop as soon as the consecutive-cycles rule holds.
     // Throws std::invalid_argument with the reason when the state does not fit
     // the deck (CheckState); the layout is checked again when the run starts.
-    // The chunked run (Start / Advance) always starts from the initial
-    // conditions.
     void SetInitialState(CycleState state);
     void ClearInitialState() { initial_state_.reset(); }
     bool HasInitialState() const { return initial_state_ != nullptr; }
@@ -481,6 +486,9 @@ namespace adsim {
     LogLevel chunked_log_level_ = LogLevel::HIGH;
     SolverMessageCallback chunked_on_message_;
     std::unique_ptr<CycleState> final_state_;
+    // The (prepared) state the chunked run started from, and its cycles.
+    std::unique_ptr<CycleState> chunked_start_;
+    int chunked_start_cycles_ = 0;
     std::unique_ptr<CycleState> initial_state_;
   };
 

@@ -549,6 +549,15 @@ namespace adsim {
     void SetMessageCallback(SolverMessageCallback cb) { message_callback_ = std::move(cb); }
     void SetLogLevel(LogLevel level) { log_level_ = level; }
 
+    // Starts the next Start() from `state` instead of the deck's initial
+    // conditions, as CoupledSolver::SetInitialState does for a blocking run:
+    // its DAE vector, endpoint histories and buffer-tank summaries are applied
+    // in Start(), and a state that does not fit the deck fails Start with the
+    // reason. The CSS minimum number of cycles counts the cycles behind the
+    // state (CycleState::cycles) for this run. nullptr (the default) starts
+    // from the initial conditions. The pointee must outlive the Start call.
+    void SetInitialState(const CycleState* state) { initial_state_ = state; }
+
     bool IsActive() const { return status_.IsActive(); }
     ChunkStatus GetStatus() const { return status_; }
     double GetProgressPercent() const;
@@ -606,6 +615,10 @@ namespace adsim {
     long int ida_steps_before_step_ = 0;
     // Column inventory at the start of the current step (step mole balance).
     std::vector<double> step_inventory_start_;
+    const CycleState* initial_state_ = nullptr;
+    // CycleState::cycles of the state the active run started from (0: cold).
+    int start_cycles_ = 0;
+    bool warm_ = false;
   };
 
 } // end adsim namespace

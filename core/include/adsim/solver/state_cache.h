@@ -43,6 +43,23 @@
 // start. So a deck without a CSS check, or a study at a fixed number of cycles
 // that never reaches CSS, runs every candidate cold, exactly as before.
 //
+// A caller that steps the run itself (Simulation::Start / Advance, for
+// example a single-threaded front end) does what RunWithStateCache does by
+// hand, with the same cache:
+//
+//   const CycleState* near = cache.Nearest(x, &distance);
+//   if (near && !sim.CheckState(*near).empty()) near = nullptr;  // skip, note why
+//   sim.Start(level, on_message, near);   // copies the state: no lifetime issue
+//   while (sim.Advance(ms) == RunStatus::Running) { ... }
+//   if (sim.LastResult().status == RunStatus::ReachedCSS)
+//     cache.Add(x, sim.FinalState());
+//
+// If the warm-started run fails, repeat it cold (Start without a state; also
+// clear any SetInitialState) and record that. The caller fills CachedRunInfo
+// itself, if it wants one: warm (a state was passed to Start), distance (from
+// Nearest), start_cycles (the state's CycleState::cycles), skipped and note
+// (CheckState's reason), retried_cold, and cached (the Add above).
+//
 // A warm start changes where the run stops, not the cyclic steady state it
 // stops at: warm and cold results agree within the CSS tolerance's bound
 // (docs/cyclic-steady-state.md). An optimiser should still re-run its optimum

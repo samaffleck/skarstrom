@@ -401,7 +401,7 @@ namespace adsim {
   // -------------------------------------------------------------------------
 
   const CycleState& Simulation::FinalState() const {
-    if (!final_state_) throw std::logic_error("no final state: run the simulation first (a completed blocking run)");
+    if (!final_state_) throw std::logic_error("no final state: run the simulation first (a completed run)");
     return *final_state_;
   }
 
@@ -639,12 +639,52 @@ namespace adsim {
     if (chunked_) chunked_->Stop();
   }
 
-  bool Simulation::Start(LogLevel log_level, SolverMessageCallback on_message) {
+  bool Simulation::Start(LogLevel log_level, SolverMessageCallback on_message, const CycleState* initial_state) {
     if (IsRunning()) throw std::logic_error("a chunked run is already in progress");
+    const CycleState* start = initial_state ? initial_state : initial_state_.get();
+    // Copied before ResetResults, which clears final_state_ (it may be the
+    // start); the copy lives as long as the run.
+    std::unique_ptr<CycleState> start_copy;
+    if (start) start_copy = std::make_unique<CycleState>(*start);
     ResetResults();
+    chunked_start_.reset();
+    chunked_start_cycles_ = 0;
     chunked_log_level_ = log_level;
     chunked_on_message_ = std::move(on_message);
+
+    if (start_copy) {
+      // As RunFrom: a state that does not fit is refused with the reason; one
+      // on another grid or with other step times is adapted to the deck first.
+      UserData& data = *data_;
+      std::string err;
+      if (!data.EvaluateAllExpressions(err)) {
+        result_.status = RunStatus::Failed;
+        result_.message = "Expression evaluation failed: " + err;
+        return false;
+      }
+      const std::string why = CycleStateIncompatibility(*start_copy, data);
+      if (!why.empty()) {
+        result_.status = RunStatus::Failed;
+        result_.message = "the initial state does not fit the deck: " + why;
+        messages_.push_back({LogLevel::LOW, result_.message});
+        if (chunked_on_message_) chunked_on_message_(LogLevel::LOW, result_.message);
+        return false;
+      }
+      if (CycleStateNeedsRemap(*start_copy, data) || CycleStateNeedsResample(*start_copy, data)) {
+        std::string note;
+        start_copy = std::make_unique<CycleState>(PrepareCycleState(*start_copy, data, &note));
+        if (!note.empty()) {
+          const std::string text = "Initial state: " + note;
+          messages_.push_back({LogLevel::LOW, text});
+          if (chunked_on_message_) chunked_on_message_(LogLevel::LOW, text);
+        }
+      }
+      chunked_start_ = std::move(start_copy);
+      chunked_start_cycles_ = chunked_start_->cycles;
+    }
+
     chunked_ = std::make_unique<CoupledSolverChuncked>(*data_);
+    chunked_->SetInitialState(chunked_start_.get());
     chunked_->SetLogLevel(log_level);
     chunked_->SetMessageCallback([this](LogLevel level, const std::string& msg) {
       messages_.push_back({level, msg});
@@ -677,7 +717,8 @@ namespace adsim {
 
   RunStatus Simulation::Advance(int max_time_ms) {
     if (!chunked_) return result_.status;
-    if (chunked_->IsActive()) {
+    const bool was_active = chunked_->IsActive();
+    if (was_active) {
       const auto t0 = std::chrono::steady_clock::now();
       chunked_->Integrate(max_time_ms);
       result_.wall_time_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
@@ -709,6 +750,18 @@ namespace adsim {
         result_.status = RunStatus::Cancelled;
         result_.message = st.GetMessage();
         break;
+    }
+    // The run ended in this call: keep its final state, as a blocking run does.
+    if (was_active && !chunked_->IsActive()) {
+      if (result_.Ok() && result_.cycles_run > 0) {
+        try {
+          final_state_ = std::make_unique<CycleState>(
+              CaptureCycleState(*data_, chunked_start_cycles_ + result_.cycles_run));
+        } catch (const std::exception& e) {
+          messages_.push_back({LogLevel::LOW, std::string("could not capture the final state: ") + e.what()});
+        }
+      }
+      chunked_start_.reset();
     }
     return result_.status;
   }
