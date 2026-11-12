@@ -57,11 +57,14 @@ bool AddComponentToDeck(UserData& data, const std::string& name, std::string& er
   }
   data.fluid.AddComponent(name);  // dedupes internally
   ReconcileMoleFractions(data, name, true);
-  // 0 is what Fluid::Initialise assumes for a component without a value; seeding
-  // it here makes the entry editable before the first run (a front end lists
-  // the map's entries, so a component without one had no field).
-  data.fluid.adsorbed_heat_capacity_.emplace(name, 0.0);
-  data.fluid.gas_heat_capacity_.emplace(name, Fluid::kDefaultGasHeatCapacity);
+  // Seed the adsorbed and gas heat capacities with the component's ideal-gas
+  // Cp0 at 25 degC (Fluid::DefaultGasHeatCapacity); the user can change them.
+  // Seeding here makes the entries editable before the first run (a front end
+  // lists the map's entries, so a component without one had no field). A
+  // component without an adsorbed value at run time (a deck that predates the
+  // entry) still gets 0 in Fluid::Initialise and FillDeckGaps.
+  data.fluid.adsorbed_heat_capacity_.emplace(name, Fluid::DefaultGasHeatCapacity(name));
+  data.fluid.gas_heat_capacity_.emplace(name, Fluid::DefaultGasHeatCapacity(name));
   // Initialise is idempotent: existing components keep their models while the
   // new one gets a full, editable default set.
   for (auto& [id, ads_const] : data.adsorbent_directory.GetAll()) {
@@ -525,7 +528,7 @@ void FillDeckGaps(UserData& data) {
     ReconcileMoleFractionMap(h.stream ? h.stream->mole_fraction : h.pressure->mole_fraction_, comps);
   for (const auto& c : comps) {
     data.fluid.adsorbed_heat_capacity_.emplace(c, 0.0);
-    data.fluid.gas_heat_capacity_.emplace(c, Fluid::kDefaultGasHeatCapacity);
+    data.fluid.gas_heat_capacity_.emplace(c, Fluid::DefaultGasHeatCapacity(c));
   }
   for (auto& [id, ads_const] : data.adsorbent_directory.GetAll()) {
     auto& ads = const_cast<Adsorbent&>(ads_const);

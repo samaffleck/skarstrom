@@ -119,7 +119,7 @@ on the heating side of the balance, so a loading bed ($\partial q/\partial t > 0
 | `"internal_energy"` | the internal-energy form of Haghpanah et al. (2013) | stored value $- C_{pa,i}\thinspace T$ |
 | `"isosteric_rt"` | $-\Delta U_{ads}$ | stored value $+ R\thinspace T$ |
 
-$T$ is the adsorbed-phase temperature (the bed temperature in LTE, the solid temperature in LTNE) and $C_{pa,i}$ the adsorbed-phase molar heat capacity (`fluid.adsorbed_heat_capacity_mode` and `fluid.adsorbed_heat_capacity[C]`; in the default constant mode it is 0 unless set, and then `internal_energy` gives the same result as `isosteric`).
+$T$ is the adsorbed-phase temperature (the bed temperature in LTE, the solid temperature in LTNE) and $C_{pa,i}$ the adsorbed-phase molar heat capacity (`fluid.adsorbed_heat_capacity_mode` and `fluid.adsorbed_heat_capacity[C]`; in the default constant mode, a component that `add_component` adds starts at its ideal-gas $C_{p0,i}$ at 25 °C, and a deck without a value uses 0; with 0, `internal_energy` gives the same result as `isosteric`).
 
 **Worked sign example.** A paper reports the adsorption enthalpy of CO₂ on 13X as $\Delta H = -37$ kJ mol⁻¹ (negative: exothermic). Enter its magnitude:
 
@@ -228,7 +228,7 @@ Go through these before concluding that two models disagree.
 | Gas heat capacity | ideal-gas $C_{p0,i}(T)$ per component (NASA polynomials), at the local temperature ([Equation of State](equation-of-state.md#gas-heat-capacity)) | `fluid.gas_heat_capacity_mode` (`"ideal_gas"`, `"constant"`), `fluid.gas_heat_capacity[C]` in J mol⁻¹ K⁻¹ |
 | Gas viscosity | mole-fraction average of pure-component $\mu_i(T)$ polynomials | `fluid.viscosity_mode` (`"polynomial"`, `"constant"`), `fluid.viscosity` in Pa s |
 | Heat-of-adsorption form | isosteric | `fluid.heat_of_adsorption_convention` (see [above](#heat-of-adsorption-sign)) |
-| Adsorbed-phase heat capacity | constant, 0 J mol⁻¹ K⁻¹ | `fluid.adsorbed_heat_capacity_mode`, `fluid.adsorbed_heat_capacity[C]` |
+| Adsorbed-phase heat capacity | constant: a component that `add_component` adds starts at its ideal-gas $C_{p0,i}$ at 25 °C; a deck without a value uses 0 J mol⁻¹ K⁻¹ | `fluid.adsorbed_heat_capacity_mode`, `fluid.adsorbed_heat_capacity[C]` |
 | Feed specification | as built | `sk.velocity` (actual flow at the bed face) vs `sk.molar_flow` (see [above](#velocity-volumetric-and-molar-feeds)) |
 | Particle porosity in the gas hold-up | $\epsilon_t = \epsilon_b + (1-\epsilon_b)\epsilon_p$ | `adsorbent[ID].particle_void_fraction` (0 for $\epsilon_t = \epsilon_b$) |
 | Density basis | particle density | `adsorbent[ID].solid_density` |

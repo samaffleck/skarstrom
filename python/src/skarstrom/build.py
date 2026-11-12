@@ -525,6 +525,11 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
         w(f"{name}.fluid.{f} = {_literal(sim, fluid.path(f))}")
     for c, path in fluid.adsorbed_heat_capacity._paths.items():
         w(f"{name}.fluid.adsorbed_heat_capacity[{c!r}] = {_literal(sim, path)}")
+    # add_component seeds the adsorbed heat capacity with Cp0 at 25 degC, but a
+    # deck without a value runs with 0: write that 0 so the script runs the same.
+    for c in d["components"]:
+        if c not in fluid.adsorbed_heat_capacity._paths:
+            w(f"{name}.fluid.adsorbed_heat_capacity[{c!r}] = 0  # no value in the deck: 0")
     for c, path in fluid.gas_heat_capacity._paths.items():
         w(f"{name}.fluid.gas_heat_capacity[{c!r}] = {_literal(sim, path)}")
 

@@ -150,7 +150,7 @@ namespace adsim {
     std::string err;
     ASSERT_TRUE(AddComponentToDeck(data, CO2, err)) << err;
     ASSERT_EQ(data.fluid.gas_heat_capacity_.count(CO2), 1u);
-    EXPECT_DOUBLE_EQ(data.fluid.gas_heat_capacity_.at(CO2).Get(), Fluid::kDefaultGasHeatCapacity);
+    EXPECT_DOUBLE_EQ(data.fluid.gas_heat_capacity_.at(CO2).Get(), Fluid::DefaultGasHeatCapacity(CO2));
     RemoveComponentFromDeck(data, CO2);
     EXPECT_EQ(data.fluid.gas_heat_capacity_.count(CO2), 0u);
 
@@ -161,7 +161,19 @@ namespace adsim {
     ic.pressure = 1e5;
     ic.temperature = 300.0;
     f.Initialise(ic);
-    EXPECT_DOUBLE_EQ(f.gas_heat_capacity_.at(N2).Get(), Fluid::kDefaultGasHeatCapacity);
+    EXPECT_DOUBLE_EQ(f.gas_heat_capacity_.at(N2).Get(), Fluid::DefaultGasHeatCapacity(N2));
+  }
+
+  // The seed is the component's ideal-gas Cp0 at 25 degC, rounded to
+  // 0.01 J/(mol.K); a name without a polynomial falls back to 7/2 R.
+  TEST(FluidPropertyModesDeck, ConstantHeatCapacitySeedIsIdealGasCpAt25C) {
+    for (const std::string c : {CO2, N2}) {
+      const double cp25 = Fluid::EvalIdealGasHeatCapacity(*Fluid::IdealGasCoeffs(c), 298.15);
+      EXPECT_NEAR(Fluid::DefaultGasHeatCapacity(c), cp25, 0.005 + 1e-12) << c;
+    }
+    EXPECT_NEAR(Fluid::DefaultGasHeatCapacity(CO2), 37.1, 0.1);  // CO2: 37.1 J/(mol.K) at 298 K
+    EXPECT_NEAR(Fluid::DefaultGasHeatCapacity(N2), 29.1, 0.1);   // N2: 29.1 J/(mol.K) at 298 K
+    EXPECT_DOUBLE_EQ(Fluid::DefaultGasHeatCapacity("NotAComponent"), Fluid::kDefaultGasHeatCapacity);
   }
 
   // The fields round-trip through the deck format; a deck saved before they
@@ -217,7 +229,7 @@ namespace adsim {
     }
     EXPECT_EQ(h.gas_heat_capacity_mode_, GasHeatCapacityMode::IDEAL_GAS);
     EXPECT_EQ(h.viscosity_mode_, ViscosityMode::POLYNOMIAL);
-    EXPECT_DOUBLE_EQ(h.gas_heat_capacity_.at(N2).Get(), Fluid::kDefaultGasHeatCapacity);
+    EXPECT_DOUBLE_EQ(h.gas_heat_capacity_.at(N2).Get(), Fluid::DefaultGasHeatCapacity(N2));
     EXPECT_EQ(h.heat_of_adsorption_convention_, HeatOfAdsorptionConvention::ISOSTERIC_RT);
   }
 

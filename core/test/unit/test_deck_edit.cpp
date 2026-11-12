@@ -72,10 +72,11 @@ TEST(DeckEdit, AddAndRemoveComponentCascades) {
   EXPECT_NE(std::find(data.fluid.components_.begin(), data.fluid.components_.end(), "Argon"),
             data.fluid.components_.end());
   EXPECT_EQ(data.ic.mole_fraction.count("Argon"), 1u);
-  // The adsorbed-phase heat capacity gets an editable 0 entry straight away
-  // (Fluid::Initialise would only add one at run time).
+  // The adsorbed-phase heat capacity gets an editable entry straight away,
+  // seeded with Argon's ideal-gas Cp0 at 25 degC (20.79 J/(mol.K)); without it
+  // Fluid::Initialise would only add a 0 entry at run time.
   ASSERT_EQ(data.fluid.adsorbed_heat_capacity_.count("Argon"), 1u);
-  EXPECT_EQ(data.fluid.adsorbed_heat_capacity_.at("Argon").Get(), 0.0);
+  EXPECT_DOUBLE_EQ(data.fluid.adsorbed_heat_capacity_.at("Argon").Get(), Fluid::DefaultGasHeatCapacity("Argon"));
   for (auto& [id, ads] : data.adsorbent_directory.GetAll()) {
     EXPECT_EQ(ads.adsorption_source_.mass_transfer_models_.count("Argon"), 1u) << ads.name_;
     EXPECT_EQ(ads.adsorption_source_.heat_of_adsorption_.count("Argon"), 1u) << ads.name_;

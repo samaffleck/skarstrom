@@ -46,6 +46,8 @@ def build(case: str = "DAC") -> sk.Simulation:
     )
     sim.add_component("Nitrogen")
     sim.add_component("CarbonDioxide")
+    for component in ("Nitrogen", "CarbonDioxide"):  # isothermal: the adsorbed heat capacity is unused
+        sim.fluid.adsorbed_heat_capacity[component] = 0 * u.J / (u.mol * u.K)
 
     # ---- adsorbent: the library entry, with the DAC kinetics for CO2 -----------------------
     ads_id = sim.add_library_adsorbent("lewatit_vp_oc_1065_low2023")

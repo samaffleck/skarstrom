@@ -155,8 +155,8 @@ TEST(IdealGasHeatCapacity, FluidUsesThePolynomialOrTheConstantValue) {
   f.gas_heat_capacity_mode_ = GasHeatCapacityMode::CONSTANT;
   f.Initialise(ic);
   EXPECT_EQ(f.HeatCapacityPolynomial("Nitrogen"), nullptr);
-  EXPECT_DOUBLE_EQ(f.MolarHeatCapacity("Nitrogen", 450.0), Fluid::kDefaultGasHeatCapacity);
-  EXPECT_DOUBLE_EQ(f.MolarEnthalpyChange("Nitrogen", 300.0, 310.0), 10.0 * Fluid::kDefaultGasHeatCapacity);
+  EXPECT_DOUBLE_EQ(f.MolarHeatCapacity("Nitrogen", 450.0), Fluid::DefaultGasHeatCapacity("Nitrogen"));
+  EXPECT_DOUBLE_EQ(f.MolarEnthalpyChange("Nitrogen", 300.0, 310.0), 10.0 * Fluid::DefaultGasHeatCapacity("Nitrogen"));
 
   // GAS_PHASE adsorbed heat capacity follows the adsorbed-phase temperature.
   f.gas_heat_capacity_mode_ = GasHeatCapacityMode::IDEAL_GAS;

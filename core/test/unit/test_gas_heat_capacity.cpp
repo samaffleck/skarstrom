@@ -194,7 +194,7 @@ namespace adsim {
     f.gas_heat_capacity_["Water"] = 75.3;  // a user's value (here the liquid's) is kept as given
     f.Initialise(ic);
     EXPECT_DOUBLE_EQ(f.heat_capacity_.at("Water"), 75.3 / f.molar_mass_.at("Water"));
-    EXPECT_DOUBLE_EQ(f.heat_capacity_.at(N2), Fluid::kDefaultGasHeatCapacity / f.molar_mass_.at(N2));
+    EXPECT_DOUBLE_EQ(f.heat_capacity_.at(N2), Fluid::DefaultGasHeatCapacity(N2) / f.molar_mass_.at(N2));
   }
 
   // Viscosity and conductivity come from polynomial fits of CoolProp's
