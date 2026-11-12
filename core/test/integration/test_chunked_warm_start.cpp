@@ -13,10 +13,15 @@
 //    reason; a stopped chunked run has no final state.
 //  * A state on another grid is adapted first, and the run says so.
 //
-// Tolerance: a warm and a cold run stop at the same CSS within the bound the
-// CSS stopping rule leaves (Per-Component balance 0.5 %): the end states
-// differ by kCssStateTol relative to each field's RMS (measured on Linux/GCC:
-// 2.4e-4 on the buffer-tank deck).
+// Bound: the CSS stopping rule (Per-Component balance plus the end-of-cycle
+// state test at tolerance eps = css.state_tolerance, 2e-5 here) promises a
+// stop within c * eps of the cyclic steady state, c <= 100, in the norm of
+// the state test (the bound docs/cyclic-steady-state.md verifies in
+// "Verification against a long reference" and state_cache.h quotes for warm
+// against cold). A warm and a cold stop each satisfy it, so they are at most
+// 2 * 100 * eps apart. The test measures that distance with the same norm
+// (validation::StateDistance, HistoryDistance in css_state_compare.h) and
+// prints it.
 
 #include <algorithm>
 #include <cmath>
@@ -29,6 +34,7 @@
 #include "adsim/simulation.h"
 #include "adsim/solver/cycle_state.h"
 #include "cycle_state_decks.h"
+#include "../validation/css_state_compare.h"
 
 namespace adsim {
 
@@ -36,23 +42,8 @@ namespace {
 
 using namespace test_decks;
 
-constexpr double kCssStateTol = 2e-3;
-
-// Largest relative difference between two states over the differential
-// entries of every field: max |a - b| / max(RMS(b), floor) per field.
-double StateDifference(const CycleState& a, const CycleState& b) {
-  EXPECT_EQ(a.y.size(), b.y.size());
-  if (a.y.size() != b.y.size()) return 1e300;
-  double worst = 0.0;
-  for (const auto& f : b.fields) {
-    if (!f.differential) continue;
-    double ss = 0.0;
-    for (size_t g : f.index) ss += b.y[g] * b.y[g];
-    const double scale = std::max(std::sqrt(ss / std::max<size_t>(f.index.size(), 1)), 1e-8);
-    for (size_t g : f.index) worst = std::max(worst, std::abs(a.y[g] - b.y[g]) / scale);
-  }
-  return worst;
-}
+// The CSS promise (see the top of this file): c <= kCssBound per stop.
+constexpr double kCssBound = 100.0;
 
 Simulation CssDeck() {
   Simulation sim = BufferTankSimulation();
@@ -113,11 +104,18 @@ TEST(ChunkedWarmStart, WarmChunkedRunReachesTheSameCssInFewerCycles) {
   ASSERT_EQ(Drive(warm, [&] { EXPECT_EQ(warm.Data().settings.css.min_cycles_, 5); }), RunStatus::ReachedCSS)
       << warm.LastResult().message;
   const int warm_cycles = warm.LastResult().cycles_run;
-  std::cout << "[ chunked warm start ] buffer tank: cold " << cold_cycles << " cycles to CSS, warm "
-            << warm_cycles << ", state difference " << StateDifference(warm.FinalState(), x) << "\n";
+  const double eps = warm.Data().settings.css.state_tolerance_.Get();
+  ASSERT_GT(eps, 0.0);
+  const double bound = 2.0 * kCssBound * eps;
+  const double state = validation::StateDistance(warm.FinalState(), x);
+  const double history = validation::HistoryDistance(warm.FinalState(), x);
+  std::cout << "[ chunked warm start ] buffer tank: cold " << cold_cycles << " cycles to CSS, warm " << warm_cycles
+            << "; warm vs cold: state " << state << " (" << state / eps << " eps), histories " << history << " ("
+            << history / eps << " eps); bound " << bound << "\n";
   EXPECT_LE(warm_cycles, 4);
   EXPECT_LT(warm_cycles, cold_cycles);
-  EXPECT_LT(StateDifference(warm.FinalState(), x), kCssStateTol);
+  EXPECT_LE(state, bound);
+  EXPECT_LE(history, bound);
   EXPECT_EQ(warm.FinalState().cycles, cold_cycles + warm_cycles);
   EXPECT_EQ(warm.Data().settings.css.min_cycles_, 5);
   EXPECT_FALSE(warm.HasInitialState());  // the argument applies to one run
