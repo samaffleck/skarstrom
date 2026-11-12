@@ -56,7 +56,19 @@ from typing import (
 from .manifests import component_aliases
 
 # The resistances of the generic coefficient model, in series order.
-_RESISTANCE_TAGS = ("film", "macropore", "knudsen", "micropore", "lumped")
+_RESISTANCE_TAGS = ("film", "macropore", "molecular", "knudsen", "micropore", "lumped")
+# The terms that refine the macropore term (its pore diffusivity).
+_PORE_TAGS = ("molecular", "knudsen")
+
+
+def _wanted_resistances(resistances: Iterable[str]) -> List[str]:
+    """The switch set ``resistances`` names. The macropore term holds molecular diffusion unless
+    the set says otherwise: a set with macropore and without molecular keeps molecular on (the form
+    before molecular had its own switch). Switch it off with ``set_rate_resistance``."""
+    wanted = list(resistances)
+    if "macropore" in wanted and "molecular" not in wanted:
+        wanted.append("molecular")
+    return wanted
 
 if TYPE_CHECKING:
     from . import Parameter, Simulation
@@ -1737,7 +1749,8 @@ class Kinetics(_Node):
 
     The coefficient is the generic resistance model (``series_resistance``): a
     switch per resistance in the group ``resistances`` (``film``,
-    ``macropore``, ``knudsen`` (with macropore on), ``micropore``, ``lumped``;
+    ``macropore``, ``molecular`` and ``knudsen`` (with macropore on; one of
+    them stays on), ``micropore``, ``lumped``;
     ``kinetics["CO2"].resistances.micropore = True``), the capacity-factor mode
     ``capacity_factor_mode`` (while film or macropore is on) and the parameters
     of the enabled terms. A parameter of a switched-off term is not listed
@@ -2000,8 +2013,10 @@ class Adsorbent(_Node):
         pore_radius), ``"macropore_capacity"`` (macropore with the secant capacity factor of Haghpanah
         et al. 2013; + concentration_floor) or ``"haynes"`` (film + macropore).
 
-        ``resistances`` switches on exactly the terms named (``"film"``, ``"macropore"``, ``"knudsen"``,
-        ``"micropore"``, ``"lumped"``) and the others off; ``capacity_factor_mode`` is ``"none"``,
+        ``resistances`` switches on exactly the terms named (``"film"``, ``"macropore"``,
+        ``"molecular"``, ``"knudsen"``, ``"micropore"``, ``"lumped"``) and the others off; the
+        macropore term keeps molecular diffusion on (for Knudsen diffusion alone, switch
+        ``"molecular"`` off after with ``set_rate_resistance``); ``capacity_factor_mode`` is ``"none"``,
         ``"slope"``, ``"secant"`` or ``"fixed"``. Both apply to the two sites of a dual-rate model. Then
         ``values`` set the parameters of the enabled terms (a parameter of a switched-off term raises
         AttributeError)."""
@@ -2009,12 +2024,14 @@ class Adsorbent(_Node):
         self._sim._build("set_rate_model", self._id, name, model, coefficient)
         sites = ["fast", "slow"] if model == "dual_rate_ldf" else ["fast"]
         if resistances is not None:
-            wanted = list(resistances)
+            wanted = _wanted_resistances(resistances)
             for site in sites:
                 for tag in _RESISTANCE_TAGS:  # on first: a set must keep one term on
                     if tag in wanted:
                         self._sim.edit.set_mass_transfer_resistance(self._id, name, tag, True, site=site)
                 for tag in reversed(_RESISTANCE_TAGS):
+                    if tag in _PORE_TAGS and "macropore" not in wanted:
+                        continue  # macropore off switches them off
                     if tag not in wanted:
                         self._sim.edit.set_mass_transfer_resistance(self._id, name, tag, False, site=site)
         if capacity_factor_mode is not None:
@@ -2025,11 +2042,12 @@ class Adsorbent(_Node):
         return ads
 
     def set_rate_resistance(self, component: str, tag: str, on: bool = True, site: str = "fast") -> "Adsorbent":
-        """Switch one resistance (``"film"``, ``"macropore"``, ``"knudsen"``, ``"micropore"`` or
-        ``"lumped"``) of a component's coefficient on or off, on the ``"fast"`` site or the ``"slow"``
-        site of a dual-rate model. The engine refuses (ValueError) switching the last of film,
-        macropore, micropore and lumped off, and knudsen without macropore; macropore off also
-        switches knudsen off. Parameter values are kept."""
+        """Switch one resistance (``"film"``, ``"macropore"``, ``"molecular"``, ``"knudsen"``,
+        ``"micropore"`` or ``"lumped"``) of a component's coefficient on or off, on the ``"fast"`` site
+        or the ``"slow"`` site of a dual-rate model. The engine refuses (ValueError) switching the last
+        of film, macropore, micropore and lumped off, molecular or knudsen without macropore, and the
+        last of molecular and knudsen off while macropore is on; macropore on also switches molecular
+        on when neither is on, and macropore off switches both off. Parameter values are kept."""
         self._sim.edit.set_mass_transfer_resistance(self._id, self._sim._component(component), tag, bool(on),
                                                     site=site)
         return self._fresh()

@@ -89,6 +89,9 @@ TEST(ParameterRegistry, ResistanceSwitches) {
   ExpectAgrees(deck, m, "");
   EXPECT_TRUE(deck.Has("tortuosity"));
   EXPECT_TRUE(deck.Has("resistances.knudsen"));
+  EXPECT_TRUE(deck.Has("resistances.molecular"));
+  EXPECT_TRUE(m.Enabled("molecular")) << "macropore on switches molecular on";
+  EXPECT_TRUE(deck.Has("molecular_diffusion_coefficient"));
   deck.sim.SetParameter(deck.kp + "resistances.lumped", 0.0);
   EXPECT_EQ(m.PresetTag(), "macropore");
   ExpectAgrees(deck, m, "");
@@ -98,6 +101,13 @@ TEST(ParameterRegistry, ResistanceSwitches) {
   deck.sim.SetParameterText(deck.kp + "resistances.knudsen", "true");
   EXPECT_EQ(m.PresetTag(), "macropore_knudsen");
   EXPECT_TRUE(deck.Has("pore_radius"));
+  // Knudsen alone: molecular off hides its leaf; the last of the two is refused off.
+  deck.sim.SetParameterText(deck.kp + "resistances.molecular", "false");
+  EXPECT_FALSE(m.Enabled("molecular"));
+  EXPECT_FALSE(deck.Has("molecular_diffusion_coefficient"));
+  EXPECT_THROW(deck.sim.SetParameterText(deck.kp + "resistances.knudsen", "false"), std::invalid_argument);
+  ExpectAgrees(deck, m, "");
+  deck.sim.SetParameterText(deck.kp + "resistances.molecular", "true");
   deck.sim.SetParameterText(deck.kp + "resistances.film", "true");
   deck.sim.SetParameterText(deck.kp + "resistances.macropore", "false");  // clears knudsen
   EXPECT_FALSE(m.Enabled("knudsen"));
@@ -188,14 +198,19 @@ TEST(DeckView, KineticsCarryTheSwitchesPresetAndEquations) {
   EXPECT_STREQ(c["preset"].GetString(), "haynes");
   EXPECT_TRUE(c["resistances"]["film"].GetBool());
   EXPECT_TRUE(c["resistances"]["macropore"].GetBool());
+  EXPECT_TRUE(c["resistances"]["molecular"].GetBool());
+  EXPECT_FALSE(c["resistances"]["knudsen"].GetBool());
   EXPECT_FALSE(c["resistances"]["lumped"].GetBool());
   EXPECT_STREQ(c["capacity_factor_mode"].GetString(), "none");
-  // In no layer: the packed (sphere) form; no slab form.
-  EXPECT_EQ(std::string(c["equation"].GetString()), MassTransferEquationLatex(deck.Fast(), DiffusionShape::Sphere));
+  // In no layer: the packed (sphere) form with the default film correlation;
+  // no slab form.
+  const FilmCorrelation wf = FilmCorrelation::WakaoFunazkri;
+  EXPECT_EQ(std::string(c["equation"].GetString()), MassTransferEquationLatex(deck.Fast(), DiffusionShape::Sphere, &wf));
+  EXPECT_NE(std::string(c["equation"].GetString()).find("Sh &= 2 + 1.1"), std::string::npos);
   EXPECT_TRUE(c["equation_slab"].IsNull());
   EXPECT_STREQ(c["slow_preset"].GetString(), "custom");
   EXPECT_TRUE(c["slow_resistances"]["micropore"].GetBool());
-  EXPECT_EQ(std::string(c["slow_equation"].GetString()), MassTransferEquationLatex(*deck.Slow(), DiffusionShape::Sphere));
+  EXPECT_EQ(std::string(c["slow_equation"].GetString()), MassTransferEquationLatex(*deck.Slow(), DiffusionShape::Sphere, &wf));
   EXPECT_NE(std::string(c["slow_equation"].GetString()).find("r_c^{2}"), std::string::npos);
 
   // Recomputed after an edit: a single-site model has no slow fields.
@@ -208,7 +223,7 @@ TEST(DeckView, KineticsCarryTheSwitchesPresetAndEquations) {
   EXPECT_STREQ(c2["preset"].GetString(), "macropore_capacity");
   EXPECT_STREQ(c2["capacity_factor_mode"].GetString(), "secant");
   EXPECT_EQ(std::string(c2["equation"].GetString()),
-            R"(\begin{aligned}\frac{1}{k_i} = \frac{K\,\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ K = \max\!\left(\frac{\rho_p\,q_i^{*}}{c_i},\,1\right)\end{aligned})");
+            R"(\begin{aligned}\frac{1}{k_i} &= \frac{K\,\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ K &= \max\!\left(\frac{\rho_p\,q_i^{*}}{c_i},\,1\right)\end{aligned})");
   EXPECT_TRUE(c2["slow_equation"].IsNull());
   EXPECT_TRUE(c2["slow_resistances"].IsNull());
 }
@@ -223,9 +238,13 @@ TEST(ModelKindManifest, CarriesTheResistanceDescriptor) {
   const auto& g = kinds[kinds.Size() - 1];
   EXPECT_STREQ(g["tag"].GetString(), "series_resistance");
   EXPECT_FALSE(g["legacy"].GetBool());
-  ASSERT_EQ(g["resistances"].Size(), 5u);
-  EXPECT_STREQ(g["resistances"][2]["tag"].GetString(), "knudsen");
+  ASSERT_EQ(g["resistances"].Size(), 6u);
+  EXPECT_STREQ(g["resistances"][2]["tag"].GetString(), "molecular");
   EXPECT_STREQ(g["resistances"][2]["parent"].GetString(), "macropore");
+  EXPECT_STREQ(g["resistances"][3]["tag"].GetString(), "knudsen");
+  EXPECT_STREQ(g["resistances"][3]["parent"].GetString(), "macropore");
+  EXPECT_TRUE(g["resistances"][1]["needs_child"].GetBool());
+  EXPECT_FALSE(g["resistances"][0]["needs_child"].GetBool());
   EXPECT_TRUE(g["resistances"][0]["parent"].IsNull());
   EXPECT_TRUE(g["resistances"][0]["scaled_by_capacity"].GetBool());
   EXPECT_EQ(std::string(g["resistances"][0]["fragments"]["sphere"]["term"].GetString()),

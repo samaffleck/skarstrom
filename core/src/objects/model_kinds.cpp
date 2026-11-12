@@ -81,17 +81,19 @@ K ResistanceModel() {
   film.slab = {R"(f_{film}\,\frac{{K}\ell}{k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{D_h})", ""};
   film.cylinder = {R"(f_{film}\,\frac{{K}r_f}{2\,k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{d_p})", ""};
   film.source = "Haynes & Sarma (1973); Ruthven (1984); slab: Rezaei & Webley (2009)";
-  R macro{"macropore", "macropore diffusion", "", true,
-          {"tortuosity", "macropore_void_fraction", "molecular_diffusion_coefficient"}};
+  R macro{"macropore", "macropore diffusion", "", true, {"tortuosity", "macropore_void_fraction"}};
+  macro.needs_child = true;
   macro.sphere = {R"(\frac{{K}\tau\,r_p^{2}}{15\,\varepsilon_p\,{D}})", "", ""};
   macro.slab = {R"(\frac{{K}\tau\,\ell^{2}}{3\,\varepsilon_p\,{D}})", "", ""};
   macro.cylinder = {R"(\frac{{K}\tau\,r_f^{2}}{8\,\varepsilon_p\,{D}})", "", ""};
   macro.source = "Glueckauf (1955); Ruthven (1984); Haghpanah et al. (2013); slab: Rezaei & Webley (2009); "
                  "cylinder: Glueckauf's (1955) parabolic profile in an infinite cylinder";
+  // The pore diffusivity of the macropore term: molecular, Knudsen or both
+  // (the Bosanquet line is the composer's, MassTransferEquationLatex).
+  R molecular{"molecular", "molecular diffusion", "macropore", false, {"molecular_diffusion_coefficient"}};
+  molecular.source = "Ruthven (1984)";
   R knudsen{"knudsen", "Knudsen diffusion", "macropore", false, {"pore_radius"}};
-  const std::string bosanquet =
-      R"(\frac{1}{D_{B,i}} = \frac{1}{D_{K,i}} + \frac{1}{D_{m,i}},\quad D_{K,i} = \tfrac{2}{3}\,r_{pore}\sqrt{\tfrac{8RT}{\pi M_i}})";
-  knudsen.sphere = knudsen.slab = knudsen.cylinder = {"", bosanquet, ""};
+  knudsen.sphere = knudsen.slab = knudsen.cylinder = {"", R"(D_{K,i} = \tfrac{2}{3}\,r_{pore}\sqrt{\tfrac{8RT}{\pi M_i}})", ""};
   knudsen.source = "Ruthven (1984); Do (1998)";
   R micro{"micropore", "micropore diffusion", "", false,
           {"crystal_radius", "micropore_diffusivity", "micropore_activation_energy"}};
@@ -101,7 +103,7 @@ K ResistanceModel() {
   R lumped{"lumped", "lumped coefficient", "", false, {"k", "activation_energy"}};
   lumped.sphere = lumped.slab = lumped.cylinder = {R"(\frac{1}{k_{L,i}})", R"(k_{L,i} = k_0\,e^{-E_a/RT})", R"(k_{L,i} = k)"};
   lumped.source = "Glueckauf (1955)";
-  k.resistances = {film, macro, knudsen, micro, lumped};
+  k.resistances = {film, macro, molecular, knudsen, micro, lumped};
   k.capacity_modes = {
       {"none", "none (K = 1)", ""},
       {"slope", "isotherm slope", R"(K = \max\!\left(\rho_p\,\frac{\partial q_i^{*}}{\partial c_i},\,1\right))"},
@@ -111,10 +113,13 @@ K ResistanceModel() {
   // with a non-zero activation energy, constant the same with E_a = 0.
   k.presets = {{"constant", {"lumped"}, 0, {{"activation_energy", 0.0}}},
                {"arrhenius", {"lumped"}, 0, {}},
-               {"macropore", {"macropore"}, 0, {}},
-               {"macropore_knudsen", {"macropore", "knudsen"}, 0, {}},
-               {"haynes", {"film", "macropore"}, 0, {{"film_resistance_factor", 1.0}, {"molecular_diffusion_coefficient", 0.0}}},
-               {"macropore_capacity", {"macropore"}, 2, {}}};
+               {"macropore", {"macropore", "molecular"}, 0, {}},
+               {"macropore_knudsen", {"macropore", "molecular", "knudsen"}, 0, {}},
+               {"haynes",
+                {"film", "macropore", "molecular"},
+                0,
+                {{"film_resistance_factor", 1.0}, {"molecular_diffusion_coefficient", 0.0}}},
+               {"macropore_capacity", {"macropore", "molecular"}, 2, {}}};
   return k;
 }
 
@@ -863,36 +868,82 @@ void ReplaceAll(std::string& s, const std::string& from, const std::string& to) 
 bool IsZeroNumber(const ExpressionParam& p) { return !p.HasExpression() && p.Get() == 0.0; }
 }  // namespace
 
-std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model, DiffusionShape shape) {
+// The Sherwood number of a packed layer's film correlation (film_correlation.h),
+// then the Reynolds and Schmidt numbers it reads.
+std::vector<std::string> FilmCorrelationLatex(FilmCorrelation c) {
+  std::string sh;
+  switch (c) {
+    case FilmCorrelation::Gunn:
+      sh = R"(Sh = \left(7 - 10\,\varepsilon_b + 5\,\varepsilon_b^{2}\right)\left(1 + 0.7\,Re^{0.2}\,Sc^{1/3}\right))"
+           R"( + \left(1.33 - 2.4\,\varepsilon_b + 1.2\,\varepsilon_b^{2}\right)Re^{0.7}\,Sc^{1/3})";
+      break;
+    case FilmCorrelation::RanzMarshall: sh = R"(Sh = 2 + 0.6\,Re^{1/2}\,Sc^{1/3})"; break;
+    case FilmCorrelation::WakaoFunazkri:
+    default: sh = R"(Sh = 2 + 1.1\,Sc^{1/3}\,Re^{0.6})"; break;
+  }
+  return {sh, R"(Re = \frac{\rho_g\,u\,d_p}{\mu})", R"(Sc = \frac{\mu}{\rho_g\,D_{m,i}})"};
+}
+
+namespace {
+// The definition lines of one fragment: the parts between "\\".
+void AppendLines(const std::string& fragment, std::vector<std::string>& lines) {
+  std::size_t at = 0;
+  while (at <= fragment.size()) {
+    std::size_t next = fragment.find("\\\\", at);
+    std::string line = fragment.substr(at, next == std::string::npos ? std::string::npos : next - at);
+    while (!line.empty() && line.front() == ' ') line.erase(0, 1);
+    while (!line.empty() && line.back() == ' ') line.pop_back();
+    if (!line.empty()) lines.push_back(line);
+    if (next == std::string::npos) break;
+    at = next + 2;
+  }
+}
+// The line aligned on its first " = " (an aligned row).
+std::string Aligned(std::string line) {
+  const std::size_t eq = line.find(" = ");
+  if (eq != std::string::npos) line.replace(eq, 3, " &= ");
+  return line;
+}
+}  // namespace
+
+std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model, DiffusionShape shape,
+                                      const FilmCorrelation* film) {
   const KindDescriptor& kind = ResistanceKind();
-  const bool knudsen = model.Enabled("knudsen");
+  const bool molecular = model.MolecularDiffusion();
+  const bool knudsen = model.KnudsenDiffusion();
+  const char* pore_d = molecular && knudsen ? "D_{B,i}" : knudsen ? "D_{K,i}" : "D_{m,i}";
   const CapacityFactorMode mode = model.UsesCapacityFactor() ? model.CapacityMode() : CapacityFactorMode::NONE;
   std::vector<std::string> terms, wheres;
   for (const ResistanceDescriptor& r : kind.resistances) {
     if (!model.Enabled(r.tag)) continue;
+    if (!r.parent.empty() && !model.Enabled(r.parent)) continue;
     const ResistanceDescriptor::Latex& f = r.Fragments(shape);
-    if (f.term.empty() && f.where.empty()) continue;
     if (!f.term.empty()) {
       std::string term = f.term;
       ReplaceAll(term, "{K}", r.scaled_by_capacity && mode != CapacityFactorMode::NONE ? "K\\," : "");
-      ReplaceAll(term, "{D}", knudsen ? "D_{B,i}" : "D_{m,i}");
+      ReplaceAll(term, "{D}", pore_d);
       terms.push_back(term);
     }
+    // Both pore diffusivities: the Bosanquet mean, before the D_K line.
+    if (r.tag == "knudsen" && molecular)
+      wheres.push_back(R"(\frac{1}{D_{B,i}} = \frac{1}{D_{K,i}} + \frac{1}{D_{m,i}})");
     const ExpressionParam* ea = r.tag == "lumped"      ? &model.activation_energy_
                                 : r.tag == "micropore" ? &model.micropore_activation_energy_
                                                        : nullptr;
     const std::string& where = (!f.where_isothermal.empty() && ea && IsZeroNumber(*ea)) ? f.where_isothermal : f.where;
-    if (!where.empty()) wheres.push_back(where);
+    AppendLines(where, wheres);
+    if (r.tag == "film" && film && shape != DiffusionShape::Slab)
+      for (const std::string& line : FilmCorrelationLatex(*film)) wheres.push_back(line);
   }
   if (terms.empty()) return "";
   const auto m = static_cast<std::size_t>(mode);
   if (m < kind.capacity_modes.size() && !kind.capacity_modes[m].latex.empty())
-    wheres.push_back(kind.capacity_modes[m].latex);
+    AppendLines(kind.capacity_modes[m].latex, wheres);
   std::string eq = "\\frac{1}{k_i} = ";
   for (std::size_t i = 0; i < terms.size(); ++i) eq += (i ? " + " : "") + terms[i];
   if (wheres.empty()) return eq;
-  std::string out = "\\begin{aligned}" + eq + " \\\\ ";
-  for (std::size_t i = 0; i < wheres.size(); ++i) out += (i ? ",\\qquad " : "") + wheres[i];
+  std::string out = "\\begin{aligned}" + Aligned(eq);
+  for (const std::string& w : wheres) out += " \\\\ " + Aligned(w);
   return out + "\\end{aligned}";
 }
 
@@ -903,7 +954,8 @@ DiffusionShape LayerDiffusionShape(const MixedAdsorbentLayer& layer) {
 
 std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model,
                                       const MixedAdsorbentLayer& layer) {
-  return MassTransferEquationLatex(model, LayerDiffusionShape(layer));
+  const DiffusionShape shape = LayerDiffusionShape(layer);
+  return MassTransferEquationLatex(model, shape, shape == DiffusionShape::Slab ? nullptr : &layer.film_correlation_);
 }
 
 }  // namespace adsim

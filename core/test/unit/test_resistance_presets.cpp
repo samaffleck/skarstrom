@@ -494,15 +494,17 @@ TEST(DeckEdit, ResistanceSwitchCascade) {
   };
   EXPECT_EQ(model().PresetTag(), "constant");
 
-  // The last term cannot be switched off; knudsen needs macropore.
+  // The last term cannot be switched off; molecular and knudsen need macropore.
   EXPECT_FALSE(set("lumped", false));
   EXPECT_FALSE(set("knudsen", true));
+  EXPECT_FALSE(set("molecular", true));
   EXPECT_FALSE(set("barrier", true));
   EXPECT_TRUE(model().Enabled("lumped"));
 
   // The preset tag follows the switches.
   model().tortuosity_ = 4.2;
   ASSERT_TRUE(set("macropore", true));
+  EXPECT_TRUE(model().Enabled("molecular")) << "macropore on switches molecular on";
   EXPECT_EQ(model().PresetTag(), "custom");
   ASSERT_TRUE(set("lumped", false));
   EXPECT_EQ(model().PresetTag(), "macropore");
@@ -510,7 +512,16 @@ TEST(DeckEdit, ResistanceSwitchCascade) {
   EXPECT_EQ(model().GetModelType(), T::SERIES_RESISTANCE);
   ASSERT_TRUE(set("knudsen", true));
   EXPECT_EQ(model().PresetTag(), "macropore_knudsen");
+  // Knudsen alone: molecular off is a custom set; the last of the two stays on.
+  ASSERT_TRUE(set("molecular", false));
+  EXPECT_EQ(model().PresetTag(), "custom");
+  EXPECT_TRUE(model().KnudsenDiffusion());
+  EXPECT_FALSE(model().MolecularDiffusion());
+  EXPECT_FALSE(set("knudsen", false));
+  EXPECT_TRUE(model().Enabled("knudsen"));
+  ASSERT_TRUE(set("molecular", true));
   ASSERT_TRUE(set("knudsen", false));
+  EXPECT_FALSE(set("molecular", false));
   mode(CapacityFactorMode::SECANT);
   EXPECT_EQ(model().PresetTag(), "macropore_capacity");
   mode(CapacityFactorMode::NONE);
@@ -529,11 +540,13 @@ TEST(DeckEdit, ResistanceSwitchCascade) {
   EXPECT_EQ(model().tortuosity_.Get(), 4.2);
   ASSERT_TRUE(set("macropore", true));
   EXPECT_EQ(model().tortuosity_.Get(), 4.2);
-  // Switching macropore off clears knudsen.
+  // Switching macropore off clears molecular and knudsen.
   ASSERT_TRUE(set("knudsen", true));
   ASSERT_TRUE(set("macropore", false));
   EXPECT_FALSE(model().Enabled("knudsen"));
   EXPECT_FALSE(model().resistances_.knudsen);
+  EXPECT_FALSE(model().resistances_.molecular);
+  EXPECT_TRUE(set("molecular", false)) << "already off with macropore";
   // film is now the only term: refused off.
   EXPECT_FALSE(set("film", false));
   // The fixed mode with K <= 0 sets K to 1.
@@ -648,7 +661,7 @@ TEST(ResistanceChecks, EachErrorAndWarning) {
     for (const char* t : tags) m.resistances_ = [&] {
       MassTransferResistances r = m.resistances_;
       if (std::string(t) == "film") r.film = true;
-      if (std::string(t) == "macropore") r.macropore = true;
+      if (std::string(t) == "macropore") r.macropore = r.molecular = true;
       if (std::string(t) == "knudsen") r.knudsen = true;
       if (std::string(t) == "micropore") r.micropore = true;
       return r;
@@ -668,6 +681,18 @@ TEST(ResistanceChecks, EachErrorAndWarning) {
             std::string::npos);
   EXPECT_NE(check([&](Generic& m) { on(m, {"macropore", "knudsen"}); m.pore_radius_ = 0.0; }).first.find("pore radius"),
             std::string::npos);
+  EXPECT_EQ(check([&](Generic& m) { on(m, {"macropore", "knudsen"}); m.resistances_.molecular = false; }).first, "")
+      << "Knudsen alone is a valid macropore term";
+  // Macropore with neither pore switch (a set written field by field) is
+  // molecular diffusion.
+  {
+    Generic m;
+    m.resistances_.macropore = true;
+    m.resistances_.lumped = false;
+    EXPECT_TRUE(m.MolecularDiffusion());
+    EXPECT_EQ(m.PresetTag(), "macropore");
+    EXPECT_EQ(check([&](Generic& g) { g.resistances_ = m.resistances_; }).first, "");
+  }
   EXPECT_NE(check([&](Generic& m) { on(m, {"micropore"}); m.crystal_radius_ = 0.0; }).first.find("crystal radius"),
             std::string::npos);
   EXPECT_NE(check([&](Generic& m) { on(m, {"micropore"}); m.micropore_diffusivity_ = -1.0; }).first.find("micropore diffusivity"),

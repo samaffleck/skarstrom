@@ -122,7 +122,7 @@ Generic Model(bool film, bool macropore, bool knudsen, bool micropore, CapacityF
   Generic m;
   MassTransferResistances r;
   r.film = film;
-  r.macropore = macropore;
+  r.macropore = r.molecular = macropore;  // the macropore term with molecular diffusion
   r.knudsen = knudsen;
   r.micropore = micropore;
   r.lumped = false;

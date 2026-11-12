@@ -369,6 +369,34 @@ def test_constant_macropore_diffusivity_builds_and_round_trips():
     assert sim.run(cycles=1).ok
 
 
+def test_knudsen_alone_builds_and_round_trips():
+    # resistances=[...] keeps molecular diffusion on with macropore (the form
+    # before it had a switch); Knudsen alone switches it off after, and the
+    # script writer does the same.
+    sim, _ = build_vsa()
+    ads = sim.adsorbents["13X"]
+    ads = ads.set_rate_model("CO2", "ldf", "series_resistance", resistances=["macropore", "knudsen"],
+                             tortuosity=3.0, macropore_void_fraction=0.35, pore_radius=2e-9)
+    assert ads.kinetics["CO2"].resistances.molecular is True
+    ads = ads.set_rate_resistance("CO2", "molecular", False)
+    kn = ads.kinetics["CO2"]
+    assert kn.resistances.molecular is False and kn.resistances.knudsen is True
+    assert "molecular_diffusion_coefficient" not in kn.fields
+    with pytest.raises(ValueError):
+        ads.set_rate_resistance("CO2", "knudsen", False)  # the macropore term needs one of the two
+    assert '"Molecular": false' in sim.to_json()
+    script = sk.to_script(sim)
+    assert "'molecular', False" in script
+    ns = {}
+    exec(compile(script, "<knudsen_alone>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    # A set without macropore switches molecular and knudsen off with it.
+    ads = ads.set_rate_model("CO2", "ldf", "series_resistance", resistances=["lumped"])
+    assert ads.kinetics["CO2"].resistances.lumped is True
+    assert "molecular" not in ads.kinetics["CO2"].resistances.fields
+    assert sim.run(cycles=1).ok
+
+
 def test_log_linear_profiles_build_and_round_trip():
     sim, parts = build_vsa()
     press = sim.steps["Pressurisation"]

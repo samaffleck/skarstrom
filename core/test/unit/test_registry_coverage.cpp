@@ -225,7 +225,7 @@ std::set<std::string> Uncovered(UserData& d) {
           for (MassTransferSite site : {MassTransferSite::Fast, MassTransferSite::Slow}) {
             if (site == MassTransferSite::Slow && !m->SlowCoefficientModel()) continue;
             std::string err;
-            for (const char* t : {"film", "macropore", "knudsen", "micropore", "lumped"})
+            for (const char* t : {"film", "macropore", "molecular", "knudsen", "micropore", "lumped"})
               SetMassTransferResistance(copy, id, c, site, t, true, err);
             SetCapacityFactorMode(copy, id, c, site, mode, err);
           }

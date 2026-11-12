@@ -10,6 +10,7 @@
 // values are the closed forms, written out independently of the models.
 
 #include <cmath>
+#include <regex>
 #include <stdexcept>
 #include <string>
 
@@ -139,6 +140,66 @@ TEST(MacroporeCoefficient, KnudsenWithConstantDiffusivity) {
     m.molecular_diffusion_coefficient_ = kDm;
     EXPECT_NEAR(s.Update(m), expected(kDm), 1e-12 * expected(kDm)) << P;
   }
+}
+
+// The generic model's pore-diffusion switches: Knudsen alone gives D = D_K
+// (the molecular diffusivity, constant or the state's, plays no part);
+// molecular alone and both are the macropore and macropore_knudsen forms.
+TEST(MacroporeCoefficient, KnudsenAloneUsesTheKnudsenDiffusivity) {
+  const double R = constants::kIdealGasConstant;
+  const double r_pore = 5e-8;
+  const double Dk = (2.0 / 3.0) * r_pore * std::sqrt(8.0 * R * kT / (constants::kPI * 0.04401));
+  MassTransferCoefficientSeriesResistance g;
+  g.tortuosity_ = kTau;
+  g.macropore_void_fraction_ = kEp;
+  g.pore_radius_ = r_pore;
+  std::string err;
+  ASSERT_TRUE(g.SetResistance("macropore", true, err)) << err;
+  ASSERT_TRUE(g.SetResistance("lumped", false, err)) << err;
+  ASSERT_TRUE(g.SetResistance("knudsen", true, err)) << err;
+  ASSERT_TRUE(g.SetResistance("molecular", false, err)) << err;
+  EXPECT_FALSE(g.MolecularDiffusion());
+  EXPECT_TRUE(g.KnudsenDiffusion());
+  EXPECT_EQ(g.ReadsTransportProperties() & kMolecularDiffusion, 0u) << "no D_m without molecular diffusion";
+  for (double P : {1.0e5, 3.0e3}) {
+    State s(P);
+    for (double Dm : {0.0, kDm}) {
+      g.molecular_diffusion_coefficient_ = Dm;
+      EXPECT_NEAR(s.Update(g), Macropore(Dk), 1e-12 * Macropore(Dk)) << P << " " << Dm;
+    }
+  }
+  // Molecular back on: the Bosanquet mean, as macropore_knudsen.
+  ASSERT_TRUE(g.SetResistance("molecular", true, err)) << err;
+  EXPECT_EQ(g.PresetTag(), "macropore_knudsen");
+  g.molecular_diffusion_coefficient_ = kDm;
+  State s(1.0e5);
+  EXPECT_NEAR(s.Update(g), Macropore(1.0 / (1.0 / Dk + 1.0 / kDm)), 1e-12 * Macropore(Dk));
+}
+
+// A deck saved before the molecular switch (MassTransferResistances version 1,
+// no "Molecular") loads with molecular on wherever macropore is on.
+TEST(MacroporeCoefficient, Version1SwitchesLoadWithMolecularDiffusion) {
+  Simulation sim;
+  UserData& d = sim.Data();
+  build::AddComponent(d, kCO2);
+  const AdsorbentID a = build::AddAdsorbent(d, "13X");
+  build::SetIsotherm(d, a, "henry", {kCO2});
+  build::SetRateModel(d, a, kCO2, "ldf", "macropore_knudsen");
+  std::string json = sim.ToJson();
+  // The switch block's class version and its new key, as an older engine wrote them.
+  const std::regex block(R"re(("Resistances":\s*\{\s*"cereal_class_version":\s*)2)re");
+  ASSERT_TRUE(std::regex_search(json, block));
+  json = std::regex_replace(json, block, "$011", std::regex_constants::format_first_only);
+  const std::regex molecular(R"re(,\s*"Molecular":\s*(true|false))re");
+  ASSERT_TRUE(std::regex_search(json, molecular));
+  json = std::regex_replace(json, molecular, "");
+  Simulation back;
+  back.LoadJson(json);
+  auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(
+      back.Data().adsorbent_directory.Get(a).adsorption_source_.mass_transfer_models_.at(kCO2)->mtc_model_.get());
+  ASSERT_NE(g, nullptr);
+  EXPECT_TRUE(g->MolecularDiffusion());
+  EXPECT_EQ(g->PresetTag(), "macropore_knudsen");
 }
 
 // Registry leaf, builder kind and a JSON round trip.

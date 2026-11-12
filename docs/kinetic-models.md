@@ -77,11 +77,11 @@ ads.set_rate_model("CO2", "dual_rate_ldf", "constant", k=0.05, slow_k=0.002, spl
 
 ## Mass Transfer Coefficient
 
-The coefficient $k_i$ of the LDF models comes from one model: **mass-transfer resistances in series** (tag `series_resistance`). It has five resistances. You switch each one on or off by itself, and the enabled terms add up:
+The coefficient $k_i$ of the LDF models comes from one model: **mass-transfer resistances in series** (tag `series_resistance`). It has four main resistances, and two switches for the pore diffusivity of the macropore term. You switch each one on or off by itself, and the enabled terms add up:
 
 $$
 \frac{1}{k_i} = \underbrace{f_\text{film}\thinspace K\thinspace R_\text{film}}_\text{film}
- + \underbrace{K\thinspace R_\text{macro}}_\text{macropore (+ Knudsen)}
+ + \underbrace{K\thinspace R_\text{macro}}_\text{macropore (molecular and/or Knudsen)}
  + \underbrace{R_\text{micro}}_\text{micropore}
  + \underbrace{\frac{1}{k_{L,i}}}_\text{lumped}
 $$
@@ -100,10 +100,14 @@ The geometry comes from the layer. Packed layers use spheres of radius $r_p = d_
 | Switch (`resistances.<tag>`) | Term of $1/k_i$, sphere | Term of $1/k_i$, cylinder | Term of $1/k_i$, slab | Definitions |
 | --- | --- | --- | --- | --- |
 | `film` (external film) | $f_\text{film}\thinspace\dfrac{K\thinspace r_p}{3\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace r_f}{2\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace\ell}{k_f}$ | $k_f = \mathrm{Sh}\thinspace D_{m,i}/d_p$ (sphere, cylinder), $\mathrm{Sh}\thinspace D_{m,i}/D_h$ (slab) |
-| `macropore` (macropore diffusion) | $\dfrac{K\thinspace\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace r_f^2}{8\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace\ell^2}{3\thinspace\varepsilon_p D}$ | $D = D_{m,i}$, or $D_{B,i}$ with Knudsen on |
-| `knudsen` (Knudsen diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $\dfrac{1}{D_{B,i}} = \dfrac{1}{D_{K,i}} + \dfrac{1}{D_{m,i}}$, $D_{K,i} = \tfrac{2}{3}\thinspace r_\text{pore}\sqrt{\dfrac{8RT}{\pi M_i}}$ |
+| `macropore` (macropore diffusion) | $\dfrac{K\thinspace\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace r_f^2}{8\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace\ell^2}{3\thinspace\varepsilon_p D}$ | $D = D_{m,i}$ (molecular only), $D_{K,i}$ (Knudsen only) or $D_{B,i}$ (both) |
+| `molecular` (molecular diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $D_{m,i}$: the local binary diffusivity, or the constant `molecular_diffusion_coefficient` |
+| `knudsen` (Knudsen diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $D_{K,i} = \tfrac{2}{3}\thinspace r_\text{pore}\sqrt{\dfrac{8RT}{\pi M_i}}$; with `molecular` on too, $\dfrac{1}{D_{B,i}} = \dfrac{1}{D_{K,i}} + \dfrac{1}{D_{m,i}}$ |
 | `micropore` (micropore diffusion) | $\dfrac{r_c^2}{15\thinspace D_{c,i}}$ | the same | the same | $D_{c,i} = D_{c0}\thinspace e^{-E_{a,c}/RT}$ |
 | `lumped` (lumped coefficient) | $\dfrac{1}{k_{L,i}}$ | the same | the same | $k_{L,i} = k\thinspace e^{-E_a/RT}$; $k_{L,i} = k$ when $E_a = 0$ |
+
+!!! note "New in 0.12"
+    The switch `molecular`. Before 0.12 the macropore term always held molecular diffusion; a deck from an earlier version loads with `molecular` on wherever `macropore` is on, so its results do not change. With `molecular` off and `knudsen` on, the pore diffusivity is $D_{K,i}$ alone.
 
 The film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ of the layer's film correlation (default Wakao and Funazkri; [Transport Correlations](transport-correlations.md#packed-bed-film-correlations)). For a structured layer it uses the channel Sh and the hydraulic diameter $D_h$ ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). The micropore term is that of a spherical crystal in all geometries.
 
@@ -134,7 +138,7 @@ The parameters are registry leaves with flat names, `adsorbent[A].kinetics[C].<n
 | `film_resistance_factor` | film | $f_\text{film}$ | – | 1 |
 | `tortuosity` | macropore | $\tau$ | – | 3 |
 | `macropore_void_fraction` | macropore | $\varepsilon_p$ | – | 0.35 |
-| `molecular_diffusion_coefficient` | macropore | constant $D_m$ (0: local value) | m² s⁻¹ | 0 |
+| `molecular_diffusion_coefficient` | molecular | constant $D_m$ (0: local value) | m² s⁻¹ | 0 |
 | `pore_radius` | knudsen | $r_\text{pore}$ | m | 10⁻⁹ |
 | `crystal_radius` | micropore | $r_c$ | m | 10⁻⁶ |
 | `micropore_diffusivity` | micropore | $D_{c0}$ | m² s⁻¹ | 10⁻¹³ |
@@ -144,13 +148,13 @@ The parameters are registry leaves with flat names, `adsorbent[A].kinetics[C].<n
 | `concentration_floor` | modes slope, secant | $c_\text{floor}$ | mol m⁻³ | 10⁻³ |
 | `capacity_factor` | mode fixed | $K_\text{fix}$ | – | 0 (choosing the fixed mode sets 0 to 1) |
 
-At least one of film, macropore, micropore and lumped must stay on. The engine refuses a switch that turns the last one off. It also refuses Knudsen without macropore, and switching macropore off also switches Knudsen off. When you switch a term on for the first time, a parameter of that term that is out of range (for example a zero from an old deck) gets the default.
+At least one of film, macropore, micropore and lumped must stay on. The engine refuses a switch that turns the last one off. It also refuses molecular or Knudsen without macropore, and it refuses to switch off the last of molecular and Knudsen while macropore is on. Switching macropore on with neither on also switches molecular on. Switching macropore off also switches molecular and Knudsen off. When you switch a term on for the first time, a parameter of that term that is out of range (for example a zero from an old deck) gets the default.
 
 Sources of the terms:
 
 - **Film:** Haynes & Sarma (1973); Ruthven (1984).
 - **Macropore:** Glueckauf (1955); Ruthven (1984). With the secant capacity factor, Haghpanah et al. (2013, *Ind. Eng. Chem. Res.* 52, p. 4253, Eqs. 40–41).
-- **Knudsen:** the Bosanquet combination of Knudsen and molecular diffusion; Ruthven (1984), Do (1998).
+- **Knudsen:** Knudsen diffusion in the macropores, alone or in the Bosanquet combination with molecular diffusion; Ruthven (1984), Do (1998).
 - **Micropore:** Kärger & Ruthven (1992); Farooq & Ruthven (*Chem. Eng. Sci.* 46, 1991, 2213).
 - **Lumped:** a fitted LDF coefficient (Glueckauf, 1955), with an optional Arrhenius temperature dependence.
 - **Slab forms:** Rezaei & Webley (2009, p. 5184, Eq. 6; Table 1, p. 5183).
@@ -175,19 +179,19 @@ The slope and secant modes evaluate the isotherm at $\max(c_i, c_\text{floor})$,
 !!! note "New in 0.9"
     The deck view's kinetics entry has `equation` (fast site) and `slow_equation` (slow site of a dual-rate model). Each is the LaTeX of the current coefficient model. The engine makes it only from the fragments of the kind descriptor (`MassTransferEquationLatex`), and it makes it again after each edit.
 
-The equation is always in the series form, also for a single term. The definitions of the enabled terms and of the mode follow it. For example, the `haynes` preset on packed spheres gives
+The equation is always in the series form, also for a single term. The definitions of the enabled terms and of the mode follow it, one definition on each line, aligned on the equals sign. With the film term on in a packed layer, the lines after $k_f$ are the Sherwood number of the layer's [film correlation](transport-correlations.md#packed-bed-film-correlations) and the Reynolds and Schmidt numbers it uses. For example, the `haynes` preset on packed spheres with the default Wakao–Funazkri correlation gives
 
 $$
-\begin{aligned}\frac{1}{k_i} = f_{film}\,\frac{r_p}{3\,k_f} + \frac{\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ k_f = \frac{Sh\,D_{m,i}}{d_p}\end{aligned}
+\begin{aligned}\frac{1}{k_i} &= f_{film}\,\frac{r_p}{3\,k_f} + \frac{\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ k_f &= \frac{Sh\,D_{m,i}}{d_p} \\ Sh &= 2 + 1.1\,Sc^{1/3}\,Re^{0.6} \\ Re &= \frac{\rho_g\,u\,d_p}{\mu} \\ Sc &= \frac{\mu}{\rho_g\,D_{m,i}}\end{aligned}
 $$
 
 and `macropore_capacity` gives
 
 $$
-\begin{aligned}\frac{1}{k_i} = \frac{K\,\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ K = \max\!\left(\frac{\rho_p\,q_i^{*}}{c_i},\,1\right)\end{aligned}
+\begin{aligned}\frac{1}{k_i} &= \frac{K\,\tau\,r_p^{2}}{15\,\varepsilon_p\,D_{m,i}} \\ K &= \max\!\left(\frac{\rho_p\,q_i^{*}}{c_i},\,1\right)\end{aligned}
 $$
 
-If the adsorbent is in a packed layer, the deck view uses the fragments of that layer's particle shape (sphere or cylinder; with several packed layers, the first that holds the adsorbent). If it is only in structured layers, it uses the slab fragments. If it is in layers of the two kinds, `equation` is the packed form and `equation_slab` is the slab form.
+If the adsorbent is in a packed layer, the deck view uses the fragments and the film correlation of that layer (sphere or cylinder; with several packed layers, the first that holds the adsorbent). If it is only in structured layers, it uses the slab fragments. If it is in layers of the two kinds, `equation` is the packed form and `equation_slab` is the slab form.
 
 ### Presets
 
@@ -199,10 +203,10 @@ A preset is a name for a set of switches, a mode and some fixed values. The form
 | --- | --- | --- | --- | --- |
 | `constant` | lumped | – | $E_a = 0$ | `k` |
 | `arrhenius` | lumped | – | ($E_a \ne 0$) | `k` ($k_0$; the former `pre_exp_factor`), `activation_energy` |
-| `macropore` | macropore | none | | `tortuosity`, `macropore_void_fraction`, `molecular_diffusion_coefficient` |
-| `macropore_knudsen` | macropore, knudsen | none | | the macropore leaves and `pore_radius` |
-| `macropore_capacity` | macropore | secant | | the macropore leaves and `concentration_floor` |
-| `haynes` | film, macropore | none | $f_\text{film} = 1$, constant $D_m$ = 0 | `film_resistance_factor`, the macropore leaves |
+| `macropore` | macropore, molecular | none | | `tortuosity`, `macropore_void_fraction`, `molecular_diffusion_coefficient` |
+| `macropore_knudsen` | macropore, molecular, knudsen | none | | the macropore leaves and `pore_radius` |
+| `macropore_capacity` | macropore, molecular | secant | | the macropore leaves and `concentration_floor` |
+| `haynes` | film, macropore, molecular | none | $f_\text{film} = 1$, constant $D_m$ = 0 | `film_resistance_factor`, the macropore leaves |
 | `custom` | any other set | any | | the leaves of each enabled term and of the mode |
 
 The single-term presets reduce to the forms of the former kinds:
@@ -238,6 +242,13 @@ ads.set_rate_model("CO2", "ldf", "series_resistance", resistances=["film", "macr
                    capacity_factor_mode="slope", tortuosity=3, macropore_void_fraction=0.35,
                    crystal_radius=1e-6, micropore_diffusivity=2e-12, micropore_activation_energy=2e4)
 ads.set_rate_resistance("CO2", "film", False)   # one switch; site="slow" for the slow site of a dual-rate model
+```
+
+In `resistances=`, `macropore` keeps molecular diffusion on (the form of earlier versions). For Knudsen diffusion alone, switch `molecular` off after the call:
+
+```python
+ads.set_rate_model("CO2", "ldf", "series_resistance", resistances=["macropore", "knudsen"], pore_radius=2e-9)
+ads.set_rate_resistance("CO2", "molecular", False)   # D = D_K alone
 ```
 
 !!! note "New in 0.9"

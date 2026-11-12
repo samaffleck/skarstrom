@@ -145,10 +145,11 @@ class Editor:
 
     def set_mass_transfer_resistance(self, adsorbent: Any, component: str, tag: str, on: bool,
                                      site: str = "fast") -> None:
-        """Switch one resistance (``"film"``, ``"macropore"``, ``"knudsen"``, ``"micropore"``,
-        ``"lumped"``) of a component's coefficient on or off, on the ``"fast"`` or ``"slow"`` site.
-        Refused (ValueError): the last of film, macropore, micropore and lumped off, knudsen without
-        macropore."""
+        """Switch one resistance (``"film"``, ``"macropore"``, ``"molecular"``, ``"knudsen"``,
+        ``"micropore"``, ``"lumped"``) of a component's coefficient on or off, on the ``"fast"`` or
+        ``"slow"`` site. Refused (ValueError): the last of film, macropore, micropore and lumped off,
+        molecular or knudsen without macropore, the last of molecular and knudsen off while macropore
+        is on."""
         self._do("set_mass_transfer_resistance", self._adsorbent(adsorbent), self._sim._component(component),
                  site, tag, bool(on))
 

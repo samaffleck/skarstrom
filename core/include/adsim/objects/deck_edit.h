@@ -340,13 +340,15 @@ bool SetMassTransferKind(UserData& data, AdsorbentID adsorbent, const std::strin
 // models have the fast site only).
 enum class MassTransferSite { Fast, Slow };
 
-// Switches one resistance ("film", "macropore", "knudsen", "micropore",
-// "lumped") of a component's coefficient model on or off, on the fast or the
-// slow site. Refused (false, err set): switching the last of film, macropore,
-// micropore and lumped off, and knudsen without macropore; switching macropore
-// off also switches knudsen off. Parameter values are kept, so switching a
-// term off and on again restores them. Each dual-rate site has its own
-// switches.
+// Switches one resistance ("film", "macropore", "molecular", "knudsen",
+// "micropore", "lumped") of a component's coefficient model on or off, on the
+// fast or the slow site. Refused (false, err set): switching the last of film,
+// macropore, micropore and lumped off, molecular or knudsen on without
+// macropore, and the last of molecular and knudsen off while macropore is on.
+// Switching macropore on with neither on also switches molecular on;
+// switching macropore off also switches molecular and knudsen off. Parameter
+// values are kept, so switching a term off and on again restores them. Each
+// dual-rate site has its own switches.
 bool SetMassTransferResistance(UserData& data, AdsorbentID adsorbent, const std::string& component,
                                MassTransferSite site, const std::string& tag, bool on, std::string& err);
 
