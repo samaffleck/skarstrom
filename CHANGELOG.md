@@ -8,6 +8,65 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-11-12
+
+### Changed — Ward 2022 decks calibrated against the experiment
+- The `Ward2022_Q50ccm`, `Ward2022_Q100ccm` and `Ward2022_Q200ccm` decks are calibrated against the digitised outlet and thermocouple curves of all three flows together. The calibrated values are the ambient and wall-end temperature (293 K; Table 1 gives 291.4 K, but the measured thermocouple settles at 293 K after the front), the site-2 capacity q_s,2 (5.89 mol/kg; Table 2 gives 6.04, inside the paper's 95 % interval), the factor on the paper's dispersion correlation (3.75; the paper fits 4) and the inside heat transfer coefficient (97.3 / 81.5 / 69.0 W/(m² K); the paper fits 77.5 / 57.9 / 45.2). The decks also now use Table 1's particle density, ρ_b / (1 − ε) = 799.6 kg/m³ (799 before).
+- The adsorbent library entry `activated_carbon_ward2022` keeps the published Table 2 isotherm and is no longer deck-checked against `Ward2022_Q50ccm`.
+- The CO2 front time (y = 0.5) is now within 0.4 % of the measurement at all three flows (it was 1.7-4.5 % late), the outlet-curve NRMSE is 2.7-3.9 % (it was 14-35 %) and the thermocouple RMSE 0.18-1.40 K (it was 1.15-2.56 K). See `core/test/papers/ward_2022/README.md`, "Calibration". `examples/ward_2022.py` builds the calibrated decks.
+
+### Changed — heat capacity seeds
+- A component's constant gas heat capacity (`fluid.gas_heat_capacity[<component>]`, used in the `constant` mode) now starts at its ideal-gas heat capacity at 25 °C, from its NASA polynomial at 298.15 K rounded to 0.01 J/(mol·K), for example 37.14 for CO2 and 29.12 for N2. It was 29.1 J/(mol·K) (7/2 R) for every component. `Fluid::DefaultGasHeatCapacity(component)` gives the seed. The example decks in the `ideal_gas` mode carry the new seeds. Their results do not change, because that mode does not use the constants.
+- A component added with `add_component` (`AddComponentToDeck`, which the web workspace also uses) now starts with the same value as its adsorbed-phase heat capacity (`fluid.adsorbed_heat_capacity[<component>]`). It was 0. In the default `constant` adsorbed mode this changes the results of a new deck that does not set the value. A deck that has no value for a component still uses 0, so a saved deck gives the same results as before. The `arora_2021` and `illustrative_dac_breakthrough` example scripts now set their 0 values explicitly.
+- Both values stay editable.
+
+### Removed — six adsorbent library entries
+- The adsorbent library no longer ships these entries: `cms_3k` (Carbon molecular sieve, CMS-3K, source unknown), `aluminium_ho1972`, `ceramic_fibre_paper_headley2019`, `cordierite_robie1995`, `stainless_steel_304l_kim1975` and `stainless_steel_316l_kim1975`. Their blobs, their library records, the materials `aluminium`, `ceramic-fibre-paper`, `cordierite`, `stainless-steel-304l` and `stainless-steel-316l`, and the sources only they cited are gone. `sim.add_library_adsorbent("cordierite")` (and the others) now fails with an unknown-material error. A deck that already holds one of these adsorbents keeps it, because a deck stores its adsorbents in full.
+- The library now has no `support` material. The `support` family and its validation rules stay, so a new support solid can be added later. The `test_support_solids` integration test is removed, because it had no entries to run.
+- `cms_3kt_zhang2021` is now the only carbon molecular sieve entry. Its label is now `Carbon molecular sieve`, and it has no variant. Its blob and its isotherm data do not change.
+- The wall-material presets (`ss316l`, `ss304l`, `aluminium_6061` and the others) are not library entries and do not change.
+
+### Fixed — Anderson deck test failed on macOS arm64
+- `CSSAndersonDecks` (slow tier) now holds the Anderson stop to the plain stop's KPI distance from
+  the reference (the larger of the purity and recovery errors), not to each KPI. The stop rule
+  bounds the bed state, not each KPI, and the split between purity and recovery at an Anderson stop
+  changes with the compiler and CPU. On macOS arm64 the Perez2019_E case stopped at cycle 42 with a
+  recovery error of 5.8e-5 (allowance 5e-5) while its distance stayed inside the plain stop's 6.6e-5.
+  No engine change.
+
+### Added — Nguyen et al. (2025) dry VSA cases on CALF-20
+- A paper validation suite `core/test/papers/nguyen_2024/` (`Nguyen2024Test.CaseA0`, `CaseB0`) for the two dry cases of Table 1 of Nguyen, Shimizu & Rajendran, Adsorption 31 (2025) 45 (doi:10.1007/s10450-025-00600-z). The decks are the `Nguyen2023_Exp_VII` four-step light-product-pressurisation deck at this paper's conditions (0.96 bar, 22 °C, each case's adsorption time, feed velocity and blowdown and evacuation pressures); the light-product connection is unchanged. The suite asserts the purity of both cases and the productivity of B0, and records the recovery, which the engine over-predicts (README).
+- Two example decks, `Nguyen2024_A0` and `Nguyen2024_B0`, saved by the suite.
+- The humid cases of the paper are not reproduced: the paper prints no water isotherm for CALF-20, and the engine has no competitive CO₂/H₂O kind for a physisorbent.
+
+### Removed — CoolProp from the build
+- The engine no longer builds or links CoolProp: the `external/CoolProp` submodule, its `add_subdirectory` and cache settings, the `FMT_CONSTEVAL=` definition, the CoolProp link, include and install rules, and the `Adsim::CoolProp` imported target of the installed CMake package are gone. The component constants come from the generated table `component_properties.h` (since the previous release), so no result changes. A clean Release build of `adsim` (GCC 13, 4 jobs) drops from 3 min 50 s / 881 CPU-s to 2 min 45 s / 632 CPU-s, and a WebAssembly build no longer compiles CoolProp's fluid data and backends into the module.
+- `CMAKE_POLICY_VERSION_MINIMUM` is no longer set: it was there for CoolProp's `cmake_minimum_required` calls, and every remaining dependency configures with CMake 4 without it.
+- For C++ consumers: `Adsim::adsim` no longer carries `FMT_CONSTEVAL=` or the CoolProp include path, and the install tree has no `libCoolProp.a`, CoolProp headers or fmt. A program that used CoolProp through the engine must now bring its own.
+- `scripts/gen_component_properties.py` reads the CoolProp fluid files it is pinned to (CoolProp 6.7.0, commit `e84ec7a8ab16`, each file by SHA-256): it downloads them, or reads a local `dev/fluids` directory with `--fluids`.
+
+### Changed — component constants come from a generated table
+- The engine no longer calls CoolProp at run time. The molar mass, formula, CAS number and aliases of each component, and the critical point, triple point and vapour-pressure equation that give the saturation pressure of the GAB isotherms, are in the generated table `core/include/adsim/objects/component_properties.h`. `scripts/gen_component_properties.py` writes it from the CoolProp fluid files (`--check` fails when the committed table differs; CI runs it). The values are the ones CoolProp gave, so no result changes.
+- `fluid.h` and the precompiled header no longer include `CoolProp.h` (and CoolProp's fmt). CoolProp is still built and linked in this release.
+- The component manifest's `properties_source` names the table ("CoolProp 6.7.0 fluid files (generated table)") instead of "CoolProp". Its `heat_capacity_held` field is always false; it stays for one release.
+
+### Removed — Hexane
+- Hexane is no longer a component. It was the only component without an ideal-gas heat capacity polynomial (NASA TM-4513), so its heat capacity was CoolProp's value held at the initial conditions. No example deck, adsorbent library entry or cycle template used it. A deck that has Hexane does not load: the error names the component and says that it was removed.
+- With it go the held heat-capacity path (`GetGasHeatCapacity`, `Fluid::ComponentsWithHeldHeatCapacity`), the `gas_heat_capacity` run-start warning, and the unused `GetHeatCapacity`, `GetViscosity` and `GetThermalConductivity` CoolProp getters of `fluid.h`. `skarstrom.components_with_held_heat_capacity()` now returns an empty list.
+
+### Fixed — light-product decks amplified a trace component through the vent
+- When a step draws gas from a bed end through one stream (for example a light-product draw to
+  another step) and another stream at the same end flows back in (a vent valve), the streams that
+  leave now carry a mix: the bed's net outflow at the bed-end composition, plus the back-fed gas at
+  the vent's own composition (its `y`, normalised). Before, the back-fed gas took the bed-end
+  composition, so the draw carried about twice the gas that left the bed, all at the top composition.
+  In `Nguyen2023_Exp_VI`–`X`, a component present only at round-off (for example water added to the
+  deck) grew about 1.9 times per cycle and changed the cyclic steady state (#270). A vent whose `y`
+  is all zero keeps the old behaviour.
+- The vents of the light-product decks (`Nguyen2023_Exp_VI`–`X`, `Perez2019_D1`/`E`/`F`,
+  `FiveStepProductPurge`, `Perez2019_CaseStudy_Base_LPP`) now carry N2, the feed's inert, as their
+  backflow composition. Their results change slightly (see the pull request).
+
 ## [0.9.1] — 2026-11-10
 
 ### Fixed — the Ward 2022 example builds its decks to the last bit
