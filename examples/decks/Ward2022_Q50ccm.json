@@ -11,8 +11,8 @@
                         "Name": "Activated Carbon",
                         "Density": {
                             "cereal_class_version": 2,
-                            "Value": 799.0,
-                            "Expression": "799",
+                            "Value": 799.6323529411765,
+                            "Expression": "799.6323529411765",
                             "DisplayUnitIndex": 0
                         },
                         "Specific_Heat_Capacity": {
@@ -286,8 +286,8 @@
                                                                 "DisplayUnitIndex": 0
                                                             },
                                                             "IP_m2": {
-                                                                "Value": 6.04,
-                                                                "Expression": "6.04",
+                                                                "Value": 5.89,
+                                                                "Expression": "5.89",
                                                                 "DisplayUnitIndex": 0
                                                             },
                                                             "IP_b2": {
@@ -433,8 +433,8 @@
                                             "cereal_class_version": 0
                                         },
                                         "Constant_Longitudinal_Dispersion": {
-                                            "Value": 0.0000560233401090163,
-                                            "Expression": "5.60233401090163e-05",
+                                            "Value": 0.000052521881352202778,
+                                            "Expression": "5.2521881352202775e-05",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -464,8 +464,8 @@
                                             "cereal_class_version": 0
                                         },
                                         "Gas_Wall_Heat_Transfer_Coefficient": {
-                                            "Value": 77.5,
-                                            "Expression": "77.5",
+                                            "Value": 97.3,
+                                            "Expression": "97.3",
                                             "DisplayUnitIndex": 0
                                         }
                                     }
@@ -570,8 +570,8 @@
                                 "cereal_class_version": 0
                             },
                             "Fixed_Wall_Temperature": {
-                                "Value": 291.4,
-                                "Expression": "291.4",
+                                "Value": 293.0,
+                                "Expression": "293",
                                 "DisplayUnitIndex": 0
                             }
                         }
@@ -605,8 +605,8 @@
                 }
             },
             "Ambient_Temperature": {
-                "Value": 291.4,
-                "Expression": "291.4",
+                "Value": 293.0,
+                "Expression": "293",
                 "DisplayUnitIndex": 0
             },
             "Bottom_Void": {
@@ -869,16 +869,16 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.0088372578557625,
-                                    "Average_Temperature": 293.6047185122894,
+                                    "Total_Moles": 0.013163831993102907,
+                                    "Average_Temperature": 294.0733386514156,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.8291166683818196
+                                            "value": 0.885281093401829
                                         },
                                         {
                                             "key": "Helium",
-                                            "value": 0.17088333161818029
+                                            "value": 0.11471890659817107
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -953,8 +953,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.10262183923047828,
-                                                        "Average_Temperature": 292.99999999999957,
+                                                        "Total_Moles": 0.10262185652015231,
+                                                        "Average_Temperature": 293.0000000000003,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Helium",
@@ -1369,7 +1369,7 @@
         "System_Information": {
             "cereal_class_version": 0,
             "Title": "Ward 2022 - 50 ccm Flow Rate",
-            "Description": "CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. This configuration tests the low flow rate condition (50 ccm/min) of three flow rates studied.",
+            "Description": "CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. The ambient temperature, the site-2 capacity, the dispersion factor and the inside heat transfer coefficient are calibrated against that data (see the validation page). This configuration tests the low flow rate condition (50 ccm/min) of three flow rates studied.",
             "Author": "Sam Affleck",
             "Version": 3
         },

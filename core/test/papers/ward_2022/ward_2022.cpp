@@ -29,34 +29,47 @@
 namespace adsim {
 
   namespace {
-    // Validation tolerances = measured error rounded up (decks with the paper's
-    // model forms, WP10 audit 2026-10-31; before it: NRMSE 0.34-0.38, T RMSE
-    // 2.6-4.2 K, front time 4-6 % early). Re-measured after the Danckwerts
-    // inlet fix (2026-11): the inlet face no longer lets dispersion carry
-    // unlogged CO2 into the bed (2 % of the fed CO2 at 50 ccm), so the front
-    // arrives 2-4 % later than the experiment instead of 0-2 %; see README.md.
-    // Q50ccm: measured NRMSE 0.3324, T RMSE 1.181 K, front-time error 0.0421
-    //   (before the fix: 0.1837, 1.186 K, 0.0193)
-    constexpr double kTolY_50 = 0.39, kTolT_50 = 1.4, kTolT50_50 = 0.049;
-    // Q100ccm: measured NRMSE 0.2440, T RMSE 1.178 K, front-time error 0.0331
-    //   (before the fix: 0.1287, 2.058 K, 0.0165)
-    constexpr double kTolY_100 = 0.29, kTolT_100 = 2.4, kTolT50_100 = 0.039;
-    // Q200ccm: measured NRMSE 0.1404, T RMSE 2.574 K, front-time error 0.0173
-    //   with the default WENO scheme on the same 60 cells (upwind: 0.1194,
-    //   2.759 K, 0.0147; README.md "Grid"); before the Danckwerts fix: 0.0289,
-    //   4.007 K, 0.0010
-    constexpr double kTolY_200 = 0.17, kTolT_200 = 4.6, kTolT50_200 = 0.018;
+    // Validation tolerances = measured error rounded up. History: the paper's
+    // model forms (WP10 audit 2026-10-31; before it NRMSE 0.34-0.38, T RMSE
+    // 2.6-4.2 K, front 4-6 % early), the Danckwerts inlet fix (2026-11; front
+    // 2-4 % late) and WENO (2026-11-04; NRMSE 0.14-0.35, T RMSE 1.15-2.57 K,
+    // front 1.7-4.5 % late). Re-measured after the calibration (2026-11,
+    // README.md "Calibration"); the front-time bounds have a floor of 0.2 %.
+    // Q50ccm: measured NRMSE 0.0276, T RMSE 0.181 K, front-time error 0.00021
+    //   (before the calibration: 0.3521, 1.243 K, 0.0449)
+    constexpr double kTolY_50 = 0.033, kTolT_50 = 0.22, kTolT50_50 = 0.002;
+    // Q100ccm: measured NRMSE 0.0272, T RMSE 0.675 K, front-time error 0.00020
+    //   (before the calibration: 0.2645, 1.147 K, 0.0356)
+    constexpr double kTolY_100 = 0.032, kTolT_100 = 0.78, kTolT50_100 = 0.002;
+    // Q200ccm: measured NRMSE 0.0389, T RMSE 1.403 K, front-time error 0.00404
+    //   (before the calibration: 0.1410, 2.555 K, 0.0173)
+    constexpr double kTolY_200 = 0.045, kTolT_200 = 1.6, kTolT50_200 = 0.0047;
 
     // The paper's model forms (WP10 audit, see README.md "Provenance"): its
     // dispersion coefficient is Eq. 4, D_L = 0.7 D_m + v_F r_p with the
     // constant D_m of Table 1 and the interstitial feed velocity, multiplied
     // by 4 (Sect. 3.2, "an optimal match to the experimental outlet
-    // composition profiles"). Given as a constant per flow rate.
+    // composition profiles"). Given as a constant per flow rate. The factor 4
+    // is itself a fit to the outlet curves; the decks use the calibrated
+    // factor kDispersionFactor (below).
+
+    // Calibrated values (README.md "Calibration"). Each one replaces the
+    // paper value named in its comment; the shipped decks use them.
+    constexpr double kAmbient = 293.0;          // T_a and the wall-end temperature [K]; Table 1: 291.4.
+                                                // The thermocouple settles at 293 K after the front.
+    constexpr double kSite2Capacity = 5.89;     // q_s,2 [mol/kg]; Table 2: 6.04, Table 7 95 % CI [5.64, 6.42]
+    constexpr double kDispersionFactor = 3.75;  // multiplies Eq. 4; Sect. 3.2: 4
+    constexpr double kHin50 = 97.3, kHin100 = 81.5, kHin200 = 69.0;  // h_in [W/(m2 K)]; Table 6: 77.5, 57.9, 45.2
+
+    // The particle density rho_b / (1 - eps) of Table 1 (the decks used 799
+    // before the calibration).
+    constexpr double kParticleDensity = 435.0 / 0.544;  // [kg/m3], Table 1: rho_b = 435, eps = 0.456
+
     double PaperDispersion(double flow_ccm) {
       const double Dm = 0.605e-5, rp = 1.5e-3, Di = 0.0189, eb = 0.456;
       const double Q = flow_ccm * 1.666666666666667e-8;
       const double vF = Q / (constants::kPI / 4.0 * Di * Di) / eb;
-      return 4.0 * (0.7 * Dm + vF * rp);
+      return kDispersionFactor * (0.7 * Dm + vF * rp);
     }
 
     // Table 1: one constant heat capacity, 840 J/(kg-K), for the CO2/He gas
@@ -134,6 +147,7 @@ namespace adsim {
                             "The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. "
                             "The simulation includes coupled heat and mass transfer effects with wall heat transfer. "
                             "Experimental breakthrough data is included and can be plotted to validate the solver performance. "
+                            "The ambient temperature, the site-2 capacity, the dispersion factor and the inside heat transfer coefficient are calibrated against that data (see the validation page). "
                             "This configuration tests the medium flow rate condition (100 ccm/min) of three flow rates studied.";
     data.info.author = "Sam Affleck";
     
@@ -151,7 +165,7 @@ namespace adsim {
     AC.momentum_model_ = MomentumModel::Ergun; // Eq. A3 is the Blake-Kozeny law (constant 150), the viscous term of Ergun
 
     auto& AC_ads = GetAdsorbent(ads_id);
-    AC_ads.solid_density_ = 799;
+    AC_ads.solid_density_ = kParticleDensity;
     AC_ads.heat_capacity_ = 1040;
     AC_ads.thermal_conductivity_ = 0.63;
     AC_ads.ep_ = 0.0; // 0.59
@@ -162,10 +176,10 @@ namespace adsim {
     data.bed.wall_.density_ = 2700;
     data.bed.wall_.thermal_conductivity_ = 205;
     data.bed.wall_.thickness_ = 3.25e-3;
-    data.bed.ambient_temperature_ = 291.4; // Table 1: T_a = 291.4 K (was 293 = T_F, a transcription slip)
+    data.bed.ambient_temperature_ = kAmbient; // calibrated; Table 1: T_a = 291.4 K
     // Table 4, "tight thermal contact": the wall ends are held at T_a.
     auto wall_bc = std::make_unique<WallTemperatureBoundaryConditionFixed>();
-    wall_bc->temperature_ = 291.4;
+    wall_bc->temperature_ = kAmbient;
     data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
     SetGasHeatCapacity(data);
@@ -174,7 +188,7 @@ namespace adsim {
     dsl_co2->params_["CarbonDioxide"].m1 = 0.418;
     dsl_co2->params_["CarbonDioxide"].b1 = 2.05e-6;
     dsl_co2->params_["CarbonDioxide"].q1 = 29980;
-    dsl_co2->params_["CarbonDioxide"].m2 = 6.04;
+    dsl_co2->params_["CarbonDioxide"].m2 = kSite2Capacity;
     dsl_co2->params_["CarbonDioxide"].b2 = 3.32e-6;
     dsl_co2->params_["CarbonDioxide"].q2 = 20367;
     AddIsotherm({ "CarbonDioxide" }, ads_id, std::move(dsl_co2));
@@ -191,7 +205,7 @@ namespace adsim {
     layer.equations_.dispersion_model_ = std::move(disp);
     layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
 
-    AddConstantInternalHeatTransferCoefficientModel(57.9, layer_id);
+    AddConstantInternalHeatTransferCoefficientModel(kHin100, layer_id);
     auto ihtc = std::make_unique<ExternalHeatTransferModel_Holman>();
     ihtc->c = 0.027;
     ihtc->m = 0.8;
@@ -199,7 +213,7 @@ namespace adsim {
     ihtc->external_velocity = 0.5;
     layer.equations_.external_heat_transfer_model_ = std::move(ihtc);
 
-    AddInitialConditions(
+    AddInitialConditions(  // bed and wall start at Table 1's T_a (the thermocouple's first reading)
       1.0e5, 291.4, 291.4,
       {
         {"CarbonDioxide", 0.0 },
@@ -267,6 +281,7 @@ namespace adsim {
                             "The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. "
                             "The simulation includes coupled heat and mass transfer effects with wall heat transfer. "
                             "Experimental breakthrough data is included and can be plotted to validate the solver performance. "
+                            "The ambient temperature, the site-2 capacity, the dispersion factor and the inside heat transfer coefficient are calibrated against that data (see the validation page). "
                             "This configuration tests the low flow rate condition (50 ccm/min) of three flow rates studied.";
     data.info.author = "Sam Affleck";
     
@@ -284,7 +299,7 @@ namespace adsim {
     AC.momentum_model_ = MomentumModel::Ergun; // Eq. A3 is the Blake-Kozeny law (constant 150), the viscous term of Ergun
 
     auto& AC_ads = GetAdsorbent(ads_id);
-    AC_ads.solid_density_ = 799;
+    AC_ads.solid_density_ = kParticleDensity;
     AC_ads.heat_capacity_ = 1040;
     AC_ads.thermal_conductivity_ = 0.63;
     AC_ads.ep_ = 0.0;
@@ -295,10 +310,10 @@ namespace adsim {
     data.bed.wall_.density_ = 2700;
     data.bed.wall_.thermal_conductivity_ = 205;
     data.bed.wall_.thickness_ = 3.25e-3;
-    data.bed.ambient_temperature_ = 291.4; // Table 1: T_a = 291.4 K (was 293 = T_F, a transcription slip)
+    data.bed.ambient_temperature_ = kAmbient; // calibrated; Table 1: T_a = 291.4 K
     // Table 4, "tight thermal contact": the wall ends are held at T_a.
     auto wall_bc = std::make_unique<WallTemperatureBoundaryConditionFixed>();
-    wall_bc->temperature_ = 291.4;
+    wall_bc->temperature_ = kAmbient;
     data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
     SetGasHeatCapacity(data);
@@ -307,7 +322,7 @@ namespace adsim {
     dsl_co2->params_["CarbonDioxide"].m1 = 0.418;
     dsl_co2->params_["CarbonDioxide"].b1 = 2.05e-6;
     dsl_co2->params_["CarbonDioxide"].q1 = 29980;
-    dsl_co2->params_["CarbonDioxide"].m2 = 6.04;
+    dsl_co2->params_["CarbonDioxide"].m2 = kSite2Capacity;
     dsl_co2->params_["CarbonDioxide"].b2 = 3.32e-6;
     dsl_co2->params_["CarbonDioxide"].q2 = 20367;
     AddIsotherm({ "CarbonDioxide" }, ads_id, std::move(dsl_co2));
@@ -324,7 +339,7 @@ namespace adsim {
     layer.equations_.dispersion_model_ = std::move(disp);
     layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
 
-    AddConstantInternalHeatTransferCoefficientModel(77.5, layer_id);
+    AddConstantInternalHeatTransferCoefficientModel(kHin50, layer_id);
     auto ihtc = std::make_unique<ExternalHeatTransferModel_Holman>();
     ihtc->c = 0.027;
     ihtc->m = 0.8;
@@ -332,7 +347,7 @@ namespace adsim {
     ihtc->external_velocity = 0.5;
     layer.equations_.external_heat_transfer_model_ = std::move(ihtc);
 
-    AddInitialConditions(
+    AddInitialConditions(  // bed and wall start at Table 1's T_a (the thermocouple's first reading)
       1.0e5, 291.4, 291.4,
       {
         {"CarbonDioxide", 0.0 },
@@ -400,6 +415,7 @@ namespace adsim {
                             "The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. "
                             "The simulation includes coupled heat and mass transfer effects with wall heat transfer. "
                             "Experimental breakthrough data is included and can be plotted to validate the solver performance. "
+                            "The ambient temperature, the site-2 capacity, the dispersion factor and the inside heat transfer coefficient are calibrated against that data (see the validation page). "
                             "This configuration tests the high flow rate condition (200 ccm/min) of three flow rates studied.";
     data.info.author = "Sam Affleck";
     
@@ -418,7 +434,7 @@ namespace adsim {
     AC.momentum_model_ = MomentumModel::Ergun; // Eq. A3 is the Blake-Kozeny law (constant 150), the viscous term of Ergun
 
     auto& AC_ads = GetAdsorbent(ads_id);
-    AC_ads.solid_density_ = 799;
+    AC_ads.solid_density_ = kParticleDensity;
     AC_ads.heat_capacity_ = 1040;
     AC_ads.thermal_conductivity_ = 0.63;
     AC_ads.ep_ = 0.0;
@@ -429,10 +445,10 @@ namespace adsim {
     data.bed.wall_.density_ = 2700;
     data.bed.wall_.thermal_conductivity_ = 205;
     data.bed.wall_.thickness_ = 3.25e-3;
-    data.bed.ambient_temperature_ = 291.4; // Table 1: T_a = 291.4 K (was 293 = T_F, a transcription slip)
+    data.bed.ambient_temperature_ = kAmbient; // calibrated; Table 1: T_a = 291.4 K
     // Table 4, "tight thermal contact": the wall ends are held at T_a.
     auto wall_bc = std::make_unique<WallTemperatureBoundaryConditionFixed>();
-    wall_bc->temperature_ = 291.4;
+    wall_bc->temperature_ = kAmbient;
     data.bed.equations_.wall_temperature_boundary_condition_ = std::move(wall_bc);
     data.fluid.adsorbed_heat_capacity_["CarbonDioxide"] = 36.96;
     SetGasHeatCapacity(data);
@@ -441,7 +457,7 @@ namespace adsim {
     dsl_co2->params_["CarbonDioxide"].m1 = 0.418;
     dsl_co2->params_["CarbonDioxide"].b1 = 2.05e-6;
     dsl_co2->params_["CarbonDioxide"].q1 = 29980;
-    dsl_co2->params_["CarbonDioxide"].m2 = 6.04;
+    dsl_co2->params_["CarbonDioxide"].m2 = kSite2Capacity;
     dsl_co2->params_["CarbonDioxide"].b2 = 3.32e-6;
     dsl_co2->params_["CarbonDioxide"].q2 = 20367;
     AddIsotherm({ "CarbonDioxide" }, ads_id, std::move(dsl_co2));
@@ -458,7 +474,7 @@ namespace adsim {
     layer.equations_.dispersion_model_ = std::move(disp);
     layer.equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(AxialHeatDispersionType::YAGI_AND_KUNII);
 
-    AddConstantInternalHeatTransferCoefficientModel(45.2, layer_id);
+    AddConstantInternalHeatTransferCoefficientModel(kHin200, layer_id);
     auto ihtc = std::make_unique<ExternalHeatTransferModel_Holman>();
     ihtc->c = 0.027;
     ihtc->m = 0.8;
@@ -466,7 +482,7 @@ namespace adsim {
     ihtc->external_velocity = 0.5;
     layer.equations_.external_heat_transfer_model_ = std::move(ihtc);
 
-    AddInitialConditions(
+    AddInitialConditions(  // bed and wall start at Table 1's T_a (the thermocouple's first reading)
       1.0e5, 291.4, 291.4,
       {
         {"CarbonDioxide", 0.0 },

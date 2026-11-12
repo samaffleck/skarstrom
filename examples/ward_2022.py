@@ -1,7 +1,7 @@
 """Ward & Pini (2022): CO2 breakthrough on activated carbon at 50, 100 and 200 ccm.
 
 Builds each breakthrough experiment from scratch in code (pure CO2 fed into a
-bed initially full of air): the fluid, the activated carbon and its isotherm
+bed initially full of helium): the fluid, the activated carbon and its isotherm
 and rate model, the column and its heat transfer, the single feed step and the
 solver settings. Every value is set explicitly, with its unit, so this file is
 also a template for a breakthrough simulation of your own.
@@ -10,6 +10,10 @@ Each case is run and the outlet CO2 mole fraction and the thermocouple at
 z = 0.0715 m are compared with the digitised experiments (core/data/ward_2022/).
 The breakthrough time (outlet y_CO2 = 0.5) is set against the 95 % credibility
 interval of the paper's own model (Table 10).
+
+The decks use the paper's model with four values calibrated against the digitised
+curves (ambient temperature, site-2 capacity, dispersion factor and the inside heat
+transfer coefficient; core/test/papers/ward_2022/README.md, "Calibration").
 
     python examples/ward_2022.py                 # all three flow rates
     python examples/ward_2022.py --case 100      # the fastest single case
@@ -32,10 +36,17 @@ from skarstrom import ureg as u  # pint units: 3.2 * u.cm, 40.98 * u.kJ / u.mol
 # The three experiments differ only in the CO2 feed flow, in the bed-to-wall
 # heat transfer coefficient fitted for each flow and in the paper's dispersion
 # coefficient (core/test/papers/ward_2022/ward_2022.cpp).
-FLOW_RATES = {
-    "50":  dict(feed_flow=50 * u.cm**3 / u.min,  internal_htc=77.5 * u.W / (u.m**2 * u.K)),
-    "100": dict(feed_flow=100 * u.cm**3 / u.min, internal_htc=57.9 * u.W / (u.m**2 * u.K)),
-    "200": dict(feed_flow=200 * u.cm**3 / u.min, internal_htc=45.2 * u.W / (u.m**2 * u.K)),
+#
+# Calibrated values (core/test/papers/ward_2022/README.md, "Calibration"): fitted to
+# the digitised outlet and thermocouple curves of all three flows together. Each
+# replaces the paper value in its comment.
+AMBIENT = 293.0 * u.K           # T_a and the wall ends; Table 1: 291.4 K (the thermocouple settles at 293 K)
+SITE2_CAPACITY = 5.89           # q_s,2 [mol/kg]; Table 2: 6.04 (Table 7 95 % CI [5.64, 6.42])
+DISPERSION_FACTOR = 3.75        # multiplies Eq. 4; Sect. 3.2: 4
+FLOW_RATES = {                  # internal_htc: Table 6 gives 77.5, 57.9 and 45.2 W/(m2 K)
+    "50":  dict(feed_flow=50 * u.cm**3 / u.min,  internal_htc=97.3 * u.W / (u.m**2 * u.K)),
+    "100": dict(feed_flow=100 * u.cm**3 / u.min, internal_htc=81.5 * u.W / (u.m**2 * u.K)),
+    "200": dict(feed_flow=200 * u.cm**3 / u.min, internal_htc=69.0 * u.W / (u.m**2 * u.K)),
 }
 DECKS = {q: f"Ward2022_Q{q}ccm" for q in FLOW_RATES}   # the shipped deck of each case
 Z_TC = 0.0715  # thermocouple position [m]
@@ -44,7 +55,8 @@ SPEED = {"50": "low", "100": "medium", "200": "high"}
 
 
 def paper_dispersion(feed_flow) -> float:
-    """Ward & Pini's dispersion coefficient [m2/s] for one feed flow: 4 x (0.7 D_m + v_F r_p)."""
+    """Ward & Pini's dispersion coefficient [m2/s] for one feed flow, with the calibrated factor:
+    DISPERSION_FACTOR x (0.7 D_m + v_F r_p) (the paper uses 4)."""
     Dm, rp, Di, eb = 0.605e-5, 1.5e-3, 0.0189, 0.456
     # Computed exactly as the paper test that writes the shipped decks does (PaperDispersion in
     # core/test/papers/ward_2022/ward_2022.cpp): the engine's pi (adsim::constants::kPI, 15 digits,
@@ -54,14 +66,14 @@ def paper_dispersion(feed_flow) -> float:
     pi = 3.14159265358979
     q = feed_flow.to("m**3/s").magnitude
     vF = q / (pi / 4.0 * Di * Di) / eb
-    return 4.0 * (0.7 * Dm + vF * rp)
+    return DISPERSION_FACTOR * (0.7 * Dm + vF * rp)
 
 
 def add_activated_carbon(sim: sk.Simulation) -> sk.Adsorbent:
     """The activated carbon of the lab-scale rig (Tables 1, 2 and 6 of the paper)."""
     ads = sim.add_adsorbent(
         "Activated Carbon",
-        solid_density=799 * u.kg / u.m**3,                     # particle density
+        solid_density=435.0 / 0.544 * u.kg / u.m**3,           # particle density rho_b / (1 - eps), Table 1
         heat_capacity=1040 * u.J / (u.kg * u.K),
         thermal_conductivity=0.63 * u.W / (u.m * u.K),
         particle_void_fraction=0.0,
@@ -69,7 +81,7 @@ def add_activated_carbon(sim: sk.Simulation) -> sk.Adsorbent:
     # Dual-site Langmuir in concentration form for CO2; helium does not adsorb.
     ads.set_isotherm("dual_site_langmuir_c", {
         "CarbonDioxide": {"m1": 0.418 * u.mol / u.kg, "b1": 2.05e-6 * u.m**3 / u.mol, "q1": 29.98 * u.kJ / u.mol,
-                          "m2": 6.04 * u.mol / u.kg,  "b2": 3.32e-6 * u.m**3 / u.mol, "q2": 20.367 * u.kJ / u.mol},
+                          "m2": SITE2_CAPACITY * u.mol / u.kg,  "b2": 3.32e-6 * u.m**3 / u.mol, "q2": 20.367 * u.kJ / u.mol},
     }, components=["CarbonDioxide"])
     ads.set_isotherm("inert", components=["Helium"])
     # Linear driving force; the CO2 coefficient from the Haynes (1973) macropore correlation.
@@ -109,7 +121,7 @@ def build(case: str) -> sk.Simulation:
 
     # ---- column: 0.286 m x 18.9 mm tube ---------------------------------------------------
     sim.bed.set_shape("cylinder", diameter=18.9 * u.mm)
-    sim.bed.ambient_temperature = 291.4 * u.K                    # Table 1
+    sim.bed.ambient_temperature = AMBIENT                       # calibrated (Table 1: 291.4 K)
     sim.bed.set_thermal_equilibrium("lte")                     # gas and solid at one temperature
     sim.bed.set_particle_heat_transfer("constant", particle_htc=100 * u.W / (u.m**2 * u.K))
     for void in (sim.bed.bottom_void, sim.bed.top_void):       # no dead volume at the column ends
@@ -120,7 +132,7 @@ def build(case: str) -> sk.Simulation:
     sim.wall.set_material("custom", density=2700 * u.kg / u.m**3, heat_capacity=902 * u.J / (u.kg * u.K),
                           thermal_conductivity=205 * u.W / (u.m * u.K))
     sim.wall.thickness = 0.00325   # 3.25 mm, in m as the deck stores it (3.25 * u.mm converts to 0.0032500000000000003)
-    sim.wall.set_boundary("fixed", fixed_temperature=291.4 * u.K)   # Table 4: wall ends at T_a
+    sim.wall.set_boundary("fixed", fixed_temperature=AMBIENT)       # Table 4: wall ends at T_a
 
     layer = sim.add_layer("Activated Carbon", composition={"Activated Carbon": 1.0}, momentum="ergun",
                           length=0.286 * u.m, cells=60, bed_void_fraction=0.456, particle_diameter=3 * u.mm)
@@ -133,7 +145,7 @@ def build(case: str) -> sk.Simulation:
     layer.set_external_heat_transfer("holman", holman_c=0.027, holman_m=0.8, holman_n=1 / 3,
                                      external_velocity=0.5 * u.m / u.s)
 
-    # ---- initial state: the bed full of helium at 1 bar and 291.4 K ----------------------
+    # ---- initial state: the bed full of helium at 1 bar and Table 1's 291.4 K -------------
     sim.initial_conditions.pressure = 1 * u.bar
     sim.initial_conditions.temperature = 291.4 * u.K
     sim.initial_conditions.wall_temperature = 291.4 * u.K

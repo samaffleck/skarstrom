@@ -130,7 +130,7 @@ res = minimize_scalar(rmse, bounds=(np.log10(base_value) - 0.3, np.log10(base_va
                       method="bounded", options={"maxiter": 20})
 ```
 
-In our run this took 18 simulations (about 15 s) and moved `m2` from 6.04 to 6.58 mol/kg, lowering the RMSE from 0.38 to 0.095. That is a demonstration, not a recommendation: raising the capacity also absorbs whatever else delays the measured front (dead volume, the detector), so check a fitted value against independent data.
+In our run this took 17 simulations (about 6 s) and moved `m2` from 5.89 to 5.90 mol/kg, lowering the RMSE from 0.027 to 0.021. The shipped deck is already calibrated against these curves (`m2` among the calibrated values; see [Validation](validation.md#ward-2022)), so the search only refines it; on an uncalibrated deck it moves further. That is a demonstration, not a recommendation: a fitted capacity also absorbs whatever else moves the measured front (dead volume, the detector, the bed temperature), so check a fitted value against independent data.
 
 Points to keep in mind:
 

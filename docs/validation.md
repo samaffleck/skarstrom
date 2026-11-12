@@ -30,7 +30,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 2.02 pp (abs. error) | 5.81 pp (abs. error) |
 | [Streb & Mazzotti (2021)](#streb-2021) | 18 | experiment | 47 | 37.7 % (NRMSE)<br/>6.48 % (rel. error)<br/>16.4 K (RMSE) | 84.1 % (NRMSE)<br/>18 % (rel. error)<br/>28.5 K (RMSE) |
 | [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.89 % (rel. error)<br/>0.251 K (abs. error)<br/>1.93 pp (abs. error) | 3.92 % (rel. error)<br/>0.251 K (abs. error)<br/>33.5 pp (abs. error) |
-| [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 26.5 % (NRMSE)<br/>3.56 % (rel. error)<br/>1.24 K (RMSE) | 35.2 % (NRMSE)<br/>4.48 % (rel. error)<br/>2.56 K (RMSE) |
+| [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 2.76 % (NRMSE)<br/>0.0208 % (rel. error)<br/>0.675 K (RMSE) | 3.89 % (NRMSE)<br/>0.404 % (rel. error)<br/>1.4 K (RMSE) |
 | [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 2.34 pp (abs. error)<br/>1.86 % (rel. error) | 2.83 pp (abs. error)<br/>1.86 % (rel. error) |
 | [Halabi (2011)](#halabi-2011) | 2 | paper model | 15 | 0.61 pp (abs. error) | 1.95 pp (abs. error) |
 
@@ -622,27 +622,27 @@ A. Ward, R. Pini, Integrated uncertainty quantification and sensitivity analysis
 
 **Findings.**
 
-- The decks use the paper's model forms (WP10 audit of the paper text, 2026-10-31): helium carrier, the paper's dispersion coefficient (Eq. 4 with D_m = 0.605e-5 m2/s, times the factor 4 the paper fitted), -dU_1 + RT as the heat of adsorption, the wall ends held at ambient (Table 4) and the Ergun pressure drop. The CO2 front now arrives 0.1-1.9 % late (4-6 % early before), the curve NRMSE is 3-18 % (34-38 % before), the thermocouple RMSE 1.2-4.0 K, and the temperature rise per Table 9 is 0.9-2.9 K from the measured value and inside the paper's 95 % interval at 100 and 200 ccm.
-- Attribution (one change at a time, README): the fitted dispersion factor halves the temperature rise, and the wall end condition moves the front from early to slightly late; the carrier gas, the RT term and the pressure-drop constant are each worth under 1 % in the front time. The earlier explanation (a single site-1 heat of adsorption heating the bed more) was wrong: the paper's own model uses that value plus RT.
+- The decks use the paper's model forms (WP10 audit, 2026-10-31: helium carrier, the paper's dispersion correlation Eq. 4 with D_m = 0.605e-5 m2/s, -dU_1 + RT as the heat of adsorption, the wall ends held at ambient (Table 4), the Ergun pressure drop) with four values calibrated against the digitised curves of all three flows (2026-11): the ambient and wall-end temperature 293 K (Table 1: 291.4 K; the thermocouple settles at 293 K after the front), q_s,2 5.89 mol/kg (Table 2: 6.04, inside the paper's 95 % interval), the factor 3.75 on Eq. 4 (the paper fits 4) and h_in 97.3 / 81.5 / 69.0 W/(m2 K) (Table 6: 77.5 / 57.9 / 45.2). The CO2 front is within 0.4 % of the measurement, the outlet NRMSE 2.7-3.9 % and the thermocouple RMSE 0.18-1.40 K (before the calibration: 1.7-4.5 % late, 14-35 % and 1.15-2.56 K).
+- Attribution (one change at a time, README): the 293 K ambient alone brings the front to within 0.7-1.6 %, q_s,2 closes the rest, the larger h_in takes out the extra heat and the dispersion factor sets the front width. The calibration is fitted to the same digitised curves it is compared with, so it is not an independent validation. Of the audit's changes, the fitted dispersion factor halves the temperature rise and the wall end condition moves the front from early to late; the carrier gas, the RT term and the pressure-drop constant are each worth under 1 % in the front time.
 - Every deck value is traced to the paper in the README's provenance table. The deck keeps the particle voidage at 0 in the gas holdup (the paper's balances count the bed voidage only) and uses 60 cells to the paper's 30.
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| Q100ccm | outlet y_CO2 | experiment | curve | digitised data | 26.5 % NRMSE | 29 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q100ccm | CO2 front time (y_CO2 = 0.5) | experiment | 1304 s | 1259 s | 3.56 % rel. error | 3.9 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q100ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 1.15 K RMSE | 2.4 K | Fig. 3 / data of ref. [5] (digitised) |
-| Q100ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 1304 s | 1250 s | 54.3 s abs. error | info | Table 10, adsorption, f_in = 100 ccm, t_br 95% CI |
-| Q100ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 13.65 K | 15.05 K | 1.4 K abs. error | info | Table 10, adsorption, f_in = 100 ccm, Delta T_ads 95% CI |
-| Q200ccm | outlet y_CO2 | experiment | curve | digitised data | 14.1 % NRMSE | 17 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q200ccm | CO2 front time (y_CO2 = 0.5) | experiment | 601.3 s | 591.1 s | 1.73 % rel. error | 1.8 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q200ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 2.56 K RMSE | 4.6 K | Fig. 3 / data of ref. [5] (digitised) |
-| Q200ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 601.3 s | 575 s | 26.3 s abs. error | info | Table 10, adsorption, f_in = 200 ccm, t_br 95% CI |
-| Q200ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 23.41 K | 23.6 K | 0.194 K abs. error | info | Table 10, adsorption, f_in = 200 ccm, Delta T_ads 95% CI |
-| Q50ccm | outlet y_CO2 | experiment | curve | digitised data | 35.2 % NRMSE | 39 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q50ccm | CO2 front time (y_CO2 = 0.5) | experiment | 2689 s | 2574 s | 4.48 % rel. error | 4.9 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q50ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 1.24 K RMSE | 1.4 K | Fig. 3 / data of ref. [5] (digitised) |
-| Q50ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 2689 s | 2540 s | 149 s abs. error | info | Table 10, adsorption, f_in = 50 ccm, t_br 95% CI |
-| Q50ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 5.851 K | 8.445 K | 2.59 K abs. error | info | Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI |
+| Q100ccm | outlet y_CO2 | experiment | curve | digitised data | 2.72 % NRMSE | 3.2 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q100ccm | CO2 front time (y_CO2 = 0.5) | experiment | 1259 s | 1259 s | 0.0193 % rel. error | 0.2 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q100ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 0.675 K RMSE | 0.78 K | Fig. 3 / data of ref. [5] (digitised) |
+| Q100ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 1259 s | 1250 s | 9.21 s abs. error | info | Table 10, adsorption, f_in = 100 ccm, t_br 95% CI |
+| Q100ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 13.09 K | 15.05 K | 1.96 K abs. error | info | Table 10, adsorption, f_in = 100 ccm, Delta T_ads 95% CI |
+| Q200ccm | outlet y_CO2 | experiment | curve | digitised data | 3.89 % NRMSE | 4.5 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q200ccm | CO2 front time (y_CO2 = 0.5) | experiment | 593.5 s | 591.1 s | 0.404 % rel. error | 0.47 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q200ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 1.4 K RMSE | 1.6 K | Fig. 3 / data of ref. [5] (digitised) |
+| Q200ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 593.5 s | 575 s | 18.5 s abs. error | info | Table 10, adsorption, f_in = 200 ccm, t_br 95% CI |
+| Q200ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 20.87 K | 23.6 K | 2.73 K abs. error | info | Table 10, adsorption, f_in = 200 ccm, Delta T_ads 95% CI |
+| Q50ccm | outlet y_CO2 | experiment | curve | digitised data | 2.76 % NRMSE | 3.3 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q50ccm | CO2 front time (y_CO2 = 0.5) | experiment | 2574 s | 2574 s | 0.0208 % rel. error | 0.2 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q50ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 0.181 K RMSE | 0.22 K | Fig. 3 / data of ref. [5] (digitised) |
+| Q50ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 2574 s | 2540 s | 33.7 s abs. error | info | Table 10, adsorption, f_in = 50 ccm, t_br 95% CI |
+| Q50ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 6.665 K | 8.445 K | 1.78 K abs. error | info | Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI |
 
 ??? note "Notes on these comparisons"
 
