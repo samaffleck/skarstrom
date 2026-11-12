@@ -1,6 +1,7 @@
 // STL includes
 #define _USE_MATH_DEFINES
 #include <cmath>
+#include <map>
 #include <filesystem>
 #include <limits>
 #include <stdexcept>
@@ -223,6 +224,33 @@ namespace adsim {
       ConfigureCycle(1);
 
       SaveExperimentalData("data/streb_2021/" + c.name);
+      BindStrebData(c.name);
+    }
+
+    // What each digitised dataset measures (experimental_data.h): the outlet
+    // mole fractions and the centre-line thermocouples at z [cm] from the feed end.
+    void BindStrebData(const std::string& case_name) {
+      const std::map<std::string, std::string> species = {
+          {"CH4", "Methane"}, {"CO2", "CarbonDioxide"}, {"H2", "Hydrogen"}};
+      const std::string y_prefix = case_name + "_mole_fraction_";
+      const std::string t_prefix = case_name + "_temperature_z=";
+      for (auto& xy : data.exp_data_.GetAllData()) {
+        ObservableBinding b;
+        if (xy.name.rfind(y_prefix, 0) == 0 && species.count(xy.name.substr(y_prefix.size()))) {
+          b.kind = ObservableKind::Component;
+          b.variable = "mole_fraction";
+          b.component = species.at(xy.name.substr(y_prefix.size()));
+        } else if (xy.name.rfind(t_prefix, 0) == 0) {
+          b.kind = ObservableKind::Bulk;
+          b.variable = "temperature";
+          b.location = ObservableLocation::Position;
+          b.z = std::stod(xy.name.substr(t_prefix.size())) / 100.0;  // "10[cm]" -> 0.10 m
+        } else {
+          ADD_FAILURE() << "unbound Streb dataset " << xy.name;
+          continue;
+        }
+        xy.observable = b;
+      }
     }
 
     // Run the case, check conservation and record/assert the validation metrics.

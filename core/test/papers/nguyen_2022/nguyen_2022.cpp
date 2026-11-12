@@ -52,6 +52,17 @@ namespace adsim {
                                LoadSeriesCsv(file), 0.5 * feed_percent / 100.0, tol_t50,
                                (fig == "Fig4" ? "Fig. 4" : "Fig. 5") + std::string(" (digitised)"));
     }
+    // What the digitised outlet curve of the simulated feed measures
+    // (experimental_data.h). The deck also carries the curves of the other
+    // feeds of the figure, and the temperatures, whose thermocouple position
+    // is not stated: those stay unbound.
+    void BindNguyenData(ExperimentalData& exp, int feed_percent) {
+      XYData* y = exp.Find("Y_CO2_" + std::to_string(feed_percent) + "%");
+      ASSERT_NE(y, nullptr);
+      y->observable.kind = ObservableKind::Component;
+      y->observable.variable = "mole_fraction";
+      y->observable.component = "CarbonDioxide";
+    }
   }
 
   // Additional feed compositions of Figs. 4 and 5 (same column, same transport
@@ -142,6 +153,7 @@ namespace adsim {
     ConfigureCycle(1);
 
     SaveExperimentalData("data/nguyen_2022/Fig5");
+    BindNguyenData(data.exp_data_, 15);
 
     CoupledSolver solver{data};
 
@@ -217,6 +229,7 @@ namespace adsim {
     ConfigureCycle(1);
 
     SaveExperimentalData("data/nguyen_2022/Fig4");
+    BindNguyenData(data.exp_data_, 70);
 
     CoupledSolver solver{data};
 

@@ -173,6 +173,7 @@ namespace adsim {
         Set(root, "variables", Variables(), a_);
         Set(root, "cost", Node("cost."), a_);
         Set(root, "sensitivity", Node("sensitivity."), a_);
+        Set(root, "experimental_data", ExperimentalDatasets(), a_);
 
         // Whatever no node claimed (a registry family the view does not know).
         Set(root, "other", Node(""), a_);
@@ -591,6 +592,49 @@ namespace adsim {
         }
         return list;
       }
+      static Value Numbers(const std::vector<double>& xs, Allocator& a) {
+        Value v(rapidjson::kArrayType);
+        for (double x : xs) v.PushBack(Num(x), a);
+        return v;
+      }
+
+      // The datasets stored in the deck, each with its points and what it
+      // measures (experimental_data.h). Not registry values: change them
+      // with the experimental-data edits (deck_edit.h).
+      Value ExperimentalDatasets() {
+        Value list(rapidjson::kArrayType);
+        const auto& all = d_.exp_data_.GetAllData();
+        for (size_t i = 0; i < all.size(); ++i) {
+          const XYData& xy = all[i];
+          const ObservableBinding& b = xy.observable;
+          Value v(rapidjson::kObjectType);
+          SetInt(v, "index", static_cast<long long>(i), a_);
+          Set(v, "name", xy.name, a_);
+          Set(v, "x_label", xy.x_label, a_);
+          Set(v, "y_label", xy.y_label, a_);
+          Set(v, "x", Numbers(xy.x, a_), a_);
+          Set(v, "y", Numbers(xy.y, a_), a_);
+          Value o(rapidjson::kObjectType);
+          Set(o, "kind", ObservableKindTags()[static_cast<size_t>(b.kind)], a_);
+          Set(o, "variable", b.variable, a_);
+          Set(o, "component", b.component, a_);
+          Set(o, "location", ObservableLocationTags()[static_cast<size_t>(b.location)], a_);
+          Set(o, "z", Num(b.z), a_);
+          SetInt(o, "cycle", b.cycle, a_);
+          SetInt(o, "cycle_offset", b.cycle_offset, a_);
+          Set(o, "x_axis", b.XAxis() == ObservableXAxis::Cycle ? "cycle" : "time", a_);
+          Set(o, "x_unit", b.x_unit, a_);
+          Set(o, "x_scale", Num(b.x_scale), a_);
+          Set(o, "y_unit", b.y_unit, a_);
+          Set(o, "si_unit", ObservableSIUnit(b), a_);
+          if (b.uncertainty.empty()) SetNull(o, "uncertainty", a_);
+          else Set(o, "uncertainty", Numbers(b.uncertainty, a_), a_);
+          Set(o, "weight", Num(b.weight), a_);
+          Set(v, "observable", std::move(o), a_);
+          list.PushBack(v, a_);
+        }
+        return list;
+      }
     };
 
   }  // namespace
@@ -638,7 +682,7 @@ namespace adsim {
   "additionalProperties": false,
   "required": ["view_version", "engine_version", "info", "settings", "css", "energy_balance", "components", "fluid",
                "initial_conditions", "adsorbents", "layers", "bed", "cycle", "steps", "connections", "kpis",
-               "variables", "cost", "sensitivity", "other"],
+               "variables", "cost", "sensitivity", "experimental_data", "other"],
   "properties": {
     "view_version": {"type": "integer", "enum": [@VIEW_VERSION@]},
     "engine_version": {"type": "string"},
@@ -660,6 +704,7 @@ namespace adsim {
     "variables": {"type": "array", "items": {"$ref": "#/definitions/Variable"}},
     "cost": {"$ref": "#/definitions/Node"},
     "sensitivity": {"$ref": "#/definitions/Node"},
+    "experimental_data": {"type": "array", "items": {"$ref": "#/definitions/ExperimentalDataset"}},
     "other": {"$ref": "#/definitions/Node"}
   },
   "definitions": {
@@ -936,6 +981,42 @@ namespace adsim {
         "values": {"$ref": "#/definitions/ValueList"}
       }
     },
+    "ExperimentalDataset": {
+      "description": "A dataset stored in the deck: its points (as measured, in the units of its observable binding) and what it measures. Change it with the experimental-data edits (add_experimental_data, set_experimental_data_binding, remove_experimental_data).",
+      "type": "object", "additionalProperties": false, "required": ["index", "name", "x_label", "y_label", "x", "y", "observable"],
+      "properties": {
+        "index": {"type": "integer", "minimum": 0, "description": "position in the deck: the index the edits take"},
+        "name": {"type": "string"},
+        "x_label": {"type": "string"},
+        "y_label": {"type": "string"},
+        "x": {"type": "array", "items": {"type": ["number", "null"]}},
+        "y": {"type": "array", "items": {"type": ["number", "null"]}},
+        "observable": {"$ref": "#/definitions/Observable"}
+      }
+    },
+    "Observable": {
+      "description": "What a dataset measures. kind none: not bound. bulk/component: a bed variable (Series names) at top, bottom or z over one cycle (-1: the last logged); x is time in x_unit (x_scale seconds each). kpi: a per-cycle KPI of a tracked component; x is the cycle number, solver index = x + cycle_offset.",
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "variable", "component", "location", "z", "cycle", "cycle_offset", "x_axis", "x_unit", "x_scale",
+                   "y_unit", "si_unit", "uncertainty", "weight"],
+      "properties": {
+        "kind": {"type": "string", "enum": @OBSERVABLE_KIND@},
+        "variable": {"type": "string"},
+        "component": {"type": "string"},
+        "location": {"type": "string", "enum": @OBSERVABLE_LOCATION@},
+        "z": {"type": ["number", "null"], "description": "[m] from the bottom, with location position"},
+        "cycle": {"type": "integer", "minimum": -1},
+        "cycle_offset": {"type": "integer"},
+        "x_axis": {"type": "string", "enum": ["time", "cycle"]},
+        "x_unit": {"type": "string"},
+        "x_scale": {"type": ["number", "null"], "description": "seconds per x unit (1 for cycles)"},
+        "y_unit": {"type": "string", "description": "unit of y; empty = si_unit"},
+        "si_unit": {"type": "string", "description": "the observable's SI unit; empty when unbound"},
+        "uncertainty": {"oneOf": [{"type": "null"}, {"type": "array", "items": {"type": ["number", "null"]}}],
+                        "description": "per-point standard deviation in the y unit"},
+        "weight": {"type": ["number", "null"]}
+      }
+    },
     "Variable": {
       "type": "object", "additionalProperties": false, "required": ["name", "category", "formula", "description", "value"],
       "properties": {
@@ -994,6 +1075,8 @@ namespace adsim {
       {"@PROFILE_OR_NULL@", JsonList(b::ProfileKinds(), true)},
       {"@PROFILE@", JsonList(b::ProfileKinds())},
       {"@VARIABLE_CATEGORY@", JsonList(b::VariableCategoryKinds())},
+      {"@OBSERVABLE_KIND@", JsonList(ObservableKindTags())},
+      {"@OBSERVABLE_LOCATION@", JsonList(ObservableLocationTags())},
     };
     for (const auto& [placeholder, list] : lists) ReplaceAll(text, placeholder, list);
     view_json::Document doc;

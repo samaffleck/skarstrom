@@ -85,6 +85,31 @@ namespace adsim {
     // Heat released per mole adsorbed in the paper's energy balance (Eq. A4):
     // -dU_1 + R T with the site-1 internal energy of Table 2, at T_F = 293 K.
     constexpr double kPaperHeat = 29980.0 + 8.314462618 * 293.0;
+
+    // What each digitised dataset measures (experimental_data.h), so the
+    // saved decks can be compared with a run without further description.
+    void BindWardData(ExperimentalData& exp) {
+      for (auto& xy : exp.GetAllData()) {
+        ObservableBinding b;
+        if (xy.name.rfind("outlet_CO2_mole_fraction", 0) == 0) {
+          b.kind = ObservableKind::Component;
+          b.variable = "mole_fraction";
+          b.component = "CarbonDioxide";
+        } else if (xy.name.rfind("outlet_volumetric_flowrate", 0) == 0) {
+          b.kind = ObservableKind::Bulk;
+          b.variable = "volumetric_flow_rate";
+        } else if (xy.name.rfind("temperature[K]_z=0.0715[m]", 0) == 0) {
+          b.kind = ObservableKind::Bulk;
+          b.variable = "temperature";
+          b.location = ObservableLocation::Position;
+          b.z = 0.0715;  // the thermocouple
+        } else {
+          ADD_FAILURE() << "unbound Ward dataset " << xy.name;
+          continue;
+        }
+        xy.observable = b;
+      }
+    }
   }
 
   class Ward2022Test : public UserDataTest {
@@ -254,6 +279,7 @@ namespace adsim {
     ConfigureCycle(1);
 
     SaveExperimentalData("data/ward_2022/Qin=100");
+    BindWardData(data.exp_data_);
 
     CoupledSolver solver{data};
 
@@ -388,6 +414,7 @@ namespace adsim {
     ConfigureCycle(1);
 
     SaveExperimentalData("data/ward_2022/Qin=50");
+    BindWardData(data.exp_data_);
 
     CoupledSolver solver{data};
 
@@ -523,6 +550,7 @@ namespace adsim {
     ConfigureCycle(1);
 
     SaveExperimentalData("data/ward_2022/Qin=200");
+    BindWardData(data.exp_data_);
 
     CoupledSolver solver{data};
 

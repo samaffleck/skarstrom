@@ -54,6 +54,31 @@ The view is read-only. Change a value by its path (`sim.set(path, value)`, `Para
 suite checks, for every example deck, that the view validates against the schema and that setting
 every value back by path leaves the deck unchanged.
 
+### Experimental datasets
+
+!!! note "New in 0.10"
+    The root field `experimental_data`.
+
+`experimental_data` lists the datasets stored in the deck, in deck order. Each has `index` (the
+position the edits take), `name`, `x_label`, `y_label`, the points `x` and `y` as measured, and
+`observable`: what the dataset measures (see [Python API](python.md#what-a-dataset-measures)).
+
+| `observable` field | Meaning |
+|---|---|
+| `kind` | `none` (not bound), `bulk`, `component` or `kpi` |
+| `variable`, `component` | The series name or KPI name, and the component for a component variable or a KPI |
+| `location`, `z` | `top`, `bottom` or `position` (with `z` [m] from the bottom) |
+| `cycle` | The 0-based cycle of a time series (-1: the last logged) |
+| `cycle_offset` | For a KPI: solver cycle = x + `cycle_offset` |
+| `x_axis`, `x_unit`, `x_scale` | `time` (in `x_unit`, `x_scale` seconds each) or `cycle` |
+| `y_unit`, `si_unit` | The unit of y (empty: `si_unit`), and the observable's SI unit |
+| `uncertainty`, `weight` | Per-point standard deviation in `y_unit` (`null` when none), and the dataset's weight |
+
+The datasets are not registry values. Change them with the edits `add_experimental_data`,
+`set_experimental_data_binding` and `remove_experimental_data` (`sim.edit` operations;
+`AddExperimentalData`, `SetExperimentalDataBinding`, `RemoveExperimentalData` in
+`adsim/objects/deck_edit.h`), or through `sim.experimental_data` in Python.
+
 `view_version` changes when the view's shape changes incompatibly. Version 2 changed a stream's
 `type` to its tag in the `stream` kind list (`flow`, `valve`, `pump`), the tag that
 `set_stream_kind` takes; version 1 said `stream` for a set-flow stream.

@@ -3,6 +3,7 @@
 // STL includes
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -13,6 +14,7 @@
 #include "adsim/solver/log.h"
 #include "adsim/solver/kpis.h"
 #include "adsim/solver/experimental_data.h"
+#include "adsim/solver/kpi_history.h"
 
 
 namespace adsim {
@@ -202,5 +204,54 @@ namespace adsim {
 
     return (n > 0) ? std::sqrt(sse / n) : 1e10;
   }
+
+  // ---------------------------------------------------------------------------
+  // The simulated counterpart of a bound dataset, and the comparison
+  //
+  // SimulatedSeries reads what a dataset's observable binding names
+  // (experimental_data.h) from a run: a bulk or component variable at the top,
+  // the bottom or a position over one logged cycle (ExtractBedTimeSeries, with
+  // the bed-end values of Simulation::Series when `sources` is given), or a
+  // per-cycle KPI from `kpis` (Simulation::KPIs(): every completed cycle, not
+  // only the logged ones). The result is in the DATASET's units: x is time
+  // from the start of the cycle divided by x_scale, or the cycle number
+  // (solver index - cycle_offset); y is converted from SI to y_unit. NaN KPIs
+  // (undefined for the run) are left out.
+  //
+  // Throws std::invalid_argument for an unbound or invalid binding, and
+  // std::out_of_range when the run did not log the cycle or has no data for
+  // the observable.
+  // ---------------------------------------------------------------------------
+
+  struct SimulatedCounterpart {
+    std::vector<double> x;  // in the dataset's x unit (time / x_scale, or cycle number)
+    std::vector<double> y;  // in the dataset's y unit
+    std::string si_unit;    // the observable's SI unit (before conversion)
+  };
+
+  SimulatedCounterpart SimulatedSeries(const XYData& data, const EquationLog& eq_log,
+                                       const std::vector<KPIRecord>& kpis,
+                                       const BedBoundarySources& sources = {});
+
+  // The comparison of a dataset with its simulated counterpart, in the
+  // dataset's y unit. A time series is interpolated linearly at the measured x
+  // values it covers (points outside the simulated time range are skipped,
+  // never extrapolated); a KPI is matched by cycle number. Points where the
+  // simulation is not finite are skipped.
+  //   rmse          sqrt(mean(r^2)), r = simulated - measured
+  //   nrmse         rmse / (max - min of ALL the measured y); NaN for a flat dataset
+  //   max_abs_error max |r|
+  //   points        how many measured points were compared (0: the others are NaN)
+  //   weighted_sse  weight * sum((r / sigma)^2), sigma the point's uncertainty
+  //                 (1 when the dataset has none): a least-squares objective term
+  struct DatasetComparison {
+    double rmse = std::numeric_limits<double>::quiet_NaN();
+    double nrmse = std::numeric_limits<double>::quiet_NaN();
+    double max_abs_error = std::numeric_limits<double>::quiet_NaN();
+    size_t points = 0;
+    double weighted_sse = std::numeric_limits<double>::quiet_NaN();
+  };
+
+  DatasetComparison CompareWithSimulation(const XYData& data, const SimulatedCounterpart& simulated);
 
 } // end adsim namespace

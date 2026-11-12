@@ -414,4 +414,20 @@ bool SetPumpEfficiencyKind(UserData& data, size_t endpoint_id, PumpEfficiencyTyp
 // The shaft-power model of a pump stream.
 bool SetPumpPowerKind(UserData& data, size_t endpoint_id, PumpPowerType kind, std::string& err);
 
+// ---- experimental datasets ------------------------------------------------------
+
+// Store a dataset (adsim/solver/experimental_data.h): x and y of equal,
+// nonzero length, and its observable binding, checked and normalised with
+// NormaliseObservableBinding (an unbound binding is fine). Returns the new
+// dataset's index. False + err otherwise.
+bool AddExperimentalData(UserData& data, XYData dataset, size_t& index, std::string& err);
+
+// Replace the observable binding of dataset `index` (unbinding included: pass
+// a default ObservableBinding). The points, name and labels are unchanged.
+// False + err for a bad index or a binding NormaliseObservableBinding refuses.
+bool SetExperimentalDataBinding(UserData& data, size_t index, ObservableBinding binding, std::string& err);
+
+// Delete dataset `index`. False + err for a bad index.
+bool RemoveExperimentalData(UserData& data, size_t index, std::string& err);
+
 }  // namespace adsim

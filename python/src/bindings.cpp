@@ -35,6 +35,7 @@
 #include "adsim/solver/cyclic_steady_state.h"
 #include "adsim/solver/isotherm_fit.h"
 #include "adsim/solver/optimisation.h"
+#include "adsim/solver/parameterisation.h"
 #include "adsim/solver/sensitivity.h"
 #include "adsim/solver/state_cache.h"
 
@@ -407,6 +408,107 @@ adsim::RunResult RunFromPython(std::optional<int> cycles, py::object progress, c
   if (pending) throw std::move(*pending);
   return r;
 }
+
+namespace {
+
+// ---- experimental datasets (adsim/solver/experimental_data.h) ----------------
+
+size_t TagIndex(const std::vector<std::string>& tags, const std::string& tag, const char* what) {
+  for (size_t i = 0; i < tags.size(); ++i)
+    if (tags[i] == tag) return i;
+  std::string valid;
+  for (const auto& t : tags) valid += (valid.empty() ? "" : ", ") + t;
+  throw py::value_error(std::string("unknown ") + what + " '" + tag + "'; one of: " + valid);
+}
+
+py::dict BindingToDict(const adsim::ObservableBinding& b) {
+  py::dict d;
+  d["kind"] = adsim::ObservableKindTags()[static_cast<size_t>(b.kind)];
+  d["variable"] = b.variable;
+  d["component"] = b.component;
+  d["location"] = adsim::ObservableLocationTags()[static_cast<size_t>(b.location)];
+  d["z"] = b.z;
+  d["cycle"] = b.cycle;
+  d["cycle_offset"] = b.cycle_offset;
+  d["x_axis"] = b.XAxis() == adsim::ObservableXAxis::Cycle ? "cycle" : "time";
+  d["x_unit"] = b.x_unit;
+  d["x_scale"] = b.x_scale;
+  d["y_unit"] = b.y_unit;
+  d["si_unit"] = adsim::ObservableSIUnit(b);
+  d["uncertainty"] = b.uncertainty.empty() ? py::object(py::none()) : py::object(ToArray(b.uncertainty));
+  d["weight"] = b.weight;
+  return d;
+}
+
+// Missing (or None) keys keep the defaults; unknown keys are refused.
+adsim::ObservableBinding BindingFromDict(const py::dict& d) {
+  static const char* known[] = {"kind", "variable", "component", "location", "z", "cycle", "cycle_offset",
+                                "x_axis", "x_unit", "x_scale", "y_unit", "si_unit", "uncertainty", "weight"};
+  for (const auto& item : d) {
+    const std::string key = py::str(item.first);
+    if (std::find(std::begin(known), std::end(known), key) == std::end(known))
+      throw py::value_error("unknown observable field '" + key + "'");
+  }
+  adsim::ObservableBinding b;
+  auto get = [&](const char* key) -> py::object {
+    return d.contains(key) && !d[key].is_none() ? py::object(d[key]) : py::object(py::none());
+  };
+  if (auto v = get("kind"); !v.is_none())
+    b.kind = static_cast<adsim::ObservableKind>(
+        TagIndex(adsim::ObservableKindTags(), v.cast<std::string>(), "observable kind"));
+  if (auto v = get("variable"); !v.is_none()) b.variable = v.cast<std::string>();
+  if (auto v = get("component"); !v.is_none()) b.component = v.cast<std::string>();
+  if (auto v = get("location"); !v.is_none())
+    b.location = static_cast<adsim::ObservableLocation>(
+        TagIndex(adsim::ObservableLocationTags(), v.cast<std::string>(), "observable location"));
+  if (auto v = get("z"); !v.is_none()) b.z = v.cast<double>();
+  if (auto v = get("cycle"); !v.is_none()) b.cycle = v.cast<int>();
+  if (auto v = get("cycle_offset"); !v.is_none()) b.cycle_offset = v.cast<int>();
+  if (auto v = get("x_unit"); !v.is_none()) b.x_unit = v.cast<std::string>();
+  if (auto v = get("x_scale"); !v.is_none()) b.x_scale = v.cast<double>();
+  if (auto v = get("y_unit"); !v.is_none()) b.y_unit = v.cast<std::string>();
+  if (auto v = get("uncertainty"); !v.is_none()) b.uncertainty = v.cast<std::vector<double>>();
+  if (auto v = get("weight"); !v.is_none()) b.weight = v.cast<double>();
+  return b;
+}
+
+py::dict DatasetToDict(const adsim::XYData& xy) {
+  py::dict d;
+  d["name"] = xy.name;
+  d["x"] = ToArray(xy.x);
+  d["y"] = ToArray(xy.y);
+  d["x_label"] = xy.x_label;
+  d["y_label"] = xy.y_label;
+  d["observable"] = BindingToDict(xy.observable);
+  return d;
+}
+
+// A dataset from its points and an observable dict, checked against the deck's
+// components: the points need not be stored in the deck.
+adsim::XYData DatasetFromArgs(const adsim::Simulation& s, const std::string& name, std::vector<double> x,
+                              std::vector<double> y, const py::dict& observable) {
+  adsim::XYData xy;
+  xy.name = name;
+  xy.x = std::move(x);
+  xy.y = std::move(y);
+  if (xy.x.size() != xy.y.size()) throw py::value_error("x and y differ in length");
+  xy.observable = BindingFromDict(observable);
+  std::string err;
+  if (!adsim::NormaliseObservableBinding(xy.observable, xy, s.Data().fluid.components_, err))
+    throw py::value_error(err);
+  return xy;
+}
+
+// The simulated counterpart of a bound dataset from the last run.
+adsim::SimulatedCounterpart Simulated(const adsim::Simulation& s, const adsim::XYData& xy) {
+  if (!xy.observable.Bound()) throw py::value_error("dataset '" + xy.name + "' is not bound to an observable");
+  std::vector<adsim::KPIRecord> kpis;
+  if (xy.observable.kind == adsim::ObservableKind::Kpi) kpis = s.KPIs();
+  const adsim::BedBoundarySources sources{&s.Boundaries(), &s.Data().cycle.step_list_};
+  return adsim::SimulatedSeries(xy, s.Log(), kpis, sources);
+}
+
+}  // namespace
 
 PYBIND11_MODULE(_core, m) {
   m.doc() = "Skarstrom PSA/TSA simulation engine (compiled core). Use the 'skarstrom' package.";
@@ -974,32 +1076,60 @@ PYBIND11_MODULE(_core, m) {
       // ---- experimental data stored in the deck (adsim/solver/experimental_data.h) ----
       .def("experimental_data", [](adsim::Simulation& s) {
         py::list out;
-        for (const auto& xy : s.Data().exp_data_.GetAllData()) {
-          py::dict d;
-          d["name"] = xy.name;
-          d["x"] = py::array_t<double>(xy.x.size(), xy.x.data());
-          d["y"] = py::array_t<double>(xy.y.size(), xy.y.data());
-          d["x_label"] = xy.x_label;
-          d["y_label"] = xy.y_label;
-          out.append(d);
-        }
+        for (const auto& xy : s.Data().exp_data_.GetAllData()) out.append(DatasetToDict(xy));
         return out;
       })
       .def("add_experimental_data", [](adsim::Simulation& s, const std::string& name, std::vector<double> x,
-                                       std::vector<double> y, const std::string& x_label, const std::string& y_label) {
-        if (x.size() != y.size()) throw py::value_error("x and y differ in length");
-        if (x.empty()) throw py::value_error("no data points");
+                                       std::vector<double> y, const std::string& x_label, const std::string& y_label,
+                                       const py::dict& observable) {
         adsim::XYData xy;
         xy.name = name;
         xy.x = std::move(x);
         xy.y = std::move(y);
         xy.x_label = x_label;
         xy.y_label = y_label;
-        s.Data().exp_data_.GetAllData().push_back(std::move(xy));
-      }, py::arg("name"), py::arg("x"), py::arg("y"), py::arg("x_label") = "", py::arg("y_label") = "")
+        xy.observable = BindingFromDict(observable);
+        size_t index = 0;
+        std::string err;
+        if (!adsim::AddExperimentalData(s.Data(), std::move(xy), index, err)) throw py::value_error(err);
+        return index;
+      }, py::arg("name"), py::arg("x"), py::arg("y"), py::arg("x_label") = "", py::arg("y_label") = "",
+         py::arg("observable") = py::dict())
+      .def("set_experimental_data_binding", [](adsim::Simulation& s, size_t index, const py::dict& observable) {
+        std::string err;
+        if (!adsim::SetExperimentalDataBinding(s.Data(), index, BindingFromDict(observable), err))
+          throw py::value_error(err);
+      }, py::arg("index"), py::arg("observable"))
       .def("remove_experimental_data", [](adsim::Simulation& s, size_t index) {
-        if (!s.Data().exp_data_.DeleteDataByIndex(index)) throw py::index_error("no experimental data set " + std::to_string(index));
+        std::string err;
+        if (!adsim::RemoveExperimentalData(s.Data(), index, err)) throw py::index_error(err);
       }, py::arg("index"))
+      // The simulated counterpart of a dataset (stored: by index; or given:
+      // name, x, y, observable) and its comparison (parameterisation.h).
+      .def("simulated_experimental_data", [](const adsim::Simulation& s, size_t index) {
+        const auto& all = s.Data().exp_data_.GetAllData();
+        if (index >= all.size()) throw py::index_error("no experimental dataset " + std::to_string(index));
+        const auto sim = Simulated(s, all[index]);
+        return py::make_tuple(ToArray(sim.x), ToArray(sim.y));
+      }, py::arg("index"))
+      .def("simulated_dataset", [](const adsim::Simulation& s, const std::string& name, std::vector<double> x,
+                                   std::vector<double> y, const py::dict& observable) {
+        const auto xy = DatasetFromArgs(s, name, std::move(x), std::move(y), observable);
+        const auto sim = Simulated(s, xy);
+        return py::make_tuple(ToArray(sim.x), ToArray(sim.y));
+      }, py::arg("name"), py::arg("x"), py::arg("y"), py::arg("observable"))
+      .def("compare_dataset", [](const adsim::Simulation& s, const std::string& name, std::vector<double> x,
+                                 std::vector<double> y, const py::dict& observable) {
+        const auto xy = DatasetFromArgs(s, name, std::move(x), std::move(y), observable);
+        const auto c = adsim::CompareWithSimulation(xy, Simulated(s, xy));
+        py::dict d;
+        d["rmse"] = c.rmse;
+        d["nrmse"] = c.nrmse;
+        d["max_abs_error"] = c.max_abs_error;
+        d["points"] = c.points;
+        d["weighted_sse"] = c.weighted_sse;
+        return d;
+      }, py::arg("name"), py::arg("x"), py::arg("y"), py::arg("observable"))
       // ---- structural deck edits (adsim/objects/deck_edit.h) ----------------
       .def("add_component", [](adsim::Simulation& s, const std::string& name) {
         std::string err;
@@ -1125,6 +1255,19 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "prune_buffer_tanks") out = py::int_(PruneBufferTanks(d));
         else if (op == "sync_kpi_config") { SyncKpiConfigToComponents(d); PruneKpiConfig(d); }
         else if (op == "fill_gaps") FillDeckGaps(d);
+        else if (op == "add_experimental_data") {  // name, x, y, x_label, y_label, observable dict
+          XYData xy;
+          xy.name = str(0);
+          xy.x = args[1].cast<std::vector<double>>();
+          xy.y = args[2].cast<std::vector<double>>();
+          if (args.size() > 3) xy.x_label = str(3);
+          if (args.size() > 4) xy.y_label = str(4);
+          if (args.size() > 5) xy.observable = BindingFromDict(args[5].cast<py::dict>());
+          ret_id(AddExperimentalData(d, std::move(xy), new_id, err));
+        }
+        else if (op == "set_experimental_data_binding")
+          ok = SetExperimentalDataBinding(d, id(0), BindingFromDict(args[1].cast<py::dict>()), err);
+        else if (op == "remove_experimental_data") ok = RemoveExperimentalData(d, id(0), err);
         else if (op == "set_isotherm_kind") {
           IsothermType t{};
           if (!KindFromString(str(2), t)) throw py::value_error("unknown isotherm kind '" + str(2) + "'");
