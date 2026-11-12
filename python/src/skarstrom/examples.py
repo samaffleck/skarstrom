@@ -424,7 +424,7 @@ high pressure conditions."""
 Vysyaraju2024_PSA_exp1 = Example('Vysyaraju2024_PSA_exp1', 'Vysyaraju 2024 - PSA exp1', '')
 """Vysyaraju 2024 - PSA exp1"""
 
-Ward2022_Q100ccm = Example('Ward2022_Q100ccm', 'Ward 2022 - 100 ccm Flow Rate', 'CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. This configuration tests the medium flow rate condition (100 ccm/min) of three flow rates studied.')
+Ward2022_Q100ccm = Example('Ward2022_Q100ccm', 'Ward 2022 - 100 ccm Flow Rate', 'CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. The ambient temperature, the site-2 capacity, the dispersion factor and the inside heat transfer coefficient are calibrated against that data (see the validation page). This configuration tests the medium flow rate condition (100 ccm/min) of three flow rates studied.')
 """Ward 2022 - 100 ccm Flow Rate
 
 CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a
@@ -433,10 +433,12 @@ initially saturated with helium and then fed with pure CO2. The adsorbent uses a
 dual-site Langmuir isotherm model and Haynes linear driving force model for mass
 transfer. The simulation includes coupled heat and mass transfer effects with wall heat
 transfer. Experimental breakthrough data is included and can be plotted to validate the
-solver performance. This configuration tests the medium flow rate condition (100
-ccm/min) of three flow rates studied."""
+solver performance. The ambient temperature, the site-2 capacity, the dispersion factor
+and the inside heat transfer coefficient are calibrated against that data (see the
+validation page). This configuration tests the medium flow rate condition (100 ccm/min)
+of three flow rates studied."""
 
-Ward2022_Q200ccm = Example('Ward2022_Q200ccm', 'Ward 2022 - 200 ccm Flow Rate', 'CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. This configuration tests the high flow rate condition (200 ccm/min) of three flow rates studied.')
+Ward2022_Q200ccm = Example('Ward2022_Q200ccm', 'Ward 2022 - 200 ccm Flow Rate', 'CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. The ambient temperature, the site-2 capacity, the dispersion factor and the inside heat transfer coefficient are calibrated against that data (see the validation page). This configuration tests the high flow rate condition (200 ccm/min) of three flow rates studied.')
 """Ward 2022 - 200 ccm Flow Rate
 
 CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a
@@ -445,10 +447,12 @@ initially saturated with helium and then fed with pure CO2. The adsorbent uses a
 dual-site Langmuir isotherm model and Haynes linear driving force model for mass
 transfer. The simulation includes coupled heat and mass transfer effects with wall heat
 transfer. Experimental breakthrough data is included and can be plotted to validate the
-solver performance. This configuration tests the high flow rate condition (200 ccm/min)
-of three flow rates studied."""
+solver performance. The ambient temperature, the site-2 capacity, the dispersion factor
+and the inside heat transfer coefficient are calibrated against that data (see the
+validation page). This configuration tests the high flow rate condition (200 ccm/min) of
+three flow rates studied."""
 
-Ward2022_Q50ccm = Example('Ward2022_Q50ccm', 'Ward 2022 - 50 ccm Flow Rate', 'CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. This configuration tests the low flow rate condition (50 ccm/min) of three flow rates studied.')
+Ward2022_Q50ccm = Example('Ward2022_Q50ccm', 'Ward 2022 - 50 ccm Flow Rate', 'CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a lab-scale test rig. This is a binary CO2/He breakthrough simulation where the bed is initially saturated with helium and then fed with pure CO2. The adsorbent uses a dual-site Langmuir isotherm model and Haynes linear driving force model for mass transfer. The simulation includes coupled heat and mass transfer effects with wall heat transfer. Experimental breakthrough data is included and can be plotted to validate the solver performance. The ambient temperature, the site-2 capacity, the dispersion factor and the inside heat transfer coefficient are calibrated against that data (see the validation page). This configuration tests the low flow rate condition (50 ccm/min) of three flow rates studied.')
 """Ward 2022 - 50 ccm Flow Rate
 
 CO2 breakthrough curve test based on Ward et al. 2022 for activated carbon in a
@@ -457,7 +461,9 @@ initially saturated with helium and then fed with pure CO2. The adsorbent uses a
 dual-site Langmuir isotherm model and Haynes linear driving force model for mass
 transfer. The simulation includes coupled heat and mass transfer effects with wall heat
 transfer. Experimental breakthrough data is included and can be plotted to validate the
-solver performance. This configuration tests the low flow rate condition (50 ccm/min) of
+solver performance. The ambient temperature, the site-2 capacity, the dispersion factor
+and the inside heat transfer coefficient are calibrated against that data (see the
+validation page). This configuration tests the low flow rate condition (50 ccm/min) of
 three flow rates studied."""
 
 Ward2024 = Example('Ward2024', 'Ward 2024', 'Four-step pressure swing adsorption cycle for CO2/N2 separation based on Ward & Pini 2024. ')
