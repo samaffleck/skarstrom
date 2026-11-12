@@ -158,7 +158,7 @@ def render(summary: dict, manifest: list) -> str:
     out("- **Against** says what the reference is: an *experiment* (measured data — this is validation), the *paper model* (the authors' own simulation — a code-to-code comparison), or an isotherm fit.")
     out("- **NRMSE** is the root-mean-square difference between the simulated and the digitised outlet mole fraction, divided by the feed mole fraction of that component. **RMSE** on temperature is in kelvin. Purity and recovery errors are absolute, in percentage points (pp); productivity and breakthrough-time errors are relative.")
     out("- **Tolerance** is a regression bound set from the measured error of the current model, rounded up — not an acceptance criterion chosen in advance. A case \"passes\" when it reproduces its recorded error; a large tolerance means a large, documented disagreement, not a good fit. Rows marked *info* are recorded but not asserted (e.g. approximate values read from the paper text).")
-    out("- Every input deck is a *prediction* with the paper's published parameters: adsim does not refit transport coefficients or feed velocities per experiment, and it does not model the sampling lines between column and detector. Known causes of disagreement are listed per paper below and in each folder's README.")
+    out("- Most input decks are *predictions* with the paper's published parameters. Two are calibrated, and their findings say so: Ward 2022 (fitted to the curves it is compared with) and Streb 2021 (calibrated on experiment A3, with a sampling line and per-experiment feed flows). Known causes of disagreement are listed per paper below and in each folder's README.")
     out("")
     out("## Summary")
     out("")

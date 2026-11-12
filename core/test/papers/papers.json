@@ -111,11 +111,11 @@
       "citation": "A. Streb, M. Mazzotti, Adsorption for efficient low carbon hydrogen production: part 1 - adsorption equilibrium and breakthrough studies for H2/CO2/CH4 on zeolite 13X, Adsorption 27 (2021) 541-558.",
       "doi": "10.1007/s10450-021-00306-y",
       "system": "CO2/CH4 and H2/CO2/CH4 breakthrough on zeolite 13X",
-      "reference_kind": "digitised experimental outlet compositions and thermocouples (Figs. 6, 7, 11)",
+      "reference_kind": "digitised experimental outlet compositions and thermocouples (Figs. 6, 7, 11); decks calibrated on A3",
       "findings": [
-        "CO2 front positions agree with the digitised experiments to 0.5-9 %, CH4 fronts to 0.3-15 %. Curve NRMSE is large (13-83 % for CH4) because the fronts are nearly vertical: a 10-20 s shift on a 20 s front dominates the RMSE. Thermocouple RMSE is 11-33 K, driven by the timing and height of the 30-100 K temperature fronts at the centre line.",
-        "adsim uses extended Sips competition and the MFC set-point velocity; the paper shows IAST/RAST predict the binary cases better than extended Sips and fits the feed velocity per experiment within the MFC uncertainty. The ~10 m of sampling line to the MS is not modelled.",
-        "A1/A3 previously compared simulated CO2 against the digitised CH4 curve (alphabetical file order) with a bound of 0.8 in mole fraction; fixed."
+        "The decks are calibrated on A3 alone: CO2 and CH4 LDF coefficients 0.0592 and 0.137 1/s (Table 4: 0.06, 0.2), wall-to-thermofluid coefficient 49.7 W/(m2 K) (paper 220) and a 0.142 L plug-flow sampling line to the MS (an inert, nearly empty layer above the bed). Each other case is a prediction except its feed flow, which is fitted to the speed of its own CO2 temperature front (as the paper fits the velocity per experiment). CO2 fronts are within 1.4 % of the experiments and CH4 fronts within 2.4 % (B1 4.7 % early); outlet NRMSE 1.3-16 % (CO2) and 4.7-31 % (CH4); thermocouple RMSE 5.5-11.4 K. Before: 0.3-11 %, 0.2-18 %, 2.4-45 %, 13-84 % and 8.7-28.5 K.",
+        "Six flow factors exceed 2 % of the set point (A1 +5.1, A2 -6.1, A4 -9.4, A6 -3.5, B1 +5.7, B2 -11.3 %). The paper's bound is 2 % of the MFC full scale, which is not printed: with a full scale of at least 31 NL/min every case but A4 is inside it. Held to 2 % of the set point, A1, A2, A4, B1 and B2 keep front errors of 3-10 % (README).",
+        "The engine's void region is one well-mixed cell, which smears the CH4 front, so the line is a multi-cell inert layer. The decks keep extended Sips competition; IAST, recorded on the same calibrated decks, puts the CO2 fronts 0.3-11 % late."
       ]
     },
     {
