@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <tuple>
 
 #include <Eigen/Dense>
 #include <dlib/global_optimization.h>
@@ -162,6 +163,33 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
     out.push_back(p);
   };
 
+  // The optional water factors of the dual-site Langmuir kinds: held at 0
+  // (the dry isotherm) without humid points, lambda1..3 fitted with them.
+  bool has_humid = false;
+  double qw_hi = 0.0;
+  for (const auto& p : pts)
+    if (PointUsable(p) && p.q_w > 0.0) { has_humid = true; qw_hi = std::max(qw_hi, p.q_w); }
+  auto dsl_water_factors = [&] {
+    const char* dry = "no humid data (q_w > 0): held at 0, the dry isotherm";
+    for (const auto& [name, hi, init] : {std::tuple<const char*, double, double>{"lambda1", 100.0, 0.1},
+                                         {"lambda2", 100.0, 0.1}, {"lambda3", 10.0, 1.0}, {"gamma2", 10.0, 0.0}}) {
+      ParamSpec p;
+      p.name = name;
+      p.scale = Scale::Linear;
+      p.lower = 0.0;
+      p.upper = hi;
+      p.value = has_humid ? init : 0.0;
+      p.fixed = !has_humid;
+      if (!has_humid) p.note = dry;
+      out.push_back(p);
+    }
+    // The affinity factor exp(-gamma2 q_w) is optional: held unless freed.
+    out.back().value = 0.0;
+    out.back().fixed = true;
+    if (has_humid) out.back().note = "affinity factor exp(-gamma2 q_w): held at 0; free it to fit it";
+    (void)qw_hi;
+  };
+
   switch (type) {
     case T::HENRY: {
       ParamSpec k;
@@ -195,6 +223,7 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
       capacity("m2", 1e-3);
       affinity("b2", "q2", false);
       energy("q2");
+      dsl_water_factors();
       break;
     case T::DUAL_SITE_LANGMUIR_C:
       capacity("m1", 1e-3);
@@ -203,7 +232,51 @@ bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,
       capacity("m2", 1e-3);
       affinity("b2", "q2", true);
       energy("q2");
+      dsl_water_factors();
       break;
+    case T::CUBIC_LANGMUIR: {
+      // q = q_sb (b1 C + 2 b2 C^2 + 3 b3 C^3) / (1 + b1 C + b2 C^2 + b3 C^3)
+      //   + q_sd d C / (1 + d C), b_j = b0_j exp(-dU1/(R T)), d = d0 exp(-dU2/(R T)).
+      // The b's and d are searched at T_ref (pair_sign -1); b1 linear (it may
+      // be negative), b2, b3 and d in decades around 1 / c_max^j.
+      const double cm = s.c_max;
+      capacity("q_sb", 1e-3);
+      auto paired = [&](ParamSpec& p, const char* e) {
+        p.pair_energy = e;
+        p.pair_sign = -1.0;
+        p.note = "bounds apply to the value at T_ref, " + p.name + "*exp(-" + e + "/(R*T_ref))";
+      };
+      ParamSpec b1;
+      b1.name = "b0_1";
+      b1.scale = Scale::Linear;
+      b1.lower = -1e2 / cm;
+      b1.upper = 1e2 / cm;
+      b1.value = 0.0;
+      paired(b1, "dU1");
+      out.push_back(b1);
+      for (const auto& [name, j] : {std::pair<const char*, int>{"b0_2", 2}, {"b0_3", 3}}) {
+        ParamSpec b;
+        b.name = name;
+        b.scale = Scale::Log;
+        b.lower = 1e-4 / std::pow(cm, j);
+        b.upper = 1e4 / std::pow(cm, j);
+        b.value = 1.0 / std::pow(cm, j);
+        paired(b, "dU1");
+        out.push_back(b);
+      }
+      auto neg_energy = [&](const char* name) {
+        energy(name);
+        out.back().lower = -2.0e5;
+        out.back().upper = 0.0;
+        if (multi_t) out.back().value = -5.0e4;
+      };
+      neg_energy("dU1");
+      capacity("q_sd", 1e-3);
+      affinity("d0", nullptr, true);
+      paired(out.back(), "dU2");
+      neg_energy("dU2");
+      break;
+    }
     case T::FREUNDLICH: {
       // q = (a*P)^(1/v)  =>  a = q^v / P; bound it over the exponent range.
       double lo = std::numeric_limits<double>::infinity(), hi = 0.0;
@@ -486,7 +559,7 @@ class Mapper {
   double ToEffective(size_t i, double natural) const {
     const auto& s = specs_[i];
     if (s.pair_energy.empty()) return natural;
-    return natural * std::exp(EnergyValueSpec(s.pair_energy) / (R() * t_ref_));
+    return natural * std::exp(s.pair_sign * EnergyValueSpec(s.pair_energy) / (R() * t_ref_));
   }
 
   // Apply a search vector: fixed values, then free non-paired, then paired.
@@ -502,7 +575,7 @@ class Mapper {
       if (specs_[i].pair_energy.empty()) continue;
       const double eff = FromZ(i, z(static_cast<long>(k)));
       const double e = m_.Get(specs_[i].pair_energy);
-      m_.Set(specs_[i].name, eff * std::exp(-e / (R() * t_ref_)));
+      m_.Set(specs_[i].name, eff * std::exp(-specs_[i].pair_sign * e / (R() * t_ref_)));
     }
   }
 

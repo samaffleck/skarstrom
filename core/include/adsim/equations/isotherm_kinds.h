@@ -47,12 +47,13 @@ inline constexpr auto kAllIsothermTypes = std::to_array<IsothermType>({
     IsothermType::TOTH_2, IsothermType::ARRHENIUS_SIPS,
     IsothermType::EXTENDED_LANGMUIR_FREUNDLICH,
     IsothermType::GAB, IsothermType::GAB_YOUNG,
-    IsothermType::TOTH_WADST, IsothermType::TOTH_HUMID});
+    IsothermType::TOTH_WADST, IsothermType::TOTH_HUMID,
+    IsothermType::CUBIC_LANGMUIR});
 
 // A kind missing from this list is rejected by KindFromString. Keep the list a permutation of the
 // enum: one entry per IsothermType, each exactly once.
 static_assert(kAllIsothermTypes.size() ==
-                  static_cast<std::size_t>(IsothermType::TOTH_HUMID) + 1,
+                  static_cast<std::size_t>(IsothermType::CUBIC_LANGMUIR) + 1,
               "kAllIsothermTypes must list every IsothermType");
 static_assert(
     [] {
@@ -90,6 +91,12 @@ bool IsCompetitiveIsothermKind(IsothermType t);
 // toth_humid. They have no IAST form (water changes the CO2 sites, not a
 // competitive denominator), so the IAST mixing rule rejects them.
 bool IsWaterCoupledIsothermKind(IsothermType t);
+
+// True when this component's isotherm reads the adsorbed water loading: a
+// water-coupled kind (above), or a dual-site Langmuir kind whose optional
+// water factors are set (DslWaterFactors::Active, isotherm.h). A dual-site
+// Langmuir with its factors at 0 is the dry kind and returns false.
+bool IsothermUsesWaterLoading(IIsotherm* iso, const std::string& component);
 
 // The kind with the same parameter layout in the other family: a competitive
 // kind's pure-component counterpart, or a pure kind's competitive form

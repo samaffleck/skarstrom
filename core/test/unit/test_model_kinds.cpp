@@ -216,7 +216,7 @@ TEST(ModelKinds, IsothermDescriptorsMatchTheIsothermClasses) {
                               T::DUAL_SITE_LANGMUIR_C, T::EXTENDED_SINGLE_SITE_LANGMUIR_P,
                               T::EXTENDED_DUAL_SITE_LANGMUIR_P, T::FREUNDLICH, T::SIPS, T::DUAL_SITE_SIPS, T::TOTH,
                               T::SIPS_2, T::EXTENDED_SIPS_2, T::TOTH_2, T::GAB, T::GAB_YOUNG, T::TOTH_WADST,
-                              T::TOTH_HUMID};
+                              T::TOTH_HUMID, T::CUBIC_LANGMUIR};
   EXPECT_EQ(isofit::FittableKinds(), fit);
 }
 

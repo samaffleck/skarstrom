@@ -38,6 +38,25 @@ namespace adsim {
       return std::exp(q / (constants::kIdealGasConstant * T));
     }
 
+    // The water loading vector of the adsorbent, or null when the deck has no
+    // water component (or the caller passed no loadings): the dry limit.
+    const vec* WaterLoading(const IsothermUpdateParams& state) {
+      if (!state.q_map) return nullptr;
+      auto it = state.q_map->find(kCoadsorbedWaterComponent);
+      return it == state.q_map->end() ? nullptr : &it->second.var;
+    }
+
+    // The water factors of a dual-site Langmuir component (DslWaterFactors)
+    // at the adsorbed water loading q_w: the affinity multiplier
+    // exp(-gamma2 q_w) and the two site multipliers 1 / (1 + lambda_k q_w^lambda3).
+    struct DslWater { double aff = 1.0, f1 = 1.0, f2 = 1.0; };
+    template <class P>
+    inline DslWater DslWaterAt(double q_w, const P& p) {
+      const double qw = q_w > 0.0 ? q_w : 0.0;
+      const double x = std::pow(qw, static_cast<double>(p.lambda3));
+      return { std::exp(-p.gamma2 * qw), 1.0 / (1.0 + p.lambda1 * x), 1.0 / (1.0 + p.lambda2 * x) };
+    }
+
     // The loading expressions with their temperature-only factors passed in,
     // shared by the per-cell functions below and the Update loops (which
     // compute each factor once per cell and component), so both paths do the
@@ -211,6 +230,22 @@ namespace adsim {
 		const double e2 = std::exp(ips.q2 / (constants::kIdealGasConstant * T));
 		qi = DualSiteLangmuirConcentrationQ(e1, e2, ci, ips);
 	}
+
+  void IsothermFunction::DualSiteLangmuir(double& qi, double T, double P, double yi, double q_w, const DualSiteLangmuirIsothermParameters& ips) {
+    if (!DslWaterFactors::Active(ips)) { DualSiteLangmuir(qi, T, P, yi, ips); return; }
+    const DslWater w = DslWaterAt(q_w, ips);
+    const double B1 = ips.b1 * ExpOverRT(T, ips.q1) * w.aff, B2 = ips.b2 * ExpOverRT(T, ips.q2) * w.aff;
+    const double p = P * yi;
+    qi = ips.m1 * B1 * p / (1 + B1 * p) * w.f1 + ips.m2 * B2 * p / (1 + B2 * p) * w.f2;
+  }
+
+  void IsothermFunction::DualSiteLangmuir_Concentration(double& qi, double T, double P, double yi, double q_w, const DualSiteLangmuirIsothermParametersConcentration& ips) {
+    if (!DslWaterFactors::Active(ips)) { DualSiteLangmuir_Concentration(qi, T, P, yi, ips); return; }
+    const DslWater w = DslWaterAt(q_w, ips);
+    const double B1 = ips.b1 * ExpOverRT(T, ips.q1) * w.aff, B2 = ips.b2 * ExpOverRT(T, ips.q2) * w.aff;
+    const double ci = P * yi / (constants::kIdealGasConstant * T);
+    qi = ips.m1 * B1 * ci / (1 + B1 * ci) * w.f1 + ips.m2 * B2 * ci / (1 + B2 * ci) * w.f2;
+  }
 
   void InertIsotherm::Update(IsothermUpdateParams& state) {
     auto& component = state.component;
@@ -392,6 +427,12 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    if (DslWaterFactors::Active(params)) {
+      const vec* q_w = WaterLoading(state);
+      for (int n = start_index; n <= end_index; ++n)
+        IsothermFunction::DualSiteLangmuir(qi_sat[n], T[n], P[n], yi[n], q_w ? (*q_w)[n] : 0.0, params);
+      return;
+    }
     const double q1 = params.q1, q2 = params.q2;
     for (int n = start_index; n <= end_index; ++n) {
       const double e1 = ExpOverRT(T[n], q1);
@@ -427,6 +468,12 @@ namespace adsim {
     int start_index = state.start_index;
     int end_index = state.end_index;
 
+    if (DslWaterFactors::Active(params)) {
+      const vec* q_w = WaterLoading(state);
+      for (int n = start_index; n <= end_index; ++n)
+        IsothermFunction::DualSiteLangmuir_Concentration(qi_sat[n], T[n], P[n], yi[n], q_w ? (*q_w)[n] : 0.0, params);
+      return;
+    }
     const double q1 = params.q1, q2 = params.q2;
     for (int n = start_index; n <= end_index; ++n) {
       double ci = P[n] * yi[n] / (constants::kIdealGasConstant * T[n]);
@@ -518,6 +565,36 @@ namespace adsim {
       size_t idx = 0;
       while (idx < terms.size() && terms[idx].p != p) ++idx;
       outputs.push_back({ p, &state.yi_map.at(comp).var, &state.qi_sat_map.at(comp).var, idx });
+    }
+
+    // With water factors (DslWaterFactors) the affinities carry exp(-gamma2 q_w)
+    // and each site term 1 / (1 + lambda_k q_w^lambda3); without, the dry pass
+    // below runs unchanged.
+    bool water = false;
+    for (const auto& t : terms) water = water || DslWaterFactors::Active(*t.p);
+    if (water) {
+      const vec* q_w = WaterLoading(state);
+      std::vector<DslWater> w(terms.size());
+      for (int n = start_index; n <= end_index; ++n) {
+        double denominator1 = 0.0;
+        double denominator2 = 0.0;
+        for (size_t j = 0; j < terms.size(); ++j) {
+          auto& t = terms[j];
+          w[j] = DslWaterAt(q_w ? (*q_w)[n] : 0.0, *t.p);
+          t.e1 = ExpOverRT(T[n], t.q1) * w[j].aff;
+          t.e2 = ExpOverRT(T[n], t.q2) * w[j].aff;
+          denominator1 += t.p->b1 * t.e1 * P[n] * (*t.yi)[n];
+          denominator2 += t.p->b2 * t.e2 * P[n] * (*t.yi)[n];
+        }
+        for (const auto& out : outputs) {
+          const auto& t = terms[out.term_index];
+          const DslWater& wo = w[out.term_index];
+          (*out.qi_sat)[n] =
+            out.p->m1 * out.p->b1 * t.e1 * P[n] * (*out.yi)[n] / (1 + denominator1) * wo.f1 +
+            out.p->m2 * out.p->b2 * t.e2 * P[n] * (*out.yi)[n] / (1 + denominator2) * wo.f2;
+        }
+      }
+      return;
     }
 
     for (int n = start_index; n <= end_index; ++n) {
@@ -614,6 +691,36 @@ namespace adsim {
       size_t idx = 0;
       while (idx < terms.size() && terms[idx].p != p) ++idx;
       outputs.push_back({ p, &state.yi_map.at(comp).var, &state.qi_sat_map.at(comp).var, idx });
+    }
+
+    // Water factors: as in ExtendedDualSiteLangmuirIsotherm::UpdateAll.
+    bool water = false;
+    for (const auto& t : terms) water = water || DslWaterFactors::Active(*t.p);
+    if (water) {
+      const vec* q_w = WaterLoading(state);
+      std::vector<DslWater> w(terms.size());
+      for (int n = start_index; n <= end_index; ++n) {
+        double denominator1 = 0.0;
+        double denominator2 = 0.0;
+        for (size_t j = 0; j < terms.size(); ++j) {
+          auto& t = terms[j];
+          w[j] = DslWaterAt(q_w ? (*q_w)[n] : 0.0, *t.p);
+          const double ci = P[n] * (*t.yi)[n] / (R * T[n]);
+          t.e1 = ExpOverRT(T[n], t.q1) * w[j].aff;
+          t.e2 = ExpOverRT(T[n], t.q2) * w[j].aff;
+          denominator1 += t.p->b1 * t.e1 * ci;
+          denominator2 += t.p->b2 * t.e2 * ci;
+        }
+        for (const auto& out : outputs) {
+          const auto& t = terms[out.term_index];
+          const DslWater& wo = w[out.term_index];
+          const double ci = P[n] * (*out.yi)[n] / (R * T[n]);
+          (*out.qi_sat)[n] =
+            out.p->m1 * out.p->b1 * t.e1 * ci / (1 + denominator1) * wo.f1 +
+            out.p->m2 * out.p->b2 * t.e2 * ci / (1 + denominator2) * wo.f2;
+        }
+      }
+      return;
     }
 
     for (int n = start_index; n <= end_index; ++n) {
@@ -975,13 +1082,6 @@ namespace adsim {
       return qs * bp / safe_pow(1 + safe_pow(bp, t), 1 / t);
     }
 
-    // The water loading vector of the adsorbent, or null when the deck has no
-    // water component (or the caller passed no loadings): the dry limit.
-    const vec* WaterLoading(const IsothermUpdateParams& state) {
-      if (!state.q_map) return nullptr;
-      auto it = state.q_map->find(kCoadsorbedWaterComponent);
-      return it == state.q_map->end() ? nullptr : &it->second.var;
-    }
 
     template <class Params, class Fn>
     void UpdateWithWater(IsothermUpdateParams& state, const Params& params, Fn fn) {
@@ -1009,6 +1109,74 @@ namespace adsim {
     UpdateWithWater(state, params_[state.component], TothHumidQ);
   }
 
+  // ---- Cubic-Langmuir (type V) water isotherm -----------------------------------
+
+  CubicLangmuirConstants CubicLangmuirConstantsAt(double T, const CubicLangmuirIsothermParameters& ips) {
+    const double RT = constants::kIdealGasConstant * T;
+    const double e1 = std::exp(-ips.dU1 / RT);
+    return { ips.b0_1 * e1, ips.b0_2 * e1, ips.b0_3 * e1, ips.d0 * std::exp(-ips.dU2 / RT) };
+  }
+
+  double CubicLangmuirRawLoading(double C, double q_sb, double q_sd, const CubicLangmuirConstants& k) {
+    const double den = 1.0 + C * (k.b1 + C * (k.b2 + C * k.b3));
+    const double num = C * (k.b1 + C * (2.0 * k.b2 + 3.0 * k.b3 * C));
+    return q_sb * num / den + q_sd * k.d * C / (1.0 + k.d * C);
+  }
+
+  namespace {
+    // The floored loading: the Henry line below C = 0 (finite, smooth slope
+    // for Newton iterates), max(q, 0) above (b0_1 < 0 can make the raw
+    // loading negative at small C).
+    inline double CubicLangmuirQ(double C, double q_sb, double q_sd, const CubicLangmuirConstants& k) {
+      if (!(C > 0.0)) return (q_sb * k.b1 + q_sd * k.d) * C;
+      const double q = CubicLangmuirRawLoading(C, q_sb, q_sd, k);
+      return q > 0.0 ? q : 0.0;
+    }
+  } // namespace
+
+  double CubicLangmuirDenominatorMin(const CubicLangmuirIsothermParameters& ips, double T, double C_max,
+                                     double* C_at) {
+    const CubicLangmuirConstants k = CubicLangmuirConstantsAt(T, ips);
+    auto den = [&](double C) { return 1.0 + C * (k.b1 + C * (k.b2 + C * k.b3)); };
+    double best_C = 0.0, best = 1.0;
+    auto consider = [&](double C) {
+      if (!(C >= 0.0 && C <= C_max)) return;
+      const double v = den(C);
+      if (v < best) { best = v; best_C = C; }
+    };
+    consider(C_max);
+    // Stationary points: b1 + 2 b2 C + 3 b3 C^2 = 0.
+    const double a = 3.0 * k.b3, b = 2.0 * k.b2, c = k.b1;
+    if (a != 0.0) {
+      const double disc = b * b - 4.0 * a * c;
+      if (disc >= 0.0) {
+        const double sq = std::sqrt(disc);
+        consider((-b + sq) / (2.0 * a));
+        consider((-b - sq) / (2.0 * a));
+      }
+    } else if (b != 0.0) {
+      consider(-c / b);
+    }
+    if (C_at) *C_at = best_C;
+    return best;
+  }
+
+  void IsothermFunction::CubicLangmuir(double& qi, double T, double P, double yi, const CubicLangmuirIsothermParameters& ips) {
+    const double C = P * yi / (constants::kIdealGasConstant * T);
+    qi = CubicLangmuirQ(C, ips.q_sb, ips.q_sd, CubicLangmuirConstantsAt(T, ips));
+  }
+
+  void CubicLangmuirIsotherm::Update(IsothermUpdateParams& state) {
+    auto& qi_sat = state.qi_sat_map.at(state.component).var;
+    const auto& yi = state.yi_map.at(state.component).var;
+    const auto& params = params_[state.component];
+    const double R = constants::kIdealGasConstant;
+    for (int n = state.start_index; n <= state.end_index; ++n) {
+      const double C = state.P[n] * yi[n] / (R * state.T[n]);
+      qi_sat[n] = CubicLangmuirQ(C, params.q_sb, params.q_sd, CubicLangmuirConstantsAt(state.T[n], params));
+    }
+  }
+
 } // end adsim namespace
 
 
@@ -1031,6 +1199,7 @@ CEREAL_REGISTER_TYPE(adsim::GabIsotherm)
 CEREAL_REGISTER_TYPE(adsim::GabYoungIsotherm)
 CEREAL_REGISTER_TYPE(adsim::TothWadstIsotherm)
 CEREAL_REGISTER_TYPE(adsim::TothHumidIsotherm)
+CEREAL_REGISTER_TYPE(adsim::CubicLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::DualSiteLangmuirIsotherm)
 CEREAL_REGISTER_TYPE(adsim::ExtendedDualSiteLangmuirIsotherm)
@@ -1056,6 +1225,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::GabIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::GabYoungIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::TothWadstIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::TothHumidIsotherm)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::CubicLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::DualSiteLangmuirIsotherm)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IIsotherm, adsim::ExtendedDualSiteLangmuirIsotherm)

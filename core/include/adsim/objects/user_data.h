@@ -66,6 +66,9 @@ namespace adsim {
   class UserData {
   public:
     bool PerformChecks(std::string& err_msg);
+    // Each Cubic-Langmuir isotherm's denominator stays positive for 0 <= C <=
+    // C_sat(T) over the deck's temperatures (initial, wall, inlet streams).
+    bool CubicLangmuirChecks(std::string& err_msg) const;
     void Initialise();
 
     // Single entry-point for refreshing every cached ExpressionParam value.

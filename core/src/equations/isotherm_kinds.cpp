@@ -26,6 +26,10 @@ IsothermFields(IIsotherm* iso, const std::string& component) {
   std::vector<std::pair<std::string, ExpressionParam*>> out;
   if (!iso) return out;
   auto add = [&](const char* n, ExpressionParam& p) { out.emplace_back(n, &p); };
+  // The dual-site Langmuir kinds' optional water factors (DslWaterFactors).
+  auto add_water_factors = [&](auto& p) {
+    add("lambda1", p.lambda1); add("lambda2", p.lambda2); add("lambda3", p.lambda3); add("gamma2", p.gamma2);
+  };
 
   switch (iso->GetIsothermType()) {
     case T::INERT:
@@ -52,14 +56,16 @@ IsothermFields(IIsotherm* iso, const std::string& component) {
       auto* c = dynamic_cast<DualSiteLangmuirIsotherm*>(iso);
       if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
         add("m1", it->second.m1); add("b1", it->second.b1); add("q1", it->second.q1);
-        add("m2", it->second.m2); add("b2", it->second.b2); add("q2", it->second.q2); } }
+        add("m2", it->second.m2); add("b2", it->second.b2); add("q2", it->second.q2);
+        add_water_factors(it->second); } }
       break;
     }
     case T::DUAL_SITE_LANGMUIR_C: {
       auto* c = dynamic_cast<DualSiteLangmuirIsotherm_Concentration*>(iso);
       if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
         add("m1", it->second.m1); add("b1", it->second.b1); add("q1", it->second.q1);
-        add("m2", it->second.m2); add("b2", it->second.b2); add("q2", it->second.q2); } }
+        add("m2", it->second.m2); add("b2", it->second.b2); add("q2", it->second.q2);
+        add_water_factors(it->second); } }
       break;
     }
     case T::FREUNDLICH: {
@@ -108,14 +114,16 @@ IsothermFields(IIsotherm* iso, const std::string& component) {
       auto* c = dynamic_cast<ExtendedDualSiteLangmuirIsotherm*>(iso);
       if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
         add("m1", it->second.m1); add("b1", it->second.b1); add("q1", it->second.q1);
-        add("m2", it->second.m2); add("b2", it->second.b2); add("q2", it->second.q2); } }
+        add("m2", it->second.m2); add("b2", it->second.b2); add("q2", it->second.q2);
+        add_water_factors(it->second); } }
       break;
     }
     case T::EXTENDED_DUAL_SITE_LANGMUIR_C: {
       auto* c = dynamic_cast<ExtendedDualSiteLangmuirIsotherm_Concentration*>(iso);
       if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
         add("m1", it->second.m1); add("b1", it->second.b1); add("q1", it->second.q1);
-        add("m2", it->second.m2); add("b2", it->second.b2); add("q2", it->second.q2); } }
+        add("m2", it->second.m2); add("b2", it->second.b2); add("q2", it->second.q2);
+        add_water_factors(it->second); } }
       break;
     }
     case T::SIPS_2: {
@@ -203,6 +211,14 @@ IsothermFields(IIsotherm* iso, const std::string& component) {
         add("alpha", p.alpha); add("gamma", p.gamma); add("beta", p.beta); } }
       break;
     }
+    case T::CUBIC_LANGMUIR: {
+      auto* c = dynamic_cast<CubicLangmuirIsotherm*>(iso);
+      if (c) { auto it = c->params_.find(component); if (it != c->params_.end()) {
+        auto& p = it->second;
+        add("q_sb", p.q_sb); add("b0_1", p.b0_1); add("b0_2", p.b0_2); add("b0_3", p.b0_3);
+        add("dU1", p.dU1); add("q_sd", p.q_sd); add("d0", p.d0); add("dU2", p.dU2); } }
+      break;
+    }
     // No `default`: -Wswitch flags a new IsothermType missing its param layout.
   }
   return out;
@@ -236,6 +252,7 @@ bool IsSupportedIsothermKind(IsothermType t) {
     case T::GAB_YOUNG:
     case T::TOTH_WADST:
     case T::TOTH_HUMID:
+    case T::CUBIC_LANGMUIR:
       return true;
   }
   return false;  // out-of-range value; every enumerator is listed above (-Wswitch)
@@ -249,6 +266,26 @@ bool IsCompetitiveIsothermKind(IsothermType t) {
 bool IsWaterCoupledIsothermKind(IsothermType t) {
   const auto i = static_cast<std::size_t>(t);
   return i < IsothermKindDescriptors().size() && IsothermKindDescriptors()[i].water_coupled;
+}
+
+bool IsothermUsesWaterLoading(IIsotherm* iso, const std::string& component) {
+  using T = IsothermType;
+  if (!iso) return false;
+  const T t = iso->GetIsothermType();
+  if (IsWaterCoupledIsothermKind(t)) return true;
+  auto active = [&](auto* x) {
+    if (!x) return false;
+    auto it = x->params_.find(component);
+    return it != x->params_.end() && DslWaterFactors::Active(it->second);
+  };
+  switch (t) {
+    case T::DUAL_SITE_LANGMUIR_P: return active(dynamic_cast<DualSiteLangmuirIsotherm*>(iso));
+    case T::EXTENDED_DUAL_SITE_LANGMUIR_P: return active(dynamic_cast<ExtendedDualSiteLangmuirIsotherm*>(iso));
+    case T::DUAL_SITE_LANGMUIR_C: return active(dynamic_cast<DualSiteLangmuirIsotherm_Concentration*>(iso));
+    case T::EXTENDED_DUAL_SITE_LANGMUIR_C:
+      return active(dynamic_cast<ExtendedDualSiteLangmuirIsotherm_Concentration*>(iso));
+    default: return false;
+  }
 }
 
 bool PairedIsothermKind(IsothermType t, IsothermType& out) {
@@ -297,6 +334,7 @@ void EnsureIsothermComponent(IIsotherm* iso, const std::string& c) {
     case T::GAB_YOUNG: if (auto* p = dynamic_cast<GabYoungIsotherm*>(iso)) (void)p->params_[c]; break;
     case T::TOTH_WADST: if (auto* p = dynamic_cast<TothWadstIsotherm*>(iso)) (void)p->params_[c]; break;
     case T::TOTH_HUMID: if (auto* p = dynamic_cast<TothHumidIsotherm*>(iso)) (void)p->params_[c]; break;
+    case T::CUBIC_LANGMUIR: if (auto* p = dynamic_cast<CubicLangmuirIsotherm*>(iso)) (void)p->params_[c]; break;
   }
 }
 
@@ -312,10 +350,10 @@ double EvalIsotherm(IIsotherm* iso, const std::string& c, double T, double P, do
     case K::EXTENDED_SINGLE_SITE_LANGMUIR_P: if (auto* x = dynamic_cast<ExtendedLangmuirIsotherm*>(iso)) IF::Langmuir(q, T, P, yi, x->params_[c]); break;
     case K::SINGLE_SITE_LANGMUIR_C: if (auto* x = dynamic_cast<LangmuirIsotherm_Concentration*>(iso)) IF::Langmuir_Concentration(q, T, P, yi, x->params_[c]); break;
     case K::EXTENDED_SINGLE_SITE_LANGMUIR_C: if (auto* x = dynamic_cast<ExtendedLangmuirIsotherm_Concentration*>(iso)) IF::Langmuir_Concentration(q, T, P, yi, x->params_[c]); break;
-    case K::DUAL_SITE_LANGMUIR_P: if (auto* x = dynamic_cast<DualSiteLangmuirIsotherm*>(iso)) IF::DualSiteLangmuir(q, T, P, yi, x->params_[c]); break;
-    case K::EXTENDED_DUAL_SITE_LANGMUIR_P: if (auto* x = dynamic_cast<ExtendedDualSiteLangmuirIsotherm*>(iso)) IF::DualSiteLangmuir(q, T, P, yi, x->params_[c]); break;
-    case K::DUAL_SITE_LANGMUIR_C: if (auto* x = dynamic_cast<DualSiteLangmuirIsotherm_Concentration*>(iso)) IF::DualSiteLangmuir_Concentration(q, T, P, yi, x->params_[c]); break;
-    case K::EXTENDED_DUAL_SITE_LANGMUIR_C: if (auto* x = dynamic_cast<ExtendedDualSiteLangmuirIsotherm_Concentration*>(iso)) IF::DualSiteLangmuir_Concentration(q, T, P, yi, x->params_[c]); break;
+    case K::DUAL_SITE_LANGMUIR_P: if (auto* x = dynamic_cast<DualSiteLangmuirIsotherm*>(iso)) IF::DualSiteLangmuir(q, T, P, yi, q_water, x->params_[c]); break;
+    case K::EXTENDED_DUAL_SITE_LANGMUIR_P: if (auto* x = dynamic_cast<ExtendedDualSiteLangmuirIsotherm*>(iso)) IF::DualSiteLangmuir(q, T, P, yi, q_water, x->params_[c]); break;
+    case K::DUAL_SITE_LANGMUIR_C: if (auto* x = dynamic_cast<DualSiteLangmuirIsotherm_Concentration*>(iso)) IF::DualSiteLangmuir_Concentration(q, T, P, yi, q_water, x->params_[c]); break;
+    case K::EXTENDED_DUAL_SITE_LANGMUIR_C: if (auto* x = dynamic_cast<ExtendedDualSiteLangmuirIsotherm_Concentration*>(iso)) IF::DualSiteLangmuir_Concentration(q, T, P, yi, q_water, x->params_[c]); break;
     case K::ANTI_LANGMUIR: if (auto* x = dynamic_cast<AntiLangmuirIsotherm*>(iso)) IF::AntiLangmuir(q, T, P, yi, x->params_[c]); break;
     case K::FREUNDLICH: if (auto* x = dynamic_cast<FreundlichIsotherm*>(iso)) IF::Freundlich(q, T, P, yi, x->params_[c]); break;
     case K::SIPS: if (auto* x = dynamic_cast<SipsIsotherm*>(iso)) IF::Sips(q, T, P, yi, x->params_[c]); break;
@@ -331,6 +369,7 @@ double EvalIsotherm(IIsotherm* iso, const std::string& c, double T, double P, do
     case K::GAB_YOUNG: if (auto* x = dynamic_cast<GabYoungIsotherm*>(iso)) IF::GabYoung(q, T, P, yi, SaturationPressure(c, T), x->params_[c]); break;
     case K::TOTH_WADST: if (auto* x = dynamic_cast<TothWadstIsotherm*>(iso)) IF::TothWadst(q, T, P, yi, q_water, x->params_[c]); break;
     case K::TOTH_HUMID: if (auto* x = dynamic_cast<TothHumidIsotherm*>(iso)) IF::TothHumid(q, T, P, yi, q_water, x->params_[c]); break;
+    case K::CUBIC_LANGMUIR: if (auto* x = dynamic_cast<CubicLangmuirIsotherm*>(iso)) IF::CubicLangmuir(q, T, P, yi, x->params_[c]); break;
   }
   return q;
 }

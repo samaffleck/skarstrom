@@ -10,6 +10,7 @@
 #include "adsim/math/constants.h"
 #include "adsim/objects/model_kinds.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <numbers>
@@ -39,6 +40,10 @@ namespace adsim {
     //   REDLICH_PETERSON                       q = a P / (1 + (b P)^v)                c0 = a, c1 = b, c2 = v
     //   TOTH, TOTH_2                           q = qs b P / (1 + (b P)^v)^(1/v)       c0 = qs, c1 = b, c2 = v
     //   GAB, GAB_YOUNG                         q = GabLoading(qm, C, K, P / p_sat)    c0 = qm, c1 = C, c2 = K, c3 = 1 / p_sat
+    //   CUBIC_LANGMUIR                         q = qsb (B1 P + 2 B2 P^2 + 3 B3 P^3)   c0 = qsb, c1 = B1, c2 = B2, c3 = B3,
+    //                                              / (1 + B1 P + B2 P^2 + B3 P^3)     c4 = qsd, c5 = D
+    //                                            + qsd D P / (1 + D P),
+    //                                          B_j = b_j / (RT)^j, D = d / (RT), floored at 0
     //   INERT                                  q = 0
 
     // The pure-component form of each kind is its descriptor's IAST family
@@ -79,6 +84,19 @@ namespace adsim {
       const double q_c = A * x_c / (u * v);
       const double s = A * (u * v + K * x_c * v - (C - 1.0) * K * x_c * u) / (u * u * v * v);
       return exact(x_c) + (q_c - s * x_c) * std::log(x / x_c) + s * (x - x_c);
+    }
+
+    // Cubic-Langmuir in the pure partial pressure P (c layout above): the raw
+    // loading, its Henry slope and its closed spreading pressure
+    // psi = qsb ln(1 + B1 P + B2 P^2 + B3 P^3) + qsd ln(1 + D P).
+    double CubicRaw(const double* c, double P) {
+      const double den = 1.0 + P * (c[1] + P * (c[2] + P * c[3]));
+      const double num = P * (c[1] + P * (2.0 * c[2] + 3.0 * c[3] * P));
+      return c[0] * num / den + c[4] * c[5] * P / (1.0 + c[5] * P);
+    }
+    double CubicHenry(const double* c) { return c[0] * c[1] + c[4] * c[5]; }
+    double CubicPsi(const double* c, double P) {
+      return c[0] * std::log1p(P * (c[1] + P * (c[2] + P * c[3]))) + c[4] * std::log1p(c[5] * P);
     }
 
     // ---- Gauss-Legendre quadrature for the kinds without a closed-form integral ----
@@ -146,6 +164,9 @@ namespace adsim {
         case Family::RedlichPeterson: return iso.c[0];
         case Family::Toth: return iso.c[0] * iso.c[1];
         case Family::Gab: return iso.c[0] * iso.c[1] * iso.c[2] * iso.c[3];
+        case Family::CubicLangmuir:
+          if (CubicHenry(iso.c) > 0.0) return CubicHenry(iso.c);
+          [[fallthrough]];
         default: {
           const double p = 1e-3;
           return PureLoading(iso, p) / p;
@@ -198,6 +219,14 @@ namespace adsim {
     const auto fields = IsothermFields(iso, component);
     if (fields.empty()) return ref;  // no parameters for this component: inert
     (void)FamilyOf(kind);  // throws for a kind without an IAST form
+    // A dual-site Langmuir with its water factors set reads the adsorbed
+    // water loading: no pure isotherm IAST could mix. The deck checks reject
+    // it first (CheckLayerComposition); this guards direct callers.
+    if (IsothermUsesWaterLoading(iso, component))
+      throw std::invalid_argument("the " + component + " isotherm (" + IsothermKindString(kind) +
+                                  ") has water factors set (lambda1, lambda2, gamma2), so its loading depends on the"
+                                  " adsorbed water loading and it cannot be used with the IAST mixing rule; use the"
+                                  " mixing rule none");
     ref.kind = kind;
     ref.component = component;
     for (size_t i = 0; i < fields.size() && i < 8; ++i) ref.p[i] = fields[i].second->Get();
@@ -308,6 +337,16 @@ namespace adsim {
         c[1] = std::exp((E1 - E10) / RT);
         c[2] = std::exp((E2_9 - E10) / RT);
         c[3] = 1.0 / SaturationPressure(ref.component, T);
+        break;
+      }
+      case K::CUBIC_LANGMUIR: {  // q_sb, b0_1, b0_2, b0_3, dU1, q_sd, d0, dU2 on C = P/(RT)
+        const double e1 = std::exp(-p[4] / RT);
+        c[0] = p[0];
+        c[1] = p[1] * e1 / RT;
+        c[2] = p[2] * e1 / (RT * RT);
+        c[3] = p[3] * e1 / (RT * RT * RT);
+        c[4] = p[5];
+        c[5] = p[6] * std::exp(-p[7] / RT) / RT;
         break;
       }
       default:
@@ -464,6 +503,11 @@ namespace adsim {
         return c[0] * bp / std::pow(1.0 + std::pow(bp, c[2]), 1.0 / c[2]);
       }
       case Family::Gab: return GabLoading(c[0], c[1], c[2], c[3] * P);
+      case Family::CubicLangmuir: {
+        if (!(P > 0.0)) return CubicHenry(c) * P;
+        const double q = CubicRaw(c, P);
+        return q > 0.0 ? q : 0.0;
+      }
     }
     return 0.0;
   }
@@ -498,6 +542,13 @@ namespace adsim {
       case Family::Toth:
         return SpreadingPressureByQuadrature(iso, P);
       case Family::Gab: return GabSpreadingPressure(c[0], c[1], c[2], c[3] * P);
+      case Family::CubicLangmuir:
+        // Closed form while the loading is non-negative from 0 to P (a
+        // positive Henry slope; a parameter set with a negative raw loading
+        // at small P is floored there, and the deck checks warn): quadrature
+        // of the floored loading otherwise.
+        if (CubicHenry(c) > 0.0) return CubicPsi(c, P);
+        return SpreadingPressureByQuadrature(iso, P);
     }
     return 0.0;
   }
@@ -530,6 +581,7 @@ namespace adsim {
       case Family::RedlichPeterson:
       case Family::Toth:
       case Family::Gab:
+      case Family::CubicLangmuir:
         return InvertByNewton(iso, psi, guess);
     }
     return kNaN;
@@ -559,6 +611,7 @@ namespace adsim {
       case Family::RedlichPeterson: return c[0];
       case Family::Toth: return c[0] * c[1];
       case Family::Gab: return c[0] * c[1] * c[2] * c[3];
+      case Family::CubicLangmuir: return std::max(CubicHenry(c), 0.0);
     }
     return 0.0;
   }
