@@ -64,7 +64,8 @@ namespace adsim {
 
   // Reduced spreading pressure psi(P) = ∫_0^P q°(p)/p dp [mol/kg]. Closed form
   // for Henry, Langmuir and dual-site Langmuir (both bases), Freundlich, Sips,
-  // dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir and GAB; Gauss-Legendre
+  // dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir, GAB and Cubic-Langmuir
+  // (for a positive Henry slope); Gauss-Legendre
   // quadrature in ln p for Toth, Toth 2 and Redlich-Peterson. 0 for inert.
   double ReducedSpreadingPressure(const PureIsotherm& iso, double P);
 

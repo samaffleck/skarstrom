@@ -1,0 +1,248 @@
+{
+    "value0": {
+        "cereal_class_version": 5,
+        "Name": "CALF-20 (structured, with water)",
+        "Density": {
+            "cereal_class_version": 2,
+            "Value": 570.0,
+            "Expression": "5.7e+02",
+            "DisplayUnitIndex": 0
+        },
+        "Specific_Heat_Capacity": {
+            "Value": 1350.0,
+            "Expression": "1.35e+03",
+            "DisplayUnitIndex": 0
+        },
+        "Thermal_Conductivity": {
+            "Value": 0.63,
+            "Expression": "0.63",
+            "DisplayUnitIndex": 0
+        },
+        "Adsorption_Source": {
+            "cereal_class_version": 1,
+            "Mass_Transfer_Models": [],
+            "Heat_Of_Adsorption": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": {
+                        "Value": 38000.0,
+                        "Expression": "3.8e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": {
+                        "Value": 15000.0,
+                        "Expression": "1.5e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                },
+                {
+                    "key": "Water",
+                    "value": {
+                        "Value": 54200.0,
+                        "Expression": "5.42e+04",
+                        "DisplayUnitIndex": 0
+                    }
+                }
+            ],
+            "Isotherms": [
+                {
+                    "key": 9,
+                    "value": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "adsim::ExtendedDualSiteLangmuirIsotherm_Concentration",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 2,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "CarbonDioxide",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_m1": {
+                                                "Value": 2.387,
+                                                "Expression": "2.387",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 5.519e-7,
+                                                "Expression": "5.519e-07",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 35060.0,
+                                                "Expression": "3.506e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 3.271,
+                                                "Expression": "3.271",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 5.187e-8,
+                                                "Expression": "5.187e-08",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 28950.0,
+                                                "Expression": "2.895e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_lambda1": {
+                                                "Value": 0.0066,
+                                                "Expression": "0.0066",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_lambda2": {
+                                                "Value": 2.483,
+                                                "Expression": "2.483",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_lambda3": {
+                                                "Value": 3.55,
+                                                "Expression": "3.55",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_gamma2": {
+                                                "Value": 0.0,
+                                                "Expression": "0",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "key": "Nitrogen",
+                                        "value": {
+                                            "IP_m1": {
+                                                "Value": 2.387,
+                                                "Expression": "2.387",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b1": {
+                                                "Value": 8.139e-7,
+                                                "Expression": "8.139e-07",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q1": {
+                                                "Value": 17960.0,
+                                                "Expression": "1.796e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_m2": {
+                                                "Value": 3.271,
+                                                "Expression": "3.271",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b2": {
+                                                "Value": 8.139e-7,
+                                                "Expression": "8.139e-07",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q2": {
+                                                "Value": 17960.0,
+                                                "Expression": "1.796e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "key": 25,
+                    "value": {
+                        "polymorphic_id": 2147483650,
+                        "polymorphic_name": "adsim::CubicLangmuirIsotherm",
+                        "ptr_wrapper": {
+                            "valid": 1,
+                            "data": {
+                                "cereal_class_version": 1,
+                                "value0": {},
+                                "Isotherm_Params": [
+                                    {
+                                        "key": "Water",
+                                        "value": {
+                                            "cereal_class_version": 0,
+                                            "IP_q_sb": {
+                                                "Value": 1.629,
+                                                "Expression": "1.629",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b0_1": {
+                                                "Value": -2.685e-17,
+                                                "Expression": "-2.685e-17",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b0_2": {
+                                                "Value": 1.158e-16,
+                                                "Expression": "1.158e-16",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_b0_3": {
+                                                "Value": 5.374e-17,
+                                                "Expression": "5.374e-17",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dU1": {
+                                                "Value": -97990.0,
+                                                "Expression": "-9.799e+04",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_q_sd": {
+                                                "Value": 5.781,
+                                                "Expression": "5.781",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_d0": {
+                                                "Value": 8.773e-12,
+                                                "Expression": "8.773e-12",
+                                                "DisplayUnitIndex": 0
+                                            },
+                                            "IP_dU2": {
+                                                "Value": -64720.0,
+                                                "Expression": "-6.472e+04",
+                                                "DisplayUnitIndex": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "Isotherm_Map": [
+                {
+                    "key": "CarbonDioxide",
+                    "value": 9
+                },
+                {
+                    "key": "Nitrogen",
+                    "value": 9
+                },
+                {
+                    "key": "Water",
+                    "value": 25
+                }
+            ],
+            "Mixing_Rule": 0
+        },
+        "Particle_Void_Fraction": {
+            "Value": 0.35,
+            "Expression": "0.35",
+            "DisplayUnitIndex": 0
+        },
+        "Reaction_Source": {
+            "cereal_class_version": 1,
+            "Reactions": [],
+            "Next_Reaction_ID": 0
+        }
+    }
+}

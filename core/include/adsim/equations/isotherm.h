@@ -66,6 +66,7 @@ namespace adsim {
     GAB_YOUNG,
     TOTH_WADST,
     TOTH_HUMID,
+    CUBIC_LANGMUIR,
   };
 
   static const char* isothermModelNames[] = {
@@ -93,14 +94,15 @@ namespace adsim {
     "GAB",
     "GAB (Young 2021 energies)",
     "Toth WADST (CO2 with water, Young 2021)",
-    "Toth humid (CO2 with water, Stampi-Bombelli 2020)"
+    "Toth humid (CO2 with water, Stampi-Bombelli 2020)",
+    "Cubic-Langmuir (type V water, Nguyen 2024)"
   };
 
   // The names are indexed by IsothermType, so inserting a value mid-enum
   // without adding the matching name would silently mislabel every isotherm
   // after it in the GUI and the web contract.
   static_assert(std::size(isothermModelNames) ==
-                    static_cast<size_t>(IsothermType::TOTH_HUMID) + 1,
+                    static_cast<size_t>(IsothermType::CUBIC_LANGMUIR) + 1,
                 "isothermModelNames must have one entry per IsothermType");
 
   class InertIsothermParameters {
@@ -554,6 +556,47 @@ namespace adsim {
     }
   };
 
+  // ---- Optional water factors on the dual-site Langmuir kinds -----------------
+  //
+  // Every dual-site Langmuir kind (dual_site_langmuir_p/_c and their extended
+  // forms) takes four optional parameters that lower its loading with the
+  // adsorbed water loading q_w [mol/kg] of the same adsorbent (the component
+  // kCoadsorbedWaterComponent, as for toth_humid):
+  //   q_i = sum_k [q_s,k B_k,i c_i / (1 + sum_j B_k,j c_j)] / (1 + lambda_k q_w^lambda3),
+  //   B_k,i = b_k,i exp(q_k,i / (R T)) exp(-gamma2 q_w),
+  // with lambda1, lambda2 [(kg/mol)^lambda3] the per-site capacity factors,
+  // lambda3 [-] their exponent and gamma2 [kg/mol] an affinity factor (Nguyen
+  // et al., Ind. Eng. Chem. Res. 63 (2024) 3265; the pure kinds have no sum
+  // over j). All four default to 0, which gives the dry isotherm exactly; the
+  // fields are written to a deck only when one of them is set, so a deck
+  // without them saves and loads unchanged. A negative q_w (a Newton iterate)
+  // is taken as 0. With lambda3 = 0, q_w^0 = 1: the factor is a constant.
+  struct DslWaterFactors {
+    // Any factor that changes the loading (lambda3 alone does not).
+    template <class P>
+    static bool Active(const P& p) {
+      return p.lambda1.Get() != 0.0 || p.lambda2.Get() != 0.0 || p.gamma2.Get() != 0.0;
+    }
+    static bool IsSet(const ExpressionParam& e) {
+      return e.Get() != 0.0 || e.HasExpression() || e.DisplayUnitIndex() != 0;
+    }
+    template <class Archive, class P>
+    static void Serialize(Archive& ar, P& p) {
+      auto all = [&] {
+        ar(cereal::make_nvp("IP_lambda1", p.lambda1), cereal::make_nvp("IP_lambda2", p.lambda2),
+           cereal::make_nvp("IP_lambda3", p.lambda3), cereal::make_nvp("IP_gamma2", p.gamma2));
+      };
+      if constexpr (!cereal::traits::is_text_archive<Archive>::value) {
+        all();  // binary archives carry every field
+      } else if constexpr (Archive::is_saving::value) {
+        if (IsSet(p.lambda1) || IsSet(p.lambda2) || IsSet(p.lambda3) || IsSet(p.gamma2)) all();
+      } else {
+        const char* next = ar.getNodeName();
+        if (next && std::string(next) == "IP_lambda1") all();
+      }
+    }
+  };
+
   class LangmuirIsothermParameters {
   public:
     ExpressionParam m1{3.0};
@@ -600,10 +643,16 @@ namespace adsim {
     ExpressionParam m2{3.0};
     ExpressionParam b2{1e-13};
     ExpressionParam q2{4.2e4};
+    // Optional water factors (DslWaterFactors); 0 = the dry isotherm.
+    ExpressionParam lambda1{0.0};   // [(kg/mol)^lambda3]
+    ExpressionParam lambda2{0.0};   // [(kg/mol)^lambda3]
+    ExpressionParam lambda3{0.0};   // [-]
+    ExpressionParam gamma2{0.0};    // [kg/mol]
 
     void EvaluateExpressions(const EvalContext& ctx) {
       m1.Evaluate(ctx); b1.Evaluate(ctx); q1.Evaluate(ctx);
       m2.Evaluate(ctx); b2.Evaluate(ctx); q2.Evaluate(ctx);
+      lambda1.Evaluate(ctx); lambda2.Evaluate(ctx); lambda3.Evaluate(ctx); gamma2.Evaluate(ctx);
     }
 
   private:
@@ -613,6 +662,7 @@ namespace adsim {
       ar(cereal::make_nvp("IP_m1", m1), cereal::make_nvp("IP_b1", b1),
          cereal::make_nvp("IP_q1", q1), cereal::make_nvp("IP_m2", m2),
          cereal::make_nvp("IP_b2", b2), cereal::make_nvp("IP_q2", q2));
+      DslWaterFactors::Serialize(ar, *this);
     }
   };
 
@@ -624,10 +674,16 @@ namespace adsim {
     ExpressionParam m2{3.0};
     ExpressionParam b2{1e-7};
     ExpressionParam q2{4e4};
+    // Optional water factors (DslWaterFactors); 0 = the dry isotherm.
+    ExpressionParam lambda1{0.0};   // [(kg/mol)^lambda3]
+    ExpressionParam lambda2{0.0};   // [(kg/mol)^lambda3]
+    ExpressionParam lambda3{0.0};   // [-]
+    ExpressionParam gamma2{0.0};    // [kg/mol]
 
     void EvaluateExpressions(const EvalContext& ctx) {
       m1.Evaluate(ctx); b1.Evaluate(ctx); q1.Evaluate(ctx);
       m2.Evaluate(ctx); b2.Evaluate(ctx); q2.Evaluate(ctx);
+      lambda1.Evaluate(ctx); lambda2.Evaluate(ctx); lambda3.Evaluate(ctx); gamma2.Evaluate(ctx);
     }
 
   private:
@@ -637,6 +693,51 @@ namespace adsim {
       ar(cereal::make_nvp("IP_m1", m1), cereal::make_nvp("IP_b1", b1),
          cereal::make_nvp("IP_q1", q1), cereal::make_nvp("IP_m2", m2),
          cereal::make_nvp("IP_b2", b2), cereal::make_nvp("IP_q2", q2));
+      DslWaterFactors::Serialize(ar, *this);
+    }
+  };
+
+  // Cubic-Langmuir (type V) isotherm for water on CALF-20, Nguyen et al.,
+  // Ind. Eng. Chem. Res. 63 (2024) 3265-3281 (the paper calls it
+  // Cubic-Langmuir; T. T. T. Nguyen, PhD thesis, University of Alberta (2021),
+  // calls the same form Quadratic-Langmuir). In the gas concentration
+  // C = P y / (R T) [mol/m3]:
+  //   q = q_sb (b1 C + 2 b2 C^2 + 3 b3 C^3) / (1 + b1 C + b2 C^2 + b3 C^3)
+  //     + q_sd d C / (1 + d C),
+  //   b_j = b0_j exp(-dU1 / (R T)) (j = 1, 2, 3, one energy),
+  //   d   = d0 exp(-dU2 / (R T)),
+  // with dU1, dU2 < 0 for exothermic adsorption (the paper's sign). b0_1 may
+  // be negative (the anti-Langmuir start below the inflection); the
+  // denominator must stay positive up to saturation, which the deck checks
+  // test (CubicLangmuirDenominatorMin). The loading is floored at 0 for C > 0
+  // and continued by its Henry line (q_sb b1 + q_sd d) C for C < 0. Its IAST
+  // spreading pressure is closed: psi = q_sb ln(1 + b1 C + b2 C^2 + b3 C^3)
+  // + q_sd ln(1 + d C). The defaults are the paper's adsorption-branch values
+  // for CALF-20 (structured, 80 wt% CALF-20, per kg of sorbent).
+  class CubicLangmuirIsothermParameters {
+  public:
+    ExpressionParam q_sb{1.629};       // [mol/kg]
+    ExpressionParam b0_1{-2.685e-17};  // [m3/mol]
+    ExpressionParam b0_2{1.158e-16};   // [(m3/mol)^2]
+    ExpressionParam b0_3{5.374e-17};   // [(m3/mol)^3]
+    ExpressionParam dU1{-97990.0};     // [J/mol]
+    ExpressionParam q_sd{5.781};       // [mol/kg]
+    ExpressionParam d0{8.773e-12};     // [m3/mol]
+    ExpressionParam dU2{-64720.0};     // [J/mol]
+
+    void EvaluateExpressions(const EvalContext& ctx) {
+      q_sb.Evaluate(ctx); b0_1.Evaluate(ctx); b0_2.Evaluate(ctx); b0_3.Evaluate(ctx);
+      dU1.Evaluate(ctx); q_sd.Evaluate(ctx); d0.Evaluate(ctx); dU2.Evaluate(ctx);
+    }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      ar(cereal::make_nvp("IP_q_sb", q_sb), cereal::make_nvp("IP_b0_1", b0_1),
+         cereal::make_nvp("IP_b0_2", b0_2), cereal::make_nvp("IP_b0_3", b0_3),
+         cereal::make_nvp("IP_dU1", dU1), cereal::make_nvp("IP_q_sd", q_sd),
+         cereal::make_nvp("IP_d0", d0), cereal::make_nvp("IP_dU2", dU2));
     }
   };
 
@@ -672,7 +773,28 @@ namespace adsim {
     // (negative values are taken as 0; 0 gives the dry isotherm).
     void TothWadst(double& qi, double T, double P, double yi, double q_w, const TothWadstIsothermParameters& ips);
     void TothHumid(double& qi, double T, double P, double yi, double q_w, const TothHumidIsothermParameters& ips);
+    // Dual-site Langmuir with its water factors (DslWaterFactors) at the
+    // adsorbed water loading q_w [mol/kg]; q_w = 0 or zero factors give the
+    // dry functions above exactly.
+    void DualSiteLangmuir(double& qi, double T, double P, double yi, double q_w, const DualSiteLangmuirIsothermParameters& ips);
+    void DualSiteLangmuir_Concentration(double& qi, double T, double P, double yi, double q_w, const DualSiteLangmuirIsothermParametersConcentration& ips);
+    // Cubic-Langmuir (type V) water isotherm, CubicLangmuirIsothermParameters.
+    void CubicLangmuir(double& qi, double T, double P, double yi, const CubicLangmuirIsothermParameters& ips);
   }
+
+  // The Cubic-Langmuir constants at T: b1 [m3/mol], b2 [(m3/mol)^2],
+  // b3 [(m3/mol)^3], d [m3/mol].
+  struct CubicLangmuirConstants { double b1, b2, b3, d; };
+  CubicLangmuirConstants CubicLangmuirConstantsAt(double T, const CubicLangmuirIsothermParameters& ips);
+  // The Cubic-Langmuir loading [mol/kg] at concentration C [mol/m3] from the
+  // constants at T (unfloored: may be negative for b0_1 < 0 at small C).
+  double CubicLangmuirRawLoading(double C, double q_sb, double q_sd, const CubicLangmuirConstants& k);
+  // The minimum over 0 <= C <= C_max of the Cubic-Langmuir denominator
+  // 1 + b1 C + b2 C^2 + b3 C^3 at T (exact: endpoints and the stationary
+  // points), and where it is reached (*C_at). The loading is defined only
+  // where this is > 0.
+  double CubicLangmuirDenominatorMin(const CubicLangmuirIsothermParameters& ips, double T, double C_max,
+                                     double* C_at = nullptr);
 
   // GAB constants at temperature T: q_m [mol/kg], C [-], K [-].
   struct GabConstants { double q_m, C, K; };
@@ -922,6 +1044,14 @@ namespace adsim {
     void Update(IsothermUpdateParams& state) override;
   };
 
+  // Cubic-Langmuir (type V) water isotherm; not competitive (its own
+  // concentration only). See CubicLangmuirIsothermParameters.
+  class CubicLangmuirIsotherm : public ParamIsotherm<CubicLangmuirIsothermParameters, IsothermType::CUBIC_LANGMUIR> {
+  public:
+    using ParamIsotherm::ParamIsotherm;
+    void Update(IsothermUpdateParams& state) override;
+  };
+
   class DualSiteSipsIsotherm : public ParamIsotherm<DualSiteSipsIsothermParameters, IsothermType::DUAL_SITE_SIPS> {
   public:
     using ParamIsotherm::ParamIsotherm;
@@ -1020,6 +1150,7 @@ namespace adsim {
     case IsothermType::GAB_YOUNG: return std::make_unique<GabYoungIsotherm>(component);
     case IsothermType::TOTH_WADST: return std::make_unique<TothWadstIsotherm>(component);
     case IsothermType::TOTH_HUMID: return std::make_unique<TothHumidIsotherm>(component);
+    case IsothermType::CUBIC_LANGMUIR: return std::make_unique<CubicLangmuirIsotherm>(component);
     default: return nullptr;
     }
   }
@@ -1046,6 +1177,7 @@ CEREAL_CLASS_VERSION(adsim::GabIsotherm, 1);
 CEREAL_CLASS_VERSION(adsim::GabYoungIsotherm, 1);
 CEREAL_CLASS_VERSION(adsim::TothWadstIsotherm, 1);
 CEREAL_CLASS_VERSION(adsim::TothHumidIsotherm, 1);
+CEREAL_CLASS_VERSION(adsim::CubicLangmuirIsotherm, 1);
 CEREAL_CLASS_VERSION(adsim::ExtendedLangmuirIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::DualSiteLangmuirIsotherm, 2);
 CEREAL_CLASS_VERSION(adsim::ExtendedDualSiteLangmuirIsotherm, 2);

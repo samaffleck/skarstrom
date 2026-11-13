@@ -14,7 +14,7 @@
     "carbon-molecular-sieve": {"name": "Carbon molecular sieve", "family": "carbon", "recommended": "cms_3kt_zhang2021", "recommended_reason": "The only entry: measured by the authors (CH4, O2 and N2 at 308 K). It is an equilibrium description of a kinetically selective sorbent.", "aliases": []},
     "mg-mof-74": {"name": "Mg-MOF-74", "family": "MOF", "recommended": "mg_mof_74", "recommended_reason": "The only entry for this material.", "aliases": []},
     "cpo-27-ni": {"name": "CPO-27-Ni (Ni-MOF-74)", "family": "MOF", "recommended": "cpo_27_ni_krishnamurthy2020", "recommended_reason": "The only entry for this material.", "aliases": []},
-    "calf-20": {"name": "CALF-20", "family": "MOF", "recommended": "calf_20_nguyen2023", "recommended_reason": "Measured by the authors (CO2 and N2, 295-373 K) and checked against the paper. The powder entry's values come from the repository's decks and have not yet been checked against its paper.", "aliases": []},
+    "calf-20": {"name": "CALF-20", "family": "MOF", "recommended": "calf_20_nguyen2023", "recommended_reason": "Measured by the authors (CO2 and N2, 295-373 K) and checked against the paper. The powder entry's values come from the repository's decks and have not yet been checked against its paper. For humid feeds use the variant with water (the same structured sorbent, a water isotherm and CO2 lowered by adsorbed water).", "aliases": []},
     "zif-8": {"name": "ZIF-8", "family": "MOF", "recommended": "zif_8_ferre2026", "recommended_reason": "The only entry for this material.", "aliases": []},
     "zif-71": {"name": "ZIF-71", "family": "MOF", "recommended": "zif_71_ferre2026", "recommended_reason": "The only entry for this material.", "aliases": []},
     "mil-160-al": {"name": "MIL-160(Al)", "family": "MOF", "recommended": "mil_160_al_ferre2026", "recommended_reason": "The only entry for this material.", "aliases": []},
@@ -57,6 +57,10 @@
     "nguyen2023": {
       "citation": "Nguyen, T.T.T., Shimizu, G.K.H., Rajendran, A. (2023). CO2/N2 separation by vacuum swing adsorption using a metal-organic framework, CALF-20: Multi-objective optimization and experimental validation. Chemical Engineering Journal 452, 139550.",
       "doi": "10.1016/j.cej.2022.139550"
+    },
+    "nguyen2024": {
+      "citation": "Nguyen, T.T.T., Shimizu, G.K.H., Rajendran, A. (2024). Competitive CO2/H2O adsorption on CALF-20. Industrial & Engineering Chemistry Research 63, 3265-3281. Preprint: ChemRxiv (2023), doi:10.26434/chemrxiv-2023-f3rzv.",
+      "doi": "10.1021/acs.iecr.3c04266"
     },
     "streb2021": {
       "citation": "Streb, A., Mazzotti, M. (2021). Adsorption for efficient low carbon hydrogen production: part 1 - adsorption equilibrium and breakthrough studies for H2/CO2/CH4 on zeolite 13X. Adsorption 27, 541-558.",
@@ -751,6 +755,70 @@
         "Extended (competitive) concentration-form DSL (CO2) with the equal-energy-site scheme (N2), SI Table S1; Section 2 states the single-component and competitive forms are described by the DSL (as in the Nguyen2023 decks).",
         "Includes the decks' macropore-controlled LDF (tortuosity 3, eps_p 0.35, Table 1)."
       ]
+    },
+    {
+      "key": "calf_20_nguyen2024_humid",
+      "file": "calf_20_nguyen2024_humid.json",
+      "label": "CALF-20 (structured, with water)",
+      "material": "CALF-20",
+      "material_id": "calf-20",
+      "variant": "structured, with water",
+      "status": "sourced",
+      "applications": ["post-combustion CO2 capture", "humid feeds"],
+      "components": ["CarbonDioxide", "Nitrogen", "Water"],
+      "sources": [
+        {"id": "nguyen2024", "refs": "Preprint Table 2 (Cubic-Langmuir water isotherm, adsorption and desorption branches); preprint, modified dual-site Langmuir for CO2 with water (per-site factors lambda1, lambda2, lambda3); SI Table S2 (dry CO2 dual-site Langmuir in concentration); SI Table S3 (water LDF constant); SI Table S4 (pure-water equilibrium data, 22-100 C, structured sorbent of 80 wt% CALF-20 and 20 wt% binder); Table 4 (competitive CO2/H2O loadings in CO2 at 0.97 bar)"},
+        {"id": "nguyen2022", "refs": "Table 3 (the same CO2 dual-site Langmuir as SI Table S2; N2 equal-energy-site parameters, via the calf_20_nguyen2022 entry)"},
+        {"id": "nguyen2023", "refs": "Table 1 (density, heat capacity, voidage of the structured sorbent), Section 2 (pellet size), via the calf_20_nguyen2023 entry"}
+      ],
+      "isotherms": [
+        {"component": "CarbonDioxide", "ref": "SI Table S2 (dry dual-site Langmuir in concentration) with the preprint's per-site water factors (lambda1 = 0.0066, lambda2 = 2.483, lambda3 = 3.55, q_w in mol/kg)", "data_quality": "measured_fit", "T_range_K": null, "P_range_Pa": null, "range_note": "The dry fit is the Nguyen 2022 dual-site Langmuir; the water factors were fitted to the competitive loadings of Table 4 (22-24 C, pure CO2 at 0.97 bar, 13-87 % RH), which they reproduce to RMSE 0.08 mmol/g. The source states that their temperature and CO2-pressure dependence is not validated.", "T_range_not_stated": "Not stated in source (checked: SI Table S2 and Table 4 as transcribed for this entry; the dry fit range is the Nguyen 2022 paper's)", "P_range_not_stated": "Not stated in source (checked: SI Table S2 and Table 4 as transcribed for this entry; the dry fit range is the Nguyen 2022 paper's)"},
+        {"component": "Nitrogen", "ref": "Nguyen 2022 Table 3 equal-energy sites (as the calf_20_nguyen2022 entry), in the same extended isotherm as CO2", "data_quality": "not_checked", "data_quality_note": "Not checked: copied from the calf_20_nguyen2022 entry, whose values come from the repository's Nguyen 2022 decks.", "T_range_K": null, "P_range_Pa": null, "range_note": "As the calf_20_nguyen2022 entry; fit range not recorded.", "T_range_not_stated": "Not stated in source (checked: Nguyen 2024 SI Tables S2-S4 and Table 4 as transcribed for this entry; N2 is not among them)", "P_range_not_stated": "Not stated in source (checked: Nguyen 2024 SI Tables S2-S4 and Table 4 as transcribed for this entry; N2 is not among them)"},
+        {
+          "component": "Water",
+          "ref": "Preprint Table 2, adsorption branch (= T. T. T. Nguyen, PhD thesis, U. Alberta 2021, Table 3.1): q_sb 1.629 mmol/g, b0_1 -2.685e-17 m3/mol, b0_2 1.158e-16 (m3/mol)^2, b0_3 5.374e-17 (m3/mol)^3, dU1 -97.99 kJ/mol, q_sd 5.781 mmol/g, d0 8.773e-12 m3/mol, dU2 -64.72 kJ/mol",
+          "data_quality": "measured_tabulated",
+          "T_range_K": [295.15, 373.15],
+          "P_range_Pa": [0.0, 2709.5],
+          "range_note": "SI Table S4: gravimetric pure-water data at 22, 30, 40, 50, 60, 80 and 100 C, 0-100 % RH at 22 C; the upper pressure is the largest RH/100 p_sat(T) of the table. The parameters reproduce Table S4 to RMSE 0.20 mmol/g over all temperatures (0.34 at 22 C) with the engine's p_sat.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "as_measured",
+            "units": {"p": "Pa", "q": "mmol/g", "T": "C"},
+            "source": "nguyen2024",
+            "ref": "SI Table S4 (T, RH, q columns)",
+            "note": "Pure water on the structured sorbent (80 wt% CALF-20, 20 wt% binder), loadings per g of sorbent, as tabulated. The table prints relative humidity (rh_percent, as printed); p = RH/100 x p_sat(T) is derived with the IAPWS saturation-pressure equation (Wagner and Pruss), within 0.02 % of the engine's p_sat. 50 rows, including the origin at 22 C.",
+            "T": [22.0, 22.0, 22.0, 22.0, 22.0, 22.0, 22.0, 22.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0],
+            "p": [0.0, 211.6, 404.7, 846.5, 1322.6, 1983.9, 2089.7, 2645.2, 216.6, 414.5, 867.2, 1354.8, 2032.2, 2140.4, 2709.5, 216.4, 414.3, 866.3, 1353.7, 2030.2, 2138.7, 2706.6, 216.2, 413.8, 864.7, 1351.4, 2025.8, 2134.5, 2701.5, 215.4, 412.9, 861.7, 1346.4, 2020.7, 2128.4, 2694.9, 213.4, 407.8, 853.5, 1337.1, 2005.7, 2110.0, 2674.3, 213.0, 405.7, 841.8, 1318.4, 1977.7, 2089.2, 2647.0],
+            "q": [0.0, 0.68, 2.27, 5.74, 6.91, 7.65, 7.7, 8.3, 0.38, 0.97, 3.26, 5.61, 6.64, 6.68, 7.35, 0.22, 0.51, 1.31, 2.74, 4.49, 4.67, 5.73, 0.13, 0.3, 0.7, 1.23, 2.11, 2.34, 3.16, 0.06, 0.21, 0.41, 0.68, 1.05, 1.1, 1.58, 0.03, 0.09, 0.2, 0.29, 0.39, 0.37, 0.49, 0.01, 0.06, 0.14, 0.19, 0.21, 0.19, 0.21],
+            "rh_percent": [0.0, 8.0, 15.3, 32.0, 50.0, 75.0, 79.0, 100.0, 5.1, 9.76, 20.42, 31.9, 47.85, 50.4, 63.8, 2.93, 5.61, 11.73, 18.33, 27.49, 28.96, 36.65, 1.75, 3.35, 7.0, 10.94, 16.4, 17.28, 21.87, 1.08, 2.07, 4.32, 6.75, 10.13, 10.67, 13.51, 0.45, 0.86, 1.8, 2.82, 4.23, 4.45, 5.64, 0.21, 0.4, 0.83, 1.3, 1.95, 2.06, 2.61]
+          }
+        }
+      ],
+      "heat_of_adsorption": {
+        "CarbonDioxide": {"value": 38000.0, "provenance": "repo", "ref": "Value of the calf_20_nguyen2023 entry and the Nguyen 2023 and 2024 decks; not checked against this paper"},
+        "Nitrogen": {"value": 15000.0, "provenance": "repo", "ref": "Value of the calf_20_nguyen2023 entry and the Nguyen 2023 and 2024 decks; not checked against this paper"},
+        "Water": {"value": 54200.0, "provenance": "derived", "ref": "Loading-weighted mean of the isosteric heat of the Table 2 adsorption-branch isotherm at 22 C from 0 to 100 % RH, (1/q_sat) integral of q_st dq with q_st = R T^2 (d ln p / dT)_q (adsim::IsostericHeat), rounded to 0.1 kJ/mol; the source prints no heat. The isosteric heat itself runs from negative below about 8 % RH to 87 kJ/mol near 45 % RH"}
+      },
+      "properties": {
+        "particle_density": {"value": 570.0, "provenance": "repo", "ref": "As calf_20_nguyen2023 (Nguyen 2023 Table 1, measured, the same structured sorbent); not checked against this paper"},
+        "heat_capacity": {"value": 1350.0, "provenance": "repo", "ref": "As calf_20_nguyen2023 (Nguyen 2023 Table 1, fitted); not checked against this paper"},
+        "particle_voidage": {"value": 0.35, "provenance": "repo", "ref": "As calf_20_nguyen2023 (Nguyen 2023 Table 1, assumed)"},
+        "particle_diameter": {"value": 0.001, "provenance": "repo", "ref": "As calf_20_nguyen2023 (Nguyen 2023 Section 2: cylinders of 1 mm diameter); not checked against this paper"},
+        "thermal_conductivity": {"value": 0.63, "provenance": "repo", "ref": "Not in source; value of the calf_20_nguyen2023 entry"}
+      },
+      "example_decks": [],
+      "deck_checks": [],
+      "notes": [
+        "Water uses the engine kind 'cubic_langmuir' (the paper's Cubic-Langmuir, the thesis's Quadratic-Langmuir) with the adsorption-branch parameters. The desorption branch of preprint Table 2 (q_sb 0.731 mmol/g, b0_1 -5.405e-17, b0_2 1.825e-16, b0_3 7.311e-16, q_sd 8.940 mmol/g, d0 7.879e-12, the same energies) is not stored: the engine does not switch isotherm branches.",
+        "CO2 and N2 share one 'extended_dual_site_langmuir_c' isotherm. CO2 carries the per-site water factors 1/(1 + lambda_k q_w^lambda3) on the SI Table S2 dry fit; N2 has none and keeps competing with CO2 in the shared denominators. Water acts on CO2 only through its adsorbed loading q_w; CO2 does not change the water isotherm here.",
+        "Water with CO2: the source fits no competitive water isotherm; its simulations interpolate the measured Table 4 water loadings (22 C, pure CO2). This entry uses the pure-water isotherm, which over-predicts water uptake in CO2 at low humidity.",
+        "Includes no rate models: the SI Table S3 water LDF constant is 0.005 1/s (with D_L 9.364e-5 m2/s); set it on the deck.",
+        "Loadings are per kg of the structured sorbent (80 wt% CALF-20, 20 wt% binder), the same basis as the calf_20_nguyen2023 entry."
+      ],
+      "unverified_fields": ["heat_of_adsorption", "particle_density", "heat_capacity", "particle_diameter"],
+      "verification_note": "The SI tables (S2-S4), the preprint's Table 2 and water factors and the paper's Table 4 were transcribed as printed; the main text of the published paper was not available. Properties and the CO2 and N2 heats are those of the calf_20_nguyen2023 entry (the same structured sorbent and rig) and were not checked against this paper.",
+      "example_deck_note": "No bundled example deck uses this entry."
     },
     {
       "key": "zeolite_13x_streb2021",

@@ -188,7 +188,7 @@ KindParameter SlowSiteParameter(const KindParameter& p);
 // Pure-component form IAST integrates (iast.cpp): a kind maps onto one of
 // these, or has none (the water-coupled kinds).
 enum class IastFamily { None, Inert, Henry, Langmuir, DualSiteLangmuir, Freundlich, Sips, DualSiteSips,
-                        AntiLangmuir, RedlichPeterson, Toth, Gab };
+                        AntiLangmuir, RedlichPeterson, Toth, Gab, CubicLangmuir };
 
 struct IsothermKindDescriptor : KindDescriptor {
   IsothermType type = IsothermType::INERT;

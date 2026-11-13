@@ -453,13 +453,25 @@ std::vector<KindParameter> LangmuirP(double b1) {
 std::vector<KindParameter> LangmuirC(double b1) {
   return {{"m1", "mol/kg", 3.0, 0.01, 50.0}, {"b1", "m3/mol", b1, 1e-10, 1e-3}, {"q1", "J/mol", 4e4, 0.0, 1e5}};
 }
+// The optional water factors of the dual-site Langmuir kinds (DslWaterFactors,
+// isotherm.h): per-site capacity factors 1 / (1 + lambda_k q_w^lambda3) and
+// the affinity factor exp(-gamma2 q_w). 0 gives the dry isotherm.
+std::vector<KindParameter> WithDslWaterFactors(std::vector<KindParameter> p) {
+  p.push_back({"lambda1", "(kg/mol)^lambda3", 0.0, 0.0, 100.0});
+  p.push_back({"lambda2", "(kg/mol)^lambda3", 0.0, 0.0, 100.0});
+  p.push_back({"lambda3", "-", 0.0, 0.0, 10.0});
+  p.push_back({"gamma2", "kg/mol", 0.0, 0.0, 10.0});
+  return p;
+}
 std::vector<KindParameter> DualP() {
-  return {{"m1", "mol/kg", 3.0, 0.01, 50.0}, {"b1", "1/Pa", 1e-12, 1e-15, 1e-3}, {"q1", "J/mol", 4.7e4, 0.0, 1e5},
-          {"m2", "mol/kg", 3.0, 0.01, 50.0}, {"b2", "1/Pa", 1e-13, 1e-15, 1e-3}, {"q2", "J/mol", 4.2e4, 0.0, 1e5}};
+  return WithDslWaterFactors(
+      {{"m1", "mol/kg", 3.0, 0.01, 50.0}, {"b1", "1/Pa", 1e-12, 1e-15, 1e-3}, {"q1", "J/mol", 4.7e4, 0.0, 1e5},
+       {"m2", "mol/kg", 3.0, 0.01, 50.0}, {"b2", "1/Pa", 1e-13, 1e-15, 1e-3}, {"q2", "J/mol", 4.2e4, 0.0, 1e5}});
 }
 std::vector<KindParameter> DualC() {
-  return {{"m1", "mol/kg", 3.0, 0.01, 50.0}, {"b1", "m3/mol", 1e-8, 1e-10, 1e-3}, {"q1", "J/mol", 4e4, 0.0, 1e5},
-          {"m2", "mol/kg", 3.0, 0.01, 50.0}, {"b2", "m3/mol", 1e-7, 1e-10, 1e-3}, {"q2", "J/mol", 4e4, 0.0, 1e5}};
+  return WithDslWaterFactors(
+      {{"m1", "mol/kg", 3.0, 0.01, 50.0}, {"b1", "m3/mol", 1e-8, 1e-10, 1e-3}, {"q1", "J/mol", 4e4, 0.0, 1e5},
+       {"m2", "mol/kg", 3.0, 0.01, 50.0}, {"b2", "m3/mol", 1e-7, 1e-10, 1e-3}, {"q2", "J/mol", 4e4, 0.0, 1e5}});
 }
 std::vector<KindParameter> Sips2() {
   // b_i = B1 exp(B2/RT) multiplies the partial pressure in Pa.
@@ -471,7 +483,7 @@ std::vector<KindParameter> Sips2() {
 std::vector<IsothermKindDescriptor> BuildIsothermKinds() {
   using T = IsothermType;
   using F = IastFamily;
-  std::vector<IsothermKindDescriptor> k(static_cast<std::size_t>(T::TOTH_HUMID) + 1);
+  std::vector<IsothermKindDescriptor> k(static_cast<std::size_t>(T::CUBIC_LANGMUIR) + 1);
   auto put = [&](IsothermKindDescriptor d) { k[static_cast<std::size_t>(d.type)] = std::move(d); };
 
   put(Iso(T::SINGLE_SITE_LANGMUIR_P, "single_site_langmuir_p", "Single Site Langmuir", F::Langmuir, LangmuirP(1e-11)));
@@ -574,6 +586,15 @@ std::vector<IsothermKindDescriptor> BuildIsothermKinds() {
            {"alpha", "-", -1.606, -5.0, 5.0},
            {"gamma", "kg/mol", 0.0016, -5.0, 5.0},
            {"beta", "kg/mol", 59.1, -10.0, 200.0}}));
+  put(Iso(T::CUBIC_LANGMUIR, "cubic_langmuir", "Cubic-Langmuir (type V water, Nguyen 2024)", F::CubicLangmuir,
+          {{"q_sb", "mol/kg", 1.629, 0.0, 50.0},
+           {"b0_1", "m3/mol", -2.685e-17, -1.0, 1.0},
+           {"b0_2", "(m3/mol)^2", 1.158e-16, 0.0, 1.0},
+           {"b0_3", "(m3/mol)^3", 5.374e-17, 0.0, 1.0},
+           {"dU1", "J/mol", -97990.0, -3e5, 0.0},
+           {"q_sd", "mol/kg", 5.781, 0.0, 50.0},
+           {"d0", "m3/mol", 8.773e-12, 0.0, 1.0},
+           {"dU2", "J/mol", -64720.0, -3e5, 0.0}}));
 
   for (T t : {T::EXTENDED_SINGLE_SITE_LANGMUIR_P, T::EXTENDED_SINGLE_SITE_LANGMUIR_C, T::EXTENDED_DUAL_SITE_LANGMUIR_P,
               T::EXTENDED_DUAL_SITE_LANGMUIR_C, T::EXTENDED_SIPS_2, T::ARRHENIUS_SIPS, T::EXTENDED_LANGMUIR_FREUNDLICH})
@@ -585,7 +606,7 @@ std::vector<IsothermKindDescriptor> BuildIsothermKinds() {
   for (T t : {T::HENRY, T::SINGLE_SITE_LANGMUIR_P, T::DUAL_SITE_LANGMUIR_P, T::SINGLE_SITE_LANGMUIR_C,
               T::DUAL_SITE_LANGMUIR_C, T::EXTENDED_SINGLE_SITE_LANGMUIR_P, T::EXTENDED_DUAL_SITE_LANGMUIR_P,
               T::FREUNDLICH, T::SIPS, T::DUAL_SITE_SIPS, T::TOTH, T::SIPS_2, T::EXTENDED_SIPS_2, T::TOTH_2, T::GAB,
-              T::GAB_YOUNG, T::TOTH_WADST, T::TOTH_HUMID})
+              T::GAB_YOUNG, T::TOTH_WADST, T::TOTH_HUMID, T::CUBIC_LANGMUIR})
   {
     auto& d = k[static_cast<std::size_t>(t)];
     d.fittable = true;
@@ -593,7 +614,8 @@ std::vector<IsothermKindDescriptor> BuildIsothermKinds() {
   }
   for (T t : {T::HENRY, T::SINGLE_SITE_LANGMUIR_P, T::DUAL_SITE_LANGMUIR_P, T::SINGLE_SITE_LANGMUIR_C,
               T::DUAL_SITE_LANGMUIR_C, T::EXTENDED_SINGLE_SITE_LANGMUIR_P, T::EXTENDED_DUAL_SITE_LANGMUIR_P,
-              T::SIPS_2, T::EXTENDED_SIPS_2, T::TOTH_2, T::GAB, T::GAB_YOUNG, T::TOTH_WADST, T::TOTH_HUMID})
+              T::SIPS_2, T::EXTENDED_SIPS_2, T::TOTH_2, T::GAB, T::GAB_YOUNG, T::TOTH_WADST, T::TOTH_HUMID,
+              T::CUBIC_LANGMUIR})
     k[static_cast<std::size_t>(t)].temperature_dependent = true;
   // A pure kind and its competitive form share their parameter layout.
   const std::pair<T, T> pairs[] = {

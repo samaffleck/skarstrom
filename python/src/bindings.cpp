@@ -117,6 +117,7 @@ py::dict SpecToDict(const adsim::isofit::ParamSpec& s) {
   d["fixed"] = s.fixed;
   d["log_scale"] = s.scale == adsim::isofit::Scale::Log;
   d["paired_energy"] = s.pair_energy;
+  d["paired_energy_sign"] = s.pair_sign;
   d["note"] = s.note;
   return d;
 }
@@ -131,6 +132,7 @@ adsim::isofit::ParamSpec SpecFromDict(const py::dict& d) {
   s.scale = (d.contains("log_scale") && d["log_scale"].cast<bool>()) ? adsim::isofit::Scale::Log
                                                                     : adsim::isofit::Scale::Linear;
   if (d.contains("paired_energy")) s.pair_energy = d["paired_energy"].cast<std::string>();
+  if (d.contains("paired_energy_sign")) s.pair_sign = d["paired_energy_sign"].cast<double>();
   return s;
 }
 

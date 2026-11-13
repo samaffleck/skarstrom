@@ -74,6 +74,7 @@ ISOTHERM_KINDS = [
     "anti_langmuir", "freundlich", "sips", "sips_2", "extended_sips_2",
     "dual_site_sips", "redlich_peterson", "toth", "toth_2", "arrhenius_sips",
     "extended_langmuir_freundlich", "gab", "gab_young", "toth_wadst", "toth_humid",
+    "cubic_langmuir",
 ]
 # Display labels (mirror isothermModelNames in isotherm.h).
 ISOTHERM_LABELS = {
@@ -102,6 +103,7 @@ ISOTHERM_LABELS = {
     "gab_young": "GAB (Young 2021 energies)",
     "toth_wadst": "Toth WADST (CO2 with water, Young 2021)",
     "toth_humid": "Toth humid (CO2 with water, Stampi-Bombelli 2020)",
+    "cubic_langmuir": "Cubic-Langmuir (type V water, Nguyen 2024)",
 }
 
 FAMILIES = ["zeolite", "carbon", "MOF", "silica", "alumina", "amine", "other", "support"]
@@ -1000,11 +1002,13 @@ def render_resolved(entries, engine) -> str:
                 comp = i["component"]
                 tag = engine.isotherm_order[view["iso_map"][comp]]
                 desc = engine.isotherm[tag]
+                # A blob leaves out optional fields at their default (the dual-site
+                # Langmuir water factors): those take the descriptor's default.
                 values = {p["name"]: p["value"] for p in i["params"]}
                 sp = iso_raw[comp].get("source_points")
                 isotherms.append({
                     "component": comp, "kind": tag, "kind_label": desc["label"],
-                    "parameters": [{"name": p["name"], "label": p["label"], "unit": p["unit"], "value": values[p["name"]]}
+                    "parameters": [{"name": p["name"], "label": p["label"], "unit": p["unit"], "value": values.get(p["name"], p.get("default"))}
                                    for p in desc["parameters"]],
                     "data_quality": i["data_quality"],
                     "data_quality_label": DATA_QUALITY_LABELS.get(i["data_quality"], i["data_quality"]),

@@ -2,7 +2,7 @@
 
 # Adsorbent Library
 
-Skarstrom ships a curated library of **22** materials (33 entries: 32 sourced, 1 legacy) in `data/adsorbents/`. Every material has one **recommended** entry, chosen for the quality of its experimental data; that is the entry you get when you add the material by its id. A material has a second entry only as a *variant*: a different product, form or data range, named in the entry's label. Every sourced entry cites the publication (DOI and table/figure) its parameters were transcribed from, and every property records its provenance:
+Skarstrom ships a curated library of **22** materials (34 entries: 33 sourced, 1 legacy) in `data/adsorbents/`. Every material has one **recommended** entry, chosen for the quality of its experimental data; that is the entry you get when you add the material by its id. A material has a second entry only as a *variant*: a different product, form or data range, named in the entry's label. Every sourced entry cites the publication (DOI and table/figure) its parameters were transcribed from, and every property records its provenance:
 
 - **source** — transcribed from the cited table or figure;
 - **derived** — computed from cited values (the formula is given);
@@ -24,7 +24,7 @@ Each isotherm also records the **quality of its data**, best first:
 
 The recommended entry is the one with the best data quality, then the best coverage of the material's usual components, then the widest range. A legacy entry is never recommended while a sourced one exists.
 
-**Completeness:** 31 of 33 entries carry every required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks; for a support solid DOI, density, heat capacity and thermal conductivity) as a sourced value or an explicit *not stated in source* note; the others are listed as incomplete below. **Tabulated source data:** 7 entries include equilibrium points tabulated in their source (tables, SI files or datasets — never digitised from plots), stored with the entry in `library.json`.
+**Completeness:** 31 of 34 entries carry every required field (DOI, isotherm fit range, heat of adsorption, particle density, heat capacity, particle size, example decks; for a support solid DOI, density, heat capacity and thermal conductivity) as a sourced value or an explicit *not stated in source* note; the others are listed as incomplete below. **Tabulated source data:** 8 entries include equilibrium points tabulated in their source (tables, SI files or datasets — never digitised from plots), stored with the entry in `library.json`.
 
 **Support solids** (family *support*; the library ships none at present) are the non-adsorbing walls and sheets of structured contactors. A support has no adsorbing component (every component uses the inert isotherm); mix it by mass with a sorbent in a structured layer's composition. Its density is the apparent density of the wall or sheet, with particle voidage 0 by convention, and it has no particle size; its required fields are density, heat capacity and thermal conductivity. Where the source tabulates a property against temperature, the table is listed under the entry; the engine uses the constant value at the reference temperature (300 K unless stated).
 
@@ -87,7 +87,7 @@ print(entry["label"], iso["kind_label"], [(p["name"], p["unit"]) for p in iso["p
 | [Carbon molecular sieve](#material-carbon-molecular-sieve) | `carbon-molecular-sieve` | carbon | [Carbon molecular sieve](#cms-3kt-zhang2021) | Methane, Oxygen, Nitrogen | [10.1021/acsomega.0c06148](https://doi.org/10.1021/acsomega.0c06148) | — |
 | [Mg-MOF-74](#material-mg-mof-74) | `mg-mof-74` | MOF | [Mg-MOF-74](#mg-mof-74) | CarbonDioxide, Nitrogen | [10.1021/acs.iecr.4c01345](https://doi.org/10.1021/acs.iecr.4c01345) | — |
 | [CPO-27-Ni (Ni-MOF-74)](#material-cpo-27-ni) | `cpo-27-ni` | MOF | [CPO-27-Ni (Ni-MOF-74)](#cpo-27-ni-krishnamurthy2020) | CarbonDioxide, Nitrogen | [10.1007/s10450-019-00162-x](https://doi.org/10.1007/s10450-019-00162-x) | — |
-| [CALF-20](#material-calf-20) | `calf-20` | MOF | [structured, phase inversion](#calf-20-nguyen2023) | CarbonDioxide, Nitrogen | [10.1016/j.cej.2022.139550](https://doi.org/10.1016/j.cej.2022.139550) | [powder](#calf-20-nguyen2022) |
+| [CALF-20](#material-calf-20) | `calf-20` | MOF | [structured, phase inversion](#calf-20-nguyen2023) | CarbonDioxide, Nitrogen | [10.1016/j.cej.2022.139550](https://doi.org/10.1016/j.cej.2022.139550) | [powder](#calf-20-nguyen2022), [structured, with water](#calf-20-nguyen2024-humid) |
 | [ZIF-8](#material-zif-8) | `zif-8` | MOF | [ZIF-8](#zif-8-ferre2026) | CarbonDioxide, Methane | [10.1016/j.seppur.2026.138821](https://doi.org/10.1016/j.seppur.2026.138821) | — |
 | [ZIF-71](#material-zif-71) | `zif-71` | MOF | [ZIF-71](#zif-71-ferre2026) | CarbonDioxide, Methane | [10.1016/j.seppur.2026.138821](https://doi.org/10.1016/j.seppur.2026.138821) | — |
 | [MIL-160(Al)](#material-mil-160-al) | `mil-160-al` | MOF | [MIL-160(Al)](#mil-160-al-ferre2026) | CarbonDioxide, Methane | [10.1016/j.seppur.2026.138821](https://doi.org/10.1016/j.seppur.2026.138821) | — |
@@ -929,7 +929,7 @@ print(entry["label"], iso["kind_label"], [(p["name"], p["unit"]) for p in iso["p
 
 ## CALF-20 {#material-calf-20}
 
-**Material id:** `calf-20` · **Family:** MOF · **Recommended:** [CALF-20 (structured, phase inversion)](#calf-20-nguyen2023). Measured by the authors (CO2 and N2, 295-373 K) and checked against the paper. The powder entry's values come from the repository's decks and have not yet been checked against its paper.
+**Material id:** `calf-20` · **Family:** MOF · **Recommended:** [CALF-20 (structured, phase inversion)](#calf-20-nguyen2023). Measured by the authors (CO2 and N2, 295-373 K) and checked against the paper. The powder entry's values come from the repository's decks and have not yet been checked against its paper. For humid feeds use the variant with water (the same structured sorbent, a water isotherm and CO2 lowered by adsorbed water).
 
 ### CALF-20 (structured, phase inversion) {#calf-20-nguyen2023}
 
@@ -998,6 +998,55 @@ print(entry["label"], iso["kind_label"], [(p["name"], p["unit"]) for p in iso["p
 
 - Extended concentration-form DSL with equal-energy-site N2 (repo fixture comment: 'ESS model in Table 3').
 - Includes the decks' macropore-controlled LDF (tortuosity 3, eps\_p 0.35).
+
+### CALF-20 (structured, with water) {#calf-20-nguyen2024-humid}
+
+**Variant** · **Material:** CALF-20 · **Applications:** post-combustion CO2 capture, humid feeds · **Library key:** `calf_20_nguyen2024_humid` · **File:** `calf_20_nguyen2024_humid.json`
+
+**Sources**
+
+- Nguyen, T.T.T., Shimizu, G.K.H., Rajendran, A. (2024). Competitive CO2/H2O adsorption on CALF-20. Industrial &amp; Engineering Chemistry Research 63, 3265-3281. Preprint: ChemRxiv (2023), doi:10.26434/chemrxiv-2023-f3rzv. [doi:10.1021/acs.iecr.3c04266](https://doi.org/10.1021/acs.iecr.3c04266) — Preprint Table 2 (Cubic-Langmuir water isotherm, adsorption and desorption branches); preprint, modified dual-site Langmuir for CO2 with water (per-site factors lambda1, lambda2, lambda3); SI Table S2 (dry CO2 dual-site Langmuir in concentration); SI Table S3 (water LDF constant); SI Table S4 (pure-water equilibrium data, 22-100 C, structured sorbent of 80 wt% CALF-20 and 20 wt% binder); Table 4 (competitive CO2/H2O loadings in CO2 at 0.97 bar)
+- Nguyen, T.T.T., Lin, J.-B., Shimizu, G.K.H., Rajendran, A. (2022). Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20. Chemical Engineering Journal 442, 136263. [doi:10.1016/j.cej.2022.136263](https://doi.org/10.1016/j.cej.2022.136263) — Table 3 (the same CO2 dual-site Langmuir as SI Table S2; N2 equal-energy-site parameters, via the calf\_20\_nguyen2022 entry)
+- Nguyen, T.T.T., Shimizu, G.K.H., Rajendran, A. (2023). CO2/N2 separation by vacuum swing adsorption using a metal-organic framework, CALF-20: Multi-objective optimization and experimental validation. Chemical Engineering Journal 452, 139550. [doi:10.1016/j.cej.2022.139550](https://doi.org/10.1016/j.cej.2022.139550) — Table 1 (density, heat capacity, voidage of the structured sorbent), Section 2 (pellet size), via the calf\_20\_nguyen2023 entry
+
+| Component | Isotherm | Parameters | T range of fit | P range of fit | Data quality | Ref. |
+|---|---|---|---|---|---|---|
+| CarbonDioxide | Extended Dual Site Langmuir (Concentration) | m1 = 2.387; b1 = 5.519e-7; q1 = 35060; m2 = 3.271; b2 = 5.187e-8; q2 = 28950; lambda1 = 0.0066; lambda2 = 2.483; lambda3 = 3.55; gamma2 = 0 | not stated | not stated | measured, fit only | SI Table S2 (dry dual-site Langmuir in concentration) with the preprint's per-site water factors (lambda1 = 0.0066, lambda2 = 2.483, lambda3 = 3.55, q\_w in mol/kg) |
+| Nitrogen | Extended Dual Site Langmuir (Concentration) | m1 = 2.387; b1 = 8.139e-7; q1 = 17960; m2 = 3.271; b2 = 8.139e-7; q2 = 17960 | not stated | not stated | not yet checked | Nguyen 2022 Table 3 equal-energy sites (as the calf\_20\_nguyen2022 entry), in the same extended isotherm as CO2 |
+| Water | Cubic-Langmuir (type V water, Nguyen 2024) | q\_sb = 1.629; b0\_1 = -2.685e-17; b0\_2 = 1.158e-16; b0\_3 = 5.374e-17; dU1 = -97990; q\_sd = 5.781; d0 = 8.773e-12; dU2 = -64720 | 295.15–373.15 K | 0–0.027095 bar | measured, data tabulated | Preprint Table 2, adsorption branch (= T. T. T. Nguyen, PhD thesis, U. Alberta 2021, Table 3.1): q\_sb 1.629 mmol/g, b0\_1 -2.685e-17 m3/mol, b0\_2 1.158e-16 (m3/mol)^2, b0\_3 5.374e-17 (m3/mol)^3, dU1 -97.99 kJ/mol, q\_sd 5.781 mmol/g, d0 8.773e-12 m3/mol, dU2 -64.72 kJ/mol |
+
+*Data quality.* Nitrogen: Not checked: copied from the calf\_20\_nguyen2022 entry, whose values come from the repository's Nguyen 2022 decks.
+
+*Fit ranges.* CarbonDioxide: T range: Not stated in source (checked: SI Table S2 and Table 4 as transcribed for this entry; the dry fit range is the Nguyen 2022 paper's) CarbonDioxide: P range: Not stated in source (checked: SI Table S2 and Table 4 as transcribed for this entry; the dry fit range is the Nguyen 2022 paper's) CarbonDioxide: The dry fit is the Nguyen 2022 dual-site Langmuir; the water factors were fitted to the competitive loadings of Table 4 (22-24 C, pure CO2 at 0.97 bar, 13-87 % RH), which they reproduce to RMSE 0.08 mmol/g. The source states that their temperature and CO2-pressure dependence is not validated. Nitrogen: T range: Not stated in source (checked: Nguyen 2024 SI Tables S2-S4 and Table 4 as transcribed for this entry; N2 is not among them) Nitrogen: P range: Not stated in source (checked: Nguyen 2024 SI Tables S2-S4 and Table 4 as transcribed for this entry; N2 is not among them) Nitrogen: As the calf\_20\_nguyen2022 entry; fit range not recorded. Water: SI Table S4: gravimetric pure-water data at 22, 30, 40, 50, 60, 80 and 100 C, 0-100 % RH at 22 C; the upper pressure is the largest RH/100 p\_sat(T) of the table. The parameters reproduce Table S4 to RMSE 0.20 mmol/g over all temperatures (0.34 at 22 C) with the engine's p\_sat.
+
+| Quantity | Value | Provenance | Reference |
+|---|---|---|---|
+| Heat of adsorption, CarbonDioxide | 38 kJ/mol | repo deck/test | Value of the calf\_20\_nguyen2023 entry and the Nguyen 2023 and 2024 decks; not checked against this paper |
+| Heat of adsorption, Nitrogen | 15 kJ/mol | repo deck/test | Value of the calf\_20\_nguyen2023 entry and the Nguyen 2023 and 2024 decks; not checked against this paper |
+| Heat of adsorption, Water | 54.2 kJ/mol | derived | Loading-weighted mean of the isosteric heat of the Table 2 adsorption-branch isotherm at 22 C from 0 to 100 % RH, (1/q\_sat) integral of q\_st dq with q\_st = R T^2 (d ln p / dT)\_q (adsim::IsostericHeat), rounded to 0.1 kJ/mol; the source prints no heat. The isosteric heat itself runs from negative below about 8 % RH to 87 kJ/mol near 45 % RH |
+| Particle density | 570 kg/m3 | repo deck/test | As calf\_20\_nguyen2023 (Nguyen 2023 Table 1, measured, the same structured sorbent); not checked against this paper |
+| Heat capacity | 1350 J/(kg K) | repo deck/test | As calf\_20\_nguyen2023 (Nguyen 2023 Table 1, fitted); not checked against this paper |
+| Particle voidage | 0.35 | repo deck/test | As calf\_20\_nguyen2023 (Nguyen 2023 Table 1, assumed) |
+| Particle diameter | 0.001 m | repo deck/test | As calf\_20\_nguyen2023 (Nguyen 2023 Section 2: cylinders of 1 mm diameter); not checked against this paper |
+| Thermal conductivity | 0.63 W/(m K) | repo deck/test | Not in source; value of the calf\_20\_nguyen2023 entry |
+
+**Tabulated source data** (stored in `library.json`)
+
+| Component | Points | Temperatures [K] | Quantity | Data | Transcribed from |
+|---|---|---|---|---|---|
+| Water | 50 | 295.15, 303.15, 313.15, 323.15, 333.15, 353.15, 373.15 | as measured | measured | SI Table S4 (T, RH, q columns) |
+
+- Water: Pure water on the structured sorbent (80 wt% CALF-20, 20 wt% binder), loadings per g of sorbent, as tabulated. The table prints relative humidity (rh\_percent, as printed); p = RH/100 x p\_sat(T) is derived with the IAPWS saturation-pressure equation (Wagner and Pruss), within 0.02 % of the engine's p\_sat. 50 rows, including the origin at 22 C.
+
+**Used by example decks:** none. No bundled example deck uses this entry.
+
+> **Incomplete entry.** Missing or unverified: heat\_of\_adsorption (CarbonDioxide), heat\_of\_adsorption (Nitrogen), particle\_density, heat\_capacity, particle\_diameter. The SI tables (S2-S4), the preprint's Table 2 and water factors and the paper's Table 4 were transcribed as printed; the main text of the published paper was not available. Properties and the CO2 and N2 heats are those of the calf\_20\_nguyen2023 entry (the same structured sorbent and rig) and were not checked against this paper.
+
+- Water uses the engine kind 'cubic\_langmuir' (the paper's Cubic-Langmuir, the thesis's Quadratic-Langmuir) with the adsorption-branch parameters. The desorption branch of preprint Table 2 (q\_sb 0.731 mmol/g, b0\_1 -5.405e-17, b0\_2 1.825e-16, b0\_3 7.311e-16, q\_sd 8.940 mmol/g, d0 7.879e-12, the same energies) is not stored: the engine does not switch isotherm branches.
+- CO2 and N2 share one 'extended\_dual\_site\_langmuir\_c' isotherm. CO2 carries the per-site water factors 1/(1 + lambda\_k q\_w^lambda3) on the SI Table S2 dry fit; N2 has none and keeps competing with CO2 in the shared denominators. Water acts on CO2 only through its adsorbed loading q\_w; CO2 does not change the water isotherm here.
+- Water with CO2: the source fits no competitive water isotherm; its simulations interpolate the measured Table 4 water loadings (22 C, pure CO2). This entry uses the pure-water isotherm, which over-predicts water uptake in CO2 at low humidity.
+- Includes no rate models: the SI Table S3 water LDF constant is 0.005 1/s (with D\_L 9.364e-5 m2/s); set it on the deck.
+- Loadings are per kg of the structured sorbent (80 wt% CALF-20, 20 wt% binder), the same basis as the calf\_20\_nguyen2023 entry.
 
 ---
 

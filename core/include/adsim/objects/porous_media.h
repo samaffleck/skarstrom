@@ -112,6 +112,14 @@ namespace adsim {
     // state.slow_mass_transfer_coefficient (no-op without a slow site).
     void UpdateSlowMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const std::string& component, const Fluid& fluid, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry, double solid_density = 0.0);
     std::unique_ptr<IIsotherm>& GetIsotherm(const std::string& component);
+    // The component's isotherm object, or null when it has none (does not
+    // create one, unlike GetIsotherm).
+    IIsotherm* FindIsotherm(const std::string& component) const {
+      auto m = isotherm_map_.find(component);
+      if (m == isotherm_map_.end()) return nullptr;
+      auto it = isotherms_.find(m->second);
+      return it == isotherms_.end() ? nullptr : it->second.get();
+    }
 
     std::unordered_map<std::string, std::unique_ptr<IMassTransferModel>> mass_transfer_models_{};
     std::unordered_map<std::string, ExpressionParam> heat_of_adsorption_{}; // Heat of adsorption [J/mol]

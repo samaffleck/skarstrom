@@ -323,13 +323,14 @@ namespace adsim {
 				continue;
 			}
 			const std::string an = "\"" + dir.Get(id).name_ + "\"";
-			// Isotherm kinds that read the adsorbed water loading
-			// (IsWaterCoupledIsothermKind): no IAST form, and without a water
-			// component they are only their dry isotherm.
+			// Isotherms that read the adsorbed water loading
+			// (IsothermUsesWaterLoading: the water-coupled kinds, and a
+			// dual-site Langmuir with its water factors set): no IAST form,
+			// and without a water component they are only their dry isotherm.
 			{
 				const auto& source = dir.Get(id).adsorption_source_;
 				for (const auto& [component, type] : source.IsothermMap()) {
-					if (!IsWaterCoupledIsothermKind(type)) continue;
+					if (!IsothermUsesWaterLoading(source.FindIsotherm(component), component)) continue;
 					const std::string kind = std::string("'") + isothermModelNames[static_cast<int>(type)] + "' (" +
 						IsothermKindString(type) + ")";
 					if (source.mixing_rule_ == MixingRule::IAST)

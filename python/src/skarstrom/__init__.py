@@ -1600,8 +1600,10 @@ def evaluate_isotherm(
     default. ``component`` (a CoolProp name such as ``"Ethanol"``) is the
     vapour whose saturation pressure the GAB kinds use; default water. Other
     kinds ignore it. ``water_loading`` [mol/kg] is the adsorbed water loading
-    the CO2-with-water kinds (``toth_wadst``, ``toth_humid``) read; 0 (the
-    default) gives their dry isotherm. Other kinds ignore it.
+    the CO2-with-water kinds (``toth_wadst``, ``toth_humid``) and the
+    dual-site Langmuir kinds with water factors (``lambda1``, ``lambda2``,
+    ``lambda3``, ``gamma2``) read; 0 (the default) gives their dry isotherm.
+    Other kinds ignore it.
     """
     p = _as_list(pressure)
     return _core.evaluate_isotherm(kind, dict(params), p, _as_list(temperature, len(p)), _as_list(mole_fraction, len(p)),
@@ -1660,7 +1662,9 @@ def fit_isotherm(
     point, for ``toth_wadst`` and ``toth_humid``: points at 0 fit the dry
     Toth, points above 0 the water terms (A and the wet site; gamma and beta).
     A block without data is held at the engine default, so with humid data
-    only, pass the dry fit's values in ``fixed``.
+    only, pass the dry fit's values in ``fixed``. The dual-site Langmuir water
+    factors are held at 0 without points above 0; with them, lambda1, lambda2
+    and lambda3 are fitted and gamma2 is held at 0.
     """
     p = _as_list(pressure)
     q = _as_list(loading)

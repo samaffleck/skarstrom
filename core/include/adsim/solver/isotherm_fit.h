@@ -56,7 +56,8 @@ struct Point {
   double T = 298.15;  // temperature [K]
   double y = 1.0;   // mole fraction (1 for pure-component data)
   // Adsorbed water loading [mol/kg] at which q was measured; only the
-  // water-coupled kinds (toth_wadst, toth_humid) read it. 0: dry.
+  // water-coupled kinds (toth_wadst, toth_humid) and the dual-site Langmuir
+  // water factors (lambda1, lambda2, lambda3, gamma2) read it. 0: dry.
   double q_w = 0.0;
 };
 
@@ -73,6 +74,9 @@ struct ParamSpec {
   bool fixed = false;
   Scale scale = Scale::Linear;
   std::string pair_energy;  // name of the energy parameter E in b*exp(E/RT)
+  // +1: b*exp(E/RT) (the engine's convention); -1: b*exp(-E/RT) (kinds that
+  // keep a paper's dU < 0 for exothermic adsorption, e.g. cubic_langmuir).
+  double pair_sign = 1.0;
   std::string note;         // why a default was chosen / fixed (UI hint)
 };
 
@@ -201,7 +205,9 @@ double ReferenceTemperature(const DataSummary& s);
 // identify the dry Toth block and points at q_w > 0 the water terms (A and the
 // wet site; gamma and beta); a block without such points is held at the
 // engine default, which the caller replaces with known values (with humid
-// data only: the dry fit's).
+// data only: the dry fit's). The dual-site Langmuir water factors are held at
+// 0 without points at q_w > 0; with them, lambda1, lambda2 and lambda3 are
+// fitted (gamma2 stays at 0 unless the caller frees it).
 // ---------------------------------------------------------------------------
 
 bool DefaultSpecs(IsothermType type, const std::vector<Point>& pts,

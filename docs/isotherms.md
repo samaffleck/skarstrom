@@ -81,6 +81,8 @@ The concentration form (`Dual Site Langmuir (Concentration)`) substitutes $C_i$ 
 | $b_1, b_2$ | Affinity pre-factor of each site | Pa⁻¹ (P-form) |
 | $q_1, q_2$ | Adsorption energy of each site | J mol⁻¹ |
 
+The dual-site kinds (pure and extended) also take four optional water factors, `lambda1`, `lambda2`, `lambda3` and `gamma2` (*New in 0.12.*). They lower the loading with the adsorbed water loading; their default 0 gives the formula above. See [Water on CALF-20](#water-on-calf-20-cubic-langmuir-and-dual-site-langmuir-water-factors).
+
 ---
 
 ## Extended (Competitive) Langmuir
@@ -478,6 +480,83 @@ print(f"water {q_w:.2f}, CO2 dry {dry:.2f}, CO2 humid {humid:.2f} mol/kg")
 
 In a bed, the CO₂ isotherm reads the water actually adsorbed in each cell, so the humid capacity appears only behind the water front. The illustrative deck `Illustrative_Humid_DAC_Breakthrough` runs this feed through a column of APDES-NFC: the water front leaves the bed first, then the CO₂ front, with the humid loading behind it. See [Humid feeds](tsa-regeneration.md#6-humid-feeds) in the TSA tutorial.
 
+
+## Water on CALF-20 (Cubic-Langmuir and dual-site Langmuir water factors)
+
+!!! note "New in 0.12"
+    The kind `cubic_langmuir` and the water factors `lambda1`, `lambda2`, `lambda3` and `gamma2` of the dual-site Langmuir kinds.
+
+On the MOF CALF-20, water takes CO₂ sites away rather than adding to them. Nguyen et al., *Ind. Eng. Chem. Res.* 63 (2024) 3265–3281 (ChemRxiv preprint doi:10.26434/chemrxiv-2023-f3rzv), describe it with two models. The engine has both.
+
+**Kind `cubic_langmuir`: a type V water isotherm.** The paper calls it Cubic-Langmuir. T. T. T. Nguyen's PhD thesis (University of Alberta, 2021) calls the same form Quadratic-Langmuir. In the water concentration in the gas, $C = P y_i / (R T)$ [mol m⁻³]:
+
+$$
+q_i^* = q_{sb}\,\frac{b_1 C + 2 b_2 C^2 + 3 b_3 C^3}{1 + b_1 C + b_2 C^2 + b_3 C^3} + q_{sd}\,\frac{d\,C}{1 + d\,C}
+$$
+
+$$
+b_j = b_{0,j} \exp\negthinspace\left(-\frac{\Delta U_1}{R T}\right) \quad (j = 1, 2, 3), \qquad
+d = d_0 \exp\negthinspace\left(-\frac{\Delta U_2}{R T}\right)
+$$
+
+The three $b_j$ share one energy. $\Delta U_1, \Delta U_2 < 0$ for exothermic adsorption: this is the paper's sign, not the sign of the Langmuir kinds' `q1`. A negative $b_{0,1}$ gives the anti-Langmuir start below the inflection.
+
+| Symbol | Name | Description | Unit | Default (CALF-20, adsorption branch) |
+|--------|------|-------------|------|------|
+| $q_{sb}$ | `q_sb` | Capacity of the cooperative (type V) term | mol kg⁻¹ | 1.629 |
+| $b_{0,1}$ | `b0_1` | First coefficient (may be negative) | m³ mol⁻¹ | −2.685×10⁻¹⁷ |
+| $b_{0,2}$ | `b0_2` | Second coefficient, ≥ 0 | (m³ mol⁻¹)² | 1.158×10⁻¹⁶ |
+| $b_{0,3}$ | `b0_3` | Third coefficient, ≥ 0 | (m³ mol⁻¹)³ | 5.374×10⁻¹⁷ |
+| $\Delta U_1$ | `dU1` | Energy of the $b_j$ | J mol⁻¹ | −97 990 |
+| $q_{sd}$ | `q_sd` | Capacity of the Langmuir term | mol kg⁻¹ | 5.781 |
+| $d_0$ | `d0` | Langmuir affinity pre-exponential | m³ mol⁻¹ | 8.773×10⁻¹² |
+| $\Delta U_2$ | `dU2` | Energy of $d$ | J mol⁻¹ | −64 720 |
+
+The defaults are the paper's adsorption-branch values. The loadings are per kg of the structured sorbent (80 wt% CALF-20, 20 wt% binder).
+
+- **Limits.** The loading is defined only where the denominator is positive. The deck checks find the minimum of $1 + b_1 C + b_2 C^2 + b_3 C^3$ over $0 \le C \le C_{sat}(T)$ at every temperature from the lowest to the highest of the deck (initial gas and wall, inlet streams). A minimum at or below 0 is an error. $C_{sat}$ comes from the component's saturation pressure. Above saturation the form continues smoothly; condensation is not modelled.
+- **Positivity.** With $b_{0,1} < 0$ the first term is negative at small $C$. If the sum is negative there, the loading is held at 0. Below $C = 0$ (a transient solver iterate) the loading follows its Henry line $(q_{sb} b_1 + q_{sd} d)\,C$.
+- **Hysteresis.** The paper also fits the desorption branch of the hysteresis loop as its own parameter set. The engine has no branch switching, so a deck uses one set, normally the adsorption branch.
+- **Mixtures.** The kind is not competitive: water follows its own concentration only. Under the [IAST mixing rule](#mixture-loadings-the-mixing-rule-and-iast) its spreading pressure is closed, $\psi = q_{sb} \ln(1 + b_1 C + b_2 C^2 + b_3 C^3) + q_{sd} \ln(1 + d\,C)$ (in the pure pressure, with $C = P/(RT)$). For a negative Henry slope $q_{sb} b_1 + q_{sd} d$ the engine integrates the floored loading numerically.
+- **When to use it.** Use it for a water isotherm with a type V (S-shaped) step, as on CALF-20 and other hydrophobic MOFs. The [GAB kinds](#gab-and-bet-water-and-other-vapours) are for type II and III isotherms; they cannot follow the low loading below the step.
+
+**Water factors on the dual-site Langmuir kinds.** Each dual-site Langmuir kind (`dual_site_langmuir_p`, `dual_site_langmuir_c` and their extended forms) takes four optional parameters. They lower the loading with the adsorbed water loading $q_w$ [mol kg⁻¹] of the same adsorbent:
+
+$$
+q_i^* = \sum_{k=1}^{2} \frac{q_{s,k}\,B_{k,i}\,c_i}{1 + \sum_j B_{k,j}\,c_j} \cdot \frac{1}{1 + \lambda_k\,q_w^{\lambda_3}}, \qquad
+B_{k,i} = b_{k,i}\,e^{q_{k,i}/(R T)}\,e^{-\gamma_2 q_w}
+$$
+
+The pure kinds have only their own term in the denominator. $c_i$ is the concentration on the `_c` kinds and the partial pressure on the `_p` kinds.
+
+| Symbol | Name | Description | Unit | Default |
+|--------|------|-------------|------|------|
+| $\lambda_1$ | `lambda1` | Capacity factor of site 1 | (kg mol⁻¹)^λ₃ | 0 |
+| $\lambda_2$ | `lambda2` | Capacity factor of site 2 | (kg mol⁻¹)^λ₃ | 0 |
+| $\lambda_3$ | `lambda3` | Exponent of $q_w$ | - | 0 |
+| $\gamma_2$ | `gamma2` | Affinity factor | kg mol⁻¹ | 0 |
+
+- **Defaults.** All four are 0, which gives the dry isotherm exactly. $\lambda_3$ alone changes nothing. With $\lambda_3 = 0$, $q_w^0 = 1$: the capacity factor is then a constant. A deck writes the four fields only when one of them is set, so existing decks save and load unchanged.
+- **The water loading.** $q_w$ is the actual (rate-equation) loading of the component named `Water` on the same adsorbent, as for [`toth_humid`](#co2-with-adsorbed-water-toth-wadst-and-humid-toth). Its own isotherm (for example `cubic_langmuir`) gives it. A negative $q_w$ is taken as 0. Without a `Water` component the deck checks warn and the isotherm is dry.
+- **Competition.** The other components of an extended kind (N₂) keep their factors at 0 and still compete with CO₂ in the shared denominators. The affinity factor of CO₂ acts in those denominators too.
+- **The paper's values.** For CO₂ on CALF-20 the paper uses the per-site capacity factors $\lambda_1 = 0.0066$, $\lambda_2 = 2.483$ and $\lambda_3 = 3.55$ ($q_w$ in mol kg⁻¹), and no affinity factor. Its dry isotherm is the SI's dual-site Langmuir (Table S2). The factors were fitted to competitive data at 22 °C in pure CO₂ only. The paper says that their dependence on temperature and on the CO₂ partial pressure is not validated.
+- **Mixtures.** With a factor set, the loading depends on another component's loading, so the IAST mixing rule rejects the isotherm with a deck-check error. Use the mixing rule `none`. With the factors at 0 the kind is IAST-mixable as before.
+
+**From Python and the fitter.** `skarstrom.evaluate_isotherm(..., water_loading=q_w)` evaluates a dual-site Langmuir kind with its factors at a given water loading. `skarstrom.fit_isotherm(..., water_loading=...)` holds the factors at 0 for dry data. With points at $q_w > 0$ it fits $\lambda_1$, $\lambda_2$ and $\lambda_3$, and holds $\gamma_2$ at 0. For `cubic_langmuir` the fitter searches the $b_j$ and $d$ at the reference temperature.
+
+```python
+import skarstrom as sk
+
+R, T = 8.31446261815324, 295.15
+p_sat = 2642.0  # water at 22 C, approximately [Pa]
+water = sk.evaluate_isotherm("cubic_langmuir", {}, pressure=[0.1 * p_sat, 0.5 * p_sat, 0.9 * p_sat], temperature=T)
+co2 = {"m1": 2.387, "b1": 5.519e-7, "q1": 35060, "m2": 3.271, "b2": 5.187e-8, "q2": 28950,
+       "lambda1": 0.0066, "lambda2": 2.483, "lambda3": 3.55}
+dry = sk.evaluate_isotherm("dual_site_langmuir_c", co2, pressure=0.95e5, temperature=T)[0]
+humid = sk.evaluate_isotherm("dual_site_langmuir_c", co2, pressure=0.95e5, temperature=T, water_loading=2.08)[0]
+print(f"water {water.round(2)} mol/kg; CO2 dry {dry:.2f}, at q_w = 2.08: {humid:.2f} mol/kg")
+```
+
 ---
 
 ## Mixture loadings: the mixing rule and IAST
@@ -507,7 +586,7 @@ $$
 | $x_i$ | Mole fraction of $i$ in the adsorbed phase | - |
 | $q_T$ | Total mixture loading | mol kg⁻¹ |
 
-**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir and the GAB kinds. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, Langmuir, Freundlich, Sips and anti-Langmuir, and a Newton iteration otherwise. A kind without an IAST form is an error, never treated as inert; the CO₂-with-water kinds (`toth_wadst`, `toth_humid`) are rejected by the deck checks.
+**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir, the GAB kinds and Cubic-Langmuir. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, Langmuir, Freundlich, Sips and anti-Langmuir, and a Newton iteration otherwise. A kind without an IAST form is an error, never treated as inert; the CO₂-with-water kinds (`toth_wadst`, `toth_humid`) and a dual-site Langmuir with its [water factors](#water-on-calf-20-cubic-langmuir-and-dual-site-langmuir-water-factors) set are rejected by the deck checks.
 
 **Limits that hold exactly.** A single adsorbing component gives its pure isotherm at its partial pressure. Langmuir isotherms with **equal saturation capacities** give the extended Langmuir model. With unequal capacities, extended Langmuir is thermodynamically inconsistent and IAST is not.
 

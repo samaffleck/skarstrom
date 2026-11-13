@@ -9,6 +9,9 @@
 #include "adsim/math/expression_param.h"
 #include "adsim/objects/reaction.h"
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/math/constants.h"
+#include <algorithm>
+#include <sstream>
 
 #include <cmath>
 
@@ -227,6 +230,12 @@ namespace adsim {
       return false;
     }
 
+    // Cubic-Langmuir isotherms: the denominator must stay positive up to
+    // saturation at the deck's temperatures.
+    if (!CubicLangmuirChecks(err_msg)) {
+      return false;
+    }
+
     // Reactions of the solids a layer uses (objects/reaction.h).
     if (!ReactionChecks(adsorbent_directory, bed, fluid, err_msg)) {
       return false;
@@ -245,6 +254,57 @@ namespace adsim {
     return true;
   }
   
+  bool UserData::CubicLangmuirChecks(std::string& err_msg) const {
+    // The deck's temperatures: initial gas and wall, and every inlet stream.
+    double T_lo = ic.temperature.Get(), T_hi = T_lo;
+    auto take = [&](double T) {
+      if (!(T > 0.0) || !std::isfinite(T)) return;
+      T_lo = std::min(T_lo, T);
+      T_hi = std::max(T_hi, T);
+    };
+    take(ic.wall_temperature.Get());
+    for (const auto& step : cycle.step_list_)
+      for (const auto* bc : {step.top_boundary_condition_.get(), step.bottom_boundary_condition_.get()})
+        if (const auto* fbc = dynamic_cast<const FlowBoundaryCondition*>(bc))
+          for (const auto& stream : fbc->streams_)
+            if (stream) take(stream->temperature_.Get());
+    bool ok = true;
+    std::vector<AdsorbentID> ids;
+    for (const auto& [id, ads] : adsorbent_directory.GetAll()) ids.push_back(id);
+    std::sort(ids.begin(), ids.end());
+    for (AdsorbentID id : ids) {
+      const Adsorbent& ads = adsorbent_directory.Get(id);
+      const auto& source = ads.adsorption_source_;
+      for (const auto& [component, type] : source.IsothermMap()) {
+        if (type != IsothermType::CUBIC_LANGMUIR) continue;
+        const auto* iso = dynamic_cast<const CubicLangmuirIsotherm*>(source.FindIsotherm(component));
+        if (!iso) continue;
+        auto it = iso->params_.find(component);
+        if (it == iso->params_.end()) continue;
+        // Every 1 K from the lowest to the highest temperature (and both ends).
+        const int n = std::max(1, static_cast<int>(std::ceil(T_hi - T_lo)));
+        for (int i = 0; i <= n; ++i) {
+          const double T = T_lo + (T_hi - T_lo) * i / n;
+          const double C_sat = SaturationPressure(component, T) / (constants::kIdealGasConstant * T);
+          if (!std::isfinite(C_sat)) break;  // no saturation curve for this component
+          double C_at = 0.0;
+          const double den = CubicLangmuirDenominatorMin(it->second, T, C_sat, &C_at);
+          if (!(den > 0.0)) {
+            std::ostringstream ss;
+            ss << "Error: adsorbent \"" << ads.name_ << "\" gives " << component
+               << " the Cubic-Langmuir isotherm (cubic_langmuir), whose denominator 1 + b1 C + b2 C^2 + b3 C^3"
+               << " reaches " << den << " at T = " << T << " K and C = " << C_at << " mol/m3 (saturation: " << C_sat
+               << " mol/m3). The loading is undefined there; check b0_1, b0_2, b0_3 and dU1.\n";
+            err_msg += ss.str();
+            ok = false;
+            break;
+          }
+        }
+      }
+    }
+    return ok;
+  }
+
   void UserData::Initialise() {
     fluid.Initialise(ic);
     bed.Initialise(adsorbent_directory, fluid);
@@ -272,7 +332,8 @@ namespace adsim {
     // Set qi = qi_sat 
     state.SetAdsorbedPhaseInitialConditions();
 
-    // The water-coupled isotherm kinds (toth_wadst, toth_humid) read the
+    // The isotherms that read the adsorbed water loading (toth_wadst,
+    // toth_humid, a dual-site Langmuir with its water factors set) read the
     // adsorbed water loading, which the first pass evaluated at the initial
     // loading from the initial conditions. Water's own isotherm does not
     // depend on them, so one more pass starts them in equilibrium with the
@@ -280,7 +341,8 @@ namespace adsim {
     bool water_coupled = false;
     for (const auto& [id, ads] : adsorbent_directory.GetAll())
       for (const auto& [component, type] : ads.adsorption_source_.IsothermMap())
-        water_coupled = water_coupled || IsWaterCoupledIsothermKind(type);
+        water_coupled = water_coupled ||
+                        IsothermUsesWaterLoading(ads.adsorption_source_.FindIsotherm(component), component);
     if (water_coupled) {
       state.UpdateIndependentEquations(this);
       state.UpdateDiagnosticEquations(this);

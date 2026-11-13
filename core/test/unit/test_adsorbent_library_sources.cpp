@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 
 #include "adsim/equations/isotherm.h"
+#include "adsim/equations/isotherm_kinds.h"
 #include "adsim/math/constants.h"
 #include "adsim/objects/fluid.h"
 #include "adsim/objects/porous_media.h"
@@ -312,6 +313,81 @@ TEST(AdsorbentLibrarySources, HumidEntriesReproduceTheirPaperNumbers) {
   std::printf("[humid library] Purolite gab_young 298.15 K, RH 0.5: %.4f mol/kg (reference 5.005)\n", q_pur);
   EXPECT_NEAR(q_lew, 3.124, 5e-4);
   EXPECT_NEAR(q_pur, 5.005, 5e-4);
+}
+
+// ---------------------------------------------------------------------------
+// Nguyen, Shimizu, Rajendran (2024) Ind. Eng. Chem. Res. 63, 3265-3281.
+// https://doi.org/10.1021/acs.iecr.3c04266 (ChemRxiv preprint
+// doi:10.26434/chemrxiv-2023-f3rzv). Structured CALF-20 (80 wt% crystals,
+// 20 wt% binder), loadings per kg of sorbent.
+// Water: the Cubic-Langmuir (type V) adsorption branch, preprint Table 2 (the
+// same set as T. T. T. Nguyen, PhD thesis, U. Alberta 2021, Table 3.1).
+// CO2: the dual-site Langmuir of the SI, Table S2 (the same as Nguyen et al.,
+// Chem. Eng. J. 442 (2022) 136263), with the per-site water factors of the
+// preprint (lambda1 0.0066, lambda2 2.483, lambda3 3.55). N2: as in the
+// calf_20_nguyen2022 entry (equal-energy sites on the CO2 capacities), in the
+// same extended isotherm. Energies: dU [kJ/mol] -> J/mol x1e3, engine q = -dU.
+// ---------------------------------------------------------------------------
+TEST(AdsorbentLibrarySources, CALF20Humid_Nguyen2024) {
+  Adsorbent a;
+  a.name_ = "CALF-20 (structured, with water)";
+  a.solid_density_ = 570.0;      // as calf_20_nguyen2023 (Nguyen 2023 Table 1, measured)
+  a.heat_capacity_ = 1350.0;     // as calf_20_nguyen2023 (Nguyen 2023 Table 1, fitted)
+  a.thermal_conductivity_ = 0.63;
+  a.ep_ = 0.35;                  // as calf_20_nguyen2023 (Nguyen 2023 Table 1, assumed)
+
+  auto dsl = std::make_unique<ExtendedDualSiteLangmuirIsotherm_Concentration>(CO2);
+  auto& c = dsl->params_[CO2];
+  c.m1 = 2.387; c.b1 = 5.519e-7; c.q1 = 35.06e3;   // SI Table S2: q_sb, b0, -dU_b
+  c.m2 = 3.271; c.b2 = 5.187e-8; c.q2 = 28.95e3;   // SI Table S2: q_sd, d0, -dU_d
+  c.lambda1 = 0.0066; c.lambda2 = 2.483; c.lambda3 = 3.55;  // preprint, per-site water factors
+  auto& n = dsl->params_[N2];
+  n.m1 = 2.387; n.b1 = 8.139e-7; n.q1 = 17.96e3;   // calf_20_nguyen2022 entry
+  n.m2 = 3.271; n.b2 = 8.139e-7; n.q2 = 17.96e3;
+  a.adsorption_source_.AddIsotherm({CO2, N2}, std::move(dsl));
+
+  auto cubic = std::make_unique<CubicLangmuirIsotherm>(WATER);
+  auto& w = cubic->params_[WATER];
+  w.q_sb = 1.629; w.b0_1 = -2.685e-17; w.b0_2 = 1.158e-16; w.b0_3 = 5.374e-17; w.dU1 = -97.99e3;
+  w.q_sd = 5.781; w.d0 = 8.773e-12; w.dU2 = -64.72e3;
+  a.adsorption_source_.AddIsotherm({WATER}, std::move(cubic));
+
+  a.adsorption_source_.heat_of_adsorption_[CO2] = 38.0e3;  // as calf_20_nguyen2023
+  a.adsorption_source_.heat_of_adsorption_[N2] = 15.0e3;   // as calf_20_nguyen2023
+  // Water: the source prints no heat. The isosteric heat of the Cubic-Langmuir
+  // set varies strongly with loading (negative below about 8 % RH, where the
+  // anti-Langmuir start dominates, up to 87 kJ/mol near 45 % RH at 22 C), so
+  // the entry stores its loading-weighted mean from 0 to saturation at 22 C,
+  // (1/q_sat) integral of q_st dq (midpoint rule in RH, 2000 steps), rounded to
+  // 0.1 kJ/mol: the integral heat of the whole uptake.
+  {
+    CubicLangmuirIsotherm probe(WATER);
+    probe.params_[WATER] = w;
+    const double T = 295.15, ps = SaturationPressure(WATER, T);
+    const int n = 2000;
+    double sum = 0.0, q_prev = 0.0;
+    for (int i = 1; i <= n; ++i) {
+      const double q = EvalIsotherm(&probe, WATER, T, ps * i / n, 1.0);
+      sum += IsostericHeat(&probe, WATER, T, ps * (i - 0.5) / n, 1.0) * (q - q_prev);
+      q_prev = q;
+    }
+    const double mean = sum / q_prev;
+    a.adsorption_source_.heat_of_adsorption_[WATER] = std::round(mean / 100.0) * 100.0;
+    std::printf("[humid library] CALF-20 water mean q_st (22 C, 0-100 %% RH): %.1f J/mol\n", mean);
+    EXPECT_NEAR(mean, 54.2e3, 0.5e3);
+  }
+
+  Adsorbent b;
+  SaveAndReload(a, "calf_20_nguyen2024_humid", b);
+  ExpectSameScalars(a, b);
+  auto* iso = dynamic_cast<ExtendedDualSiteLangmuirIsotherm_Concentration*>(b.adsorption_source_.GetIsotherm(CO2).get());
+  ASSERT_NE(iso, nullptr);
+  EXPECT_DOUBLE_EQ(iso->params_.at(CO2).lambda2.Get(), 2.483);
+  EXPECT_DOUBLE_EQ(iso->params_.at(N2).lambda1.Get(), 0.0);
+  auto* wb = dynamic_cast<CubicLangmuirIsotherm*>(b.adsorption_source_.GetIsotherm(WATER).get());
+  ASSERT_NE(wb, nullptr);
+  EXPECT_DOUBLE_EQ(wb->params_.at(WATER).b0_1.Get(), -2.685e-17);
+  EXPECT_DOUBLE_EQ(wb->params_.at(WATER).dU2.Get(), -64720.0);
 }
 
 // ---------------------------------------------------------------------------

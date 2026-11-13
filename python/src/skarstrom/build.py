@@ -492,6 +492,20 @@ def _var(name: str, taken: set) -> str:
     return v
 
 
+# The optional water factors of the dual-site Langmuir kinds: left out of a
+# script while they are 0 (the dry isotherm), so scripts of dry decks are unchanged.
+_DSL_WATER_FACTORS = ("lambda1", "lambda2", "lambda3", "gamma2")
+
+
+def _unset_water_factor(sim: "Simulation", node: Any, field: str) -> bool:
+    if field not in _DSL_WATER_FACTORS:
+        return False
+    try:
+        return float(sim.get_text(node.path(field))) == 0.0
+    except (TypeError, ValueError):
+        return False  # an expression: keep it
+
+
 def to_script(sim: "Simulation", name: str = "sim") -> str:
     """Python source that builds ``sim`` from scratch with the builder API, every value explicit.
 
@@ -548,7 +562,8 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                 if c not in node.isotherm:  # a model without parameters (inert)
                     continue
                 inode = node.isotherm[c]
-                vals = ", ".join(f"{f!r}: {_literal(sim, inode.path(f))}" for f in inode.fields)
+                vals = ", ".join(f"{f!r}: {_literal(sim, inode.path(f))}" for f in inode.fields
+                                 if not _unset_water_factor(sim, inode, f))
                 params.append(f"    {c!r}: {{{vals}}},")
             if params:
                 w(f"{v}.set_isotherm({iso['kind']!r}, {{")
