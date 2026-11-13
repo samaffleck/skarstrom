@@ -121,7 +121,7 @@ def build(case: str = "NaY_F") -> sk.Simulation:
     # 1. Feed: biogas in at the bottom, CH4-rich raffinate (light product) out of the top.
     feed = sim.add_step("Feed", time=op["feed_time"])
     feed.bottom.set_streams("inlet", [
-        sk.Stream("", flow=sk.velocity(feed_velocity * u.m / u.s), y=BIOGAS, temperature=298.15 * u.K),
+        sk.Stream("Biogas feed", flow=sk.velocity(feed_velocity * u.m / u.s), y=BIOGAS, temperature=298.15 * u.K),
     ])
     feed.top.set_pressure("outlet", op["high_pressure"], y=BIOGAS, temperature=293 * u.K)
 

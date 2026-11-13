@@ -165,7 +165,7 @@ def add_cycle(sim: sk.Simulation, cfg: dict) -> None:
     # 1. Production: air in at the bottom, O2 product out at the top at the high pressure.
     production = sim.add_step("Production", time=t_prod * u.s)
     production.bottom.set_streams("inlet", [
-        sk.Stream("", flow=sk.molar_flow(cfg['feed'] * u.mol / u.s), y=AIR, temperature=298 * u.K),
+        sk.Stream("Air feed", flow=sk.molar_flow(cfg['feed'] * u.mol / u.s), y=AIR, temperature=298 * u.K),
     ])
     production.top.set_pressure("outlet", p_high * u.Pa, y=product, temperature=293 * u.K)
 
@@ -178,7 +178,7 @@ def add_cycle(sim: sk.Simulation, cfg: dict) -> None:
     purge = sim.add_step("Purge", time=t_purge * u.s)
     purge.bottom.set_pressure("outlet", p_low * u.Pa, y=AIR, temperature=293 * u.K)
     purge.top.set_streams("inlet", [
-        sk.Stream("", flow=sk.molar_flow(n_purge * u.mol / u.s), y=product, temperature=298 * u.K),
+        sk.Stream("Product purge", flow=sk.molar_flow(n_purge * u.mol / u.s), y=product, temperature=298 * u.K),
     ])
 
     # 4. Pressurisation with O2 product from the top, bottom closed.

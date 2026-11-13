@@ -1547,7 +1547,7 @@
                                                 "cereal_class_version": 1,
                                                 "value0": {
                                                     "cereal_class_version": 5,
-                                                    "Stream_Name": "",
+                                                    "Stream_Name": "Air feed",
                                                     "Boundary_Temperature": {
                                                         "Value": 298.0,
                                                         "Expression": "298",
@@ -1921,7 +1921,7 @@
                                             "valid": 1,
                                             "data": {
                                                 "value0": {
-                                                    "Stream_Name": "",
+                                                    "Stream_Name": "Product purge",
                                                     "Boundary_Temperature": {
                                                         "Value": 298.0,
                                                         "Expression": "298",
