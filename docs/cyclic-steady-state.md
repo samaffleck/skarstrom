@@ -40,6 +40,8 @@ $$
 
 Components that are never fed are skipped. Together with the state test this is the safest choice when component-level purity and recovery are the outputs you care about.
 
+A component counts as never fed when its inflow over the cycle is below 10⁻¹² times the moles of all components fed in the cycle (or below 10⁻³⁰ mol). The threshold is relative because the round-off of a flow scales with the cycle: a lab column and a plant have different round-off, while a fed component, even a trace at parts per million, is many orders above it. It matters mainly under the IAST [mixing rule](isotherms.md#mixture-loadings-the-mixing-rule-and-iast): a component that is in the deck but has mole fraction 0 everywhere takes round-off loadings, so its flows are round-off but not exactly zero, and their relative error is of order 1. Without the threshold that error fails the test at random and the run reaches CSS only by chance. The solver logs each skipped component once per run, at the Low level: *component Water: negligible throughput, mass balance not tested*. The Mass Balance (Total) test and the state test are not affected.
+
 Both balance tests integrate the logged flux through the two bed faces (the species balance's own face flux) with the trapezoid rule over the logged points. They do not use the KPI integrals. The reported KPIs and their `mass_balance_error` use the quadratures the solver integrates alongside the solution, with the trapezoid as fallback ([Performance Metrics](performance-metrics.md#how-the-kpis-are-integrated-and-the-mole-balance)). The quadratures restart from zero at every step of every cycle.
 
 ### State test

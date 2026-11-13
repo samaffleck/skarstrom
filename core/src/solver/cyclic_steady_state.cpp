@@ -62,6 +62,11 @@ namespace adsim {
     return state_change >= 0.0 && state_change <= state_tolerance;
   }
 
+  bool CyclicSteadyState::NegligibleThroughput(double component_moles_in, double total_moles_in) {
+    return component_moles_in < std::max(kNegligibleThroughputAbsolute,
+                                         kNegligibleThroughputFraction * total_moles_in);
+  }
+
   int CyclicSteadyState::TrailingPasses(int cycle_index, int required,
                                         const std::function<bool(int)>& passes) {
     int count = 0;
@@ -322,32 +327,46 @@ namespace adsim {
     const auto& components = logger.sys_data.components_;
     const auto& step_indices = logger.sys_data.step_index_set_;
 
-    double max_error = 0.0;
-
-    for (const auto& component : components) {
-      double total_moles_in = 0.0;
-      double total_moles_out = 0.0;
+    struct Balance {
+      double in = 0.0, out = 0.0;
       double generated = 0.0;  // by the reactions (0 without)
+    };
+    std::vector<Balance> balances(components.size());
+    double total_moles_in = 0.0;  // all components: what the cycle was fed
+
+    for (size_t i = 0; i < components.size(); ++i) {
+      const auto& component = components[i];
+      Balance& b = balances[i];
 
       for (int step_index : step_indices) {
         double bottom = GetTotalComponentMolesIn(logger, cycle_index, step_index, BoundaryLocation::BOTTOM, component);
         double top = GetTotalComponentMolesIn(logger, cycle_index, step_index, BoundaryLocation::TOP, component);
 
-        if (bottom > 0.0) total_moles_in += bottom;
-        else total_moles_out += std::abs(bottom);
+        if (bottom > 0.0) b.in += bottom;
+        else b.out += std::abs(bottom);
 
-        if (top > 0.0) total_moles_in += top;
-        else total_moles_out += std::abs(top);
+        if (top > 0.0) b.in += top;
+        else b.out += std::abs(top);
 
-        generated += logger.ReactionGeneration(cycle_index, step_index, component);
+        b.generated += logger.ReactionGeneration(cycle_index, step_index, component);
       }
+      total_moles_in += b.in;
+    }
 
+    double max_error = 0.0;
+    for (size_t i = 0; i < components.size(); ++i) {
+      const Balance& b = balances[i];
       // A component that is never fed (trace species, inert, product-only) has
       // no meaningful relative error; skip it rather than abandoning the whole
-      // check, which would leave result.converged false for every cycle.
-      if (total_moles_in < 1e-30) continue;
+      // check, which would leave result.converged false for every cycle. Its
+      // inflow need not be exactly zero: under IAST an absent component takes
+      // round-off loadings, and the relative error of round-off is O(1).
+      if (NegligibleThroughput(b.in, total_moles_in)) {
+        result.untested_components.push_back(components[i]);
+        continue;
+      }
 
-      double comp_error = std::abs(total_moles_in + generated - total_moles_out) / total_moles_in;
+      double comp_error = std::abs(b.in + b.generated - b.out) / b.in;
       max_error = std::max(max_error, comp_error);
     }
 

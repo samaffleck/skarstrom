@@ -82,6 +82,10 @@ namespace adsim {
     // passed (capped at required_cycles), and how many the rule needs.
     int passing_cycles = 0;
     int required_cycles = 1;
+    // Mass Balance (Per-Component) only: the components whose balance was not
+    // tested at this cycle, because their throughput is negligible
+    // (CyclicSteadyState::NegligibleThroughput). Empty for the other methods.
+    std::vector<std::string> untested_components;
     // Diagnostic only (it never changes the stopping rule): the estimated
     // remaining distance to the cyclic steady state, from the decay of the
     // end-of-cycle state change (see CyclicSteadyState::EstimateDistance).
@@ -204,6 +208,17 @@ namespace adsim {
     // (a negative state_change, meaning "not available", fails).
     static bool MassBalanceCyclePasses(double balance_error, double balance_tolerance,
                                        double state_change, double state_tolerance);
+    // The per-component balance skips a component whose inflow over the cycle
+    // is negligible: below kNegligibleThroughputFraction times the moles of all
+    // components fed in the cycle, or below kNegligibleThroughputAbsolute. Such
+    // a component is not fed; its flows are round-off (an absent component takes
+    // round-off loadings under IAST), and the relative error of round-off is
+    // O(1), so testing it would fail the cycle at random. The threshold is
+    // relative because the cycle's scale (lab column or plant) sets what
+    // round-off is. A fed component, even a trace one, is far above it.
+    static constexpr double kNegligibleThroughputFraction = 1e-12;
+    static constexpr double kNegligibleThroughputAbsolute = 1e-30;  // mol
+    static bool NegligibleThroughput(double component_moles_in, double total_moles_in);
     // Number of consecutive cycles ending at cycle_index (counting back to cycle
     // 0 at most) for which passes(c) is true, capped at `required`.
     static int TrailingPasses(int cycle_index, int required, const std::function<bool(int)>& passes);

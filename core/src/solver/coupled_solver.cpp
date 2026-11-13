@@ -66,6 +66,16 @@ namespace adsim {
       return ss.str();
     }
 
+    // Once per run for each component: the per-component balance did not test
+    // it, because its throughput is negligible (CyclicSteadyState::NegligibleThroughput).
+    template <class Log>
+    void LogUntestedComponents(const CSSResult& r, std::set<std::string>& logged, Log log) {
+      for (const auto& component : r.untested_components) {
+        if (!logged.insert(component).second) continue;
+        log(LogLevel::LOW, "CSS: component " + component + ": negligible throughput, mass balance not tested");
+      }
+    }
+
     // At the CSS stop: a warning when the estimated remaining distance is more
     // than CyclicSteadyState::kDistanceWarningRatio state tolerances. The stop
     // rule bounds the last cycle-to-cycle change, not the distance still to go,
@@ -219,6 +229,7 @@ namespace adsim {
     boundary_log_.Initialise(user_data_);
     kpi_history_.Clear();
     css_history_.Clear();
+    css_untested_logged_.clear();
     run_health_.Begin(user_data_);
     jump_cycles_.clear();
     
@@ -645,6 +656,8 @@ namespace adsim {
       CSSResult css_result = css.CheckCSS(equation_log_, cycle_index,
                                           [this](int c) { return jump_cycles_.count(c) > 0; });
       css_history_.Record(cycle_index, css_result);
+      LogUntestedComponents(css_result, css_untested_logged_,
+                            [this](LogLevel level, const std::string& msg) { LogMessage(level, msg); });
 
       if (css_result.converged) {
         LogMessage(LogLevel::LOW, "CSS reached at cycle " + std::to_string(i)
@@ -786,6 +799,7 @@ namespace adsim {
       boundary_log_.Initialise(user_data_);
       kpi_history_.Clear();
       css_history_.Clear();
+      css_untested_logged_.clear();
       run_health_.Begin(user_data_);
       jump_cycles_.clear();
 
@@ -902,6 +916,8 @@ namespace adsim {
                                                   [this](int c) { return jump_cycles_.count(c) > 0; });
         css.min_cycles_ = saved_min_cycles;
         css_history_.Record(status_.GetCycleIndex(), css_result);
+        LogUntestedComponents(css_result, css_untested_logged_,
+                              [this](LogLevel level, const std::string& msg) { LogMessage(level, msg); });
         if (css_result.converged) {
           LogMessage(LogLevel::LOW, "CSS reached at cycle "
                      + std::to_string(status_.GetCycleIndex() + 1)

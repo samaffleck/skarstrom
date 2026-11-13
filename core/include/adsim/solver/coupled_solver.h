@@ -529,6 +529,7 @@ namespace adsim {
     CSSHistory css_history_;  // the CSS check of every cycle (the log keeps only the last few)
     RunHealthMonitor run_health_;
     std::set<int> jump_cycles_;
+    std::set<std::string> css_untested_logged_;  // components already reported as untested by the CSS balance
     SolverProgressCallback progress_callback_;
     SolverMessageCallback message_callback_;
     SolverMetricsCallback metrics_callback_;
@@ -602,6 +603,7 @@ namespace adsim {
     RunHealthMonitor run_health_;
     IntegrationStats cycle_stats_start_{};
     std::set<int> jump_cycles_;
+    std::set<std::string> css_untested_logged_;  // components already reported as untested by the CSS balance
     ChunkStatus status_;
 
     SolverMessageCallback message_callback_;
