@@ -8,6 +8,114 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-11-13
+
+### Fixed — per-component CSS test with an absent component
+- The Mass Balance (Per-Component) CSS test now skips a component whose inflow over the cycle is below 10⁻¹² times the moles of all components fed in the cycle (before: below 10⁻³⁰ mol). Under the IAST mixing rule, a component that is in the deck but never fed takes round-off loadings, so its flows were round-off-sized but not zero, its relative balance error was O(1) on about half the cycles, and runs reached CSS only by chance or went to the cycle cap. Such a run now stops where the same deck without the component stops. The solver logs each skipped component once per run ("negligible throughput, mass balance not tested"). Fed components are tested exactly as before.
+
+### Added — water on CALF-20: a type V water isotherm and water factors on the dual-site Langmuir kinds
+- New isotherm kind `cubic_langmuir`: the type V (Cubic-Langmuir) water isotherm of Nguyen et al., Ind. Eng. Chem. Res. 63 (2024) 3265–3281, in the gas concentration, with one energy for the three cooperative coefficients and one for the Langmuir term. The defaults are the paper's adsorption-branch values for CALF-20. It has a closed IAST spreading pressure, a fitter set-up, and a deck check that its denominator stays positive up to saturation at the deck's temperatures. The loading is held at 0 where a negative first coefficient would make it negative.
+- The dual-site Langmuir kinds (`dual_site_langmuir_p`/`_c` and their extended forms) take four optional water factors: per-site capacity factors 1/(1 + λ_k q_w^λ3) (`lambda1`, `lambda2`, `lambda3`) and an affinity factor exp(−γ2 q_w) (`gamma2`), with q_w the adsorbed water loading of the same adsorbent. All default to 0, which is the dry isotherm exactly. The fields are written to a deck only when set, so existing decks and their results do not change. On an extended kind, the other components keep the shared denominator. With a factor set, the IAST mixing rule rejects the isotherm. `skarstrom.evaluate_isotherm(..., water_loading=)` and `fit_isotherm(..., water_loading=)` support the factors.
+
+### Added — molecular diffusion has its own switch in the macropore term
+- The resistance model has a new switch, `molecular` (registry leaf
+  `kinetics[C].resistances.molecular`), that refines the macropore term next to
+  `knudsen`. The pore diffusivity is D_m (molecular only), D_K (Knudsen only) or
+  the Bosanquet mean 1/D = 1/D_K + 1/D_m (both). One of the two stays on while
+  macropore is on; switching macropore on with neither on switches molecular on.
+- `molecular_diffusion_coefficient` belongs to the `molecular` switch.
+- `MassTransferResistances` is at cereal version 2. A deck from an earlier version
+  loads with `molecular` on wherever `macropore` is on, so its results do not change.
+- Python: `set_rate_model(resistances=[...])` keeps molecular diffusion on with
+  macropore; switch it off with `set_rate_resistance(component, "molecular", False)`.
+  The deck-to-script writer does this for a Knudsen-only site.
+
+### Changed — the coefficient's display equation has one definition per line
+- `MassTransferEquationLatex` puts each definition on its own line, aligned on
+  the equals sign (it joined them on one line before). The Bosanquet mean and
+  D_K are separate lines.
+- With the film term on in a packed layer, the deck view's `equation` also shows
+  the Sherwood number of the layer's film correlation (Wakao–Funazkri, Gunn or
+  Ranz–Marshall) and the Reynolds and Schmidt numbers it uses
+  (`FilmCorrelationLatex`).
+- The model-kind manifest's resistances have `needs_child` (true for macropore).
+
+### Added — warm starts for the chunked run
+- `Simulation::Start` (the chunked run driven with `Advance`) can start from a cycle state: a new `initial_state` argument, or the `SetInitialState` state. As for a blocking run, the state is adapted to the deck first, its cycles count towards the CSS minimum number of cycles, and a state that does not fit makes `Start` return false with the reason.
+- A chunked run that completes or reaches cyclic steady state now keeps its `FinalState()`, so a caller that steps the run itself can use the state cache (`adsim/solver/state_cache.h` describes the pattern).
+- A run without a start state gives the same results as before.
+
+### Fixed — Nguyen 2022: compare with the measured data, not the paper's model
+- The files in `core/data/nguyen_2022/Fig4/` and `Fig5/` were the paper's model curves, digitised; the paper test and the `Nguyen2022_Fig4` and `Nguyen2022_Fig5` decks used them as the experiment. They are now `core/data/nguyen_2022/paper_model/` (the test's "vs paper model" check). The measured markers are re-digitised from the paper's figures (`core/data/nguyen_2022/digitise_figures.py`), including the outlet N2 of Fig. 5.
+- The decks follow the paper and the author's thesis (Table A2.1): Fig. 5 feeds CO2 in nitrogen (the decks fed CO2 in helium), each run has its own temperature and pressure, and the decks use the constant gas heat capacities of Table 2, the capacity-factor LDF of Eq. 5 with D_m = 1.496e-5 m2/s, Eq. 6 dispersion with the same D_m, the Blake–Kozeny pressure drop and no gas holdup in the pores.
+- The measured thermocouple 1.82 cm from the outlet is now compared too.
+- Nothing is fitted. Against the measurement, the CO2 fronts are within 3–11 % (the paper's own model: 5–15 %). The Fig. 5 thermocouple RMSE is 1.0–2.7 K. The Fig. 4 temperature peaks are 6–8 K too high; this is an open item. `core/test/papers/nguyen_2022/README.md` has the provenance, the attribution and the open items.
+
+### Added — Nguyen 2022: all six breakthrough runs as example decks
+- `Nguyen2022_Fig4_50pct`, `Nguyen2022_Fig4_100pct`, `Nguyen2022_Fig5_5pct` and `Nguyen2022_Fig5_30pct` join `Nguyen2022_Fig4` (70 % CO2) and `Nguyen2022_Fig5` (15 % CO2). `examples/nguyen_2022.py` builds all six.
+- The test cases are renamed `Nguyen2022Test.Fig4_100pct` … `Fig5_5pct`.
+
+### Fixed — registry coverage test across map entries
+- `RegistryCoverage` intersects its three passes per map entry (one component's value at a time), not per generic path. A deck whose adsorbent mixed a capacity-factor component with a lumped one was reported as uncovered, although each value is covered in one of the passes.
+
+### Added — Streb 2021: all nine breakthrough experiments as example decks
+- `Streb2021_A2`, `Streb2021_A4` … `Streb2021_A7`, `Streb2021_B1` and `Streb2021_B2` join `Streb2021_A1` and `Streb2021_A3`. Each deck is the paper test's case: the calibration on A3, the experiment's flow factor and its digitised data, bound to the deck.
+- `examples/streb_2021.py` builds all nine, including the ternary H2/CO2/CH4 cases. It runs A1 and A3 by default; `--case` selects the others.
+
+### Added — calibration examples
+- `examples/calibrate_ward_2022.py` fits the three Ward 2022 breakthrough runs together with
+  `skarstrom.calibrate` (shared q_s,2 and dispersion factor, one inside heat transfer coefficient
+  per flow, the hand calibration's weights) and reproduces the calibration of the shipped decks;
+  `--quick` runs it in seconds. `examples/notebooks/calibrate_ward_2022.ipynb` goes through it
+  step by step with the overlay and residual plots.
+- `examples/calibrate_cycle_kpis.py` fits two parameters of `Perez2019_A` to per-cycle CO₂ purity
+  and recovery (datasets bound to KPI observables): a twin experiment that recovers the values that
+  made the data.
+
+### Changed — Streb 2021 decks calibrated on experiment A3
+- The `Streb2021_A1` and `Streb2021_A3` decks, and the paper test's nine cases, are calibrated on the reference experiment A3 alone:
+  - the CO2 and CH4 LDF coefficients: 0.0592 and 0.137 1/s (Table 4 gives 0.06 and 0.2, also fitted to A3);
+  - the wall-to-thermofluid coefficient: 49.7 W/(m² K) (the paper takes 220 from a reference);
+  - the sampling line to the mass spectrometer: 0.142 L of gas at column pressure. It is an inert, nearly empty layer above the bed (bed voidage 0.99, 40 cells), so the line carries the outlet gas as plug flow. A void region is one well-mixed cell and smears the CH4 front.
+- Each case's feed flow is its Table 2 set point times a flow factor, fitted to the speed of its own CO2 temperature front between the thermocouples (A1 1.051, A3 1.020). The paper also fits the feed velocity per experiment. Six of the nine factors are more than 2 % from the set point (up to −11.3 % for B2).
+- The other eight cases are predictions. Their CO2 fronts are now within 1.4 % of the measurement (before: 0.3–11 %) and their CH4 fronts within 2.4 %, except B1 at 4.7 % (before: 0.2–18 %). The thermocouple RMSE is now 5.5–11.4 K (before: 8.7–28.5 K). `core/test/papers/streb_2021/README.md`, "Calibration on A3", has the fit, the flow factors, the result held to 2 % of the set point and the limits. `streb_calibration.py` in the same folder repeats the calibration.
+- `CellVariableAt` (test fixture `validation_metrics.h`) takes the log index of the layer's first cell, for beds of more than one layer.
+
+### Added — calibration against measured data from Python and the command line
+- `skarstrom.calibrate(cases, parameters, ...)` and `Simulation.calibrate(parameters, datasets=None, ...)`
+  fit deck parameters to the measured datasets stored in one or more decks, with the engine's
+  calibration object (`adsim/solver/calibration.h`). A case is a Simulation, a
+  `(Simulation, [dataset names], weight)` tuple or a `skarstrom.calibration.Case`; a parameter is a
+  registry path (bounds from the registry) or a `skarstrom.calibration.Parameter` with bounds, a
+  linear or log scale, a start and shared or per-case values. Bounds and starts take units like the
+  rest of the package. Least squares (the default) or the global search, central or forward
+  differences, a run budget, threads, a progress callback, Ctrl-C and a `CancelToken`.
+- `CalibrationResult`: the estimates with standard errors and bound flags, the correlation matrix,
+  the fit of each dataset (RMSE, NRMSE, maximum error, residuals, the simulated series), the
+  objective trace, the runs, why it stopped, `table()`, `apply()`, `calibrated()`, `plot()` and a
+  JSON round trip (`to_json()` / `from_json()`).
+- `skarstrom calibrate deck.json --param PATH[:LO:HI[:log]] --dataset NAME[:WEIGHT] [--case OTHER.json]
+  [--method least_squares|global] [--threads N] [--max-simulations N] [--out FILE] [--json FILE]`.
+- The "Fitting parameters to measured data" guide (`docs/parameterisation.md`) is rewritten around
+  the calibration API; `AGENTS.md` points agents to it.
+
+### Added — calibration against measured data (C++)
+- `adsim/solver/calibration.h`: fit model parameters to the datasets stored in one or more decks.
+  A problem is a set of cases (a deck, the bound datasets to reproduce, a run policy) and a set of
+  parameters (registry paths with bounds, a linear or log scale, and shared across cases or one
+  value per case), validated against every deck.
+- The objective is a weighted least-squares sum over every measured point, scaled by the point's
+  uncertainty or the dataset's range and by the dataset's weight per point. The default solver is a
+  bounded Levenberg–Marquardt method with a finite-difference Jacobian whose columns run in
+  parallel threads (warm-started from cached cyclic steady states where the deck has them); the
+  global MaxLIPO search is also available, optionally refined by least squares. Progress and cancel
+  callbacks; a failed run is counted, never thrown.
+- The result gives each estimate with its standard error and whether it is at a bound, the
+  correlation matrix, per-dataset RMSE, NRMSE, maximum error, residuals and simulated series, the
+  objective trace, the runs made, why the solver stopped, and a calibrated deck per case.
+- `RunFromState` (`adsim/solver/state_cache.h`): the run half of `RunWithStateCache`, for callers
+  that choose the warm start and cache the final state themselves.
+
 ## [0.11.0] — 2026-11-12
 
 ### Added — experimental datasets record what they measure
