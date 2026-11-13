@@ -203,13 +203,21 @@ namespace adsim {
       // (a layer whose composition names it). In no layer: packed.
       // `shape` is the particle shape of the first packed layer that holds it
       // (Sphere when none does).
-      struct Shapes { bool packed = false, structured = false; DiffusionShape shape = DiffusionShape::Sphere; };
+      // `film` is the film correlation of that layer.
+      struct Shapes {
+        bool packed = false, structured = false;
+        DiffusionShape shape = DiffusionShape::Sphere;
+        FilmCorrelation film = FilmCorrelation::WakaoFunazkri;
+      };
       Shapes LayerShapes(AdsorbentID id) {
         Shapes s;
         for (const auto& layer : d_.bed.layers_.layers_) {
           if (!layer.composition_.count(id)) continue;
           if (layer.IsStructured()) { s.structured = true; continue; }
-          if (!s.packed) s.shape = LayerDiffusionShape(layer);
+          if (!s.packed) {
+            s.shape = LayerDiffusionShape(layer);
+            s.film = layer.film_correlation_;
+          }
           s.packed = true;
         }
         if (!s.packed && !s.structured) s.packed = true;
@@ -235,9 +243,9 @@ namespace adsim {
         Set(cv, pre + "resistances", std::move(r), a_);
         Set(cv, pre + "capacity_factor_mode", std::string(CapacityFactorModeList[static_cast<int>(g->CapacityMode())]), a_);
         Set(cv, pre + "preset", g->PresetTag(), a_);
-        const auto [packed, structured, shape] = LayerShapes(id);
+        const auto [packed, structured, shape, film] = LayerShapes(id);
         Set(cv, pre + "equation",
-            MassTransferEquationLatex(*g, packed ? shape : DiffusionShape::Slab), a_);
+            packed ? MassTransferEquationLatex(*g, shape, &film) : MassTransferEquationLatex(*g, DiffusionShape::Slab), a_);
         if (packed && structured) Set(cv, pre + "equation_slab", MassTransferEquationLatex(*g, DiffusionShape::Slab), a_);
         else SetNull(cv, pre + "equation_slab", a_);
       }
@@ -780,9 +788,9 @@ namespace adsim {
     },
     "Resistances": {
       "type": "object", "additionalProperties": false,
-      "required": ["film", "macropore", "knudsen", "micropore", "lumped"],
-      "properties": {"film": {"type": "boolean"}, "macropore": {"type": "boolean"}, "knudsen": {"type": "boolean"},
-                     "micropore": {"type": "boolean"}, "lumped": {"type": "boolean"}}
+      "required": ["film", "macropore", "molecular", "knudsen", "micropore", "lumped"],
+      "properties": {"film": {"type": "boolean"}, "macropore": {"type": "boolean"}, "molecular": {"type": "boolean"},
+                     "knudsen": {"type": "boolean"}, "micropore": {"type": "boolean"}, "lumped": {"type": "boolean"}}
     },
     "StoichiometricCoefficient": {
       "type": "object", "additionalProperties": false, "required": ["component", "nu"],

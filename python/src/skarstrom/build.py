@@ -592,12 +592,22 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                 skip |= {f for f in kn.fields if f.startswith("slow_")}
             kw = ", ".join(extra + ([_kwargs(sim, kn, skip)] if _kwargs(sim, kn, skip) else []))
             w(f"{v}.set_rate_model({c!r}, {r['model']!r}, {r['coefficient']!r}{', ' + kw if kw else ''})")
+            # set_rate_model keeps molecular diffusion on with macropore: a
+            # site with Knudsen diffusion alone switches it off after.
+            def knudsen_only(on):
+                return "macropore" in on and "molecular" not in on
+            if knudsen_only(r.get("resistances", [])):
+                w(f"{v}.set_rate_resistance({c!r}, 'molecular', False)")
+                if r["model"] == "dual_rate_ldf" and not slow_differs:
+                    w(f"{v}.set_rate_resistance({c!r}, 'molecular', False, site='slow')")
             if slow_differs:
-                tags = ("film", "macropore", "knudsen", "micropore", "lumped")
+                tags = ("film", "macropore", "molecular", "knudsen", "micropore", "lumped")
                 for tag in tags:  # on first: a site keeps one term on
                     if tag in slow["resistances"]:
                         w(f"{v}.set_rate_resistance({c!r}, {tag!r}, True, site='slow')")
                 for tag in reversed(tags):
+                    if tag in ("molecular", "knudsen") and "macropore" not in slow["resistances"]:
+                        continue  # macropore off switches them off
                     if tag not in slow["resistances"]:
                         w(f"{v}.set_rate_resistance({c!r}, {tag!r}, False, site='slow')")
                 w(f"{name}.edit.set_capacity_factor_mode({v}.id, {c!r}, {slow['capacity_factor_mode']!r}, site='slow')")

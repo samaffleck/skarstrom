@@ -269,7 +269,7 @@ TEST(ModelKinds, RegistryEntriesFollowTheDescriptors) {
       ASSERT_TRUE(SetMassTransferKind(d, ads, c, rate, static_cast<MassTransferCoefficientType>(i), err)) << err;
       ParameterRegistry reg(d);
       // The generic model's leaves, from its descriptor and current switches:
-      // a switch per resistance (knudsen with macropore on), the mode while a
+      // a switch per resistance (molecular and knudsen with macropore on), the mode while a
       // gas-side term is on, the parameters of the enabled terms and the mode.
       auto& mtm = d.adsorbent_directory.Get(ads).adsorption_source_.mass_transfer_models_.at(c);
       const std::string kp = ap + "kinetics[" + c + "].";

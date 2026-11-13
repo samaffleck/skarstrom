@@ -158,7 +158,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::MassTransferCoefficient_Haynes, 2),
       ADSIM_PIN(adsim::MassTransferCoefficientMacroporeCapacity, 2),
       ADSIM_PIN(adsim::MassTransferCoefficientSeriesResistance, 2),
-      ADSIM_PIN(adsim::MassTransferResistances, 1),
+      ADSIM_PIN(adsim::MassTransferResistances, 2),
       ADSIM_PIN(adsim::MassTransferCoefficientArrhenius, 3),
       ADSIM_PIN(adsim::LinearDrivingForce, 1),
       ADSIM_PIN(adsim::LinearDrivingForceSecondOrder, 1),

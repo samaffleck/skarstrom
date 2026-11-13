@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "adsim/equations/film_correlation.h"
 #include "adsim/equations/isotherm.h"
 #include "adsim/equations/mass_transfer_model.h"
 #include "adsim/math/expression_param.h"
@@ -82,10 +83,12 @@ DiffusionShape LayerDiffusionShape(const MixedAdsorbentLayer& layer);
 // parameters (names in the kind's `parameters`, display order) and the LaTeX
 // fragments of its term per particle shape. Placeholders in the fragments:
 // {K} becomes "K\," when the capacity-factor mode is not none and the term is
-// scaled by capacity (else nothing); {D} becomes D_{m,i}, or D_{B,i} with
-// Knudsen diffusion on. MassTransferEquationLatex composes them.
+// scaled by capacity (else nothing); {D} becomes the pore diffusivity: D_{m,i}
+// (molecular diffusion), D_{K,i} (Knudsen diffusion) or D_{B,i} (both). A
+// `where` holds one definition per line, lines separated by "\\".
+// MassTransferEquationLatex composes them.
 struct ResistanceDescriptor {
-  std::string tag;                      // "film", "macropore", "knudsen", "micropore", "lumped"
+  std::string tag;                      // "film", "macropore", "molecular", "knudsen", "micropore", "lumped"
   std::string label;                    // "external film", ...
   std::string parent;                   // "" or the term it refines ("knudsen" -> "macropore")
   bool scaled_by_capacity = false;      // multiplied by K (film, macropore)
@@ -99,6 +102,7 @@ struct ResistanceDescriptor {
   };
   Latex sphere, slab, cylinder;  // per DiffusionShape
   std::string source;            // literature, for docs and tooltips
+  bool needs_child = false;      // on only with one of the terms that refine it on (macropore)
   const Latex& Fragments(DiffusionShape shape) const {
     return shape == DiffusionShape::Slab ? slab : shape == DiffusionShape::Cylinder ? cylinder : sphere;
   }
@@ -249,13 +253,21 @@ ModelFieldList SlowSiteFields(IMassTransferModel* model);
 const KindDescriptor& ResistanceKind();
 
 // The display equation of a coefficient model for one particle shape, built
-// only from the descriptor's fragments: "\frac{1}{k_i} = " and the enabled
-// terms joined by " + " (series order); then, when any definitions apply,
-// " \\ " and the definitions of the enabled terms and of the capacity mode
-// joined by ",\qquad ", the whole inside \begin{aligned} ... \end{aligned}.
-// Empty when no enabled term has a fragment for the shape.
-std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model, DiffusionShape shape);
-// The same for the shape of `layer` (LayerDiffusionShape).
+// from the descriptor's fragments: "\frac{1}{k_i} = " and the enabled terms
+// joined by " + " (series order); then, when any definitions apply, one line
+// per definition (" \\ " between lines): those of the enabled terms in
+// series order (the Bosanquet mean with molecular and Knudsen diffusion both
+// on; with `film` and the film term on in a packed shape, the correlation's
+// Sh, Re and Sc after k_f), then the capacity mode's. Each line is aligned on
+// its first " = " ("&="), the whole inside \begin{aligned} ... \end{aligned}.
+// Without definitions, the one line alone. Empty when no enabled term has a
+// fragment for the shape.
+std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model, DiffusionShape shape,
+                                      const FilmCorrelation* film = nullptr);
+// The definition lines of a packed layer's film correlation: Sh, Re and Sc.
+std::vector<std::string> FilmCorrelationLatex(FilmCorrelation c);
+// The same for the shape and film correlation of `layer` (LayerDiffusionShape;
+// a structured layer has no film correlation line).
 std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResistance& model,
                                       const MixedAdsorbentLayer& layer);
 

@@ -444,7 +444,8 @@
           "coefficient": "macropore",
           "coefficient_label": "Macropore Diffusion",
           "resistances": [
-            "macropore"
+            "macropore",
+            "molecular"
           ],
           "parameters": [
             {
@@ -480,7 +481,8 @@
           "coefficient": "macropore",
           "coefficient_label": "Macropore Diffusion",
           "resistances": [
-            "macropore"
+            "macropore",
+            "molecular"
           ],
           "parameters": [
             {
@@ -7806,7 +7808,8 @@
           "coefficient_label": "Haynes (1973)",
           "resistances": [
             "film",
-            "macropore"
+            "macropore",
+            "molecular"
           ],
           "parameters": [
             {
@@ -9389,7 +9392,8 @@
           "coefficient": "macropore",
           "coefficient_label": "Macropore Diffusion",
           "resistances": [
-            "macropore"
+            "macropore",
+            "molecular"
           ],
           "parameters": [
             {
@@ -9425,7 +9429,8 @@
           "coefficient": "macropore",
           "coefficient_label": "Macropore Diffusion",
           "resistances": [
-            "macropore"
+            "macropore",
+            "molecular"
           ],
           "parameters": [
             {
@@ -9752,7 +9757,8 @@
           "coefficient": "macropore",
           "coefficient_label": "Macropore Diffusion",
           "resistances": [
-            "macropore"
+            "macropore",
+            "molecular"
           ],
           "parameters": [
             {
@@ -9788,7 +9794,8 @@
           "coefficient": "macropore",
           "coefficient_label": "Macropore Diffusion",
           "resistances": [
-            "macropore"
+            "macropore",
+            "molecular"
           ],
           "parameters": [
             {

@@ -99,7 +99,7 @@ Each component of an adsorbent has `rate_model` and `rate_coefficient`. The coef
 
 | Field | Meaning |
 |---|---|
-| `resistances` | The switch of each resistance: `{film, macropore, knudsen, micropore, lumped}` (booleans) |
+| `resistances` | The switch of each resistance: `{film, macropore, molecular, knudsen, micropore, lumped}` (booleans; *New in 0.12:* `molecular`) |
 | `capacity_factor_mode` | `none`, `slope`, `secant` or `fixed` |
 | `preset` | The [preset](kinetic-models.md#presets) the switches, mode and values match (a former kind: `constant`, `haynes`, ...), or `custom`. The engine calculates it each time; the deck does not store it |
 | `equation` | The LaTeX of the coefficient: the packed form (sphere, or cylinder when the first packed layer that holds the adsorbent has cylinders) if the adsorbent is in a packed layer, else the slab form |

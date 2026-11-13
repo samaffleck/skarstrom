@@ -380,9 +380,12 @@ namespace adsim {
 
     using Generic = MassTransferCoefficientSeriesResistance;
 
+    // The switch set with the terms named on; the macropore term holds
+    // molecular diffusion (the former kinds' form).
     MassTransferResistances Only(bool film, bool macropore, bool knudsen, bool micropore, bool lumped) {
       MassTransferResistances r;
-      r.film = film; r.macropore = macropore; r.knudsen = knudsen; r.micropore = micropore; r.lumped = lumped;
+      r.film = film; r.macropore = macropore; r.molecular = macropore; r.knudsen = knudsen; r.micropore = micropore;
+      r.lumped = lumped;
       return r;
     }
 
@@ -392,6 +395,7 @@ namespace adsim {
     bool* SwitchOf(MassTransferResistances& r, const std::string& tag) {
       if (tag == "film") return &r.film;
       if (tag == "macropore") return &r.macropore;
+      if (tag == "molecular") return &r.molecular;
       if (tag == "knudsen") return &r.knudsen;
       if (tag == "micropore") return &r.micropore;
       if (tag == "lumped") return &r.lumped;
@@ -430,15 +434,23 @@ namespace adsim {
     MassTransferResistances next = Resistances();
     bool* sw = SwitchOf(next, tag);
     if (!sw) {
-      err = "unknown mass-transfer resistance '" + tag + "' (film, macropore, knudsen, micropore, lumped)";
+      err = "unknown mass-transfer resistance '" + tag + "' (film, macropore, molecular, knudsen, micropore, lumped)";
       return false;
     }
-    if (on && tag == "knudsen" && !next.macropore) {
-      err = "Knudsen diffusion refines the macropore term: switch the macropore resistance on first";
+    const bool pore_term = tag == "molecular" || tag == "knudsen";
+    if (on && pore_term && !next.macropore) {
+      err = std::string(tag == "knudsen" ? "Knudsen" : "molecular") +
+            " diffusion refines the macropore term: switch the macropore resistance on first";
       return false;
     }
+    if (!on && pore_term && !next.macropore) return true;  // already off with the macropore term
     *sw = on;
-    if (tag == "macropore" && !on) next.knudsen = false;
+    if (tag == "macropore" && !on) next.molecular = next.knudsen = false;
+    if (tag == "macropore" && on && !next.molecular && !next.knudsen) next.molecular = true;
+    if (next.macropore && !next.molecular && !next.knudsen) {
+      err = "the macropore term needs molecular or Knudsen diffusion: at least one of them must stay on";
+      return false;
+    }
     if (!(next.film || next.macropore || next.micropore || next.lumped)) {
       err = "at least one mass-transfer resistance must stay on";
       return false;
@@ -475,12 +487,14 @@ namespace adsim {
   const std::vector<std::string>& MassTransferCoefficientSeriesResistance::ResistanceParameters(const std::string& tag) {
     static const std::vector<std::string> none;
     static const std::vector<std::string> film{"film_resistance_factor"};
-    static const std::vector<std::string> macro{"tortuosity", "macropore_void_fraction", "molecular_diffusion_coefficient"};
+    static const std::vector<std::string> macro{"tortuosity", "macropore_void_fraction"};
+    static const std::vector<std::string> molecular{"molecular_diffusion_coefficient"};
     static const std::vector<std::string> knudsen{"pore_radius"};
     static const std::vector<std::string> micro{"crystal_radius", "micropore_diffusivity", "micropore_activation_energy"};
     static const std::vector<std::string> lumped{"k", "activation_energy"};
     if (tag == "film") return film;
     if (tag == "macropore") return macro;
+    if (tag == "molecular") return molecular;
     if (tag == "knudsen") return knudsen;
     if (tag == "micropore") return micro;
     if (tag == "lumped") return lumped;
@@ -536,7 +550,7 @@ namespace adsim {
 
   MassTransferCoefficientType MassTransferCoefficientSeriesResistance::PresetType() const {
     using T = MassTransferCoefficientType;
-    const MassTransferResistances& r = resistances_;
+    const MassTransferResistances r = Resistances();
     const CapacityFactorMode mode = CapacityMode();
     if (r == Only(false, false, false, false, true)) return ActivationEnergyIsZero() ? T::CONSTANT : T::ARRHENIUS;
     if (mode == CapacityFactorMode::NONE) {
@@ -560,7 +574,7 @@ namespace adsim {
   unsigned MassTransferCoefficientSeriesResistance::ReadsTransportProperties() const {
     const MassTransferResistances& r = resistances_;
     unsigned reads = kNoTransportProperties;
-    if (r.macropore) reads |= kMolecularDiffusion;
+    if (MolecularDiffusion()) reads |= kMolecularDiffusion;
     if (r.film) reads |= kMolecularDiffusion | kSherwoodNumber;
     return reads;
   }
@@ -845,7 +859,8 @@ namespace adsim {
     const double rc = crystal_radius_;
     const double Dc0 = micropore_diffusivity_;
     const double Ea = micropore_activation_energy_;
-    const bool knudsen = r.macropore && r.knudsen;
+    const bool molecular = MolecularDiffusion();
+    const bool knudsen = KnudsenDiffusion();
     const double r_pore = pore_radius_;
     const double Mr = knudsen ? fluid.molar_mass_.at(component) : 0.0;
     const bool lumped_ea = r.lumped && !ActivationEnergyIsZero();
@@ -869,11 +884,12 @@ namespace adsim {
     for (int n = start; n <= end; ++n) {
       if (needs_t && !(T[n] > 0.0)) continue;
       const double K = capacity_[n];
-      double Dp = Dm_const > 0.0 ? Dm_const : Dmi[n];
+      double Dp = molecular ? (Dm_const > 0.0 ? Dm_const : Dmi[n]) : 0.0;
       if (knudsen) {
-        // Bosanquet: 1/D = 1/D_K + 1/D_m.
+        // Knudsen alone: D = D_K; with molecular diffusion the Bosanquet
+        // mean 1/D = 1/D_K + 1/D_m.
         const double Dk = (2.0 / 3.0) * r_pore * std::sqrt(8.0 * R * T[n] / (constants::kPI * Mr));
-        Dp = 1.0 / (1.0 / Dk + 1.0 / Dp);
+        Dp = molecular ? 1.0 / (1.0 / Dk + 1.0 / Dp) : Dk;
       }
       double film = 0.0, macro = 0.0, micro = 0.0, lumped = 0.0;
       if (structured) {

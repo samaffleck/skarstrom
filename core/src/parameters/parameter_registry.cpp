@@ -1047,7 +1047,8 @@ namespace adsim {
     // One coefficient model of a component (fast site, or the slow site of a
     // dual-rate model, whose leaves take the prefix slow_). The generic model
     // (series_resistance) lists, from its kind descriptor: a Boolean switch
-    // per resistance (resistances.<tag>; knudsen only with macropore on), the
+    // per resistance (resistances.<tag>; molecular and knudsen only with
+    // macropore on), the
     // capacity-factor mode while a gas-side term is on, then the parameters of
     // each enabled term and of the mode under their flat names. The switches
     // and the mode set through the deck-edit cascades (SetMassTransferResistance,

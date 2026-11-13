@@ -180,6 +180,7 @@ namespace adsim {
   // every family of AllModelFamilies(), kinds in stored order. The generic
   // rate-coefficient kind (series_resistance) carries:
   //   resistances: [{tag, label, parent (null or a tag), scaled_by_capacity,
+  //                  needs_child (on only with one of its children on),
   //                  parameters (names), fragments: {sphere|slab|cylinder:
   //                  {term, where, where_isothermal}}, source}] in series order
   //   capacity_modes: [{tag, label, latex}] in CapacityFactorMode order

@@ -2160,12 +2160,13 @@
                                 "DisplayUnitIndex": 0
                               },
                               "Resistances": {
-                                "cereal_class_version": 1,
+                                "cereal_class_version": 2,
                                 "Film": false,
                                 "Macropore": false,
                                 "Knudsen": false,
                                 "Micropore": false,
-                                "Lumped": true
+                                "Lumped": true,
+                                "Molecular": false
                               },
                               "Capacity_Factor_Mode": 0,
                               "Mass_Transfer_Coefficient": {
@@ -2255,7 +2256,8 @@
                                 "Macropore": false,
                                 "Knudsen": false,
                                 "Micropore": false,
-                                "Lumped": true
+                                "Lumped": true,
+                                "Molecular": false
                               },
                               "Capacity_Factor_Mode": 0,
                               "Mass_Transfer_Coefficient": {
@@ -3684,12 +3686,13 @@
                                 "DisplayUnitIndex": 0
                               },
                               "Resistances": {
-                                "cereal_class_version": 1,
+                                "cereal_class_version": 2,
                                 "Film": false,
                                 "Macropore": false,
                                 "Knudsen": false,
                                 "Micropore": false,
-                                "Lumped": true
+                                "Lumped": true,
+                                "Molecular": false
                               },
                               "Capacity_Factor_Mode": 0,
                               "Mass_Transfer_Coefficient": {
@@ -3779,7 +3782,8 @@
                                 "Macropore": false,
                                 "Knudsen": false,
                                 "Micropore": false,
-                                "Lumped": true
+                                "Lumped": true,
+                                "Molecular": false
                               },
                               "Capacity_Factor_Mode": 0,
                               "Mass_Transfer_Coefficient": {

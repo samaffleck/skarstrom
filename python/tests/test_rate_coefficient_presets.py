@@ -29,7 +29,7 @@ def test_one_kind_and_the_old_tags_as_presets():
     assert [k["tag"] for k in kinds] == TAGS
     assert [k["legacy"] for k in kinds] == [True] * 6 + [False]
     generic = kinds[-1]
-    assert [r["tag"] for r in generic["resistances"]] == ["film", "macropore", "knudsen", "micropore", "lumped"]
+    assert [r["tag"] for r in generic["resistances"]] == ["film", "macropore", "molecular", "knudsen", "micropore", "lumped"]
     assert [m["tag"] for m in generic["capacity_modes"]] == ["none", "slope", "secant", "fixed"]
     assert {p["tag"] for p in generic["presets"]} == set(TAGS[:-1])
 
@@ -97,7 +97,7 @@ def test_switches_by_helper_and_path():
     comp = sim.deck_view()["adsorbents"][0]["components"][0]
     assert comp["rate_coefficient"] == "series_resistance"
     assert comp["preset"] == "custom" and comp["slow_preset"] == "custom"
-    assert comp["equation"].startswith("\\begin{aligned}\\frac{1}{k_i} = ")
+    assert comp["equation"].startswith("\\begin{aligned}\\frac{1}{k_i} &= ")
 
 
 def test_to_script_reproduces_custom_switches():

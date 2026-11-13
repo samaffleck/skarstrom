@@ -406,6 +406,7 @@ namespace adsim {
             if (r.parent.empty()) SetNull(rv, "parent", a);
             else Set(rv, "parent", r.parent, a);
             Set(rv, "scaled_by_capacity", r.scaled_by_capacity, a);
+            Set(rv, "needs_child", r.needs_child, a);
             Set(rv, "parameters", StrList(r.parameters, a), a);
             Value fr(rapidjson::kObjectType);
             Set(fr, "sphere", fragments(r.sphere), a);
