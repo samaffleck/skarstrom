@@ -16,11 +16,22 @@
 // and N2 under IAST, and (in one of the two runs) an inert Water at mole
 // fraction 0 everywhere.
 //
-// Slow tier (ADSIM_SLOW_TESTS): two runs of about 275 cycles.
+// Measured at the shipped 80 cells: both decks reach CSS at cycle 274. With
+// the 1e-30 mol rule the deck with Water stopped at cycle 313, and its balance
+// error differed from the dry deck's on 156 cycles (from cycle 19; 1.0 or up
+// to 1e5 where the dry deck had 0.08 down to 1e-3). At 30 cells the absent
+// component's flows stay below 1e-30 mol and the old rule passes too, so the
+// test keeps the shipped grid.
+//
+// Slow tier (ADSIM_SLOW_TESTS): two runs of 275 cycles, side by side (about
+// 10 min on two cores).
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <map>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "adsim/simulation.h"
@@ -106,11 +117,14 @@ namespace adsim {
   }  // namespace
 
   TEST(CSSAbsentComponent, IastDeckWithAnAbsentComponentReachesCssWithTheDryDeck) {
-    const Outcome dry = RunVariant(false);
+    // The two runs are independent: run them side by side.
+    Outcome dry;
+    std::thread dry_thread([&dry] { dry = RunVariant(false); });
+    const Outcome wet = RunVariant(true);
+    dry_thread.join();
+
     ASSERT_TRUE(dry.result.Ok()) << dry.result.message;
     ASSERT_TRUE(dry.result.css_reached) << "the deck without the absent component did not reach CSS";
-
-    const Outcome wet = RunVariant(true);
     ASSERT_TRUE(wet.result.Ok()) << wet.result.message;
     ASSERT_TRUE(wet.result.css_reached) << "the deck with the absent component did not reach CSS";
 
@@ -120,9 +134,17 @@ namespace adsim {
         << "dry CSS at cycle " << dry.result.css_cycle << ", with the absent component at cycle "
         << wet.result.css_cycle;
 
-    // The balance error never spikes: the absent component is not tested.
-    for (const auto& r : wet.css)
-      EXPECT_LT(r.error, 0.5) << "balance error " << r.error << " at cycle " << r.cycle;
+    std::printf("CSS at cycle %d without the absent component, %d with it\n", dry.result.css_cycle,
+                wet.result.css_cycle);
+
+    // Cycle by cycle, the balance error is the one without the absent
+    // component: it is not tested, so its round-off error does not enter.
+    const size_t n = std::min(dry.css.size(), wet.css.size());
+    ASSERT_GT(n, 0u);
+    for (size_t c = 0; c < n; ++c)
+      EXPECT_NEAR(wet.css[c].error, dry.css[c].error, 0.05 * dry.css[c].error + 1e-4)
+          << "balance error at cycle " << c << ": " << wet.css[c].error << " with the absent component, "
+          << dry.css[c].error << " without";
 
     // The decision is logged once.
     int logged = 0;

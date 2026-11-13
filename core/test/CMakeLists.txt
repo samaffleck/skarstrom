@@ -81,7 +81,8 @@ set(ADSIM_SLOW_TESTS
     # shipped deck, the growth it guards against shows from cycle ~10 (~15 s).
     "LppTrace.*"
     # The per-component balance with an absent component under IAST: two runs
-    # of Nguyen2023_Exp_VII to CSS (about 275 cycles each).
+    # of Nguyen2023_Exp_VII to CSS at the shipped grid, side by side (275
+    # cycles each, ~10 min on two cores; a coarser grid hides the defect).
     "CSSAbsentComponent.*"
     # A humid CALF-20 VSA cycle to CSS on the per-component balance: the water
     # profile settles over 161 cycles (~11 s).
