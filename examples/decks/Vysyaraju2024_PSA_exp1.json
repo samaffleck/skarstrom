@@ -765,7 +765,7 @@
                                                 "cereal_class_version": 2,
                                                 "value0": {
                                                     "cereal_class_version": 5,
-                                                    "Stream_Name": "",
+                                                    "Stream_Name": "Feed supply",
                                                     "Boundary_Temperature": {
                                                         "Value": 298.0,
                                                         "Expression": "298",
@@ -1078,7 +1078,7 @@
                                             "data": {
                                                 "cereal_class_version": 1,
                                                 "value0": {
-                                                    "Stream_Name": "",
+                                                    "Stream_Name": "Feed inlet",
                                                     "Boundary_Temperature": {
                                                         "Value": 298.0,
                                                         "Expression": "298",

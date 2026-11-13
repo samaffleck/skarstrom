@@ -911,7 +911,7 @@
                                                 "cereal_class_version": 1,
                                                 "value0": {
                                                     "cereal_class_version": 5,
-                                                    "Stream_Name": "",
+                                                    "Stream_Name": "Biogas feed",
                                                     "Boundary_Temperature": {
                                                         "Value": 298.15,
                                                         "Expression": "298.15",

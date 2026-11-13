@@ -118,14 +118,14 @@ def build(case: str = "PSA_Exp1") -> sk.Simulation:
     # 1. PRES: feed gas through a valve from the 15.1 bar supply, top closed.
     pres = sim.add_step("PRES", time=30 * u.s)
     pres.bottom.set_streams("inlet", [
-        sk.ValveStream("", pressure=15.1 * u.bar, cv=0.012, xt=0.53, y=FEED, temperature=298 * u.K),
+        sk.ValveStream("Feed supply", pressure=15.1 * u.bar, cv=0.012, xt=0.53, y=FEED, temperature=298 * u.K),
     ])
     pres.top.set_closed()
 
     # 2. ADS: feed at a set velocity, He-rich product leaves the top at 15.1 bar.
     adsorption = sim.add_step("ADS", time=15 * u.s)
     adsorption.bottom.set_streams("inlet", [
-        sk.Stream("", flow=sk.velocity(0.005 * u.m / u.s), y=FEED, temperature=298 * u.K),
+        sk.Stream("Feed inlet", flow=sk.velocity(0.005 * u.m / u.s), y=FEED, temperature=298 * u.K),
     ])
     adsorption.top.set_pressure("outlet", 15.1 * u.bar, y=FEED, temperature=293 * u.K)
 
