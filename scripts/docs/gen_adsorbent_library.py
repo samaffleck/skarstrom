@@ -1002,11 +1002,13 @@ def render_resolved(entries, engine) -> str:
                 comp = i["component"]
                 tag = engine.isotherm_order[view["iso_map"][comp]]
                 desc = engine.isotherm[tag]
+                # A blob leaves out optional fields at their default (the dual-site
+                # Langmuir water factors): those take the descriptor's default.
                 values = {p["name"]: p["value"] for p in i["params"]}
                 sp = iso_raw[comp].get("source_points")
                 isotherms.append({
                     "component": comp, "kind": tag, "kind_label": desc["label"],
-                    "parameters": [{"name": p["name"], "label": p["label"], "unit": p["unit"], "value": values[p["name"]]}
+                    "parameters": [{"name": p["name"], "label": p["label"], "unit": p["unit"], "value": values.get(p["name"], p.get("default"))}
                                    for p in desc["parameters"]],
                     "data_quality": i["data_quality"],
                     "data_quality_label": DATA_QUALITY_LABELS.get(i["data_quality"], i["data_quality"]),

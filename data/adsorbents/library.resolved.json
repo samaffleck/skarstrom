@@ -91,7 +91,7 @@
       "name": "CALF-20",
       "family": "MOF",
       "recommended": "calf_20_nguyen2023",
-      "recommended_reason": "Measured by the authors (CO2 and N2, 295-373 K) and checked against the paper. The powder entry's values come from the repository's decks and have not yet been checked against its paper.",
+      "recommended_reason": "Measured by the authors (CO2 and N2, 295-373 K) and checked against the paper. The powder entry's values come from the repository's decks and have not yet been checked against its paper. For humid feeds use the variant with water (the same structured sorbent, a water isotherm and CO2 lowered by adsorbed water).",
       "aliases": []
     },
     "zif-8": {
@@ -229,6 +229,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 34190.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "measured_fit",
@@ -288,6 +312,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 15720.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "measured_fit",
@@ -552,6 +600,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 42073.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -608,6 +680,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 15506.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -1249,6 +1345,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 19360.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "measured_fit",
@@ -1452,6 +1572,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 23284.3
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "secondary",
@@ -1505,6 +1649,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 22312.1
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "secondary",
@@ -1734,6 +1902,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 26676.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -1790,6 +1982,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 19510.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -2020,6 +2236,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 61713.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -2075,6 +2315,30 @@
               "name": "q2",
               "label": "q2",
               "unit": "J/mol",
+              "value": 0.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
               "value": 0.0
             }
           ],
@@ -2306,6 +2570,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 26260.5
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "secondary",
@@ -2359,6 +2647,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 24624.1
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "secondary",
@@ -2588,6 +2900,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 27923.9
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "secondary",
@@ -2641,6 +2977,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 22906.2
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "secondary",
@@ -3670,6 +4030,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 21169.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -3726,6 +4110,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 12756.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -3958,6 +4366,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 43133.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -4013,6 +4445,30 @@
               "name": "q2",
               "label": "q2",
               "unit": "J/mol",
+              "value": 0.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
               "value": 0.0
             }
           ],
@@ -6564,6 +7020,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 17600.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "not_checked",
@@ -6617,6 +7097,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 44900.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "not_checked",
@@ -6844,6 +7348,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 22406.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -6900,6 +7428,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 20112.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -7129,6 +7681,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 20367.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "not_checked",
@@ -7935,6 +8511,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 21200.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "not_checked",
@@ -7987,6 +8587,30 @@
               "name": "q2",
               "label": "q2",
               "unit": "J/mol",
+              "value": 0.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
               "value": 0.0
             }
           ],
@@ -8216,6 +8840,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 23600.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "measured_fit",
@@ -8275,6 +8923,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 17300.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "measured_fit",
@@ -8508,6 +9180,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 35030.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "measured_fit",
@@ -8564,6 +9260,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 17910.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "measured_fit",
@@ -8829,6 +9549,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 28950.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "not_checked",
@@ -8882,6 +9626,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 17960.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "not_checked",
@@ -9084,6 +9852,653 @@
       ]
     },
     {
+      "key": "calf_20_nguyen2024_humid",
+      "label": "CALF-20 (structured, with water)",
+      "file": "calf_20_nguyen2024_humid.json",
+      "material_id": "calf-20",
+      "material_name": "CALF-20",
+      "variant": "structured, with water",
+      "family": "MOF",
+      "support": false,
+      "recommended": false,
+      "status": "sourced",
+      "legacy_note": "",
+      "applications": [
+        "post-combustion CO2 capture",
+        "humid feeds"
+      ],
+      "components": [
+        "CarbonDioxide",
+        "Nitrogen",
+        "Water"
+      ],
+      "aliases": [],
+      "sources": [
+        {
+          "id": "nguyen2024",
+          "citation": "Nguyen, T.T.T., Shimizu, G.K.H., Rajendran, A. (2024). Competitive CO2/H2O adsorption on CALF-20. Industrial & Engineering Chemistry Research 63, 3265-3281. Preprint: ChemRxiv (2023), doi:10.26434/chemrxiv-2023-f3rzv.",
+          "doi": "10.1021/acs.iecr.3c04266",
+          "url": "https://doi.org/10.1021/acs.iecr.3c04266",
+          "refs": "Preprint Table 2 (Cubic-Langmuir water isotherm, adsorption and desorption branches); preprint, modified dual-site Langmuir for CO2 with water (per-site factors lambda1, lambda2, lambda3); SI Table S2 (dry CO2 dual-site Langmuir in concentration); SI Table S3 (water LDF constant); SI Table S4 (pure-water equilibrium data, 22-100 C, structured sorbent of 80 wt% CALF-20 and 20 wt% binder); Table 4 (competitive CO2/H2O loadings in CO2 at 0.97 bar)"
+        },
+        {
+          "id": "nguyen2022",
+          "citation": "Nguyen, T.T.T., Lin, J.-B., Shimizu, G.K.H., Rajendran, A. (2022). Separation of CO2 and N2 on a hydrophobic metal organic framework CALF-20. Chemical Engineering Journal 442, 136263.",
+          "doi": "10.1016/j.cej.2022.136263",
+          "url": "https://doi.org/10.1016/j.cej.2022.136263",
+          "refs": "Table 3 (the same CO2 dual-site Langmuir as SI Table S2; N2 equal-energy-site parameters, via the calf_20_nguyen2022 entry)"
+        },
+        {
+          "id": "nguyen2023",
+          "citation": "Nguyen, T.T.T., Shimizu, G.K.H., Rajendran, A. (2023). CO2/N2 separation by vacuum swing adsorption using a metal-organic framework, CALF-20: Multi-objective optimization and experimental validation. Chemical Engineering Journal 452, 139550.",
+          "doi": "10.1016/j.cej.2022.139550",
+          "url": "https://doi.org/10.1016/j.cej.2022.139550",
+          "refs": "Table 1 (density, heat capacity, voidage of the structured sorbent), Section 2 (pellet size), via the calf_20_nguyen2023 entry"
+        }
+      ],
+      "isotherms": [
+        {
+          "component": "CarbonDioxide",
+          "kind": "extended_dual_site_langmuir_c",
+          "kind_label": "Extended Dual Site Langmuir (Concentration)",
+          "parameters": [
+            {
+              "name": "m1",
+              "label": "m1",
+              "unit": "mol/kg",
+              "value": 2.387
+            },
+            {
+              "name": "b1",
+              "label": "b1",
+              "unit": "m3/mol",
+              "value": 5.519e-07
+            },
+            {
+              "name": "q1",
+              "label": "q1",
+              "unit": "J/mol",
+              "value": 35060.0
+            },
+            {
+              "name": "m2",
+              "label": "m2",
+              "unit": "mol/kg",
+              "value": 3.271
+            },
+            {
+              "name": "b2",
+              "label": "b2",
+              "unit": "m3/mol",
+              "value": 5.187e-08
+            },
+            {
+              "name": "q2",
+              "label": "q2",
+              "unit": "J/mol",
+              "value": 28950.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0066
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 2.483
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 3.55
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
+            }
+          ],
+          "data_quality": "measured_fit",
+          "data_quality_label": "measured, fit only",
+          "data_quality_note": "",
+          "ref": "SI Table S2 (dry dual-site Langmuir in concentration) with the preprint's per-site water factors (lambda1 = 0.0066, lambda2 = 2.483, lambda3 = 3.55, q_w in mol/kg)",
+          "T_range_K": null,
+          "P_range_Pa": null,
+          "T_range_not_stated": "Not stated in source (checked: SI Table S2 and Table 4 as transcribed for this entry; the dry fit range is the Nguyen 2022 paper's)",
+          "P_range_not_stated": "Not stated in source (checked: SI Table S2 and Table 4 as transcribed for this entry; the dry fit range is the Nguyen 2022 paper's)",
+          "range_note": "The dry fit is the Nguyen 2022 dual-site Langmuir; the water factors were fitted to the competitive loadings of Table 4 (22-24 C, pure CO2 at 0.97 bar, 13-87 % RH), which they reproduce to RMSE 0.08 mmol/g. The source states that their temperature and CO2-pressure dependence is not validated.",
+          "source_points": null
+        },
+        {
+          "component": "Nitrogen",
+          "kind": "extended_dual_site_langmuir_c",
+          "kind_label": "Extended Dual Site Langmuir (Concentration)",
+          "parameters": [
+            {
+              "name": "m1",
+              "label": "m1",
+              "unit": "mol/kg",
+              "value": 2.387
+            },
+            {
+              "name": "b1",
+              "label": "b1",
+              "unit": "m3/mol",
+              "value": 8.139e-07
+            },
+            {
+              "name": "q1",
+              "label": "q1",
+              "unit": "J/mol",
+              "value": 17960.0
+            },
+            {
+              "name": "m2",
+              "label": "m2",
+              "unit": "mol/kg",
+              "value": 3.271
+            },
+            {
+              "name": "b2",
+              "label": "b2",
+              "unit": "m3/mol",
+              "value": 8.139e-07
+            },
+            {
+              "name": "q2",
+              "label": "q2",
+              "unit": "J/mol",
+              "value": 17960.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
+            }
+          ],
+          "data_quality": "not_checked",
+          "data_quality_label": "not yet checked",
+          "data_quality_note": "Not checked: copied from the calf_20_nguyen2022 entry, whose values come from the repository's Nguyen 2022 decks.",
+          "ref": "Nguyen 2022 Table 3 equal-energy sites (as the calf_20_nguyen2022 entry), in the same extended isotherm as CO2",
+          "T_range_K": null,
+          "P_range_Pa": null,
+          "T_range_not_stated": "Not stated in source (checked: Nguyen 2024 SI Tables S2-S4 and Table 4 as transcribed for this entry; N2 is not among them)",
+          "P_range_not_stated": "Not stated in source (checked: Nguyen 2024 SI Tables S2-S4 and Table 4 as transcribed for this entry; N2 is not among them)",
+          "range_note": "As the calf_20_nguyen2022 entry; fit range not recorded.",
+          "source_points": null
+        },
+        {
+          "component": "Water",
+          "kind": "cubic_langmuir",
+          "kind_label": "Cubic-Langmuir (type V water, Nguyen 2024)",
+          "parameters": [
+            {
+              "name": "q_sb",
+              "label": "q_sb",
+              "unit": "mol/kg",
+              "value": 1.629
+            },
+            {
+              "name": "b0_1",
+              "label": "b0_1",
+              "unit": "m3/mol",
+              "value": -2.685e-17
+            },
+            {
+              "name": "b0_2",
+              "label": "b0_2",
+              "unit": "(m3/mol)^2",
+              "value": 1.158e-16
+            },
+            {
+              "name": "b0_3",
+              "label": "b0_3",
+              "unit": "(m3/mol)^3",
+              "value": 5.374e-17
+            },
+            {
+              "name": "dU1",
+              "label": "dU1",
+              "unit": "J/mol",
+              "value": -97990.0
+            },
+            {
+              "name": "q_sd",
+              "label": "q_sd",
+              "unit": "mol/kg",
+              "value": 5.781
+            },
+            {
+              "name": "d0",
+              "label": "d0",
+              "unit": "m3/mol",
+              "value": 8.773e-12
+            },
+            {
+              "name": "dU2",
+              "label": "dU2",
+              "unit": "J/mol",
+              "value": -64720.0
+            }
+          ],
+          "data_quality": "measured_tabulated",
+          "data_quality_label": "measured, data tabulated",
+          "data_quality_note": "",
+          "ref": "Preprint Table 2, adsorption branch (= T. T. T. Nguyen, PhD thesis, U. Alberta 2021, Table 3.1): q_sb 1.629 mmol/g, b0_1 -2.685e-17 m3/mol, b0_2 1.158e-16 (m3/mol)^2, b0_3 5.374e-17 (m3/mol)^3, dU1 -97.99 kJ/mol, q_sd 5.781 mmol/g, d0 8.773e-12 m3/mol, dU2 -64.72 kJ/mol",
+          "T_range_K": [
+            295.15,
+            373.15
+          ],
+          "P_range_Pa": [
+            0.0,
+            2709.5
+          ],
+          "T_range_not_stated": "",
+          "P_range_not_stated": "",
+          "range_note": "SI Table S4: gravimetric pure-water data at 22, 30, 40, 50, 60, 80 and 100 C, 0-100 % RH at 22 C; the upper pressure is the largest RH/100 p_sat(T) of the table. The parameters reproduce Table S4 to RMSE 0.20 mmol/g over all temperatures (0.34 at 22 C) with the engine's p_sat.",
+          "source_points": {
+            "kind": "measured",
+            "quantity": "as_measured",
+            "source": "nguyen2024",
+            "ref": "SI Table S4 (T, RH, q columns)",
+            "note": "Pure water on the structured sorbent (80 wt% CALF-20, 20 wt% binder), loadings per g of sorbent, as tabulated. The table prints relative humidity (rh_percent, as printed); p = RH/100 x p_sat(T) is derived with the IAPWS saturation-pressure equation (Wagner and Pruss), within 0.02 % of the engine's p_sat. 50 rows, including the origin at 22 C.",
+            "summary": {
+              "n": 50,
+              "temperatures_K": [
+                295.15,
+                303.15,
+                313.15,
+                323.15,
+                333.15,
+                353.15,
+                373.15
+              ],
+              "T_range_K": [
+                295.15,
+                373.15
+              ],
+              "P_range_Pa": [
+                0.0,
+                2709.5
+              ],
+              "q_range_mol_per_kg": [
+                0.0,
+                8.3
+              ]
+            },
+            "T_K": [
+              295.15,
+              295.15,
+              295.15,
+              295.15,
+              295.15,
+              295.15,
+              295.15,
+              295.15,
+              303.15,
+              303.15,
+              303.15,
+              303.15,
+              303.15,
+              303.15,
+              303.15,
+              313.15,
+              313.15,
+              313.15,
+              313.15,
+              313.15,
+              313.15,
+              313.15,
+              323.15,
+              323.15,
+              323.15,
+              323.15,
+              323.15,
+              323.15,
+              323.15,
+              333.15,
+              333.15,
+              333.15,
+              333.15,
+              333.15,
+              333.15,
+              333.15,
+              353.15,
+              353.15,
+              353.15,
+              353.15,
+              353.15,
+              353.15,
+              353.15,
+              373.15,
+              373.15,
+              373.15,
+              373.15,
+              373.15,
+              373.15,
+              373.15
+            ],
+            "p_Pa": [
+              0.0,
+              211.6,
+              404.7,
+              846.5,
+              1322.6,
+              1983.9,
+              2089.7,
+              2645.2,
+              216.6,
+              414.5,
+              867.2,
+              1354.8,
+              2032.2,
+              2140.4,
+              2709.5,
+              216.4,
+              414.3,
+              866.3,
+              1353.7,
+              2030.2,
+              2138.7,
+              2706.6,
+              216.2,
+              413.8,
+              864.7,
+              1351.4,
+              2025.8,
+              2134.5,
+              2701.5,
+              215.4,
+              412.9,
+              861.7,
+              1346.4,
+              2020.7,
+              2128.4,
+              2694.9,
+              213.4,
+              407.8,
+              853.5,
+              1337.1,
+              2005.7,
+              2110.0,
+              2674.3,
+              213.0,
+              405.7,
+              841.8,
+              1318.4,
+              1977.7,
+              2089.2,
+              2647.0
+            ],
+            "q_mol_per_kg": [
+              0.0,
+              0.68,
+              2.27,
+              5.74,
+              6.91,
+              7.65,
+              7.7,
+              8.3,
+              0.38,
+              0.97,
+              3.26,
+              5.61,
+              6.64,
+              6.68,
+              7.35,
+              0.22,
+              0.51,
+              1.31,
+              2.74,
+              4.49,
+              4.67,
+              5.73,
+              0.13,
+              0.3,
+              0.7,
+              1.23,
+              2.11,
+              2.34,
+              3.16,
+              0.06,
+              0.21,
+              0.41,
+              0.68,
+              1.05,
+              1.1,
+              1.58,
+              0.03,
+              0.09,
+              0.2,
+              0.29,
+              0.39,
+              0.37,
+              0.49,
+              0.01,
+              0.06,
+              0.14,
+              0.19,
+              0.21,
+              0.19,
+              0.21
+            ]
+          }
+        }
+      ],
+      "heat_of_adsorption": [
+        {
+          "component": "CarbonDioxide",
+          "value": 38000.0,
+          "provenance": "repo",
+          "ref": "Value of the calf_20_nguyen2023 entry and the Nguyen 2023 and 2024 decks; not checked against this paper",
+          "unit": "J/mol",
+          "provenance_label": "repo deck/test"
+        },
+        {
+          "component": "Nitrogen",
+          "value": 15000.0,
+          "provenance": "repo",
+          "ref": "Value of the calf_20_nguyen2023 entry and the Nguyen 2023 and 2024 decks; not checked against this paper",
+          "unit": "J/mol",
+          "provenance_label": "repo deck/test"
+        },
+        {
+          "component": "Water",
+          "value": 54200.0,
+          "provenance": "derived",
+          "ref": "Loading-weighted mean of the isosteric heat of the Table 2 adsorption-branch isotherm at 22 C from 0 to 100 % RH, (1/q_sat) integral of q_st dq with q_st = R T^2 (d ln p / dT)_q (adsim::IsostericHeat), rounded to 0.1 kJ/mol; the source prints no heat. The isosteric heat itself runs from negative below about 8 % RH to 87 kJ/mol near 45 % RH",
+          "unit": "J/mol",
+          "provenance_label": "derived"
+        }
+      ],
+      "properties": [
+        {
+          "name": "particle_density",
+          "label": "Particle density",
+          "unit": "kg/m3",
+          "registry_path": "adsorbent[ID].solid_density",
+          "engine_name": "solid density",
+          "value": 570.0,
+          "provenance": "repo",
+          "provenance_label": "repo deck/test",
+          "ref": "As calf_20_nguyen2023 (Nguyen 2023 Table 1, measured, the same structured sorbent); not checked against this paper",
+          "temperature_table": null
+        },
+        {
+          "name": "heat_capacity",
+          "label": "Heat capacity",
+          "unit": "J/(kg-K)",
+          "registry_path": "adsorbent[ID].heat_capacity",
+          "engine_name": "heat capacity",
+          "value": 1350.0,
+          "provenance": "repo",
+          "provenance_label": "repo deck/test",
+          "ref": "As calf_20_nguyen2023 (Nguyen 2023 Table 1, fitted); not checked against this paper",
+          "temperature_table": null
+        },
+        {
+          "name": "particle_voidage",
+          "label": "Particle voidage",
+          "unit": "-",
+          "registry_path": "adsorbent[ID].particle_void_fraction",
+          "engine_name": "particle void fraction",
+          "value": 0.35,
+          "provenance": "repo",
+          "provenance_label": "repo deck/test",
+          "ref": "As calf_20_nguyen2023 (Nguyen 2023 Table 1, assumed)",
+          "temperature_table": null
+        },
+        {
+          "name": "particle_diameter",
+          "label": "Particle diameter",
+          "unit": "m",
+          "registry_path": "layer[ID].particle_diameter",
+          "engine_name": "particle diameter",
+          "value": 0.001,
+          "provenance": "repo",
+          "provenance_label": "repo deck/test",
+          "ref": "As calf_20_nguyen2023 (Nguyen 2023 Section 2: cylinders of 1 mm diameter); not checked against this paper",
+          "temperature_table": null
+        },
+        {
+          "name": "thermal_conductivity",
+          "label": "Thermal conductivity",
+          "unit": "W/(m-K)",
+          "registry_path": "adsorbent[ID].thermal_conductivity",
+          "engine_name": "thermal conductivity",
+          "value": 0.63,
+          "provenance": "repo",
+          "provenance_label": "repo deck/test",
+          "ref": "Not in source; value of the calf_20_nguyen2023 entry",
+          "temperature_table": null
+        }
+      ],
+      "mass_transfer": [
+        {
+          "component": "CarbonDioxide",
+          "model": "ldf",
+          "model_label": "Linear Driving Force (1st Order)",
+          "coefficient": "constant",
+          "coefficient_label": "Constant",
+          "resistances": [
+            "lumped"
+          ],
+          "parameters": [
+            {
+              "name": "k",
+              "label": "mass transfer coefficient",
+              "unit": "1/s",
+              "value": 0.5
+            },
+            {
+              "name": "activation_energy",
+              "label": "MTC activation energy",
+              "unit": "J/mol",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "component": "Nitrogen",
+          "model": "ldf",
+          "model_label": "Linear Driving Force (1st Order)",
+          "coefficient": "constant",
+          "coefficient_label": "Constant",
+          "resistances": [
+            "lumped"
+          ],
+          "parameters": [
+            {
+              "name": "k",
+              "label": "mass transfer coefficient",
+              "unit": "1/s",
+              "value": 0.5
+            },
+            {
+              "name": "activation_energy",
+              "label": "MTC activation energy",
+              "unit": "J/mol",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "component": "Water",
+          "model": "ldf",
+          "model_label": "Linear Driving Force (1st Order)",
+          "coefficient": "constant",
+          "coefficient_label": "Constant",
+          "resistances": [
+            "lumped"
+          ],
+          "parameters": [
+            {
+              "name": "k",
+              "label": "mass transfer coefficient",
+              "unit": "1/s",
+              "value": 0.5
+            },
+            {
+              "name": "activation_energy",
+              "label": "MTC activation energy",
+              "unit": "J/mol",
+              "value": 0.0
+            }
+          ]
+        }
+      ],
+      "example_decks": [],
+      "example_deck_note": "No bundled example deck uses this entry.",
+      "completeness": {
+        "complete": false,
+        "missing": [
+          "heat_of_adsorption (CarbonDioxide)",
+          "heat_of_adsorption (Nitrogen)",
+          "particle_density",
+          "heat_capacity",
+          "particle_diameter"
+        ],
+        "unverified_fields": [
+          "heat_of_adsorption",
+          "particle_density",
+          "heat_capacity",
+          "particle_diameter"
+        ],
+        "verification_note": "The SI tables (S2-S4), the preprint's Table 2 and water factors and the paper's Table 4 were transcribed as printed; the main text of the published paper was not available. Properties and the CO2 and N2 heats are those of the calf_20_nguyen2023 entry (the same structured sorbent and rig) and were not checked against this paper."
+      },
+      "notes": [
+        "Water uses the engine kind 'cubic_langmuir' (the paper's Cubic-Langmuir, the thesis's Quadratic-Langmuir) with the adsorption-branch parameters. The desorption branch of preprint Table 2 (q_sb 0.731 mmol/g, b0_1 -5.405e-17, b0_2 1.825e-16, b0_3 7.311e-16, q_sd 8.940 mmol/g, d0 7.879e-12, the same energies) is not stored: the engine does not switch isotherm branches.",
+        "CO2 and N2 share one 'extended_dual_site_langmuir_c' isotherm. CO2 carries the per-site water factors 1/(1 + lambda_k q_w^lambda3) on the SI Table S2 dry fit; N2 has none and keeps competing with CO2 in the shared denominators. Water acts on CO2 only through its adsorbed loading q_w; CO2 does not change the water isotherm here.",
+        "Water with CO2: the source fits no competitive water isotherm; its simulations interpolate the measured Table 4 water loadings (22 C, pure CO2). This entry uses the pure-water isotherm, which over-predicts water uptake in CO2 at low humidity.",
+        "Includes no rate models: the SI Table S3 water LDF constant is 0.005 1/s (with D_L 9.364e-5 m2/s); set it on the deck.",
+        "Loadings are per kg of the structured sorbent (80 wt% CALF-20, 20 wt% binder), the same basis as the calf_20_nguyen2023 entry."
+      ]
+    },
+    {
       "key": "zif_8_ferre2026",
       "label": "ZIF-8",
       "file": "zif_8_ferre2026.json",
@@ -9153,6 +10568,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 20286.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -9209,6 +10648,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 15308.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -9440,6 +10903,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 19557.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -9496,6 +10983,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 18556.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -9726,6 +11237,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 16968.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -9782,6 +11317,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 12434.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "refit",
@@ -10256,6 +11815,30 @@
               "label": "q2",
               "unit": "J/mol",
               "value": 59798.0
+            },
+            {
+              "name": "lambda1",
+              "label": "lambda1",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda2",
+              "label": "lambda2",
+              "unit": "(kg/mol)^lambda3",
+              "value": 0.0
+            },
+            {
+              "name": "lambda3",
+              "label": "lambda3",
+              "unit": "-",
+              "value": 0.0
+            },
+            {
+              "name": "gamma2",
+              "label": "gamma2",
+              "unit": "kg/mol",
+              "value": 0.0
             }
           ],
           "data_quality": "measured_tabulated",
