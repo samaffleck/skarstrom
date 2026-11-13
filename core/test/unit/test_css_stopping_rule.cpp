@@ -9,6 +9,7 @@
 // balance test with a 0.5 % band passes on the fifth cycle, long before the
 // purity and recovery have settled.
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <sstream>
@@ -127,6 +128,49 @@ namespace adsim {
     EXPECT_FALSE(CyclicSteadyState::MassBalanceCyclePasses(0.0, 0.005, -1.0, 5e-5));
     EXPECT_TRUE(CyclicSteadyState::MassBalanceCyclePasses(0.0, 0.005, -1.0, 0.0));
     EXPECT_FALSE(CyclicSteadyState::MassBalanceCyclePasses(std::nan(""), 0.005, 0.0, 5e-5));
+  }
+
+  // The per-component balance skips a component whose inflow is negligible
+  // against the moles fed in the cycle. A synthetic cycle of a lab column:
+  // 1e-2 mol of N2/CO2 fed, a fed trace at 1 ppm, a product-only component
+  // (inflow exactly 0) and an absent component whose flows are round-off (what
+  // IAST gives it), with an O(1) relative error.
+  TEST(CSSStoppingRule, NegligibleThroughputSkipsOnlyRoundOff) {
+    struct Component { const char* name; double in, out; };
+    const std::vector<Component> cycle{
+        {"Nitrogen", 8.5e-3, 8.52e-3},      // error 2.4e-3
+        {"CarbonDioxide", 1.5e-3, 1.497e-3},  // error 2.0e-3
+        {"Trace", 1.0e-8, 1.00003e-8},    // fed at 1 ppm: error 3.0e-5, tested
+        {"Product", 0.0, 1e-6},           // never fed
+        {"Water", 3.1e-19, 6.2e-19},      // round-off: error 1.0
+    };
+    double total_in = 0.0;
+    for (const auto& c : cycle) total_in += c.in;
+
+    double max_error = 0.0;
+    std::vector<std::string> untested;
+    for (const auto& c : cycle) {
+      if (CyclicSteadyState::NegligibleThroughput(c.in, total_in)) {
+        untested.push_back(c.name);
+        continue;
+      }
+      max_error = std::max(max_error, std::abs(c.in - c.out) / c.in);
+    }
+    EXPECT_EQ(untested, (std::vector<std::string>{"Product", "Water"}));
+    EXPECT_NEAR(max_error, 0.02e-3 / 8.5e-3, 1e-12);  // N2 decides, as without Water
+    EXPECT_LE(max_error, 0.005);
+
+    // The threshold scales with the cycle, so a plant-scale round-off is
+    // skipped and a lab-scale fed trace is not.
+    EXPECT_TRUE(CyclicSteadyState::NegligibleThroughput(1e-9, 1e4));
+    EXPECT_FALSE(CyclicSteadyState::NegligibleThroughput(1e-9, 1e-2));
+    // Exactly at the fraction: not negligible (strictly below is).
+    EXPECT_FALSE(CyclicSteadyState::NegligibleThroughput(
+        CyclicSteadyState::kNegligibleThroughputFraction * 1.0, 1.0));
+    // With nothing fed at all, only the absolute floor applies (the old rule).
+    EXPECT_TRUE(CyclicSteadyState::NegligibleThroughput(0.0, 0.0));
+    EXPECT_TRUE(CyclicSteadyState::NegligibleThroughput(1e-31, 0.0));
+    EXPECT_FALSE(CyclicSteadyState::NegligibleThroughput(1e-29, 1e-29));
   }
 
   TEST(CSSStoppingRule, CyclesToLog) {
