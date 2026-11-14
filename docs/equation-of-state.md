@@ -143,8 +143,88 @@ $$
 - Pressure dependence is neglected; gas viscosity changes by less than about 1 % over 0.1–10 bar.
 - A floor of 10⁻⁶ Pa s (viscosity) and 10⁻⁴ W m⁻¹ K⁻¹ (conductivity) guards against a fit undershooting at the window edges. A component with no coefficients at all falls back to 1 × 10⁻⁵ Pa s and 0.024 W m⁻¹ K⁻¹.
 
+### Binary diffusion coefficients (Chapman–Enskog)
+
+The binary molecular diffusion coefficient of every pair of components is evaluated in every cell at every residual evaluation, at the cell's gas temperature and pressure, from the Chapman–Enskog relation in the form of Poling, Prausnitz and O'Connell (*The Properties of Gases and Liquids*, 5th ed., 2001, Chapter 11) (`core/src/equations/binary_diffusion_model.cpp`):
+
+$$
+D_{ij} = \frac{2.66\times10^{-7}\thinspace T^{3/2}}{\left(P/10^{5}\right)\thinspace M_{ij}^{1/2}\thinspace \sigma_{ij}^{2}\thinspace \Omega_D},
+\qquad
+M_{ij} = \frac{2}{1/M_i + 1/M_j}
+$$
+
+with $D_{ij}$ in m² s⁻¹, $T$ in K, $P$ in Pa (so $P/10^5$ is in bar), the molar masses $M$ in g mol⁻¹ and $\sigma_{ij}$ in Å. The collision integral is the correlation of Neufeld, Janzen and Aziz (1972) in the reduced temperature $T^* = T/\varepsilon_{ij}$:
+
+$$
+\Omega_D = \frac{A}{(T^*)^{B}} + \frac{C}{\exp(D\thinspace T^*)} + \frac{E}{\exp(F\thinspace T^*)} + \frac{G}{\exp(H\thinspace T^*)}
+$$
+
+$A = 1.06036$, $B = 0.15610$, $C = 0.19300$, $D = 0.47635$, $E = 1.03587$, $F = 1.52996$, $G = 1.76474$, $H = 3.89411$.
+
+The pair parameters follow the Lorentz–Berthelot combining rules from each component's Lennard-Jones length $\sigma_i$ [Å] and energy $\varepsilon_i$ (as $\varepsilon/k_B$, K):
+
+$$
+\sigma_{ij} = \tfrac12\left(\sigma_i + \sigma_j\right), \qquad \varepsilon_{ij} = \sqrt{\varepsilon_i\thinspace \varepsilon_j}
+$$
+
+The Lennard-Jones parameters are those of Svehla (NASA TR R-132, 1962, Table I(a)); octane and toluene use CoolProp's viscosity-fit pairs, and isopentane uses the n-pentane row.
+
+| Symbol | Description | Unit |
+|---|---|---|
+| $D_{ij}$ | Binary diffusion coefficient of the pair $i$, $j$ | m² s⁻¹ |
+| $M_i$ | Molar mass of component $i$ | g mol⁻¹ |
+| $\sigma_i$, $\sigma_{ij}$ | Lennard-Jones length of component $i$, of the pair | Å |
+| $\varepsilon_i$, $\varepsilon_{ij}$ | Lennard-Jones energy over $k_B$ of component $i$, of the pair | K |
+| $T^*$ | Reduced temperature $T/\varepsilon_{ij}$ | - |
+| $\Omega_D$ | Diffusion collision integral | - |
+
+### Molecular diffusion in a mixture
+
+Each component $i$ has one effective molecular diffusivity $D_{i,m}$ in every cell (`UpdateMolecularDiffusionCoefficient` and `BlanksLaw` in `core/src/equations/adsorbent_equations.cpp`). It depends on the number of components $N$:
+
+- **One component.** $D_{i,m} = D_{ii}$, the self-diffusion coefficient: the relation above with $\sigma_{ii} = \sigma_i$, $\varepsilon_{ii} = \varepsilon_i$ and $M_{ii} = M_i$.
+- **Two components.** Both components take the binary value, $D_{1,m} = D_{2,m} = D_{12}$.
+- **Three or more components.** Blanc's law, with a regularisation in the denominator:
+
+$$
+D_{i,m} = \frac{\left\lvert \sum_{j \ne i} y_j \right\rvert}{\sqrt{\epsilon + \left(\sum_{j \ne i} y_j / D_{ij}\right)^{2}}},
+\qquad \epsilon = 10^{-12}\ \text{s}^2\thinspace\text{m}^{-4}
+$$
+
+The $y_j$ are the raw mole fractions of the cell, the solver's unknowns, not normalised to a sum of one. Away from the regularisation this is the usual Blanc form $D_{i,m} = (1 - y_i)\big/\sum_{j\ne i} (y_j/D_{ij})$, the harmonic mean of the binary coefficients weighted by the other components' mole fractions. Blanc's law describes component $i$ diffusing through a stagnant mixture of the others (see Poling, Prausnitz and O'Connell, Chapter 11). It is not a full Stefan–Maxwell treatment: the diffusion fluxes of the components are not coupled to each other.
+
+Limits:
+
+- **Component $i$ in trace amounts** ($y_i \to 0$, $\sum_{j\ne i} y_j \to 1$): $D_{i,m}$ tends to the mole-fraction-weighted harmonic mean of $D_{ij}$, a finite value.
+- **Component $i$ nearly pure** ($\sum_{j \ne i} y_j \to 0$): Blanc's ratio itself stays finite, but the regularisation takes over once $\sum_{j\ne i} y_j / D_{ij}$ falls to about $\sqrt{\epsilon} = 10^{-6}$ s m⁻² (about $10^{-11}$ in mole fraction for $D_{ij} \approx 10^{-5}$ m² s⁻¹). Below that, $D_{i,m} \approx 10^{6}\sum_{j\ne i} y_j$ m² s⁻¹, which goes to zero with the other components' mole fractions.
+
+| Symbol | Description | Unit |
+|---|---|---|
+| $D_{i,m}$ | Effective molecular diffusivity of component $i$ in the mixture | m² s⁻¹ |
+| $y_j$ | Mole fraction of component $j$ (unnormalised) | - |
+| $\epsilon$ | Regularisation of the Blanc denominator | s² m⁻⁴ |
+
+**Mixture diffusivity in the Schmidt number.** The Schmidt number uses the mole-fraction-weighted mean of the component diffusivities, with a floor:
+
+$$
+\mathrm{Sc} = \frac{\mu}{\rho\thinspace D_{mix}}, \qquad D_{mix} = \max\left(\sum_i y_i\thinspace D_{i,m},\ 10^{-9}\ \text{m}^2\thinspace\text{s}^{-1}\right)
+$$
+
+**Where each diffusivity is used.**
+
+| Model term | Diffusivity |
+|---|---|
+| Axial dispersion, Ruthven and Taylor–Aris ([Transport Correlations](transport-correlations.md)) | the **user-entered constant** $D_m$ of the dispersion model; the computed $D_{i,m}$ is not used |
+| Film mass-transfer coefficient, $k_f = \mathrm{Sh}\thinspace D_{i,m}/d$ (the film term of the kinetic models) | $D_{i,m}$ |
+| Haynes (1973) mass-transfer coefficient (film and macropore terms) | $D_{i,m}$ |
+| Macropore molecular-diffusion term (Macropore, Macropore + Knudsen, Macropore capacity factor, Mass-transfer resistances) | the model's constant molecular diffusivity when it is set above 0; otherwise $D_{i,m}$ |
+| Schmidt number, and through it the Sherwood correlations | $D_{mix}$ above |
+| Thiele modulus of a reaction, $D_{eff} = (\varepsilon_p/\tau)\thinspace D_{i,m}$ of the key reactant ([Reactions](reactions.md)) | $D_{i,m}$ |
+
+See [Kinetic Models](kinetic-models.md) for the mass-transfer coefficients.
+
 ### Other gas properties
 
-- **Molecular diffusivities** come from the Chapman–Enskog binary-diffusion model with the Lennard-Jones energy and length of each component (Svehla, NASA TR R-132, 1962, Table I(a); octane and toluene use CoolProp's viscosity-fit pairs, isopentane uses the n-pentane row). They feed the dispersion and film mass-transfer correlations; see [Transport Correlations](transport-correlations.md).
+- **Molecular diffusivities** come from the Chapman–Enskog binary-diffusion model and the mixture rules above.
 - **Adsorbed-phase heat capacity** is either a constant per component or, with the *Gas phase* option of the energy balance, $C_{p,i}\thinspace M_i$ from the same gas heat capacity at the adsorbed phase's temperature; see [Energy Balance](energy-balance.md#adsorbed-phase-heat-capacity).
 - **Isothermal runs** evaluate all of the above at the fixed temperature $T_{\text{iso}}$; see [Isothermal mode](energy-balance.md#isothermal-mode).
