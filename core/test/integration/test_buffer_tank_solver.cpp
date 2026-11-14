@@ -193,8 +193,19 @@ void MakePurgeInletAValve(UserData& data) {
   fbc->streams_[0] = std::move(valve);
 }
 
+// Looked up by endpoint ID (stable under renames); a failed lookup stops the test.
 CycleEndpointSummary* FeedVentSummary(UserData& data) {
-  return data.cycle.GetStep(kFeedStep).FindSummaryForEndpoint(kPressureBoundaryEndpointName);
+  Step& step = data.cycle.GetStep(kFeedStep);
+  CycleEndpointSummary* sum = nullptr;
+  for (const auto& ep : step.GetEndpoints()) {
+    if (ep.name == Step::PressureEndpointName(kFeedStep, ep.location)) {
+      sum = step.FindSummaryForEndpoint(ep.id);
+      break;
+    }
+  }
+  EXPECT_NE(sum, nullptr) << "feed step has no pressure endpoint summary";
+  if (!sum) std::abort();
+  return sum;
 }
 
 // Per-cycle aggregates read back from a solver's boundary log.
