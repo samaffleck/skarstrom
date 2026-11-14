@@ -65,17 +65,40 @@ namespace adsim {
     UserData& data = sim.Data();
     data.settings.reltol = 1.0001e-6;
 
+    // PRES (step 0) takes in feed through the one flow stream on its bottom
+    // end. Find that stream by position, not by name: the name is a label
+    // that front ends and decks can change (it was "" and is now
+    // "Feed supply"), and a lookup by a stale name finds no summary.
+    auto pres_feed = [&]() -> const IBoundaryStream* {
+      const IBoundaryStream* found = nullptr;
+      for (const Step::LoggedEndpoint& e : data.cycle.step_list_.at(0).LoggedEndpoints()) {
+        if (!e.stream || e.location != BoundaryLocation::BOTTOM) continue;
+        if (found) return nullptr;  // more than one: ambiguous
+        found = e.stream;
+      }
+      return found;
+    };
+    ASSERT_NE(pres_feed(), nullptr) << "step 0 (" << data.cycle.step_list_.at(0).step_name_
+                                    << ") must have exactly one flow stream on its bottom end";
+
     std::vector<double> pres_moles;
+    std::string lookup_error;
     RunOptions run;
     run.progress = [&](const RunProgress& p) {
-      if (p.step == 0) {
-        const CycleEndpointSummary* s = data.cycle.step_list_[0].FindSummaryForEndpoint("");
-        pres_moles.push_back(s ? s->total_moles : std::nan(""));
+      if (p.step != 0 || !lookup_error.empty()) return true;
+      const IBoundaryStream* feed = pres_feed();
+      if (!feed) {
+        lookup_error = "no single bottom flow stream on step 0 at cycle " + std::to_string(p.cycle);
+      } else if (!feed->cycle_summary_.is_valid) {
+        lookup_error = "stream '" + feed->name_ + "' of step 0 has no valid summary at cycle " + std::to_string(p.cycle);
+      } else {
+        pres_moles.push_back(feed->cycle_summary_.total_moles);
       }
       return true;
     };
     const RunResult result = sim.Run(run);
     ASSERT_TRUE(result.Ok()) << result.message;
+    ASSERT_TRUE(lookup_error.empty()) << lookup_error;
     ASSERT_GE(pres_moles.size(), 40u);
 
     // Cycle to cycle the uptake creeps up by < 0.3 % from cycle 20 on (the

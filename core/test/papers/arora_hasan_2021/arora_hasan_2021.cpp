@@ -263,6 +263,7 @@ namespace adsim {
       std::vector<std::unique_ptr<IBoundaryStream>> streams;
       streams.push_back(CreateNoValveInletStream(
         CreateMolarFlowBC(n1), {{O2, 0.21}, {N2, 0.79}}, T_feed));
+      streams.back()->name_ = "Air feed";
       AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, "Production");
     }
     AddPressureOutletBC(CreateConstantBoundaryValue(P1), BoundaryLocation::TOP, "Production",
@@ -285,6 +286,7 @@ namespace adsim {
       std::vector<std::unique_ptr<IBoundaryStream>> streams;
       streams.push_back(CreateNoValveInletStream(
         CreateMolarFlowBC(n_purge), {{O2, o2_purity}, {N2, 1 - o2_purity}}, T_feed));
+      streams.back()->name_ = "Product purge";
       AddFlowBC(std::move(streams), BoundaryLocation::TOP, BoundaryDirection::INLET, "Purge");
     }
     AddPressureOutletBC(CreateConstantBoundaryValue(P3), BoundaryLocation::BOTTOM, "Purge",
@@ -415,6 +417,7 @@ namespace adsim {
       std::vector<std::unique_ptr<IBoundaryStream>> streams;
       streams.push_back(CreateNoValveInletStream(
         CreateMolarFlowBC(n1), {{O2, 0.21}, {N2, 0.79}}, T_feed));
+      streams.back()->name_ = "Air feed";
       AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, "Production");
     }
     AddPressureOutletBC(CreateConstantBoundaryValue(P1), BoundaryLocation::TOP, "Production",
@@ -432,6 +435,7 @@ namespace adsim {
       std::vector<std::unique_ptr<IBoundaryStream>> streams;
       streams.push_back(CreateNoValveInletStream(
         CreateMolarFlowBC(n_purge), {{O2, 0.9}, {N2, 0.1}}, T_feed));
+      streams.back()->name_ = "Product purge";
       AddFlowBC(std::move(streams), BoundaryLocation::TOP, BoundaryDirection::INLET, "Purge");
     }
     AddPressureOutletBC(CreateConstantBoundaryValue(P3), BoundaryLocation::BOTTOM, "Purge",
