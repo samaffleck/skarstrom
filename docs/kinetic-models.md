@@ -24,17 +24,21 @@ $$
 
 ### Linear Driving Force (2nd Order)
 
-A quadratic driving force, occasionally used for strongly non-linear uptake.
+A quadratic driving force, occasionally used for strongly non-linear uptake. The engine uses the sign-preserving form, so the same law also desorbs when $q_i > q_i^*$ (the literal square $(q_i^* - q_i)^2$ is never negative):
 
 $$
-\frac{\partial q_i}{\partial t} = k_i \left(q_i^* - q_i\right)^2
+\frac{\partial q_i}{\partial t} = k_i \left(q_i^* - q_i\right)\left|q_i^* - q_i\right|
 $$
 
 | Symbol | Description | Unit |
 |--------|-------------|------|
-| $k_i$ | Mass transfer coefficient | s⁻¹ |
+| $k_i$ | Mass transfer coefficient | s⁻¹ (1st order); kg mol⁻¹ s⁻¹ (2nd order) |
 | $q_i^*$ | Equilibrium adsorbed loading (from the isotherm) | mol kg⁻¹ |
 | $q_i$ | Current adsorbed loading | mol kg⁻¹ |
+
+For the 2nd-order law, $k_i$ is the lumped `k` (see [Resistances](#resistances)). The physical resistances give a coefficient in s⁻¹, so the deck checks warn when a 2nd-order model has one of them switched on.
+
+**Where $q_i^*$ is evaluated.** In every cell and at every residual evaluation, $q_i^*$ is the adsorbent's isotherm at the cell's current pressure and gas mole fractions and at the solid temperature $T_s$ ([Which temperature](isotherms.md#isotherm-models)), with the adsorbent's [mixing rule](isotherms.md#mixture-loadings-the-mixing-rule-and-iast) (under IAST, the mixture solution). The kinds that read the adsorbed water loading take the actual (rate-equation) water loading $q_w$ of the same adsorbent in the cell, not its equilibrium value. There is no film or pore concentration in the driving force: the resistances enter only through $k_i$.
 
 The same symbols are used throughout this page: $k_i$ is the coefficient of the [rate model](#rate-models), whatever [resistances](#mass-transfer-coefficient) produce it; the dual-rate model below writes its two coefficients $k_{i,1}$ (fast) and $k_{i,2}$ (slow), and each comes from its own coefficient model.
 
@@ -101,7 +105,7 @@ The geometry comes from the layer. Packed layers use spheres of radius $r_p = d_
 | --- | --- | --- | --- | --- |
 | `film` (external film) | $f_\text{film}\thinspace\dfrac{K\thinspace r_p}{3\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace r_f}{2\thinspace k_f}$ | $f_\text{film}\thinspace\dfrac{K\thinspace\ell}{k_f}$ | $k_f = \mathrm{Sh}\thinspace D_{m,i}/d_p$ (sphere, cylinder), $\mathrm{Sh}\thinspace D_{m,i}/D_h$ (slab) |
 | `macropore` (macropore diffusion) | $\dfrac{K\thinspace\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace r_f^2}{8\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace\ell^2}{3\thinspace\varepsilon_p D}$ | $D = D_{m,i}$ (molecular only), $D_{K,i}$ (Knudsen only) or $D_{B,i}$ (both) |
-| `molecular` (molecular diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $D_{m,i}$: the local binary diffusivity, or the constant `molecular_diffusion_coefficient` |
+| `molecular` (molecular diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $D_{m,i}$: the local molecular diffusivity of component $i$ in the gas, or the constant `molecular_diffusion_coefficient` |
 | `knudsen` (Knudsen diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $D_{K,i} = \tfrac{2}{3}\thinspace r_\text{pore}\sqrt{\dfrac{8RT}{\pi M_i}}$; with `molecular` on too, $\dfrac{1}{D_{B,i}} = \dfrac{1}{D_{K,i}} + \dfrac{1}{D_{m,i}}$ |
 | `micropore` (micropore diffusion) | $\dfrac{r_c^2}{15\thinspace D_{c,i}}$ | the same | the same | $D_{c,i} = D_{c0}\thinspace e^{-E_{a,c}/RT}$ |
 | `lumped` (lumped coefficient) | $\dfrac{1}{k_{L,i}}$ | the same | the same | $k_{L,i} = k\thinspace e^{-E_a/RT}$; $k_{L,i} = k$ when $E_a = 0$ |
@@ -129,7 +133,13 @@ The constant comes from Glueckauf's (1955) assumption of a parabolic profile in 
 
 The pressure drop (Ergun, Kozeny–Carman, Blake–Kozeny), the axial dispersion, and the packed-bed film correlations (Sh and Nu) continue to use $d_p$ as an equivalent-sphere diameter, for the Reynolds and Sherwood length too. The specific surface area follows the shape: $a_v = 6(1-\varepsilon_b)/d_p$ for spheres and $a_v = 4(1-\varepsilon_b)/d_p$ for infinite cylinders of diameter $d_p$ (end faces not counted). The gas–solid heat transfer ($h\thinspace a_v$) and the packed hydraulic diameter $D_h = 4\varepsilon_b/a_v$ use it. A shape-specific pressure-drop correlation is not in the engine. A structured layer ignores the particle shape.
 
-**Molecular diffusivity.** By default (`molecular_diffusion_coefficient` = 0), $D_{m,i}$ is the binary-diffusion value that the engine calculates from the local temperature and pressure (Chapman–Enskog). This value changes as $1/P$: at an evacuation pressure of 3–10 kPa it is 10–33 times its 1 bar value, and so is the macropore coefficient. A value above 0 [m² s⁻¹] is a constant $D_m$ for the macropore term, in each cell and at each pressure. Haghpanah et al. (2013) and Estupiñan Perez et al. (2019, Table 1) use $D_m = 1.6 \times 10^{-5}$ m² s⁻¹. The film term always uses the local value, because its Sherwood number comes from the Schmidt number of that same $D_m$.
+**Molecular diffusivity.** By default (`molecular_diffusion_coefficient` = 0), $D_{m,i}$ is the value that the engine calculates from the local gas temperature and pressure: the Chapman–Enskog binary diffusivity $D_{12}$ in a two-component gas (the self-diffusivity for one component), and Blanc's law over the binary $D_{ij}$, weighted by the other components' mole fractions, with three or more components ([Equation of State](equation-of-state.md)). This value changes as $1/P$: at an evacuation pressure of 3–10 kPa it is 10–33 times its 1 bar value, and so is the macropore coefficient. A value above 0 [m² s⁻¹] is a constant $D_m$ for the macropore term, in each cell and at each pressure. Haghpanah et al. (2013) and Estupiñan Perez et al. (2019, Table 1) use $D_m = 1.6 \times 10^{-5}$ m² s⁻¹. The film term always uses the local value, because its Sherwood number comes from the Schmidt number of that same $D_m$.
+
+**Temperatures.** The temperature-dependent parts of $k_i$ use the **gas** temperature $T$ of the cell: $D_{m,i}$, $D_{K,i}$, $D_{c,i}$ and the lumped $k_{L,i}$, and the concentration $c_i = y_i P/(R T)$ of the capacity factor. The isotherm inside the capacity factor is evaluated at the solid temperature, as everywhere ([Isotherm Models](isotherms.md)). The two differ only under [local thermal non-equilibrium](energy-balance.md#local-thermal-non-equilibrium-ltne).
+
+**Two particle porosities.** The $\varepsilon_p$ of the macropore term is the kinetics leaf `macropore_void_fraction`. It is independent of the adsorbent's `particle_void_fraction`, which the gas hold-up of the bed and the [mixing rules](mixed-layers.md) use, and which the [Thiele effectiveness](reactions.md#effectiveness-factor) of a reaction uses. The engine does not copy one to the other: set both when they describe the same particle.
+
+**State-dependent values.** The lumped `k` and `activation_energy` are evaluated in each cell, so they can be [expressions](global-variables.md) of the cell's gas temperature `T`, pressure `P` and the component's mole fraction `y`, as well as of user variables.
 
 The parameters are registry leaves with flat names, `adsorbent[A].kinetics[C].<name>`. The registry shows a leaf only while its resistance is on. The model keeps every value whatever its switch, so if you switch a term off and on again, its values come back.
 
@@ -215,7 +225,7 @@ The single-term presets reduce to the forms of the former kinds:
 - **arrhenius:** $k_i = k_0\thinspace e^{-E_a/RT}$.
 - **macropore:** $k_i = 60\thinspace D_\text{eff}/d_p^2$ with $D_\text{eff} = D\thinspace\varepsilon_p/\tau$ (cylinder: $8\thinspace D_\text{eff}/r_f^2$; slab: $3\thinspace D_\text{eff}/\ell^2$).
 - **macropore_knudsen:** the same, with $D = D_{B,i}$.
-- **macropore_capacity:** $k_i = \dfrac{15\thinspace\varepsilon_p D_{m,i}}{\tau\thinspace r_p^2}\thinspace\min\!\left(\dfrac{c_i}{\rho_p q_i^*},\thinspace 1\right)$.
+- **macropore_capacity:** $k_i = \dfrac{c\thinspace\varepsilon_p D_{m,i}}{\tau\thinspace R^2}\thinspace\min\!\left(\dfrac{c_i}{\rho_p q_i^*},\thinspace 1\right)$, with $c\thinspace/R^2 = 15/r_p^2$ (sphere), $8/r_f^2$ (cylinder) or $3/\ell^2$ (slab), $c_i$ and $q_i^*$ taken at $\max(c_i, c_\text{floor})$ as in the [secant mode](#capacity-factor-modes), and the ratio 1 where $\rho_p q_i^* \le 0$.
 - **haynes:** $k_i = \left(\dfrac{r_p}{3 k_f} + \dfrac{\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D_{m,i}}\right)^{-1}$ (Haynes & Sarma, 1973).
 
 The engine evaluates each preset with the operations of the former class, so the coefficient is the same double.

@@ -2,7 +2,7 @@
 
 A **reaction** lives on an adsorbent (a solid), beside its isotherm and rate model. A catalyst is a solid with reactions, usually with an inert isotherm. Mix a catalyst and a sorbent in one layer by mass fraction to get a sorption-enhanced reactor. No other machinery is needed.
 
-Each rate law gives the rate $r$ per kilogram of the solid that carries the reaction, in mol of reaction extent per kg per second. Component $i$ is produced at $\nu_i r$ ($\nu_i < 0$ for a reactant, $> 0$ for a product). The rate is written in activities: partial pressures in bar (`partial_pressure`, the default) or concentrations in mol/m³ (`concentration`).
+Each rate law gives the intrinsic rate $r$ per kilogram of the solid that carries the reaction, in mol of reaction extent per kg per second. Component $i$ is produced at $\nu_i\,\eta\, r$ per kg of that solid ($\nu_i < 0$ for a reactant, $> 0$ for a product; $\eta$ is the [effectiveness factor](#effectiveness-factor)). The rate laws other than `expression` are written in activities $a_i$: partial pressures $a_i = y_i P$ in **bar** (`partial_pressure`, the default) or concentrations $a_i = y_i P/(RT)$ in mol/m³ (`concentration`).
 
 | Rate law | Rate |
 |---|---|
@@ -11,9 +11,71 @@ Each rate law gives the rate $r$ per kilogram of the solid that carries the reac
 | `lhhw` | $r = k(T) \prod_i a_i^{n_i} (1 - Q/K(T)) / \mathrm{DEN}^m$, $\mathrm{DEN} = 1 + \sum_j K_j(T) \prod_i a_i^{e_{ji}}$ |
 | `expression` | a user expression of `T`, `P`, `c` and `p_<C>`, `c_<C>`, `y_<C>` |
 
-$k(T) = A \exp(-E / RT)$. The orders $n_i$ default to $-\nu_i$ for reactants and 0 for products.
+The temperature-dependent constants all have the Arrhenius form:
 
-The effectiveness factor $\eta$ is `constant` (the `effectiveness` value) or `thiele` (from the Thiele modulus of a key reactant of the reaction).
+$$
+k(T) = A\, e^{-E/RT}, \qquad K(T) = A_K\, e^{-E_K/RT}, \qquad K_j(T) = A_j\, e^{-E_j/RT}
+$$
+
+| Symbol | Parameter (`adsorbent[ID].reaction[ID].rate.*`) | Description | Unit |
+|---|---|---|---|
+| $A$, $E$ | `pre_exp_factor`, `activation_energy` | Rate constant | mol kg⁻¹ s⁻¹ (activity)$^{-\sum_i n_i}$; J mol⁻¹ |
+| $n_i$ | `order[C]` | Reaction order; defaults to $-\nu_i$ for reactants and 0 for products | – |
+| $A_K$, $E_K$ | `equilibrium_pre_exp_factor`, `equilibrium_energy` | Equilibrium constant (entered; there is no thermochemistry table) | (activity)$^{\sum_i \nu_i}$; J mol⁻¹ |
+| $A_j$, $E_j$ | `adsorption[j].pre_exp_factor`, `adsorption[j].energy` | Adsorption constant of denominator term $j$ | (activity)$^{-\sum_i e_{ji}}$; J mol⁻¹ |
+| $e_{ji}$ | `adsorption[j].exponent[C]` | Exponent of component $i$ in term $j$ | – |
+| $m$ | `denominator_exponent` | Exponent of the LHHW denominator (default 1) | – |
+
+With $K_j = A_j e^{-E_j/RT}$, an adsorption constant that falls with temperature has $E_j < 0$ (an adsorption enthalpy). An `lhhw` rate has the switch `rate.reversible` (default on). With it off, the factor $(1 - Q/K)$ is dropped and the rate is $k \prod_i a_i^{n_i} / \mathrm{DEN}^m$.
+
+The reversible factor is evaluated as the difference of two monomials, $k\,[\prod_i a_i^{n_i} - K^{-1}\prod_i a_i^{n_i + \nu_i}]$, never through $Q$, so a zero product activity gives a finite rate. Each activity is clipped at 0, and an activity raised to a negative power is floored (see [Start-up of fast reactions](#start-up-of-fast-reactions)); the two forms agree wherever no activity is clipped or floored.
+
+**The `expression` rate** gives $r$ in mol kg⁻¹ s⁻¹ directly and ignores the rate basis. Its variables are `T` [K], `P` [Pa], `c` = $P/(RT)$ [mol/m³] and, for each component, `p_<C>` = $y_C P$ in **Pa** (not bar), `c_<C>` [mol/m³] and `y_<C>` [–]. A partial-pressure law fitted in bar needs `p_<C>/1e5`.
+
+**Temperature and composition.** Every rate is evaluated with the gas composition and pressure of the cell, at the catalyst temperature: the solid temperature under [local thermal non-equilibrium](energy-balance.md#local-thermal-non-equilibrium-ltne), the gas temperature otherwise.
+
+### Effectiveness factor
+
+The effectiveness factor $\eta$ multiplies the intrinsic rate. It is `constant` (the `effectiveness` value, default 1) or `thiele`. The `thiele` model computes $\eta$ in each cell from the generalised (Aris–Bischoff) Thiele modulus of a key reactant A, for an isothermal sphere without film resistance:
+
+$$
+\phi = \frac{R}{3}\,\frac{\rho_p\,|\nu_A|\,|r_s|}{\sqrt{2\,D_\text{eff}\displaystyle\int_{C_{A,\text{eq}}}^{C_{A,s}} \rho_p\,|\nu_A|\, r\, dC_A}}, \qquad
+\eta = \frac{1}{\phi}\left[\frac{1}{\tanh 3\phi} - \frac{1}{3\phi}\right], \qquad
+D_\text{eff} = \frac{\varepsilon_p}{\tau}\, D_{m,A}
+$$
+
+| Symbol | Description | Unit |
+|---|---|---|
+| $R$ | Particle radius, half the layer's `particle_diameter` | m |
+| $\rho_p$ | Particle density of the solid (`solid_density`) | kg m⁻³ |
+| $r_s$ | Intrinsic rate at the cell's gas state (the particle surface) | mol kg⁻¹ s⁻¹ |
+| $C_{A,s}$ | Concentration of A in the cell's gas | mol m⁻³ |
+| $\varepsilon_p$ | The adsorbent's `particle_void_fraction` | – |
+| $\tau$ | The reaction's `tortuosity` (default 3) | – |
+| $D_{m,A}$ | Molecular diffusivity of A in the cell's gas ([Equation of State](equation-of-state.md)) | m² s⁻¹ |
+
+Inside the particle the other components follow the stoichiometric line $C_j = C_{j,s} + (\nu_j/\nu_A)(C_A - C_{A,s})$ (clipped at 0): every component diffuses with the same effective diffusivity, and temperature and pressure are those of the surface. $C_{A,\text{eq}}$ is the concentration of A on that line where the rate is zero (the equilibrium, found by regula falsi) or, for a rate that does not change sign, where a concentration on the line reaches zero. The integral uses 8-point Gauss–Legendre quadrature. The key reactant is `key_component` when it is a reactant of the reaction, else the first reactant. The particle is a sphere of radius $d_p/2$ also in a layer of cylinders or a structured layer. Where the modulus cannot be formed (no reactant, $r_s = 0$, a non-positive $R$, $\rho_p$ or $D_\text{eff}$), $\eta = 1$.
+
+### Source terms and heat of reaction
+
+The reactions of solid $k$ act at that solid's bulk density $\rho_{b,k}$ (its mass per bed volume, see [Mixed Adsorbent Layers](mixed-layers.md)). Component $i$ gains, per unit bed volume,
+
+$$
+S_i = \sum_k \rho_{b,k} \sum_r \nu_{r,i}\, \eta_{k,r}\, r_{k,r} \qquad [\text{mol m}^{-3}\,\text{s}^{-1}]
+$$
+
+$S_i$ enters the [component balance](mass-balance.md) of $i$, and the net $\sum_i S_i$ enters the overall mole balance, so a mole-changing reaction drives the velocity field as adsorption does. Each reaction also releases
+
+$$
+Q_\text{rxn} = \sum_k \rho_{b,k} \sum_r \left(-\Delta H_r(T)\right) \eta_{k,r}\, r_{k,r} \qquad [\text{W m}^{-3}]
+$$
+
+into the [energy balance](energy-balance.md) (the solid's under LTNE), with $T$ the catalyst temperature; it is 0 in an isothermal run. $\Delta H_r$ is per mol of extent, negative for an exothermic reaction. Two modes (`heat_mode`):
+
+- `kirchhoff` (the default): $\Delta H_r(T) = \Delta H_\text{ref} + \sum_i \nu_i \int_{T_\text{ref}}^{T} C_{p,i}\, dT$, with the gas molar heat capacities the energy balance uses;
+- `constant`: $\Delta H_r = \Delta H_\text{ref}$ at every temperature.
+
+$\Delta H_\text{ref}$ is `heat_of_reaction` [J mol⁻¹] and $T_\text{ref}$ is `heat_reference_temperature` (default 298.15 K). Under the default mode, enter the heat of reaction at $T_\text{ref}$, not at the operating temperature.
 
 ### Building reactions in Python
 
@@ -58,6 +120,8 @@ wgs = ni.add_reaction("WGS", {"CarbonMonoxide": -1, "Water": -1, "CarbonDioxide"
 sim.kpi.track_reaction("Methane", products=["Hydrogen"])
 print(sk.to_script(sim)[:200])
 ```
+
+The SMR heat of reaction, 206 100 J mol⁻¹, is the standard value at 298.15 K: with the default `kirchhoff` mode the engine corrects it to the bed temperature (800 K here) through the gas heat capacities, so it is not entered at 800 K.
 
 The structure setters of a `Reaction` replace what was there. A new rate law keeps the parameters that it shares with the old one.
 

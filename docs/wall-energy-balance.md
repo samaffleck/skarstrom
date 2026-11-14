@@ -19,7 +19,7 @@ $$
 \frac{4\thinspace d_i\thinspace h_i}{d_o^2 - d_i^2}\Big[g\left(T - T_w\right) + \left(1-g\right)\left(T_s - T_w\right)\Big]
 $$
 
-In a packed bed $g = \varepsilon_b$, in proportion to the bed voidage. In a structured layer (monolith or laminate) $g = 0$: the gas flows in channels whose walls touch the column wall, so the whole exchange passes through the solid.
+In a packed bed $g = \varepsilon_b$, in proportion to the bed voidage. In a structured layer (monolith or laminate) $g = 0$: the gas flows in channels whose walls touch the column wall, so the whole exchange passes through the solid. The bed side of the same split appears in the gas and solid equations of the [energy balance](energy-balance.md#local-thermal-non-equilibrium-ltne).
 
 The same exchange appears with the opposite sign in the bed's [energy balance](energy-balance.md) as $\tfrac{4 h_i}{d_i}(T - T_w)$ per unit bed volume. Both terms describe the same heat flow through the same area, so the heat the wall absorbs is exactly the heat the bed loses.
 
@@ -39,7 +39,7 @@ The same exchange appears with the opposite sign in the bed's [energy balance](e
 
 Notes:
 
-- For a square or rectangular column, $d_i$ is the hydraulic diameter of the cross-section and the wall is treated as an annulus of thickness $t_w$ around it.
+- For a square or rectangular column, $d_i$ is the hydraulic diameter of the cross-section and $d_o = d_i + 2\thinspace t_w$; the wall terms keep the form above. Per unit length of column, the bed-side term $\tfrac{4 h_i}{d_i}(T - T_w)$ times the cross-section area is the true perimeter of the cross-section times $h_i (T - T_w)$. The logged [medium duty](#medium-duty) uses the outer area $\pi d_o \Delta z$, which is exact for a circular column only.
 - $h_i$ and $h_o$ are constants or come from the [transport correlations](transport-correlations.md#internal-heat-transfer-coefficient) (Dixon, Leva, Holman), evaluated in every cell of the layer. In a [void region](getting-started.md) they are zero, so the wall there exchanges no heat with the gas or the surroundings and only conducts along the column.
 - Setting $h_o = 0$ makes the column adiabatic towards the surroundings; setting $h_i = 0$ decouples the wall from the bed altogether.
 - Axial conduction is discretised with central differences on the same cells as the bed.
@@ -90,7 +90,7 @@ $$
 q_x = a_x\thinspace h_x\left(T_m(t) - T\right) \quad \left[\text{W m}^{-3}\right]
 $$
 
-$a_x$ is the exchanger's heat-transfer area per unit bed volume and $h_x$ its heat transfer coefficient. $T_m$ is the medium temperature, the same as the jacket's. Under local thermal non-equilibrium the gas takes the $\varepsilon_b$ share, $\varepsilon_b\thinspace a_x h_x (T_m - T)$, and the solid the $(1 - \varepsilon_b)$ share, $(1-\varepsilon_b)\thinspace a_x h_x (T_m - T_s)$, as for the wall exchange. There is no exchanger in a void region.
+$a_x$ is the exchanger's heat-transfer area per unit bed volume and $h_x$ its heat transfer coefficient. $T_m$ is the medium temperature, the same as the jacket's. Under local thermal non-equilibrium the gas takes the $\varepsilon_b$ share, $\varepsilon_b\thinspace a_x h_x (T_m - T)$, and the solid the $(1 - \varepsilon_b)$ share, $(1-\varepsilon_b)\thinspace a_x h_x (T_m - T_s)$. In a packed layer this is the same split as the wall exchange. In a structured layer $\varepsilon_b$ is the open frontal area $\phi$, so the gas takes the share $\phi$ of the exchanger heat, although it takes no part of the wall exchange there ($g = 0$). There is no exchanger in a void region.
 
 | Symbol  | Description | Unit | Parameter path |
 |---------|-------------|------|----------------|
@@ -128,7 +128,7 @@ $q_i$ is the outer-face flow of cell $i$, the same term the wall balance uses. A
 | Jacket heats wall and bed | wall as above plus $K_i (T - T_w)$, $K_i = \frac{4 d_i h_i}{d_o^2 - d_i^2}$; bed $C_b \dot T = \frac{4 h_i}{d_i}(T_w - T)$ | $2\times2$ matrix exponential | $5\times10^{-7}$ |
 | Internal exchanger heats the bed alone | $C_b \dot T = a_x h_x (T_m - T)$ | exponential, time constant $C_b/(a_x h_x)$ | $8\times10^{-8}$ |
 
-$C_b = \varepsilon_b C c_v + \rho_b C_{p,s}$ is the bed's heat capacity per volume at constant volume. In a closed bed the energy balance's $P\thinspace dV$ work term turns the gas $c_p$ into $c_v$.
+$C_b = \varepsilon_t C c_v + \rho_b C_{p,s}$ is the bed's heat capacity per volume at constant volume, with $C$ the molar gas concentration and $c_v$ its molar heat capacity at constant volume; the test cases use $\varepsilon_p = 0$, so $\varepsilon_t = \varepsilon_b$. In a closed bed the energy balance's $\varepsilon_t\thinspace\partial P/\partial t$ work term turns the gas $c_p$ into $c_v$.
 
 ### Wall materials
 
@@ -148,14 +148,6 @@ Choosing a preset **Material** fills in the density, heat capacity and thermal c
 
 The wall's heat capacity is often not small. In the Perez (2019) laboratory column, for example, the 3.1 mm steel wall (about 0.8 kg) can store about 400 J K⁻¹, against about 150 J K⁻¹ for the 162 g of zeolite it contains.
 
-### Minimum wall thickness (ASME VIII-1)
+### Minimum wall thickness
 
-The engine also contains a preliminary pressure-vessel sizing check, `BedWall::CalculateMinThickness`, for cylindrical columns. It applies the ASME BPV Code Section VIII Division 1 formula UG-27 for the circumferential stress:
-
-$$
-t_{min} = \frac{P\thinspace R}{S\thinspace E - 0.6\thinspace P}
-$$
-
-where $R = d_i/2$, $P$ is the design pressure (gauge), $E$ the weld joint efficiency (1.0 for seamless or fully radiographed, 0.85 for spot, 0.70 for none) and $S$ the maximum allowable stress of the material at the design temperature. $S$ is interpolated linearly in temperature from tabulated ASME Section II Part D values for each preset material and held at the end value outside the table; *Custom* has no table, so no thickness is computed. For **vacuum service** the check uses a full atmosphere (101 325 Pa) as the design pressure in the same formula, a conservative simplification of the UG-28 external-pressure procedure. The result is flagged invalid if $S E \le 0.6 P$.
-
-The design pressure, design temperature, weld efficiency and vacuum flag are stored in the deck with the wall. The check is available through the C++ API. It is a preliminary sizing aid, not a substitute for a code calculation.
+The wall thickness can be calculated from a design pressure (ASME BPVC VIII-1 or ASME B31.3, with a full-vacuum buckling check): see [Wall Design and Operating Limits](wall-design.md).

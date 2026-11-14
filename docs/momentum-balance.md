@@ -76,7 +76,7 @@ Structured layers have their own transfer closures: Taylor–Aris dispersion, th
 
 ### Solving for the velocity
 
-The velocity is an algebraic unknown on every cell face. For a given driving pressure difference $g$ across a face, the quadratic $g = A u + B\lvert u\rvert u$ has the unique physical root
+The velocity is an algebraic unknown on every cell face. On a face, $A$ and $B$ are the resistances integrated over the distance between the two cell centres (see *Interior faces* below), so there they have the units Pa s m⁻¹ and kg m⁻³, and the driving pressure difference $g$ across the face is in Pa. For a given $g$, the quadratic $g = A u + B\lvert u\rvert u$ has the unique physical root
 
 $$
 u = \frac{2\thinspace g}{A + \sqrt{A^2 + 4\thinspace B\thinspace \lvert g\rvert}}
@@ -107,14 +107,14 @@ A = \tfrac12\left(\frac{\mu_i\thinspace \Delta z_i}{K_i} + \frac{\mu_{i+1}\thins
 B = \tfrac12\left(\beta_i\thinspace \rho_i\thinspace \Delta z_i + \beta_{i+1}\thinspace \rho_{i+1}\thinspace \Delta z_{i+1}\right)
 $$
 
-For two Darcy cells this is exactly the harmonic-mean permeability used before, so a Darcy layer next to an Ergun layer, and an interface between two layers with different packings, are handled consistently.
+For two Darcy cells this is exactly the harmonic-mean permeability used before, so a Darcy layer next to an Ergun layer, and an interface between two layers with different packings, are handled consistently. On the two bed-end faces the ghost cell holds the boundary condition's mirror values, not a real gas, so an Ergun face there takes the viscosity and density of both halves from the first bed cell; a Darcy bed-end face uses the ghost cell's viscosity for the ghost half. The ghost cell's voidage, particle diameter and cell width are copies of the first bed cell's.
 
 **Void regions.** A void region (dead volume) is well mixed and has no packing resistance. The face between a void and the bed uses the bed-side cell's resistance over its full width — $\mu\thinspace \Delta z / K$ plus, for an Ergun layer, $\beta\thinspace \rho\thinspace \Delta z$ — in series with the optional void **resistance coefficient** (a linear Pa s m⁻¹ term, applied only at the void–bed face).
 
 **Flow boundaries.** On a flow boundary the streams' molar flow is matched against the flow through the boundary face, which obeys the same law between the ghost cell and the first bed cell. The streams' flow may itself follow the face pressure (a valve or a pump), so the face velocity $u$ and the ghost pressure are determined together by
 
 $$
-C_f(u)\thinspace A_c\thinspace u = Fig(P_{face}(u), tig),
+C_f(u)\thinspace A_c\thinspace u = F\big(P_{face}(u), t\big),
 \qquad
 P_{ghost}(u) = P_1 \pm \left(A\thinspace u + B\thinspace \lvert u\rvert\thinspace u\right)
 $$
@@ -136,7 +136,7 @@ whose Jacobian block is the identity: $u^\*$ depends only on the first bed cell'
 | $\mu$         | Gas dynamic viscosity                    | Pa·s           |
 | $\rho$        | Gas density                              | kg m⁻³         |
 | $K$           | Permeability of packed bed               | m²             |
-| $A$, $B$      | Viscous / inertial resistance            | Pa s m⁻², Pa s² m⁻³ |
+| $A$, $B$      | Viscous / inertial resistance per unit length (on a face: integrated over the distance between the cell centres) | Pa s m⁻², Pa s² m⁻³ (on a face: Pa s m⁻¹, kg m⁻³) |
 | $\beta$       | Ergun inertial coefficient               | m⁻¹            |
 | $z$           | Axial coordinate                         | m              |
 | $d_p$         | Particle diameter (a cylinder's extrudate diameter, used as an equivalent sphere) | m |

@@ -46,18 +46,40 @@ A step must have at least one non-inlet end (an outlet or a closed end); the two
 
 ## Specifying inlet flow
 
-For a Flow boundary with a *None* device, the **Flow Type** sets how the rate is expressed. All four are equivalent and are converted internally using the boundary-face area and the ideal-gas density:
+For a Flow boundary with a *None* device, the **Flow Type** sets how the rate is expressed. The engine converts each one to a molar flow $\dot n$ with the column cross-section $A_c$ and the ideal-gas concentration at the **bed-end face**:
 
-| Flow Type | Quantity |
-|-----------|----------|
-| **Velocity** | Superficial velocity [m s⁻¹] |
-| **Volumetric Flow Rate** | Volumetric flow [m³ s⁻¹] |
-| **Molar Flow Rate** | Molar flow [mol s⁻¹] |
-| **Mass Flow Rate** | Mass flow [kg s⁻¹] |
+| Flow Type | Quantity | Molar flow |
+|-----------|----------|------------|
+| **Velocity** | Superficial velocity $v$ [m s⁻¹] | $\dot n = v\thinspace A_c\thinspace C_f$ |
+| **Volumetric Flow Rate** | Volumetric flow $Q$ [m³ s⁻¹] | $\dot n = Q\thinspace C_f$ |
+| **Molar Flow Rate** | Molar flow [mol s⁻¹] | $\dot n$ as given |
+| **Mass Flow Rate** | Mass flow $\dot m$ [kg s⁻¹] | $\dot n = \dot m / M_g$ |
+
+$$
+C_f = \frac{P_f}{R\thinspace T_f}, \qquad P_f = \tfrac12\left(P_g + P_1\right), \qquad T_f = \tfrac12\left(T_g + T_1\right)
+$$
+
+with $P_g$, $T_g$ the ghost cell's and $P_1$, $T_1$ the end cell's values. So a velocity or a volumetric flow is at the actual pressure of the bed end and the face temperature (the inlet temperature while gas flows in), not at standard conditions. $M_g = \sum_i y_{i,g} M_i$ is the molar mass of the ghost cell, which holds the inlet composition while gas flows in. The sign of a *None* stream's flow is set by its direction: it always flows into the bed at an inlet and out of it at an outlet, whatever the sign of the entered value.
 
 ## Inlet composition and temperature
 
 At an inlet you set the **Temperature** and the **Composition** (a mole fraction for each component). The mole fractions of an inlet must sum to 1. Outlets ignore these fields because the leaving gas is whatever is in the bed. When the flow through an outlet reverses, the gas that flows back into the bed carries the bed-end composition and temperature (zero gradient). An outlet's composition is used in one case: when its backflow feeds another stream that leaves through the same bed end (see [Backflow through an outlet](#backflow-through-an-outlet)).
+
+**Several streams on one inlet.** The streams of a Flow inlet mix before they enter the bed. With $\dot n_k$ the molar flow of stream $k$, $y_{i,k}$ its composition and $T_k$ its temperature (after compression heating, for a stream with a pump), the gas that enters has
+
+$$
+y_{i,in} = \frac{\sum_k \dot n_k\thinspace y_{i,k}}{\sum_k \dot n_k}, \qquad T_{in} = \frac{\sum_k \dot n_k\thinspace T_k}{\sum_k \dot n_k}
+$$
+
+The composition and temperature of a stream are its buffer tank's (once the source step has run), its connected partner's (once the partner has run), or otherwise the values you entered (see [Connecting Beds](connecting-beds.md) and [buffer tank](#drawing-gas-from-another-step-buffer-tank)).
+
+**Blend at zero flow.** The ghost cell of a Flow inlet does not switch abruptly between the stream values and the end cell's values as the boundary flow passes through zero. It takes the blend
+
+$$
+y_{i,g} = w\thinspace y_{i,in} + (1-w)\thinspace y_{i,1}, \qquad w = \tanh\left(\left(\frac{F}{F_s}\right)^2\right), \qquad F_s = C_f\thinspace A_c\thinspace u_s
+$$
+
+with $F = \sum_k \dot n_k$ the total flow of the streams and $u_s = 10^{-6}$ m s⁻¹; the temperature target $T_{in}$ is blended with $T_1$ in the same way ($w = 1$ for $\lvert F\rvert \ge 5 F_s$). The weight depends on $F^2$, so it does not depend on the direction of the flow. A **Pressure** inlet has no blend: its ghost cell always holds the inlet composition and the temperature $2T_{in} - T_1$, and when gas leaves through it, the upwinded face takes the bed's gas.
 
 ### Inlet temperature profile
 
@@ -194,10 +216,9 @@ A real valve takes time to open. A valve stream that opens at once onto a bed at
 
 $$
 f(t) =
-egin{cases}
-f_0 & t \le 0 \
-f_0 + (1 - f_0)\left(3 x^2 - 2 x^3
-ight),\ x = t / t_r & 0 < t < t_r \
+\begin{cases}
+f_0 & t \le 0 \\
+f_0 + (1 - f_0)\left(3 x^2 - 2 x^3\right),\ x = t / t_r & 0 < t < t_r \\
 1 & t \ge t_r
 \end{cases}
 $$
@@ -238,10 +259,53 @@ $$
 \eta(P_1) = a + b\,P_1 + c\,P_1^{2} + d\,P_1^{3} + e\,P_1^{4} + f\,P_1^{5}
 $$
 
+The **vacuum-pump curve** is
+
+$$
+\eta(P_1) = \frac{\eta_{max}\thinspace \alpha\thinspace (P_1/10^5)}{1 + \alpha\thinspace (P_1/10^5)}
+$$
+
+(defaults $\eta_{max} = 0.8$, $\alpha = 19.55$). The work is the polytropic compression work of the suction volumetric flow $Q_1$:
+
+$$
+W = \max\left(0,\ \frac{1}{\eta}\thinspace \frac{n}{n-1}\thinspace P_1\thinspace Q_1\left[\left(\frac{P_2}{P_1}\right)^{(n-1)/n} - 1\right]\right),
+\qquad Q_1 = \frac{R\thinspace T_1\thinspace \lvert\dot n\rvert}{P_1}
+$$
+
+with $n > 1$ the **Polytropic Constant**. The **Energy Model** sets the temperature of the compressed gas: **Isothermal** gives $T_2 = T_1$, and **Adiabatic** gives
+
+$$
+T_2 = T_1 \left(\frac{P_2}{P_1}\right)^{(n-1)/n}
+$$
+
+with the same polytropic $n$ and no efficiency. At an inlet, $T_2$ is the temperature of the gas that enters the bed; an [isothermal](energy-balance.md#isothermal-mode) run has no compression heating. The efficiency is applied to this polytropic work, although the constant model's field is named isentropic efficiency.
+
+| Pump | Suction $P_1$, $T_1$ | Discharge $P_2$ |
+|---|---|---|
+| Compressor (inlet) | the **Suction Pressure** (for a connected *Pump* stream, the partner's logged pressure); the inlet (suction) temperature | the bed-end face pressure |
+| Vacuum pump (outlet) | the bed-end face pressure and temperature | the **Discharge Pressure** (for a connected *Pump* stream, the partner's logged pressure) |
+
+| Symbol | Description | Unit |
+|---|---|---|
+| $W$ | Shaft power | W |
+| $\eta$ | Efficiency | - |
+| $n$ | Polytropic constant | - |
+| $P_1$, $P_2$ | Suction and discharge pressure | Pa |
+| $T_1$, $T_2$ | Suction and discharge temperature | K |
+| $Q_1$ | Suction volumetric flow | m³ s⁻¹ |
+| $\dot n$ | Molar flow | mol s⁻¹ |
+
 There are two distinct uses:
 
-1. **Power-controlled flow** — a *Pump* device on a Flow stream sets the molar flow from a specified power (constant or a polynomial in pressure). This affects the simulation.
-2. **Power for post-processing** — ticking **Calculate pump power** on a Pressure boundary or a *None* stream computes compression power and heating for reporting, without changing the flow the boundary imposes. The recorded power feeds the [energy-consumption KPI](performance-metrics.md).
+1. **Power-controlled flow** — a *Pump* device on a Flow stream sets the molar flow from a specified power. The power is a constant or the polynomial $W(P) = a + bP + cP^2 + dP^3 + eP^4 + fP^5$ in the bed-end face pressure $P$ [Pa]. The flow is the inverse of the work equation,
+
+    $$
+    \dot n = \max\left(0,\ \frac{\eta\thinspace (n-1)}{n}\thinspace \frac{W}{R\thinspace T_1\thinspace g(x)}\right),
+    \qquad x = \left(\frac{P_2}{P_1}\right)^{(n-1)/n} - 1
+    $$
+
+    where the head factor is floored smoothly so that a fixed power never gives an infinite flow: with $x_0 = 1.001^{(n-1)/n} - 1$ (a pressure ratio of 1.001), $g(x) = x$ for $x \ge x_0$, $g(x) = x_0/2 + x^2/(2x_0)$ for $0 < x < x_0$ and $g(x) = x_0/2$ for $x \le 0$. This affects the simulation.
+2. **Power for post-processing** — ticking **Calculate pump power** on a Pressure boundary or a *None* stream computes the compression power for reporting, without changing the flow the boundary imposes. The power is $W$ above with the boundary's molar flow. At an inlet, the energy model's $T_2$ still sets the temperature of the gas that enters. The recorded power feeds the [energy-consumption KPI](performance-metrics.md).
 
 ### Ultimate pressure of a vacuum pump
 
@@ -276,7 +340,7 @@ To bound the pressure an evacuation ends at in a study or an optimisation, use t
 
 ## Drawing gas from another step (buffer tank)
 
-An inlet can be fed from the gas *produced by another step* instead of from values you type in. Tick **Use buffer tank from another step** under **Inlet Source**, choose the source step and endpoint, and set the percentage of that step's produced moles to draw. This is the basis of averaged [light reflux and recycle](light-reflux-recycle.md).
+An inlet can be fed from the gas *produced by another step* instead of from values you type in. Tick **Use buffer tank from another step** under **Inlet Source**, choose the source step and endpoint, and set the percentage of that step's produced moles to draw. This is the basis of averaged [light reflux and recycle](light-reflux-recycle.md), which gives the averaging formulas. Only a *None* stream takes its flow from the tank. A *Valve* or *Pump* stream and a Pressure inlet take only the tank's temperature and composition; their flow still follows the valve law, the pump power or the boundary pressure.
 
 ---
 

@@ -8,7 +8,9 @@ Skarstrom solves **one bed** in detail, marching a single column through its seq
 
 Because the interacting steps are connected as a pair, a step that receives gas (say a pressurisation step) is linked to the step that supplies it (a producing step), and the simulator reproduces the coupled behaviour of the two beds without solving both columns simultaneously.
 
-> **The coupling is lagged by one cycle.** A connected boundary uses the gas logged by its partner on the partner's **previous** run. This is exactly how a real multi-bed process behaves at cyclic steady state — each bed sees what the other bed did a cycle ago — and it converges to the correct coupled solution as the cycles repeat. On the **first** cycle there is no logged partner data yet, so each side falls back to the values you entered (the *first-cycle assumptions*). Expect the first cycle or two to be approximate; the solution becomes self-consistent as it approaches [cyclic steady state](cyclic-steady-state.md).
+> **The coupling is lagged.** A connected boundary reads its partner's log from the partner's **most recent run**, linearly interpolated at the same time since the start of the step. Each step clears its own log when it starts. So the lag depends on the order of the two steps in the cycle: when the partner step comes **later** in the cycle, its most recent run is from the previous cycle (a lag of one cycle); when it comes **earlier**, its most recent run is from the current cycle. Until the partner has run once, there is no logged partner data, so that side falls back to the values you entered (the *first-cycle assumptions*); this happens only in the first cycle, and only for the side whose partner comes later. At cyclic steady state each run repeats the previous one, so the lagged coupling gives the coupled solution. Expect the first cycle or two to be approximate; the solution becomes self-consistent as it approaches [cyclic steady state](cyclic-steady-state.md).
+>
+> **Moles are conserved across a connection only at cyclic steady state.** Each side computes its own flow from the other side's log, not from the other bed's current state. A connected valve's flow uses the partner's logged pressure, and the two valves of a pair give equal and opposite flows only when the logs agree with the current runs. A Pressure inlet takes only the temperature and composition from its partner: its flow follows its own pressure profile, not the partner's outflow. A *None* stream copies the partner's logged flow, which equals the partner's current flow only when the runs repeat. Before cyclic steady state, the gas that enters one bed through a connection is in general not the gas that left the other.
 
 !!! note "New in 0.9"
     The warning `settings.warn_connection_pressure` reports gas that passes through a connection from the lower to the higher pressure.
@@ -31,9 +33,9 @@ What passes through the connection depends on the endpoint types:
 
 | Connected endpoint | Reads from its partner |
 |--------------------|------------------------|
-| Flow stream (no device) | Molar flow, temperature and composition |
-| Valve stream | The partner's pressure, used as the driving pressure |
-| Pump stream | The partner's pressure (suction/discharge) |
+| Flow stream (no device) | Molar flow (with its sign), temperature and composition |
+| Valve stream | The partner's pressure, used as the driving pressure (the bed-end face pressure, or the end-cell pressure with `settings.valve_bed_pressure` = `end_cell`); temperature and composition at an inlet |
+| Pump stream | The partner's pressure (suction/discharge); temperature and composition at an inlet |
 | Pressure boundary | Inlet temperature and composition |
 
 ### Rules
@@ -47,7 +49,7 @@ What passes through the connection depends on the endpoint types:
 
 Skarstrom offers two coupling mechanisms, suited to different purposes:
 
-- **Interacting-step connections** (this page) reproduce the *instantaneous* profile of the partner stream through the step, using the partner's previous-cycle time series. Use these when the timing of the exchange matters — equalisation, direct product pressurisation, direct reflux.
+- **Interacting-step connections** (this page) reproduce the *instantaneous* profile of the partner stream through the step, using the time series of the partner's most recent run. Use these when the timing of the exchange matters — equalisation, direct product pressurisation, direct reflux.
 - **Buffer-tank sources** feed an inlet with the *time-averaged* gas (total moles, average temperature and composition) produced by another step's endpoint over its last run. This models a well-mixed surge tank between the two beds. See [Light Reflux & Recycle](light-reflux-recycle.md).
 
 ---
