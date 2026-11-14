@@ -378,8 +378,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Install Ninja
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      # libclang-rt-18-dev: Clang's sanitizer runtimes (libclang_rt.tsan).
+      - name: Install Ninja and the ThreadSanitizer runtime
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libclang-rt-18-dev
       # The runner's kernel randomises mmap addresses with more bits than
       # ThreadSanitizer's shadow memory layout allows ("unexpected memory
       # mapping"); 28 bits is the long-standing default.
@@ -392,7 +393,7 @@ jobs:
           max-size: 1G
       - name: Configure
         run: >
-          cmake -S . -B build/tsan -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake -S . -B build/tsan -G Ninja -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
           -DADSIM_BUILD_TESTS=ON -DADSIM_BUILD_BENCH=OFF -DADSIM_INSTALL=OFF -DADSIM_SANITIZE=thread
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
