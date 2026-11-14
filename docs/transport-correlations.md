@@ -2,7 +2,7 @@
 
 Beyond the isotherm and rate model, the bed model needs closures for **axial dispersion**, **effective axial thermal conductivity**, and the **wall heat-transfer coefficients**. Each can be set to a constant value or computed from a built-in empirical correlation.
 
-These are configured per adsorbent layer (its dispersion and heat-transfer models) and, for the external coefficient, alongside the wall settings. Choosing a correlation instead of a constant makes the coefficient respond automatically to local velocity, temperature and gas properties.
+These are configured per adsorbent layer: its dispersion, heat dispersion, internal and external heat-transfer models. The gas–solid (particle) heat transfer model of LTNE is a setting of the bed. Choosing a correlation instead of a constant makes the coefficient respond automatically to local velocity, temperature and gas properties.
 
 ---
 
@@ -43,7 +43,7 @@ $$
 D_{ax} = D_m + \frac{u_{ch}^2\thinspace D_h^2}{\kappa\thinspace D_m}, \qquad u_{ch} = \frac{|u|}{\phi}
 $$
 
-with $\phi$ the open frontal area and $D_h$ the hydraulic diameter. $\kappa = 192$ for a circular tube, which is Taylor's $a^2 U^2/(48 D)$ on the radius $a = D_h/2$. Square channels also use 192; that is an approximation, since the exact square-duct coefficient differs by a few per cent. $\kappa = 840$ for parallel plates, which is Aris's $W^2 U^2/(210 D)$ on the gap $W$ with $D_h = 2W$. Input: **Molecular diffusivity** $D_m$ [m² s⁻¹]. The deck checks refuse this model on a packed layer, and refuse Ruthven's packed-bed model on a structured layer. Switching a layer to a structured kind (`build::SetLayerKind`) installs it.
+with $\phi$ the open frontal area and $D_h$ the hydraulic diameter. $\kappa = 192$ for a circular tube, which is Taylor's $a^2 U^2/(48 D)$ on the radius $a = D_h/2$. Square channels also use 192; that is an approximation, since the exact square-duct coefficient differs by a few per cent. $\kappa = 840$ for parallel plates, which is Aris's $W^2 U^2/(210 D)$ on the gap $W$ with $D_h = 2W$. Input: **Molecular diffusivity** $D_m$ [m² s⁻¹]. The deck checks refuse this model on a packed layer, and refuse Ruthven's packed-bed model on a structured layer. Switching a layer to a structured kind (`build::SetLayerKind`) installs it. In a cell that is not a channel, or with $D_m \le 0$, the model gives $D_{ax} = D_m$.
 
 ---
 
@@ -65,6 +65,8 @@ $$
 \lambda = 0.5\thinspace \frac{|u|}{\epsilon_b}\thinspace d_p\thinspace \rho_g\thinspace C_{p,g}
 $$
 
+It has no stagnant (no-flow) term: $\lambda = 0$ in still gas.
+
 ### Yagi and Kunii (1957)
 
 A stagnant-plus-flow correlation that accounts for the solid/gas conductivity ratio:
@@ -82,9 +84,13 @@ $$
 |--------|-------------|------|
 | $\lambda_z^0$ | Stagnant (no-flow) conductivity | W m⁻¹ K⁻¹ |
 | $k_g, k_s$ | Gas and solid thermal conductivity | W m⁻¹ K⁻¹ |
-| $\mathrm{Pr}, \mathrm{Re}$ | Prandtl and Reynolds numbers | - |
+| $\mathrm{Pr}, \mathrm{Re}$ | Prandtl number $C_{p,g}\mu/k_g$ and particle Reynolds number $\rho_g\thinspace \lvert u\rvert\thinspace d_p/\mu$ (superficial velocity) | - |
+
+$k_s$ is the layer's effective solid conductivity, the solid-volume average over its solids ([Mixed Layers](mixed-layers.md#mixing-rules)).
 
 Ruthven's and Yagi and Kunii's correlations are for packed beds: the deck checks refuse them on a structured layer.
+
+Under local thermal non-equilibrium the solid of a packed layer has no conduction term, so the conductivity of the chosen model (constant, Ruthven, or Yagi and Kunii) goes into the gas equation alone. With Yagi and Kunii that includes the stagnant term $\lambda_z^0$, which describes conduction through the packing ([Energy Balance](energy-balance.md#local-thermal-non-equilibrium-ltne)).
 
 ### Channel conduction (structured layers)
 
@@ -134,7 +140,25 @@ $$
 \frac{1}{h_i} = \frac{1}{h_w} + \frac{D_c}{6 k_e}\cdot\frac{\mathrm{Bi} + 3}{\mathrm{Bi} + 4}
 $$
 
-where $D_c$ is the column (internal) diameter. The film term is valid for roughly $10 < \mathrm{Re} < 1200$.
+where $D_c$ is the column (internal) diameter, $k_s$ the layer's effective solid conductivity and $\mathrm{Re} = \rho_g\thinspace|u|\thinspace d_p/\mu$ the particle Reynolds number on the superficial velocity (taken as 0 if negative). The film term is valid for roughly $10 < \mathrm{Re} < 1200$.
+
+### Leva (1947)
+
+Leva's packed-bed wall correlation, in the form Casas et al. (2012) use for the internal coefficient:
+
+$$
+h_i = \frac{k_g}{D_c}\thinspace \eta_1\thinspace \mathrm{Re}^{\eta_2}\thinspace \exp\negthinspace\left(-c\thinspace\frac{d_p}{D_c}\right)
+$$
+
+with $\mathrm{Re} = \rho_g\thinspace|u|\thinspace d_p/\mu$ the particle Reynolds number on the superficial velocity (taken as 0 if negative) and $D_c$ the column internal diameter.
+
+| Symbol | Description | Default | Parameter |
+|---|---|---|---|
+| $\eta_1$ | Reynolds coefficient | 0.813 (Leva) | `layer[ID].leva_eta1` |
+| $\eta_2$ | Reynolds exponent | 0.90 (Leva) | `layer[ID].leva_eta2` |
+| $c$ | Wall-decay coefficient | 6.0 | `layer[ID].leva_exp_coeff` |
+
+Casas et al. fitted $\eta_1 = 41.13$ and $\eta_2 = 0.32$ to their breakthrough experiment.
 
 Dixon's and Leva's correlations are for packed beds (they read the particle diameter): the deck checks refuse them on a structured layer, which uses a constant $h_i$. Switching a layer to a structured kind replaces either with a constant coefficient (default 0, an adiabatic contact, so set it); a constant coefficient keeps its value. At run start the solver warns about a structured layer whose $h_i$ is 0 while the column wall exchanges heat (an outer coefficient $h_o > 0$, a fixed-temperature wall end or a heating medium), naming `layer[ID].internal_htc`. In a structured layer the whole bed-to-wall flux passes through the solid ([Wall Energy Balance](wall-energy-balance.md)).
 
@@ -142,7 +166,7 @@ Dixon's and Leva's correlations are for packed beds (they read the particle diam
 
 ## External Heat Transfer Coefficient
 
-The wall–ambient coefficient $h_o$ in the [wall energy balance](wall-energy-balance.md). It is set with the wall settings.
+The wall–ambient coefficient $h_o$ in the [wall energy balance](wall-energy-balance.md). Like $h_i$, it is a model of each layer, evaluated in the layer's cells. During a step with a [heating medium](wall-energy-balance.md#heating-medium-jacket), the medium's coefficient $h_m$ replaces it.
 
 ### Constant
 
@@ -152,13 +176,22 @@ $$
 
 ### Holman (2008)
 
-Forced convection over the outside of the column from a cross-flow of air:
+Forced convection of air over the outside of the column, as a power law in the air's Reynolds and Prandtl numbers:
 
 $$
 h_o = \frac{\mathrm{Nu}\thinspace k_{air}}{d_e}, \qquad \mathrm{Nu} = c\thinspace \mathrm{Re}_{air}^{\thinspace m}\thinspace \mathrm{Pr}_{air}^{\thinspace n}, \qquad \mathrm{Re}_{air} = \frac{d_e\thinspace v_{ext}\thinspace \rho_{air}}{\mu_{air}}
 $$
 
-Input: **External air flow velocity** $v_{ext}$. The air properties ($k_{air}$, $\rho_{air}$, $\mu_{air}$, $c_{p,air}$) and the correlation constants $c$, $m$, $n$ are built in; $d_e$ is the external column diameter.
+$d_e = d_i + 2\thinspace t_w$ is the external column diameter and $\mathrm{Pr}_{air} = c_{p,air}\mu_{air}/k_{air}$. The air properties are fixed values at about 20 °C, whatever the ambient temperature: $k_{air} = 0.0259$ W m⁻¹ K⁻¹, $\rho_{air} = 1.204$ kg m⁻³, $\mu_{air} = 1.81\times10^{-5}$ Pa s, $c_{p,air} = 1005$ J kg⁻¹ K⁻¹.
+
+| Input | Default | Parameter |
+|---|---|---|
+| External air velocity $v_{ext}$ [m s⁻¹] | 0.5 | `layer[ID].external_velocity` |
+| Coefficient $c$ | 0.027 | `layer[ID].holman_c` |
+| Reynolds exponent $m$ | 0.8 | `layer[ID].holman_m` |
+| Prandtl exponent $n$ | 1/3 | `layer[ID].holman_n` |
+
+The default constants give $\mathrm{Nu} = 0.027\thinspace\mathrm{Re}^{0.8}\mathrm{Pr}^{1/3}$, the form of a turbulent-flow correlation, not of a cylinder in cross-flow. To model cross-flow, set $c$ and $m$ from a cylinder correlation for the column's Reynolds number range.
 
 ---
 

@@ -130,6 +130,8 @@ sim.fluid.heat_of_adsorption_convention = "isosteric"       # the default
 
 If the bed takes up CO₂ at $\partial q/\partial t = 10^{-3}$ mol kg⁻¹ s⁻¹ with $\rho_b = 660$ kg m⁻³, the source is $37\,000 \times 660 \times 10^{-3} = 24.4$ kW m⁻³ of heating. Had the paper instead reported $\Delta U = -35$ kJ mol⁻¹ in an energy balance written with $-(\Delta U - RT)$, enter `35e3` with `"isosteric_rt"`: at 300 K, $\Delta H^{\mathrm{eff}} = 35\,000 + 8.314 \times 300 = 37\,494$ J mol⁻¹. Entering a negative number would make adsorption cool the bed.
 
+The heat of a [reaction](reactions.md) uses the opposite sign: `heat_of_reaction` is the enthalpy change $\Delta H_r$ per mole of extent, **negative for an exothermic reaction** ([Energy Balance](energy-balance.md#heat-of-reaction)).
+
 The energy balance always uses this stored value; it never derives a heat of adsorption from the temperature dependence of the isotherm. If the isotherm has its own energy parameter (for example the exponent of a temperature-dependent affinity), set it separately and consistently, in the sign convention of that isotherm's formula on the [Isotherms](isotherms.md) page.
 
 **Where in the code:** `AdsorptionHeat` and the energy residuals in `core/src/equations/adsorbent_equations.cpp`; `HeatOfAdsorptionConvention` in `core/include/adsim/objects/fluid.h`.

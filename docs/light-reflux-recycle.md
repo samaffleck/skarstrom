@@ -4,7 +4,7 @@ Recycling gas within a cycle is used to sharpen separations and lift purity or r
 
 ## Direct light reflux (connection)
 
-Model reflux as a [connection](connecting-beds.md) between a producing step and a purge step. The purge inlet then follows the producing stream instant by instant (using the previous cycle's profile).
+Model reflux as a [connection](connecting-beds.md) between a producing step and a purge step. The purge inlet then follows the producing stream instant by instant, using the producing step's most recent run (see [the lag rule](connecting-beds.md#how-multi-bed-processes-are-represented)).
 
 The two steps run for the **same duration**.
 
@@ -12,7 +12,7 @@ The two steps run for the **same duration**.
 
 **Purge / reflux step** — on the corresponding end of the bed being purged, add a **Flow** boundary, direction **Inlet**, with a stream. Enter the light-product composition as the first-cycle assumption.
 
-**Connect them** (see [Connecting Beds](connecting-beds.md)). The connected purge inlet then copies the producing stream's **molar flow, temperature and composition**, so the bed is refluxed with real product gas.
+**Connect them** (see [Connecting Beds](connecting-beds.md)). The connected purge inlet then copies the producing stream's **molar flow, temperature and composition**, so the bed is refluxed with real product gas. The copied flow keeps its sign: gas that flowed back into the producing bed is drawn out of the purged bed, so the connection conserves moles once the two steps' logs agree.
 
 Use this when the reflux stream's variation through the step is important — as it usually is for the sharp fronts in a purge step. This is how the built-in **6-Step VPSA with Rinse** example is wired.
 
@@ -26,7 +26,17 @@ Configure it on an inlet under **Inlet Source**:
 2. Choose the **Interacting step** (the source) and its **Source endpoint**.
 3. Set **Take % of last-cycle moles** — the fraction of the source endpoint's total produced moles to recycle.
 
-The inlet then receives that fraction of the source's total moles, spread uniformly over the consumer step's duration, at the source's molar-flow-weighted **average temperature and composition** from its last completed run.
+The inlet then receives that fraction of the source's total moles, spread uniformly over the consumer step's duration, at the source's molar-flow-weighted **average temperature and composition** from its last completed run. Over the source endpoint's last run (duration $t_{src}$, axial molar flow $\dot n(t)$, component flows $\dot n_i(t)$, temperature $T(t)$):
+
+$$
+\dot n_{in} = \frac{p}{100}\thinspace \frac{\lvert N\rvert}{t_{step}}, \qquad N = \int_0^{t_{src}} \dot n\thinspace dt,
+\qquad
+T_{in} = \frac{\int_0^{t_{src}} \lvert\dot n\rvert\thinspace T\thinspace dt}{\int_0^{t_{src}} \lvert\dot n\rvert\thinspace dt},
+\qquad
+y_{i,in} = \frac{\int_0^{t_{src}} \dot n_i\thinspace dt}{N}
+$$
+
+with $p$ the percentage and $t_{step}$ the consumer step's duration. $N$ is the **net** amount: gas that flowed back in through the source endpoint is subtracted. The compositions are normalised to sum to 1. Only a *None* stream takes its flow from the tank; a *Valve* or *Pump* stream and a Pressure inlet take only the tank's temperature and composition (see [Boundary Conditions](boundary-conditions.md#drawing-gas-from-another-step-buffer-tank)).
 
 In Python, `inlet.set_buffer_tank(source, percentage=40 * u.percent)` sets the same thing (`source` is the producing endpoint, such as `sim.steps["Feed"].top`); see [the Python guide](python.md#pump-driven-streams-and-buffer-tanks).
 

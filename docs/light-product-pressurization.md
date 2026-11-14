@@ -14,12 +14,13 @@ The two steps run for the **same duration**.
 
 1. Set the boundary to **Pressure**, direction **Inlet**.
 2. Give it a **Linear** (or Exponential) pressure profile that ramps from the low pressure up to the high pressure over the step. This drives the pressurisation.
-3. Enter a temperature and composition — these are used only as the [first-cycle assumption](connecting-beds.md).
+3. Enter a temperature and composition — these are used only as the [first-cycle assumption](connecting-beds.md#how-multi-bed-processes-are-represented), until the producing step has run once.
 
 **Connect them:** connect the producing outlet to the LPP inlet. Once connected, the LPP inlet takes its **temperature and composition from the producing stream**, so the bed is genuinely pressurised with light product rather than with the placeholder composition you typed.
 
 ## Notes
 
 - The receiving bed follows the **pressure ramp** you set; the connection supplies the *quality* (composition and temperature) of the gas, while the pressure profile supplies the *driving force*. Match the ramp to the step time so the bed reaches the target pressure by the end of the step.
+- The amount of gas is not matched across the connection. The LPP inlet takes whatever flow its pressure ramp needs, and the producing outlet passes whatever flow its own boundary sets; nothing makes the two equal. Compare the moles that leave the producing step with the moles that enter the LPP step in the stream logs.
 - LPP is included in the built-in **4-Step VPSA with LPP** example cycle — load it from **Cycle Design → Load Example Cycle** to see a complete working setup.
 - To account for the light product consumed by pressurisation, classify the LPP step appropriately in the [KPI Configuration](performance-metrics.md) so recovery is computed correctly.

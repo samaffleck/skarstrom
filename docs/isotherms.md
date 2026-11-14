@@ -1,6 +1,6 @@
 ## Isotherm Models
 
-The **isotherm** describes the equilibrium adsorbed-phase loading of a component, $q_i^*$, as a function of the local gas state (temperature, pressure and composition). It is the thermodynamic ceiling that the kinetic [rate model](kinetic-models.md) drives the actual loading $q_i$ towards.
+The **isotherm** describes the equilibrium adsorbed-phase loading of a component, $q_i^*$, as a function of the local state: the pressure and composition of the gas in the cell, and the temperature of the solid. It is the thermodynamic ceiling that the kinetic [rate model](kinetic-models.md) drives the actual loading $q_i$ towards.
 
 Each component in each adsorbent material is assigned its own isotherm. In a deck, every component of every adsorbent has an **isotherm type** and the parameters of that model. How the components' isotherms combine in a mixture is the adsorbent's [mixing rule](#mixture-loadings-the-mixing-rule-and-iast): each on its own (the default), or Ideal Adsorbed Solution Theory over their pure isotherms. To plot or check an isotherm outside a simulation, evaluate it with the engine's own code from Python: `skarstrom.evaluate_isotherm(kind, params, pressure, temperature)` (see [Isotherm Fitting](isotherm-fitting.md)).
 
@@ -9,6 +9,10 @@ Each component in each adsorbent material is assigned its own isotherm. In a dec
 > **Heat of adsorption.** Each component also has an isosteric heat of adsorption $\Delta H_i$, stored with the adsorbent (parameter `adsorbent[<id>].heat_of_adsorption[<component>]`). It couples the isotherm to the [energy balance](energy-balance.md); it is a separate input and is *not* part of the isotherm equation itself. The temperature-dependent parameters in the models below (the $q$, $B_2$, $\Delta H_0$ terms) describe how loading shifts with temperature but do not by themselves supply the heat released on adsorption.
 
 The sections below give the exact formula implemented for each model together with its parameter names: they are the names in deck files, in the Python parameter paths (`adsorbent[<id>].isotherm[<component>].<name>`) and in `skarstrom.isotherm_parameters(kind)`. $R$ is the ideal gas constant and $T$ the temperature.
+
+> **Which temperature.** In a simulation every isotherm, and the concentration $C_i = P y_i/(R T)$ of the concentration forms, is evaluated at the **solid temperature** $T_s$ of the cell. Under local thermal equilibrium that is the single bed temperature; under [local thermal non-equilibrium](energy-balance.md#local-thermal-non-equilibrium-ltne) it is the solid's own temperature, not the gas temperature.
+
+> **Mole fractions near zero.** Freundlich, Sips, Sips 2, Dual Site Sips, Redlich–Peterson, Toth, Toth 2, `toth_wadst` and `toth_humid` compute their partial pressure from a smoothed mole fraction, $P_i = P\,\tilde y_i$, a smooth $\max(y_i, 0)$: $\tilde y_i = \tau \ln(1 + e^{y_i/\tau})$ with $\tau = 10^{-6}$. $\tilde y_i = y_i$ exactly for $y_i > 4\times10^{-5}$, and $\tilde y_i = 0$ for $y_i < -4\times10^{-5}$. Between the two, the difference from $y_i$ matters only at trace levels: at $y_i = 0$, $\tilde y_i = \tau \ln 2 \approx 6.9\times10^{-7}$, so the loading is not zero; at $y_i = 10^{-6}$, $\tilde y_i$ is 31 % above $y_i$; at $y_i = 10^{-5}$ the relative difference is $5\times10^{-6}$. Redlich–Peterson also uses $\tilde y_i$ in its numerator. Henry, every Langmuir kind, anti-Langmuir, the GAB kinds and Cubic-Langmuir use $y_i$ itself. The competitive Sips kinds and Extended Langmuir–Freundlich use the continuation of [Competitive Sips kinds near zero mole fraction](#competitive-sips-kinds-near-zero-mole-fraction) instead. Under the [IAST mixing rule](#mixture-loadings-the-mixing-rule-and-iast) the pure isotherms are evaluated at the partial pressure, without this smoothing. A single-component evaluation at mole fraction 1 (the default of `skarstrom.evaluate_isotherm`) is not affected.
 
 ---
 
@@ -78,7 +82,7 @@ The concentration form (`Dual Site Langmuir (Concentration)`) substitutes $C_i$ 
 | Symbol | Description | Unit |
 |--------|-------------|------|
 | $m_1, m_2$ | Saturation capacity of each site | mol kg⁻¹ |
-| $b_1, b_2$ | Affinity pre-factor of each site | Pa⁻¹ (P-form) |
+| $b_1, b_2$ | Affinity pre-factor of each site | Pa⁻¹ (P-form) / m³ mol⁻¹ (C-form) |
 | $q_1, q_2$ | Adsorption energy of each site | J mol⁻¹ |
 
 The dual-site kinds (pure and extended) also take four optional water factors, `lambda1`, `lambda2`, `lambda3` and `gamma2` (*New in 0.12.*). They lower the loading with the adsorbed water loading; their default 0 gives the formula above. See [Water on CALF-20](#water-on-calf-20-cubic-langmuir-and-dual-site-langmuir-water-factors).
@@ -87,15 +91,17 @@ The dual-site kinds (pure and extended) also take four optional water factors, `
 
 ## Extended (Competitive) Langmuir
 
-The **Extended** variants make adsorption *competitive*: the loading of each component is reduced by the presence of every other adsorbing component through a shared denominator. Use these for multi-component mixtures where components compete for the same sites. They are available in single-site and dual-site forms, each on a partial-pressure or concentration basis (`Extended Single Site Langmuir`, `Extended Dual Site Langmuir`, and their `(Concentration)` counterparts).
+The **Extended** variants make adsorption *competitive*: the loading of each component is reduced by the other components of the same kind through a shared denominator. Use these for multi-component mixtures where components compete for the same sites. They are available in single-site and dual-site forms, each on a partial-pressure or concentration basis (`Extended Single Site Langmuir`, `Extended Dual Site Langmuir`, and their `(Concentration)` counterparts).
 
-Extended single-site (partial-pressure), with the sum running over every adsorbing component $j$:
+Extended single-site (partial-pressure):
 
 $$
-q_i^* = \frac{m_{1,i} \thinspace b_{1,i} \exp\negthinspace \left(\frac{q_{1,i}}{R T}\right) P_i}{1 + \sum_{j} b_{1,j} \exp\negthinspace \left(\frac{q_{1,j}}{R T}\right) P_j}
+q_i^* = \frac{m_{1,i} \thinspace b_{1,i} \exp\negthinspace \left(\frac{q_{1,i}}{R T}\right) P_i}{1 + \sum_{j \in \mathcal{S}(i)} b_{1,j} \exp\negthinspace \left(\frac{q_{1,j}}{R T}\right) P_j}
 $$
 
-The dual-site extended form adds a second competitive term with its own denominator $1 + \sum_j b_{2,j}\exp(q_{2,j}/RT)\thinspace P_j$. Parameters are entered per component exactly as for the ordinary Langmuir models; the coupling between components is applied automatically.
+The dual-site extended form adds a second competitive term with its own denominator $1 + \sum_{j \in \mathcal{S}(i)} b_{2,j}\exp(q_{2,j}/RT)\thinspace P_j$. Parameters are entered per component exactly as for the ordinary Langmuir models; the coupling between components is applied automatically.
+
+**Who competes.** $\mathcal{S}(i)$ is the set of components of the **same adsorbent** that have the **same kind** as component $i$ (including $i$ itself). A component with another kind is not in the denominator, even when that kind is competitive too, and a component on another adsorbent (in a [mixed layer](mixed-layers.md)) never is. For example, with CO₂ on `extended_dual_site_langmuir_p` and N₂ on `extended_single_site_langmuir_p`, the two do **not** compete: give both the same kind to couple them. The same rule holds for every competitive kind (Extended Sips 2, Arrhenius Sips and Extended Langmuir–Freundlich below).
 
 ---
 
@@ -124,7 +130,7 @@ $$
 
 | Symbol | Description | Unit |
 |--------|-------------|------|
-| $a$ | Freundlich coefficient | mol kg⁻¹ Pa⁻¹ |
+| $a$ | Freundlich coefficient | (mol kg⁻¹)$^{v}$ Pa⁻¹ |
 | $v$ | Heterogeneity exponent | - |
 
 ---
@@ -168,13 +174,13 @@ $$
 | $C_1, C_2$ | Exponent and its temperature coefficient | - |
 | $T_{ref}$ | Reference temperature | K |
 
-An **Extended Sips 2** competitive multi-component form is also available (kind `extended_sips_2`); it shares the denominator $1 + \sum_j (b_j P_j)^{s_j}$ across components. Below a mole fraction of $10^{-5}$ each term is continued as described in [Competitive Sips kinds near zero mole fraction](#competitive-sips-kinds-near-zero-mole-fraction).
+An **Extended Sips 2** competitive multi-component form is also available (kind `extended_sips_2`); it shares the denominator $1 + \sum_{j \in \mathcal{S}(i)} (b_j P_j)^{s_j}$ across the components that have this kind ([who competes](#extended-competitive-langmuir)). Below a mole fraction of $10^{-5}$ each term is continued as described in [Competitive Sips kinds near zero mole fraction](#competitive-sips-kinds-near-zero-mole-fraction).
 
 ---
 
 ## Arrhenius Sips (Schell 2012)
 
-The temperature-dependent Sips form of Schell et al. (*Adsorption* 18 (2012) 49, Eqs. 5–7), fitted there to CO₂, H₂ and N₂ on activated carbon: an Arrhenius saturation capacity and affinity, and an S-shaped (inverse-tangent) exponent. It is competitive, with the same shared denominator as Extended Sips 2 (Ruthven's empirical mixture Sips). Kind `arrhenius_sips`.
+The temperature-dependent Sips form of Schell et al. (*Adsorption* 18 (2012) 49, Eqs. 5–7), fitted there to CO₂, H₂ and N₂ on activated carbon: an Arrhenius saturation capacity and affinity, and an S-shaped (inverse-tangent) exponent. It is competitive, with a shared denominator of the same form as Extended Sips 2 (Ruthven's empirical mixture Sips), over the components that have the kind `arrhenius_sips` ([who competes](#extended-competitive-langmuir)): an Arrhenius Sips component does not compete with an Extended Sips 2 one. Kind `arrhenius_sips`.
 
 $$
 n_{\infty,i} = a \exp\negthinspace \left(\frac{b}{R T}\right), \qquad
@@ -183,7 +189,7 @@ c_i = c_{ref} + c_{amp}\thinspace \frac{2}{\pi} \arctan\negthinspace\left[\beta 
 $$
 
 $$
-q_i^* = n_{\infty,i}\thinspace \frac{\left(k_i P_i\right)^{c_i}}{1 + \sum_j \left(k_j P_j\right)^{c_j}}
+q_i^* = n_{\infty,i}\thinspace \frac{\left(k_i P_i\right)^{c_i}}{1 + \sum_{j \in \mathcal{S}(i)} \left(k_j P_j\right)^{c_j}}
 $$
 
 | Symbol | Parameter | Description | Unit |
@@ -305,7 +311,7 @@ b_i = k_3 \exp\negthinspace \left(\frac{k_4}{T}\right), \qquad
 $$
 
 $$
-q_i^* = q_{s,i}\thinspace \frac{b_i \left(P_i / P_{ref}\right)^{n_i}}{1 + \sum_j b_j \left(P_j / P_{ref}\right)^{n_j}}
+q_i^* = q_{s,i}\thinspace \frac{b_i \left(P_i / P_{ref}\right)^{n_i}}{1 + \sum_{j \in \mathcal{S}(i)} b_j \left(P_j / P_{ref}\right)^{n_j}}
 $$
 
 | Symbol | Description | Unit |
@@ -391,7 +397,7 @@ q_{st} = R T^2 \left(\frac{\partial \ln P_i}{\partial T}\right)_{q} = \Delta H_{
 \qquad \Delta H_{vap} = R T^2 \frac{d \ln p_{sat}}{dT}
 $$
 
-At low loading, $q \approx q_m C K x$, so for kind `gab` $q_{st} \to \Delta H_{vap} + \Delta H_m + \Delta H_C + \Delta H_K$ (water at 25 °C: $\Delta H_{vap} \approx 44.0$ kJ mol⁻¹). At high loading it tends towards $\Delta H_{vap} + \Delta H_m + \Delta H_K$, as the multilayer approaches liquid. The energy balance, as for every kind, takes the adsorbent's constant `heat_of_adsorption[<component>]` and does not derive it from the isotherm (under the default isosteric convention it is $q_{st}$; see [Model Conventions](model-conventions.md)). The C++ function `adsim::IsostericHeat(isotherm, component, T, P, y)` (`adsim/equations/isotherm_kinds.h`) evaluates the expression above for any kind at a given state, which helps choose that constant for the loadings of the process. For water, a value near the heat of condensation plus a few kJ mol⁻¹ is typical.
+At low loading, $q \approx q_m C K x$, so for kind `gab` $q_{st} \to \Delta H_{vap} + \Delta H_m + \Delta H_C + \Delta H_K$ (water at 25 °C: $\Delta H_{vap} \approx 44.0$ kJ mol⁻¹). At high loading it tends towards $\Delta H_{vap} + \Delta H_K$: as the multilayer approaches liquid ($K x \to 1$, with $1 - K x \approx q_m / q$), $q_m$ and $C$ drop out of the isotherm, and the contribution of $\Delta H_m$ falls off roughly as $\Delta H_m\, q_m / q$. The energy balance, as for every kind, takes the adsorbent's constant `heat_of_adsorption[<component>]` and does not derive it from the isotherm (under the default isosteric convention it is $q_{st}$; see [Model Conventions](model-conventions.md)). The C++ function `adsim::IsostericHeat(isotherm, component, T, P, y)` (`adsim/equations/isotherm_kinds.h`) evaluates the expression above for any kind at a given state, which helps choose that constant for the loadings of the process. For water, a value near the heat of condensation plus a few kJ mol⁻¹ is typical.
 
 ## CO2 with adsorbed water (Toth WADST and humid Toth)
 
@@ -523,7 +529,7 @@ The defaults are the paper's adsorption-branch values. The loadings are per kg o
 **Water factors on the dual-site Langmuir kinds.** Each dual-site Langmuir kind (`dual_site_langmuir_p`, `dual_site_langmuir_c` and their extended forms) takes four optional parameters. They lower the loading with the adsorbed water loading $q_w$ [mol kg⁻¹] of the same adsorbent:
 
 $$
-q_i^* = \sum_{k=1}^{2} \frac{q_{s,k}\,B_{k,i}\,c_i}{1 + \sum_j B_{k,j}\,c_j} \cdot \frac{1}{1 + \lambda_k\,q_w^{\lambda_3}}, \qquad
+q_i^* = \sum_{k=1}^{2} \frac{q_{s,k}\,B_{k,i}\,c_i}{1 + \sum_{j \in \mathcal{S}(i)} B_{k,j}\,c_j} \cdot \frac{1}{1 + \lambda_k\,q_w^{\lambda_3}}, \qquad
 B_{k,i} = b_{k,i}\,e^{q_{k,i}/(R T)}\,e^{-\gamma_2 q_w}
 $$
 
@@ -586,7 +592,7 @@ $$
 | $x_i$ | Mole fraction of $i$ in the adsorbed phase | - |
 | $q_T$ | Total mixture loading | mol kg⁻¹ |
 
-**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips, anti-Langmuir, the GAB kinds and Cubic-Langmuir. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, Langmuir, Freundlich, Sips and anti-Langmuir, and a Newton iteration otherwise. A kind without an IAST form is an error, never treated as inert; the CO₂-with-water kinds (`toth_wadst`, `toth_humid`) and a dual-site Langmuir with its [water factors](#water-on-calf-20-cubic-langmuir-and-dual-site-langmuir-water-factors) set are rejected by the deck checks.
+**How it is solved.** In every cell and at every residual evaluation, the engine finds $\psi$ by a bracketed Newton iteration on $\ln \sum_i x_i$, warm-started from the cell's previous value. The spreading-pressure integral has a closed form for Henry, the Langmuir and dual-site Langmuir kinds (both bases), Freundlich, Sips, dual-site Sips, Sips 2, Arrhenius Sips, Extended Langmuir–Freundlich, anti-Langmuir, the GAB kinds and Cubic-Langmuir. Toth, Toth 2 and Redlich–Peterson have no elementary integral, so they use a 48-point Gauss–Legendre rule in $\ln p$ over $[\ln P - \ln 10^{10},\ \ln P]$; below that window the isotherm is taken as linear, which adds $q(10^{-10} P)$. The inverse $\psi_i \mapsto P_i^\circ$ is analytic for Henry, the single-site Langmuir kinds, Freundlich, the Sips family (Sips, Sips 2, Arrhenius Sips, Extended Langmuir–Freundlich) and anti-Langmuir, and a Newton iteration otherwise. If the iteration on $\psi$ does not converge, the cell's loadings are NaN. A kind without an IAST form is an error, never treated as inert; the CO₂-with-water kinds (`toth_wadst`, `toth_humid`) and a dual-site Langmuir with its [water factors](#water-on-calf-20-cubic-langmuir-and-dual-site-langmuir-water-factors) set are rejected by the deck checks.
 
 **Limits that hold exactly.** A single adsorbing component gives its pure isotherm at its partial pressure. Langmuir isotherms with **equal saturation capacities** give the extended Langmuir model. With unequal capacities, extended Langmuir is thermodynamically inconsistent and IAST is not.
 
