@@ -8,6 +8,11 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-11-14
+
+### Fixed — example streams without a name
+- Every flow stream in the example decks now has a name. Before, the Arora 2021 (PSA and PVSA), Ferre 2026 and Vysyaraju 2024 decks had streams with an empty name, so front ends showed a blank stream name. The example scripts that build these decks set the same names.
+
 ## [0.12.0] — 2026-11-13
 
 ### Fixed — per-component CSS test with an absent component
