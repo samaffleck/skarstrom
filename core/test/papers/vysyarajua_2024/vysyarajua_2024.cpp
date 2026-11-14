@@ -364,6 +364,7 @@ namespace adsim {
       {
         std::vector<std::unique_ptr<IBoundaryStream>> streams;
         streams.push_back(t.CreateValveInletStream(t.CreateConstantBoundaryValue(P_H), pc.cv_pres, feed_mf, T));
+        streams.back()->name_ = "Feed supply";
         t.AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, PRES);
       }
       t.AddClosedBC(BoundaryLocation::TOP, PRES);
@@ -372,6 +373,7 @@ namespace adsim {
       {
         std::vector<std::unique_ptr<IBoundaryStream>> streams;
         streams.push_back(t.CreateNoValveInletStream(t.CreateVelocityBC(feed_vel), feed_mf, T));
+        streams.back()->name_ = "Feed inlet";
         t.AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, ADS);
       }
       t.AddPressureOutletBC(t.CreateConstantBoundaryValue(P_H), BoundaryLocation::TOP, ADS, feed_mf);

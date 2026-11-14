@@ -151,6 +151,7 @@ namespace adsim {
       {
         std::vector<std::unique_ptr<IBoundaryStream>> streams;
         streams.push_back(t.CreateNoValveInletStream(t.CreateVelocityBC(feed_vel), feed_mf, T_feed));
+        streams.back()->name_ = "Biogas feed";
         t.AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, feed);
       }
       t.AddPressureOutletBC(t.CreateConstantBoundaryValue(p_h), BoundaryLocation::TOP, feed, feed_mf);
