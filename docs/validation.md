@@ -16,7 +16,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 
 ## Summary
 
-68 cases from 13 publications; 255 asserted comparisons (0 outside their recorded tolerance) and 130 informational ones. Summary generated on 2026-11-12.
+68 cases from 13 publications; 255 asserted comparisons (0 outside their recorded tolerance) and 130 informational ones. Summary generated on 2026-11-14.
 
 | Publication | Cases | Against | Comparisons | Median error | Worst error |
 |---|---|---|---|---|---|
@@ -30,7 +30,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 2.02 pp (abs. error) | 5.81 pp (abs. error) |
 | [Streb & Mazzotti (2021)](#streb-2021) | 18 | experiment | 47 | 10.5 % (NRMSE)<br/>0.691 % (rel. error)<br/>7.37 K (RMSE) | 31.2 % (NRMSE)<br/>4.7 % (rel. error)<br/>11.4 K (RMSE) |
 | [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.89 % (rel. error)<br/>0.251 K (abs. error)<br/>1.93 pp (abs. error) | 3.92 % (rel. error)<br/>0.251 K (abs. error)<br/>33.5 pp (abs. error) |
-| [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 2.76 % (NRMSE)<br/>0.0208 % (rel. error)<br/>0.675 K (RMSE) | 3.89 % (NRMSE)<br/>0.404 % (rel. error)<br/>1.4 K (RMSE) |
+| [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 2.76 % (NRMSE)<br/>0.0209 % (rel. error)<br/>0.675 K (RMSE) | 3.89 % (NRMSE)<br/>0.404 % (rel. error)<br/>1.4 K (RMSE) |
 | [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 2.34 pp (abs. error)<br/>1.86 % (rel. error) | 2.83 pp (abs. error)<br/>1.86 % (rel. error) |
 | [Halabi (2011)](#halabi-2011) | 2 | paper model | 15 | 0.61 pp (abs. error) | 1.95 pp (abs. error) |
 
@@ -676,10 +676,10 @@ A. Ward, R. Pini, Integrated uncertainty quantification and sensitivity analysis
 | Q200ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 593.5 s | 575 s | 18.5 s abs. error | info | Table 10, adsorption, f_in = 200 ccm, t_br 95% CI |
 | Q200ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 20.87 K | 23.6 K | 2.73 K abs. error | info | Table 10, adsorption, f_in = 200 ccm, Delta T_ads 95% CI |
 | Q50ccm | outlet y_CO2 | experiment | curve | digitised data | 2.76 % NRMSE | 3.3 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q50ccm | CO2 front time (y_CO2 = 0.5) | experiment | 2574 s | 2574 s | 0.0208 % rel. error | 0.2 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q50ccm | CO2 front time (y_CO2 = 0.5) | experiment | 2574 s | 2574 s | 0.0209 % rel. error | 0.2 % | Fig. 3 / data of ref. [5] (digitised) |
 | Q50ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 0.181 K RMSE | 0.22 K | Fig. 3 / data of ref. [5] (digitised) |
 | Q50ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 2574 s | 2540 s | 33.7 s abs. error | info | Table 10, adsorption, f_in = 50 ccm, t_br 95% CI |
-| Q50ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 6.665 K | 8.445 K | 1.78 K abs. error | info | Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI |
+| Q50ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 6.666 K | 8.445 K | 1.78 K abs. error | info | Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI |
 
 ??? note "Notes on these comparisons"
 
