@@ -89,7 +89,8 @@ This complements the existing coverage rather than duplicating it:
 | `test_grid_convergence.cpp` | Cycle-KPI grid convergence at CSS: monotone convergence, observed order, GCI, all three schemes |
 | `test_integrator_tolerance.cpp` | Error against reltol (BDF slope, abstol floor) on a breakthrough and a cycle; `max_step` independence |
 | `test_css_convergence.cpp` | Geometric approach to CSS, KPI error left by the stopping rule, Aitken lands on the same KPIs |
-| `test_manufactured_solutions.cpp` | Method of manufactured solutions: observed order of the whole discretisation (all terms, Langmuir, time-dependent) for upwind, WENO, van Leer, isothermal and with the energy balance |
+| `test_manufactured_solutions.cpp` | Method of manufactured solutions: observed order of the whole discretisation (all terms, Langmuir, time-dependent) for upwind, WENO, van Leer, isothermal and with the energy balance, on a uniform and a non-uniform grid |
+| `test_conservative_face_fluxes.cpp` | Dispersive and conductive face fluxes are single valued across a layer interface (cell width and voidage jump): exact cancellation in every balance, species and energy closure of a closed two-layer column |
 | `test_extended_langmuir_freundlich.cpp` | Extended Langmuir-Freundlich (toPSAil form): competitive loadings, pure and IAST forms, trace components against the closed form down to y = 1e-5 |
 | `test_valve_bed_pressure.cpp` | Valve law read at the bed-end face or the end cell (`settings.valve_bed_pressure`), unconnected and connected |
 | `test_competitive_sips_trace_loading.cpp` | Competitive Sips kinds (extended_sips_2, arrhenius_sips) and extended_langmuir_freundlich: trace-component loadings against the published isotherms down to y = 1e-5, the documented continuation below, single-component and competitive paths agreeing, a trace front's first moment |
@@ -809,13 +810,68 @@ re-derived by central finite differences of the fields; the two agree to
   three and pulled the WENO / van Leer y order down to 1.31 / 1.49 between
   80 and 160 cells (about 1 on 640), with T errors of 1.6e-4 K at 160 cells.
 
+- **`NonUniformGridOrder`** — the thermal case on two layers of the same
+  packing, the bottom 40 % of the bed on a quarter of the cells, so its cells
+  are twice as wide and every flux is also evaluated across a jump of the
+  cell width at a face where the profiles have a slope. Measured on 20 to 160
+  cells: upwind 0.93-1.07 in every field; WENO L2 1.69-2.43 (y 2.04-2.41,
+  T 1.95-2.31), max norm of y 1.55-2.05, outlet cell 1.50-1.75. The WENO face
+  velocity converges at 2.21, 1.87, 1.60: the interface face is not midway
+  between the two cell centres, so the two-point pressure gradient that sets
+  its velocity is first order there (its error is 25 times that of any other
+  face and halves with each refinement) and the L2 over the faces tends to
+  order 1.5; the cell fields keep second order. The assertions are the
+  thermal bounds (WENO face velocity above 1.4, T above 0.9 / 1.8). Guard:
+  when each cell divided the dispersive and conductive face flux by its own
+  width (before the fix, see the changelog), the interface was a point source
+  and no field converged (orders -0.5 to 0.2 between 40 and 160 cells, 160-cell
+  errors 1.2e-3 in y and 3.0e-2 K in T).
+
 What the hook covers: the overall and component balances, the loading rate
 of each component on every adsorbent, the momentum residual as a pressure-
 gradient source on every Darcy face and on the interior faces of an Ergun
 layer, and the LTE energy balance. Not covered: the bed-end faces of an Ergun
 layer (the boundary conditions impose the Ergun law there, so a manufactured
 solution must satisfy it exactly at the ends), faces next to void cells, LTNE
-and the wall. All six tests together take about 4 s (Release).
+and the wall. All seven tests together take about 5 s (Release).
+
+### `test_conservative_face_fluxes.cpp`
+
+Conservation of the dispersive and conductive face fluxes across a layer
+interface. A finite-volume scheme conserves a quantity when the flux through
+each face is one value. The column here has a coarse, dense bottom layer
+(8 cells of 25 mm, eb 0.35) and a fine, open top layer (20 cells of 10 mm,
+eb 0.48), with a different dispersion coefficient and conductivity in each,
+so the cell width, the voidage and the coefficients all jump at the
+interface. Before the fix (see the changelog) each cell divided the face
+gradient by its own width, the component balance took the cell's own eb and
+the gas conduction the arithmetic mean conductivity, so one cell lost a
+different amount from what its neighbour gained.
+
+- **`StillColumnResidualsSumToZeroAcrossTheInterface`** — residual level:
+  with no flow, no accumulation and no sources the residuals hold the
+  face-flux differences alone, so their sum over the column (in each
+  balance's own units) vanishes. Every path: species dispersion, gas
+  conduction in LTE and LTNE, wall conduction, also with a void region at
+  each end. Measured at most 1.5e-16 of the summed magnitudes (bound 1e-13).
+  Guard: before the fix 0.33 (species), 0.16 (gas energy) and 0.11 (wall);
+  0.20, 0.12 and 0.044 with the void regions.
+- **`ClosedColumnKeepsTheMolesOfEachSpecies`** — a feed step leaves an O2
+  front at the interface, then both ends close for 60 s while dispersion
+  carries O2 across it (Henry adsorbents, non-isothermal, wall exchange; LTE
+  and LTNE). The moles of each species, gas and adsorbed, are kept to
+  4e-11 to 1.8e-10 at reltol 1e-10 (bound 1e-9; the inventory P y / (R T)
+  is not linear in the unknowns, so IDA keeps it to its tolerance, not to
+  round-off). Guard: before the fix the closed column gained 7.1 % of its O2
+  and lost 45 % of its N2.
+- **`ClosedHeatedColumnGainsTheHeatersEnergy`** — a closed column of inert
+  solids, insulated, heated in its bottom layer (15 W, 120 s); the heat
+  crosses the interface by gas conduction and along the wall. Gas
+  ((Cv/R) P V, exact for constant Cv), solid and wall gain the heater's
+  energy to 1.0e-8 (bound 1e-6), LTE and LTNE. Guard: before the fix the
+  column gained 1.9 % more energy than the heater gave.
+
+The suite takes about 0.3 s.
 
 ### Convergence of cycle results
 
