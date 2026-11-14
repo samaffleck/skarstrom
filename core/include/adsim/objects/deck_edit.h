@@ -407,6 +407,16 @@ enum class ProfileTarget {
 bool SetProfileKind(UserData& data, size_t endpoint_id, ProfileTarget target, BoundaryValueType kind,
                     std::string& err);
 
+// The profile of a step's heating-medium temperature (Step::heating_medium_).
+// It behaves as SetProfileKind does for an inlet temperature: a constant medium
+// has no profile object (the medium's temperature is the constant), a new ramp
+// starts and ends at the current medium temperature over the step time, and
+// switching between ramps carries the parameters over by name and unit. Refused
+// (deck unchanged) for an unknown step ID, a step whose medium is not enabled,
+// or an unknown kind. A separate function, as a medium belongs to a step and
+// has no endpoint ID.
+bool SetHeatingMediumProfileKind(UserData& data, size_t step_id, BoundaryValueType kind, std::string& err);
+
 // The pump of a set-flow stream or pressure boundary: "none" (kind index 0;
 // switches the pump off and keeps it) or a PumpType (index type + 1). The
 // polytropic index, energy model and efficiency model carry over. A pump

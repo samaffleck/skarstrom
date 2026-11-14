@@ -558,6 +558,64 @@ TEST(DeckEditCascades, FlowAndProfileKinds) {
   ExpectChecksPass(d, "profiles switched");
 }
 
+TEST(DeckEditCascades, HeatingMediumProfileKind) {
+  UserData d = Load("Perez2019_A");
+  const size_t s = AddStep(d, "Heat");
+  Step& step = StepById(d, s);
+  step.step_time_ = 90.0;
+  std::string err;
+  const std::string before = Canonical(d);
+
+  // A step without an enabled medium is refused and the deck is unchanged.
+  EXPECT_FALSE(SetHeatingMediumProfileKind(d, s, BoundaryValueType::LINEAR, err));
+  EXPECT_NE(err.find("no heating medium"), std::string::npos) << err;
+  EXPECT_EQ(Canonical(d), before);
+
+  // An unknown step ID is refused.
+  err.clear();
+  EXPECT_FALSE(SetHeatingMediumProfileKind(d, 987654, BoundaryValueType::LINEAR, err));
+  EXPECT_FALSE(err.empty());
+  EXPECT_EQ(Canonical(d), before);
+
+  step.heating_medium_.enabled_ = true;
+  step.heating_medium_.temperature_ = 350.0;
+  auto& m = step.heating_medium_;
+
+  // Every ramp kind starts and ends at the current medium temperature.
+  for (auto kind : {BoundaryValueType::LINEAR, BoundaryValueType::EXPONENTIAL, BoundaryValueType::LOG_LINEAR,
+                    BoundaryValueType::DOUBLE_EXPONENTIAL}) {
+    ASSERT_TRUE(SetHeatingMediumProfileKind(d, s, kind, err)) << err;
+    ASSERT_TRUE(m.temperature_profile_);
+    EXPECT_EQ(m.temperature_profile_->GetType(), kind);
+    EXPECT_DOUBLE_EQ(m.Temperature(0.0), 350.0);
+    EXPECT_DOUBLE_EQ(m.Temperature(90.0), 350.0);
+    EXPECT_DOUBLE_EQ(m.temperature_.Get(), 350.0);
+  }
+
+  // Constant drops the profile and keeps the temperature.
+  ASSERT_TRUE(SetHeatingMediumProfileKind(d, s, BoundaryValueType::CONSTANT, err)) << err;
+  EXPECT_EQ(m.temperature_profile_, nullptr);
+  EXPECT_DOUBLE_EQ(m.temperature_.Get(), 350.0);
+  EXPECT_TRUE(SetHeatingMediumProfileKind(d, s, BoundaryValueType::CONSTANT, err)) << "same kind is a no-op";
+
+  // Switching between ramps carries the ramp time and values over.
+  ASSERT_TRUE(SetHeatingMediumProfileKind(d, s, BoundaryValueType::LINEAR, err)) << err;
+  auto* lin = dynamic_cast<LinearBoundaryValue*>(m.temperature_profile_.get());
+  ASSERT_TRUE(lin);
+  lin->end_value_ = 400.0;
+  lin->ramp_time_ = 30.0;
+  ASSERT_TRUE(SetHeatingMediumProfileKind(d, s, BoundaryValueType::LOG_LINEAR, err)) << err;
+  auto* ll = dynamic_cast<LogLinearBoundaryValue*>(m.temperature_profile_.get());
+  ASSERT_TRUE(ll);
+  EXPECT_DOUBLE_EQ(ll->end_value_.Get(), 400.0);
+  EXPECT_DOUBLE_EQ(ll->ramp_time_.Get(), 30.0);
+
+  // An unknown kind is refused and leaves the profile alone.
+  EXPECT_FALSE(SetHeatingMediumProfileKind(d, s, static_cast<BoundaryValueType>(999), err));
+  EXPECT_EQ(m.temperature_profile_->GetType(), BoundaryValueType::LOG_LINEAR);
+  ExpectChecksPass(d, "medium profile switched");
+}
+
 TEST(DeckEditCascades, PumpKinds) {
   UserData d = Load("Perez2019_A");
   const size_t s = AddStep(d, "Pumps");
