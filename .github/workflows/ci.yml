@@ -383,6 +383,10 @@ jobs:
       # commit and SHA-256); CoolProp is not part of the build.
       - name: Component property table is up to date
         run: python scripts/gen_component_properties.py --check
+      # The generator downloads the NASA CEA transport data file it is pinned to
+      # (by commit and SHA-256); CEA is not part of the build.
+      - name: Transport property tables are up to date
+        run: python scripts/gen_transport_coefficients.py --check
       - uses: ./.github/actions/docs-checks
 
   lint:

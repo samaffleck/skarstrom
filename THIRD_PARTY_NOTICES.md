@@ -23,7 +23,8 @@ submodules in `external/`, except Eigen 3.4.0, which is vendored in
 | Component | Copyright | Licence |
 |---|---|---|
 | [SUNDIALS](https://github.com/LLNL/sundials) (IDA, IDAS) | Lawrence Livermore National Security and Southern Methodist University | BSD-3-Clause |
-| [CoolProp](https://github.com/CoolProp/CoolProp) fluid data: the component constants in `core/include/adsim/objects/component_properties.h`, generated from CoolProp's fluid files (CoolProp itself is not built or linked) | Ian Bell and the CoolProp team | MIT |
+| [CoolProp](https://github.com/CoolProp/CoolProp) fluid data: the component constants in `core/include/adsim/objects/component_properties.h`, generated from CoolProp's fluid files, and the CoolProp rows of `viscosity_coefficients.h` and `thermal_conductivity_coefficients.h`, fitted to CoolProp's dilute-gas values (CoolProp itself is not built or linked) | Ian Bell and the CoolProp team | MIT |
+| [NASA CEA](https://github.com/nasa/cea) transport data: the NASA rows of `core/include/adsim/objects/viscosity_coefficients.h` and `thermal_conductivity_coefficients.h`, fitted by `scripts/gen_transport_coefficients.py` to CEA's `data/trans.inp` (CEA itself is not built or linked) | National Aeronautics and Space Administration | Apache-2.0 (the text is the root `LICENSE` file) |
 | RapidJSON (bundled with cereal) | THL A29 Limited, a Tencent company, and Milo Yip | MIT |
 | [Eigen](https://eigen.tuxfamily.org) 3.4.0 | Eigen contributors | MPL-2.0 (compiled with `EIGEN_MPL2_ONLY`; no LGPL-licensed Eigen files are included) |
 | [cereal](https://github.com/USCiLab/cereal) | Randolph Voorhies, Shane Grant | BSD-3-Clause |
