@@ -1960,7 +1960,7 @@ PYBIND11_MODULE(_core, m) {
     return adsim::Fluid::EvalIdealGasHeatCapacity(*p, temperature);
   }, py::arg("component"), py::arg("temperature"));
   // Provenance of the polynomials: the table's reference and, per component, the
-  // TM-4513 species label and data-source code (or Air's mixing note).
+  // TM-4513 species label and data-source code.
   m.def("ideal_gas_heat_capacity_reference", []() { return std::string(adsim::kIdealGasHeatCapacityReference); });
   m.def("ideal_gas_heat_capacity_source", [](const std::string& component) {
     const adsim::NasaPolynomial* p = adsim::Fluid::IdealGasCoeffs(component);

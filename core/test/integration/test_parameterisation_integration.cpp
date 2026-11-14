@@ -57,7 +57,7 @@ public:
   void SetUp() override {
     UserDataTest::SetUp();
 
-    AddComponents({"CarbonDioxide", "Air"});
+    AddComponents({"CarbonDioxide", "Nitrogen"});
 
     auto [lid, aid] = AddLayer("Activated Carbon");
     layer_id = lid;
@@ -93,10 +93,10 @@ public:
     AddIsotherm({"CarbonDioxide"}, ads_id, std::move(dsl));
 
     AddLinearDrivingForceModel_Haynes(ads_id, "CarbonDioxide", 3, 0.59);
-    AddLinearDrivingForceModel(ads_id, "Air", 0.0);
+    AddLinearDrivingForceModel(ads_id, "Nitrogen", 0.0);
 
     SetHOA(ads_id, "CarbonDioxide", 29980.0);
-    SetHOA(ads_id, "Air", 0.0);
+    SetHOA(ads_id, "Nitrogen", 0.0);
 
     GetLayer(layer_id).equations_.dispersion_model_ =
       CreateAxialDispersionModel(AxialDispersionType::RUTHVEN);
@@ -109,7 +109,7 @@ public:
     ehtm->external_velocity = 0.5;
     GetLayer(layer_id).equations_.external_heat_transfer_model_ = std::move(ehtm);
 
-    AddInitialConditions(1.0e5, 291.4, 291.4, {{"CarbonDioxide", 0.0}, {"Air", 1.0}});
+    AddInitialConditions(1.0e5, 291.4, 291.4, {{"CarbonDioxide", 0.0}, {"Nitrogen", 1.0}});
 
     AddStep("Feed", 500.0);  // 500 s to keep the test fast
 
@@ -117,7 +117,7 @@ public:
 
     auto inlet_stream = CreateNoValveInletStream(
       CreateVolumeFlowBC(Q_m3s),
-      {{"CarbonDioxide", 1.0}, {"Air", 0.0}},
+      {{"CarbonDioxide", 1.0}, {"Nitrogen", 0.0}},
       293.0);
     inlet_stream->name_ = "CO2 Inlet";
 
@@ -132,7 +132,7 @@ public:
     pressure_out->location_                = BoundaryLocation::TOP;
     pressure_out->pressure_                = CreateConstantBoundaryValue(1e5);
     pressure_out->mole_fraction_["CarbonDioxide"] = 0.0;
-    pressure_out->mole_fraction_["Air"]           = 1.0;
+    pressure_out->mole_fraction_["Nitrogen"]           = 1.0;
     data.cycle.GetStep("Feed").top_boundary_condition_ = std::move(pressure_out);
 
     ConfigureCycle(1);
@@ -418,7 +418,7 @@ public:
     const double Q_m3s = 200 * 1.666666666666667e-8;  // 200 ccm → m³/s
     auto purge_stream = CreateNoValveInletStream(
       CreateVolumeFlowBC(Q_m3s),
-      {{"CarbonDioxide", 0.0}, {"Air", 1.0}},
+      {{"CarbonDioxide", 0.0}, {"Nitrogen", 1.0}},
       293.0);
     purge_stream->name_ = "Air Inlet";
 
@@ -433,7 +433,7 @@ public:
     pressure_out->location_                = BoundaryLocation::TOP;
     pressure_out->pressure_                = CreateConstantBoundaryValue(1e5);
     pressure_out->mole_fraction_["CarbonDioxide"] = 0.0;
-    pressure_out->mole_fraction_["Air"]           = 1.0;
+    pressure_out->mole_fraction_["Nitrogen"]           = 1.0;
     data.cycle.GetStep("Purge").top_boundary_condition_ = std::move(pressure_out);
 
     ConfigureCycle(kNumCycles);

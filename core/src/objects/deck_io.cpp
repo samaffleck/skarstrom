@@ -11,12 +11,16 @@
 
 #include <cereal/archives/json.hpp>
 
+#include "adsim/objects/component_migration.h"
+
 namespace adsim {
 
-void LoadDeckFlexible(UserData& data, const std::string& json) {
-  if (json.empty()) {
+void LoadDeckFlexible(UserData& data, const std::string& input) {
+  if (input.empty()) {
     throw std::invalid_argument("LoadDeckFlexible: input JSON string is empty");
   }
+  std::string json = input;
+  MigrateRenamedComponents(json);
 
   try {
     // Preferred: string-format root ("simulation"). The NVP lookup happens at
