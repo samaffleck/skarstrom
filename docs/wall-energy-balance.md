@@ -42,7 +42,7 @@ Notes:
 - For a square or rectangular column, $d_i$ is the hydraulic diameter of the cross-section and the wall is treated as an annulus of thickness $t_w$ around it.
 - $h_i$ and $h_o$ are constants or come from the [transport correlations](transport-correlations.md#internal-heat-transfer-coefficient) (Dixon, Leva, Holman), evaluated in every cell of the layer. In a [void region](getting-started.md) they are zero, so the wall there exchanges no heat with the gas or the surroundings and only conducts along the column.
 - Setting $h_o = 0$ makes the column adiabatic towards the surroundings; setting $h_i = 0$ decouples the wall from the bed altogether.
-- Axial conduction is discretised with central differences on the same cells as the bed.
+- Axial conduction is discretised with central differences on the same cells as the bed, one flux per face: the two half cells in series over the distance between the cell centres ([Numerics](numerics.md#spatial-discretisation-cell-centred-finite-volumes)), so heat is conserved along the wall also where the cell width changes (a layer interface, a void region).
 - In an [isothermal run](energy-balance.md#isothermal-mode) the wall is held at the isothermal temperature and this equation is not solved.
 
 ### Boundary conditions at the column ends

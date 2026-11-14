@@ -125,6 +125,29 @@ namespace adsim {
       return dv.positions[n - 1] + 0.5 * dv.cell_width[n];
     }
 
+    // Face value of a transport coefficient k (a conductivity, eb D) between
+    // two neighbouring cells a and b of widths dx_a and dx_b: the cell-width-
+    // weighted harmonic mean
+    //   k_f = 1 / (w_a / k_a + w_b / k_b),  w_a = dx_a / (dx_a + dx_b),
+    // so that k_f / h_f, with h_f = (dx_a + dx_b) / 2 the distance between the
+    // two cell centres (FaceSpacing), is the conductance of the two half cells
+    // in series,
+    //   k_f / h_f = 1 / (dx_a / (2 k_a) + dx_b / (2 k_b)).
+    // A face flux k_f (phi_b - phi_a) / h_f is then one value, the same for
+    // both cells, and continuous across an interface where k or the cell
+    // width jumps. It is k_a itself when k_a == k_b (so a uniform layer's
+    // residuals are unchanged bit for bit) and 0 when either cell does not
+    // conduct (k <= 0: a void cell, a layer without the model).
+    inline double FaceCoefficient(double k_a, double dx_a, double k_b, double dx_b) {
+      if (k_a == k_b) return k_a;
+      if (!(k_a > 0.0) || !(k_b > 0.0)) return 0.0;
+      const double w_b = dx_b / (dx_a + dx_b);
+      return 1.0 / ((1.0 - w_b) / k_a + w_b / k_b);
+    }
+
+    // Distance between the centres of two neighbouring cells [m].
+    inline double FaceSpacing(double dx_a, double dx_b) { return 0.5 * (dx_a + dx_b); }
+
     // The manufactured source of `component` in `map` (verification hook,
     // see manufactured_sources.h), or null when there is none.
     inline const ManufacturedSources::Field* SourceOf(
@@ -501,19 +524,16 @@ namespace adsim {
 
       double Hi = 4 * hi[i] * dV[i] / di[i];
 
-      double Lam_e = 0.5 * (Lam[i] + Lam[i + 1]);
-      double Lam_w = 0.5 * (Lam[i] + Lam[i - 1]);
-      
-      double fe = dx[i + 1] / (dx[i] + dx[i + 1]);
-      double fw = dx[i] / (dx[i - 1] + dx[i]);
-
-      // double Lam_e = 1 / ((1 - fe) / Lam[i] + fe / Lam[i + 1]);
-      // double Lam_w = 1 / ((1 - fw) / Lam[i - 1] + fw / Lam[i]);
-
+      // Conductive face fluxes [W/m2]: the half cells in series, over the
+      // distance between the cell centres (FaceCoefficient), so the flux
+      // through a face is the same for the two cells that share it, also
+      // where the cell width or the conductivity jumps (a layer interface).
       // No conduction through the bed's boundary faces (Danckwerts; see
       // BoundaryFaceUpstreamT).
-      double D_e = (i == N - 2) ? 0.0 : Lam_e * (T[i + 1] - T[i]) / dx[i];
-      double D_w = (i == 1) ? 0.0 : Lam_w * (T[i] - T[i - 1]) / dx[i];
+      double D_e = (i == N - 2) ? 0.0
+        : FaceCoefficient(Lam[i], dx[i], Lam[i + 1], dx[i + 1]) * (T[i + 1] - T[i]) / FaceSpacing(dx[i], dx[i + 1]);
+      double D_w = (i == 1) ? 0.0
+        : FaceCoefficient(Lam[i - 1], dx[i - 1], Lam[i], dx[i]) * (T[i] - T[i - 1]) / FaceSpacing(dx[i - 1], dx[i]);
 
       res_T[i] =
         Acc
@@ -622,13 +642,13 @@ namespace adsim {
       // Gas-to-solid heat transfer (hp is volumetric: W/(m3.K))
       double Hp = hp[i] * dV[i] * (T[i] - Ts[i]);
 
-      double Lam_e = 0.5 * (Lam[i] + Lam[i + 1]);
-      double Lam_w = 0.5 * (Lam[i] + Lam[i - 1]);
-
-      // No conduction through the bed's boundary faces (Danckwerts; see
-      // BoundaryFaceUpstreamT).
-      double D_e = (i == N - 2) ? 0.0 : Lam_e * (T[i + 1] - T[i]) / dx[i];
-      double D_w = (i == 1) ? 0.0 : Lam_w * (T[i] - T[i - 1]) / dx[i];
+      // Conductive face fluxes, as in UpdateTemperature: the half cells in
+      // series, one flux per face. No conduction through the bed's boundary
+      // faces (Danckwerts; see BoundaryFaceUpstreamT).
+      double D_e = (i == N - 2) ? 0.0
+        : FaceCoefficient(Lam[i], dx[i], Lam[i + 1], dx[i + 1]) * (T[i + 1] - T[i]) / FaceSpacing(dx[i], dx[i + 1]);
+      double D_w = (i == 1) ? 0.0
+        : FaceCoefficient(Lam[i - 1], dx[i - 1], Lam[i], dx[i]) * (T[i] - T[i - 1]) / FaceSpacing(dx[i - 1], dx[i]);
 
       res_T[i] =
         Acc
@@ -857,7 +877,21 @@ namespace adsim {
 
       const double flux_o = 4 * d_o[i] * ho[i] * (Tw[i] - Tamb) / denominator;
 
-      const double conduction = kw[i] / (dx[i] * dx[i]) * (Tw[i + 1] - 2 * Tw[i] + Tw[i - 1]);
+      // Axial conduction along the wall [W/m3]: the difference of the two face
+      // fluxes over the cell width, each face flux the half cells in series
+      // over the distance between the cell centres (FaceCoefficient), so what
+      // one cell loses through a face its neighbour gains, also where the
+      // cell width changes (a layer interface, a void region). The ghost
+      // cells mirror the end cells, so a bed-end face spans the end cell's
+      // own width. On a uniform wall this is the three-point Laplacian, kept
+      // in that form so the residual is unchanged bit for bit.
+      const double kw_e = (i == N - 2) ? kw[i] : FaceCoefficient(kw[i], dx[i], kw[i + 1], dx[i + 1]);
+      const double kw_w = (i == 1) ? kw[i] : FaceCoefficient(kw[i - 1], dx[i - 1], kw[i], dx[i]);
+      const double h_e = (i == N - 2) ? dx[i] : FaceSpacing(dx[i], dx[i + 1]);
+      const double h_w = (i == 1) ? dx[i] : FaceSpacing(dx[i - 1], dx[i]);
+      const double conduction = (h_e == dx[i] && h_w == dx[i] && kw_e == kw[i] && kw_w == kw[i])
+        ? kw[i] / (dx[i] * dx[i]) * (Tw[i + 1] - 2 * Tw[i] + Tw[i - 1])
+        : (kw_e * (Tw[i + 1] - Tw[i]) / h_e - kw_w * (Tw[i] - Tw[i - 1]) / h_w) / dx[i];
 
       res_Tw[i] = Acc - flux_i + flux_o - conduction;
     }
@@ -1078,6 +1112,19 @@ namespace adsim {
     // Reaction source of this component (null without reactions).
     const std::vector<double>* S_rxn = state.HasReactions() ? &state.component_reaction_source.at(component).var : nullptr;
 
+    // Bed voidage at the face between cells a and b whose harmonic face
+    // dispersion coefficient is d_f. Where the two cells share eb it is that
+    // eb, so eb_f d_f is the common eb times the face D (and a uniform bed is
+    // unchanged bit for bit). Where eb jumps it is the value that makes
+    // eb_f d_f the half cells in series of the product eb D, the coefficient
+    // of the dispersive flux eb D C dy/dz whose continuity the interface
+    // imposes (FaceCoefficient).
+    auto face_eb = [&](int a, int b, double d_f) {
+      if (eb[a] == eb[b]) return eb[a];
+      if (!(d_f > 0.0)) return 0.0;
+      return FaceCoefficient(eb[a] * Dax[a], dx[a], eb[b] * Dax[b], dx[b]) / d_f;
+    };
+
     int N = yi.size();
     for (int n = 1; n < N - 1; ++n) { // Interior cells
       // Floor pressure/temperature denominators against a transient non-positive
@@ -1115,10 +1162,17 @@ namespace adsim {
       // dispersive eb D C (y_1 - y_in) / dx would otherwise carry species into
       // the bed on top of the feed u C y_in, unseen by the stream logs (the
       // component balance then fails to close by an amount proportional to D).
+      //
+      // An interior face carries the flux eb_f d_f C_f (y_b - y_a) / h_f, with
+      // h_f the distance between the two cell centres and one face value of
+      // each coefficient (face_eb), times this cell's residual scaling
+      // R T_n / P_n. The flux is then the same for the two cells that share
+      // the face, so what one loses the other gains, also where the cell
+      // width or the bed voidage jumps (a layer interface).
       double D_e = (n == N - 2) ? 0.0
-        : ((eb[n] * Tc * d_e) / (Pc * dx[n])) * (Pe / Te * (yi[n + 1] - yi[n]));
+        : ((face_eb(n, n + 1, d_e) * Tc * d_e) / (Pc * FaceSpacing(dx[n], dx[n + 1]))) * (Pe / Te * (yi[n + 1] - yi[n]));
       double D_w = (n == 1) ? 0.0
-        : ((eb[n] * Tc * d_w) / (Pc * dx[n])) * (Pw / Tw * (yi[n] - yi[n - 1]));
+        : ((face_eb(n - 1, n, d_w) * Tc * d_w) / (Pc * FaceSpacing(dx[n - 1], dx[n]))) * (Pw / Tw * (yi[n] - yi[n - 1]));
 
       double F_e = Tc / Pc * (yie * Pe * u_e / Te);
       double F_w = Tc / Pc * (yiw * Pw * u_w / Tw);

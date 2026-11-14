@@ -871,16 +871,16 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.1157341540915554,
-                                    "Average_Temperature": 293.4863813631961,
+                                    "Total_Moles": 0.11573465462614015,
+                                    "Average_Temperature": 293.48618410721476,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.9869516067846001
+                                            "value": 0.9869516317279132
                                         },
                                         {
                                             "key": "Helium",
-                                            "value": 0.013048393215399886
+                                            "value": 0.013048368272086813
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -955,8 +955,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.20524512797509462,
-                                                        "Average_Temperature": 292.99999999999997,
+                                                        "Total_Moles": 0.20524512797601775,
+                                                        "Average_Temperature": 293.00000000000019,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Helium",

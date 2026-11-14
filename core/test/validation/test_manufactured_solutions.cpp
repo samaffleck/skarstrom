@@ -124,6 +124,13 @@ namespace adsim {
       double dH = 20000.0;       // isosteric heat of adsorption of A [J/mol]
       double lambda = 5.0;       // constant axial thermal conductivity [W/(m K)]
 
+      // Non-uniform grid, off by default: the bed is split into two layers of
+      // the same packing, the bottom 40 % on a quarter of the cells and the top
+      // 60 % on the rest, so the bottom cells are twice as wide and every
+      // face flux is also evaluated across a jump of the cell width.
+      bool non_uniform = false;
+      static constexpr double kBottomFraction = 0.4;
+
       double et() const { return eb + (1.0 - eb) * ep; }
       double rho_b() const { return (1.0 - eb) * rho_p; }
       double Kperm() const { return eb * eb * eb * dp * dp / (180.0 * (1.0 - eb) * (1.0 - eb)); }
@@ -336,27 +343,36 @@ namespace adsim {
       adsorbent.adsorption_source_.heat_of_adsorption_["Oxygen"] = m.thermal ? m.dH : 0.0;
 
       std::get<CylinderBed>(data.bed.shape_).diameter = m.diameter;
-      auto lid = data.bed.layers_.Add("Sorbent");
-      auto& layer = data.bed.layers_.Get(lid);
-      layer.momentum_model_ = MomentumModel::KarmenCozeny;
-      layer.domain_.length = m.L;
-      layer.domain_.n_cells = n_cells;
-      layer.eb_ = m.eb;
-      layer.particle_diameter_ = m.dp;
-      layer.composition_[ads] = 1.0;
-      auto disp = std::make_unique<DispersionModelConstant>();
-      disp->dispersion_coefficient_ = m.D;
-      layer.equations_.dispersion_model_ = std::move(disp);
-      // Adiabatic bed: no exchange with the wall.
-      auto ihtc = std::make_unique<ConstantInternalHeatTransferModel>();
-      ihtc->heat_transfer_coefficient_ = 0.0;
-      layer.equations_.internal_heat_transfer_model_ = std::move(ihtc);
-      auto ehtc = std::make_unique<ConstantExternalHeatTransferModel>();
-      ehtc->heat_transfer_coefficient_ = 0.0;
-      layer.equations_.external_heat_transfer_model_ = std::move(ehtc);
-      auto heat_disp = std::make_unique<HeatDispersionModelConstant>();
-      heat_disp->dispersion_coefficient_ = m.lambda;
-      layer.equations_.heat_dispersion_model_ = std::move(heat_disp);
+      auto add_layer = [&](const std::string& name, double length, int cells) {
+        auto lid = data.bed.layers_.Add(name);
+        auto& layer = data.bed.layers_.Get(lid);
+        layer.momentum_model_ = MomentumModel::KarmenCozeny;
+        layer.domain_.length = length;
+        layer.domain_.n_cells = cells;
+        layer.eb_ = m.eb;
+        layer.particle_diameter_ = m.dp;
+        layer.composition_[ads] = 1.0;
+        auto disp = std::make_unique<DispersionModelConstant>();
+        disp->dispersion_coefficient_ = m.D;
+        layer.equations_.dispersion_model_ = std::move(disp);
+        // Adiabatic bed: no exchange with the wall.
+        auto ihtc = std::make_unique<ConstantInternalHeatTransferModel>();
+        ihtc->heat_transfer_coefficient_ = 0.0;
+        layer.equations_.internal_heat_transfer_model_ = std::move(ihtc);
+        auto ehtc = std::make_unique<ConstantExternalHeatTransferModel>();
+        ehtc->heat_transfer_coefficient_ = 0.0;
+        layer.equations_.external_heat_transfer_model_ = std::move(ehtc);
+        auto heat_disp = std::make_unique<HeatDispersionModelConstant>();
+        heat_disp->dispersion_coefficient_ = m.lambda;
+        layer.equations_.heat_dispersion_model_ = std::move(heat_disp);
+      };
+      if (m.non_uniform) {
+        const int n_bottom = n_cells / 4;
+        add_layer("Sorbent", MmsCase::kBottomFraction * m.L, n_bottom);
+        add_layer("Sorbent top", (1.0 - MmsCase::kBottomFraction) * m.L, n_cells - n_bottom);
+      } else {
+        add_layer("Sorbent", m.L, n_cells);
+      }
       if (!m.thermal) data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
 
       data.ic.pressure = m.P_L;
@@ -441,33 +457,37 @@ namespace adsim {
       const auto& q = qlog.values.back();
       const auto& u = ulog.values.back();
       const auto& T = Tlog.values.back();
-      const double dz = m.L / n_cells;
-      // Cell n (1..N) has its centre at (n - 1/2) dz; index 0 and N + 1 are the ghosts.
-      double sy = 0, sP = 0, sq = 0, su = 0, sT = 0, sy_int = 0;
-      int n_int = 0;
+      // Cell n (1..N) spans the faces z_{n-1} and z_n of the log's domain
+      // (index 0 and N + 1 are the ghosts); its centre is their midpoint. The
+      // cell norms weight each cell by its width (on a uniform grid the plain
+      // root mean square).
+      const auto& dom = log.GetDomain();
+      const auto& zf = dom.positions;
+      double sy = 0, sP = 0, sq = 0, su = 0, sT = 0, sy_int = 0, w_int = 0;
       for (int n = 1; n <= n_cells; ++n) {
-        const double z = (n - 0.5) * dz;
+        const double z = 0.5 * (zf[n - 1] + zf[n]);
+        const double w = (zf[n] - zf[n - 1]) / m.L;
         const Fields f = Manufactured(m, z, t);
         const double ey = y[n] - f.y;
-        sy += ey * ey;
-        sP += (P[n] - f.P) * (P[n] - f.P);
-        sq += (q[n] - f.q) * (q[n] - f.q);
-        sT += (T[n] - f.T) * (T[n] - f.T);
+        sy += w * ey * ey;
+        sP += w * (P[n] - f.P) * (P[n] - f.P);
+        sq += w * (q[n] - f.q) * (q[n] - f.q);
+        sT += w * (T[n] - f.T) * (T[n] - f.T);
         e.y_max = std::max(e.y_max, std::abs(ey));
-        if (z > 0.25 * m.L && z < 0.75 * m.L) { sy_int += ey * ey; ++n_int; }
+        if (z > 0.25 * m.L && z < 0.75 * m.L) { sy_int += w * ey * ey; w_int += w; }
       }
-      // Faces 0..N at z = i dz (face 0 is the inlet, N the outlet).
+      // Faces 0..N at z_i (face 0 is the inlet, N the outlet).
       for (int i = 0; i <= n_cells; ++i) {
-        const Fields f = Manufactured(m, i * dz, t);
+        const Fields f = Manufactured(m, zf[i], t);
         su += (u[i] - f.u) * (u[i] - f.u);
       }
-      e.y = std::sqrt(sy / n_cells);
-      e.P = std::sqrt(sP / n_cells);
-      e.q = std::sqrt(sq / n_cells);
+      e.y = std::sqrt(sy);
+      e.P = std::sqrt(sP);
+      e.q = std::sqrt(sq);
       e.u = std::sqrt(su / (n_cells + 1));
-      e.T = std::sqrt(sT / n_cells);
-      e.y_interior = std::sqrt(sy_int / std::max(n_int, 1));
-      e.y_end = std::abs(y[n_cells] - Manufactured(m, (n_cells - 0.5) * dz, t).y);
+      e.T = std::sqrt(sT);
+      e.y_interior = std::sqrt(sy_int / std::max(w_int, 1e-300));
+      e.y_end = std::abs(y[n_cells] - Manufactured(m, 0.5 * (zf[n_cells - 1] + zf[n_cells]), t).y);
       return e;
     }
 
@@ -485,8 +505,8 @@ namespace adsim {
       for (int n : {20, 40, 80, 160}) out.push_back(Run(m, n, scheme));
       for (size_t k = 0; k < out.size(); ++k) {
         const auto& e = out[k];
-        std::printf("[MMS %s%s] N=%3d  y %.3e (int %.3e, max %.3e, end %.3e)  P %.3e  q %.3e  u %.3e  T %.3e",
-                    SchemeName(scheme), m.thermal ? " thermal" : "", 20 << k, e.y, e.y_interior,
+        std::printf("[MMS %s%s%s] N=%3d  y %.3e (int %.3e, max %.3e, end %.3e)  P %.3e  q %.3e  u %.3e  T %.3e",
+                    SchemeName(scheme), m.thermal ? " thermal" : "", m.non_uniform ? " non-uniform" : "", 20 << k, e.y, e.y_interior,
                     e.y_max, e.y_end, e.P, e.q, e.u, e.T);
         if (k > 0) {
           const auto& c = out[k - 1];
@@ -631,7 +651,9 @@ namespace adsim {
   // asymptotic range (README; the same case on 320 and 640 cells gives
   // upwind 1.00, van Leer 1.97-2.03 and WENO 1.88-2.23 in every field).
   namespace {
-    void ExpectOrders(const std::vector<Errors>& e, double lo, double hi, double lo_max, const char* what) {
+    // lo_u < 0: the face velocity has the bounds of the cell fields.
+    void ExpectOrders(const std::vector<Errors>& e, double lo, double hi, double lo_max, const char* what,
+                      double lo_u = -1.0) {
       ASSERT_EQ(e.size(), 4u);
       for (size_t k = 2; k < e.size(); ++k) {  // the 20 -> 40 -> 80 and 40 -> 80 -> 160 pairs
         const auto& c = e[k - 1];
@@ -640,7 +662,7 @@ namespace adsim {
                      + std::to_string(20 << k) + " cells");
         for (auto [name, p] : {std::pair{"y", Order(c.y, f.y)}, std::pair{"P", Order(c.P, f.P)},
                                std::pair{"q", Order(c.q, f.q)}, std::pair{"u", Order(c.u, f.u)}}) {
-          EXPECT_GT(p, lo) << name;
+          EXPECT_GT(p, (name[0] == 'u' && lo_u >= 0.0) ? lo_u : lo) << name;
           EXPECT_LT(p, hi) << name;
         }
         EXPECT_GT(Order(c.y_max, f.y_max), lo_max) << "max norm of y";
@@ -721,6 +743,44 @@ namespace adsim {
       EXPECT_LT(e->back().T, 5e-5);
       EXPECT_LT(e->back().T, 0.03 * up.back().T);
       EXPECT_LT(e->back().y, 0.05 * up.back().y);
+    }
+  }
+
+  // A non-uniform grid: the same thermal case on two layers of the same
+  // packing whose cells differ in width by a factor of two (MmsCase::
+  // non_uniform), so every flux is also evaluated across a jump of the cell
+  // width, at a face where the profiles have a slope. The face fluxes are
+  // single valued there (the half cells in series over the distance between
+  // the cell centres), so the cell fields keep the orders of the uniform
+  // grid, in the max norm too. Measured on 20 to 160 cells: upwind 0.93-1.07
+  // in every field; WENO L2 1.69-2.43 (y 2.04-2.41, T 1.95-2.31), max norm of
+  // y 1.55-2.05, outlet cell 1.50-1.75. The one exception is the WENO face
+  // velocity, 2.21, 1.87, 1.60: the interface face is not midway between the
+  // two cell centres, so the two-point pressure gradient that sets its
+  // velocity is first order there (its error, 8.5e-6 m/s on 160 cells, is 25
+  // times that of any other face and halves with each refinement), and the
+  // L2 over the faces tends to order 1.5. Upwind's first-order error
+  // everywhere hides it.
+  //
+  // GUARD: when each cell divided the dispersive and conductive face flux by
+  // its own width and the gas conduction took the arithmetic mean (before
+  // the fix), the interface was a point source of O(1) strength and no field
+  // converged: every order between 40 and 160 cells was -0.5 to 0.2 for both
+  // schemes, the 160-cell errors 1.2e-3 in y and 3.0e-2 K in T.
+  TEST(ManufacturedSolutions, NonUniformGridOrder) {
+    MmsCase m;
+    m.thermal = true;
+    m.non_uniform = true;
+    std::vector<Errors> up, weno;
+    MeasureOrders(m, AdvectionScheme::Upwind, up);
+    MeasureOrders(m, AdvectionScheme::WENO, weno);
+    ExpectOrders(up, 0.93, 1.07, 0.93, "upwind, non-uniform");
+    ExpectOrders(weno, 1.7, 2.7, 1.7, "WENO, non-uniform", 1.4);
+    for (const auto* e : {&up, &weno}) {
+      const double lo = (e == &up) ? 0.9 : 1.8;
+      for (size_t k = 2; k < e->size(); ++k)
+        EXPECT_GT(Order((*e)[k - 1].T, (*e)[k].T), lo)
+          << (e == &up ? "upwind" : "WENO") << ", T, " << (20 << (k - 1)) << " -> " << (20 << k) << " cells";
     }
   }
 
