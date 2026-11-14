@@ -197,8 +197,11 @@ namespace adsim {
 
     source.UpdateCycleSummary(/*cycle_index=*/2);
 
-    const auto* sum = source.FindSummaryForEndpoint(source_stream->name_);
+    const auto* sum = source.FindSummaryForEndpoint(source_stream->endpoint_id_);
     ASSERT_NE(sum, nullptr);
+    // The name overload agrees with the ID lookup.
+    EXPECT_EQ(source.FindSummaryForEndpoint(source_stream->name_), sum);
+    EXPECT_EQ(source.FindSummaryForEndpoint(size_t{987654321}), nullptr);
     EXPECT_TRUE(sum->is_valid);
     EXPECT_NEAR(sum->total_moles, 1.5 * 3.0, 1e-9);
     EXPECT_NEAR(sum->avg_temperature, 295.0, 1e-9);
