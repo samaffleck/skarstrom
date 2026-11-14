@@ -15,14 +15,14 @@ A **layer** of the bed is packed with one *or several* solids, well mixed, in fi
 The layer stores its **composition** as a map from adsorbent to mass fraction $w_k$, the mass of solid $k$ per mass of solid in the layer:
 
 $$
-\sum_k w_k = 1, \qquad 0 < w_k \le 1 .
+\sum_k w_k = 1, \qquad 0 \le w_k \le 1 .
 $$
 
 A fraction may be a number or an expression over the deck's [global variables](global-variables.md) (`"x"` and `"1 - x"`), which is how a study varies one solid's share. The check is made on the evaluated values at run start, and the engine never rescales fractions for you. What `CheckLayerComposition` accepts and refuses:
 
 | Layer composition | Result |
 |---|---|
-| fractions sum to 1 (to within $10^{-6}$), each in $(0, 1]$ | accepted |
+| fractions sum to 1 (to within $10^{-6}$), each in $[0, 1]$ | accepted (a fraction of 0 with the warning below) |
 | a sum other than 1 | **error**: "mass fractions … sum to …; they must sum to 1" (the run does not start) |
 | a negative or NaN fraction | **error**: "Mass fractions must be between 0 and 1" |
 | a solid at mass fraction 0 | **warning**: it takes no part in the run; remove it from the composition |
@@ -52,7 +52,7 @@ $$
 C_{ps} = \sum_k w_k\, C_{ps,k} .
 $$
 
-So the density is the **harmonic mean** weighted by mass fraction, the voidage and conductivity are weighted by **solid volume**, and the heat capacity, a per-mass property, by **mass fraction**. The conductivity is a plain volume average, an upper bound for a random packing of beads, so treat a strongly contrasting blend's axial heat conduction with care.
+So the density is the **harmonic mean** weighted by mass fraction, the voidage and conductivity are weighted by **solid volume**, and the heat capacity, a per-mass property, by **mass fraction**. The conductivity is a plain volume average, an upper bound for a random packing of beads, so treat a strongly contrasting blend's axial heat conduction with care. Only the solids of the composition enter it: in a structured layer, a substrate that is not listed in the composition adds nothing to the solid conductivity.
 
 The bed voidage $\varepsilon_b$, particle diameter and the pressure-drop, dispersion and heat-transfer models belong to the **layer**, not to a solid: a mixture shares one of each. The bulk density of the layer and of each solid in it (the mass of solid $k$ per bed volume) are
 
@@ -60,7 +60,9 @@ $$
 \rho_b = (1-\varepsilon_b)\,\rho_{mix}, \qquad \rho_{b,k} = w_k\,\rho_b, \qquad \sum_k \rho_{b,k} = \rho_b .
 $$
 
-Each solid carries its **own loading** $q_{i,k}$ (mol per kg of solid $k$) in every cell, driven by its own isotherm and [rate model](kinetic-models.md), and the balances sum over the solids, each at its own bulk density. In the [mass balance](mass-balance.md) the adsorbed-phase term becomes $\sum_k \rho_{b,k}\,\partial q_{i,k}/\partial t$, and in the [energy balance](energy-balance.md) the loading heat capacity $\sum_k \rho_{b,k}\sum_i C_{pa,i}\,q_{i,k}$ and the heat of adsorption $\sum_k \rho_{b,k}\sum_i \Delta H_{i,k}\,\partial q_{i,k}/\partial t$ are summed the same way. An inert solid has $q_{i,k} = 0$, so it contributes thermal mass ($w_k C_{ps,k}$ in $C_{ps}$) and dilutes the bed (a smaller $\rho_{b,k}$ for the active solid), and nothing else.
+Each solid carries its **own loading** $q_{i,k}$ (mol per kg of solid $k$) in every cell, driven by its own isotherm and [rate model](kinetic-models.md), and the balances sum over the solids, each at its own bulk density. In the [mass balance](mass-balance.md) the adsorbed-phase term becomes $\sum_k \rho_{b,k}\,\partial q_{i,k}/\partial t$, and in the [energy balance](energy-balance.md) the loading heat capacity $\sum_k \rho_{b,k}\sum_i C_{pa,i}\,q_{i,k}$ and the heat of adsorption $\sum_k \rho_{b,k}\sum_i \Delta H^{\mathrm{eff}}_{i,k}\,\partial q_{i,k}/\partial t$ are summed the same way. $\Delta H^{\mathrm{eff}}_{i,k}$ is solid $k$'s stored heat of adsorption for component $i$, converted by the [heat of adsorption convention](energy-balance.md#heat-of-adsorption-convention) (the stored value itself for the default isosteric convention).
+
+Each solid's isotherm and rate model see only that solid's loadings. A competitive isotherm, such as an extended Langmuir, divides by a denominator over the components on that one solid, so the solids do not compete with each other for adsorption sites: they interact only through the shared gas. A rate model that reads the solid's density, such as the capacity-factor macropore rate ([Matching Another Model](model-conventions.md#composition-used-by-the-rate-models)), uses that solid's own `solid_density` and its own equilibrium loading. An inert solid has $q_{i,k} = 0$, so it contributes thermal mass ($w_k C_{ps,k}$ in $C_{ps}$) and dilutes the bed (a smaller $\rho_{b,k}$ for the active solid), and nothing else.
 
 !!! note "Volume fractions"
     Experimental papers on diluted beds often quote the *volume* share of the diluent. The engine stores *mass* fractions. With $\phi_k$ the solid-volume share of solid $k$ and $\rho_k$ its `solid_density`,
@@ -73,7 +75,7 @@ Each solid carries its **own loading** $q_{i,k}$ (mol per kg of solid $k$) in ev
 
 ## Assumptions: one temperature, one gas
 
-Within a cell all solids share **one solid temperature** (equal to the fluid temperature under local thermal equilibrium, or the single solid temperature of [LTNE](energy-balance.md)), and every solid takes up gas from the **same interparticle gas** (same pressure, composition and film conditions at the particle diameter of the layer). Solids do not exchange heat with each other as separate bodies: a hot adsorbent and a cold inert in the same cell are, by construction, at one temperature. This is accurate for a well-mixed bed of similar-sized particles, and tends to overstate the temperature damping of a diluent whose heat has to cross a poor contact.
+Within a cell all solids share **one solid temperature** (equal to the fluid temperature under local thermal equilibrium, or the single solid temperature of [LTNE](energy-balance.md)), and every solid takes up gas from the **same interparticle gas** (same pressure, composition and film conditions at the particle diameter of the layer). Solids do not exchange heat with each other as separate bodies: a hot adsorbent and a cold inert in the same cell are, by construction, at one temperature. The heat of a [reaction](reactions.md) on a catalyst in the blend is likewise released at that one solid temperature ([Energy Balance](energy-balance.md#heat-of-reaction)). This is accurate for a well-mixed bed of similar-sized particles, and tends to overstate the temperature damping of a diluent whose heat has to cross a poor contact.
 
 ## Mixture or thin alternating layers
 
