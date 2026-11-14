@@ -365,8 +365,33 @@ namespace adsim {
           }
           Set(v, "composition", std::move(comp), a_);
           Set(v, "values", Values(lp + "."), a_);
+          Set(v, "derived", DerivedGeometry(layer), a_);
           list.PushBack(v, a_);
         }
+        return list;
+      }
+
+      // The read-only geometry a structured layer's inputs give
+      // (LayerGeometrySummary, porous_media.h), as {key, label, unit, value};
+      // empty for a packed layer. Not registry entries: nothing sets them.
+      Value DerivedGeometry(const MixedAdsorbentLayer& layer) {
+        Value list(rapidjson::kArrayType);
+        if (!layer.IsStructured()) return list;
+        const LayerGeometry g = LayerGeometrySummary(layer, d_.bed.GetArea());
+        auto add = [&](const char* key, const char* label, const char* unit, double value) {
+          Value e(rapidjson::kObjectType);
+          Set(e, "key", key, a_);
+          Set(e, "label", label, a_);
+          Set(e, "unit", unit, a_);
+          Set(e, "value", Num(value), a_);
+          list.PushBack(e, a_);
+        };
+        add("open_frontal_area", "open frontal area", "-", g.open_fraction);
+        add("hydraulic_diameter", "hydraulic diameter", "m", g.hydraulic_diameter);
+        add("specific_surface", "wall area per bed volume", "1/m", g.specific_surface_area);
+        add("diffusion_length", "diffusion length", "m", g.diffusion_length);
+        if (layer.kind_ == LayerKind::Monolith) add("channel_count", "channel count", "-", g.channel_count);
+        add("washcoat_fraction", "washcoat fraction of the solid", "-", g.washcoat_fraction);
         return list;
       }
 
@@ -835,7 +860,8 @@ namespace adsim {
     "Layer": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "name", "kind", "channel_shape", "particle_shape", "momentum", "film_correlation", "dispersion",
-                   "heat_dispersion", "internal_heat_transfer", "external_heat_transfer", "composition", "values"],
+                   "heat_dispersion", "internal_heat_transfer", "external_heat_transfer", "composition", "values",
+                   "derived"],
       "properties": {
         "id": {"type": "integer"},
         "name": {"type": "string"},
@@ -849,7 +875,19 @@ namespace adsim {
         "internal_heat_transfer": {"type": ["string", "null"], "enum": @INTERNAL_HEAT_TRANSFER@},
         "external_heat_transfer": {"type": ["string", "null"], "enum": @EXTERNAL_HEAT_TRANSFER@},
         "composition": {"type": "array", "items": {"$ref": "#/definitions/CompositionEntry"}},
-        "values": {"$ref": "#/definitions/ValueList"}
+        "values": {"$ref": "#/definitions/ValueList"},
+        "derived": {"type": "array", "items": {"$ref": "#/definitions/DerivedValue"},
+                    "description": "read-only geometry of a structured layer (empty for a packed one)"}
+      }
+    },
+    "DerivedValue": {
+      "type": "object", "additionalProperties": false, "required": ["key", "label", "unit", "value"],
+      "properties": {
+        "key": {"type": "string", "enum": ["open_frontal_area", "hydraulic_diameter", "specific_surface",
+                                           "diffusion_length", "channel_count", "washcoat_fraction"]},
+        "label": {"type": "string"},
+        "unit": {"type": "string"},
+        "value": {"type": ["number", "null"], "description": "SI value; null when the geometry gives none"}
       }
     },
     "Wall": {

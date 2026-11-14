@@ -6,6 +6,7 @@
  */
 #include "adsim/objects/model_kinds.h"
 
+#include <algorithm>
 #include <stdexcept>
 
 #include "adsim/boundary_conditions/boundary_value.h"
@@ -44,6 +45,28 @@ using K = KindDescriptor;
 // molecular diffusivity, shared by the macropore kinds.
 P Tortuosity() { return {"tortuosity", "-", 3.0, 1.0, 10.0}; }
 P MacroporeVoid(double d) { return {"macropore_void_fraction", "-", d, 0.01, 0.8, true, "macropore void fraction"}; }
+// The layer kinds a closure may be set on (KindDescriptor::layer_kinds).
+const std::vector<std::string>& AnyLayer() {
+  static const std::vector<std::string> k{"packed", "monolith", "laminate"};
+  return k;
+}
+const std::vector<std::string>& PackedLayer() {
+  static const std::vector<std::string> k{"packed"};
+  return k;
+}
+const std::vector<std::string>& StructuredLayer() {
+  static const std::vector<std::string> k{"monolith", "laminate"};
+  return k;
+}
+// `kinds` with layer_kinds set from `by_tag` (tag -> layer kinds), in order.
+std::vector<K> WithLayerKinds(std::vector<K> kinds,
+                              const std::vector<std::pair<std::string, std::vector<std::string>>>& by_tag) {
+  for (auto& k : kinds)
+    for (const auto& [tag, layers] : by_tag)
+      if (k.tag == tag) k.layer_kinds = layers;
+  return kinds;
+}
+
 P MolecularDiffusivity() {
   return {"molecular_diffusion_coefficient", "m2/s", 0.0, 0.0, 1e-3, true, "constant molecular diffusivity"};
 }
@@ -162,8 +185,12 @@ const std::vector<K>& Momentum() {
   return k;
 }
 
+// The closures of one kind of layer (Bed::PerformChecks, reactor.cpp): the
+// packed-bed correlations read the particle diameter and are refused on a
+// structured layer; Taylor-Aris dispersion and channel conduction need
+// channels and are refused on a packed one.
 const std::vector<K>& Dispersion() {
-  static const std::vector<K> k{
+  static const std::vector<K> k = WithLayerKinds({
       {"constant", "Constant", {{"dispersion_coefficient", "m2/s", 0.0, 1e-8, 1e-2, true, "dispersion coefficient"}}},
       {"ruthven",
        "Ruthven (1984)",
@@ -171,28 +198,29 @@ const std::vector<K>& Dispersion() {
       {"taylor_aris",
        "Taylor-Aris (channels)",
        {{"molecular_diffusion_coefficient", "m2/s", 1.6e-5, 1e-8, 1e-4, true, "molecular diffusion coefficient"}}},
-  };
+  }, {{"constant", AnyLayer()}, {"ruthven", PackedLayer()}, {"taylor_aris", StructuredLayer()}});
   return k;
 }
 
 const std::vector<K>& HeatDispersion() {
   // The constant model's coefficient is the effective axial thermal
   // conductivity of the energy balance, so W/(m K), not a diffusivity.
-  static const std::vector<K> k{
+  static const std::vector<K> k = WithLayerKinds({
       {"constant",
        "Constant",
        {{"heat_dispersion_coefficient", "W/(m-K)", 0.0, 1e-3, 100.0, true, "axial thermal conductivity"}}},
       {"ruthven", "Ruthven (1984)", {}},
       {"yagi_kunii", "Yagi and Kunii (1957)", {}},
       {"channel", "Channel conduction", {}},
-  };
+  }, {{"constant", AnyLayer()}, {"ruthven", PackedLayer()}, {"yagi_kunii", PackedLayer()},
+      {"channel", StructuredLayer()}});
   return k;
 }
 
 const std::vector<K>& InternalHeatTransfer() {
   // Leva: Nu = eta1 Re^eta2 exp(-exp_coeff dp / D_t). The bounds span Leva's
   // canonical (0.813, 0.90) and Casas 2012's fitted (41.13, 0.32) values.
-  static const std::vector<K> k{
+  static const std::vector<K> k = WithLayerKinds({
       {"constant",
        "Constant",
        {{"internal_htc", "W/m2-K", 0.0, 1.0, 1e4, true, "internal heat transfer coefficient"}}},
@@ -202,12 +230,12 @@ const std::vector<K>& InternalHeatTransfer() {
        {{"leva_eta1", "-", 0.813, 0.01, 100.0, true, "Leva Re coefficient (eta1)"},
         {"leva_eta2", "-", 0.90, 0.1, 1.5, true, "Leva Re exponent (eta2)"},
         {"leva_exp_coeff", "-", 6.0, 0.0, 20.0, true, "Leva wall-decay coefficient (exp_coeff)"}}},
-  };
+  }, {{"constant", AnyLayer()}, {"dixon", PackedLayer()}, {"leva", PackedLayer()}});
   return k;
 }
 
 const std::vector<K>& ExternalHeatTransfer() {
-  static const std::vector<K> k{
+  static const std::vector<K> k = WithLayerKinds({
       {"constant",
        "Constant",
        {{"external_htc", "W/m2-K", 0.0, 1.0, 1e4, true, "external heat transfer coefficient"}}},
@@ -217,7 +245,7 @@ const std::vector<K>& ExternalHeatTransfer() {
         {"holman_m", "-", 0.8, 0.1, 1.0, true, "Holman Re exponent (m)"},
         {"holman_n", "-", 0.3333333333, 0.1, 1.0, true, "Holman Pr exponent (n)"},
         {"external_velocity", "m/s", 0.5, 0.0, 10.0, true, "external velocity"}}},
-  };
+  }, {{"constant", AnyLayer()}, {"holman", AnyLayer()}});
   return k;
 }
 
@@ -378,6 +406,17 @@ const char* ModelFamilyName(ModelFamily family) {
     case ModelFamily::PumpPower: return "pump_power";
   }
   return "unknown";
+}
+
+bool LayerClosureFamily(ModelFamily family) {
+  return family == ModelFamily::Dispersion || family == ModelFamily::HeatDispersion ||
+         family == ModelFamily::InternalHeatTransfer || family == ModelFamily::ExternalHeatTransfer;
+}
+
+bool KindAcceptsLayer(ModelFamily family, const std::string& kind, const std::string& layer_kind) {
+  if (!LayerClosureFamily(family)) return true;
+  const KindDescriptor* k = FindKind(family, kind);
+  return k && std::find(k->layer_kinds.begin(), k->layer_kinds.end(), layer_kind) != k->layer_kinds.end();
 }
 
 const std::vector<KindDescriptor>& KindDescriptors(ModelFamily family) {

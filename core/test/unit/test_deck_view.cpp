@@ -431,5 +431,118 @@ TEST(Manifests, ComponentsHaveFormulaAndMolarMass) {
   EXPECT_TRUE(co2.ideal_gas_heat_capacity);
 }
 
+// A structured layer's view lists the geometry its inputs give
+// (LayerGeometrySummary) as read-only {key, label, unit, value} entries; a
+// packed layer's list is empty. The particle diameter stays in a structured
+// layer's values: the registry lists it (its path is kept for sweeps), and
+// the view lists every registry entry once.
+TEST_F(DeckViewTest, StructuredLayerViewCarriesDerivedGeometry) {
+  for (const std::string kind : {"packed", "monolith", "laminate"}) {
+    SCOPED_TRACE(kind);
+    UserData data;
+    ASSERT_NO_THROW(LoadFromJson(data, (kDecks / "Perez2019_A.json").string()));
+    auto& layer = data.bed.layers_.layers_.front();
+    build::SetLayerKind(data, layer.id_, kind);
+    data.EvaluateAllExpressions();
+    rapidjson::Document view;
+    Parse(view, DeckView(data));
+    EXPECT_EQ(Validate(view), "");
+    EXPECT_EQ(view["other"]["values"].Size(), 0u);
+    const auto& lv = view["layers"][0];
+    ASSERT_TRUE(lv.HasMember("derived"));
+    std::map<std::string, const rapidjson::Value*> derived;
+    for (const auto& e : lv["derived"].GetArray()) {
+      EXPECT_TRUE(CheckUnit(e["unit"].GetString()).ok) << e["key"].GetString();
+      EXPECT_FALSE(std::string(e["label"].GetString()).empty());
+      derived[e["key"].GetString()] = &e;
+    }
+    bool has_dp = false;
+    for (const auto& v : lv["values"].GetArray()) has_dp = has_dp || std::string(v["key"].GetString()) == "particle_diameter";
+    EXPECT_TRUE(has_dp);
+    if (kind == "packed") {
+      EXPECT_TRUE(derived.empty());
+      continue;
+    }
+    const LayerGeometry g = LayerGeometrySummary(layer, data.bed.GetArea());
+    const std::vector<std::pair<std::string, double>> expected = {
+        {"open_frontal_area", g.open_fraction},       {"hydraulic_diameter", g.hydraulic_diameter},
+        {"specific_surface", g.specific_surface_area}, {"diffusion_length", g.diffusion_length},
+        {"washcoat_fraction", g.washcoat_fraction}};
+    for (const auto& [key, value] : expected) {
+      ASSERT_TRUE(derived.count(key)) << key;
+      ASSERT_TRUE((*derived[key])["value"].IsNumber()) << key;
+      EXPECT_DOUBLE_EQ((*derived[key])["value"].GetDouble(), value) << key;
+    }
+    EXPECT_GT(g.hydraulic_diameter, 0.0);
+    if (kind == "monolith") {
+      ASSERT_TRUE(derived.count("channel_count"));
+      EXPECT_DOUBLE_EQ((*derived["channel_count"])["value"].GetDouble(), g.channel_count);
+      EXPECT_EQ(derived.size(), 6u);
+    } else {
+      EXPECT_FALSE(derived.count("channel_count"));
+      EXPECT_EQ(derived.size(), 5u);
+    }
+  }
+}
+
+// The model-kind manifest's layer_kinds: on every kind of the per-layer
+// closure families and on no other, each a LayerKinds tag.
+TEST(Manifests, LayerClosureKindsListTheirLayerKinds) {
+  rapidjson::Document m;
+  Parse(m, ModelKindManifest());
+  const auto& layer_kinds = build::LayerKinds();
+  for (ModelFamily family : AllModelFamilies()) {
+    const auto& kinds = m[ModelFamilyName(family)];
+    for (const auto& k : kinds.GetArray()) {
+      SCOPED_TRACE(std::string(ModelFamilyName(family)) + "." + k["tag"].GetString());
+      EXPECT_EQ(k.HasMember("layer_kinds"), LayerClosureFamily(family));
+      if (!k.HasMember("layer_kinds")) continue;
+      EXPECT_GT(k["layer_kinds"].Size(), 0u);
+      for (const auto& lk : k["layer_kinds"].GetArray())
+        EXPECT_NE(std::find(layer_kinds.begin(), layer_kinds.end(), lk.GetString()), layer_kinds.end())
+            << lk.GetString();
+    }
+  }
+}
+
+// layer_kinds is what the deck checks accept: for every closure kind and
+// layer kind, Bed::PerformChecks passes exactly when the manifest lists the
+// layer kind. The other closures of the layer are constant (any layer).
+TEST(Manifests, LayerKindsMatchTheDeckChecks) {
+  using Setter = void (*)(UserData&, size_t, const std::string&);
+  const std::vector<std::pair<ModelFamily, Setter>> families = {
+      {ModelFamily::Dispersion, &build::SetDispersion},
+      {ModelFamily::HeatDispersion, &build::SetHeatDispersion},
+      {ModelFamily::InternalHeatTransfer, &build::SetInternalHeatTransfer},
+      {ModelFamily::ExternalHeatTransfer, &build::SetExternalHeatTransfer}};
+  for (ModelFamily family : AllModelFamilies())
+    EXPECT_EQ(LayerClosureFamily(family),
+              std::any_of(families.begin(), families.end(), [&](const auto& f) { return f.first == family; }))
+        << ModelFamilyName(family);
+  int pairs = 0;
+  for (const std::string& layer_kind : build::LayerKinds()) {
+    for (const auto& [family, set] : families) {
+      for (const KindDescriptor& k : KindDescriptors(family)) {
+        SCOPED_TRACE(layer_kind + " / " + ModelFamilyName(family) + "." + k.tag);
+        UserData data;
+        ASSERT_NO_THROW(LoadFromJson(data, (kDecks / "Perez2019_A.json").string()));
+        const size_t id = data.bed.layers_.layers_.front().id_;
+        build::SetLayerKind(data, id, layer_kind);
+        for (const auto& [f, s] : families) s(data, id, "constant");
+        data.EvaluateAllExpressions();
+        std::string baseline;
+        ASSERT_TRUE(data.bed.PerformChecks(data.adsorbent_directory, baseline)) << baseline;
+        set(data, id, k.tag);
+        data.EvaluateAllExpressions();
+        std::string err;
+        const bool accepted = data.bed.PerformChecks(data.adsorbent_directory, err);
+        EXPECT_EQ(accepted, KindAcceptsLayer(family, k.tag, layer_kind)) << err;
+        ++pairs;
+      }
+    }
+  }
+  EXPECT_GE(pairs, 3 * 12);
+}
+
 }  // namespace
 }  // namespace adsim

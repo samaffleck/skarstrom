@@ -25,7 +25,8 @@
 //                        CAS number, property source and whether the gas heat
 //                        capacity follows the temperature
 //   ModelKindManifest()  every model kind by family (objects/model_kinds.h):
-//                        tag, label, legacy, parameters; the generic
+//                        tag, label, legacy, parameters, and for the layer
+//                        closures the layer kinds they apply to; the generic
 //                        rate-coefficient kind also its resistances (tag,
 //                        label, parent, scaled_by_capacity, parameters, LaTeX
 //                        fragments per shape, source), capacity modes and
@@ -176,8 +177,12 @@ namespace adsim {
   // ---- model kinds ---------------------------------------------------------------
 
   // {family: [{tag, label, legacy, parameters: [{name, unit, default, lower,
-  // upper, tunable, label}], resistances?, capacity_modes?, presets?}]} for
-  // every family of AllModelFamilies(), kinds in stored order. The generic
+  // upper, tunable, label}], layer_kinds?, resistances?, capacity_modes?,
+  // presets?}]} for every family of AllModelFamilies(), kinds in stored order.
+  // The per-layer closure families (dispersion, heat_dispersion,
+  // internal_heat_transfer, external_heat_transfer; LayerClosureFamily)
+  // carry layer_kinds on every kind: the layer kinds ("packed", "monolith",
+  // "laminate") the deck checks accept it on. The generic
   // rate-coefficient kind (series_resistance) carries:
   //   resistances: [{tag, label, parent (null or a tag), scaled_by_capacity,
   //                  needs_child (on only with one of its children on),

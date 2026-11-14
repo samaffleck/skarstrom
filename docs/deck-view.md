@@ -86,10 +86,30 @@ The datasets are not registry values. Change them with the edits `add_experiment
 Each layer has `kind` (`packed`, `monolith`, `laminate`), `channel_shape` (a monolith's; else
 `null`), `particle_shape` (a packed layer's `sphere` or `cylinder`; `null` for a structured layer;
 [Kinetic Models](kinetic-models.md#particle-shape)), `momentum`, `film_correlation`, the transport
-model kinds, `composition` and `values`.
+model kinds, `composition`, `values` and `derived`.
 
 !!! note "New in 0.9"
     The layer field `particle_shape` and its registry entry `layer[L].particle_shape`.
+
+`derived` lists the geometry that a structured layer's inputs give. These entries are read-only:
+they are not registry entries, and nothing sets them. Each entry has `key`, `label`, `unit` (SI)
+and `value` (`null` when the geometry gives no value). The list is empty for a packed layer.
+
+| Key | Meaning | Unit |
+|---|---|---|
+| `open_frontal_area` | Open (gas) fraction of the cross-section | - |
+| `hydraulic_diameter` | Hydraulic diameter of a channel | m |
+| `specific_surface` | Channel wall area per bed volume | 1/m |
+| `diffusion_length` | Washcoat thickness, else half the wall or sheet | m |
+| `channel_count` | Channels across the column (monolith only; absent for a laminate) | - |
+| `washcoat_fraction` | Washcoat share of the solid cross-section | - |
+
+A structured layer's `values` still has `particle_diameter`. No closure that a structured layer
+accepts reads it, but the registry keeps the path for sweeps and for a switch back to packed,
+and the view lists every registry entry.
+
+!!! note "New in 0.13"
+    The layer field `derived`.
 
 ### Kinetics entries
 
@@ -124,7 +144,7 @@ component's `values`.
 | `sk.check_unit(text, category)` | `CheckUnit(text, category)` | `{ok, category, dimension, factor, offset, message}` from the engine's unit parser |
 | `sk.warning_manifest()` | `WarningManifest()`, `WarningDefinitions()` | Advisory warnings: `key`, `label`, `phase` (`start` of a run or `end`), `setting` (registry path of its switch, or null), `default_on`, `message` template |
 | `sk.example_manifest()` | `ExampleDeckManifest(manifest, decks_dir)` | Example decks: `file`, `name`, `title`, `family` (display label, "Perez (2019)"), `family_key` ("Perez2019"), `hidden`, `summary`, `description` |
-| `sk.model_kinds()` | `ModelKindManifest()` | Each model kind by family: `tag`, `label`, `legacy` (a kind kept for old decks and as a preset tag, not offered), `parameters` (`name`, `unit`, `default`, `lower`, `upper`, `tunable`, `label`). The rate-coefficient kind `series_resistance` also has `resistances` (`tag`, `label`, `parent`, `scaled_by_capacity`, `parameters`, LaTeX `fragments` per shape: `sphere`, `cylinder`, `slab`; `source`), `capacity_modes` (`tag`, `label`, `latex`) and `presets` (`tag`, `on`, `capacity_mode`, `values`). The entry `particle_shape` lists the packed particle shapes in the same form. *New in 0.9.* The Python list also has the isotherm kinds |
+| `sk.model_kinds()` | `ModelKindManifest()` | Each model kind by family: `tag`, `label`, `legacy` (a kind kept for old decks and as a preset tag, not offered), `parameters` (`name`, `unit`, `default`, `lower`, `upper`, `tunable`, `label`). The rate-coefficient kind `series_resistance` also has `resistances` (`tag`, `label`, `parent`, `scaled_by_capacity`, `parameters`, LaTeX `fragments` per shape: `sphere`, `cylinder`, `slab`; `source`), `capacity_modes` (`tag`, `label`, `latex`) and `presets` (`tag`, `on`, `capacity_mode`, `values`). The entry `particle_shape` lists the packed particle shapes in the same form. *New in 0.9.* The kinds of the layer closure families (`dispersion`, `heat_dispersion`, `internal_heat_transfer`, `external_heat_transfer`) also have `layer_kinds`: the layer kinds (`packed`, `monolith`, `laminate`) that the deck checks accept the kind on. *New in 0.13:* `layer_kinds`. The Python list also has the isotherm kinds |
 | `sk.component_manifest()` | `ComponentManifest()`, `DescribeComponent(name)` | Components: `name` (CoolProp), `formula`, `molar_mass` [kg/mol], `cas`, `properties_source`, `aliases`, `ideal_gas_heat_capacity`, `heat_capacity_held` (always false; kept for one release), `cp_species`, `cp_source` (provenance of the Cp polynomial). The manifest is `{cp_reference, components}`: `cp_reference` names the table the polynomials come from |
 
 Units: the parser accepts any LLNL-units symbol with an SI prefix, combined as described in

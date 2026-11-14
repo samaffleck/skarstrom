@@ -39,6 +39,9 @@ def model_kinds() -> Dict[str, List[Dict[str, Any]]]:
     presets). The rate-coefficient kind ``series_resistance`` also has
     ``resistances`` (tag, label, parent, scaled_by_capacity, parameters, LaTeX
     ``fragments`` per shape, source), ``capacity_modes`` and ``presets``.
+    The kinds of the layer closure families (dispersion, heat_dispersion,
+    internal_heat_transfer, external_heat_transfer) also have ``layer_kinds``:
+    the layer kinds (packed, monolith, laminate) they may be set on.
     Families: rate_model, rate_coefficient, momentum, dispersion,
     heat_dispersion, internal_heat_transfer, external_heat_transfer,
     particle_heat_transfer, boundary, stream, profile, flow, pump,
