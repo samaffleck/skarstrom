@@ -134,6 +134,12 @@ struct KindDescriptor {
   std::vector<ResistanceDescriptor> resistances;       // series_resistance only, in series order
   std::vector<CapacityModeDescriptor> capacity_modes;  // series_resistance only, CapacityFactorMode order
   std::vector<PresetDescriptor> presets;               // series_resistance only
+  // The layer kinds (deck_builder.h LayerKinds tags: "packed", "monolith",
+  // "laminate") the kind may be set on: filled for the per-layer closure
+  // families (LayerClosureFamily), empty for the others. Bed::PerformChecks
+  // refuses a closure on a layer kind it does not list (test_deck_view.cpp
+  // keeps the two equal).
+  std::vector<std::string> layer_kinds;
   const KindParameter* Find(const std::string& name) const;
   const ResistanceDescriptor* FindResistance(const std::string& tag) const;
   const PresetDescriptor* FindPreset(const std::string& tag) const;
@@ -168,6 +174,12 @@ const char* ModelFamilyName(ModelFamily family);
 const std::vector<KindDescriptor>& KindDescriptors(ModelFamily family);
 // The tags of a family, in enum order.
 const std::vector<std::string>& KindTags(ModelFamily family);
+// Whether the family is a per-layer closure (dispersion, heat dispersion,
+// internal and external heat transfer): its kinds carry layer_kinds.
+bool LayerClosureFamily(ModelFamily family);
+// Whether `kind` of a layer-closure family may be set on a layer of kind
+// `layer_kind` (a LayerKinds tag). True for any kind of another family.
+bool KindAcceptsLayer(ModelFamily family, const std::string& kind, const std::string& layer_kind);
 // The descriptor with this tag, or nullptr.
 const KindDescriptor* FindKind(ModelFamily family, const std::string& tag);
 // The descriptor at enum value `index`, or nullptr when out of range.

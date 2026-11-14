@@ -397,6 +397,7 @@ namespace adsim {
           ps.PushBack(pv, a);
         }
         Set(v, "parameters", std::move(ps), a);
+        if (LayerClosureFamily(family)) Set(v, "layer_kinds", StrList(k.layer_kinds, a), a);
         if (!k.resistances.empty()) {
           Value rs(rapidjson::kArrayType);
           for (const ResistanceDescriptor& r : k.resistances) {
