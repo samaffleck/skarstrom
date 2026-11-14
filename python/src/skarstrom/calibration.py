@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -250,10 +250,7 @@ def _parameter_to_engine(p: Parameter, sim: "Simulation") -> Dict[str, Any]:
 # ---- the result -----------------------------------------------------------------
 
 def _none_to_nan(x: Any) -> float:
-    # Every NaN as the one math.nan object, so that results compare equal
-    # field by field (a dataclass compares tuples, which check identity first).
-    v = math.nan if x is None else float(x)
-    return math.nan if v != v else v
+    return math.nan if x is None else float(x)
 
 
 def _nan_to_none(x: Any) -> Any:
@@ -303,6 +300,21 @@ class Estimate:
     bootstrap_std_error: float = math.nan
     interval: Tuple[float, float] = (math.nan, math.nan)
     bootstrap_at_bound: float = math.nan
+
+    def __eq__(self, other: object) -> bool:
+        # Field by field, with NaN equal to NaN (an unavailable value is the
+        # same in a result and its JSON round trip).
+        if not isinstance(other, Estimate):
+            return NotImplemented
+
+        def same(a: Any, b: Any) -> bool:
+            if isinstance(a, tuple) and isinstance(b, tuple):
+                return len(a) == len(b) and all(same(x, y) for x, y in zip(a, b))
+            if isinstance(a, float) and isinstance(b, float) and math.isnan(a) and math.isnan(b):
+                return True
+            return a == b
+
+        return all(same(getattr(self, f.name), getattr(other, f.name)) for f in fields(self))
 
     @property
     def at_bound(self) -> bool:
