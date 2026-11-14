@@ -61,7 +61,7 @@ $$
 \text{Electrical Energy} = \frac{E_{\text{total}}}{n_{\text{product}}\thinspace M} \quad \left[\frac{\text{J}}{\text{kg}}\right]
 $$
 
-where $E_{\text{total}}$ is the sum over all steps of the time-integrated compressor/pump power. Step [energy sources](energy-balance.md#energy-source-heating-cooling) (heaters and coolers, as in a TSA cycle) are **not** included: their heat is the thermal energy and cooling duty below.
+where $E_{\text{total}}$ is the sum over all steps and endpoints of the time-integrated compressor and vacuum-pump power, $\int W\,dt$, with $W$ the pump power of [Pumps: compressors and vacuum pumps](boundary-conditions.md#pumps-compressors-and-vacuum-pumps). Step [energy sources](energy-balance.md#energy-source-heating-cooling) (heaters and coolers, as in a TSA cycle) are **not** included: their heat is the thermal energy and cooling duty below.
 
 `energy_consumption` is the original name of this KPI and keeps its meaning: it is the electrical energy, the same value as `electrical_energy`, in KPI records, sensitivity outputs (`Component.energy_consumption` or `Component.electrical_energy`), optimiser objectives and the cost estimate's electricity cost. Decks and scripts that use it are unchanged. It is undefined (`nan`) exactly when no net product is drawn.
 
@@ -83,7 +83,13 @@ $$
 \text{Production Rate} = \frac{n_{\text{product, out}} - n_{\text{product, recycled}}}{t_{\text{cycle}}} \quad \left[\frac{\text{mol}}{\text{s}}\right]
 $$
 
-where $n_{\text{product}} = n_{\text{product, out}} - n_{\text{product, recycled}}$ is the net product, $M$ is the product molar mass, $t_{\text{cycle}}$ the cycle time, $m_{\text{adsorbent}}$ the total adsorbent mass, and $V_{\text{bed}}$ the total bed volume.
+where $n_{\text{product}} = n_{\text{product, out}} - n_{\text{product, recycled}}$ is the net product, $M$ is the product molar mass, $t_{\text{cycle}}$ the cycle time, and $V_{\text{bed}}$ the volume of the packed bed. $m_{\text{adsorbent}}$ is the mass of **all** the solids in the bed:
+
+$$
+m_{\text{adsorbent}} = \sum_{\text{layers}} A\, L\, (1 - \varepsilon_b)\, \rho_{mix}
+$$
+
+with $A$ the bed cross-section, $L$ the layer length, $\varepsilon_b$ its void fraction (the open frontal area of a structured layer) and $\rho_{mix}$ its mixture solid density ([Mixed Adsorbent Layers](mixed-layers.md)). It includes inert solids: the diluent of a mixed layer (glass beads, for example) and every all-inert spacer layer. The space-time yield of the [reaction KPIs](#reaction-kpis) divides by the catalyst mass alone.
 
 > **Electrical Energy requires compression power.** For the electrical energy KPI to be non-zero, enable **Calculate pump power** (or use a pump device) on the [boundary conditions](boundary-conditions.md#pumps-compressors-and-vacuum-pumps) that do work — pressurisation, blowdown, evacuation — and set their efficiency and energy models.
 
