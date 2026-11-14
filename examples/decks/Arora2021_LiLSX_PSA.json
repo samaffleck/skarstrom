@@ -2495,7 +2495,7 @@
                         {
                             "cereal_class_version": 1,
                             "Step": 0,
-                            "Endpoint": "",
+                            "Endpoint": "Air feed",
                             "Location": 1,
                             "Step_ID": 1,
                             "Endpoint_ID": 1
@@ -2513,7 +2513,7 @@
                     "Recycle_Endpoints": [
                         {
                             "Step": 2,
-                            "Endpoint": "",
+                            "Endpoint": "Product purge",
                             "Location": 0,
                             "Step_ID": 3,
                             "Endpoint_ID": 5
