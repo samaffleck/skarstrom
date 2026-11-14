@@ -134,6 +134,18 @@ namespace adsim {
       return nullptr;
     }
 
+    CycleEndpointSummary* FindSummaryOnBC(IBoundaryCondition* bc, size_t endpoint_id) {
+      if (!bc || endpoint_id == 0) return nullptr;
+      if (auto* fbc = dynamic_cast<FlowBoundaryCondition*>(bc)) {
+        for (auto& stream : fbc->streams_) {
+          if (stream && stream->endpoint_id_ == endpoint_id) return &stream->cycle_summary_;
+        }
+      } else if (auto* pbc = dynamic_cast<PressureBoundaryCondition*>(bc)) {
+        if (pbc->endpoint_id_ == endpoint_id) return &pbc->cycle_summary_;
+      }
+      return nullptr;
+    }
+
     // KPI endpoints: a flow stream is named by its stream name; a pressure
     // boundary is named to MATCH the BoundaryLog key produced by
     // GetAllBoundaryStreams ("<step> Pressure Boundary <Top|Bottom>") so that
@@ -178,6 +190,11 @@ namespace adsim {
   CycleEndpointSummary* Step::FindSummaryForEndpoint(const std::string& endpoint_name) {
     if (auto* s = FindSummaryOnBC(top_boundary_condition_.get(), endpoint_name)) return s;
     return FindSummaryOnBC(bottom_boundary_condition_.get(), endpoint_name);
+  }
+
+  CycleEndpointSummary* Step::FindSummaryForEndpoint(size_t endpoint_id) {
+    if (auto* s = FindSummaryOnBC(top_boundary_condition_.get(), endpoint_id)) return s;
+    return FindSummaryOnBC(bottom_boundary_condition_.get(), endpoint_id);
   }
 
   std::vector<Step::Endpoint> Step::GetEndpoints() const {

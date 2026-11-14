@@ -1206,6 +1206,27 @@ bool SetProfileKind(UserData& data, size_t endpoint_id, ProfileTarget target, Bo
   return true;
 }
 
+bool SetHeatingMediumProfileKind(UserData& data, size_t step_id, BoundaryValueType kind, std::string& err) {
+  Step* step = StepOrError(data, step_id, err);
+  if (!step) return false;
+  if (!KindAt(ModelFamily::Profile, static_cast<std::size_t>(kind))) return BadKind(err, "profile", static_cast<int>(kind));
+  HeatingMedium& m = step->heating_medium_;
+  if (!m.enabled_) {
+    err = "step " + std::to_string(step_id) + " ('" + step->step_name_ + "') has no heating medium (it is not enabled)";
+    return false;
+  }
+  if (InletTemperatureProfileType(m.temperature_profile_.get()) == kind) return true;
+  if (kind == BoundaryValueType::CONSTANT) {
+    m.temperature_profile_.reset();  // the constant is the medium's temperature
+    return true;
+  }
+  auto fresh = CreateInletTemperatureProfile(kind, m.temperature_.Get(), step->step_time_.Get());
+  if (!fresh) fresh = CreateBoundaryValue(kind);
+  if (m.temperature_profile_) CarryProfile(m.temperature_profile_.get(), fresh.get(), true);
+  m.temperature_profile_ = std::move(fresh);
+  return true;
+}
+
 namespace {
 
 // The pump slot of an endpoint, or nullptr with err.

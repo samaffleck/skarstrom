@@ -166,6 +166,13 @@ namespace adsim {
     // it is kPressureBoundaryEndpointName.
     CycleEndpointSummary* FindSummaryForEndpoint(const std::string& endpoint_name);
 
+    // Returns the summary attached to the endpoint with this stable ID
+    // (endpoint_id_ of a flow stream or pressure boundary; Endpoint::id in
+    // GetEndpoints()), or nullptr if no endpoint of this step has it. The ID
+    // does not change when a stream is renamed. ID 0 means "unassigned" and
+    // never matches.
+    CycleEndpointSummary* FindSummaryForEndpoint(size_t endpoint_id);
+
     // One logged endpoint of the step (a flow stream or a pressure boundary)
     // in BoundaryLog order: the bottom boundary condition's endpoints, then
     // the top's, streams in their order (GetAllBoundaryStreams(const Step&)).
