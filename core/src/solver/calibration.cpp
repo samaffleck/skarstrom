@@ -12,6 +12,7 @@
 #include <cmath>
 #include <fstream>
 #include <memory>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -31,6 +32,7 @@ const char* ScaleName(Scale s) { return s == Scale::Log ? "log" : "linear"; }
 const char* SharingName(Sharing s) { return s == Sharing::PerCase ? "per_case" : "shared"; }
 const char* SolverName(Solver s) { return s == Solver::Global ? "global" : "least_squares"; }
 const char* DifferenceName(Difference d) { return d == Difference::Central ? "central" : "forward"; }
+const char* UncertaintyName(Uncertainty u) { return u == Uncertainty::Bootstrap ? "bootstrap" : "jacobian"; }
 
 const char* StopReasonName(StopReason r) {
   switch (r) {
@@ -455,8 +457,22 @@ class Engine {
         r.push_back(Weighted(ids[k], i, y_sim));
       }
     }
+    if (offset_.size() > 0) {
+      const auto o = static_cast<Eigen::Index>(offset_start_[c]);
+      for (size_t i = 0; i < r.size(); ++i) r[i] += offset_(o + static_cast<Eigen::Index>(i));
+    }
     return true;
   }
+
+  // A constant added to the residual vector (a bootstrap refit's data);
+  // empty: none. The active sets must be fixed.
+  void SetResidualOffset(Vector offset) {
+    offset_start_ = CaseOffsets();
+    offset_ = std::move(offset);
+  }
+  void ClearResidualOffset() { offset_ = Vector(); }
+  // Record() neither traces nor reports progress while quiet.
+  void SetQuiet(bool quiet) { quiet_ = quiet; }
 
   // Evaluates every case at z (one batch).
   PointEval EvaluatePoint(const std::vector<double>& z) {
@@ -632,6 +648,7 @@ class Engine {
   }
 
   void Record(Solver solver, int iteration, double objective, const std::vector<double>& z) {
+    if (quiet_) return;
     TracePoint t;
     t.solver = solver;
     t.iteration = iteration;
@@ -769,6 +786,9 @@ class Engine {
   std::vector<std::vector<size_t>> active_;         // [dataset] -> point indices
   bool have_active_ = false;
   bool cancelled_ = false;
+  bool quiet_ = false;
+  Vector offset_;                    // added to the residuals (bootstrap refits)
+  std::vector<size_t> offset_start_;  // [case] -> first residual of the case
   int threads_ = 1;
 };
 
@@ -780,12 +800,13 @@ struct SolverState {
   bool has_jacobian = false;
   StopReason stop = StopReason::Converged;
   std::string message;
+  int budget_start = 0;  // the runs made before this solver's budget began
 };
 
 void LeastSquares(Engine& eng, const Options& opt, Result& result, SolverState& st) {
   const size_t p = eng.NUnknowns();
   const int n_cases = static_cast<int>(eng.NCases());
-  auto budget_left = [&](int runs) { return eng.Simulations() + runs <= opt.max_simulations; };
+  auto budget_left = [&](int runs) { return eng.Simulations() - st.budget_start + runs <= opt.max_simulations; };
   auto stop = [&](StopReason r, std::string m) {
     st.stop = r;
     st.message = std::move(m);
@@ -797,12 +818,14 @@ void LeastSquares(Engine& eng, const Options& opt, Result& result, SolverState& 
     if (!st.best.ok) return stop(StopReason::StartFailed, "the run at the starting point failed: " + st.best.message);
     eng.Record(Solver::LeastSquares, 0, st.best.objective, st.best.z);
   }
-  st.has_jacobian = false;
-  if (!budget_left(eng.JacobianCost()))
-    return stop(StopReason::Budget, "the budget does not allow a Jacobian (" + std::to_string(eng.JacobianCost()) +
-                                        " runs)");
-  if (!eng.Jacobian(st.best, st.J)) return stop(StopReason::Cancelled, "cancelled");
-  st.has_jacobian = true;
+  // A caller may hand over the Jacobian at the start (a bootstrap refit).
+  if (!st.has_jacobian) {
+    if (!budget_left(eng.JacobianCost()))
+      return stop(StopReason::Budget, "the budget does not allow a Jacobian (" +
+                                          std::to_string(eng.JacobianCost()) + " runs)");
+    if (!eng.Jacobian(st.best, st.J)) return stop(StopReason::Cancelled, "cancelled");
+    st.has_jacobian = true;
+  }
 
   double lambda = -1.0, nu = 2.0;
   bool rejected = false;  // the last step was rejected
@@ -1060,6 +1083,180 @@ void Finish(const Problem& problem, Engine& eng, const SolverState& st, Result& 
   }
 }
 
+// ---- the bootstrap -----------------------------------------------------------
+
+// A uniform index in [0, n) from the generator's raw output (rejection, so it
+// is unbiased; std::uniform_int_distribution differs between libraries).
+size_t DrawIndex(std::mt19937_64& rng, size_t n) {
+  const std::uint64_t range = static_cast<std::uint64_t>(n);
+  const std::uint64_t limit = std::numeric_limits<std::uint64_t>::max() -
+                              std::numeric_limits<std::uint64_t>::max() % range;
+  std::uint64_t v = rng();
+  while (v >= limit) v = rng();
+  return static_cast<size_t>(v % range);
+}
+
+// The q-quantile of sorted values (linear interpolation between order
+// statistics, the default of R and NumPy).
+double Quantile(const std::vector<double>& sorted, double q) {
+  if (sorted.empty()) return kNaN;
+  const double h = q * static_cast<double>(sorted.size() - 1);
+  const auto lo = static_cast<size_t>(std::floor(h));
+  const size_t hi = std::min(lo + 1, sorted.size() - 1);
+  return sorted[lo] + (h - static_cast<double>(lo)) * (sorted[hi] - sorted[lo]);
+}
+
+std::string Number(double v) {
+  std::ostringstream os;
+  os.precision(4);
+  os << v;
+  return os.str();
+}
+
+// Residual bootstrap refits from the estimate (see the header). Fills the
+// bootstrap fields of `result`, whose parameters Finish has set.
+void Bootstrap(const Problem& problem, Engine& eng, const Options& opt, const SolverState& fit, Result& result) {
+  const size_t p = problem.Unknowns().size();
+  const auto n = static_cast<size_t>(fit.best.r.size());
+  result.interval_level = opt.interval_level;
+  result.bootstrap_correlation.assign(p, std::vector<double>(p, kNaN));
+  if (n <= p) {
+    result.notes.push_back("the bootstrap needs more residuals (" + std::to_string(n) + ") than parameters (" +
+                           std::to_string(p) + "): it was not made");
+    return;
+  }
+
+  // The residual positions of each dataset, in the order of the residual vector.
+  std::vector<std::vector<size_t>> strata;
+  {
+    size_t k = 0;
+    for (size_t c = 0; c < problem.Cases().size(); ++c)
+      for (size_t d : eng.CaseDatasets()[c]) {
+        std::vector<size_t> idx;
+        for (size_t i = 0; i < eng.ActiveSets()[d].size(); ++i) idx.push_back(k++);
+        strata.push_back(std::move(idx));
+      }
+  }
+  // Centred on each dataset's mean and inflated for the p fitted values.
+  const double inflate = std::sqrt(static_cast<double>(n) / static_cast<double>(n - p));
+  Vector pool = fit.best.r;
+  for (const auto& idx : strata) {
+    if (idx.empty()) continue;
+    double mean = 0.0;
+    for (size_t k : idx) mean += fit.best.r(static_cast<Eigen::Index>(k));
+    mean /= static_cast<double>(idx.size());
+    for (size_t k : idx)
+      pool(static_cast<Eigen::Index>(k)) = inflate * (fit.best.r(static_cast<Eigen::Index>(k)) - mean);
+  }
+
+  std::mt19937_64 rng(opt.bootstrap_seed);
+  Options refit = opt;
+  refit.max_iterations = opt.bootstrap_max_iterations;
+  std::vector<std::vector<double>> z_all;
+  std::vector<int> at_bound(p, 0);
+  eng.SetQuiet(true);
+  for (int b = 1; b <= opt.bootstrap_samples; ++b) {
+    if (eng.PollCancel()) break;
+    Vector e(static_cast<Eigen::Index>(n));
+    for (const auto& idx : strata)
+      for (size_t k : idx) e(static_cast<Eigen::Index>(k)) = pool(static_cast<Eigen::Index>(idx[DrawIndex(rng, idx.size())]));
+    eng.SetResidualOffset(e - fit.best.r);
+    // The runs at the estimate are unchanged, so its residuals are e.
+    SolverState st;
+    st.best = fit.best;
+    st.best.r = e;
+    st.best.objective = e.squaredNorm();
+    st.J = fit.J;
+    st.has_jacobian = true;
+    st.budget_start = eng.Simulations();
+    Result scratch;
+    LeastSquares(eng, refit, scratch, st);
+    if (st.stop == StopReason::Cancelled || eng.Cancelled()) break;
+    if (st.stop == StopReason::Iterations || st.stop == StopReason::Budget) ++result.bootstrap_unconverged;
+    z_all.push_back(st.best.z);
+    std::vector<double> x = eng.Values(st.best.z);
+    for (size_t j = 0; j < p; ++j)
+      if (st.best.z[j] <= kBoundTolerance || st.best.z[j] >= 1.0 - kBoundTolerance) ++at_bound[j];
+    result.bootstrap_estimates.push_back(x);
+    if (opt.progress) {
+      Progress pr;
+      pr.solver = Solver::LeastSquares;
+      pr.iteration = b;
+      pr.objective = st.best.objective;
+      pr.values = x;
+      pr.simulations = eng.Simulations();
+      pr.bootstrap_sample = b;
+      opt.progress(pr);
+    }
+  }
+  eng.SetQuiet(false);
+  eng.ClearResidualOffset();
+  const int m = static_cast<int>(z_all.size());
+  result.bootstrap_samples = m;
+  if (m < opt.bootstrap_samples) {
+    result.cancelled = true;
+    result.notes.push_back("the bootstrap was cancelled after " + std::to_string(m) + " of " +
+                           std::to_string(opt.bootstrap_samples) + " refits");
+  }
+  if (result.bootstrap_unconverged > 0)
+    result.notes.push_back(std::to_string(result.bootstrap_unconverged) + " of " + std::to_string(m) +
+                           " bootstrap refits stopped on their iteration or run budget (kept as they were); raise "
+                           "bootstrap_max_iterations if this is many");
+  if (m < 2) {
+    if (m < opt.bootstrap_samples)
+      result.notes.push_back("fewer than two bootstrap refits: no bootstrap intervals");
+    return;
+  }
+
+  // Per Unknown: spread, interval, bounds. The scaled values (x, ln x) for the
+  // correlations.
+  const double tail = 0.5 * (1.0 - opt.interval_level);
+  Matrix S(m, static_cast<Eigen::Index>(p));
+  for (size_t j = 0; j < p; ++j) {
+    const Unknown& u = problem.Unknowns()[j];
+    std::vector<double> xs;
+    for (int b = 0; b < m; ++b) {
+      xs.push_back(result.bootstrap_estimates[static_cast<size_t>(b)][j]);
+      S(b, static_cast<Eigen::Index>(j)) = ToScaled(u, xs.back());
+    }
+    double mean = 0.0;
+    for (double v : xs) mean += v;
+    mean /= m;
+    double ss = 0.0;
+    for (double v : xs) ss += (v - mean) * (v - mean);
+    ParameterEstimate& e = result.parameters[j];
+    e.bootstrap_standard_error = std::sqrt(ss / (m - 1));
+    std::sort(xs.begin(), xs.end());
+    e.interval_lower = Quantile(xs, tail);
+    e.interval_upper = Quantile(xs, 1.0 - tail);
+    e.bootstrap_at_bound = static_cast<double>(at_bound[j]) / m;
+    if (e.at_lower || e.at_upper)
+      result.notes.push_back(e.label + " is at its " + std::string(e.at_lower ? "lower" : "upper") +
+                             " bound: its bootstrap interval is one-sided (the refits can only move inwards) and its "
+                             "Jacobian standard error is only a local statement");
+    else if (at_bound[j] > 0)
+      result.notes.push_back(e.label + ": " + std::to_string(at_bound[j]) + " of " + std::to_string(m) +
+                             " bootstrap refits ended at a bound, which cuts the interval there");
+    const double se = e.standard_error;
+    if (std::isfinite(se) && se > 0.0 && e.bootstrap_standard_error > 0.0) {
+      const double ratio = e.bootstrap_standard_error / se;
+      if (ratio > 2.0 || ratio < 0.5)
+        result.notes.push_back("the bootstrap and Jacobian standard errors of " + e.label + " differ by a factor of " +
+                               Number(ratio > 1.0 ? ratio : 1.0 / ratio) +
+                               ": the linearisation does not hold over the uncertainty (a bound, strongly correlated "
+                               "parameters or a curved objective); prefer the bootstrap interval");
+    }
+  }
+  const Matrix centred = S.rowwise() - S.colwise().mean();
+  const Matrix cov = centred.transpose() * centred / static_cast<double>(m - 1);
+  for (size_t i = 0; i < p; ++i)
+    for (size_t j = 0; j < p; ++j) {
+      const auto ii = static_cast<Eigen::Index>(i), jj = static_cast<Eigen::Index>(j);
+      const double den = std::sqrt(cov(ii, ii) * cov(jj, jj));
+      result.bootstrap_correlation[i][j] = den > 0.0 ? cov(ii, jj) / den : kNaN;
+    }
+}
+
 void CheckOptions(const Options& o) {
   if (o.max_simulations < 1) throw std::invalid_argument("max_simulations must be >= 1");
   if (o.max_iterations < 0) throw std::invalid_argument("max_iterations must be >= 0");
@@ -1069,6 +1266,12 @@ void CheckOptions(const Options& o) {
   if (o.solver == Solver::Global && o.global_evaluations < 1)
     throw std::invalid_argument("global_evaluations must be >= 1");
   if (o.cache_capacity < 1) throw std::invalid_argument("cache_capacity must be >= 1");
+  if (o.uncertainty == Uncertainty::Bootstrap) {
+    if (o.bootstrap_samples < 2) throw std::invalid_argument("bootstrap_samples must be >= 2");
+    if (o.bootstrap_max_iterations < 1) throw std::invalid_argument("bootstrap_max_iterations must be >= 1");
+    if (!(o.interval_level > 0.0 && o.interval_level < 1.0))
+      throw std::invalid_argument("interval_level must be in (0, 1)");
+  }
 }
 
 std::vector<double> StartPoint(const Problem& problem) {
@@ -1099,8 +1302,10 @@ Result Calibrate(const Problem& problem, const Options& options) {
     LeastSquares(eng, options, result, st);
   }
 
-  // The Jacobian for the standard errors, when the solver has none at its estimate.
-  if (options.standard_errors && st.best.ok && !st.has_jacobian && st.stop != StopReason::Cancelled &&
+  // The Jacobian for the standard errors (and the bootstrap's first steps),
+  // when the solver has none at its estimate.
+  const bool bootstrap = options.uncertainty == Uncertainty::Bootstrap;
+  if ((options.standard_errors || bootstrap) && st.best.ok && !st.has_jacobian && st.stop != StopReason::Cancelled &&
       !eng.Cancelled()) {
     if (eng.Jacobian(st.best, st.J)) {
       st.has_jacobian = true;
@@ -1110,6 +1315,9 @@ Result Calibrate(const Problem& problem, const Options& options) {
     }
   }
   Finish(problem, eng, st, result);
+  result.uncertainty = options.uncertainty;
+  if (bootstrap && result.Ok() && st.has_jacobian && !result.cancelled && !eng.Cancelled())
+    Bootstrap(problem, eng, options, st, result);
   result.wall_time_s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
   return result;
 }

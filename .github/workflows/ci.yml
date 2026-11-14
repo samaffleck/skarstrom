@@ -361,6 +361,52 @@ jobs:
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: JOBS=4 bash scripts/test_subproject_consumer.sh
 
+  # ThreadSanitizer on the tests that run simulations in parallel threads in
+  # one process: the calibration's Jacobian columns and candidates (each run on
+  # its own Simulation) and the warm-start state cache. The whole tree is built
+  # with -fsanitize=thread (ADSIM_SANITIZE) so a race inside a dependency is
+  # seen too; only the test executable is built, and only these suites run.
+  tsan:
+    name: ThreadSanitizer (threaded tests)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      TSAN_OPTIONS: halt_on_error=1 second_deadlock_stack=1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      # The runner's kernel randomises mmap addresses with more bits than
+      # ThreadSanitizer's shadow memory layout allows ("unexpected memory
+      # mapping"); 28 bits is the long-standing default.
+      - name: Allow ThreadSanitizer's memory layout
+        run: sudo sysctl vm.mmap_rnd_bits=28
+      - name: Compiler cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: tsan
+          max-size: 1G
+      - name: Configure
+        run: >
+          cmake -S . -B build/tsan -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          -DADSIM_BUILD_TESTS=ON -DADSIM_BUILD_BENCH=OFF -DADSIM_INSTALL=OFF -DADSIM_SANITIZE=thread
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      - name: Build the test executable
+        run: cmake --build build/tsan --target AdsorptionSimulatorTests --parallel 4
+      - name: Test (calibration and warm starts under ThreadSanitizer)
+        working-directory: core
+        run: >
+          ../build/tsan/core/test/AdsorptionSimulatorTests
+          --gtest_filter='Calibration.*:CycleStateCache.*:WarmStartCache.*'
+      - name: Remove test output
+        if: always()
+        run: rm -rf core/Results
+
   docs:
     name: Docs and generated pages
     runs-on: ubuntu-24.04

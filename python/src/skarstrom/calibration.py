@@ -63,6 +63,7 @@ CancelToken = _core.CalibrationCancel
 
 METHODS = ("least_squares", "global")
 DIFFERENCES = ("forward", "central")
+UNCERTAINTIES = ("jacobian", "bootstrap")
 SCALES = ("linear", "log")
 
 DatasetSpec = Union[str, int, Tuple[Union[str, int], Optional[float]]]
@@ -249,7 +250,10 @@ def _parameter_to_engine(p: Parameter, sim: "Simulation") -> Dict[str, Any]:
 # ---- the result -----------------------------------------------------------------
 
 def _none_to_nan(x: Any) -> float:
-    return math.nan if x is None else float(x)
+    # Every NaN as the one math.nan object, so that results compare equal
+    # field by field (a dataclass compares tuples, which check identity first).
+    v = math.nan if x is None else float(x)
+    return math.nan if v != v else v
 
 
 def _nan_to_none(x: Any) -> Any:
@@ -276,6 +280,12 @@ class Estimate:
     parameter's SI ``unit``. ``std_error`` is NaN when the data cannot fix the
     value (see ``CalibrationResult.notes``); at a bound it is only a local
     statement (``at_bound``).
+
+    With ``uncertainty="bootstrap"``: ``bootstrap_std_error`` (the standard
+    deviation of the refitted values), ``interval`` (the percentile interval
+    at the result's ``interval_level``, as ``(lower, upper)``) and
+    ``bootstrap_at_bound`` (the share of refits that ended at a bound). They
+    are NaN otherwise.
     """
 
     name: str            # the path, with " [<case name>]" for a per-case value
@@ -290,6 +300,9 @@ class Estimate:
     at_upper: bool
     scale: str
     unit: str = ""
+    bootstrap_std_error: float = math.nan
+    interval: Tuple[float, float] = (math.nan, math.nan)
+    bootstrap_at_bound: float = math.nan
 
     @property
     def at_bound(self) -> bool:
@@ -342,7 +355,10 @@ class CalibrationResult:
     :class:`DatasetFit` each), ``objective`` (S at the estimate), ``sigma2``
     (S / (N - p)), ``objective_trace``, ``simulations``, ``failed_simulations``,
     ``iterations``, ``wall_time_s``, ``method``, ``stop_reason``, ``message``,
-    ``notes``, ``ok`` and ``cancelled``.
+    ``notes``, ``ok`` and ``cancelled``. With ``uncertainty="bootstrap"`` also
+    ``interval_level``, ``bootstrap_samples`` (refits made),
+    ``bootstrap_unconverged``, ``bootstrap_estimates`` (refits x estimates,
+    SI units) and ``bootstrap_correlation``.
     """
 
     def __init__(self, data: Dict[str, Any], cases: Optional[List[Case]] = None) -> None:
@@ -353,7 +369,10 @@ class CalibrationResult:
                      value=_none_to_nan(p["estimate"]), std_error=_none_to_nan(p["standard_error"]),
                      start=_none_to_nan(p["initial"]), lower=_none_to_nan(p["lower"]),
                      upper=_none_to_nan(p["upper"]), at_lower=bool(p["at_lower"]), at_upper=bool(p["at_upper"]),
-                     scale=p["scale"], unit=p.get("unit", ""))
+                     scale=p["scale"], unit=p.get("unit", ""),
+                     bootstrap_std_error=_none_to_nan(p.get("bootstrap_standard_error")),
+                     interval=(_none_to_nan(p.get("interval_lower")), _none_to_nan(p.get("interval_upper"))),
+                     bootstrap_at_bound=_none_to_nan(p.get("bootstrap_at_bound")))
             for p in data["parameters"]]
         n = len(self.parameters)
         corr = data["correlation"]
@@ -384,6 +403,18 @@ class CalibrationResult:
         self.ok: bool = bool(data["ok"])
         self.calibrated_decks: List[str] = list(data["calibrated_decks"])
         self.case_names: List[str] = list(data.get("case_names", []))
+        self.uncertainty: str = data.get("uncertainty", "jacobian")
+        self.interval_level: float = _none_to_nan(data.get("interval_level"))
+        self.bootstrap_samples: int = int(data.get("bootstrap_samples", 0))
+        self.bootstrap_unconverged: int = int(data.get("bootstrap_unconverged", 0))
+        boot = data.get("bootstrap_estimates")
+        self.bootstrap_estimates: np.ndarray = (
+            np.asarray([[_none_to_nan(v) for v in row] for row in boot], dtype=float).reshape(-1, n)
+            if boot is not None and len(boot) else np.empty((0, n)))
+        bcorr = data.get("bootstrap_correlation")
+        self.bootstrap_correlation: np.ndarray = (
+            np.asarray([[_none_to_nan(v) for v in row] for row in bcorr], dtype=float).reshape(n, n)
+            if bcorr is not None and len(bcorr) else np.full((n, n), math.nan))
 
     # -- reading -----------------------------------------------------------------------
     @property
@@ -478,12 +509,19 @@ class CalibrationResult:
             return lines
 
         rows = []
+        boot = self.uncertainty == "bootstrap"
         for p in self.parameters:
             rel = f"{100 * p.relative_error:.3g} %" if math.isfinite(p.relative_error) else "n/a"
             flag = "at lower bound" if p.at_lower else "at upper bound" if p.at_upper else ""
-            rows.append([p.name, _fmt(p.value), _fmt(p.std_error), rel, p.unit, _fmt(p.start),
-                         f"{_fmt(p.lower)} .. {_fmt(p.upper)}", p.scale, flag])
-        lines = column(rows, ["parameter", "estimate", "std error", "rel.", "unit", "start", "bounds", "scale", ""])
+            row = [p.name, _fmt(p.value), _fmt(p.std_error), rel]
+            if boot:
+                row += [_fmt(p.bootstrap_std_error), f"{_fmt(p.interval[0])} .. {_fmt(p.interval[1])}"]
+            rows.append(row + [p.unit, _fmt(p.start), f"{_fmt(p.lower)} .. {_fmt(p.upper)}", p.scale, flag])
+        header = ["parameter", "estimate", "std error", "rel."]
+        if boot:
+            level = f"{100 * self.interval_level:g} %" if math.isfinite(self.interval_level) else "interval"
+            header += ["bootstrap se", f"{level} interval"]
+        lines = column(rows, header + ["unit", "start", "bounds", "scale", ""])
         lines.append("")
         rows = [[d.name, d.case_name, str(d.points) + (f" (+{d.skipped} skipped)" if d.skipped else ""),
                  _fmt(d.rmse), _fmt(d.nrmse), _fmt(d.max_abs_error), _fmt(d.weight)] for d in self.datasets]
@@ -501,6 +539,9 @@ class CalibrationResult:
         lines.append(f"{self.method}{' + least_squares' if self.refined else ''}: {self.stop_reason} after "
                      f"{self.iterations} iterations, {self.simulations} simulations{failed}, "
                      f"{self.wall_time_s:.1f} s")
+        if boot:
+            lines.append(f"bootstrap: {self.bootstrap_samples} refits"
+                         + (f" ({self.bootstrap_unconverged} unconverged)" if self.bootstrap_unconverged else ""))
         lines.append(self.message)
         lines += [f"note: {n}" for n in self.notes]
         return "\n".join(lines)
@@ -520,7 +561,10 @@ class CalibrationResult:
             "parameters": [{"label": p.name, "path": p.path, "case_index": -1 if p.case is None else p.case,
                             "estimate": p.value, "standard_error": p.std_error, "initial": p.start,
                             "lower": p.lower, "upper": p.upper, "at_lower": p.at_lower, "at_upper": p.at_upper,
-                            "scale": p.scale, "unit": p.unit} for p in self.parameters],
+                            "scale": p.scale, "unit": p.unit,
+                            "bootstrap_standard_error": p.bootstrap_std_error,
+                            "interval_lower": p.interval[0], "interval_upper": p.interval[1],
+                            "bootstrap_at_bound": p.bootstrap_at_bound} for p in self.parameters],
             "correlation": self.correlation,
             "datasets": [{"case_index": d.case, "case_name": d.case_name, "name": d.name, "points": d.points,
                           "skipped": d.skipped, **{k: getattr(d, k) for k in _FLOATS},
@@ -533,6 +577,9 @@ class CalibrationResult:
             "notes": self.notes, "cancelled": self.cancelled, "ok": self.ok,
             "case_names": self.case_names, "case_settings": self._data.get("case_settings", []),
             "calibrated_decks": self.calibrated_decks,
+            "uncertainty": self.uncertainty, "interval_level": self.interval_level,
+            "bootstrap_samples": self.bootstrap_samples, "bootstrap_unconverged": self.bootstrap_unconverged,
+            "bootstrap_estimates": self.bootstrap_estimates, "bootstrap_correlation": self.bootstrap_correlation,
         })
 
     def to_json(self, path: Optional[str] = None, indent: Optional[int] = 1) -> str:
@@ -632,6 +679,11 @@ def calibrate(
     global_evaluations: int = 30,
     warm_start: bool = True,
     standard_errors: bool = True,
+    uncertainty: str = "jacobian",
+    bootstrap_samples: int = 100,
+    bootstrap_max_iterations: int = 10,
+    bootstrap_seed: int = 1,
+    interval_level: float = 0.95,
     progress: Optional[Callable[[Dict[str, Any]], Any]] = None,
     cancel: Optional[CancelToken] = None,
 ) -> CalibrationResult:
@@ -655,9 +707,19 @@ def calibrate(
     ``warm_start`` starts a cyclic deck's runs from the nearest cached
     steady state.
 
+    ``uncertainty="bootstrap"`` adds a residual bootstrap after the fit:
+    ``bootstrap_samples`` refits (each at most ``bootstrap_max_iterations``
+    iterations, from the estimate) to data made from the fitted curve and
+    resampled residuals, drawn with ``bootstrap_seed``. Each estimate then
+    has ``bootstrap_std_error`` and a percentile ``interval`` at
+    ``interval_level``. Use it where the Jacobian standard errors are
+    doubtful: a parameter at a bound, strongly correlated parameters. It
+    costs about ``bootstrap_samples`` times a short fit.
+
     ``progress(info)`` is called after each iteration with ``solver``,
-    ``iteration``, ``objective``, ``values`` (per estimate, SI) and
-    ``simulations``; returning ``False`` stops the fit. ``cancel`` is a
+    ``iteration``, ``objective``, ``values`` (per estimate, SI),
+    ``simulations`` and ``bootstrap_sample`` (0 during the fit, ``k`` after
+    bootstrap refit ``k``); returning ``False`` stops the fit. ``cancel`` is a
     :class:`CancelToken`. Raises ``ValueError`` for an invalid problem (an
     unknown path, a dataset that is missing or not bound to an observable,
     bad bounds), before any run.
@@ -666,6 +728,8 @@ def calibrate(
         raise ValueError(f"method is 'least_squares' or 'global'; got {method!r}")
     if differences not in DIFFERENCES:
         raise ValueError(f"differences is 'forward' or 'central'; got {differences!r}")
+    if uncertainty not in UNCERTAINTIES:
+        raise ValueError(f"uncertainty is 'jacobian' or 'bootstrap'; got {uncertainty!r}")
     if isinstance(cases, (Case, tuple)) or hasattr(cases, "to_json"):
         cases = [cases]
     case_list = [Case.of(c) for c in cases]
@@ -683,7 +747,10 @@ def calibrate(
                "max_simulations": int(max_simulations), "max_iterations": int(max_iterations),
                "ftol": float(ftol), "xtol": float(xtol), "differences": differences, "fd_step": float(fd_step),
                "global_evaluations": int(global_evaluations), "warm_start": bool(warm_start),
-               "standard_errors": bool(standard_errors)}
+               "standard_errors": bool(standard_errors), "uncertainty": uncertainty,
+               "bootstrap_samples": int(bootstrap_samples),
+               "bootstrap_max_iterations": int(bootstrap_max_iterations),
+               "bootstrap_seed": int(bootstrap_seed), "interval_level": float(interval_level)}
     raw = _core.calibrate(engine_cases, engine_params, options, progress, cancel)
     unit_of = {}
     for p in params:
