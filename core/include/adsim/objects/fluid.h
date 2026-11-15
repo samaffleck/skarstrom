@@ -381,10 +381,11 @@ namespace adsim {
   };
 
   // Display names (front ends); the registry names are "polynomial,constant".
-  // The polynomials are fitted to CoolProp's dilute-gas values (Chapman-Enskog
-  // for the few components CoolProp has no viscosity model for).
+  // The polynomials are fits to CoolProp's dilute-gas correlations, or to the
+  // NASA CEA transport data for the components CoolProp has no viscosity model
+  // for (viscosity_coefficients.h, scripts/gen_transport_coefficients.py).
   static const char* ViscosityModeList[] = {
-    "CoolProp",
+    "Polynomial",
     "User defined"
   };
 
@@ -421,10 +422,11 @@ namespace adsim {
 
     // Pure-component gas-phase viscosity mu_i(T) [Pa-s] from a hard-coded degree-4
     // polynomial per component (see viscosity_coefficients.h — generated offline
-    // from CoolProp / Chapman-Enskog, NOT refit at runtime). Calling CoolProp per
-    // cell per residual is ~20 us/call and would add minutes to a solve; a
-    // polynomial eval is ~1 ns. Gas viscosity is ~pressure-independent over
-    // PSA/TSA swings (<~1% across 0.1-10 bar), so the fit is temperature-only.
+    // by scripts/gen_transport_coefficients.py from CoolProp correlations or NASA
+    // CEA transport data, NOT refit at runtime). A polynomial eval is ~1 ns, so
+    // the solver evaluates it per cell per residual. Gas viscosity is
+    // ~pressure-independent over PSA/TSA swings (<~1% across 0.1-10 bar), so the
+    // fit is temperature-only.
     static constexpr double kViscTmin = 150.0; // [K] fit/eval window (no extrapolation)
     static constexpr double kViscTmax = 650.0; // [K]
 
@@ -445,8 +447,8 @@ namespace adsim {
 
     // Pure-component gas-phase thermal conductivity k_i(T) [W/(m.K)], same
     // hard-coded-polynomial scheme as viscosity (see thermal_conductivity_
-    // coefficients.h — CoolProp fit, or Eucken relation where CoolProp lacks a
-    // conductivity model). Same [kViscTmin, kViscTmax] evaluation window.
+    // coefficients.h — CoolProp fit or NASA CEA data, the Eucken relation where
+    // neither has a conductivity). Same [kViscTmin, kViscTmax] evaluation window.
     static double GetComponentThermalConductivity(const std::string& component, double T);
     static const std::array<double, 5>* ThermalConductivityCoeffs(const std::string& component) {
       auto it = kThermalConductivityCoefficients.find(component);
