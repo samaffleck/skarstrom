@@ -231,6 +231,72 @@ TEST(Calibration, TheSameInputsGiveTheSameResult) {
   EXPECT_EQ(one.simulations, four.simulations);
 }
 
+// ---- bootstrap intervals --------------------------------------------------------------
+
+TEST(Calibration, BootstrapIntervalsAreReproducible) {
+  // One parameter, a few cheap refits: checks the bookkeeping and that the
+  // bootstrap spread agrees with the Jacobian one where the model is nearly
+  // linear over the uncertainty (it is for the capacity alone).
+  cal::Case c = SyntheticCase({{kCapacity, 5.5}}, 5, "synthetic");
+  cal::Problem p({c}, {cal::Shared(kCapacity, 3.0, 9.0, cal::Scale::Linear, 5.6)});
+  cal::Options o = Quick();
+  o.threads = 2;
+  o.uncertainty = cal::Uncertainty::Bootstrap;
+  o.bootstrap_samples = 6;
+  o.bootstrap_max_iterations = 4;
+  o.bootstrap_seed = 42;
+  std::vector<cal::Progress> progress;
+  o.progress = [&](const cal::Progress& pr) { progress.push_back(pr); };
+  const cal::Result r = cal::Calibrate(p, o);
+  ASSERT_TRUE(r.Ok()) << r.message;
+  EXPECT_FALSE(r.cancelled);
+  EXPECT_EQ(r.uncertainty, cal::Uncertainty::Bootstrap);
+  EXPECT_EQ(r.interval_level, 0.95);
+  ASSERT_EQ(r.bootstrap_samples, 6);
+  ASSERT_EQ(r.bootstrap_estimates.size(), 6u);
+  // The trace is the fit's alone; progress adds one report per refit.
+  int reported = 0;
+  for (const auto& pr : progress) reported += pr.bootstrap_sample > 0 ? 1 : 0;
+  EXPECT_EQ(reported, 6);
+  EXPECT_EQ(progress.size(), r.trace.size() + 6);
+  const auto& e = r.parameters[0];
+  ASSERT_TRUE(std::isfinite(e.standard_error));
+  ASSERT_TRUE(std::isfinite(e.bootstrap_standard_error));
+  EXPECT_GT(e.bootstrap_standard_error, 0.0);
+  EXPECT_LT(e.bootstrap_standard_error, 3.0 * e.standard_error);
+  EXPECT_GT(e.bootstrap_standard_error, e.standard_error / 3.0);
+  EXPECT_LE(e.interval_lower, e.interval_upper);
+  EXPECT_GT(e.interval_lower, e.estimate - 4.0 * e.standard_error);
+  EXPECT_LT(e.interval_upper, e.estimate + 4.0 * e.standard_error);
+  EXPECT_EQ(e.bootstrap_at_bound, 0.0);
+  ASSERT_EQ(r.bootstrap_correlation.size(), 1u);
+  EXPECT_NEAR(r.bootstrap_correlation[0][0], 1.0, 1e-12);
+  // The refits do not change the fit itself.
+  cal::Options plain = Quick();
+  plain.threads = 2;
+  const cal::Result j = cal::Calibrate(p, plain);
+  EXPECT_EQ(j.parameters[0].estimate, e.estimate);
+  EXPECT_EQ(j.parameters[0].standard_error, e.standard_error);
+  EXPECT_EQ(j.trace.size(), r.trace.size());
+  EXPECT_TRUE(std::isnan(j.parameters[0].bootstrap_standard_error));
+  EXPECT_TRUE(j.bootstrap_estimates.empty());
+  EXPECT_EQ(j.uncertainty, cal::Uncertainty::Jacobian);
+  EXPECT_LT(j.simulations, r.simulations);
+  // The same seed draws the same data sets: the first refits repeat.
+  o.bootstrap_samples = 2;
+  o.progress = nullptr;
+  const cal::Result again = cal::Calibrate(p, o);
+  ASSERT_EQ(again.bootstrap_estimates.size(), 2u);
+  EXPECT_EQ(again.bootstrap_estimates[0][0], r.bootstrap_estimates[0][0]);
+  EXPECT_EQ(again.bootstrap_estimates[1][0], r.bootstrap_estimates[1][0]);
+  // Invalid bootstrap options are rejected before any run.
+  o.bootstrap_samples = 1;
+  EXPECT_THROW(cal::Calibrate(p, o), std::invalid_argument);
+  o.bootstrap_samples = 4;
+  o.interval_level = 1.0;
+  EXPECT_THROW(cal::Calibrate(p, o), std::invalid_argument);
+}
+
 // ---- (b) shared and per-case parameters --------------------------------------------
 
 TEST(Calibration, SharedAndPerCaseParameters) {

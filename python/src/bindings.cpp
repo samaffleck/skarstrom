@@ -11,6 +11,7 @@
 #include <map>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <type_traits>
 #include <optional>
 #include <string>
@@ -623,6 +624,16 @@ cal::Options CalOptionsFromDict(const py::dict& d) {
   if (d.contains("warm_start")) o.warm_start = d["warm_start"].cast<bool>();
   if (d.contains("cache_capacity")) o.cache_capacity = d["cache_capacity"].cast<size_t>();
   if (d.contains("standard_errors")) o.standard_errors = d["standard_errors"].cast<bool>();
+  if (d.contains("uncertainty")) {
+    const std::string u = d["uncertainty"].cast<std::string>();
+    if (u == "jacobian") o.uncertainty = cal::Uncertainty::Jacobian;
+    else if (u == "bootstrap") o.uncertainty = cal::Uncertainty::Bootstrap;
+    else throw std::invalid_argument("uncertainty is 'jacobian' or 'bootstrap'; got '" + u + "'");
+  }
+  if (d.contains("bootstrap_samples")) o.bootstrap_samples = d["bootstrap_samples"].cast<int>();
+  if (d.contains("bootstrap_max_iterations")) o.bootstrap_max_iterations = d["bootstrap_max_iterations"].cast<int>();
+  if (d.contains("bootstrap_seed")) o.bootstrap_seed = d["bootstrap_seed"].cast<std::uint64_t>();
+  if (d.contains("interval_level")) o.interval_level = d["interval_level"].cast<double>();
   return o;
 }
 
@@ -651,6 +662,10 @@ py::dict CalResultToDict(const cal::Result& r) {
     d["at_lower"] = p.at_lower;
     d["at_upper"] = p.at_upper;
     d["scale"] = cal::ScaleName(p.scale);
+    d["bootstrap_standard_error"] = p.bootstrap_standard_error;
+    d["interval_lower"] = p.interval_lower;
+    d["interval_upper"] = p.interval_upper;
+    d["bootstrap_at_bound"] = p.bootstrap_at_bound;
     params.append(d);
   }
   py::list datasets;
@@ -706,6 +721,12 @@ py::dict CalResultToDict(const cal::Result& r) {
   d["cancelled"] = r.cancelled;
   d["ok"] = r.Ok();
   d["calibrated_decks"] = r.calibrated_decks;
+  d["uncertainty"] = cal::UncertaintyName(r.uncertainty);
+  d["interval_level"] = r.interval_level;
+  d["bootstrap_samples"] = r.bootstrap_samples;
+  d["bootstrap_unconverged"] = r.bootstrap_unconverged;
+  d["bootstrap_estimates"] = NumpyMatrix(r.bootstrap_estimates);
+  d["bootstrap_correlation"] = NumpyMatrix(r.bootstrap_correlation);
   return d;
 }
 
@@ -2434,6 +2455,7 @@ PYBIND11_MODULE(_core, m) {
           d["objective"] = p.objective;
           d["values"] = ToArray(p.values);
           d["simulations"] = p.simulations;
+          d["bootstrap_sample"] = p.bootstrap_sample;
           py::object r = progress(d);
           if (!r.is_none() && !r.cast<bool>()) stop = true;
         } catch (py::error_already_set& e) {

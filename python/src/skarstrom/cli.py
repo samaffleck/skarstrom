@@ -539,14 +539,22 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     params = [_parse_param(t) for t in args.param]
 
     def progress(p: dict) -> None:
-        if not args.quiet:
+        if args.quiet:
+            return
+        if p.get("bootstrap_sample", 0) > 0:
+            print(f"\r  bootstrap refit {p['bootstrap_sample']}/{args.bootstrap}: S = {p['objective']:.6g}, "
+                  f"{p['simulations']} simulations", end="", file=sys.stderr, flush=True)
+        else:
             print(f"\r  {p['solver']} iteration {p['iteration']}: S = {p['objective']:.6g}, "
                   f"{p['simulations']} simulations", end="", file=sys.stderr, flush=True)
 
     try:
         result = cal.calibrate(cases, params, method=args.method, refine=args.refine, threads=args.threads,
                                max_simulations=args.max_simulations, differences=args.differences,
-                               global_evaluations=args.global_evaluations, progress=progress)
+                               global_evaluations=args.global_evaluations,
+                               uncertainty="bootstrap" if args.bootstrap else "jacobian",
+                               bootstrap_samples=args.bootstrap or 100, bootstrap_seed=args.seed,
+                               interval_level=args.level, progress=progress)
     except KeyboardInterrupt:
         print("\nskarstrom: interrupted", file=sys.stderr)
         return 130
@@ -683,6 +691,11 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--threads", type=int, help="simulations run at once (default: the cores - 1)")
     c.add_argument("--max-simulations", type=int, default=500, help="run budget (default 500)")
     c.add_argument("--cycles", type=int, help="override the decks' number of cycles")
+    c.add_argument("--bootstrap", type=int, metavar="N", default=0,
+                   help="also estimate the uncertainty by N residual-bootstrap refits (percentile intervals); "
+                        "default: Jacobian standard errors only")
+    c.add_argument("--seed", type=int, default=1, help="seed of the bootstrap draws (default 1)")
+    c.add_argument("--level", type=float, default=0.95, help="level of the bootstrap interval (default 0.95)")
     c.add_argument("--set", action="append", metavar="PATH=VALUE", help="change every deck before the fit")
     c.add_argument("--out", metavar="FILE", help="write the calibrated deck (FILE_<i>.json per deck with --case)")
     c.add_argument("--json", metavar="FILE", help="write the full result as JSON")

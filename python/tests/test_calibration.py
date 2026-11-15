@@ -109,6 +109,40 @@ def test_to_json_round_trip(one_deck, tmp_path):
         back.apply()
 
 
+def test_bootstrap_intervals(one_deck, tmp_path, capsys):
+    sim = synthetic({CAPACITY: 6.5}, seed=3)
+    seen = []
+    r = sim.calibrate([cal.Parameter(CAPACITY, 4.0, 8.0, start=6.4)], datasets=[OUTLET], max_simulations=30,
+                      threads=2, uncertainty="bootstrap", bootstrap_samples=4, bootstrap_max_iterations=3,
+                      bootstrap_seed=7, progress=lambda info: seen.append(info["bootstrap_sample"]))
+    assert r.ok, r.message
+    assert r.uncertainty == "bootstrap" and r.interval_level == 0.95 and r.bootstrap_samples == 4
+    assert r.bootstrap_estimates.shape == (4, 1) and r.bootstrap_correlation.shape == (1, 1)
+    assert seen[-4:] == [1, 2, 3, 4] and 0 in seen
+    (p,) = r.parameters
+    assert math.isfinite(p.std_error) and p.bootstrap_std_error > 0
+    lo, hi = p.interval
+    assert lo <= hi and p.bootstrap_at_bound == 0.0
+    assert "bootstrap se" in r.table() and "95 % interval" in r.table()
+    back = cal.CalibrationResult.from_json(r.to_json())
+    assert back.to_dict() == r.to_dict() and back.parameters == r.parameters
+    np.testing.assert_array_equal(back.bootstrap_estimates, r.bootstrap_estimates)
+    # The default leaves the bootstrap fields empty.
+    _, plain = one_deck
+    assert plain.uncertainty == "jacobian" and plain.bootstrap_samples == 0
+    assert math.isnan(plain.parameters[0].bootstrap_std_error) and plain.bootstrap_estimates.shape == (0, 1)
+    with pytest.raises(ValueError, match="uncertainty"):
+        sim.calibrate([CAPACITY], uncertainty="sandwich")
+    # CLI.
+    deck = tmp_path / "synthetic.json"
+    sim.save(str(deck))
+    code = cli.main(["calibrate", str(deck), "--param", f"{CAPACITY}:4:8", "--dataset", OUTLET,
+                     "--max-simulations", "20", "--threads", "2", "--bootstrap", "3", "--seed", "2",
+                     "--level", "0.9", "-q"])
+    assert code == 0
+    assert "90 % interval" in capsys.readouterr().out
+
+
 def test_two_cases_with_a_shared_and_a_per_case_parameter():
     a = synthetic({CAPACITY: 6.5, AFFINITY: 3.0e-6}, seed=11)
     b = synthetic({CAPACITY: 6.5, AFFINITY: 4.0e-6}, seed=12, flow_factor=2.0)

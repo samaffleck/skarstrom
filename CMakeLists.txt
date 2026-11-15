@@ -185,6 +185,21 @@ if(ADSIM_NATIVE_ARCH)
     endif()
 endif()
 
+# Sanitizer builds (GCC/Clang, a top-level build for testing): the whole tree,
+# dependencies included, is compiled and linked with -fsanitize=<value>, so a
+# report is not lost in an uninstrumented library. CI runs the threaded tests
+# (calibration, warm starts) with ADSIM_SANITIZE=thread. Empty: off.
+set(ADSIM_SANITIZE "" CACHE STRING "Compile and link with -fsanitize=<value> (e.g. thread, address,undefined); empty: off")
+if(ADSIM_SANITIZE)
+    if(MSVC OR EMSCRIPTEN)
+        message(FATAL_ERROR "ADSIM_SANITIZE is for GCC and Clang builds")
+    endif()
+    # -g1: line tables only, enough for the stacks of a report and cheaper to build.
+    add_compile_options(-fsanitize=${ADSIM_SANITIZE} -fno-omit-frame-pointer -g1)
+    add_link_options(-fsanitize=${ADSIM_SANITIZE})
+    message(STATUS "Adsim: sanitizer build (-fsanitize=${ADSIM_SANITIZE})")
+endif()
+
 # ============================================================
 # Third-party dependencies (git submodules in external/, plus the vendored
 # external/eigen-3.4.0)
