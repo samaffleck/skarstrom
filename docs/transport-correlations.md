@@ -182,10 +182,7 @@ $$
 h_o = \frac{\mathrm{Nu}\thinspace k_{air}}{d_e}, \qquad \mathrm{Nu} = c\thinspace \mathrm{Re}_{air}^{\thinspace m}\thinspace \mathrm{Pr}_{air}^{\thinspace n}, \qquad \mathrm{Re}_{air} = \frac{d_e\thinspace v_{ext}\thinspace \rho_{air}}{\mu_{air}}
 $$
 
-$d_e = d_i + 2\thinspace t_w$ is the external column diameter and $\mathrm{Pr}_{air} = c_{p,air}\mu_{air}/k_{air}$. The air properties are those of dry air at one atmosphere, at the film temperature of each cell ([ambient air properties](#ambient-air-properties)).
-
-!!! note "Changed in 0.13"
-    The air properties follow the film temperature. Earlier versions used fixed values at about 20 °C ($k_{air} = 0.0259$ W m⁻¹ K⁻¹, $\rho_{air} = 1.204$ kg m⁻³, $\mu_{air} = 1.81\times10^{-5}$ Pa s, $c_{p,air} = 1005$ J kg⁻¹ K⁻¹), whatever the ambient temperature.
+$d_e = d_i + 2\thinspace t_w$ is the external column diameter and $\mathrm{Pr}_{air} = c_{p,air}\mu_{air}/k_{air}$. The air properties are fixed values at about 20 °C, whatever the ambient temperature: $k_{air} = 0.0259$ W m⁻¹ K⁻¹, $\rho_{air} = 1.204$ kg m⁻³, $\mu_{air} = 1.81\times10^{-5}$ Pa s, $c_{p,air} = 1005$ J kg⁻¹ K⁻¹.
 
 | Input | Default | Parameter |
 |---|---|---|
@@ -229,7 +226,7 @@ Sources: S.W. Churchill, H.H.S. Chu, "Correlating equations for laminar and turb
 
 ### Ambient air properties
 
-Holman and Churchill–Chu use the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
+Churchill–Chu uses the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
 
 | Property | Formula | Source |
 |---|---|---|
