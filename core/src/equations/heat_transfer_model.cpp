@@ -107,28 +107,35 @@ namespace adsim {
     }
   }
 
+  namespace {
+    // Film temperature of a cell's outer wall surface [K]. A non-physical wall
+    // temperature (a trial Newton iterate) falls back to the ambient one so
+    // the air properties stay defined.
+    double FilmTemperature(double T_wall, double T_inf) {
+      return T_wall > 0.0 ? 0.5 * (T_wall + T_inf) : T_inf;
+    }
+  }  // namespace
+
   void ExternalHeatTransferModel_Holman::Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
                                                 double ambient_temperature) {
     (void)wall;
-    (void)ambient_temperature;
     auto& ho = state.external_heat_transfer_coefficient.var;
-
-    // TODO: Should depend on user input temperature
-    const double k_air = 0.0259;         // W/(m-K)
-    const double rho_air = 1.204;        // kg/m
-    const double vis_air = 1.81e-5;      // Pa-s
-    const double cp_air = 1005;          // J/(kg-K)
-    const double Pr_air = cp_air * vis_air / k_air;
+    const auto& Tw = state.wall_temperature.var;
     const auto& de = state.domain_vectors.de;
 
     auto start = layer.domain_.start_index;
     auto end = layer.domain_.end_index;
     const double pr_exp = n;  // Prandtl exponent (member); avoid shadowing by the loop index
     for (int i = start; i <= end; ++i) {
-      double Re_air = de[i] * external_velocity * rho_air / vis_air;
-      double Nu_air = c * std::pow(Re_air, m) * std::pow(Pr_air, pr_exp);
-      double htc = Nu_air * k_air / de[i];
-      ho[i] = htc;
+      // Air properties at the film temperature (ambient_air.h).
+      const double T_film = FilmTemperature(Tw[i], ambient_temperature);
+      const double k_air = ambient_air::ThermalConductivity(T_film);
+      const double rho_air = ambient_air::Density(T_film);
+      const double vis_air = ambient_air::Viscosity(T_film);
+      const double Pr_air = ambient_air::Prandtl(T_film);
+      const double Re_air = de[i] * external_velocity * rho_air / vis_air;
+      const double Nu_air = c * std::pow(Re_air, m) * std::pow(Pr_air, pr_exp);
+      ho[i] = Nu_air * k_air / de[i];
     }
   }
 
