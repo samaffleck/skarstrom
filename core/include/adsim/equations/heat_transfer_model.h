@@ -172,6 +172,8 @@ namespace adsim {
     }
   };
 
+  // Forced convection, Nu = c Re^m Pr^n on the outer diameter, with the air
+  // properties at the film temperature (ambient_air.h).
   class ExternalHeatTransferModel_Holman : public IExternalHeatTransferModel {
   public:
     void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
