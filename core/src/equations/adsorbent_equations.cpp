@@ -1037,9 +1037,17 @@ namespace adsim {
 
     auto& adsorbent = udata->adsorbent_directory.Get(ads_id);
     auto& source = adsorbent.adsorption_source_;
+    // Heats of adsorption from the isotherm (HeatOfAdsorptionMode::Isotherm):
+    // the isosteric heat at each cell's state, written into the per-cell
+    // vector that the energy residuals and the logged energy sources read, so
+    // it is current before either uses it. An isothermal run has no energy
+    // balance, so it skips them.
+    const bool isotherm_heat = !state.IsIsothermal() && source.HasIsothermHeatOfAdsorption();
+    auto* dH = isotherm_heat ? &state.domain_vectors.dH_ads.at(ads_id) : nullptr;
     for (auto& layer : layers) {
       if (layer.composition_.find(ads_id) == layer.composition_.end()) continue;
       source.UpdateIsothermAll(state, ads_id, fluid.components_, layer.domain_.start_index, layer.domain_.end_index, &udata->variable_registry);
+      if (dH) source.UpdateHeatOfAdsorption(state, ads_id, layer.domain_.start_index, layer.domain_.end_index, *dH);
     }
 
     // Ghost cells mirror the first/last *bed* cell for this adsorbent's

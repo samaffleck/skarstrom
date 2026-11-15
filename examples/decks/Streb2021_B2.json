@@ -26,7 +26,7 @@
                             "DisplayUnitIndex": 0
                         },
                         "Adsorption_Source": {
-                            "cereal_class_version": 1,
+                            "cereal_class_version": 2,
                             "Mass_Transfer_Models": [
                                 {
                                     "key": "CarbonDioxide",
@@ -611,7 +611,25 @@
                                     "value": 14
                                 }
                             ],
-                            "Mixing_Rule": 0
+                            "Mixing_Rule": 0,
+                            "Heat_Of_Adsorption_Mode": [
+                                {
+                                    "key": "CarbonDioxide",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Helium",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Hydrogen",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Methane",
+                                    "value": 0
+                                }
+                            ]
                         },
                         "Particle_Void_Fraction": {
                             "Value": 0.5400593471810089,
@@ -1095,7 +1113,25 @@
                                     "value": 2
                                 }
                             ],
-                            "Mixing_Rule": 0
+                            "Mixing_Rule": 0,
+                            "Heat_Of_Adsorption_Mode": [
+                                {
+                                    "key": "CarbonDioxide",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Helium",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Hydrogen",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Methane",
+                                    "value": 0
+                                }
+                            ]
                         },
                         "Particle_Void_Fraction": {
                             "Value": 0.0,

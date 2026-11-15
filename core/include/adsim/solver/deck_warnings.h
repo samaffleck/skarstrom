@@ -104,4 +104,19 @@ namespace adsim {
   std::vector<std::string> ReactionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
                                             bool order_notes = false);
 
+  // Heats of adsorption taken from the isotherm (HeatOfAdsorptionMode::Isotherm,
+  // objects/porous_media.h), for the adsorbents that some layer uses; none for
+  // an isothermal run:
+  // - one warning per component whose isotherm gives no isosteric heat, i.e.
+  //   |q_st| < 1 J/mol at the reference state (T_ref, P_ref, pure component)
+  //   and at the dilute limit: its isotherm does not depend on temperature,
+  //   so the energy balance would release no heat for it;
+  // - one per component whose isosteric heat is not finite at the reference
+  //   state (the stored constant is used where that happens);
+  // - one if any component uses the isotherm and the fluid's heat-of-adsorption
+  //   convention is not isosteric: the convention applies to constant values
+  //   only, and the isosteric heat enters as it is.
+  std::vector<std::string> HeatOfAdsorptionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
+                                                    const Fluid& fluid, double T_ref, double P_ref);
+
 } // namespace adsim

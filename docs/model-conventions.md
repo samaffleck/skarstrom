@@ -132,7 +132,7 @@ If the bed takes up CO₂ at $\partial q/\partial t = 10^{-3}$ mol kg⁻¹ s⁻�
 
 The heat of a [reaction](reactions.md) uses the opposite sign: `heat_of_reaction` is the enthalpy change $\Delta H_r$ per mole of extent, **negative for an exothermic reaction** ([Energy Balance](energy-balance.md#heat-of-reaction)).
 
-The energy balance always uses this stored value; it never derives a heat of adsorption from the temperature dependence of the isotherm. If the isotherm has its own energy parameter (for example the exponent of a temperature-dependent affinity), set it separately and consistently, in the sign convention of that isotherm's formula on the [Isotherms](isotherms.md) page.
+By default the energy balance uses this stored value, and it does not derive a heat of adsorption from the temperature dependence of the isotherm. If the isotherm has its own energy parameter (for example the exponent of a temperature-dependent affinity), set the two separately and consistently, in the sign convention of that isotherm's formula on the [Isotherms](isotherms.md) page. To take the isosteric heat of the isotherm instead, set the component's heat of adsorption mode to `isotherm` (`adsorbent[ID].heat_of_adsorption_mode[C]`; [Energy Balance](energy-balance.md#heat-of-adsorption-from-the-isotherm)). The value is then the isosteric heat whatever the convention, and the stored value is only the fallback.
 
 **Where in the code:** `AdsorptionHeat` and the energy residuals in `core/src/equations/adsorbent_equations.cpp`; `HeatOfAdsorptionConvention` in `core/include/adsim/objects/fluid.h`.
 
@@ -230,6 +230,7 @@ Go through these before concluding that two models disagree.
 | Gas heat capacity | ideal-gas $C_{p0,i}(T)$ per component (NASA polynomials), at the local temperature ([Equation of State](equation-of-state.md#gas-heat-capacity)) | `fluid.gas_heat_capacity_mode` (`"ideal_gas"`, `"constant"`), `fluid.gas_heat_capacity[C]` in J mol⁻¹ K⁻¹ |
 | Gas viscosity | mole-fraction average of pure-component $\mu_i(T)$ polynomials | `fluid.viscosity_mode` (`"polynomial"`, `"constant"`), `fluid.viscosity` in Pa s |
 | Heat-of-adsorption form | isosteric | `fluid.heat_of_adsorption_convention` (see [above](#heat-of-adsorption-sign)) |
+| Heat of adsorption value | the stored constant of each component | `adsorbent[ID].heat_of_adsorption_mode[C]` (`"constant"`, `"isotherm"`: the isosteric heat of the isotherm in each cell; [Energy Balance](energy-balance.md#heat-of-adsorption-from-the-isotherm)) |
 | Adsorbed-phase heat capacity | constant: a component that `add_component` adds starts at its ideal-gas $C_{p0,i}$ at 25 °C; a deck without a value uses 0 J mol⁻¹ K⁻¹ | `fluid.adsorbed_heat_capacity_mode`, `fluid.adsorbed_heat_capacity[C]` |
 | Feed specification | as built | `sk.velocity` (actual flow at the bed face) vs `sk.molar_flow` (see [above](#velocity-volumetric-and-molar-feeds)) |
 | Particle porosity in the gas hold-up | $\epsilon_t = \epsilon_b + (1-\epsilon_b)\epsilon_p$ | `adsorbent[ID].particle_void_fraction` (0 for $\epsilon_t = \epsilon_b$) |

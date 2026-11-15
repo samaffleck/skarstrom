@@ -75,6 +75,19 @@ namespace adsim {
     "IAST"   // 1
   };
 
+  // Where the energy balance takes a component's heat of adsorption from.
+  //   Constant: the stored heat_of_adsorption_[component] (read according to
+  //             the fluid's HeatOfAdsorptionConvention).
+  //   Isotherm: the isosteric heat q_st = R T^2 (d ln p / dT)_q of the
+  //             component's isotherm at the local state of each cell
+  //             (IsostericHeat, isotherm_kinds.h), used as the heat released
+  //             per mole adsorbed under every convention.
+  // Enumerator values are what the deck stores, so never renumber them.
+  enum class HeatOfAdsorptionMode {
+    Constant = 0,
+    Isotherm = 1
+  };
+
   class AdsorptionSource {
   public:
     AdsorptionSource() = default;
@@ -125,7 +138,28 @@ namespace adsim {
 
     std::unordered_map<std::string, std::unique_ptr<IMassTransferModel>> mass_transfer_models_{};
     std::unordered_map<std::string, ExpressionParam> heat_of_adsorption_{}; // Heat of adsorption [J/mol]
+    // Per component; a component without an entry is Constant. Initialise
+    // gives every fluid component an entry, so the registry can list it.
+    std::unordered_map<std::string, HeatOfAdsorptionMode> heat_of_adsorption_mode_{};
     MixingRule mixing_rule_ = MixingRule::None;
+
+    HeatOfAdsorptionMode HeatOfAdsorptionModeOf(const std::string& component) const {
+      auto it = heat_of_adsorption_mode_.find(component);
+      return it == heat_of_adsorption_mode_.end() ? HeatOfAdsorptionMode::Constant : it->second;
+    }
+    // True when some component takes its heat from the isotherm.
+    bool HasIsothermHeatOfAdsorption() const {
+      for (const auto& [c, mode] : heat_of_adsorption_mode_)
+        if (mode == HeatOfAdsorptionMode::Isotherm) return true;
+      return false;
+    }
+    // Writes the isosteric heat of each Isotherm-mode component into
+    // dH[component][c] for the cells c in [start_index, end_index], at the
+    // cell's solid temperature (the isotherm's temperature), pressure and mole
+    // fraction, with the cell's adsorbed water loading for the water-coupled
+    // kinds (IsostericHeatAtState). Constant-mode components are not touched.
+    void UpdateHeatOfAdsorption(const Equations& state, AdsorbentID ads_id, int start_index, int end_index,
+                                std::unordered_map<std::string, std::vector<double>>& dH) const;
 
     void EvaluateExpressions(const EvalContext& ctx) {
       for (auto& [c, mtm] : mass_transfer_models_) if (mtm) mtm->EvaluateExpressions(ctx);
@@ -170,6 +204,15 @@ namespace adsim {
         ar(cereal::make_nvp("Mixing_Rule", mixing_rule_));
       } else {
         mixing_rule_ = MixingRule::None;
+      }
+      // Version 2 adds the heat-of-adsorption mode of each component; older
+      // archives mean Constant for every component that has a heat of
+      // adsorption, so the registry lists the mode straight after a load.
+      if (version >= 2) {
+        SerializeMap(ar, "Heat_Of_Adsorption_Mode", heat_of_adsorption_mode_);
+      } else if constexpr (!Archive::is_saving::value) {
+        heat_of_adsorption_mode_.clear();
+        for (const auto& [c, h] : heat_of_adsorption_) heat_of_adsorption_mode_.emplace(c, HeatOfAdsorptionMode::Constant);
       }
     }
   };
@@ -810,7 +853,7 @@ CEREAL_CLASS_VERSION(adsim::Adsorbent, 5);
 
 // Class versions live next to the inline serialize templates: every
 // translation unit that saves or loads a deck must see the same numbers.
-CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 1);
+CEREAL_CLASS_VERSION(adsim::AdsorptionSource, 2);
 CEREAL_CLASS_VERSION(adsim::AdsorbentDirectory, 1);
 CEREAL_CLASS_VERSION(adsim::StructuredGeometry, 2);
 CEREAL_CLASS_VERSION(adsim::MixedAdsorbentLayer, 7);

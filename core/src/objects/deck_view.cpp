@@ -286,7 +286,7 @@ namespace adsim {
             Coefficient(cv, "", has_rate ? mt->second->mtc_model_.get() : nullptr, id);
             Coefficient(cv, "slow_", has_rate ? mt->second->SlowCoefficientModel() : nullptr, id);
             Value values(rapidjson::kArrayType);
-            for (const std::string head : {".isotherm[", ".kinetics[", ".heat_of_adsorption["}) {
+            for (const std::string head : {".isotherm[", ".kinetics[", ".heat_of_adsorption[", ".heat_of_adsorption_mode["}) {
               const std::string prefix = ap + head + c + "]";
               for (const auto* p : pool_.Claim(prefix)) values.PushBack(ParameterValue(*p, ap + ".", a_), a_);
             }

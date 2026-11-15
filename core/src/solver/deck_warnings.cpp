@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <iomanip>
 #include <optional>
@@ -187,6 +188,50 @@ namespace adsim {
         warnings.push_back(ss.str());
       }
     }
+    return warnings;
+  }
+
+  std::vector<std::string> HeatOfAdsorptionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
+                                                    const Fluid& fluid, double T_ref, double P_ref) {
+    std::vector<std::string> warnings;
+    if (bed.equations_.IsIsothermal()) return warnings;
+    std::set<AdsorbentID> in_layer;
+    for (const auto& layer : bed.layers_.layers_)
+      for (const auto& [id, frac] : layer.composition_) in_layer.insert(id);
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    bool any = false;
+    for (AdsorbentID id : in_layer) {
+      if (!adsorbents.Contains(id)) continue;
+      const Adsorbent& ads = adsorbents.Get(id);
+      const auto& source = ads.adsorption_source_;
+      for (const auto& component : fluid.components_) {
+        if (source.HeatOfAdsorptionModeOf(component) != HeatOfAdsorptionMode::Isotherm) continue;
+        IIsotherm* iso = source.FindIsotherm(component);
+        if (!iso || iso->GetIsothermType() == IsothermType::INERT) continue;
+        any = true;
+        const std::string who = "the " + component + " heat of adsorption of adsorbent '" + ads.name_ + "'";
+        const double at_ref = IsostericHeatAtState(iso, component, T_ref, P_ref, 1.0, 0.0, nan);
+        const double dilute = IsostericHeatAtState(iso, component, T_ref, 1.0, 1.0, 0.0, nan);
+        if (!std::isfinite(at_ref) || !std::isfinite(dilute)) {
+          std::ostringstream ss;
+          ss << "Warning: " << who << " comes from the isotherm, but its isosteric heat cannot be evaluated at "
+             << T_ref << " K (pure component at " << P_ref << " Pa, or at 1 Pa); the stored constant is used"
+             << " wherever that happens.";
+          warnings.push_back(ss.str());
+        } else if (std::abs(at_ref) < 1.0 && std::abs(dilute) < 1.0) {
+          warnings.push_back("Warning: " + who + " comes from the isotherm, but the isotherm ('" +
+                             std::string(IsothermKindString(iso->GetIsothermType())) +
+                             "' with these parameters) does not depend on temperature, so its isosteric heat is 0"
+                             " and adsorption releases no heat. Use the constant mode, or an isotherm with a"
+                             " temperature dependence.");
+        }
+      }
+    }
+    if (any && fluid.heat_of_adsorption_convention_ != HeatOfAdsorptionConvention::ISOSTERIC)
+      warnings.push_back("Warning: some heats of adsorption come from the isotherm, and the fluid's heat of"
+                         " adsorption convention is not isosteric. The convention applies only to constant"
+                         " heats: a heat from the isotherm is the isosteric heat, and the energy balance uses it"
+                         " as it is.");
     return warnings;
   }
 

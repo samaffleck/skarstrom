@@ -717,7 +717,7 @@ TEST(IastDeck, MixingRuleIsARegistryParameterAndSurvivesSaveAndLoad) {
   EXPECT_EQ(loaded.adsorbent_directory.Get(b.ads).adsorption_source_.mixing_rule_, MixingRule::IAST);
 
   std::string old = json;
-  const std::string version_line = "\"cereal_class_version\": 1,";
+  const std::string version_line = "\"cereal_class_version\": 2,";
   const auto source = old.find("\"Adsorption_Source\"");
   ASSERT_NE(source, std::string::npos);
   const auto version = old.find(version_line, source);
