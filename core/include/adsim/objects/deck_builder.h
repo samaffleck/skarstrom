@@ -34,7 +34,7 @@
 //   heat dispersion      "constant", "ruthven", "yagi_kunii"
 //   internal heat transfer "constant", "dixon", "leva"
 //   external heat transfer "constant", "holman", "churchill_chu_vertical",
-//                          "churchill_chu_horizontal"
+//                          "churchill_chu_horizontal", "yang_vertical_cylinder"
 //   particle heat transfer "constant", "film"
 //   thermal equilibrium  "lte", "ltne"
 //   bed shape            "cylinder", "square", "rectangle"

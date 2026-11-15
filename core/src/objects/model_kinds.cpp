@@ -248,8 +248,10 @@ const std::vector<K>& ExternalHeatTransfer() {
       // Natural convection to still air (Churchill and Chu 1975); no parameters.
       {"churchill_chu_vertical", "Churchill and Chu (1975), vertical column", {}},
       {"churchill_chu_horizontal", "Churchill and Chu (1975), horizontal column", {}},
+      // Natural convection from a vertical cylinder at any H/d (Yang 1985); no parameters.
+      {"yang_vertical_cylinder", "Yang (1985), vertical cylinder", {}},
   }, {{"constant", AnyLayer()}, {"holman", AnyLayer()}, {"churchill_chu_vertical", AnyLayer()},
-      {"churchill_chu_horizontal", AnyLayer()}});
+      {"churchill_chu_horizontal", AnyLayer()}, {"yang_vertical_cylinder", AnyLayer()}});
   return k;
 }
 

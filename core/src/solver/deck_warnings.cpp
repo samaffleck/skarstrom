@@ -249,7 +249,8 @@ namespace adsim {
           " an outer diameter of at least "
        << d_min << " m (D/L >= 35/Gr_L^(1/4) at a wall "
        << kNaturalConvectionCheckDeltaT << " K above ambient). The curvature of a slender cylinder raises the"
-          " heat loss above the plate value, so the model under-predicts the wall-to-ambient coefficient.";
+          " heat loss above the plate value, so the model under-predicts the wall-to-ambient coefficient. The"
+          " yang_vertical_cylinder kind holds at any diameter-to-height ratio.";
     warnings.push_back(os.str());
     return warnings;
   }

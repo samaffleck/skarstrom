@@ -9,6 +9,8 @@
 //     Nu_L = {0.825 + 0.387 Ra^(1/6) / [1 + (0.492/Pr)^(9/16)]^(8/27)}^2;
 //   Churchill and Chu (1975, Int. J. Heat Mass Transfer 18, 1049), horizontal cylinder:
 //     Nu_D = {0.60 + 0.387 Ra^(1/6) / [1 + (0.559/Pr)^(9/16)]^(8/27)}^2;
+//   Yang (1985), vertical cylinder at any H/d:
+//     Nu_H = {(0.36 H/d)^(1/2) + [0.150 (Ra_H / [1 + (0.492/Pr)^(9/16)]^(16/9))^(1/3)]^(1/2)}^2;
 // and the ambient air properties (Sutherland's law, White 2006). Checked here:
 // the analytic limits, values worked out by hand (Python, double precision)
 // from the formulas above, the air properties against Incropera et al.'s
@@ -98,11 +100,55 @@ TEST(NaturalConvection, MonotoneInTemperatureDifference) {
   EXPECT_GT(air::ChurchillChuCoefficient(false, 280.0, 300.0, 1.0, 0.1), 0.36 * air::ThermalConductivity(290.0) / 0.1);
 }
 
+// Yang (1985), vertical cylinder at any H/d: Ra -> 0 gives Nu_H = 0.36 H/d,
+// so h -> 0.36 k/d (the conduction limit of a horizontal cylinder).
+TEST(NaturalConvection, YangStagnantLimit) {
+  for (double hd : {0.5, 1.0, 33.0}) EXPECT_DOUBLE_EQ(air::YangVerticalCylinderNu(0.0, 0.71, hd), 0.36 * hd);
+}
+
+// Hand values (Python, double precision) of Yang's formula in the header.
+TEST(NaturalConvection, YangHandValues) {
+  EXPECT_NEAR(air::YangVerticalCylinderNu(1e4, 0.71, 1.0), 4.439389527427472, 1e-12);
+  EXPECT_NEAR(air::YangVerticalCylinderNu(1e8, 0.71, 10.0), 79.07078442854775, 1e-10);
+  EXPECT_NEAR(air::YangVerticalCylinderNu(1e9, 0.71, 33.3), 188.49489930411173, 1e-10);
+  // A 1 m lab column 30 mm across, wall 350 K in air at 300 K: 44 % above
+  // the vertical-plate (Churchill-Chu) value of 4.978 W/(m2 K).
+  EXPECT_NEAR(air::YangCoefficient(350.0, 300.0, 1.0, 0.03), 7.159659645323737, 1e-12);
+  EXPECT_NEAR(air::YangCoefficient(350.0, 300.0, 1.0, 1.0), 4.818319943587659, 1e-12);
+}
+
+// With H/d = 0.825^2 / 0.36 the two conduction terms are equal, so Yang and
+// the Churchill-Chu plate differ only by 0.150 against 0.387^2 in the
+// convection term: within 0.16 % at every Ra.
+TEST(NaturalConvection, YangMatchesThePlateWhenTheConductionTermsAgree) {
+  const double hd = 0.825 * 0.825 / 0.36;
+  for (double ra : {1e2, 1e5, 1e8, 1e11}) {
+    const double ratio = air::YangVerticalCylinderNu(ra, 0.71, hd) / air::ChurchillChuVerticalPlateNu(ra, 0.71);
+    EXPECT_NEAR(ratio, 1.0, 0.0016) << ra;
+  }
+}
+
+// A slender column loses more heat than a plate of its height; the gap
+// closes as the column gets wider.
+TEST(NaturalConvection, YangSlenderColumnAbovePlate) {
+  const double plate = air::ChurchillChuCoefficient(true, 330.0, 300.0, 1.0, 0.1);
+  double last = 1e9;
+  for (double d : {0.01, 0.03, 0.1, 0.3}) {
+    const double h = air::YangCoefficient(330.0, 300.0, 1.0, d);
+    EXPECT_LT(h, last) << d;
+    last = h;
+  }
+  EXPECT_GT(air::YangCoefficient(330.0, 300.0, 1.0, 0.03), 1.2 * plate);
+}
+
 TEST(NaturalConvection, KindsAndFactory) {
   const auto& tags = build::ExternalHeatTransferKinds();
-  ASSERT_EQ(tags.size(), 4u);
+  ASSERT_EQ(tags.size(), 5u);
   EXPECT_EQ(tags[2], "churchill_chu_vertical");
   EXPECT_EQ(tags[3], "churchill_chu_horizontal");
+  EXPECT_EQ(tags[4], "yang_vertical_cylinder");
+  EXPECT_EQ(CreateExternalHeatTransferModel(ExternalHeatTransferType::YANG_VERTICAL_CYLINDER)->GetModelType(),
+            ExternalHeatTransferType::YANG_VERTICAL_CYLINDER);
   auto v = CreateExternalHeatTransferModel(ExternalHeatTransferType::CHURCHILL_CHU_VERTICAL);
   auto h = CreateExternalHeatTransferModel(ExternalHeatTransferType::CHURCHILL_CHU_HORIZONTAL);
   EXPECT_EQ(v->GetModelType(), ExternalHeatTransferType::CHURCHILL_CHU_VERTICAL);
@@ -148,6 +194,7 @@ TEST(NaturalConvection, SlenderColumnWarning) {
     const auto w = NaturalConvectionWarnings(SmallBed(T::CHURCHILL_CHU_VERTICAL, 1.0, 0.03));
     ASSERT_EQ(w.size(), 1u);
     EXPECT_NE(w[0].find("too slender"), std::string::npos) << w[0];
+    EXPECT_NE(w[0].find("yang_vertical_cylinder"), std::string::npos) << w[0];
   }
   // A 5 m column 1.5 m across is a plate.
   EXPECT_TRUE(NaturalConvectionWarnings(SmallBed(T::CHURCHILL_CHU_VERTICAL, 5.0, 1.5)).empty());

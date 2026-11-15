@@ -221,15 +221,30 @@ $$
 
 with $T_w$ the cell's wall temperature, $T_\infty$ the bed's ambient temperature (`bed.ambient_temperature`), $\nu_{air} = \mu_{air}/\rho_{air}$, and all air properties at the film temperature $T_f$. Each cell uses its own wall temperature with the correlation for the whole column, so $h_o$ changes along the column and in time as the wall heats and cools. The kinds have no parameters.
 
-A slender vertical cylinder loses more heat than a plate of the same height, because of the curvature of its boundary layer. The plate correlation applies when $d_e/L \ge 35/\mathrm{Gr}_L^{1/4}$ (Incropera et al., Sec. 9.6.1), with $\mathrm{Gr}_L = \mathrm{Ra}_L/\mathrm{Pr}$. A typical laboratory column (1 m tall, a few centimetres across) does not meet this, and the model then under-predicts $h_o$. At run start, the solver warns when a column with the vertical kind fails the check for a wall 10 K above the ambient temperature.
+A slender vertical cylinder loses more heat than a plate of the same height, because of the curvature of its boundary layer. The plate correlation applies when $d_e/L \ge 35/\mathrm{Gr}_L^{1/4}$ (Incropera et al., Sec. 9.6.1), with $\mathrm{Gr}_L = \mathrm{Ra}_L/\mathrm{Pr}$. A typical laboratory column (1 m tall, a few centimetres across) does not meet this, and the model then under-predicts $h_o$. At run start, the solver warns when a column with the vertical kind fails the check for a wall 10 K above the ambient temperature, and names the [Yang vertical-cylinder kind](#yang-1985-natural-convection-from-a-vertical-cylinder), which holds at any $d_e/L$.
 
 Radiation from the wall is not included.
+
+### Yang (1985): natural convection from a vertical cylinder
+
+!!! note "New in 0.13"
+    The kind `yang_vertical_cylinder`.
+
+Natural convection from a vertical column to still air at any height-to-diameter ratio (`yang_vertical_cylinder`). The column is a vertical cylinder of the bed height $L$ and the external diameter $d_e$:
+
+$$
+\mathrm{Nu}_L = \left\{\sqrt{0.36\thinspace\frac{L}{d_e}} + \sqrt{0.150\left(\frac{\mathrm{Ra}_L}{\left[1 + (0.492/\mathrm{Pr})^{9/16}\right]^{16/9}}\right)^{1/3}}\thinspace\right\}^2, \qquad h_o = \frac{\mathrm{Nu}_L\thinspace k_{air}}{L}
+$$
+
+with $\mathrm{Ra}_L$ and the air properties as for Churchill–Chu above. The formula is Churchill and Chu's vertical-plate correlation ($0.150 \approx 0.387^2$) with the plate's conduction term $0.825^2$ replaced by $0.36\thinspace L/d_e$. At small Ra, $h_o \to 0.36\thinspace k_{air}/d_e$, the conduction limit of a horizontal cylinder. So a slender column loses more heat than a plate of its height: for a 1 m column 30 mm across, with the wall 50 K above the air, $h_o$ is about 44 % above the plate value. When $L/d_e = 0.825^2/0.36$, the two correlations agree within 0.2 %.
+
+Source: S.M. Yang, "General correlating equations for free convection heat transfer from a vertical cylinder", *International Symposium on Heat Transfer*, Peking, 1985, pp. 153–159. The formula here is as quoted by Popiel, Wojtkowiak and Bober, *Exp. Therm. Fluid Sci.* 32 (2007) 607–613, and Jaffer and Jaffer, arXiv:2512.06019 (2026); the original paper was not available to check *(to be confirmed)*.
 
 Sources: S.W. Churchill, H.H.S. Chu, "Correlating equations for laminar and turbulent free convection from a vertical plate", *Int. J. Heat Mass Transfer* 18 (1975) 1323–1329; "Correlating equations for laminar and turbulent free convection from a horizontal cylinder", *Int. J. Heat Mass Transfer* 18 (1975) 1049–1053.
 
 ### Ambient air properties
 
-Holman and Churchill–Chu use the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
+Holman, Churchill–Chu and Yang use the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
 
 | Property | Formula | Source |
 |---|---|---|

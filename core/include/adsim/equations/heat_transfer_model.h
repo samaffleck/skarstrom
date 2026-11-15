@@ -43,14 +43,16 @@ namespace adsim {
     CONSTANT = 0,
     HOLMAN = 1,
     CHURCHILL_CHU_VERTICAL = 2,
-    CHURCHILL_CHU_HORIZONTAL = 3
+    CHURCHILL_CHU_HORIZONTAL = 3,
+    YANG_VERTICAL_CYLINDER = 4
   };
 
   static const char* ExternalHeatTransferModeList[] = {
     "Constant",
     "Holman (2008)",
     "Churchill and Chu (1975), vertical column",
-    "Churchill and Chu (1975), horizontal column"
+    "Churchill and Chu (1975), horizontal column",
+    "Yang (1985), vertical cylinder"
   };
 
   class IInternalHeatTransferModel {
@@ -234,6 +236,28 @@ namespace adsim {
     }
   };
 
+  // Natural convection from a vertical column to still air at any height-to-
+  // diameter ratio, by Yang (1985) (ambient_air.h): the column is a vertical
+  // cylinder of the bed height and the outer wall diameter. Each cell uses its
+  // own wall temperature; the air properties are at the film temperature. No
+  // parameters. Unlike churchill_chu_vertical (a plate), it holds for a
+  // slender column.
+  class ExternalHeatTransferModel_YangCylinder : public IExternalHeatTransferModel {
+  public:
+    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                double ambient_temperature) override;
+    ExternalHeatTransferType GetModelType() override { return ExternalHeatTransferType::YANG_VERTICAL_CYLINDER; }
+    unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      (void)version;
+      ar(cereal::virtual_base_class<IExternalHeatTransferModel>(this));
+    }
+  };
+
   // ---- Particle Heat Transfer (gas-to-solid) ----
 
   // Stored values; never renumber.
@@ -331,6 +355,8 @@ namespace adsim {
       return std::make_unique<ExternalHeatTransferModel_ChurchillChu>(true);
     case ExternalHeatTransferType::CHURCHILL_CHU_HORIZONTAL:
       return std::make_unique<ExternalHeatTransferModel_ChurchillChu>(false);
+    case ExternalHeatTransferType::YANG_VERTICAL_CYLINDER:
+      return std::make_unique<ExternalHeatTransferModel_YangCylinder>();
     default: return nullptr;
     }
   }
@@ -346,4 +372,5 @@ CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Leva, 1);
 CEREAL_CLASS_VERSION(adsim::ConstantExternalHeatTransferModel, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_Holman, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_ChurchillChu, 1);
+CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_YangCylinder, 1);
 CEREAL_CLASS_VERSION(adsim::FilmParticleHeatTransferModel, 1);
