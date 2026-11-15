@@ -158,6 +158,24 @@ namespace adsim {
     }
   }
 
+  void ExternalHeatTransferModel_YangCylinder::Update(Equations& state, const MixedAdsorbentLayer& layer,
+                                                      const BedWall& wall, double ambient_temperature) {
+    (void)wall;
+    auto& ho = state.external_heat_transfer_coefficient.var;
+    const auto& Tw = state.wall_temperature.var;
+    const auto& de = state.domain_vectors.de;
+    const auto& dx = state.domain_vectors.cell_width;
+
+    // One cylinder of the bed's height (all layers), as churchill_chu_vertical.
+    double height = 0.0;
+    for (int i : state.domain_vectors.bed_cell_indices) height += dx[i];
+
+    for (int i = layer.domain_.start_index; i <= layer.domain_.end_index; ++i) {
+      const double T_wall = Tw[i] > 0.0 ? Tw[i] : ambient_temperature;
+      ho[i] = ambient_air::YangCoefficient(T_wall, ambient_temperature, height, de[i]);
+    }
+  }
+
   void ConstantParticleHeatTransferModel::Update(Equations& state, const MixedAdsorbentLayer& layer) {
     auto& hp = state.particle_heat_transfer_coefficient.var;
     // Specific surface area [1/m]: 6 (1 - eb) / dp for a packed bed, the
@@ -205,11 +223,13 @@ CEREAL_REGISTER_TYPE(adsim::InternalHeatTransferModel_Leva)
 CEREAL_REGISTER_TYPE(adsim::ConstantExternalHeatTransferModel)
 CEREAL_REGISTER_TYPE(adsim::ExternalHeatTransferModel_Holman)
 CEREAL_REGISTER_TYPE(adsim::ExternalHeatTransferModel_ChurchillChu)
+CEREAL_REGISTER_TYPE(adsim::ExternalHeatTransferModel_YangCylinder)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IInternalHeatTransferModel, adsim::ConstantInternalHeatTransferModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IInternalHeatTransferModel, adsim::InternalHeatTransferModel_Dixon)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IInternalHeatTransferModel, adsim::InternalHeatTransferModel_Leva)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ConstantExternalHeatTransferModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ExternalHeatTransferModel_Holman)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ExternalHeatTransferModel_ChurchillChu)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ExternalHeatTransferModel_YangCylinder)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IParticleHeatTransferModel, adsim::ConstantParticleHeatTransferModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IParticleHeatTransferModel, adsim::FilmParticleHeatTransferModel)

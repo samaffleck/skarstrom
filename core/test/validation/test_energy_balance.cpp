@@ -621,7 +621,8 @@ namespace adsim {
   //     C_bed  dT/dt  = pi d_i h_i (T_w - T)
   //     C_wall dT_w/dt = pi d_i h_i (T - T_w) - pi d_o h_o(T_w) (T_w - T_amb)
   //
-  // with RK4, h_o from ChurchillChuCoefficient on the column height (vertical)
+  // with RK4, h_o from YangCoefficient (vertical cylinder at any H/d) or from
+  // ChurchillChuCoefficient on the column height (vertical)
   // or the outer diameter (horizontal). This checks the solver hands the
   // model the ambient temperature, the cell's wall temperature, the bed
   // height and the outer diameter. The logged h_o must also equal the
@@ -629,7 +630,8 @@ namespace adsim {
 
   class NaturalConvectionCoolingTest : public ClosedBedEnergyTest {
   public:
-    void Run(bool vertical) {
+    enum class Kind { Vertical, Horizontal, YangCylinder };
+    void Run(Kind kind) {
       data.info.title = "Validation: natural-convection cooling";
 
       const double Cps = 900.0;  // [J/(kg-K)]
@@ -638,7 +640,9 @@ namespace adsim {
       const double hi = 60.0;  // [W/(m2-K)]
       AddConstantInternalHeatTransferCoefficientModel(hi, layer_id);
       GetLayer(layer_id).equations_.external_heat_transfer_model_ =
-        std::make_unique<ExternalHeatTransferModel_ChurchillChu>(vertical);
+        kind == Kind::YangCylinder
+          ? std::unique_ptr<IExternalHeatTransferModel>(std::make_unique<ExternalHeatTransferModel_YangCylinder>())
+          : std::make_unique<ExternalHeatTransferModel_ChurchillChu>(kind == Kind::Vertical);
 
       const double P0 = 1.0e5;
       const double T0 = 400.0;
@@ -676,7 +680,9 @@ namespace adsim {
       const double C_bed = (kBedVoidFraction * C0 * Cv + BulkDensity() * Cps) * 0.25 * M_PI * d_i * d_i;
       const double C_wall = wall_density * wall_cp * 0.25 * M_PI * (d_o * d_o - d_i * d_i);
       auto ho = [&](double Tw) {
-        return ambient_air::ChurchillChuCoefficient(vertical, Tw, T_ambient, kLength, d_o);
+        return kind == Kind::YangCylinder
+                 ? ambient_air::YangCoefficient(Tw, T_ambient, kLength, d_o)
+                 : ambient_air::ChurchillChuCoefficient(kind == Kind::Vertical, Tw, T_ambient, kLength, d_o);
       };
       auto rhs = [&](const std::array<double, 2>& x) {
         const double q_i = M_PI * d_i * hi * (x[1] - x[0]);
@@ -729,8 +735,9 @@ namespace adsim {
     }
   };
 
-  TEST_F(NaturalConvectionCoolingTest, VerticalColumnMatchesLumpedSolution) { Run(true); }
-  TEST_F(NaturalConvectionCoolingTest, HorizontalColumnMatchesLumpedSolution) { Run(false); }
+  TEST_F(NaturalConvectionCoolingTest, VerticalColumnMatchesLumpedSolution) { Run(Kind::Vertical); }
+  TEST_F(NaturalConvectionCoolingTest, HorizontalColumnMatchesLumpedSolution) { Run(Kind::Horizontal); }
+  TEST_F(NaturalConvectionCoolingTest, YangCylinderMatchesLumpedSolution) { Run(Kind::YangCylinder); }
 
   // ===========================================================================
   // 6. Open-system energy balance

@@ -72,7 +72,8 @@ namespace adsim {
   // and Gr_L at a wall 10 K above the ambient temperature
   // (kNaturalConvectionCheckDeltaT). The curvature of a slender cylinder
   // raises h above the plate value, so the model then under-predicts the heat
-  // loss. Not for an isothermal run.
+  // loss; the warning names the yang_vertical_cylinder kind, which holds at
+  // any D/L. Not for an isothermal run.
   inline constexpr double kNaturalConvectionCheckDeltaT = 10.0;  // [K]
   std::vector<std::string> NaturalConvectionWarnings(const Bed& bed);
 

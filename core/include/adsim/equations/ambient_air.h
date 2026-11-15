@@ -74,6 +74,34 @@ namespace adsim::ambient_air {
     return s * s;
   }
 
+  // Yang (1985), average Nusselt number over a vertical cylinder of height H
+  // and diameter d, at any H/d:
+  //   Nu_H = || 0.36 H/d , 0.150 [Ra_H / ||1, 0.492/Pr||_{9/16}]^(1/3) ||_{1/2},
+  // with ||a, b||_p = (a^p + b^p)^(1/p). This is Churchill and Chu's plate
+  // formula (0.150 ~ 0.387^2) with the plate's conduction term 0.825^2
+  // replaced by 0.36 H/d: at small Ra, h -> 0.36 k/d (the conduction limit
+  // of a horizontal cylinder), so a slender column loses more heat than a
+  // plate of its height. S.M. Yang, "General correlating equations for free
+  // convection heat transfer from a vertical cylinder", Int. Symp. Heat
+  // Transfer, Peking, 1985, pp. 153-159; as quoted by Popiel, Wojtkowiak
+  // and Bober (2007), Exp. Therm. Fluid Sci. 32, 607, and Jaffer and Jaffer
+  // (2026), arXiv:2512.06019. Original not checked.
+  inline double YangVerticalCylinderNu(double Ra, double Pr, double H_over_d) {
+    const double plate_denominator = std::pow(1.0 + std::pow(0.492 / Pr, 9.0 / 16.0), 16.0 / 9.0);
+    const double conduction = 0.36 * H_over_d;
+    const double convection = 0.150 * std::cbrt(std::max(Ra, 0.0) / plate_denominator);
+    const double s = std::sqrt(conduction) + std::sqrt(convection);
+    return s * s;
+  }
+
+  // h [W/(m2 K)] of a vertical column wall of height H and outer diameter d
+  // at T_wall in still air at T_inf, by Yang (1985); Ra on H, film properties.
+  inline double YangCoefficient(double T_wall, double T_inf, double height, double outer_diameter) {
+    const double T_film = 0.5 * (T_wall + T_inf);
+    const double Nu = YangVerticalCylinderNu(Rayleigh(T_wall, T_inf, height), Prandtl(T_film), height / outer_diameter);
+    return Nu * ThermalConductivity(T_film) / height;
+  }
+
   // Natural-convection coefficient h = Nu k / L_c [W/(m2 K)] of a column wall
   // at T_wall in still air at T_inf. A vertical column is a plate of height
   // `height`; a horizontal one is a cylinder of diameter `outer_diameter`.
