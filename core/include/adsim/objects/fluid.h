@@ -376,7 +376,7 @@ namespace adsim {
   // NASA CEA transport data for the components CoolProp has no viscosity model
   // for (viscosity_coefficients.h, scripts/gen_transport_coefficients.py).
   static const char* ViscosityModeList[] = {
-    "CoolProp",
+    "Polynomial",
     "User defined"
   };
 
