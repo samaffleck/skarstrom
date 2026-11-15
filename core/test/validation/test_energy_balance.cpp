@@ -20,6 +20,8 @@
 
 #include "validation_helpers.h"
 
+#include "adsim/equations/ambient_air.h"
+
 #include <array>
 
 namespace adsim {
@@ -610,6 +612,125 @@ namespace adsim {
         << "Wall temperature deviates from the two-body solution at t = " << t << " s";
     }
   }
+
+  // The same two-body system with the wall losing heat by natural convection
+  // (Churchill and Chu 1975, ambient_air.h) instead of a constant h_o. h_o now
+  // depends on the wall temperature, so there is no closed form: the test
+  // integrates the two lumped ODEs
+  //
+  //     C_bed  dT/dt  = pi d_i h_i (T_w - T)
+  //     C_wall dT_w/dt = pi d_i h_i (T - T_w) - pi d_o h_o(T_w) (T_w - T_amb)
+  //
+  // with RK4, h_o from ChurchillChuCoefficient on the column height (vertical)
+  // or the outer diameter (horizontal). This checks the solver hands the
+  // model the ambient temperature, the cell's wall temperature, the bed
+  // height and the outer diameter. The logged h_o must also equal the
+  // correlation at the logged wall temperature in every cell.
+
+  class NaturalConvectionCoolingTest : public ClosedBedEnergyTest {
+  public:
+    void Run(bool vertical) {
+      data.info.title = "Validation: natural-convection cooling";
+
+      const double Cps = 900.0;  // [J/(kg-K)]
+      BuildBed(Cps);
+
+      const double hi = 60.0;  // [W/(m2-K)]
+      AddConstantInternalHeatTransferCoefficientModel(hi, layer_id);
+      GetLayer(layer_id).equations_.external_heat_transfer_model_ =
+        std::make_unique<ExternalHeatTransferModel_ChurchillChu>(vertical);
+
+      const double P0 = 1.0e5;
+      const double T0 = 400.0;
+      const double T_ambient = 300.0;
+      const double wall_thickness = 0.005;
+      const double wall_density = 7900.0;
+      const double wall_cp = 500.0;
+
+      data.bed.ambient_temperature_ = T_ambient;
+      data.bed.wall_.thickness_ = wall_thickness;
+      data.bed.wall_.density_ = wall_density;
+      data.bed.wall_.heat_capacity_ = wall_cp;
+      data.bed.wall_.thermal_conductivity_ = 16.2;
+      data.bed.equations_.wall_temperature_boundary_condition_ =
+        CreateWallTemperatureBoundaryCondition(WallTemperatureBoundaryConditionType::ZERO_FLUX);
+
+      AddInitialConditions(P0, T0, T0, {{"Nitrogen", 1.0}, {"Oxygen", 0.0}}, 0.0);
+
+      const double run_time = 1200.0;
+      AddStep("Cool", run_time);
+      SealBothEnds("Cool");
+      ConfigureCycle(1);
+      UseTightTolerances(2.0);
+
+      CoupledSolver solver{data};
+      std::string error;
+      ASSERT_TRUE(data.PerformChecks(error)) << error;
+      ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+
+      // --- lumped two-body ODEs, RK4 ------------------------------------------
+      const double Cv = MixtureMolarCv(data.fluid, {{"Nitrogen", 1.0}, {"Oxygen", 0.0}});
+      const double C0 = P0 / (kR * T0);
+      const double d_i = kDiameter;
+      const double d_o = kDiameter + 2.0 * wall_thickness;
+      const double C_bed = (kBedVoidFraction * C0 * Cv + BulkDensity() * Cps) * 0.25 * M_PI * d_i * d_i;
+      const double C_wall = wall_density * wall_cp * 0.25 * M_PI * (d_o * d_o - d_i * d_i);
+      auto ho = [&](double Tw) {
+        return ambient_air::ChurchillChuCoefficient(vertical, Tw, T_ambient, kLength, d_o);
+      };
+      auto rhs = [&](const std::array<double, 2>& x) {
+        const double q_i = M_PI * d_i * hi * (x[1] - x[0]);
+        const double q_o = M_PI * d_o * ho(x[1]) * (x[1] - T_ambient);
+        return std::array<double, 2>{q_i / C_bed, (-q_i - q_o) / C_wall};
+      };
+      std::vector<double> t_ref{0.0}, T_ref{T0}, Tw_ref{T0};
+      std::array<double, 2> x{T0, T0};
+      const double dt = 0.05;
+      for (int n = 1; n * dt <= run_time + 1e-9; ++n) {
+        const auto k1 = rhs(x);
+        const auto k2 = rhs({x[0] + 0.5 * dt * k1[0], x[1] + 0.5 * dt * k1[1]});
+        const auto k3 = rhs({x[0] + 0.5 * dt * k2[0], x[1] + 0.5 * dt * k2[1]});
+        const auto k4 = rhs({x[0] + dt * k3[0], x[1] + dt * k3[1]});
+        for (int j = 0; j < 2; ++j) x[j] += dt / 6.0 * (k1[j] + 2.0 * k2[j] + 2.0 * k3[j] + k4[j]);
+        t_ref.push_back(n * dt);
+        T_ref.push_back(x[0]);
+        Tw_ref.push_back(x[1]);
+      }
+
+      // --- comparison ----------------------------------------------------------
+      const auto& log = solver.GetLog();
+      const auto& dom = log.GetDomain();
+      const auto T = log.GetVariable(0, 0, VariableType::TEMPERATURE);
+      const auto Tw = log.GetVariable(0, 0, VariableType::WALL_TEMPERATURE);
+      const auto Ho = log.GetVariable(0, 0, VariableType::EXTERNAL_HEAT_TRANSFER_COEFFICIENT);
+      ASSERT_FALSE(T.values.empty());
+      ASSERT_EQ(Ho.values.size(), Tw.values.size());
+
+      std::vector<double> T_mean, Tw_mean;
+      for (size_t n = 0; n < T.values.size(); ++n) {
+        T_mean.push_back(InteriorMean(T.values[n], dom.volume));
+        Tw_mean.push_back(InteriorMean(Tw.values[n], dom.volume));
+      }
+      for (double t : {30.0, 120.0, 400.0, 800.0, 1200.0}) {
+        const double T_expected = InterpolateSeries(t_ref, T_ref, t);
+        const double Tw_expected = InterpolateSeries(t_ref, Tw_ref, t);
+        EXPECT_NEAR(InterpolateSeries(T.times, T_mean, t), T_expected, 0.01 * (T_expected - T_ambient))
+          << "Bed temperature deviates from the lumped solution at t = " << t << " s";
+        EXPECT_NEAR(InterpolateSeries(Tw.times, Tw_mean, t), Tw_expected, 0.01 * (Tw_expected - T_ambient))
+          << "Wall temperature deviates from the lumped solution at t = " << t << " s";
+      }
+      // The wall cooled: the loss to ambient is real, not a constant-h artefact.
+      EXPECT_LT(Tw_mean.back(), T0 - 10.0);
+
+      // The logged coefficient is the correlation at the logged wall temperature.
+      for (size_t n : {size_t{0}, Tw.values.size() / 2, Tw.values.size() - 1})
+        for (size_t i = 1; i + 1 < Tw.values[n].size(); ++i)
+          EXPECT_NEAR(Ho.values[n][i], ho(Tw.values[n][i]), 1e-9 * ho(Tw.values[n][i])) << "cell " << i;
+    }
+  };
+
+  TEST_F(NaturalConvectionCoolingTest, VerticalColumnMatchesLumpedSolution) { Run(true); }
+  TEST_F(NaturalConvectionCoolingTest, HorizontalColumnMatchesLumpedSolution) { Run(false); }
 
   // ===========================================================================
   // 6. Open-system energy balance

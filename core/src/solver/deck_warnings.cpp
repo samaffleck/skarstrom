@@ -16,6 +16,7 @@
 #include "adsim/equations/isotherm_kinds.h"
 #include "adsim/equations/dispersion_model.h"
 #include "adsim/equations/heat_transfer_model.h"
+#include "adsim/equations/ambient_air.h"
 #include "adsim/equations/wall_temperature_boundary_condition.h"
 #include "adsim/equations/mass_transfer_model.h"
 
@@ -221,6 +222,35 @@ namespace adsim {
                          " packed bed: in a bed it under-predicts the particle heat and mass transfer coefficients at"
                          " moderate Reynolds number. Wakao-Funazkri or Gunn are packed-bed correlations.");
     }
+    return warnings;
+  }
+
+  std::vector<std::string> NaturalConvectionWarnings(const Bed& bed) {
+    std::vector<std::string> warnings;
+    if (bed.equations_.IsIsothermal()) return warnings;
+    bool vertical = false;
+    for (const auto& layer : bed.layers_.layers_) {
+      const auto* cc = dynamic_cast<const ExternalHeatTransferModel_ChurchillChu*>(
+          layer.equations_.external_heat_transfer_model_.get());
+      if (cc && cc->Vertical()) vertical = true;
+    }
+    if (!vertical) return warnings;
+    double height = 0.0;
+    for (const auto& layer : bed.layers_.layers_) height += layer.domain_.length.Get();
+    const double d_o = bed.GetHydraulicDiameter() + 2.0 * bed.wall_.thickness_;
+    if (!(height > 0.0) || !(d_o > 0.0)) return warnings;
+    const double T_inf = bed.ambient_temperature_;
+    const double Gr = ambient_air::Grashof(T_inf + kNaturalConvectionCheckDeltaT, T_inf, height);
+    const double d_min = 35.0 * height / std::pow(Gr, 0.25);
+    if (d_o >= d_min) return warnings;
+    std::ostringstream os;
+    os << std::setprecision(3) << "Warning: the column (outer diameter " << d_o << " m, bed height " << height
+       << " m) is too slender for the vertical-plate Churchill-Chu natural convection correlation: a plate needs"
+          " an outer diameter of at least "
+       << d_min << " m (D/L >= 35/Gr_L^(1/4) at a wall "
+       << kNaturalConvectionCheckDeltaT << " K above ambient). The curvature of a slender cylinder raises the"
+          " heat loss above the plate value, so the model under-predicts the wall-to-ambient coefficient.";
+    warnings.push_back(os.str());
     return warnings;
   }
 

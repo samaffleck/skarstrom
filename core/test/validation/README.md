@@ -125,6 +125,12 @@ balance had two.
   known eigenvalues. The test asserts the fast (bed/wall equilibration) and slow
   (loss to ambient) modes are separated by at least 5x, so a wrong wall heat
   capacity or area cannot hide.
+- **`NaturalConvectionCoolingTest.*`** — the same two-body system with the
+  wall losing heat by Churchill–Chu natural convection (vertical and
+  horizontal column). `h_o` depends on the wall temperature, so the reference
+  is the two lumped ODEs integrated with RK4. The bed and wall temperatures
+  must agree within 1 % of their excess over ambient, and the logged `h_o`
+  must equal the correlation at the logged wall temperature in every cell.
 - **`OpenSystemEnergyBalanceConvergesUnderGridRefinement`** — with flow the
   control volume is open: `dU = int (n_in h_in - n_out h_out) dt`. This is *not*
   expected to hold exactly on a coarse grid, because the temperature equation

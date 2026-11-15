@@ -245,7 +245,11 @@ const std::vector<K>& ExternalHeatTransfer() {
         {"holman_m", "-", 0.8, 0.1, 1.0, true, "Holman Re exponent (m)"},
         {"holman_n", "-", 0.3333333333, 0.1, 1.0, true, "Holman Pr exponent (n)"},
         {"external_velocity", "m/s", 0.5, 0.0, 10.0, true, "external velocity"}}},
-  }, {{"constant", AnyLayer()}, {"holman", AnyLayer()}});
+      // Natural convection to still air (Churchill and Chu 1975); no parameters.
+      {"churchill_chu_vertical", "Churchill and Chu (1975), vertical column", {}},
+      {"churchill_chu_horizontal", "Churchill and Chu (1975), horizontal column", {}},
+  }, {{"constant", AnyLayer()}, {"holman", AnyLayer()}, {"churchill_chu_vertical", AnyLayer()},
+      {"churchill_chu_horizontal", AnyLayer()}});
   return k;
 }
 

@@ -38,14 +38,19 @@ namespace adsim {
     "Leva (1947)" // 2
   };
 
+  // Stored values; never renumber.
   enum class ExternalHeatTransferType {
-    CONSTANT,
-    HOLMAN
+    CONSTANT = 0,
+    HOLMAN = 1,
+    CHURCHILL_CHU_VERTICAL = 2,
+    CHURCHILL_CHU_HORIZONTAL = 3
   };
 
   static const char* ExternalHeatTransferModeList[] = {
-    "Constant",     
-    "Holman (2008)"  
+    "Constant",
+    "Holman (2008)",
+    "Churchill and Chu (1975), vertical column",
+    "Churchill and Chu (1975), horizontal column"
   };
 
   class IInternalHeatTransferModel {
@@ -65,7 +70,9 @@ namespace adsim {
   class IExternalHeatTransferModel {
   public:
     virtual ~IExternalHeatTransferModel() = default;
-    virtual void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall) = 0;
+    // ambient_temperature: the temperature of the surroundings [K].
+    virtual void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                        double ambient_temperature) = 0;
     virtual ExternalHeatTransferType GetModelType() = 0;
     virtual unsigned ReadsTransportProperties() const { return kAllTransportProperties; }
     virtual void EvaluateExpressions(const EvalContext& ctx) {}
@@ -146,7 +153,8 @@ namespace adsim {
 
   class ConstantExternalHeatTransferModel : public IExternalHeatTransferModel {
   public:
-    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall) override;
+    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                double ambient_temperature) override;
     ExternalHeatTransferType GetModelType() override { return ExternalHeatTransferType::CONSTANT; }
     unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
     void EvaluateExpressions(const EvalContext& ctx) override { heat_transfer_coefficient_.Evaluate(ctx); }
@@ -166,7 +174,8 @@ namespace adsim {
 
   class ExternalHeatTransferModel_Holman : public IExternalHeatTransferModel {
   public:
-    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall) override;
+    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                double ambient_temperature) override;
     ExternalHeatTransferType GetModelType() override { return ExternalHeatTransferType::HOLMAN; }
     unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
     void EvaluateExpressions(const EvalContext& ctx) override {
@@ -188,6 +197,37 @@ namespace adsim {
         cereal::make_nvp("Power_Coefficient_Re", m),
         cereal::make_nvp("Power_Coefficient_Pr", n),
         cereal::make_nvp("External_Velocity", external_velocity)
+      );
+    }
+  };
+
+  // Natural convection to still air by Churchill and Chu (1975)
+  // (ambient_air.h): a vertical column as a vertical plate whose height is the
+  // column length, a horizontal column as a horizontal cylinder of the outer
+  // wall diameter. Each cell uses its own wall temperature; the air
+  // properties are at the film temperature. No parameters.
+  class ExternalHeatTransferModel_ChurchillChu : public IExternalHeatTransferModel {
+  public:
+    explicit ExternalHeatTransferModel_ChurchillChu(bool vertical = true) : vertical_(vertical) {}
+    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                double ambient_temperature) override;
+    ExternalHeatTransferType GetModelType() override {
+      return vertical_ ? ExternalHeatTransferType::CHURCHILL_CHU_VERTICAL
+                       : ExternalHeatTransferType::CHURCHILL_CHU_HORIZONTAL;
+    }
+    unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
+    bool Vertical() const { return vertical_; }
+
+  private:
+    bool vertical_ = true;
+
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      (void)version;
+      ar(
+        cereal::virtual_base_class<IExternalHeatTransferModel>(this),
+        cereal::make_nvp("Vertical", vertical_)
       );
     }
   };
@@ -285,6 +325,10 @@ namespace adsim {
     switch (type) {
     case ExternalHeatTransferType::CONSTANT: return std::make_unique<ConstantExternalHeatTransferModel>();
     case ExternalHeatTransferType::HOLMAN: return std::make_unique<ExternalHeatTransferModel_Holman>();
+    case ExternalHeatTransferType::CHURCHILL_CHU_VERTICAL:
+      return std::make_unique<ExternalHeatTransferModel_ChurchillChu>(true);
+    case ExternalHeatTransferType::CHURCHILL_CHU_HORIZONTAL:
+      return std::make_unique<ExternalHeatTransferModel_ChurchillChu>(false);
     default: return nullptr;
     }
   }
@@ -299,4 +343,5 @@ CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Dixon, 1);
 CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Leva, 1);
 CEREAL_CLASS_VERSION(adsim::ConstantExternalHeatTransferModel, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_Holman, 1);
+CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_ChurchillChu, 1);
 CEREAL_CLASS_VERSION(adsim::FilmParticleHeatTransferModel, 1);

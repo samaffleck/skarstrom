@@ -6,6 +6,7 @@
  */
 #include "../pch.h"
 #include "adsim/equations/heat_transfer_model.h"
+#include "adsim/equations/ambient_air.h"
 #include "adsim/objects/reactor.h"
 #include "adsim/equations/equation.h"
 
@@ -93,37 +94,62 @@ namespace adsim {
 		hi[N - 1] = hi[N - 2];
 	}
 
-  void ConstantExternalHeatTransferModel::Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall) {
-		auto& ho = state.external_heat_transfer_coefficient.var;
+  void ConstantExternalHeatTransferModel::Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                                                 double ambient_temperature) {
+    (void)wall;
+    (void)ambient_temperature;
+    auto& ho = state.external_heat_transfer_coefficient.var;
 
     auto start = layer.domain_.start_index;
     auto end = layer.domain_.end_index;
-		for (int n = start; n <= end; ++n) {
+    for (int n = start; n <= end; ++n) {
       ho[n] = heat_transfer_coefficient_;
-		}
-	}
+    }
+  }
 
-	void ExternalHeatTransferModel_Holman::Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall) {
-		auto& ho = state.external_heat_transfer_coefficient.var;
+  void ExternalHeatTransferModel_Holman::Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                                                double ambient_temperature) {
+    (void)wall;
+    (void)ambient_temperature;
+    auto& ho = state.external_heat_transfer_coefficient.var;
 
-		// TODO: Should depend on user input temperature
-		const double k_air = 0.0259;         // W/(m-K)
-		const double rho_air = 1.204;        // kg/m
-		const double vis_air = 1.81e-5;      // Pa-s
-		const double cp_air = 1005;          // J/(kg-K)
-		const double Pr_air = cp_air * vis_air / k_air;
+    // TODO: Should depend on user input temperature
+    const double k_air = 0.0259;         // W/(m-K)
+    const double rho_air = 1.204;        // kg/m
+    const double vis_air = 1.81e-5;      // Pa-s
+    const double cp_air = 1005;          // J/(kg-K)
+    const double Pr_air = cp_air * vis_air / k_air;
     const auto& de = state.domain_vectors.de;
 
     auto start = layer.domain_.start_index;
     auto end = layer.domain_.end_index;
     const double pr_exp = n;  // Prandtl exponent (member); avoid shadowing by the loop index
-		for (int i = start; i <= end; ++i) {
+    for (int i = start; i <= end; ++i) {
       double Re_air = de[i] * external_velocity * rho_air / vis_air;
       double Nu_air = c * std::pow(Re_air, m) * std::pow(Pr_air, pr_exp);
       double htc = Nu_air * k_air / de[i];
-			ho[i] = htc;
-		}
-	}
+      ho[i] = htc;
+    }
+  }
+
+  void ExternalHeatTransferModel_ChurchillChu::Update(Equations& state, const MixedAdsorbentLayer& layer,
+                                                      const BedWall& wall, double ambient_temperature) {
+    (void)wall;
+    auto& ho = state.external_heat_transfer_coefficient.var;
+    const auto& Tw = state.wall_temperature.var;
+    const auto& de = state.domain_vectors.de;
+    const auto& dx = state.domain_vectors.cell_width;
+
+    // The wall runs along every layer, so a vertical column is one plate of
+    // the bed's height (all layers; the lumped void regions have no length).
+    double height = 0.0;
+    for (int i : state.domain_vectors.bed_cell_indices) height += dx[i];
+
+    for (int i = layer.domain_.start_index; i <= layer.domain_.end_index; ++i) {
+      const double T_wall = Tw[i] > 0.0 ? Tw[i] : ambient_temperature;
+      ho[i] = ambient_air::ChurchillChuCoefficient(vertical_, T_wall, ambient_temperature, height, de[i]);
+    }
+  }
 
   void ConstantParticleHeatTransferModel::Update(Equations& state, const MixedAdsorbentLayer& layer) {
     auto& hp = state.particle_heat_transfer_coefficient.var;
@@ -171,10 +197,12 @@ CEREAL_REGISTER_TYPE(adsim::InternalHeatTransferModel_Dixon)
 CEREAL_REGISTER_TYPE(adsim::InternalHeatTransferModel_Leva)
 CEREAL_REGISTER_TYPE(adsim::ConstantExternalHeatTransferModel)
 CEREAL_REGISTER_TYPE(adsim::ExternalHeatTransferModel_Holman)
+CEREAL_REGISTER_TYPE(adsim::ExternalHeatTransferModel_ChurchillChu)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IInternalHeatTransferModel, adsim::ConstantInternalHeatTransferModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IInternalHeatTransferModel, adsim::InternalHeatTransferModel_Dixon)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IInternalHeatTransferModel, adsim::InternalHeatTransferModel_Leva)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ConstantExternalHeatTransferModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ExternalHeatTransferModel_Holman)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IExternalHeatTransferModel, adsim::ExternalHeatTransferModel_ChurchillChu)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IParticleHeatTransferModel, adsim::ConstantParticleHeatTransferModel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IParticleHeatTransferModel, adsim::FilmParticleHeatTransferModel)
