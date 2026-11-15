@@ -43,6 +43,7 @@ DEFAULT_BASIS = {
     "streb_2021": "experiment",
     "vysyarajua_2024": "experiment",
     "ward_2022": "experiment",
+    "ward_pini_2022": "paper model",
     "ward_pini_2024": "paper model",
 }
 
@@ -234,7 +235,7 @@ def render(summary: dict, manifest: list) -> str:
     out("```bash")
     out("cmake --preset linux-release")
     out("cmake --build --preset linux-release")
-    out('ctest --preset linux-release -R "(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)" -j2')
+    out('ctest --preset linux-release -R "(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2022|WardPini2024)" -j2')
     out("python scripts/docs/gen_validation_page.py --merge build/linux-release/validation")
     out("```")
     out("")

@@ -1,6 +1,6 @@
 # Examples
 
-Skarstrom ships 58 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
+Skarstrom ships 60 example decks in `examples/decks/`, most of them reproducing published adsorption studies. The Python package bundles all of them (`skarstrom examples`, `skarstrom.examples.<name>`), so they are the quickest way to see a complete process: run one, inspect how it is set up (`skarstrom params deck.json --all`), and adapt it.
 
 Every paper-based deck is also an automated validation test; the [Validation](validation.md) page lists the simulated and published values and the error metric for each case, including where Skarstrom and the paper disagree, and why.
 
@@ -62,6 +62,7 @@ Five executed notebooks are in `examples/notebooks/`: a parametric study of the 
 | **Vysyaraju (2024)** | `Vysyaraju2024_PSA_exp1` | He/N₂ separation on binderless zeolite 5A, 5-step PSA |
 | **Ward (2022)** | `Ward2022_Q50ccm`, `Ward2022_Q100ccm`, `Ward2022_Q200ccm` | CO₂ breakthrough on activated carbon at three feed flow rates |
 | **Ward (2024)** | `Ward2024` | CO₂/N₂ 4-step VSA on Mg-MOF-74 (Table 4) |
+| **Ward & Pini (2022)** | `WardPini2022_13X_PL003`, `WardPini2022_ZIF36FRL_PL007` | CO₂/N₂ 4-step PVSA with feed pressurisation and compressor and vacuum-pump energy (Ind. Eng. Chem. Res. 61 (2022) 13650): the minimum-capture-cost designs of Table 7 on zeolite 13X and ZIF-36-FRL. *New in 0.14.* |
 | **Illustrative** | `Illustrative_TSA_13X` | **Not a reproduction.** A four-step indirectly heated TSA for CO₂ on zeolite 13X, built for the [TSA tutorial](tsa-regeneration.md) |
 | **Illustrative** | `Illustrative_DAC_Breakthrough` | **Not a reproduction.** An isothermal breakthrough of 400 ppm CO₂ in N₂ on the Lewatit VP OC 1065 library adsorbent, with the [dual-rate LDF and series-resistance kinetics](kinetic-models.md#which-to-use-for-direct-air-capture) |
 | **Illustrative** | `Illustrative_Humid_DAC_Breakthrough` | **Not a reproduction.** A non-isothermal breakthrough of 400 ppm CO₂ in humid N₂ (49 % RH at 20 °C) on the APDES-NFC library adsorbent: water on a GAB isotherm, CO₂ on the [humid Toth](isotherms.md#co2-with-adsorbed-water-toth-wadst-and-humid-toth) that reads the adsorbed water, and the water sorption heat in the temperature trace ([Humid feeds](tsa-regeneration.md#6-humid-feeds)). *New in 0.9.* |

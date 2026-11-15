@@ -145,6 +145,19 @@
       ]
     },
     {
+      "id": "ward_pini_2022",
+      "label": "Ward & Pini (2022), PVSA",
+      "citation": "A. Ward, R. Pini, Efficient Bayesian optimization of industrial-scale pressure-vacuum swing adsorption processes for CO2 capture, Industrial & Engineering Chemistry Research 61 (2022) 13650-13668.",
+      "doi": "10.1021/acs.iecr.2c02313",
+      "system": "CO2/N2 4-step PVSA with feed pressurisation on zeolite 13X and ZIF-36-FRL, ten cost-optimal designs",
+      "reference_kind": "paper's detailed-model results at its cost-optimal designs (SI Tables S2, S3; Table 7)",
+      "findings": [
+        "On the ten fully specified designs of SI Tables S2 and S3 (p_L = 0.02-0.1 bar), CO2 purity agrees within 0.61 percentage points in all ten; recovery within 1.8 pp and productivity within 2.1 % in the other eight. Zeolite 13X at p_L = 0.02 and 0.03 bar is 5.5 and 2.3 pp low in recovery (and 7 % and 3 % low in productivity); a faster CO2 rate (D_m x 10 in Eq. 6) closes it, so the shortfall is in the rate at deep vacuum.",
+        "The specific energy is 0.7-7 % below the paper at p_L = 0.02 bar and for 13X at 0.03 bar, but 13-37 % below in the other six cases, where feed compression dominates. The engine's compression work matches the paper's printed formula (SI Eq. 45) to 1 % by hand; grid, compressor efficiency (0.72 instead of eta(1 bar) = 0.761) and heat-of-adsorption form change the energy by at most 5 % (a faster rate lowers it). The cause is open and the energy is recorded, not asserted, in those six cases.",
+        "The deck uses the paper's model forms: the paper's 10 WENO cells, gas held in the bed voids only, Eq. 6 LDF coefficient, -dU_b + RT as the heat of adsorption, wall ends at ambient and eta(p) = 0.8 x 19.55p / (1 + 19.55p) for every pump. Two assumptions: r_in = L / 6.43 with the Table 3 wall-to-bore ratio for the scaled columns, and the adsorption step at p_H (SI Eq. 13 normalises by p_F)."
+      ]
+    },
+    {
       "id": "ward_pini_2024",
       "label": "Ward & Pini (2024)",
       "citation": "A. Ward, R. Pini, Design and Performance Evaluation of Multisorbent Vacuum-Swing Adsorption Processes for Postcombustion Carbon Capture, Industrial & Engineering Chemistry Research 63 (2024) 13787-13800.",
