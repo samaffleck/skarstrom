@@ -242,16 +242,18 @@ namespace adsim {
 
   void LoadFromJsonText(UserData& data, const std::string& json) {
     if (json.empty()) throw std::invalid_argument("deck JSON is empty");
+    std::string text = json;
+    MigrateRenamedComponents(text);
     LoadUserDataTransactional(data, [&](UserData& loaded) {
       try {
         // String format root ("simulation"). The NVP lookup fails at the first
         // read, before `loaded` is touched, when the root is the file format.
-        std::istringstream iss(json);
+        std::istringstream iss(text);
         cereal::JSONInputArchive ar(iss);
         ar(cereal::make_nvp("simulation", loaded));
       } catch (const cereal::Exception&) {
         loaded = UserData{};
-        std::istringstream iss(json);
+        std::istringstream iss(text);
         cereal::JSONInputArchive ar(iss);
         ar(loaded);
       }

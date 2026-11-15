@@ -59,7 +59,6 @@ URL = "https://raw.githubusercontent.com/CoolProp/CoolProp/{commit}/dev/fluids/{
 
 # Component -> (CoolProp fluid file, SHA-256 of the file at COOLPROP_COMMIT).
 FLUID_FILES = {
-    "Air": ("Air.json", "c5e0d064d83fc91ed35d7354cea1fa38fea832a09d2e85faf4336e0017c33616"),
     "Ammonia": ("Ammonia.json", "f7f4ce9a4227caca6bde4195b3ec484a9f9d084e6ce9035d3a67a756aebff312"),
     "Argon": ("Argon.json", "f52c19ef34818fcbae0f29444c8bfa6bc444e7c87bbaa58de08f392617315b0d"),
     "Benzene": ("Benzene.json", "0482070857b11b7ef87b2f50343f9952ffede0a98a037acac9eb55265e8521d8"),
@@ -220,7 +219,7 @@ def generate(fluids: Path | None) -> str:
 //   p_critical        STATES.critical.p [Pa]
 //   T_triple          EOS[0].STATES.sat_min_liquid.T [K] (CoolProp's Ttriple)
 //   p_sat             the vapour-pressure ancillary ANCILLARIES.pS (pV when
-//                     the file has separate pL and pV; Air):
+//                     the file has separate pL and pV):
 //                       p = reducing_value * exp((T_r / T) * sum_i n_i theta^t_i),
 //                       theta = 1 - T / T_r  (T_r / T -> 1 when !using_tau_r)
 //   formula           INFO.FORMULA without the subscript markup ("CO2")

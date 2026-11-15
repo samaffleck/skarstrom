@@ -44,7 +44,6 @@ namespace adsim {
 
   // C++17 inline variable: one shared instance across all translation units.
   inline const std::unordered_map<std::string, std::array<double, 5>> kViscosityCoefficients = {
-    {"Air", {{-3.975668308e-07, 8.355550932e-08, -8.946761945e-11, 8.105793652e-14, -3.291047444e-17}}}, // mu300=18.54 uPa.s; CoolProp: Lemmon-IJT-2004
     {"Ammonia", {{5.662838731e-06, -2.243235441e-08, 1.897691980e-10, -2.536813623e-13, 1.230607119e-16}}}, // mu300=10.16 uPa.s; CoolProp: Fenghour-JPCRD-1995
     {"Argon", {{-8.761247680e-07, 9.881118067e-08, -8.412117788e-11, 6.410174481e-14, -2.296012007e-17}}}, // mu300=22.74 uPa.s; CoolProp: Lemmon-IJT-2004
     {"Benzene", {{1.254467318e-06, 1.638907665e-08, 2.301358987e-11, -2.659481940e-14, 1.084363444e-17}}}, // mu300=7.61 uPa.s; CoolProp: Avgeri-JPCRD-2014-Benzene

@@ -19,6 +19,7 @@
 
 #include "adsim/equations/isotherm_kinds.h"
 #include "adsim/objects/adsorbent_library.h"
+#include "adsim/objects/component_migration.h"
 
 namespace adsim {
 
@@ -227,8 +228,10 @@ AdsorbentID AddAdsorbentToDeck(UserData& data, const std::string& name) {
   return id;
 }
 
-bool LoadAdsorbentFromString(const std::string& json, Adsorbent& out, std::string& err) {
+bool LoadAdsorbentFromString(const std::string& input, Adsorbent& out, std::string& err) {
   try {
+    std::string json = input;
+    MigrateRenamedComponents(json);
     std::istringstream iss(json);
     cereal::JSONInputArchive archive(iss);
     archive(out);

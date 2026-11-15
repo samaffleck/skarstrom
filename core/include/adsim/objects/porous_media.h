@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <iterator>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -38,6 +39,7 @@
 #include <cereal/archives/json.hpp>
 
 // ads includes
+#include "adsim/objects/component_migration.h"
 #include "adsim/math/sorted_map_archive.h"
 #include "adsim/equations/film_correlation.h"
 #include "adsim/objects/fluid.h"
@@ -793,7 +795,10 @@ namespace adsim {
 
   inline void LoadAdsorbentFromJSON(const std::string& file_name, Adsorbent& adsorbent) {
     std::ifstream ifs(file_name);
-		cereal::JSONInputArchive archive(ifs);
+    std::string json((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    MigrateRenamedComponents(json);
+    std::istringstream iss(json);
+		cereal::JSONInputArchive archive(iss);
 		archive(adsorbent);
   }
 

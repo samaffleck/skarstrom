@@ -257,6 +257,57 @@ log-scale parameter the standard error is the value times the standard error of 
 A fitted value absorbs whatever else moves the measured curve (dead volume, the detector, the bed
 temperature), so check it against independent data: fit one flow rate and compare with another.
 
+### Bootstrap intervals
+
+!!! note "New in 0.13"
+    `uncertainty="bootstrap"` and the `bootstrap_samples`, `bootstrap_max_iterations`,
+    `bootstrap_seed` and `interval_level` options; `Estimate.bootstrap_std_error`,
+    `Estimate.interval`, `Estimate.bootstrap_at_bound`; `--bootstrap N`, `--seed` and `--level` on
+    `skarstrom calibrate`; `Options::uncertainty` in C++.
+
+The Jacobian standard errors are a linearisation at the estimate. A residual bootstrap checks
+them without that assumption: after the fit, the model is refitted to `bootstrap_samples` synthetic
+data sets, each the fitted curve plus residuals drawn with replacement from the fit's own
+residuals of the same dataset (centred, and inflated by $\sqrt{N/(N-p)}$). The spread of the
+refitted values is the bootstrap standard error, and their percentiles give the interval.
+
+```python
+result = sim.calibrate(
+    [cal.Parameter("adsorbent[1].isotherm[CarbonDioxide].m2", 4, 8)],
+    datasets=["outlet_CO2_mole_fraction[-]_Qin=100[ccm]"], max_simulations=20,
+    uncertainty="bootstrap", bootstrap_samples=4, bootstrap_max_iterations=3)   # use 100-200
+est = result["adsorbent[1].isotherm[CarbonDioxide].m2"]
+est.std_error, est.bootstrap_std_error          # Jacobian and bootstrap, SI units
+est.interval                                    # (2.5 %, 97.5 %) percentiles at interval_level=0.95
+est.bootstrap_at_bound                          # share of refits that ended at a bound
+result.bootstrap_estimates                      # refits x estimates (NumPy)
+result.bootstrap_correlation
+```
+
+Each refit starts at the estimate with the Jacobian already made there, takes at most
+`bootstrap_max_iterations` iterations (default 10) and warm-starts from the cached steady states
+near the estimate, so it is much cheaper than the fit. The whole bootstrap still costs about
+`bootstrap_samples` (default 100) short fits: use it on a coarse grid, or when the Jacobian
+errors are in doubt. The draws use `bootstrap_seed` (default 1): the same seed gives the same
+intervals. `result.table()` adds the bootstrap columns, and `progress` reports each refit
+(`info["bootstrap_sample"]`). The Jacobian errors and correlations are always reported too.
+
+When the two disagree, prefer the bootstrap interval:
+
+- **A parameter at a bound.** The refits can only move inwards, so the interval is one-sided and
+  the Jacobian standard error is not a standard deviation. `result.notes` says so.
+- **Strongly correlated parameters.** The valley of the objective is curved, so the linear
+  ellipse has the wrong shape and size. Compare `result.bootstrap_correlation` with
+  `result.correlation`.
+- **A model far from linear over the interval** (a capacity near the point where the
+  breakthrough leaves the measured window, for example).
+
+`result.notes` flags a parameter whose two standard errors differ by more than a factor of 2.
+Two limits apply to both methods. The residuals of a time series are correlated in time, which the
+residual bootstrap ignores (it draws points independently), so both understate the uncertainty of
+a densely sampled curve. And neither includes model error: an interval says how well the data fix
+the value within this model, not how right the model is.
+
 ### Choosing the method
 
 - `method="least_squares"` (the default) is a bounded Levenberg–Marquardt method with a
@@ -296,6 +347,8 @@ skarstrom calibrate Illustrative_Diluted_Bed.json --set "layer[1].cells=12" \
     --max-simulations 20 --out calibrated.json --json fit.json -q
 ```
 
+Add `--bootstrap N` (with `--seed` and `--level`) for bootstrap intervals.
+
 ### Calibration from C++
 
 The engine's object is `adsim/solver/calibration.h` (namespace `adsim::calibration`), which the
@@ -306,8 +359,8 @@ Python API wraps:
 | `Case` | One experiment: the deck (`Case::FromFile(path)`, `Case::FromData(user_data)`, or the JSON text in `deck_json`), the datasets to fit (`Dataset("name", weight)` or `Dataset(index)`; empty means every bound dataset) and a run policy (`sensitivity::RunPolicy`: a cycle cap, whether a run must reach cyclic steady state, registry text sets applied before the parameters). CSS is not required by default. |
 | `Parameter` | A tunable registry path, its bounds, `Scale::Linear` or `Scale::Log`, an optional start (default: the deck's value) and the sharing: `Shared(path, lower, upper)` gives one value for every case, `PerCase(path, lower, upper)` one value per case (with optional per-case bounds and starts). |
 | `Problem` | The cases and parameters, checked at construction against every deck: an unknown path, or a dataset that is missing or unbound, is an error that names the case. |
-| `Options` | The solver (`Solver::LeastSquares`, the default, or `Solver::Global` with `refine`), the run budget (`max_simulations`), stopping tolerances, the finite-difference scheme and step, the number of threads, warm starts, and the `progress` and `cancel` callbacks. |
-| `Result` | Per parameter: the estimate, its standard error, whether it is at a bound. The correlation matrix. Per dataset: RMSE, NRMSE, the maximum error, the points used, the residuals and the simulated series at the estimate. The objective trace, the runs made and failed, the solver and why it stopped, and one calibrated deck per case. |
+| `Options` | The solver (`Solver::LeastSquares`, the default, or `Solver::Global` with `refine`), the run budget (`max_simulations`), stopping tolerances, the finite-difference scheme and step, the number of threads, warm starts, the uncertainty method (`Uncertainty::Jacobian`, the default, or `Uncertainty::Bootstrap` with its refits, seed and interval level), and the `progress` and `cancel` callbacks. |
+| `Result` | Per parameter: the estimate, its standard error, whether it is at a bound (with the bootstrap: its bootstrap standard error, percentile interval and share of refits at a bound). The correlation matrix (and the bootstrap one). Per dataset: RMSE, NRMSE, the maximum error, the points used, the residuals and the simulated series at the estimate. The objective trace, the runs made and failed, the solver and why it stopped, and one calibrated deck per case. |
 
 ```cpp
 #include "adsim/solver/calibration.h"
