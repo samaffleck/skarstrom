@@ -8,6 +8,8 @@
 
 // STL includes
 #include <fstream>
+#include <iterator>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -25,6 +27,7 @@
 #include <cereal/archives/json.hpp>
 
 // adsim includes
+#include "adsim/objects/component_migration.h"
 #include "adsim/boundary_conditions/step.h"
 #include "adsim/boundary_conditions/connection.h"
 #include "adsim/objects/fluid.h"
@@ -313,9 +316,12 @@ namespace adsim {
     if (!ifs.is_open()) {
       throw std::runtime_error("LoadCycleFromJSON: could not open file " + file_name);
     }
+    std::string json((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    MigrateRenamedComponents(json);
     Cycle loaded;
     {
-      cereal::JSONInputArchive archive(ifs);
+      std::istringstream iss(json);
+      cereal::JSONInputArchive archive(iss);
       archive(loaded);
     }
     cycle = std::move(loaded);

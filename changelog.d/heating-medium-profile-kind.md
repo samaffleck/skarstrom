@@ -1,2 +1,0 @@
-### Added — switch the profile kind of a step's heating-medium temperature
-- `SetHeatingMediumProfileKind(data, step_id, kind, error)` in `adsim/objects/deck_edit.h` switches a step's heating-medium temperature between constant, linear, exponential, log-linear and double-exponential. The current medium temperature is kept as the constant or the ramp's start and end. The call refuses an unknown step, a step without an enabled medium or an unknown kind, and leaves the deck unchanged.

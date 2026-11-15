@@ -26,7 +26,7 @@
 //   p_critical        STATES.critical.p [Pa]
 //   T_triple          EOS[0].STATES.sat_min_liquid.T [K] (CoolProp's Ttriple)
 //   p_sat             the vapour-pressure ancillary ANCILLARIES.pS (pV when
-//                     the file has separate pL and pV; Air):
+//                     the file has separate pL and pV):
 //                       p = reducing_value * exp((T_r / T) * sum_i n_i theta^t_i),
 //                       theta = 1 - T / T_r  (T_r / T -> 1 when !using_tau_r)
 //   formula           INFO.FORMULA without the subscript markup ("CO2")
@@ -72,14 +72,7 @@ namespace adsim {
   inline constexpr const char* kComponentPropertiesSource =
       "CoolProp 6.7.0 fluid files (generated table)";
 
-  inline const std::array<ComponentProperties, 33> kComponentProperties = {{
-    // Air.json, ANCILLARIES.pV
-    {"Air", "Air", "N/A", "AIR.PPF",
-     "air,AIR,R729",
-     0.02896546, 132.5306, 3786000.0, 59.75,
-     {true, 4, {{-0.1567266, -5.539635, 0.7567212, -3.514322, 0.0, 0.0}},
-      {{0.5, 1.0, 2.5, 4.0, 0.0, 0.0}},
-      132.6312, 3785020.0, true, 59.75, 132.6312}},
+  inline const std::array<ComponentProperties, 32> kComponentProperties = {{
     // Ammonia.json, ANCILLARIES.pS
     {"Ammonia", "Ammonia", "H3N", "7664-41-7",
      "NH3,ammonia,R717,AMMONIA",

@@ -19,6 +19,7 @@
 #include "adsim/solver/solver_profile.h"
 #include "adsim/solver/sensitivity_study.h"
 #include "adsim/math/user_variables.h"
+#include "adsim/objects/component_migration.h"
 
 // Cereal includes
 #include <cereal/types/string.hpp>
@@ -283,8 +284,11 @@ namespace adsim {
 		if (!ifs.is_open()) {
 			throw std::runtime_error("LoadFromJson: could not open file " + file_name);
 		}
+		std::string json((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		MigrateRenamedComponents(json);
 		LoadUserDataTransactional(data, [&](UserData& loaded) {
-			cereal::JSONInputArchive archive(ifs);
+			std::istringstream iss(json);
+			cereal::JSONInputArchive archive(iss);
 			archive(loaded);
 		});
 	}
@@ -306,8 +310,10 @@ namespace adsim {
     if (in_string.empty()) {
         throw std::invalid_argument("LoadFromString: input JSON string is empty");
     }
+    std::string json = in_string;
+    MigrateRenamedComponents(json);
     LoadUserDataTransactional(data, [&](UserData& loaded) {
-      std::istringstream iss(in_string);
+      std::istringstream iss(json);
       cereal::JSONInputArchive archive(iss);
       archive(cereal::make_nvp("simulation", loaded));
     });

@@ -8,6 +8,26 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-11-15
+
+### Added — switch the profile kind of a step's heating-medium temperature
+- `SetHeatingMediumProfileKind(data, step_id, kind, error)` in `adsim/objects/deck_edit.h` switches a step's heating-medium temperature between constant, linear, exponential, log-linear and double-exponential. The current medium temperature is kept as the constant or the ramp's start and end. The call refuses an unknown step, a step without an enabled medium or an unknown kind, and leaves the deck unchanged.
+
+### Added — look up a step's endpoint summary by endpoint ID
+- `Step::FindSummaryForEndpoint(size_t endpoint_id)` finds a stream's or pressure boundary's cycle summary by its stable endpoint ID, which does not change when a stream is renamed. The name overload is unchanged.
+
+### Added — structured-layer geometry and closure layer kinds for front ends
+- The deck view of a structured (monolith or laminate) layer has a read-only `derived` list: the open frontal area, the hydraulic diameter, the wall area per bed volume, the diffusion length, the channel count (monolith) and the washcoat fraction, each as `{key, label, unit, value}` from `LayerGeometrySummary`. The list is empty for a packed layer.
+- `ModelKindManifest()` (`sk.model_kinds()`) gives `layer_kinds` for each kind of the layer closure families (dispersion, heat dispersion, internal and external heat transfer): the layer kinds the deck checks accept the kind on. `LayerClosureFamily` and `KindAcceptsLayer` (`model_kinds.h`) give the same in C++. A unit test keeps the table equal to `Bed::PerformChecks` for each closure and layer kind.
+
+### Fixed — dispersion and conduction not conservative at layer interfaces
+- The dispersive flux of the component balance and the conductive fluxes of the gas energy balance (LTE and the gas of LTNE) and of the wall are now one value per face: the two half cells in series (the cell-width-weighted harmonic mean of the coefficient) over the distance between the cell centres. Before, each cell divided the face gradient by its own width, the component balance also took the cell's own bed voidage and the gas conduction the arithmetic mean of the two conductivities, so where the cell width or the voidage changed (a layer interface, a void region) one cell lost a different amount of a species or of heat from what its neighbour gained. A uniform layer is unchanged bit for bit when its conductivity is uniform; a layer whose conductivity varies along it (a flow- or temperature-dependent heat dispersion model) now uses the harmonic instead of the arithmetic face mean, a second-order change. Gas conduction no longer crosses the face between a void region and the bed (the void has no conductivity), as dispersion already did not.
+- New tests: `ConservativeFaceFluxes.*` (exact face-flux cancellation in every balance, and species and energy closure of a closed two-layer column with different cell widths and voidages) and `ManufacturedSolutions.NonUniformGridOrder` (the observed order across a jump of the cell width).
+
+### Fixed — the model equations in the docs now match the engine
+- An audit of every docs equation against the residual and closure code. The docs said second-order LDF was k (q* − q)²; the engine uses the sign-preserving k (q* − q)|q* − q|. Competitive isotherm sums run only over the components of the same adsorbent with the same kind, not over every adsorbing component. Ruthven and Taylor–Aris dispersion use the entered molecular diffusivity, not the Chapman–Enskog value. Connections read the partner's most recent run, which is less than one cycle behind when the partner step comes earlier in the cycle. The GAB high-loading heat, the Holman constants, the exchanger split in structured layers and the stale ASME section of the wall page are corrected.
+- Equations that were missing are now written out: the mass balances with the per-solid sums and the reaction source; the LTNE gas and solid energy balances; the heat of reaction (negative for exothermic, Kirchhoff by default); Chapman–Enskog binary diffusion with the Neufeld collision integral and Blanc's law for mixtures of three or more components; the Leva coefficient; the softplus floor on the mole fraction in nine isotherm kinds; the reaction constants, Thiele effectiveness factor and irreversible LHHW; the pump work law, flow-type conversions, stream mixing and buffer-tank averages.
+
 ## [0.12.1] — 2026-11-14
 
 ### Fixed — example streams without a name

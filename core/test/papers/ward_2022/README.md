@@ -49,7 +49,7 @@ Eq. 4 and the inside HTC. They also use the particle density 435 / 0.544
 | Ambient temperature | 291.4 K | Table 1, T_a | |
 | Feed temperature, pressure | 293 K, 1 bar | Table 1, T_F, p_F | |
 | Feed | pure CO₂ at 50 / 100 / 200 cm³/min | Sect. 2 | |
-| Initial gas / carrier | **air in the deck; helium in the experiment** | Sect. 2: "the CO₂/He system" | the paper's model uses constant CO₂ gas properties (C_p,g 840 J/(kg K), μ 1.72 × 10⁻⁵ Pa s, k_g 0.0162 W/(m K), D_m 0.605 × 10⁻⁵ m²/s; Table 1); the engine takes the other mixture properties from CoolProp; the gas heat capacity is the paper's: constant 840 J/(kg K) per component, i.e. 840 J/(kg K) for every CO₂/He mixture (see below) |
+| Initial gas / carrier | helium, as in the experiment | Sect. 2: "the CO₂/He system" | the paper's model uses constant CO₂ gas properties (C_p,g 840 J/(kg K), μ 1.72 × 10⁻⁵ Pa s, k_g 0.0162 W/(m K), D_m 0.605 × 10⁻⁵ m²/s; Table 1); the engine takes the other mixture properties from CoolProp; the gas heat capacity is the paper's: constant 840 J/(kg K) per component, i.e. 840 J/(kg K) for every CO₂/He mixture (see below) |
 | Isotherm | DSL, concentration form | Table 2, Eqs. 1–3 | q_s,1 0.418, q_s,2 6.04 mol/kg; b_0,1 2.05 × 10⁻⁶, b_0,2 3.32 × 10⁻⁶ m³/mol; ΔU_1 −29 980, ΔU_2 −20 367 J/mol |
 | Heat of adsorption | 29 980 J/mol | Table 2 (−ΔU_1) | the paper's energy balance (A4) releases −ΔU_1 + RT ≈ 32.4 kJ/mol per mole adsorbed, for all loading |
 | LDF coefficient | Haynes (film + macropore), τ_p 3, ε_p 0.59 | Eqs. 6–7, Table 1 | the engine evaluates D_m per cell from the mixture; the paper uses the constant 0.605 × 10⁻⁵ m²/s |

@@ -43,7 +43,7 @@ $$
 \frac{H_{0,i}}{R\thinspace T} = a_0 + \frac{a_1 T}{2} + \frac{a_2 T^2}{3} + \frac{a_3 T^3}{4} + \frac{a_4 T^4}{5} + \frac{a_5}{T}
 $$
 
-with one coefficient set per component, valid to 1000 K: the low-temperature set of TM-4513 (adsorption processes stay well below 1000 K, so the report's 1000–6000 K set is not carried). The coefficients are those of McBride, Gordon and Reno (1993), *Coefficients for Calculating Thermodynamic and Transport Properties of Individual Species*, NASA TM-4513, copied unchanged with each species' data source (`core/include/adsim/objects/ideal_gas_heat_capacity.h`). The reference and each species' TM-4513 label and data-source code are available through the API (`skarstrom.ideal_gas_heat_capacity_reference()` and `skarstrom.ideal_gas_heat_capacity_source(component)`; C++ `kIdealGasHeatCapacityReference`, `NasaPolynomial::species` and `source`). Air, which TM-4513 does not list, is the ideal-gas mixture of its N₂, O₂ and Ar entries at the composition of CoolProp's air model (Lemmon et al. 2000: 0.7812, 0.2096, 0.0092 by mole); an ideal-gas mixture mixes the coefficients linearly, so this is exact. Outside a polynomial's range (below 200 K for most species, 298 or 300 K for a few, and above 1000 K) the value at the nearer limit is used.
+with one coefficient set per component, valid to 1000 K: the low-temperature set of TM-4513 (adsorption processes stay well below 1000 K, so the report's 1000–6000 K set is not carried). The coefficients are those of McBride, Gordon and Reno (1993), *Coefficients for Calculating Thermodynamic and Transport Properties of Individual Species*, NASA TM-4513, copied unchanged with each species' data source (`core/include/adsim/objects/ideal_gas_heat_capacity.h`). The reference and each species' TM-4513 label and data-source code are available through the API (`skarstrom.ideal_gas_heat_capacity_reference()` and `skarstrom.ideal_gas_heat_capacity_source(component)`; C++ `kIdealGasHeatCapacityReference`, `NasaPolynomial::species` and `source`). Outside a polynomial's range (below 200 K for most species, 298 or 300 K for a few, and above 1000 K) the value at the nearer limit is used.
 
 Why ideal-gas and temperature-dependent:
 
@@ -53,11 +53,10 @@ Why ideal-gas and temperature-dependent:
 
 The energy balance is written in temperature form, $\rho C_{p,g}(\partial T/\partial t + u\thinspace\partial T/\partial z)$ with the local $C_{p,g}(T)$, which is exact for an ideal gas whose enthalpy is $h = \int C_{p0}\thinspace dT$: no extra term is needed. The open-system energy test (`ClosedBedEnergyTest.OpenSystemEnergyBalanceConvergesUnderGridRefinement`) checks the closure with this enthalpy.
 
-**Agreement with CoolProp.** Each polynomial is compared with CoolProp's ideal-gas $C_{p0}$ (the ideal-gas part of the reference equation of state) from 200 K, or from the fit's lower limit or the fluid's triple point if higher, to 800 K (`test_ideal_gas_heat_capacity.cpp`, which prints this table). The test fails if an error exceeds 1 % for the light and permanent gases (Air, Ar, CO₂, CO, He, H₂, Kr, CH₄, Ne, N₂, O₂, Xe) or 2 % for any other component.
+**Agreement with CoolProp.** Each polynomial is compared with CoolProp's ideal-gas $C_{p0}$ (the ideal-gas part of the reference equation of state) from 200 K, or from the fit's lower limit or the fluid's triple point if higher, to 800 K (`test_ideal_gas_heat_capacity.cpp`, which prints this table). The test fails if an error exceeds 1 % for the light and permanent gases (Ar, CO₂, CO, He, H₂, Kr, CH₄, Ne, N₂, O₂, Xe) or 2 % for any other component.
 
 | Component | Polynomial range [K] | Compared [K] | Largest error | at [K] | $C_{p0}$(298.15 K) [J mol⁻¹ K⁻¹] |
 |---|---|---|---|---|---|
-| Air | 200–1000 | 200–800 | −0.08 % | 675 | 29.10 |
 | Ammonia | 200–1000 | 200–800 | +0.57 % | 650 | 35.63 |
 | Argon | 200–1000 | 200–800 | 0.00 % | — | 20.79 |
 | Benzene | 200–1000 | 279–800 | −1.35 % | 424 | 81.92 |
@@ -95,6 +94,11 @@ The larger differences for the heavier organics are differences between the two 
 
 **Every component has a polynomial.** Earlier engines also had Hexane, which has no TM-4513 entry. Its heat capacity was CoolProp's value at the initial conditions, held for the run.
 
+**Air is not a component.** Earlier engines had Air, a lumped pseudo-component with one isotherm for N₂ and O₂ together and a heat capacity mixed from the N₂, O₂ and Ar entries. Use the real species instead: Nitrogen and Oxygen (and Argon) for a separation, or Nitrogen alone for an inert carrier. A deck, adsorbent or cycle file that has Air loads with Nitrogen in its place. If the deck already has Nitrogen, Air's mole fractions are added to Nitrogen's and Air's isotherm, kinetics and heats are dropped.
+
+!!! note "Changed in 0.13"
+    Air was removed, and decks with Air load with Nitrogen.
+
 !!! note "Changed in 0.10"
     Hexane is removed. A deck that has Hexane does not load. The error names the component.
 
@@ -130,7 +134,7 @@ The linear rules for viscosity and conductivity are simpler than the Wilke or Wa
 
 ### Viscosity and thermal conductivity polynomials
 
-Calling CoolProp in every cell at every residual evaluation would make a run minutes slower, so the pure-component viscosity $\mu_i$ and conductivity $k_i$ are degree-4 polynomials in temperature with coefficients fitted offline and compiled into the program (`viscosity_coefficients.h`, `thermal_conductivity_coefficients.h`):
+The pure-component viscosity $\mu_i$ and conductivity $k_i$ are evaluated in every cell at every residual evaluation, so they are degree-4 polynomials in temperature with coefficients fitted offline and compiled into the program (`viscosity_coefficients.h`, `thermal_conductivity_coefficients.h`, both generated by `scripts/gen_transport_coefficients.py`):
 
 $$
 \mu_i(T) = \sum_{n=0}^{4} a_{n,i}\thinspace T_c^{\thinspace n},\qquad
@@ -139,7 +143,16 @@ T_c = \min\negthinspace \big(\max(T,\thinspace 150\ \text{K}),\thinspace 650\ \t
 $$
 
 - The temperature is **clamped to 150–650 K** before evaluation: outside that window the property is held at its value at the nearest end, never extrapolated.
-- The polynomials are least-squares fits of CoolProp's dilute-gas values, sampled at low pressure so that condensable components (water, alcohols, hydrocarbons) get their vapour values, not the liquid's (water at 298 K: 9.7 × 10⁻⁶ Pa s and 0.0184 W m⁻¹ K⁻¹). For the components CoolProp has no viscosity model for (CarbonMonoxide, Ethylene, Fluorine, Krypton, Neon, NitrousOxide, SulfurDioxide, Xenon), the viscosity fit is to Chapman–Enskog kinetic theory with the component's Lennard-Jones parameters; for the components without a conductivity model, the conductivity fit is to the Eucken relation $k = \mu\thinspace (c_p + 1.25\thinspace R/M)$. The headers state a maximum fit error of 1 % (viscosity) and 1.8 % (conductivity) over the window.
+- Each row of the tables has one of three sources. The comment of the row names it.
+
+| Source | Components | Data |
+|---|---|---|
+| CoolProp | viscosity of all components except the eight below; conductivity of the same components except HydrogenSulfide and Cyclohexane | Least-squares fit of CoolProp's dilute-gas value, sampled at low pressure so that condensable components (water, alcohols, hydrocarbons) get their vapour values, not the liquid's (water at 298 K: 9.7 × 10⁻⁶ Pa s and 0.0184 W m⁻¹ K⁻¹). The row gives the primary correlation, for example Lemmon and Jacobsen (2004) for N₂, O₂ and Ar. Propylene (extended corresponding states) and the Isopentane viscosity (Chung method) are estimates. |
+| NASA CEA | viscosity and conductivity of CarbonMonoxide, Ethylene, Fluorine, Krypton, Neon, NitrousOxide, SulfurDioxide and Xenon; conductivity of HydrogenSulfide | The transport database of the NASA CEA program (Svehla, NASA TM-4647, 1995), fitted to evaluated data, for example Bich et al. (1990) for the noble gases. The data start at 200 K (300 K for SulfurDioxide and HydrogenSulfide). Below that limit, the fit follows kinetic theory (Chapman–Enskog for $\mu$, Eucken for $k$) joined to the NASA curve in value and slope. |
+| Eucken | conductivity of Cyclohexane | $k = \mu\thinspace (c_p + 1.25\thinspace R/M)$, with the viscosity row of the component and its ideal-gas heat capacity. |
+
+- Each polynomial is within 1 % of its source where the source has data, and within 3 % of the kinetic-theory shape below the NASA limit.
+- The Eucken relation underestimates the conductivity of polyatomic gases. Earlier engines used it for the eight NASA components, and it gave values up to 21 % low (Ethylene at 650 K). Their Chapman–Enskog viscosity, with the Lennard-Jones parameters of Svehla (1962), was about 3.5 % low for Neon, Krypton and Xenon.
 - Pressure dependence is neglected; gas viscosity changes by less than about 1 % over 0.1–10 bar.
 - A floor of 10⁻⁶ Pa s (viscosity) and 10⁻⁴ W m⁻¹ K⁻¹ (conductivity) guards against a fit undershooting at the window edges. A component with no coefficients at all falls back to 1 × 10⁻⁵ Pa s and 0.024 W m⁻¹ K⁻¹.
 

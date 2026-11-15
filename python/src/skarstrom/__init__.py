@@ -1555,7 +1555,7 @@ def ideal_gas_heat_capacity_reference() -> str:
 
 def ideal_gas_heat_capacity_source(component: str) -> Dict[str, str]:
     """Provenance of ``component``'s polynomial: ``{"species": TM-4513 species label,
-    "source": TM-4513 data-source code}`` (Air: its mixture and mixing note).
+    "source": TM-4513 data-source code}``.
     ValueError for a name that is not an engine component."""
     return dict(_core.ideal_gas_heat_capacity_source(component))
 

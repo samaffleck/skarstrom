@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 3.15)
 # (scripts/release.py); do not edit these lines by hand. The suffix is
 # appended to ADSIM_VERSION_STRING and the Python version, and a released one
 # must match the tag (v0.2.0rc1). See RELEASING.md.
-set(ADSIM_PROJECT_VERSION 0.12.2)
+set(ADSIM_PROJECT_VERSION 0.13.1)
 set(ADSIM_VERSION_SUFFIX ".dev0")
 
 # Minimum macOS version. It must be set before project(). 13.3 is the lowest
@@ -183,6 +183,21 @@ if(ADSIM_NATIVE_ARCH)
     else()
         add_compile_options($<$<CONFIG:Release>:-march=native>)
     endif()
+endif()
+
+# Sanitizer builds (GCC/Clang, a top-level build for testing): the whole tree,
+# dependencies included, is compiled and linked with -fsanitize=<value>, so a
+# report is not lost in an uninstrumented library. CI runs the threaded tests
+# (calibration, warm starts) with ADSIM_SANITIZE=thread. Empty: off.
+set(ADSIM_SANITIZE "" CACHE STRING "Compile and link with -fsanitize=<value> (e.g. thread, address,undefined); empty: off")
+if(ADSIM_SANITIZE)
+    if(MSVC OR EMSCRIPTEN)
+        message(FATAL_ERROR "ADSIM_SANITIZE is for GCC and Clang builds")
+    endif()
+    # -g1: line tables only, enough for the stacks of a report and cheaper to build.
+    add_compile_options(-fsanitize=${ADSIM_SANITIZE} -fno-omit-frame-pointer -g1)
+    add_link_options(-fsanitize=${ADSIM_SANITIZE})
+    message(STATUS "Adsim: sanitizer build (-fsanitize=${ADSIM_SANITIZE})")
 endif()
 
 # ============================================================

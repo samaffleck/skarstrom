@@ -585,7 +585,7 @@ namespace adsim {
       data = UserData{};
       SetUp();
 
-      AddComponents({ "CarbonDioxide", "Air" });
+      AddComponents({ "CarbonDioxide", "Helium" }); // CO2/He experiment (Sect. 2)
 
       const double Di = 0.0189;
       auto [layer_id, ads_id] = AddLayer("Activated Carbon");
@@ -620,13 +620,13 @@ namespace adsim {
       AddIsotherm({ "CarbonDioxide" }, ads_id, std::move(dsl_co2));
 
       AddLinearDrivingForceModel(ads_id, "CarbonDioxide", co2_mtc);
-      AddLinearDrivingForceModel(ads_id, "Air", 0.0);
+      AddLinearDrivingForceModel(ads_id, "Helium", 0.0);
 
       AddInitialConditions(
         1.0e5, 293.0, 293.0,
         {
           {"CarbonDioxide", 0.0 },
-          {"Air", 1.0 }
+          {"Helium", 1.0 }
         }
       );
 
@@ -637,7 +637,7 @@ namespace adsim {
       Step& step_feed = data.cycle.GetStep("Feed");
       auto feed_inlet_stream = CreateNoValveInletStream(
         CreateVolumeFlowBC(volumetric_flowrate_m3_s),
-        { {"CarbonDioxide", 1.0}, {"Air", 0.0} },
+        { {"CarbonDioxide", 1.0}, {"Helium", 0.0} },
         293.0
       );
       feed_inlet_stream->name_ = "CO2 Inlet";
@@ -653,7 +653,7 @@ namespace adsim {
       feed_pressure_out->location_ = BoundaryLocation::TOP;
       feed_pressure_out->pressure_ = CreateConstantBoundaryValue(1e5);
       feed_pressure_out->mole_fraction_["CarbonDioxide"] = 0.0;
-      feed_pressure_out->mole_fraction_["Air"] = 1.0;
+      feed_pressure_out->mole_fraction_["Helium"] = 1.0;
       step_feed.top_boundary_condition_ = std::move(feed_pressure_out);
 
       ConfigureCycle(1);

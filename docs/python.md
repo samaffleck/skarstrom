@@ -569,10 +569,13 @@ result = skarstrom.calibrate(
     method="least_squares",       # or "global" (refine=True polishes with least squares)
     differences="forward",        # "central" for strongly correlated parameters
     threads=None, max_simulations=500, ftol=1e-6, xtol=1e-6,
+    uncertainty="jacobian",       # "bootstrap": + bootstrap_samples=100, bootstrap_max_iterations=10,
+                                  #   bootstrap_seed=1, interval_level=0.95 (New in 0.13)
     progress=None, cancel=None)   # progress(info) -> False stops; cal.CancelToken().cancel()
 print(result.table())             # estimates, standard errors, fit per dataset, why it stopped
 result.parameters                 # Estimate: name, path, case, value, std_error, start, lower, upper,
                                   # at_lower, at_upper, at_bound, relative_error, scale, unit
+                                  # (bootstrap: bootstrap_std_error, interval, bootstrap_at_bound)
 result.correlation                # NumPy matrix in the order of result.parameters
 result.datasets                   # DatasetFit: rmse, nrmse, max_abs_error, points, skipped, x, measured,
                                   # simulated, residuals, weighted_residuals, series_x, series_y
@@ -617,7 +620,7 @@ skarstrom params deck.json [--all] [--search TEXT] [--json]
 skarstrom sensitivity deck.json --input PATH=SPEC ... [--output C.kpi ...] [--method both] [--workers N]
 skarstrom calibrate deck.json --param PATH[:LO:HI[:log][:per_case]] ... [--dataset NAME[:WEIGHT] ...]
           [--case OTHER.json ...] [--method least_squares|global] [--threads N] [--max-simulations N]
-          [--out calibrated.json] [--json result.json]
+          [--bootstrap N [--seed S] [--level 0.95]] [--out calibrated.json] [--json result.json]
 skarstrom examples [list] [--json]          # the bundled decks
 skarstrom examples run NAME [run options]   # run a bundled deck
 skarstrom examples path NAME                # where it is installed
@@ -644,7 +647,9 @@ every bound dataset), with an optional weight. `--case` adds another experiment 
 the same time; the shared parameters take one value for all decks. It prints the estimates with
 their standard errors and the fit of each dataset. `--out` writes the calibrated deck
 (`FILE_<i>.json` per deck with `--case`), `--json` the full result. `--method global`,
-`--refine`, `--differences central`, `--set`, `--cycles` and `-q` are also accepted. The exit code
+`--refine`, `--differences central`, `--set`, `--cycles` and `-q` are also accepted. `--bootstrap N`
+adds N residual-bootstrap refits and prints their standard errors and percentile intervals
+(`--seed`, default 1; `--level`, default 0.95; *New in 0.13*). The exit code
 is 1 when the fit fails (an invalid problem, or a failed run at the start) or is cancelled:
 
 ```bash

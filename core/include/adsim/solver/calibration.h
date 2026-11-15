@@ -109,9 +109,48 @@
 // standard errors and correlations are NaN and Result::notes says why. A
 // parameter at a bound has a standard error from the same formula, which is
 // only a local statement: check at_lower / at_upper.
+//
+// ---- bootstrap intervals (Options::uncertainty = Uncertainty::Bootstrap) -------
+//
+// The standard errors above are a linearisation at the estimate. A residual
+// bootstrap tests it: after the fit, Options::bootstrap_samples synthetic data
+// sets are made from the fitted curve and the fit's own residuals, and the
+// model is refitted to each. For refit b the residual vector is
+//
+//   r*_k(theta) = r_k(theta) - r_k(theta_hat) + e*_k
+//
+// where e*_k is drawn with replacement from the weighted residuals of the same
+// dataset at the estimate, centred on the dataset's mean and inflated by
+// sqrt(N / (N - p)) (the residuals of a fit are smaller than the noise by that
+// factor on average). That is, the measured y_k is replaced by
+// y_sim(theta_hat) minus a resampled residual, in the residual's own weighting.
+// Each refit is a LeastSquares fit that starts at the estimate with the
+// Jacobian already made there (its first step costs no Jacobian), runs at most
+// Options::bootstrap_max_iterations iterations within a budget of
+// max_simulations runs of its own, and warm-starts from the cached states near
+// the estimate. The refits run one after another (the runs of each are
+// parallel as usual), with the draws from std::mt19937_64 seeded by
+// Options::bootstrap_seed: the same seed gives the same intervals.
+//
+// Per Unknown the result gives the standard deviation of the refitted values
+// (ParameterEstimate::bootstrap_standard_error), the percentile interval at
+// Options::interval_level (interval_lower / interval_upper; 0.95 gives the
+// 2.5 and 97.5 percentiles) and the share of refits that ended at a bound
+// (bootstrap_at_bound). The Jacobian standard error and correlations are
+// still reported; Result::bootstrap_correlation is the correlation of the
+// refitted values (in ln(value) for a Scale::Log parameter).
+//
+// Where the two disagree, trust the bootstrap: at a bound (the refits can only
+// move inwards, so the interval is one-sided and the Jacobian error is not a
+// standard deviation), for strongly correlated parameters (the valley of S is
+// curved, so the linear ellipse is the wrong shape), or when the model is far
+// from linear over the interval. Residuals of a time series are correlated in
+// time, which a residual bootstrap ignores (it draws points independently):
+// both methods then understate the uncertainty.
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <string>
@@ -257,9 +296,11 @@ class Problem {
 
 enum class Solver { LeastSquares, Global };
 enum class Difference { Forward, Central };
+enum class Uncertainty { Jacobian, Bootstrap };
 
 const char* SolverName(Solver s);          // "least_squares", "global"
 const char* DifferenceName(Difference d);  // "forward", "central"
+const char* UncertaintyName(Uncertainty u);  // "jacobian", "bootstrap"
 
 // Reported after every iteration of the least-squares solver (an accepted or
 // rejected step) and after every candidate of the global search.
@@ -269,6 +310,9 @@ struct Progress {
   double objective = kNaN;      // S at the current (best) point
   std::vector<double> values;   // that point, per Unknown, in SI units
   int simulations = 0;          // runs so far (all solvers)
+  // 0 during the fit; k >= 1 after bootstrap refit k (reported once per refit,
+  // with iteration = k and that refit's objective and values).
+  int bootstrap_sample = 0;
 };
 using ProgressCallback = std::function<void(const Progress&)>;
 
@@ -308,6 +352,17 @@ struct Options {
   // Make a Jacobian at the end when the solver has none at its estimate.
   bool standard_errors = true;
 
+  // How the uncertainty is estimated: from the Jacobian only (the default), or
+  // also by a residual bootstrap (see "bootstrap intervals" above).
+  Uncertainty uncertainty = Uncertainty::Jacobian;
+  // Bootstrap only: the refits (>= 2; 200 or more for stable 95 % tails), the
+  // iterations of each, the seed of the draws and the level of the percentile
+  // interval, in (0, 1).
+  int bootstrap_samples = 100;
+  int bootstrap_max_iterations = 10;
+  std::uint64_t bootstrap_seed = 1;
+  double interval_level = 0.95;
+
   // Polled by every run (from several threads at once: it must be
   // thread-safe, e.g. read an atomic flag) and between batches. A cancelled
   // fit returns the best point so far.
@@ -342,6 +397,13 @@ struct ParameterEstimate {
   bool at_lower = false;      // within 1e-6 of the normalised range of a bound
   bool at_upper = false;
   Scale scale = Scale::Linear;
+  // Uncertainty::Bootstrap only (NaN otherwise), in SI units: the standard
+  // deviation of the refitted values, their percentile interval at
+  // Options::interval_level, and the share of refits that ended at a bound.
+  double bootstrap_standard_error = kNaN;
+  double interval_lower = kNaN;
+  double interval_upper = kNaN;
+  double bootstrap_at_bound = kNaN;
 };
 
 struct DatasetFit {
@@ -392,6 +454,13 @@ struct Result {
   std::string message;          // why it stopped, in words
   std::vector<std::string> notes;  // what to know about the result
   bool cancelled = false;
+  // The bootstrap (Uncertainty::Bootstrap; empty or NaN otherwise).
+  Uncertainty uncertainty = Uncertainty::Jacobian;
+  double interval_level = kNaN;
+  int bootstrap_samples = 0;       // refits made (fewer when cancelled)
+  int bootstrap_unconverged = 0;   // of them, stopped by their iteration or run budget (kept)
+  std::vector<std::vector<double>> bootstrap_estimates;    // [refit][Unknown], SI units
+  std::vector<std::vector<double>> bootstrap_correlation;  // per Unknown x Unknown
   // One deck per case with the estimates applied (JSON text in the
   // "simulation" string form; the case's policy settings are not applied).
   std::vector<std::string> calibrated_decks;

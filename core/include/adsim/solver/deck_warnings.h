@@ -96,7 +96,7 @@ namespace adsim {
   // no layer uses (its reactions take no part, and the deck checks skip
   // them); one per reaction with a nonzero heat of reaction in an isothermal
   // run (the heat is not applied); one per reaction whose element balance
-  // could not be checked (a component without an element formula, e.g. Air).
+  // could not be checked (a component without an element formula).
   // With `order_notes`, also an informational note per reaction whose orders
   // differ from -nu (reactants) and 0 (products), i.e. a non-elementary rate.
   // Expressions must already be evaluated.
