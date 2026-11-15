@@ -407,6 +407,20 @@
       "family_key": "Ward2024",
       "hidden": false,
       "summary": "Four-step CO2/N2 PSA of Ward and Pini 2024"
+    },
+    {
+      "file": "WardPini2022_13X_PL003.json",
+      "family": "Ward & Pini (2022)",
+      "family_key": "WardPini2022",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on zeolite 13X: minimum-capture-cost design, P_L = 0.03 bar"
+    },
+    {
+      "file": "WardPini2022_ZIF36FRL_PL007.json",
+      "family": "Ward & Pini (2022)",
+      "family_key": "WardPini2022",
+      "hidden": false,
+      "summary": "Four-step CO2/N2 PVSA on ZIF-36-FRL: minimum-capture-cost design, P_L = 0.07 bar"
     }
   ]
 }

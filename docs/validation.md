@@ -16,7 +16,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 
 ## Summary
 
-68 cases from 13 publications; 255 asserted comparisons (0 outside their recorded tolerance) and 130 informational ones. Summary generated on 2026-11-14.
+78 cases from 14 publications; 284 asserted comparisons (0 outside their recorded tolerance) and 141 informational ones. Summary generated on 2026-11-15.
 
 | Publication | Cases | Against | Comparisons | Median error | Worst error |
 |---|---|---|---|---|---|
@@ -31,6 +31,7 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 | [Streb & Mazzotti (2021)](#streb-2021) | 18 | experiment | 47 | 10.5 % (NRMSE)<br/>0.691 % (rel. error)<br/>7.37 K (RMSE) | 31.2 % (NRMSE)<br/>4.7 % (rel. error)<br/>11.4 K (RMSE) |
 | [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.89 % (rel. error)<br/>0.251 K (abs. error)<br/>1.93 pp (abs. error) | 3.92 % (rel. error)<br/>0.251 K (abs. error)<br/>33.5 pp (abs. error) |
 | [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 2.76 % (NRMSE)<br/>0.0209 % (rel. error)<br/>0.675 K (RMSE) | 3.89 % (NRMSE)<br/>0.404 % (rel. error)<br/>1.4 K (RMSE) |
+| [Ward & Pini (2022), PVSA](#ward-pini-2022) | 10 | paper model | 29 | 0.38 pp (abs. error)<br/>0.693 % (rel. error) | 2.26 pp (abs. error)<br/>3.36 % (rel. error) |
 | [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 2.34 pp (abs. error)<br/>1.86 % (rel. error) | 2.83 pp (abs. error)<br/>1.86 % (rel. error) |
 | [Halabi (2011)](#halabi-2011) | 2 | paper model | 15 | 0.61 pp (abs. error) | 1.95 pp (abs. error) |
 
@@ -699,6 +700,70 @@ A. Ward, R. Pini, Integrated uncertainty quantification and sensitivity analysis
 
 Input decks, assumptions and known discrepancies: [`core/test/papers/ward_2022/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/ward_2022/README.md).
 
+## Ward & Pini (2022), PVSA {#ward-pini-2022}
+
+A. Ward, R. Pini, Efficient Bayesian optimization of industrial-scale pressure-vacuum swing adsorption processes for CO2 capture, Industrial & Engineering Chemistry Research 61 (2022) 13650-13668. [doi:10.1021/acs.iecr.2c02313](https://doi.org/10.1021/acs.iecr.2c02313)
+
+*System:* CO2/N2 4-step PVSA with feed pressurisation on zeolite 13X and ZIF-36-FRL, ten cost-optimal designs. *Compared against:* paper's detailed-model results at its cost-optimal designs (SI Tables S2, S3; Table 7).
+
+**Findings.**
+
+- On the ten fully specified designs of SI Tables S2 and S3 (p_L = 0.02-0.1 bar), CO2 purity agrees within 0.61 percentage points in all ten; recovery within 1.8 pp and productivity within 2.1 % in the other eight. Zeolite 13X at p_L = 0.02 and 0.03 bar is 5.5 and 2.3 pp low in recovery (and 7 % and 3 % low in productivity); a faster CO2 rate (D_m x 10 in Eq. 6) closes it, so the shortfall is in the rate at deep vacuum.
+- The specific energy is 0.7-7 % below the paper at p_L = 0.02 bar and for 13X at 0.03 bar, but 13-37 % below in the other six cases, where feed compression dominates. The engine's compression work matches the paper's printed formula (SI Eq. 45) to 1 % by hand; grid, compressor efficiency (0.72 instead of eta(1 bar) = 0.761) and heat-of-adsorption form change the energy by at most 5 % (a faster rate lowers it). The cause is open and the energy is recorded, not asserted, in those six cases.
+- The deck uses the paper's model forms: the paper's 10 WENO cells, gas held in the bed voids only, Eq. 6 LDF coefficient, -dU_b + RT as the heat of adsorption, wall ends at ambient and eta(p) = 0.8 x 19.55p / (1 + 19.55p) for every pump. Two assumptions: r_in = L / 6.43 with the Table 3 wall-to-bore ratio for the scaled columns, and the adsorption step at p_H (SI Eq. 13 normalises by p_F).
+
+| Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
+|---|---|---|---|---|---|---|---|
+| 13X_PL002 | CO2 purity | paper model | 96.77 % | 96.4 % | 0.374 pp abs. error | 0.45 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.02 bar |
+| 13X_PL002 | CO2 recovery | paper model | 84.66 % | 90.2 % | 5.54 pp abs. error | info | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.02 bar |
+| 13X_PL002 | Productivity | paper model | 1.522 mol/(m3 s) | 1.64 mol/(m3 s) | 7.17 % rel. error | info | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.02 bar |
+| 13X_PL002 | Energy | paper model | 642.5 kWh/tonne | 647 kWh/tonne | 0.693 % rel. error | 1.2 % | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.02 bar |
+| 13X_PL003 | CO2 purity | paper model | 95.85 % | 95.8 % | 0.0474 pp abs. error | 0.1 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.03 bar (also main text Table 7) |
+| 13X_PL003 | CO2 recovery | paper model | 87.04 % | 89.3 % | 2.26 pp abs. error | 2.6 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.03 bar (also main text Table 7) |
+| 13X_PL003 | Productivity | paper model | 1.092 mol/(m3 s) | 1.13 mol/(m3 s) | 3.36 % rel. error | 4 % | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.03 bar (also main text Table 7) |
+| 13X_PL003 | Energy | paper model | 555.5 kWh/tonne | 599 kWh/tonne | 7.26 % rel. error | info | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.03 bar (also main text Table 7) |
+| 13X_PL005 | CO2 purity | paper model | 96.24 % | 96.5 % | 0.263 pp abs. error | 0.35 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.05 bar |
+| 13X_PL005 | CO2 recovery | paper model | 89.63 % | 90.4 % | 0.774 pp abs. error | 0.9 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.05 bar |
+| 13X_PL005 | Productivity | paper model | 1.256 mol/(m3 s) | 1.27 mol/(m3 s) | 1.08 % rel. error | 1.5 % | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.05 bar |
+| 13X_PL005 | Energy | paper model | 573 kWh/tonne | 693 kWh/tonne | 17.3 % rel. error | info | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.05 bar |
+| 13X_PL007 | CO2 purity | paper model | 95.48 % | 95.9 % | 0.42 pp abs. error | 0.5 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.07 bar |
+| 13X_PL007 | CO2 recovery | paper model | 90.22 % | 92 % | 1.78 pp abs. error | 2 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.07 bar |
+| 13X_PL007 | Productivity | paper model | 2.097 mol/(m3 s) | 2.14 mol/(m3 s) | 2.03 % rel. error | 2.5 % | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.07 bar |
+| 13X_PL007 | Energy | paper model | 547.6 kWh/tonne | 865 kWh/tonne | 36.7 % rel. error | info | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.07 bar |
+| 13X_PL010 | CO2 purity | paper model | 94.5 % | 94.9 % | 0.401 pp abs. error | 0.5 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.1 bar |
+| 13X_PL010 | CO2 recovery | paper model | 89.52 % | 89.9 % | 0.378 pp abs. error | 0.45 pp | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.1 bar |
+| 13X_PL010 | Productivity | paper model | 0.9975 mol/(m3 s) | 0.994 mol/(m3 s) | 0.353 % rel. error | 0.8 % | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.1 bar |
+| 13X_PL010 | Energy | paper model | 500 kWh/tonne | 666 kWh/tonne | 24.9 % rel. error | info | Ward & Pini 2022 SI, Table S2, zeolite 13X, p_L = 0.1 bar |
+| ZIF_PL002 | CO2 purity | paper model | 96.38 % | 96.6 % | 0.218 pp abs. error | 0.3 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.02 bar |
+| ZIF_PL002 | CO2 recovery | paper model | 89.16 % | 89.5 % | 0.344 pp abs. error | 0.45 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.02 bar |
+| ZIF_PL002 | Productivity | paper model | 0.7852 mol/(m3 s) | 0.782 mol/(m3 s) | 0.408 % rel. error | 0.8 % | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.02 bar |
+| ZIF_PL002 | Energy | paper model | 596.5 kWh/tonne | 641 kWh/tonne | 6.94 % rel. error | info | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.02 bar |
+| ZIF_PL003 | CO2 purity | paper model | 95.64 % | 95.8 % | 0.164 pp abs. error | 0.25 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.03 bar |
+| ZIF_PL003 | CO2 recovery | paper model | 89.14 % | 89.9 % | 0.758 pp abs. error | 0.9 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.03 bar |
+| ZIF_PL003 | Productivity | paper model | 0.583 mol/(m3 s) | 0.586 mol/(m3 s) | 0.518 % rel. error | 0.9 % | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.03 bar |
+| ZIF_PL003 | Energy | paper model | 455.4 kWh/tonne | 523 kWh/tonne | 12.9 % rel. error | info | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.03 bar |
+| ZIF_PL005 | CO2 purity | paper model | 95.07 % | 95.6 % | 0.528 pp abs. error | 0.65 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.05 bar |
+| ZIF_PL005 | CO2 recovery | paper model | 90.39 % | 90.5 % | 0.108 pp abs. error | 0.2 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.05 bar |
+| ZIF_PL005 | Productivity | paper model | 0.809 mol/(m3 s) | 0.811 mol/(m3 s) | 0.25 % rel. error | 0.6 % | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.05 bar |
+| ZIF_PL005 | Energy | paper model | 422.2 kWh/tonne | 562 kWh/tonne | 24.9 % rel. error | info | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.05 bar |
+| ZIF_PL007 | CO2 purity | paper model | 93.82 % | 94.2 % | 0.38 pp abs. error | 0.45 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.07 bar (also main text Table 7) |
+| ZIF_PL007 | CO2 recovery | paper model | 90.47 % | 90.3 % | 0.172 pp abs. error | 0.25 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.07 bar (also main text Table 7) |
+| ZIF_PL007 | Productivity | paper model | 0.7604 mol/(m3 s) | 0.75 mol/(m3 s) | 1.39 % rel. error | 1.8 % | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.07 bar (also main text Table 7) |
+| ZIF_PL007 | Energy | paper model | 417.1 kWh/tonne | 531 kWh/tonne | 21.4 % rel. error | info | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.07 bar (also main text Table 7) |
+| ZIF_PL010 | CO2 purity | paper model | 95.69 % | 96.3 % | 0.608 pp abs. error | 0.75 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.1 bar |
+| ZIF_PL010 | CO2 recovery | paper model | 90.54 % | 89.3 % | 1.24 pp abs. error | 1.45 pp | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.1 bar |
+| ZIF_PL010 | Productivity | paper model | 1.03 mol/(m3 s) | 1.01 mol/(m3 s) | 1.96 % rel. error | 2.4 % | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.1 bar |
+| ZIF_PL010 | Energy | paper model | 514.5 kWh/tonne | 692 kWh/tonne | 25.6 % rel. error | info | Ward & Pini 2022 SI, Table S3, ZIF-36-FRL, p_L = 0.1 bar |
+
+??? note "Notes on these comparisons"
+
+    - CO2 in the evacuation product (Eq. 7); paper model, WENO on 10 cells
+    - CO2 from evacuation over CO2 fed in pressurisation and adsorption (Eq. 8)
+    - CO2 from evacuation per column volume pi r_in^2 L per cycle time (Eq. 9); per column volume
+    - compression and evacuation work per tonne of CO2 product (Eq. 10, SI Eqs. 44-49)
+
+Input decks, assumptions and known discrepancies: [`core/test/papers/ward_pini_2022/README.md`](https://github.com/samaffleck/skarstrom/blob/main/core/test/papers/ward_pini_2022/README.md).
+
 ## Ward & Pini (2024) {#ward-pini-2024}
 
 A. Ward, R. Pini, Design and Performance Evaluation of Multisorbent Vacuum-Swing Adsorption Processes for Postcombustion Carbon Capture, Industrial & Engineering Chemistry Research 63 (2024) 13787-13800. [doi:10.1021/acs.iecr.4c01345](https://doi.org/10.1021/acs.iecr.4c01345)
@@ -829,7 +894,7 @@ Input decks, assumptions and known discrepancies: [`core/test/papers/halabi_2011
 ```bash
 cmake --preset linux-release
 cmake --build --preset linux-release
-ctest --preset linux-release -R "(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2024)" -j2
+ctest --preset linux-release -R "(Arora2021|Casas2012|Ferre2026|Nguyen2022|Nguyen2023|Perez2019|Streb2021|Vysyaraju2024|Ward2022|WardPini2022|WardPini2024)" -j2
 python scripts/docs/gen_validation_page.py --merge build/linux-release/validation
 ```
 

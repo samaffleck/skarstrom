@@ -82,6 +82,8 @@ __all__ = [
     "Ward2022_Q200ccm",
     "Ward2022_Q50ccm",
     "Ward2024",
+    "WardPini2022_13X_PL003",
+    "WardPini2022_ZIF36FRL_PL007",
 ]
 
 Arora2021_LiLSX_PSA = Example('Arora2021_LiLSX_PSA', 'Arora 2021 - LiLSX PSA', '4-step Skarstrom PSA, air separation to O2, LiLSX adsorbent (Table 4)')
@@ -578,6 +580,20 @@ Ward2024 = Example('Ward2024', 'Ward 2024', 'Four-step pressure swing adsorption
 Four-step pressure swing adsorption cycle for CO2/N2 separation based on Ward & Pini
 2024."""
 
+WardPini2022_13X_PL003 = Example('WardPini2022_13X_PL003', 'Ward & Pini 2022 - zeolite 13X, p_L = 0.03 bar', 'Four-step CO2/N2 PVSA with feed pressurisation on zeolite 13X: the cost-optimal design of Ward & Pini (2022), SI Table S2, at an evacuation pressure of 0.03 bar (p_H 4.72 bar, p_I 0.781 bar, v_F 1.7 m/s, L 3.56 m).')
+"""Ward & Pini 2022 - zeolite 13X, p_L = 0.03 bar
+
+Four-step CO2/N2 PVSA with feed pressurisation on zeolite 13X: the cost-optimal design
+of Ward & Pini (2022), SI Table S2, at an evacuation pressure of 0.03 bar (p_H 4.72 bar,
+p_I 0.781 bar, v_F 1.7 m/s, L 3.56 m)."""
+
+WardPini2022_ZIF36FRL_PL007 = Example('WardPini2022_ZIF36FRL_PL007', 'Ward & Pini 2022 - ZIF-36-FRL, p_L = 0.07 bar', 'Four-step CO2/N2 PVSA with feed pressurisation on ZIF-36-FRL: the cost-optimal design of Ward & Pini (2022), SI Table S3, at an evacuation pressure of 0.07 bar (p_H 5.52 bar, p_I 1 bar, v_F 1.17 m/s, L 2.39 m).')
+"""Ward & Pini 2022 - ZIF-36-FRL, p_L = 0.07 bar
+
+Four-step CO2/N2 PVSA with feed pressurisation on ZIF-36-FRL: the cost-optimal design of
+Ward & Pini (2022), SI Table S3, at an evacuation pressure of 0.07 bar (p_H 5.52 bar,
+p_I 1 bar, v_F 1.17 m/s, L 2.39 m)."""
+
 
 ALL: Tuple[Example, ...] = (
     Arora2021_LiLSX_PSA,
@@ -638,6 +654,8 @@ ALL: Tuple[Example, ...] = (
     Ward2022_Q200ccm,
     Ward2022_Q50ccm,
     Ward2024,
+    WardPini2022_13X_PL003,
+    WardPini2022_ZIF36FRL_PL007,
 )
 """Every example deck, in name order."""
 
