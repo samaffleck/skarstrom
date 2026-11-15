@@ -37,7 +37,6 @@ namespace adsim {
 
   // C++17 inline variable: one shared instance across all translation units.
   inline const std::unordered_map<std::string, std::array<double, 5>> kThermalConductivityCoefficients = {
-    {"Air", {{-1.103689343e-03, 1.150872000e-04, -1.017278775e-07, 8.892823023e-11, -3.489346002e-14}}}, // k300=26.39 mW/m.K
     {"Ammonia", {{3.364189134e-02, -1.526062879e-04, 3.784640531e-07, 2.804148391e-10, -5.422946728e-13}}}, // k300=25.10 mW/m.K
     {"Argon", {{-7.125512209e-04, 7.752521344e-05, -6.538144016e-08, 4.867387913e-11, -1.701578264e-14}}}, // k300=17.84 mW/m.K
     {"Benzene", {{1.298818600e-02, -1.453267222e-04, 6.602809907e-07, -7.751658646e-10, 3.470083372e-13}}}, // k300=10.70 mW/m.K

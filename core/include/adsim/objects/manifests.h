@@ -127,7 +127,7 @@ namespace adsim {
 
   struct ComponentInfo {
     std::string name;                  // CoolProp fluid name, as decks write it
-    std::string formula;               // e.g. "CO2" ("N/A" for Air, "" for an unknown name)
+    std::string formula;               // e.g. "CO2" ("" for an unknown name)
     std::string cas;                   // CAS registry number ("" when none)
     std::vector<std::string> aliases;  // CoolProp's other names for the fluid
     double molar_mass = 0.0;           // [kg/mol]

@@ -43,7 +43,7 @@ $$
 \frac{H_{0,i}}{R\thinspace T} = a_0 + \frac{a_1 T}{2} + \frac{a_2 T^2}{3} + \frac{a_3 T^3}{4} + \frac{a_4 T^4}{5} + \frac{a_5}{T}
 $$
 
-with one coefficient set per component, valid to 1000 K: the low-temperature set of TM-4513 (adsorption processes stay well below 1000 K, so the report's 1000–6000 K set is not carried). The coefficients are those of McBride, Gordon and Reno (1993), *Coefficients for Calculating Thermodynamic and Transport Properties of Individual Species*, NASA TM-4513, copied unchanged with each species' data source (`core/include/adsim/objects/ideal_gas_heat_capacity.h`). The reference and each species' TM-4513 label and data-source code are available through the API (`skarstrom.ideal_gas_heat_capacity_reference()` and `skarstrom.ideal_gas_heat_capacity_source(component)`; C++ `kIdealGasHeatCapacityReference`, `NasaPolynomial::species` and `source`). Air, which TM-4513 does not list, is the ideal-gas mixture of its N₂, O₂ and Ar entries at the composition of CoolProp's air model (Lemmon et al. 2000: 0.7812, 0.2096, 0.0092 by mole); an ideal-gas mixture mixes the coefficients linearly, so this is exact. Outside a polynomial's range (below 200 K for most species, 298 or 300 K for a few, and above 1000 K) the value at the nearer limit is used.
+with one coefficient set per component, valid to 1000 K: the low-temperature set of TM-4513 (adsorption processes stay well below 1000 K, so the report's 1000–6000 K set is not carried). The coefficients are those of McBride, Gordon and Reno (1993), *Coefficients for Calculating Thermodynamic and Transport Properties of Individual Species*, NASA TM-4513, copied unchanged with each species' data source (`core/include/adsim/objects/ideal_gas_heat_capacity.h`). The reference and each species' TM-4513 label and data-source code are available through the API (`skarstrom.ideal_gas_heat_capacity_reference()` and `skarstrom.ideal_gas_heat_capacity_source(component)`; C++ `kIdealGasHeatCapacityReference`, `NasaPolynomial::species` and `source`). Outside a polynomial's range (below 200 K for most species, 298 or 300 K for a few, and above 1000 K) the value at the nearer limit is used.
 
 Why ideal-gas and temperature-dependent:
 
@@ -53,11 +53,10 @@ Why ideal-gas and temperature-dependent:
 
 The energy balance is written in temperature form, $\rho C_{p,g}(\partial T/\partial t + u\thinspace\partial T/\partial z)$ with the local $C_{p,g}(T)$, which is exact for an ideal gas whose enthalpy is $h = \int C_{p0}\thinspace dT$: no extra term is needed. The open-system energy test (`ClosedBedEnergyTest.OpenSystemEnergyBalanceConvergesUnderGridRefinement`) checks the closure with this enthalpy.
 
-**Agreement with CoolProp.** Each polynomial is compared with CoolProp's ideal-gas $C_{p0}$ (the ideal-gas part of the reference equation of state) from 200 K, or from the fit's lower limit or the fluid's triple point if higher, to 800 K (`test_ideal_gas_heat_capacity.cpp`, which prints this table). The test fails if an error exceeds 1 % for the light and permanent gases (Air, Ar, CO₂, CO, He, H₂, Kr, CH₄, Ne, N₂, O₂, Xe) or 2 % for any other component.
+**Agreement with CoolProp.** Each polynomial is compared with CoolProp's ideal-gas $C_{p0}$ (the ideal-gas part of the reference equation of state) from 200 K, or from the fit's lower limit or the fluid's triple point if higher, to 800 K (`test_ideal_gas_heat_capacity.cpp`, which prints this table). The test fails if an error exceeds 1 % for the light and permanent gases (Ar, CO₂, CO, He, H₂, Kr, CH₄, Ne, N₂, O₂, Xe) or 2 % for any other component.
 
 | Component | Polynomial range [K] | Compared [K] | Largest error | at [K] | $C_{p0}$(298.15 K) [J mol⁻¹ K⁻¹] |
 |---|---|---|---|---|---|
-| Air | 200–1000 | 200–800 | −0.08 % | 675 | 29.10 |
 | Ammonia | 200–1000 | 200–800 | +0.57 % | 650 | 35.63 |
 | Argon | 200–1000 | 200–800 | 0.00 % | — | 20.79 |
 | Benzene | 200–1000 | 279–800 | −1.35 % | 424 | 81.92 |
@@ -94,6 +93,11 @@ The energy balance is written in temperature form, $\rho C_{p,g}(\partial T/\par
 The larger differences for the heavier organics are differences between the two published correlations (TM-4513's fit and the ideal-gas part of each reference equation of state), not fitting noise; below its triple point (279 K) cyclohexane's two correlations differ by up to 8 %, which is why the comparison starts there.
 
 **Every component has a polynomial.** Earlier engines also had Hexane, which has no TM-4513 entry. Its heat capacity was CoolProp's value at the initial conditions, held for the run.
+
+**Air is not a component.** Earlier engines had Air, a lumped pseudo-component with one isotherm for N₂ and O₂ together and a heat capacity mixed from the N₂, O₂ and Ar entries. Use the real species instead: Nitrogen and Oxygen (and Argon) for a separation, or Nitrogen alone for an inert carrier. A deck, adsorbent or cycle file that has Air loads with Nitrogen in its place. If the deck already has Nitrogen, Air's mole fractions are added to Nitrogen's and Air's isotherm, kinetics and heats are dropped.
+
+!!! note "Changed in 0.13"
+    Air was removed, and decks with Air load with Nitrogen.
 
 !!! note "Changed in 0.10"
     Hexane is removed. A deck that has Hexane does not load. The error names the component.

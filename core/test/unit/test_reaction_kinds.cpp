@@ -304,11 +304,12 @@ TEST(ReactionElements, BalancedImbalancedAndUnknown) {
   ASSERT_EQ(bad.imbalance.size(), 1u);
   EXPECT_DOUBLE_EQ(bad.imbalance.at("H"), -2.0);
 
-  r.SetStoichiometry({{"Air", -1}, {CO2, 1}});
+  // A name without an element formula (not an engine component) cannot be checked.
+  r.SetStoichiometry({{"Unobtainium", -1}, {CO2, 1}});
   const ElementBalance unknown = r.CheckElements();
   EXPECT_FALSE(unknown.checked);
   ASSERT_EQ(unknown.unknown.size(), 1u);
-  EXPECT_EQ(unknown.unknown[0], "Air");
+  EXPECT_EQ(unknown.unknown[0], "Unobtainium");
 }
 
 }  // namespace

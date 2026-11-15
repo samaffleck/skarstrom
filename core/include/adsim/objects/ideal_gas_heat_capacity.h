@@ -37,11 +37,7 @@
 // of F2, He, n-pentane and i-pentane differed in the electronic copy and is
 // given here as printed (a6 enters neither C_p0 nor H0). Argon, helium,
 // krypton and neon have one 200-6000 K range in TM-4513 (a constant 5/2 R),
-// cut at 1000 K like the others. Air, absent from TM-4513, is the ideal-gas mixture of the N2, O2
-// and Ar entries at the composition of Lemmon, Jacobsen, Penoncello and Friend,
-// J. Phys. Chem. Ref. Data 29 (2000) 331, the air model of CoolProp; a
-// mole-fraction mixture of ideal gases mixes the coefficients linearly, so the
-// mixed polynomial is exact.
+// cut at 1000 K like the others.
 //
 // Agreement with CoolProp's ideal-gas C_p0 (the reference equations of state)
 // is checked in test/unit/test_ideal_gas_heat_capacity.cpp (against values
@@ -55,20 +51,17 @@ namespace adsim {
     double t_min = 0.0;  // [K] lower limit of the fit
     double t_max = 0.0;  // [K] upper limit of the fit (1000 K)
     std::array<double, 7> a{};  // a0..a6 for t_min <= T <= t_max
-    std::string_view species{};    // TM-4513 species label (Air, absent from TM-4513: its mixture)
-    std::string_view source{};     // TM-4513 data-source code, or the note for a mixed entry
+    std::string_view species{};    // TM-4513 species label
+    std::string_view source{};     // TM-4513 data-source code
   };
 
-  // Reference of the table; Air's `source` note gives its mixing reference.
+  // Reference of the table.
   inline constexpr std::string_view kIdealGasHeatCapacityReference =
       "B. J. McBride, S. Gordon and M. A. Reno, Coefficients for Calculating Thermodynamic and Transport "
       "Properties of Individual Species, NASA Technical Memorandum 4513 (1993)";
 
   // C++17 inline variable: one shared instance across all translation units.
   inline const std::unordered_map<std::string, NasaPolynomial> kIdealGasHeatCapacity = {
-    // N2 0.7812 + O2 0.2096 + Ar 0.0092 (mole fractions of Lemmon et al. 2000), mixed from the N2, O2 and Ar entries
-    {"Air", {200, 1000,
-      {3.57422417779, -0.000724719440884, 1.67105133902e-06, -1.26738307824e-10, -4.20678743564e-13, -1047.75789011, 3.1251330622}, "N2 0.7812 + O2 0.2096 + Ar 0.0092", "mixed from N2/O2/Ar; Lemmon 2000"}},
     // TM-4513 species NH3, data source TPIS89
     {"Ammonia", {200, 1000,
       {4.30177808, -0.0047712733, 2.19341619e-05, -2.29856489e-08, 8.28992268e-12, -6748.06394, -0.690644393}, "NH3", "TPIS89"}},

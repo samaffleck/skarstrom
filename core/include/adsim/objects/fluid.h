@@ -52,7 +52,7 @@ namespace adsim {
 
   // Lennard-Jones parameters of a component (not in component_properties.h)
   struct ComponentData  {
-    // Air as default params
+    // Defaults for a name the table does not have: the air row of TR R-132.
     double eps = 78.6; // = e/k_b [=] [K]
     double sigma = 3.711; // = [Angstrom]
     // Where the (eps, sigma) pair comes from. One source per parameter set:
@@ -66,7 +66,6 @@ namespace adsim {
     // made through the wasm contract layer never reached the copy read by
     // binary_diffusion_model.cpp.
     inline std::vector<std::string> componentNames = {
-      "Air", 
       "Ammonia", 
       "Argon", 
       "Benzene",
@@ -244,8 +243,8 @@ namespace adsim {
 
     // Element formula of each component (element symbol -> atoms per
     // molecule), used to check the element balance of a reaction
-    // (Reaction::CheckElements). Air is a mixture and has none. std::map so
-    // every listing is in a fixed order.
+    // (Reaction::CheckElements). std::map so every listing is in a fixed
+    // order.
     inline const std::map<std::string, std::map<std::string, int>> elementFormulas = {
       { "Ammonia",            { {"N", 1}, {"H", 3} } },
       { "Argon",              { {"Ar", 1} } },
@@ -292,6 +291,16 @@ namespace adsim {
     // error that names the component.
     inline const std::map<std::string, std::string> removedComponents = {
       { "Hexane", "it had no ideal-gas heat capacity polynomial" },
+    };
+
+    // Components that earlier engines accepted and this one replaces with
+    // another (old name -> new name). A deck, adsorbent or cycle that has the
+    // old name loads with the new one (MigrateRenamedComponents,
+    // component_migration.h).
+    //   Air  a lumped pseudo-component left from CoolProp: one isotherm for
+    //        N2 and O2 together, with no formula. Nitrogen is its inert stand-in.
+    inline const std::map<std::string, std::string> renamedComponents = {
+      { "Air", "Nitrogen" },
     };
 
   }

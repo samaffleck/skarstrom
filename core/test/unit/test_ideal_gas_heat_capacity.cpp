@@ -39,9 +39,8 @@ constexpr double kCompareTmax = 800.0;
 // rounded up, and a tighter bound for the light and permanent gases of PSA.
 constexpr double kMaxRelativeError = 0.02;
 constexpr double kMaxRelativeErrorLightGases = 0.01;
-const std::set<std::string> kLightGases = {"Air",    "Argon",    "CarbonDioxide", "CarbonMonoxide", "Helium",
-                                           "Hydrogen", "Krypton", "Methane",       "Neon",           "Nitrogen",
-                                           "Oxygen", "Xenon"};
+const std::set<std::string> kLightGases = {"Argon",   "CarbonDioxide", "CarbonMonoxide", "Helium", "Hydrogen", "Krypton",
+                                           "Methane", "Neon",          "Nitrogen",       "Oxygen", "Xenon"};
 
 
 }  // namespace
@@ -117,17 +116,6 @@ TEST(IdealGasHeatCapacity, ClampingAndEnthalpyAreConsistent) {
   // (NIST-JANAF H - H298 at 400 K: 2.971 kJ/mol; at 398.15: about 2.917).
   const NasaPolynomial& n2 = *Fluid::IdealGasCoeffs("Nitrogen");
   EXPECT_NEAR(Fluid::EvalIdealGasEnthalpy(n2, 398.15) - Fluid::EvalIdealGasEnthalpy(n2, 298.15), 2917.0, 10.0);
-}
-
-// Air, absent from TM-4513, is the N2/O2/Ar mixture of CoolProp's air model.
-TEST(IdealGasHeatCapacity, AirIsTheMixtureOfItsConstituents) {
-  const auto& air = *Fluid::IdealGasCoeffs("Air");
-  for (double T : {200.0, 300.0, 500.0, 800.0}) {
-    const double mix = 0.7812 * Fluid::EvalIdealGasHeatCapacity(*Fluid::IdealGasCoeffs("Nitrogen"), T) +
-                       0.2096 * Fluid::EvalIdealGasHeatCapacity(*Fluid::IdealGasCoeffs("Oxygen"), T) +
-                       0.0092 * Fluid::EvalIdealGasHeatCapacity(*Fluid::IdealGasCoeffs("Argon"), T);
-    EXPECT_NEAR(Fluid::EvalIdealGasHeatCapacity(air, T), mix, 1e-9 * mix) << T;
-  }
 }
 
 TEST(IdealGasHeatCapacity, FluidUsesThePolynomialOrTheConstantValue) {

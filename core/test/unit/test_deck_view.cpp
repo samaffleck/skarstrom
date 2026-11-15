@@ -422,7 +422,7 @@ TEST(Manifests, ComponentsHaveFormulaAndMolarMass) {
     // A component with a Cp polynomial names its species; a held one has none.
     EXPECT_EQ(std::string(c["cp_species"].GetString()).empty(), !c["ideal_gas_heat_capacity"].GetBool()) << name;
     EXPECT_TRUE(c["molar_mass"].IsNumber()) << name;
-    if (name != "Air") EXPECT_FALSE(std::string(c["cas"].GetString()).empty()) << name;
+    EXPECT_FALSE(std::string(c["cas"].GetString()).empty()) << name;
   }
   const ComponentInfo co2 = DescribeComponent("CarbonDioxide");
   EXPECT_EQ(co2.formula, "CO2");
