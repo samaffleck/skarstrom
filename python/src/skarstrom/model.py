@@ -1726,8 +1726,9 @@ class Layer(_Node):
         return self._set_model("set_internal_heat_transfer", kind, values)
 
     def set_external_heat_transfer(self, kind: str, **values: Value) -> "Layer":
-        """Wall-to-ambient heat transfer: ``"constant"`` (external_htc) or ``"holman"``
-        (holman_c, holman_m, holman_n, external_velocity)."""
+        """Wall-to-ambient heat transfer: ``"constant"`` (external_htc), ``"holman"``
+        (holman_c, holman_m, holman_n, external_velocity), or natural convection to still air,
+        ``"churchill_chu_vertical"`` or ``"churchill_chu_horizontal"`` (no values)."""
         return self._set_model("set_external_heat_transfer", kind, values)
 
     @property

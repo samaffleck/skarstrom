@@ -182,7 +182,10 @@ $$
 h_o = \frac{\mathrm{Nu}\thinspace k_{air}}{d_e}, \qquad \mathrm{Nu} = c\thinspace \mathrm{Re}_{air}^{\thinspace m}\thinspace \mathrm{Pr}_{air}^{\thinspace n}, \qquad \mathrm{Re}_{air} = \frac{d_e\thinspace v_{ext}\thinspace \rho_{air}}{\mu_{air}}
 $$
 
-$d_e = d_i + 2\thinspace t_w$ is the external column diameter and $\mathrm{Pr}_{air} = c_{p,air}\mu_{air}/k_{air}$. The air properties are fixed values at about 20 °C, whatever the ambient temperature: $k_{air} = 0.0259$ W m⁻¹ K⁻¹, $\rho_{air} = 1.204$ kg m⁻³, $\mu_{air} = 1.81\times10^{-5}$ Pa s, $c_{p,air} = 1005$ J kg⁻¹ K⁻¹.
+$d_e = d_i + 2\thinspace t_w$ is the external column diameter and $\mathrm{Pr}_{air} = c_{p,air}\mu_{air}/k_{air}$. The air properties are those of dry air at one atmosphere, at the film temperature of each cell ([ambient air properties](#ambient-air-properties)).
+
+!!! note "Changed in 0.13"
+    The air properties follow the film temperature. Earlier versions used fixed values at about 20 °C ($k_{air} = 0.0259$ W m⁻¹ K⁻¹, $\rho_{air} = 1.204$ kg m⁻³, $\mu_{air} = 1.81\times10^{-5}$ Pa s, $c_{p,air} = 1005$ J kg⁻¹ K⁻¹), whatever the ambient temperature.
 
 | Input | Default | Parameter |
 |---|---|---|
@@ -192,6 +195,50 @@ $d_e = d_i + 2\thinspace t_w$ is the external column diameter and $\mathrm{Pr}_{
 | Prandtl exponent $n$ | 1/3 | `layer[ID].holman_n` |
 
 The default constants give $\mathrm{Nu} = 0.027\thinspace\mathrm{Re}^{0.8}\mathrm{Pr}^{1/3}$, the form of a turbulent-flow correlation, not of a cylinder in cross-flow. To model cross-flow, set $c$ and $m$ from a cylinder correlation for the column's Reynolds number range.
+
+### Churchill and Chu (1975): natural convection
+
+!!! note "New in 0.13"
+    The kinds `churchill_chu_vertical` and `churchill_chu_horizontal`.
+
+Natural convection from the column wall to still air. A **vertical** column (`churchill_chu_vertical`) is a vertical plate whose height $L$ is the bed height (the sum of the layer lengths). Churchill and Chu's correlation for the average Nusselt number over the plate holds for laminar and turbulent flow, at all Rayleigh numbers:
+
+$$
+\mathrm{Nu}_L = \left\{0.825 + \frac{0.387\thinspace\mathrm{Ra}_L^{1/6}}{\left[1 + (0.492/\mathrm{Pr})^{9/16}\right]^{8/27}}\right\}^2, \qquad h_o = \frac{\mathrm{Nu}_L\thinspace k_{air}}{L}
+$$
+
+A **horizontal** column (`churchill_chu_horizontal`) is a long horizontal cylinder of the external diameter $d_e$, for $\mathrm{Ra}_{d_e}$ up to about $10^{12}$:
+
+$$
+\mathrm{Nu}_{d_e} = \left\{0.60 + \frac{0.387\thinspace\mathrm{Ra}_{d_e}^{1/6}}{\left[1 + (0.559/\mathrm{Pr})^{9/16}\right]^{8/27}}\right\}^2, \qquad h_o = \frac{\mathrm{Nu}_{d_e}\thinspace k_{air}}{d_e}
+$$
+
+The Rayleigh number on the length $\ell$ ($L$ or $d_e$) is
+
+$$
+\mathrm{Ra}_\ell = \frac{g\thinspace\beta\thinspace|T_w - T_\infty|\thinspace\ell^3}{\nu_{air}^2}\thinspace\mathrm{Pr}, \qquad \beta = \frac{1}{T_f}, \qquad T_f = \frac{T_w + T_\infty}{2}
+$$
+
+with $T_w$ the cell's wall temperature, $T_\infty$ the bed's ambient temperature (`bed.ambient_temperature`), $\nu_{air} = \mu_{air}/\rho_{air}$, and all air properties at the film temperature $T_f$. Each cell uses its own wall temperature with the correlation for the whole column, so $h_o$ changes along the column and in time as the wall heats and cools. The kinds have no parameters.
+
+A slender vertical cylinder loses more heat than a plate of the same height, because of the curvature of its boundary layer. The plate correlation applies when $d_e/L \ge 35/\mathrm{Gr}_L^{1/4}$ (Incropera et al., Sec. 9.6.1), with $\mathrm{Gr}_L = \mathrm{Ra}_L/\mathrm{Pr}$. A typical laboratory column (1 m tall, a few centimetres across) does not meet this, and the model then under-predicts $h_o$. At run start, the solver warns when a column with the vertical kind fails the check for a wall 10 K above the ambient temperature.
+
+Radiation from the wall is not included.
+
+Sources: S.W. Churchill, H.H.S. Chu, "Correlating equations for laminar and turbulent free convection from a vertical plate", *Int. J. Heat Mass Transfer* 18 (1975) 1323–1329; "Correlating equations for laminar and turbulent free convection from a horizontal cylinder", *Int. J. Heat Mass Transfer* 18 (1975) 1049–1053.
+
+### Ambient air properties
+
+Holman and Churchill–Chu use the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
+
+| Property | Formula | Source |
+|---|---|---|
+| Viscosity $\mu_{air}$ | $1.716\times10^{-5}\thinspace (T/273)^{3/2}\thinspace \dfrac{273 + 111}{T + 111}$ Pa s | Sutherland's law (White, *Viscous Fluid Flow*, 2006) |
+| Thermal conductivity $k_{air}$ | $0.0241\thinspace (T/273)^{3/2}\thinspace \dfrac{273 + 194}{T + 194}$ W m⁻¹ K⁻¹ | Sutherland's law (White 2006) |
+| Density $\rho_{air}$ | $p\thinspace M_{air}/(R\thinspace T)$, $M_{air} = 0.0289647$ kg mol⁻¹ | ideal gas |
+| Heat capacity $c_{p,air}$ | 1007 J kg⁻¹ K⁻¹ | Incropera et al., Table A.4, at 300 K |
+
+The Sutherland fits agree with Incropera et al.'s Table A.4 within 2 % from 300 to 400 K (White gives about 2 % over a much wider range); the constant $c_{p,air}$ is within 1 % from 250 to 400 K.
 
 ---
 

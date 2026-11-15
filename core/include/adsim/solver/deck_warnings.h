@@ -65,6 +65,17 @@ namespace adsim {
   // is offered to reproduce papers that use it; not an error.
   std::vector<std::string> FilmCorrelationWarnings(const Bed& bed);
 
+  // One warning when a layer uses the vertical-column Churchill-Chu natural
+  // convection kind and the column is too slender to be a vertical plate:
+  // D / L < 35 / Gr_L^(1/4) (Incropera et al., Fundamentals of Heat and Mass
+  // Transfer, Sec. 9.6.1), with D the outer wall diameter, L the bed height
+  // and Gr_L at a wall 10 K above the ambient temperature
+  // (kNaturalConvectionCheckDeltaT). The curvature of a slender cylinder
+  // raises h above the plate value, so the model then under-predicts the heat
+  // loss. Not for an isothermal run.
+  inline constexpr double kNaturalConvectionCheckDeltaT = 10.0;  // [K]
+  std::vector<std::string> NaturalConvectionWarnings(const Bed& bed);
+
   // Structured layers (monolith, laminate; porous_media.h): one warning for
   // local thermal equilibrium (LTE) in a bed with a structured layer: the
   // thin walls exchange heat with the gas through the channel film, which

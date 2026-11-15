@@ -1922,7 +1922,7 @@ namespace adsim {
         for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) ho[n] = h_m;
       } else {
         auto& eq = layer.equations_.external_heat_transfer_model_;
-        eq->Update(state, layer, bed.wall_);
+        eq->Update(state, layer, bed.wall_, bed.ambient_temperature_);
       }
     }
 
