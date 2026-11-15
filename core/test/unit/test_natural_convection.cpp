@@ -77,9 +77,11 @@ TEST(NaturalConvection, TurbulentPlateCoefficientIndependentOfHeight) {
   const double h10 = air::ChurchillChuCoefficient(true, 343.0, 293.0, 10.0, 1.0);
   const double h20 = air::ChurchillChuCoefficient(true, 343.0, 293.0, 20.0, 1.0);
   EXPECT_NEAR(h10 / h20, 1.0119118262427629, 1e-12);
-  // Laminar plate (Nu ~ Ra^(1/4)): h falls with the height.
-  EXPECT_GT(air::ChurchillChuCoefficient(true, 303.0, 293.0, 0.05, 0.01),
-            1.5 * air::ChurchillChuCoefficient(true, 303.0, 293.0, 0.5, 0.01));
+  // Laminar plate (Ra 1.2e5 to 1.2e8, Nu nearer Ra^(1/4)): h falls with the
+  // height. Hand value of h(0.05 m) / h(0.5 m).
+  EXPECT_NEAR(air::ChurchillChuCoefficient(true, 303.0, 293.0, 0.05, 0.01) /
+                  air::ChurchillChuCoefficient(true, 303.0, 293.0, 0.5, 0.01),
+              1.4928534406221199, 1e-12);
 }
 
 // Monotone in the temperature difference; finite (the conduction limit) at 0.
