@@ -1,2 +1,0 @@
-### Changed — the Holman wall-to-ambient correlation uses temperature-dependent air properties
-- `holman` evaluates the air viscosity, conductivity, density and Prandtl number at the film temperature of each cell (Sutherland's law and the ideal gas at 1 atm, `adsim/equations/ambient_air.h`) instead of fixed values at about 20 °C. Results of decks that use `holman` change slightly: the Ward 2022 decks move in the 6th significant figure.

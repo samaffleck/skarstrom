@@ -8,6 +8,49 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-11-16
+
+### Added — heat of adsorption from the isotherm
+- A heat of adsorption mode for each component of each adsorbent, `adsorbent[<id>].heat_of_adsorption_mode[<component>]`: `constant` (the default; the stored `heat_of_adsorption[<component>]`, as before) or `isotherm`. With `isotherm`, the energy balance takes the isosteric heat q_st = R T² (∂ln p/∂T)_q of the component's isotherm at each cell's temperature, pressure and mole fraction, so the heat follows the loading (dual-site Langmuir, GAB water, the humid amine kinds) and the temperature. Below 10⁻³ Pa the value at 10⁻³ Pa (the Henry-limit heat) is used; where the derivative is not finite, the stored constant is used.
+- Run-start warnings when a component takes its heat from an isotherm that does not depend on temperature (q_st = 0), when the isosteric heat cannot be evaluated, and when the fluid's heat of adsorption convention is not isosteric (the convention applies only to constant heats).
+- Decks from earlier versions load with every component in the constant mode, and their results do not change.
+
+### Changed — transport-correlation source notes
+- The film-correlation and structured-layer source notes now say which equation numbers, tables and validity ranges are not confirmed against the original texts, instead of "to be confirmed".
+
+### Added — Ward & Pini (2022) PVSA validation
+- A paper-validation suite for Ward & Pini, *Efficient Bayesian optimization of industrial-scale pressure-vacuum swing adsorption processes for CO2 capture*, Ind. Eng. Chem. Res. 61 (2022) 13650 (`core/test/papers/ward_pini_2022/`, `WardPini2022Test.*`, label `paper`). It runs the ten cost-optimal designs of the paper's SI Tables S2 and S3 (four-step CO2/N2 PVSA with feed pressurisation on zeolite 13X and ZIF-36-FRL, p_L = 0.02–0.1 bar) and compares purity, recovery, productivity and specific energy with the paper's model. Purity agrees within 0.61 percentage points in all ten designs. Recovery agrees within 1.8 pp and productivity within 2.1 % in eight. The energy is 13–37 % below the paper where feed compression dominates; this is open and documented in the suite's README.
+- Two example decks: `WardPini2022_13X_PL003` and `WardPini2022_ZIF36FRL_PL007`, the minimum-capture-cost designs of the paper's Table 7.
+
+### Added — natural convection from a slender vertical column (Yang 1985)
+- A new wall-to-ambient heat transfer kind, `yang_vertical_cylinder`: natural convection from a vertical cylinder of the bed height and the outer wall diameter, valid at any height-to-diameter ratio. It is Churchill and Chu's plate correlation with the conduction term replaced by 0.36 L/d, so a slender laboratory column loses more heat than the vertical-plate kind gives (about 44 % more for a 1 m column 30 mm across). It has no parameters.
+- The slender-column warning of `churchill_chu_vertical` now names this kind.
+
+### Changed — the Holman wall-to-ambient correlation uses temperature-dependent air properties
+- `holman` evaluates the air viscosity, conductivity, density and Prandtl number at the film temperature of each cell (Sutherland's law and the ideal gas at 1 atm, `adsim/equations/ambient_air.h`) instead of fixed values at about 20 °C. Results of decks that use `holman` change slightly: the Ward 2022 decks move in the 6th significant figure.
+
+### Added — natural convection from the column wall (Churchill and Chu 1975)
+- Two new wall-to-ambient heat transfer kinds: `churchill_chu_vertical` (the column as a vertical plate of the bed height) and `churchill_chu_horizontal` (a horizontal cylinder of the outer wall diameter). They compute h_o from Churchill and Chu's (1975) natural-convection correlations in each cell, from that cell's wall temperature and the ambient temperature, with the air properties at the film temperature. They have no parameters.
+- A run-start warning when a column with the vertical kind is too slender to be a vertical plate (D/L < 35/Gr_L^(1/4) for a wall 10 K above ambient). The plate correlation then under-predicts the heat loss.
+
+### Removed — Air
+- Air is no longer a component. It was a lumped pseudo-component left over from CoolProp: one isotherm and one set of kinetics for N₂ and O₂ together, no element formula and no CAS number, and a heat-capacity polynomial mixed from the N₂, O₂ and Ar entries of TM-4513. A gas separation needs the real species of air, and an inert carrier is better modelled as Nitrogen. No example deck, adsorbent library entry or cycle template used it.
+- With it go its rows in the generated component table, the ideal-gas heat-capacity, viscosity and conductivity tables, and its CoolProp reference values in the tests.
+
+### Changed — decks with Air load with Nitrogen
+- A deck, adsorbent or cycle file that has Air loads with Nitrogen in its place: the fluid's component list, every component map (mole fractions, isotherms, kinetics, heats of adsorption, heat capacities, KPI and reaction entries), the component name fields and the parameter paths (`adsorbent[1].isotherm[Air].b` becomes `adsorbent[1].isotherm[Nitrogen].b`). Stream and endpoint names are not changed. The physics follow the Nitrogen properties (molar mass, transport, heat capacity) from then on, so results move slightly.
+- If the deck already has Nitrogen, Air's mole fractions are added to Nitrogen's and Air's other entries are dropped, so Nitrogen keeps its own isotherm and kinetics.
+- New: `Components::renamedComponents` (`fluid.h`) and `MigrateRenamedComponents` (`adsim/objects/component_migration.h`), which every load function runs on the JSON text before it reads it. New tests: `ComponentMigration.*`.
+
+### Changed — gas viscosity and conductivity from NASA CEA data where CoolProp has no model
+- The pure-gas viscosity of CarbonMonoxide, Ethylene, Fluorine, Krypton, Neon, NitrousOxide, SulfurDioxide and Xenon, and their conductivity and that of HydrogenSulfide, now come from the transport database of NASA CEA (Svehla, NASA TM-4647, 1995; Bich et al. 1990 for the noble gases). Before, the viscosity was a Chapman–Enskog estimate and the conductivity the Eucken relation. Over 250–650 K the conductivity changes most: Ethylene up to +26 % (at 650 K), NitrousOxide up to +19 %, SulfurDioxide −8 % to +8 %, HydrogenSulfide −7 % to +4 %, Fluorine +4 % to +7 %, CarbonMonoxide about +5 %. The viscosities change by −1 % to +4 %. Results of decks with these components change. No bundled deck has them.
+- The viscosity and conductivity tables are now generated by `scripts/gen_transport_coefficients.py`, which downloads the CEA data file pinned by commit and SHA-256. CI runs it with `--check`. The rows fitted to CoolProp are unchanged; each row now names its primary source (the CoolProp correlation, or the NASA species and its data). The Cyclohexane conductivity (Eucken) now uses the engine's NASA-7 heat capacity; it changes by less than 2 % above 250 K.
+- The display name of the default viscosity mode (`fluid.viscosity_mode` = `polynomial`) is now "Polynomial", not "CoolProp", because not every row comes from CoolProp. The registry name is unchanged, so decks and scripts are not affected.
+
+### Added — bootstrap intervals for calibration
+- `skarstrom.calibrate(..., uncertainty="bootstrap")` (and `Options::uncertainty = Uncertainty::Bootstrap` in `adsim/solver/calibration.h`, `--bootstrap N` on `skarstrom calibrate`) adds a residual bootstrap after the fit: `bootstrap_samples` refits (default 100, each at most `bootstrap_max_iterations` iterations from the estimate, warm-started) to the fitted curve plus residuals resampled within each dataset. Each estimate gets a bootstrap standard error, a percentile interval at `interval_level` (default 0.95) and the share of refits that ended at a bound; the result has the refitted values and their correlation. The draws are seeded (`bootstrap_seed`, `--seed`), so the intervals are reproducible. The Jacobian standard errors stay the default and do not change. The guide explains when the two disagree (a parameter at a bound, strongly correlated parameters).
+- `ADSIM_SANITIZE` (CMake, e.g. `-DADSIM_SANITIZE=thread`) builds the engine, its dependencies and the tests with a sanitizer. CI runs the threaded calibration and warm-start tests under ThreadSanitizer.
+
 ## [0.13.0] — 2026-11-15
 
 ### Added — switch the profile kind of a step's heating-medium temperature
