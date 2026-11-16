@@ -447,7 +447,7 @@ namespace adsim {
       const SaturationAt gas = LargestSaturation(comps, ic.mole_fraction, P0, Tg);
       const SaturationAt wall = LargestSaturation(comps, ic.mole_fraction, P0, Tw);
       if (gas.S > 1.0 || wall.S > 1.0) {
-        const bool at_wall = wall.S > 1.0 && !(gas.S >= wall.S);
+        const bool at_wall = !(gas.S > 1.0);  // the gas measure first
         warnings.push_back("Warning: the initial gas is supersaturated" + std::string(at_wall ? " at the initial wall temperature" : "")
                            + ": " + (at_wall ? SaturationText(wall, P0, Tw) : SaturationText(gas, P0, Tg)) + "."
                            + kSupersaturationTail);

@@ -125,7 +125,8 @@ namespace adsim {
   // y_i P / p_sat,i(T) (RelativeSaturation) of every component that can
   // condense at T, above 1, gives
   // - one warning for the initial gas (initial.y at initial.pressure), at the
-  //   initial temperature or, if larger, at the initial wall temperature;
+  //   initial temperature or, when the gas is not supersaturated there, at
+  //   the initial wall temperature;
   // - one per inlet stream and per inlet pressure boundary that carries its
   //   own gas (not a connected stream or a buffer-tank inlet, which carries
   //   another endpoint's gas), at its inlet temperature (the larger of the

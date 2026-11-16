@@ -121,7 +121,8 @@ nitrogen, hydrogen, methane and helium at ambient temperature never count; carbo
   wall, and vapour condenses on a wall below its dew point even while the bulk gas is not saturated. A cold
   jacket, a cold ambient through a thin wall or a cold initial wall gives this one first.
 
-It fires when either measure passes 1. The value is the larger of the two; the message names which measure,
+It fires when either measure passes 1, with no margin: saturation itself is the limit of the model. The value is the gas measure when the gas itself is supersaturated, else the wall measure;
+the message names which measure,
 the component, the cell and its height, the step, the time in the step and the other measure. The measures of
 each cycle are `supersaturation_gas` and `supersaturation_wall` in `sim.run_health().cycles` (NaN when no
 component can condense, and while the check is switched off: it costs one evaluation of the saturation curve

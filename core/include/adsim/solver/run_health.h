@@ -67,8 +67,8 @@
 //    temperature (the cold-wall measure: in the axial model every cell
 //    touches the wall, and vapour condenses on a wall below its dew point
 //    even when the bulk gas is not saturated). The warning fires when either
-//    passes kSupersaturation; its value is the larger one, and its message
-//    names the measure, the component, the cell (and its height), the step
+//    passes kSupersaturation; its value is the gas measure when the gas itself
+//    is supersaturated, else the wall measure, and its message names the measure, the component, the cell (and its height), the step
 //    and the time.
 //
 // No check depends on how many cycles of series and profiles the log keeps

@@ -386,8 +386,8 @@ namespace adsim {
     const bool gas_over = sat_gas.value > T::kSupersaturation;
     const bool wall_over = sat_wall.value > T::kSupersaturation;
     if (gas_over || wall_over) {
-      // Report the larger measure; the wall one only when it is larger.
-      const bool at_wall = wall_over && !(sat_gas.value >= sat_wall.value);
+      // The gas measure when the gas itself is supersaturated, else the wall one.
+      const bool at_wall = !gas_over;
       const SaturationPeak& peak = at_wall ? sat_wall : sat_gas;
       RunHealthWarning w;
       w.check = RunHealthCheck::Supersaturation;

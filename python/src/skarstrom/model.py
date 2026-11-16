@@ -818,6 +818,10 @@ class Settings(_Node):
     warn_reaction_stiff = Boolean()
     """Run health: warn when the integrator's step collapses at a reacting cell (REACTION_STIFF).
     *New in 0.9.*"""
+    warn_supersaturation = Boolean()
+    """Run health: warn when a component's partial pressure passes its saturation pressure, in the gas or at
+    the wall temperature (SUPERSATURATION); also checks the inlets and the initial gas at the start of a run.
+    *New in 0.15.*"""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation), "anderson" or
     "newton_krylov" (Newton-Krylov with finite-difference Jacobian-vector products)."""
