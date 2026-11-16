@@ -63,6 +63,16 @@ void Build(Reformer& b) {
   b.sim.RefreshParameters();
 }
 
+// A reformer deck (three Xu-Froment LHHW rates, one four-term denominator
+// squared) saved by the engine before LHHW rates could have several
+// denominators. The working directory of the tests is core/.
+std::string ReadFixture() {
+  std::ifstream in(std::filesystem::current_path() / "test" / "fixtures" / "legacy" / "lhhw_v1_reformer.json");
+  std::stringstream ss;
+  ss << in.rdbuf();
+  return ss.str();
+}
+
 std::string Snapshot(UserData& data) {
   std::ostringstream oss;
   {
@@ -81,7 +91,8 @@ TEST(ReactionDeck, BuilderCreatesReactionsAndRejectsBadInput) {
   EXPECT_EQ(b.smr, 1u);
   EXPECT_EQ(b.wgs, 2u);
   EXPECT_EQ(src.Get(b.smr).rate_->GetType(), ReactionRateType::Lhhw);
-  EXPECT_EQ(dynamic_cast<LhhwRate&>(*src.Get(b.smr).rate_).adsorption_.size(), 2u);
+  EXPECT_EQ(dynamic_cast<LhhwRate&>(*src.Get(b.smr).rate_).denominators_.size(), 1u);
+  EXPECT_EQ(dynamic_cast<LhhwRate&>(*src.Get(b.smr).rate_).denominators_[0].adsorption_.size(), 2u);
 
   EXPECT_NE(ThrowMessage([&] { build::AddReaction(d, b.ni, "X", {{CH4, -1}}, "michaelis"); }).find("power_law"),
             std::string::npos);
@@ -97,7 +108,31 @@ TEST(ReactionDeck, BuilderCreatesReactionsAndRejectsBadInput) {
   build::SetReactionBasis(d, b.ni, b.wgs, "concentration");
   EXPECT_EQ(src.Get(b.wgs).basis_, RateBasis::Concentration);
   build::RemoveAdsorptionTerm(d, b.ni, b.smr, 1);
-  EXPECT_EQ(dynamic_cast<LhhwRate&>(*src.Get(b.smr).rate_).adsorption_.size(), 1u);
+  EXPECT_EQ(dynamic_cast<LhhwRate&>(*src.Get(b.smr).rate_).denominators_[0].adsorption_.size(), 1u);
+
+  // Denominators: a second one, its terms, and the errors.
+  EXPECT_EQ(build::AddDenominator(d, b.ni, b.smr), 2u);
+  EXPECT_EQ(build::AddAdsorptionTerm(d, b.ni, b.smr, 2), 1u);
+  EXPECT_EQ(build::AddAdsorptionTerm(d, b.ni, b.smr, 2), 2u);
+  const auto& dens = dynamic_cast<LhhwRate&>(*src.Get(b.smr).rate_).denominators_;
+  ASSERT_EQ(dens.size(), 2u);
+  EXPECT_EQ(dens[1].adsorption_.size(), 2u);
+  EXPECT_EQ(dens[1].adsorption_[0].exponent_.size(), 5u);  // every component, at 0
+  EXPECT_DOUBLE_EQ(dens[1].exponent_.Get(), 1.0);
+  EXPECT_NE(ThrowMessage([&] { build::AddAdsorptionTerm(d, b.ni, b.smr, 3); }).find("no denominator 3"),
+            std::string::npos);
+  EXPECT_NE(ThrowMessage([&] { build::RemoveAdsorptionTerm(d, b.ni, b.smr, 3, 2); }).find("denominator 2"),
+            std::string::npos);
+  EXPECT_NE(ThrowMessage([&] { build::AddDenominator(d, b.ni, b.wgs); }).find("lhhw"), std::string::npos);
+  build::RemoveAdsorptionTerm(d, b.ni, b.smr, 1, 2);
+  EXPECT_EQ(dens[1].adsorption_.size(), 1u);
+  build::RemoveDenominator(d, b.ni, b.smr, 1);  // the second moves down
+  ASSERT_EQ(dens.size(), 1u);
+  EXPECT_EQ(dens[0].adsorption_.size(), 1u);
+  EXPECT_NE(ThrowMessage([&] { build::RemoveDenominator(d, b.ni, b.smr, 1); }).find("at least one"),
+            std::string::npos);
+  EXPECT_NE(ThrowMessage([&] { build::RemoveDenominator(d, b.ni, b.smr, 2); }).find("no denominator 2"),
+            std::string::npos);
   build::RemoveReaction(d, b.ni, b.wgs);
   EXPECT_EQ(src.reactions_.size(), 1u);
   // IDs are not reused.
@@ -114,9 +149,10 @@ TEST(ReactionDeck, RegistryPathsAndAliases) {
   const std::string head = "adsorbent[" + std::to_string(b.ni) + "].reaction[1].";
   for (const char* leaf : {"nu[Methane]", "basis", "rate.pre_exp_factor", "rate.activation_energy",
                            "rate.order[Water]", "rate.order[Hydrogen]", "rate.equilibrium_pre_exp_factor",
-                           "rate.equilibrium_energy", "rate.denominator_exponent", "rate.reversible",
-                           "rate.adsorption[1].pre_exp_factor", "rate.adsorption[1].energy",
-                           "rate.adsorption[2].exponent[Hydrogen]", "heat_of_reaction", "heat_mode",
+                           "rate.equilibrium_energy", "rate.denominator[1].exponent", "rate.reversible",
+                           "rate.denominator[1].adsorption[1].pre_exp_factor",
+                           "rate.denominator[1].adsorption[1].energy",
+                           "rate.denominator[1].adsorption[2].exponent[Hydrogen]", "heat_of_reaction", "heat_mode",
                            "heat_reference_temperature", "effectiveness"}) {
     EXPECT_NE(reg.Find(head + leaf), nullptr) << head + leaf;
   }
@@ -146,11 +182,47 @@ TEST(ReactionDeck, RegistryPathsAndAliases) {
 
   // Values set through the registry reach the model.
   reg.Get(head + "rate.order[Hydrogen]").SetValue(-2.5);
-  reg.Get(head + "rate.adsorption[2].exponent[Hydrogen]").SetValue(-1.0);
+  reg.Get(head + "rate.denominator[1].adsorption[2].exponent[Hydrogen]").SetValue(-1.0);
   const auto& smr = b.sim.Data().adsorbent_directory.Get(b.ni).reaction_source_.Get(b.smr);
   const auto& l = dynamic_cast<const LhhwRate&>(*smr.rate_);
   EXPECT_DOUBLE_EQ(l.order_.at(H2).Get(), -2.5);
-  EXPECT_DOUBLE_EQ(l.adsorption_[1].exponent_.at(H2).Get(), -1.0);
+  EXPECT_DOUBLE_EQ(l.denominators_[0].adsorption_[1].exponent_.at(H2).Get(), -1.0);
+
+  // The paths of the single-denominator layout still resolve, to denominator 1
+  // (by ID and by name), and are not listed.
+  for (const std::string& h : {head, std::string("adsorbent[Ni catalyst].reaction[SMR].")}) {
+    EXPECT_EQ(reg.Find(h + "rate.denominator_exponent"), reg.Find(head + "rate.denominator[1].exponent"));
+    EXPECT_EQ(reg.Find(h + "rate.adsorption[2].exponent[Hydrogen]"),
+              reg.Find(head + "rate.denominator[1].adsorption[2].exponent[Hydrogen]"));
+    EXPECT_EQ(reg.Find(h + "rate.adsorption[1].energy"), reg.Find(head + "rate.denominator[1].adsorption[1].energy"));
+  }
+  EXPECT_NE(reg.Find(head + "rate.denominator_exponent"), nullptr);
+  EXPECT_EQ(reg.Find(head + "rate.adsorption[3].energy"), nullptr);
+  for (const auto& p : reg.All()) {
+    EXPECT_EQ(p.Path().find("denominator_exponent"), std::string::npos) << p.Path();
+    EXPECT_EQ(p.Path().find("rate.adsorption["), std::string::npos) << p.Path();
+  }
+  reg.Get(head + "rate.denominator_exponent").SetValue(2.0);
+  EXPECT_DOUBLE_EQ(l.denominators_[0].exponent_.Get(), 2.0);
+  EXPECT_EQ(reg.Get(head + "rate.denominator[1].adsorption[1].energy").Info().name, "adsorption[1] energy");
+
+  // A second denominator: its exponent and terms under denominator[2].
+  build::AddDenominator(b.sim.Data(), b.ni, b.smr);
+  build::AddAdsorptionTerm(b.sim.Data(), b.ni, b.smr, 2);
+  b.sim.RefreshParameters();
+  auto& reg2 = b.sim.Parameters();
+  const Parameter& m2 = reg2.Get(head + "rate.denominator[2].exponent");
+  EXPECT_DOUBLE_EQ(m2.GetValue(), 1.0);
+  EXPECT_EQ(m2.Info().name, "denominator[2] exponent");
+  reg2.Get(head + "rate.denominator[2].adsorption[1].exponent[Water]").SetValue(1.0);
+  reg2.Get(head + "rate.denominator[2].adsorption[1].exponent[Hydrogen]").SetValue(-1.0);
+  b.sim.RefreshParameters();
+  const Parameter& K2 = b.sim.Parameters().Get(head + "rate.denominator[2].adsorption[1].pre_exp_factor");
+  EXPECT_EQ(K2.Info().name, "denominator[2] adsorption[1] pre-exponential factor");
+  EXPECT_EQ(K2.Info().unit, "-");  // exponents sum to 0
+  EXPECT_TRUE(K2.Info().tunable);
+  EXPECT_NE(b.sim.Parameters().Find("adsorbent[Ni catalyst].reaction[SMR].rate.denominator[2].adsorption[1].energy"),
+            nullptr);
 
   // Thiele mode lists the tortuosity instead.
   build::SetEffectiveness(b.sim.Data(), b.ni, b.smr, "thiele", CH4);
@@ -168,6 +240,11 @@ TEST(ReactionDeck, SerialisationRoundTrip) {
   reg.Get(head + "rate.order[Hydrogen]").SetText("-2.5");
   reg.Get(head + "heat_of_reaction").SetValue(206100.0);
   reg.Get(head + "rate.reversible").SetValue(0.0);
+  build::AddDenominator(d, b.ni, b.smr);
+  build::AddAdsorptionTerm(d, b.ni, b.smr, 2);
+  b.sim.RefreshParameters();
+  b.sim.Parameters().Get(head + "rate.denominator[2].exponent").SetText("0.5");
+  b.sim.Parameters().Get(head + "rate.denominator[2].adsorption[1].energy").SetValue(-6e4);
   build::SetEffectiveness(d, b.ni, b.wgs, "thiele", CO);
   build::SetReactionBasis(d, b.ni, b.wgs, "concentration");
   std::string err;
@@ -187,7 +264,11 @@ TEST(ReactionDeck, SerialisationRoundTrip) {
     const auto& l = dynamic_cast<const LhhwRate&>(*smr.rate_);
     EXPECT_EQ(l.order_.at(H2).GetExpr(), "-2.5");
     EXPECT_FALSE(l.reversible_);
-    EXPECT_EQ(l.adsorption_.size(), 2u);
+    ASSERT_EQ(l.denominators_.size(), 2u);
+    EXPECT_EQ(l.denominators_[0].adsorption_.size(), 2u);
+    EXPECT_EQ(l.denominators_[1].adsorption_.size(), 1u);
+    EXPECT_EQ(l.denominators_[1].exponent_.GetExpr(), "0.5");
+    EXPECT_DOUBLE_EQ(l.denominators_[1].adsorption_[0].energy_.Get(), -6e4);
     EXPECT_DOUBLE_EQ(smr.heat_of_reaction_.Get(), 206100.0);
     EXPECT_EQ(smr.heat_mode_, HeatOfReactionMode::Kirchhoff);
     const Reaction& wgs = src.Get(b.wgs);
@@ -209,6 +290,43 @@ TEST(ReactionDeck, SerialisationRoundTrip) {
     };
     EXPECT_EQ(text(src), text(d.adsorbent_directory.Get(b.ni).reaction_source_));
   }
+}
+
+// An LHHW rate saved before it could have several denominators (LhhwRate
+// version 1: Denominator_Exponent and Adsorption_Terms) loads as one
+// denominator with the same values; it saves as version 2 (Denominators).
+TEST(ReactionDeck, VersionOneLhhwRateLoadsAsOneDenominator) {
+  const std::string v1 = ReadFixture();
+  ASSERT_NE(v1.find("\"Denominator_Exponent\""), std::string::npos);
+  UserData d;
+  ASSERT_NO_THROW(LoadFromJsonText(d, v1));
+  bool found = false;
+  for (auto& [id, ads] : d.adsorbent_directory.GetAll())
+    for (auto& r : ads.reaction_source_.reactions_) {
+      const auto& l = dynamic_cast<const LhhwRate&>(*r.rate_);
+      found = true;
+      ASSERT_EQ(l.denominators_.size(), 1u) << r.name_;
+      EXPECT_DOUBLE_EQ(l.denominators_[0].exponent_.Get(), 2.0);
+      ASSERT_EQ(l.denominators_[0].adsorption_.size(), 4u);
+      // Xu-Froment K_H2O p_H2O / p_H2 (the fourth term).
+      const auto& t = l.denominators_[0].adsorption_[3];
+      EXPECT_DOUBLE_EQ(t.pre_exp_factor_.Get(), 1.77e5);
+      EXPECT_DOUBLE_EQ(t.energy_.Get(), 88.68e3);
+      EXPECT_DOUBLE_EQ(t.exponent_.at(H2O).Get(), 1.0);
+      EXPECT_DOUBLE_EQ(t.exponent_.at(H2).Get(), -1.0);
+    }
+  EXPECT_TRUE(found);
+  const std::string v2 = Snapshot(d);
+  EXPECT_EQ(v2.find("\"Denominator_Exponent\""), std::string::npos);
+  EXPECT_NE(v2.find("\"Denominators\""), std::string::npos);
+  UserData back;
+  ASSERT_NO_THROW(LoadFromJsonText(back, v2));
+  for (auto& [id, ads] : back.adsorbent_directory.GetAll())
+    for (auto& r : ads.reaction_source_.reactions_) {
+      const auto& l = dynamic_cast<const LhhwRate&>(*r.rate_);
+      ASSERT_EQ(l.denominators_.size(), 1u);
+      EXPECT_EQ(l.denominators_[0].adsorption_.size(), 4u);
+    }
 }
 
 TEST(ReactionDeck, AdsorbentArchiveIsVersionFive) {
@@ -285,10 +403,10 @@ TEST(ReactionDeck, RemovingAComponentUsedByAReactionIsRefused) {
   build::AddComponent(d, "Nitrogen");
   build::AddAdsorptionTerm(d, b.ni, b.smr);
   const auto& l = dynamic_cast<const LhhwRate&>(*d.adsorbent_directory.Get(b.ni).reaction_source_.Get(b.smr).rate_);
-  ASSERT_TRUE(l.adsorption_.back().exponent_.count("Nitrogen"));
+  ASSERT_TRUE(l.denominators_[0].adsorption_.back().exponent_.count("Nitrogen"));
   err.clear();
   EXPECT_TRUE(RemoveComponentFromDeck(d, "Nitrogen", err)) << err;
-  EXPECT_FALSE(l.adsorption_.back().exponent_.count("Nitrogen"));
+  EXPECT_FALSE(l.denominators_[0].adsorption_.back().exponent_.count("Nitrogen"));
 
   // A nonzero exponent counts as use.
   build::AddComponent(d, "Nitrogen");

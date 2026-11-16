@@ -1438,8 +1438,12 @@ PYBIND11_MODULE(_core, m) {
         else if (op == "set_reaction_basis") b::SetReactionBasis(d, id(0), id(1), str(2));
         else if (op == "set_effectiveness")
           b::SetEffectiveness(d, id(0), id(1), str(2), args.size() > 3 ? str(3) : std::string{});
-        else if (op == "add_adsorption_term") out = py::int_(b::AddAdsorptionTerm(d, id(0), id(1)));
-        else if (op == "remove_adsorption_term") b::RemoveAdsorptionTerm(d, id(0), id(1), id(2));
+        else if (op == "add_denominator") out = py::int_(b::AddDenominator(d, id(0), id(1)));
+        else if (op == "remove_denominator") b::RemoveDenominator(d, id(0), id(1), id(2));
+        else if (op == "add_adsorption_term")  // [solid, reaction, denominator = 1]
+          out = py::int_(b::AddAdsorptionTerm(d, id(0), id(1), args.size() > 2 ? id(2) : size_t{1}));
+        else if (op == "remove_adsorption_term")  // [solid, reaction, j, denominator = 1]
+          b::RemoveAdsorptionTerm(d, id(0), id(1), id(2), args.size() > 3 ? id(3) : size_t{1});
         else if (op == "remove_reaction") b::RemoveReaction(d, id(0), id(1));
         else if (op == "set_reaction_kpi")
           b::SetReactionKPI(d, str(0), args[1].cast<std::vector<std::string>>(), args.size() > 2 ? str(2)
@@ -1671,7 +1675,13 @@ PYBIND11_MODULE(_core, m) {
             rx["effectiveness"] = std::string(EffectivenessModeString(r.effectiveness_.mode_));
             rx["key_component"] = r.effectiveness_.key_component_;
             const auto* lhhw = r.rate_ ? dynamic_cast<const LhhwRate*>(r.rate_.get()) : nullptr;
-            rx["adsorption_terms"] = lhhw ? lhhw->adsorption_.size() : size_t{0};
+            // The term count of each LHHW denominator; adsorption_terms is
+            // that of denominator 1 (the only one before there could be several).
+            std::vector<size_t> dens;
+            if (lhhw)
+              for (const auto& den : lhhw->denominators_) dens.push_back(den.adsorption_.size());
+            rx["denominators"] = dens;
+            rx["adsorption_terms"] = dens.empty() ? size_t{0} : dens.front();
             reactions.append(rx);
           }
           a["reactions"] = reactions;

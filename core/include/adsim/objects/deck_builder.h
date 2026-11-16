@@ -131,7 +131,7 @@ void SetRateModel(UserData& data, AdsorbentID adsorbent, const std::string& comp
 // (component -> coefficient, < 0 reactant, > 0 product; exact zeros are
 // dropped) and a rate law of `kind`. Every component must be in the deck.
 // Orders default to -nu for reactants and 0 for products. Returns its ID.
-// Kind, stoichiometry and the LHHW adsorption terms are structure (these
+// Kind, stoichiometry and the LHHW denominators and adsorption terms are structure (these
 // functions); every value goes through the registry
 // (adsorbent[ID].reaction[ID].*).
 ReactionID AddReaction(UserData& data, AdsorbentID solid, const std::string& name,
@@ -145,9 +145,17 @@ void SetReactionBasis(UserData& data, AdsorbentID solid, ReactionID reaction, co
 // with its key reactant.
 void SetEffectiveness(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& mode,
                       const std::string& key_component = "");
-// A new LHHW denominator term (lhhw only); returns its index j (from 1).
-size_t AddAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction);
-void RemoveAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t j);
+// A new LHHW denominator (lhhw only): one more kind of site, exponent 1 and
+// no terms (DEN = 1); returns its index k (from 1). A new lhhw rate has one.
+size_t AddDenominator(UserData& data, AdsorbentID solid, ReactionID reaction);
+// Removes denominator k (from 1); the later ones move down. The last one
+// cannot be removed (set its exponent to 0 or remove its terms instead).
+void RemoveDenominator(UserData& data, AdsorbentID solid, ReactionID reaction, size_t k);
+// A new term of LHHW denominator `denominator` (from 1; lhhw only); returns
+// its index j (from 1).
+size_t AddAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t denominator = 1);
+void RemoveAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t j,
+                          size_t denominator = 1);
 void RemoveReaction(UserData& data, AdsorbentID solid, ReactionID reaction);
 std::vector<std::string> ReactionRateKinds();
 const std::vector<std::string>& ReactionBasisKinds();

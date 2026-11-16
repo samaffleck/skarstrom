@@ -263,7 +263,7 @@ std::set<std::string> Uncovered(UserData& d) {
 }  // namespace
 
 // The example decks have no reactions: a deck with one reaction of every
-// rate kind (an LHHW one with an adsorption term, a reversible one, a
+// rate kind (an LHHW one with two denominators and adsorption terms, a reversible one, a
 // rate expression), both effectiveness modes and both bases.
 TEST(RegistryCoverage, EveryReactionValueHasAPath) {
   UserData d;
@@ -276,6 +276,8 @@ TEST(RegistryCoverage, EveryReactionValueHasAPath) {
   build::SetReactionBasis(d, cat, rev, "concentration");
   const ReactionID lhhw = build::AddReaction(d, cat, "lhhw", smr, "lhhw");
   build::AddAdsorptionTerm(d, cat, lhhw);
+  EXPECT_EQ(build::AddDenominator(d, cat, lhhw), 2u);
+  build::AddAdsorptionTerm(d, cat, lhhw, 2);
   build::SetEffectiveness(d, cat, lhhw, "thiele", "Methane");
   build::AddReaction(d, cat, "expression", wgs, "expression");
   const std::set<std::string> missing = Uncovered(d);

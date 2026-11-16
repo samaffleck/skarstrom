@@ -15,6 +15,7 @@
 #include "adsim/boundary_conditions/boundary_conditions.h"
 #include "adsim/boundary_conditions/boundary_stream.h"
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/equations/reaction_kinds.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/manifests.h"
 #include "adsim/objects/model_kinds.h"
@@ -312,7 +313,32 @@ namespace adsim {
             Set(rv, "stoichiometry", std::move(nu), a_);
             Set(rv, "effectiveness", KindName(b::EffectivenessKinds(), static_cast<int>(r.effectiveness_.mode_)), a_);
             Set(rv, "key_component", r.effectiveness_.key_component_, a_);
-            Set(rv, "values", Values(ap + ".reaction[" + std::to_string(r.id_) + "]."), a_);
+            const std::string rp = ap + ".reaction[" + std::to_string(r.id_) + "].";
+            // LHHW denominators (one per kind of site), each with its exponent
+            // and its adsorption terms; empty for the other kinds. Claimed
+            // before the reaction's own values so each entry appears once.
+            Value dens(rapidjson::kArrayType);
+            if (const auto* l = r.rate_ ? dynamic_cast<const LhhwRate*>(r.rate_.get()) : nullptr) {
+              for (size_t k = 0; k < l->denominators_.size(); ++k) {
+                const std::string dp = rp + "rate.denominator[" + std::to_string(k + 1) + "].";
+                Value dv(rapidjson::kObjectType);
+                SetInt(dv, "index", static_cast<long long>(k + 1), a_);
+                Value terms(rapidjson::kArrayType);
+                for (size_t j = 0; j < l->denominators_[k].adsorption_.size(); ++j) {
+                  Value tv(rapidjson::kObjectType);
+                  SetInt(tv, "index", static_cast<long long>(j + 1), a_);
+                  Set(tv, "values", Values(dp + "adsorption[" + std::to_string(j + 1) + "]."), a_);
+                  terms.PushBack(tv, a_);
+                }
+                Value dvals(rapidjson::kArrayType);
+                for (const auto* p : pool_.Claim(dp + "exponent")) dvals.PushBack(ParameterValue(*p, dp, a_), a_);
+                Set(dv, "values", std::move(dvals), a_);
+                Set(dv, "terms", std::move(terms), a_);
+                dens.PushBack(dv, a_);
+              }
+            }
+            Set(rv, "denominators", std::move(dens), a_);
+            Set(rv, "values", Values(rp), a_);
             reactions.PushBack(rv, a_);
           }
           Set(v, "reactions", std::move(reactions), a_);
@@ -825,7 +851,8 @@ namespace adsim {
         // Split: MSVC limits one string literal to 16 KB.
         R"JSON(    "Reaction": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "name", "kind", "basis", "stoichiometry", "effectiveness", "key_component", "values"],
+      "required": ["id", "name", "kind", "basis", "stoichiometry", "effectiveness", "key_component",
+                   "denominators", "values"],
       "properties": {
         "id": {"type": "integer"},
         "name": {"type": "string"},
@@ -834,8 +861,21 @@ namespace adsim {
         "stoichiometry": {"type": "array", "items": {"$ref": "#/definitions/StoichiometricCoefficient"}},
         "effectiveness": {"type": "string", "enum": @EFFECTIVENESS@},
         "key_component": {"type": "string"},
+        "denominators": {"type": "array", "items": {"$ref": "#/definitions/LhhwDenominator"}},
         "values": {"$ref": "#/definitions/ValueList"}
       }
+    },
+    "LhhwDenominator": {
+      "type": "object", "additionalProperties": false, "required": ["index", "values", "terms"],
+      "properties": {
+        "index": {"type": "integer"},
+        "values": {"$ref": "#/definitions/ValueList"},
+        "terms": {"type": "array", "items": {"$ref": "#/definitions/LhhwAdsorptionTerm"}}
+      }
+    },
+    "LhhwAdsorptionTerm": {
+      "type": "object", "additionalProperties": false, "required": ["index", "values"],
+      "properties": {"index": {"type": "integer"}, "values": {"$ref": "#/definitions/ValueList"}}
     },
     "Adsorbent": {
       "type": "object", "additionalProperties": false,

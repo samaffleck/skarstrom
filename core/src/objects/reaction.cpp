@@ -41,12 +41,15 @@ namespace adsim {
   void Reaction::SetRateType(ReactionRateType type) {
     auto next = CreateReactionRate(type, nu_);
     if (rate_) {
-      // LHHW adsorption terms are structural: carry their count over so their
-      // leaves exist in the new layout before the values are copied.
+      // LHHW denominators and their adsorption terms are structural: carry
+      // their counts over so their leaves exist in the new layout before the
+      // values are copied.
       auto* old_lhhw = dynamic_cast<LhhwRate*>(rate_.get());
       auto* new_lhhw = dynamic_cast<LhhwRate*>(next.get());
       if (old_lhhw && new_lhhw) {
-        new_lhhw->adsorption_.resize(old_lhhw->adsorption_.size());
+        new_lhhw->denominators_.resize(old_lhhw->denominators_.size());
+        for (size_t k = 0; k < old_lhhw->denominators_.size(); ++k)
+          new_lhhw->denominators_[k].adsorption_.resize(old_lhhw->denominators_[k].adsorption_.size());
         new_lhhw->reversible_ = old_lhhw->reversible_;
       }
       // Orders are per component: make sure the new rate has every order key
@@ -64,9 +67,10 @@ namespace adsim {
       if (old_orders && new_orders)
         for (const auto& [c, n] : *old_orders) new_orders->try_emplace(c, 0.0);
       if (old_lhhw && new_lhhw)
-        for (size_t j = 0; j < old_lhhw->adsorption_.size(); ++j)
-          for (const auto& [c, e] : old_lhhw->adsorption_[j].exponent_)
-            new_lhhw->adsorption_[j].exponent_.try_emplace(c, 0.0);
+        for (size_t k = 0; k < old_lhhw->denominators_.size(); ++k)
+          for (size_t j = 0; j < old_lhhw->denominators_[k].adsorption_.size(); ++j)
+            for (const auto& [c, e] : old_lhhw->denominators_[k].adsorption_[j].exponent_)
+              new_lhhw->denominators_[k].adsorption_[j].exponent_.try_emplace(c, 0.0);
 
       auto old_fields = ReactionRateFields(rate_.get());
       for (auto& [leaf, param] : ReactionRateFields(next.get())) {

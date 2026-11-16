@@ -168,9 +168,10 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::IReactionRate, 1),
       ADSIM_PIN(adsim::PowerLawRate, 1),
       ADSIM_PIN(adsim::ReversiblePowerLawRate, 1),
-      ADSIM_PIN(adsim::LhhwRate, 1),
+      ADSIM_PIN(adsim::LhhwRate, 2),
       ADSIM_PIN(adsim::ExpressionRate, 1),
       ADSIM_PIN(adsim::LhhwAdsorptionTerm, 1),
+      ADSIM_PIN(adsim::LhhwDenominator, 1),
       ADSIM_PIN(adsim::WallTemperatureBoundaryConditionFixed, 1),
       ADSIM_PIN(adsim::WallTemperatureBoundaryConditionZeroFlux, 1),
       // boundary conditions

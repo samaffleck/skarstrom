@@ -367,6 +367,12 @@ LhhwRate& Lhhw(Reaction& r) {
   if (!l) throw std::invalid_argument("reaction '" + r.name_ + "' does not use the lhhw rate kind");
   return *l;
 }
+
+LhhwDenominator& Denominator(const Reaction& r, LhhwRate& l, size_t k) {
+  if (k < 1 || k > l.denominators_.size())
+    throw std::invalid_argument("reaction '" + r.name_ + "' has no denominator " + std::to_string(k));
+  return l.denominators_[k - 1];
+}
 }  // namespace
 
 std::vector<std::string> ReactionRateKinds() {
@@ -421,24 +427,41 @@ void SetEffectiveness(UserData& data, AdsorbentID solid, ReactionID reaction, co
   r.effectiveness_.key_component_ = m == EffectivenessMode::Thiele ? key_component : std::string{};
 }
 
-size_t AddAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction) {
-  Reaction& r = GetReaction(data, solid, reaction);
-  LhhwRate& l = Lhhw(r);
-  LhhwAdsorptionTerm term;
-  // An exponent entry (0) for every component of the deck, so each can be set
-  // through the registry (adsorption[j].exponent[C]); zeros do not count as use.
-  for (const auto& c : data.fluid.components_) term.exponent_.emplace(c, 0.0);
-  for (const auto& [c, v] : r.nu_) term.exponent_.emplace(c, 0.0);
-  l.adsorption_.push_back(std::move(term));
-  return l.adsorption_.size();
+size_t AddDenominator(UserData& data, AdsorbentID solid, ReactionID reaction) {
+  LhhwRate& l = Lhhw(GetReaction(data, solid, reaction));
+  l.denominators_.emplace_back();
+  return l.denominators_.size();
 }
 
-void RemoveAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t j) {
+void RemoveDenominator(UserData& data, AdsorbentID solid, ReactionID reaction, size_t k) {
   Reaction& r = GetReaction(data, solid, reaction);
   LhhwRate& l = Lhhw(r);
-  if (j < 1 || j > l.adsorption_.size())
-    throw std::invalid_argument("reaction '" + r.name_ + "' has no adsorption term " + std::to_string(j));
-  l.adsorption_.erase(l.adsorption_.begin() + static_cast<std::ptrdiff_t>(j - 1));
+  Denominator(r, l, k);  // throws when absent
+  if (l.denominators_.size() == 1)
+    throw std::invalid_argument("reaction '" + r.name_ + "' keeps at least one denominator");
+  l.denominators_.erase(l.denominators_.begin() + static_cast<std::ptrdiff_t>(k - 1));
+}
+
+size_t AddAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t denominator) {
+  Reaction& r = GetReaction(data, solid, reaction);
+  LhhwDenominator& den = Denominator(r, Lhhw(r), denominator);
+  LhhwAdsorptionTerm term;
+  // An exponent entry (0) for every component of the deck, so each can be set
+  // through the registry (denominator[k].adsorption[j].exponent[C]); zeros do
+  // not count as use.
+  for (const auto& c : data.fluid.components_) term.exponent_.emplace(c, 0.0);
+  for (const auto& [c, v] : r.nu_) term.exponent_.emplace(c, 0.0);
+  den.adsorption_.push_back(std::move(term));
+  return den.adsorption_.size();
+}
+
+void RemoveAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t j, size_t denominator) {
+  Reaction& r = GetReaction(data, solid, reaction);
+  LhhwDenominator& den = Denominator(r, Lhhw(r), denominator);
+  if (j < 1 || j > den.adsorption_.size())
+    throw std::invalid_argument("reaction '" + r.name_ + "' has no adsorption term " + std::to_string(j) +
+                                " in denominator " + std::to_string(denominator));
+  den.adsorption_.erase(den.adsorption_.begin() + static_cast<std::ptrdiff_t>(j - 1));
 }
 
 void RemoveReaction(UserData& data, AdsorbentID solid, ReactionID reaction) {
