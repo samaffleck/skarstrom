@@ -24,11 +24,16 @@
 //      near-zero component when the step size collapses at a reacting cell
 //      (an artificially stiff case: the Jacobian's reaction treatment off,
 //      BandedJacobian::SetReactionIncrementForTesting), and stays silent on
-//      the runs of (a).
+//      the runs of (a);
+//  (c) the deck saved before LHHW rates could have several denominators
+//      (test/fixtures/legacy/lhhw_v1_reformer.json, this file's Build with 12
+//      cells and a 20 s step) loads, and its run gives the same logged mole
+//      fractions, bit for bit, as the same deck built now.
 
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <map>
 #include <string>
@@ -416,6 +421,39 @@ TEST(ReactionStartup, DISABLED_TimingsWithAndWithoutTheReactionIncrement) {
     }
   }
   BandedJacobian::SetReactionIncrementForTesting(true);
+}
+
+// ---- (c) -----------------------------------------------------------------------
+
+TEST(ReactionStartup, SingleDenominatorDeckOfTheOldLayoutRunsBitForBit) {
+  Options o;
+  o.cells = 12;
+  o.step_time = 20.0;
+  Reformer built;
+  Build(built, o);
+  Simulation legacy;
+  ASSERT_NO_THROW(legacy.Load("test/fixtures/legacy/lhhw_v1_reformer.json"));
+  RunOptions options;
+  options.cycles = 1;
+  options.on_message = [](LogLevel, const std::string&) {};
+  const RunResult a = built.sim.Run(options);
+  const RunResult b = legacy.Run(options);
+  ASSERT_TRUE(a.Ok()) << a.message;
+  ASSERT_TRUE(b.Ok()) << b.message;
+  EXPECT_EQ(a.stats.num_steps, b.stats.num_steps);
+  size_t compared = 0, differ = 0;
+  for (const auto& c : {CH4, H2O, CO, H2, CO2, AR}) {
+    const auto x = built.sim.Log().GetComponentVariable(0, 0, ComponentVariableType::MOLE_FRACTION, c);
+    const auto y = legacy.Log().GetComponentVariable(0, 0, ComponentVariableType::MOLE_FRACTION, c);
+    ASSERT_EQ(x.times.size(), y.times.size()) << c;
+    for (size_t k = 0; k < x.values.size(); ++k) {
+      ASSERT_EQ(x.values[k].size(), y.values[k].size());
+      for (size_t i = 0; i < x.values[k].size(); ++i, ++compared)
+        if (std::memcmp(&x.values[k][i], &y.values[k][i], sizeof(double)) != 0) ++differ;
+    }
+  }
+  EXPECT_GT(compared, 0u);
+  EXPECT_EQ(differ, 0u) << differ << " of " << compared << " logged mole fractions differ";
 }
 
 }  // namespace

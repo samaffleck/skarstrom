@@ -26,10 +26,12 @@
 //                         = k(T) prod_i a_i^n_i (1 - Q/K(T)),  Q = prod_i a_i^nu_i,
 //                         K(T) = A_K exp(-E_K / (R T)) (user-entered; no
 //                         thermochemistry table)
-//   lhhw                  r = k(T) prod_i a_i^n_i (1 - Q/K(T)) / DEN^m,
-//                         DEN = 1 + sum_j K_j(T) prod_i a_i^e_ji,
-//                         K_j(T) = A_j exp(-E_j / (R T)); the (1 - Q/K) factor
-//                         only when `reversible` is set
+//   lhhw                  r = k(T) prod_i a_i^n_i (1 - Q/K(T)) / prod_k DEN_k^m_k,
+//                         DEN_k = 1 + sum_j K_kj(T) prod_i a_i^e_kji,
+//                         K_kj(T) = A_kj exp(-E_kj / (R T)); the (1 - Q/K)
+//                         factor only when `reversible` is set. One
+//                         denominator per kind of site (k = 1, 2, ...): a
+//                         two-site Langmuir-Hinshelwood rate has two.
 //   expression            a user expression of T [K], P [Pa], c [mol/m3] and
 //                         each component's p_<C> [Pa], c_<C> [mol/m3] and
 //                         y_<C> [-], e.g. "1e-3 * exp(-5e4/(R*T)) * p_Methane/1e5"
@@ -135,7 +137,7 @@ namespace adsim {
     // The smallest nonzero power to which the rate raises the activity of
     // `component` (cached values): over the orders n_i, the exponents
     // n_i + nu_i of the reverse monomial (reversible kinds) and the exponents
-    // e_ji of the LHHW denominator terms; +infinity when the rate does not
+    // e_kji of the LHHW denominator terms; +infinity when the rate does not
     // depend on the component. Below 1 the derivative of the rate in the
     // component's mole fraction is unbounded as it goes to zero (below 0 the
     // rate itself is, up to the activity floor), which the solver's Jacobian
@@ -223,8 +225,23 @@ namespace adsim {
     }
   };
 
+  // One LHHW denominator (one kind of site): DEN = 1 + sum_j K_j(T) prod a_i^e_ji,
+  // raised to its exponent m.
+  struct LhhwDenominator {
+    ExpressionParam exponent_{1.0};                  // m [-]
+    std::vector<LhhwAdsorptionTerm> adsorption_{};   // j = 1, 2, ... (index j - 1)
+
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const /*version*/) {
+      ar(cereal::make_nvp("Exponent", exponent_),
+         cereal::make_nvp("Adsorption_Terms", adsorption_));
+    }
+  };
+
   // Langmuir-Hinshelwood-Hougen-Watson:
-  // r = k(T) prod a_i^n_i (1 - Q/K(T)) / (1 + sum_j K_j(T) prod a_i^e_ji)^m.
+  // r = k(T) prod a_i^n_i (1 - Q/K(T)) / prod_k (1 + sum_j K_kj(T) prod a_i^e_kji)^m_k.
+  // With one denominator the rate is computed exactly as before several were
+  // allowed (k driving / DEN^m, bit for bit).
   class LhhwRate : public IReactionRate {
   public:
     ReactionRateType GetType() const override { return ReactionRateType::Lhhw; }
@@ -235,8 +252,9 @@ namespace adsim {
     void RemoveComponent(const std::string& component) override;
     void EvaluateExpressions(const EvalContext& ctx) override;
 
-    // The denominator DEN = 1 + sum_j K_j prod a^e (for tests and front ends).
-    double Denominator(const ReactionState& state, RateBasis basis) const;
+    // Denominator k (from 0) DEN_k = 1 + sum_j K_kj prod a^e, without its
+    // exponent (for tests and front ends); 1 when there is no denominator k.
+    double Denominator(const ReactionState& state, RateBasis basis, std::size_t k = 0) const;
 
     ExpressionParam pre_exp_factor_{1.0};
     ExpressionParam activation_energy_{0.0};
@@ -244,22 +262,31 @@ namespace adsim {
     bool reversible_ = true;
     ExpressionParam equilibrium_pre_exp_factor_{1.0};
     ExpressionParam equilibrium_energy_{0.0};
-    ExpressionParam denominator_exponent_{1.0};       // m [-]
-    std::vector<LhhwAdsorptionTerm> adsorption_{};     // j = 1, 2, ... (index j - 1)
+    // k = 1, 2, ... (index k - 1). A new rate has one denominator with no
+    // terms (DEN = 1) and exponent 1.
+    std::vector<LhhwDenominator> denominators_ = std::vector<LhhwDenominator>(1);
 
   private:
     friend class cereal::access;
+    // Version 1 stored one denominator (Denominator_Exponent and
+    // Adsorption_Terms); it loads as denominators_[0]. Version 2 stores the
+    // list (Denominators).
     template <class Archive>
-    void serialize(Archive& ar, std::uint32_t const /*version*/) {
+    void serialize(Archive& ar, std::uint32_t const version) {
       ar(cereal::virtual_base_class<IReactionRate>(this),
          cereal::make_nvp("Pre_Exponential_Factor", pre_exp_factor_),
          cereal::make_nvp("Activation_Energy", activation_energy_),
          cereal::make_nvp("Orders", order_),
          cereal::make_nvp("Reversible", reversible_),
          cereal::make_nvp("Equilibrium_Pre_Exponential_Factor", equilibrium_pre_exp_factor_),
-         cereal::make_nvp("Equilibrium_Energy", equilibrium_energy_),
-         cereal::make_nvp("Denominator_Exponent", denominator_exponent_),
-         cereal::make_nvp("Adsorption_Terms", adsorption_));
+         cereal::make_nvp("Equilibrium_Energy", equilibrium_energy_));
+      if (version >= 2) {
+        ar(cereal::make_nvp("Denominators", denominators_));
+      } else {
+        denominators_.assign(1, LhhwDenominator{});
+        ar(cereal::make_nvp("Denominator_Exponent", denominators_[0].exponent_),
+           cereal::make_nvp("Adsorption_Terms", denominators_[0].adsorption_));
+      }
     }
   };
 
@@ -292,8 +319,10 @@ namespace adsim {
   // pairs, leaves as the registry writes them after "rate.":
   //   pre_exp_factor, activation_energy, order[C],
   //   equilibrium_pre_exp_factor, equilibrium_energy,      (reversible kinds)
-  //   denominator_exponent, adsorption[j].pre_exp_factor,
-  //   adsorption[j].energy, adsorption[j].exponent[C]      (lhhw, j from 1)
+  //   denominator[k].exponent,                           (lhhw, k from 1)
+  //   denominator[k].adsorption[j].pre_exp_factor,
+  //   denominator[k].adsorption[j].energy,
+  //   denominator[k].adsorption[j].exponent[C]           (lhhw, j from 1)
   //   expression                                           (expression)
   // The LHHW `reversible` switch is a bool, not listed here.
   std::vector<std::pair<std::string, ExpressionParam*>> ReactionRateFields(IReactionRate* rate);
@@ -305,6 +334,7 @@ namespace adsim {
 CEREAL_CLASS_VERSION(adsim::IReactionRate, 1);
 CEREAL_CLASS_VERSION(adsim::PowerLawRate, 1);
 CEREAL_CLASS_VERSION(adsim::ReversiblePowerLawRate, 1);
-CEREAL_CLASS_VERSION(adsim::LhhwRate, 1);
+CEREAL_CLASS_VERSION(adsim::LhhwRate, 2);
 CEREAL_CLASS_VERSION(adsim::ExpressionRate, 1);
 CEREAL_CLASS_VERSION(adsim::LhhwAdsorptionTerm, 1);
+CEREAL_CLASS_VERSION(adsim::LhhwDenominator, 1);

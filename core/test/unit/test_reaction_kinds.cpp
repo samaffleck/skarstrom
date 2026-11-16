@@ -7,11 +7,17 @@
 // Reaction rate kinds (adsim/equations/reaction_kinds.h) against hand-computed
 // values: the Xu and Froment (1989) steam-reforming rates at two states,
 // elementary power laws, the activity clipping and floor, the concentration
-// basis and the expression kind; plus the heat of reaction.
+// basis and the expression kind; LHHW rates with several denominators (the
+// two-site Halabi 2011 rate written both ways; one denominator gives the
+// single-denominator formula bit for bit); plus the heat of reaction.
 
+#include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <iostream>
 #include <map>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -33,13 +39,13 @@ void AddXuFromentDenominator(LhhwRate& r) {
     t.pre_exp_factor_ = A;
     t.energy_ = E;
     for (const auto& [c, v] : e) t.exponent_[c] = v;
-    r.adsorption_.push_back(std::move(t));
+    r.denominators_.at(0).adsorption_.push_back(std::move(t));
   };
   term(8.23e-5, -70650.0, {{CO, 1.0}});
   term(6.12e-9, -82900.0, {{H2, 1.0}});
   term(6.65e-4, -38280.0, {{CH4, 1.0}});
   term(1.77e5, 88680.0, {{H2O, 1.0}, {H2, -1.0}});
-  r.denominator_exponent_ = 2.0;
+  r.denominators_.at(0).exponent_ = 2.0;
 }
 
 // r1: CH4 + H2O <-> CO + 3 H2, k1 = 4.225e15 kmol bar^0.5/(kg h), E1 = 240.1 kJ/mol,
@@ -275,10 +281,229 @@ TEST(ReactionKinds, FieldsListEveryLeaf) {
   for (auto& [leaf, p] : ReactionRateFields(r1.rate_.get())) leaves.push_back(leaf);
   auto has = [&](const std::string& s) { return std::find(leaves.begin(), leaves.end(), s) != leaves.end(); };
   for (const char* leaf : {"pre_exp_factor", "activation_energy", "order[Water]", "order[Hydrogen]",
-                           "equilibrium_pre_exp_factor", "equilibrium_energy", "denominator_exponent",
-                           "adsorption[1].pre_exp_factor", "adsorption[1].energy",
-                           "adsorption[1].exponent[CarbonMonoxide]", "adsorption[4].exponent[Hydrogen]"})
+                           "equilibrium_pre_exp_factor", "equilibrium_energy", "denominator[1].exponent",
+                           "denominator[1].adsorption[1].pre_exp_factor", "denominator[1].adsorption[1].energy",
+                           "denominator[1].adsorption[1].exponent[CarbonMonoxide]",
+                           "denominator[1].adsorption[4].exponent[Hydrogen]"})
     EXPECT_TRUE(has(leaf)) << leaf;
+  EXPECT_FALSE(has("denominator[2].exponent"));
+  dynamic_cast<LhhwRate&>(*r1.rate_).denominators_.emplace_back();
+  leaves.clear();
+  for (auto& [leaf, p] : ReactionRateFields(r1.rate_.get())) leaves.push_back(leaf);
+  EXPECT_TRUE(has("denominator[2].exponent"));
+}
+
+// ---- several denominators ------------------------------------------------------
+
+// Bit-for-bit equality of two doubles (EXPECT_EQ on doubles is ==, which
+// also equates 0.0 and -0.0; this does not).
+bool SameBits(double a, double b) { return std::memcmp(&a, &b, sizeof a) == 0; }
+
+// States over which the rates are compared: temperatures, pressures and
+// compositions with and without hydrogen (the activity floor) and products.
+std::vector<State> StateGrid() {
+  std::vector<State> out;
+  const std::vector<std::map<std::string, double>> ys = {
+      {{CH4, 0.2}, {H2O, 0.6}, {H2, 0.1}, {CO, 0.05}, {CO2, 0.05}},
+      {{CH4, 0.1}, {H2O, 0.3}, {H2, 0.4}, {CO, 0.1}, {CO2, 0.1}},
+      {{CH4, 0.25}, {H2O, 0.75}},                                  // no H2, no products
+      {{CH4, 0.03}, {H2O, 0.12}, {H2, 1e-12}, {CO, 1e-9}},          // below the floor
+      {{CH4, 0.01}, {H2O, 0.2}, {H2, 0.5}, {CO, 0.2}, {CO2, 0.09}},
+  };
+  for (double T : {500.0, 723.15, 923.15})
+    for (double P : {1e5, 1.5e5, 25e5})
+      for (const auto& y : ys) out.push_back({T, P, y});
+  return out;
+}
+
+// With one denominator the rate is k driving / DEN^m exactly as the
+// single-denominator kind computed it: (k driving) is the rate with m = 0
+// (DEN^0 = 1, and x / 1 = x), DEN is the denominator, and the quotient is
+// compared bit for bit, on both bases and with the switch on and off.
+TEST(ReactionKinds, OneDenominatorIsTheSingleDenominatorFormulaBitForBit) {
+  for (auto make : {Smr, Wgs, Overall}) {
+    for (bool reversible : {true, false}) {
+      for (RateBasis basis : {RateBasis::PartialPressure, RateBasis::Concentration}) {
+        Reaction r = make();
+        auto& l = dynamic_cast<LhhwRate&>(*r.rate_);
+        l.reversible_ = reversible;
+        ASSERT_EQ(l.denominators_.size(), 1u);
+        const double m = l.denominators_[0].exponent_.Get();
+        LhhwRate numerator = l;
+        numerator.denominators_[0].exponent_ = 0.0;
+        for (const auto& s : StateGrid()) {
+          const ReactionState st = At(s);
+          const double expected = numerator.Rate(st, basis, r.nu_) / std::pow(l.Denominator(st, basis), m);
+          const double rate = l.Rate(st, basis, r.nu_);
+          EXPECT_TRUE(SameBits(rate, expected)) << r.name_ << " T " << s.T << " P " << s.P << ": " << rate
+                                                << " vs " << expected;
+        }
+      }
+    }
+  }
+}
+
+// Halabi (2011), ch. 8: the Rh/CeZrO2 steam-reforming rates are a product of
+// a metal-site balance Omega_l = 1 / (1 + 4 terms) and a support-site balance
+// Omega_S = 1 / (1 + 2 terms). Written as one denominator, (1 + sum_l)(1 +
+// sum_S) expands to 1 + 4 + 2 + 8 = 14 terms; written as two denominators it
+// is the product itself. The two give the same rate to round-off wherever no
+// activity is floored. Below the floor they differ by design: a cross term
+// K_H2 p_H2 x K_H2O p_H2O / p_H2 has H2 exponent 0 in the expanded form, but
+// p_H2 x max(p_H2, floor)^-1 in the product form (both stay finite).
+struct SiteTerm {
+  double A, E;
+  std::map<std::string, double> e;
+};
+const std::vector<SiteTerm> kHalabiMetal = {
+    {1.49e-8 * 10.0, -98.8e3, {{CH4, 1.0}, {H2, -0.5}}},
+    {2.34e-8 * 100.0, -111.2e3, {{CO, 1.0}}},
+    {8.33e-10 * 100.0, -115.6e3, {{CO2, 1.0}}},
+    {6.11e-6 * 100.0, -60.8e3, {{H2, 1.0}}},
+};
+const std::vector<SiteTerm> kHalabiSupport = {
+    {3.14e8, 126.9e3, {{H2O, 1.0}, {H2, -1.0}}},
+    {6.11e-6 * 100.0, -60.8e3, {{H2, 1.0}}},
+};
+
+void AddTerms(LhhwDenominator& den, const std::vector<SiteTerm>& terms) {
+  for (const auto& t : terms) {
+    LhhwAdsorptionTerm term;
+    term.pre_exp_factor_ = t.A;
+    term.energy_ = t.E;
+    for (const auto& [c, v] : t.e) term.exponent_[c] = v;
+    den.adsorption_.push_back(std::move(term));
+  }
+}
+
+// The Halabi R1, R2 and R3 rate constants and H2 orders (ch. 8, Table 1 and 3),
+// on one Reaction each; the denominators are added by the caller.
+std::vector<Reaction> HalabiRates() {
+  struct Law { const char* name; std::map<std::string, double> nu; double A, E, h2, KA, KE; };
+  const std::vector<Law> laws = {
+      {"R1", {{CH4, -1}, {H2O, -1}, {CO, 1}, {H2, 3}}, 1.62e7, 83.8e3, -2.5, 1.198e17, 26830.0 * R},
+      {"R2", {{CO, -1}, {H2O, -1}, {CO2, 1}, {H2, 1}}, 2.34e7, 15.1e3, -1.0, 1.767e-2, -4400.0 * R},
+      {"R3", {{CH4, -1}, {H2O, -2}, {CO2, 1}, {H2, 4}}, 4.55e7, 89.2e3, -3.5, 2.117e15, 22430.0 * R},
+  };
+  std::vector<Reaction> out;
+  for (const auto& law : laws) {
+    Reaction r(law.name, out.size() + 1);
+    r.SetStoichiometry(law.nu);
+    r.SetRateType(ReactionRateType::Lhhw);
+    auto& l = dynamic_cast<LhhwRate&>(*r.rate_);
+    l.pre_exp_factor_ = law.A;
+    l.activation_energy_ = law.E;
+    l.order_[H2] = law.h2;
+    l.equilibrium_pre_exp_factor_ = law.KA;
+    l.equilibrium_energy_ = law.KE;
+    out.push_back(std::move(r));
+  }
+  return out;
+}
+
+TEST(ReactionKinds, HalabiTwoSiteRateWrittenBothWays) {
+  std::vector<SiteTerm> expanded(kHalabiMetal);
+  expanded.insert(expanded.end(), kHalabiSupport.begin(), kHalabiSupport.end());
+  for (const auto& a : kHalabiMetal)
+    for (const auto& b : kHalabiSupport) {
+      SiteTerm t{a.A * b.A, a.E + b.E, a.e};
+      for (const auto& [c, v] : b.e) t.e[c] += v;
+      expanded.push_back(t);
+    }
+  ASSERT_EQ(expanded.size(), 14u);
+
+  std::vector<Reaction> one = HalabiRates(), two = HalabiRates();
+  for (size_t i = 0; i < one.size(); ++i) {
+    auto& l1 = dynamic_cast<LhhwRate&>(*one[i].rate_);
+    AddTerms(l1.denominators_[0], expanded);
+    auto& l2 = dynamic_cast<LhhwRate&>(*two[i].rate_);
+    AddTerms(l2.denominators_[0], kHalabiMetal);
+    l2.denominators_.emplace_back();
+    AddTerms(l2.denominators_[1], kHalabiSupport);
+  }
+  double worst = 0.0;
+  for (const auto& s : StateGrid()) {
+    const ReactionState st = At(s);
+    // Every component present above the activity floor (1e-10 bar)?
+    bool floored = false;
+    for (const auto& c : {CH4, H2O, CO, H2, CO2}) {
+      auto it = s.y.find(c);
+      floored = floored || it == s.y.end() || it->second * s.P * 1e-5 < kMinActivityBar;
+    }
+    for (size_t i = 0; i < one.size(); ++i) {
+      const double a = one[i].IntrinsicRate(st), b = two[i].IntrinsicRate(st);
+      ASSERT_TRUE(std::isfinite(a) && std::isfinite(b)) << one[i].name_;
+      if (floored) continue;
+      const double rel = std::abs(a - b) / std::max(std::abs(a), 1e-300);
+      worst = std::max(worst, rel);
+      EXPECT_LE(rel, 1e-13) << one[i].name_ << " T " << s.T << " P " << s.P << ": " << a << " vs " << b;
+    }
+    if (floored) continue;
+    // The two denominators' product is the expanded denominator.
+    const auto& l1 = dynamic_cast<LhhwRate&>(*one[0].rate_);
+    const auto& l2 = dynamic_cast<LhhwRate&>(*two[0].rate_);
+    const double d1 = l1.Denominator(st, RateBasis::PartialPressure);
+    const double d2 = l2.Denominator(st, RateBasis::PartialPressure, 0) *
+                      l2.Denominator(st, RateBasis::PartialPressure, 1);
+    EXPECT_LE(std::abs(d1 - d2), 1e-12 * d1);
+  }
+  std::cout << "Halabi two-site rate, 14-term vs two denominators: worst relative difference " << worst << "\n";
+}
+
+// Each denominator has its own exponent; the rate is k driving / prod DEN_k^m_k.
+// The parameter walks see every denominator's terms.
+TEST(ReactionKinds, SeveralDenominatorsExponentsAndComponentUse) {
+  std::vector<Reaction> rates = HalabiRates();
+  Reaction& r = rates[1];  // R2
+  auto& l = dynamic_cast<LhhwRate&>(*r.rate_);
+  AddTerms(l.denominators_[0], kHalabiMetal);
+  l.denominators_[0].exponent_ = 2.0;
+  l.denominators_.emplace_back();
+  AddTerms(l.denominators_[1], kHalabiSupport);
+  l.denominators_[1].exponent_ = 0.5;
+  LhhwRate numerator = l;
+  for (auto& den : numerator.denominators_) den.exponent_ = 0.0;
+  for (const auto& s : StateGrid()) {
+    const ReactionState st = At(s);
+    const double expected = numerator.Rate(st, RateBasis::PartialPressure, r.nu_) /
+                            (std::pow(l.Denominator(st, RateBasis::PartialPressure, 0), 2.0) *
+                             std::pow(l.Denominator(st, RateBasis::PartialPressure, 1), 0.5));
+    EXPECT_NEAR(r.IntrinsicRate(st), expected, 1e-14 * std::abs(expected));
+  }
+  // The support site's H2O / H2 term: H2O is used only there, H2's smallest
+  // power is the -1 of that term.
+  EXPECT_TRUE(l.UsesComponent(H2O));
+  EXPECT_DOUBLE_EQ(l.MinExponent(H2, r.nu_), -1.0);
+  // No hydrogen: the activity floor keeps every factor finite, as with one denominator.
+  const State dry{723.15, 1.5e5, {{CO, 0.05}, {H2O, 0.2}}};
+  EXPECT_TRUE(std::isfinite(r.IntrinsicRate(At(dry))));
+  l.RemoveComponent(H2O);
+  EXPECT_FALSE(l.UsesComponent(H2O));
+  EXPECT_TRUE(l.denominators_[1].adsorption_[0].exponent_.count(H2) == 1);
+  // A denominator with no terms is 1, and so is one past the end.
+  l.denominators_.emplace_back();
+  EXPECT_EQ(l.Denominator(At(dry), RateBasis::PartialPressure, 2), 1.0);
+  EXPECT_EQ(l.Denominator(At(dry), RateBasis::PartialPressure, 7), 1.0);
+}
+
+// SetRateType keeps the denominators, their terms and their values.
+TEST(ReactionKinds, SetRateTypeKeepsTheDenominators) {
+  std::vector<Reaction> rates = HalabiRates();
+  Reaction& r = rates[0];
+  auto& l = dynamic_cast<LhhwRate&>(*r.rate_);
+  AddTerms(l.denominators_[0], kHalabiMetal);
+  l.denominators_.emplace_back();
+  AddTerms(l.denominators_[1], kHalabiSupport);
+  l.denominators_[1].exponent_ = 0.5;
+  const std::vector<State> grid = StateGrid();  // At keeps a pointer to the mole fractions
+  const ReactionState st = At(grid[0]);
+  const double before = r.IntrinsicRate(st);
+  r.SetRateType(ReactionRateType::Lhhw);
+  auto& n = dynamic_cast<LhhwRate&>(*r.rate_);
+  ASSERT_EQ(n.denominators_.size(), 2u);
+  EXPECT_EQ(n.denominators_[1].adsorption_.size(), 2u);
+  EXPECT_DOUBLE_EQ(n.denominators_[1].exponent_.Get(), 0.5);
+  EXPECT_TRUE(SameBits(r.IntrinsicRate(st), before));
 }
 
 TEST(ReactionHeat, ConstantAndKirchhoff) {

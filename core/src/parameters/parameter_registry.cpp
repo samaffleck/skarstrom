@@ -1235,27 +1235,39 @@ namespace adsim {
                 1e-30, 1e30, true, false);
             } else if (leaf == "equilibrium_energy") {
               E(path_leaf, "equilibrium energy", "J/mol", *param, -5e5, 5e5, false);
-            } else if (leaf == "denominator_exponent") {
-              E(path_leaf, "denominator exponent", "-", *param, 0.0, 4.0, false);
             } else if (leaf == "expression") {
               E(path_leaf, "rate expression", "mol/(kg-s)", *param, nan, nan, false, false);
-            } else if (leaf.rfind("adsorption[", 0) == 0) {
-              const size_t dot = leaf.find("].") + 2;
-              const std::string term = leaf.substr(0, dot - 1);   // adsorption[j]
-              const std::string field = leaf.substr(dot);
-              if (field == "pre_exp_factor") {
-                // The term's activity power is the sum of its exponents.
-                double e_sum = 0.0;
-                const size_t j = std::stoul(term.substr(11, term.size() - 12));
-                if (auto* l = dynamic_cast<LhhwRate*>(rate); l && j >= 1 && j <= l->adsorption_.size())
-                  for (const auto& [c, e] : l->adsorption_[j - 1].exponent_) e_sum += e.Get();
-                E(path_leaf, term + " pre-exponential factor", e_sum == 0.0 ? "-" : "1/" + power(e_sum), *param,
-                  0.0, 1e10, true, false);
-              } else if (field == "energy") {
-                E(path_leaf, term + " energy", "J/mol", *param, -3e5, 3e5, false);
+            } else if (leaf.rfind("denominator[", 0) == 0) {
+              // denominator[k].exponent or denominator[k].adsorption[j].<field>
+              const size_t close = leaf.find("].");
+              const std::string den = leaf.substr(0, close + 1);   // denominator[k]
+              const size_t k = std::stoul(leaf.substr(12, close - 12));
+              const std::string rest = leaf.substr(close + 2);
+              if (rest == "exponent") {
+                E(path_leaf, den + " exponent", "-", *param, 0.0, 4.0, false);
               } else {
-                const std::string c = field.substr(9, field.size() - 10);  // exponent[C]
-                E(path_leaf, term + " " + c + " exponent", "-", *param, -3.0, 3.0, false);
+                const size_t dot = rest.find("].") + 2;
+                const std::string term = rest.substr(0, dot - 1);   // adsorption[j]
+                const std::string field = rest.substr(dot);
+                // Display name: "adsorption[j]" for denominator 1, as before
+                // several were allowed; "denominator[k] adsorption[j]" else.
+                const std::string label = k == 1 ? term : den + " " + term;
+                if (field == "pre_exp_factor") {
+                  // The term's activity power is the sum of its exponents.
+                  double e_sum = 0.0;
+                  const size_t j = std::stoul(term.substr(11, term.size() - 12));
+                  if (auto* l = dynamic_cast<LhhwRate*>(rate);
+                      l && k >= 1 && k <= l->denominators_.size() && j >= 1 &&
+                      j <= l->denominators_[k - 1].adsorption_.size())
+                    for (const auto& [c, e] : l->denominators_[k - 1].adsorption_[j - 1].exponent_) e_sum += e.Get();
+                  E(path_leaf, label + " pre-exponential factor", e_sum == 0.0 ? "-" : "1/" + power(e_sum), *param,
+                    0.0, 1e10, true, false);
+                } else if (field == "energy") {
+                  E(path_leaf, label + " energy", "J/mol", *param, -3e5, 3e5, false);
+                } else {
+                  const std::string c = field.substr(9, field.size() - 10);  // exponent[C]
+                  E(path_leaf, label + " " + c + " exponent", "-", *param, -3.0, 3.0, false);
+                }
               }
             } else {
               E(path_leaf, leaf, "-", *param, nan, nan, false, false);
@@ -1491,12 +1503,31 @@ namespace adsim {
       }
       return {};
     }
+
+    // An LHHW rate had one denominator before it could have several:
+    // ...reaction[R].rate.denominator_exponent and ...rate.adsorption[j].*
+    // resolve to denominator 1 (...rate.denominator[1].exponent and
+    // ...rate.denominator[1].adsorption[j].*). Empty when the path is not one.
+    std::string LhhwDenominatorAlias(std::string_view path) {
+      const std::string p(path);
+      const size_t rx = p.find(".reaction[");
+      if (rx == std::string::npos) return {};
+      const size_t rate = p.find("].rate.", rx);
+      if (rate == std::string::npos) return {};
+      const size_t leaf = rate + 7;
+      const std::string head = p.substr(0, leaf);
+      const std::string tail = p.substr(leaf);
+      if (tail == "denominator_exponent") return head + "denominator[1].exponent";
+      if (tail.rfind("adsorption[", 0) == 0) return head + "denominator[1]." + tail;
+      return {};
+    }
   }  // namespace
 
   Parameter* ParameterRegistry::Find(std::string_view path) {
     Parameter* p = FindExact(path);
     if (p) return p;
-    const std::string alias = LumpedAlias(path);
+    std::string alias = LumpedAlias(path);
+    if (alias.empty()) alias = LhhwDenominatorAlias(path);
     return alias.empty() ? nullptr : FindExact(alias);
   }
 

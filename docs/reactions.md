@@ -8,13 +8,13 @@ Each rate law gives the intrinsic rate $r$ per kilogram of the solid that carrie
 |---|---|
 | `power_law` | $r = k(T) \prod_i a_i^{n_i}$ |
 | `reversible_power_law` | $r = k(T) \prod_i a_i^{n_i} (1 - Q / K(T))$, $Q = \prod_i a_i^{\nu_i}$ |
-| `lhhw` | $r = k(T) \prod_i a_i^{n_i} (1 - Q/K(T)) / \mathrm{DEN}^m$, $\mathrm{DEN} = 1 + \sum_j K_j(T) \prod_i a_i^{e_{ji}}$ |
+| `lhhw` | $r = k(T) \prod_i a_i^{n_i} (1 - Q/K(T)) / \prod_k \mathrm{DEN}_k^{m_k}$, $\mathrm{DEN}_k = 1 + \sum_j K_{kj}(T) \prod_i a_i^{e_{kji}}$ |
 | `expression` | a user expression of `T`, `P`, `c` and `p_<C>`, `c_<C>`, `y_<C>` |
 
 The temperature-dependent constants all have the Arrhenius form:
 
 $$
-k(T) = A\, e^{-E/RT}, \qquad K(T) = A_K\, e^{-E_K/RT}, \qquad K_j(T) = A_j\, e^{-E_j/RT}
+k(T) = A\, e^{-E/RT}, \qquad K(T) = A_K\, e^{-E_K/RT}, \qquad K_{kj}(T) = A_{kj}\, e^{-E_{kj}/RT}
 $$
 
 | Symbol | Parameter (`adsorbent[ID].reaction[ID].rate.*`) | Description | Unit |
@@ -22,11 +22,16 @@ $$
 | $A$, $E$ | `pre_exp_factor`, `activation_energy` | Rate constant | mol kg⁻¹ s⁻¹ (activity)$^{-\sum_i n_i}$; J mol⁻¹ |
 | $n_i$ | `order[C]` | Reaction order; defaults to $-\nu_i$ for reactants and 0 for products | – |
 | $A_K$, $E_K$ | `equilibrium_pre_exp_factor`, `equilibrium_energy` | Equilibrium constant (entered; there is no thermochemistry table) | (activity)$^{\sum_i \nu_i}$; J mol⁻¹ |
-| $A_j$, $E_j$ | `adsorption[j].pre_exp_factor`, `adsorption[j].energy` | Adsorption constant of denominator term $j$ | (activity)$^{-\sum_i e_{ji}}$; J mol⁻¹ |
-| $e_{ji}$ | `adsorption[j].exponent[C]` | Exponent of component $i$ in term $j$ | – |
-| $m$ | `denominator_exponent` | Exponent of the LHHW denominator (default 1) | – |
+| $m_k$ | `denominator[k].exponent` | Exponent of LHHW denominator $k$ (default 1) | – |
+| $A_{kj}$, $E_{kj}$ | `denominator[k].adsorption[j].pre_exp_factor`, `denominator[k].adsorption[j].energy` | Adsorption constant of term $j$ of denominator $k$ | (activity)$^{-\sum_i e_{kji}}$; J mol⁻¹ |
+| $e_{kji}$ | `denominator[k].adsorption[j].exponent[C]` | Exponent of component $i$ in term $j$ of denominator $k$ | – |
 
-With $K_j = A_j e^{-E_j/RT}$, an adsorption constant that falls with temperature has $E_j < 0$ (an adsorption enthalpy). An `lhhw` rate has the switch `rate.reversible` (default on). With it off, the factor $(1 - Q/K)$ is dropped and the rate is $k \prod_i a_i^{n_i} / \mathrm{DEN}^m$.
+With $K_{kj} = A_{kj} e^{-E_{kj}/RT}$, an adsorption constant that falls with temperature has $E_{kj} < 0$ (an adsorption enthalpy). An `lhhw` rate has the switch `rate.reversible` (default on). With it off, the factor $(1 - Q/K)$ is dropped and the rate is $k \prod_i a_i^{n_i} / \prod_k \mathrm{DEN}_k^{m_k}$.
+
+**Several denominators.** An `lhhw` rate has one denominator per kind of site, numbered from 1. A new rate has one, with exponent 1 and no terms ($\mathrm{DEN}_1 = 1$). A two-site Langmuir–Hinshelwood rate, for example a steam-reforming rate on a metal site and a support site, is a product of two site balances, $r = k f(p) / (\mathrm{DEN}_1^{m_1}\, \mathrm{DEN}_2^{m_2})$. Give it two denominators (`rx.add_denominator()`, or `denominators=[4, 2]` in `add_reaction`). The alternative, one denominator that holds every cross term of the product, is exact but long: 4 + 2 site terms expand to 14 terms. With one denominator the rate is computed exactly as before several were allowed, bit for bit. Each denominator's activities have the same floor as the rest of the rate, so a two-site rate with $p_{\mathrm{H_2}}^{-1}$ in a support-site term stays finite at zero hydrogen.
+
+!!! note "New in 0.14"
+    Several denominators: `denominator[k].exponent` and `denominator[k].adsorption[j].*`. The paths of the single-denominator layout, `rate.denominator_exponent` and `rate.adsorption[j].*`, still resolve to denominator 1, and decks saved with one denominator load unchanged.
 
 The reversible factor is evaluated as the difference of two monomials, $k\,[\prod_i a_i^{n_i} - K^{-1}\prod_i a_i^{n_i + \nu_i}]$, never through $Q$, so a zero product activity gives a finite rate. Each activity is clipped at 0, and an activity raised to a negative power is floored (see [Start-up of fast reactions](#start-up-of-fast-reactions)); the two forms agree wherever no activity is clipped or floored.
 
@@ -82,7 +87,7 @@ $\Delta H_\text{ref}$ is `heat_of_reaction` [J mol⁻¹] and $T_\text{ref}$ is `
 !!! note "New in 0.9"
     `Adsorbent.add_reaction`, the `Reaction` setters and `sim.describe()["adsorbents"][i]["reactions"]`. `sk.to_script` writes them.
 
-Create the structure with `ads.add_reaction(name, nu, kind=, basis=, effectiveness=, key_component=, adsorption_terms=)`. Then set every value through the returned `Reaction` object. The values are the registry paths `adsorbent[ID].reaction[ID].*`.
+Create the structure with `ads.add_reaction(name, nu, kind=, basis=, effectiveness=, key_component=, adsorption_terms=, denominators=)`. Then set every value through the returned `Reaction` object. The values are the registry paths `adsorbent[ID].reaction[ID].*`.
 
 ```python
 import skarstrom as sk
@@ -113,12 +118,27 @@ smr = ni.add_reaction("SMR", {"Methane": -1, "Water": -1, "CarbonMonoxide": 1, "
 smr.rate.pre_exp_factor = 1e3
 smr.rate.activation_energy = 8e4
 smr.rate.order["Hydrogen"] = 0.5
-smr.rate.adsorption[2].exponent["Hydrogen"] = -1.0
+smr.rate.denominator[1].adsorption[2].exponent["Hydrogen"] = -1.0
 wgs = ni.add_reaction("WGS", {"CarbonMonoxide": -1, "Water": -1, "CarbonDioxide": 1, "Hydrogen": 1},
                       kind="reversible_power_law", basis="concentration",
                       effectiveness="thiele", key_component="CarbonMonoxide")
 sim.kpi.track_reaction("Methane", products=["Hydrogen"])
 print(sk.to_script(sim)[:200])
+```
+
+A two-site rate takes one denominator per site. Here the metal site has two terms and the support site one ($K\, p_\mathrm{H_2O}/p_\mathrm{H_2}$):
+
+```python
+two = ni.add_reaction("SMR two-site", {"Methane": -1, "Water": -1, "CarbonMonoxide": 1, "Hydrogen": 3},
+                      kind="lhhw", denominators=[2, 1])
+two.rate.denominator[1].adsorption[1].exponent["Methane"] = 1.0
+two.rate.denominator[1].adsorption[2].exponent["Hydrogen"] = 1.0
+support = two.rate.denominator[2].adsorption[1]
+support.pre_exp_factor = 3.14e8
+support.energy = 126.9e3
+support.exponent["Water"] = 1.0
+support.exponent["Hydrogen"] = -1.0
+print(sim.describe()["adsorbents"][0]["reactions"][-1]["denominators"])   # [2, 1]
 ```
 
 The SMR heat of reaction, 206 100 J mol⁻¹, is the standard value at 298.15 K: with the default `kirchhoff` mode the engine corrects it to the bed temperature (800 K here) through the gas heat capacities, so it is not entered at 800 K.
@@ -127,16 +147,17 @@ The structure setters of a `Reaction` replace what was there. A new rate law kee
 
 | Call | Effect |
 |---|---|
-| `ads.add_reaction(name, nu, kind="power_law", basis=None, effectiveness=None, key_component=None, adsorption_terms=0, **values)` | A new reaction. `kind` is one of `skarstrom.build_kinds()["reaction_rate"]`. `values` set fields such as `heat_of_reaction`. |
+| `ads.add_reaction(name, nu, kind="power_law", basis=None, effectiveness=None, key_component=None, adsorption_terms=0, denominators=None, **values)` | A new reaction. `kind` is one of `skarstrom.build_kinds()["reaction_rate"]`. `adsorption_terms` adds terms to denominator 1 of an `lhhw` rate; `denominators` gives one denominator per entry, with that many terms (*New in 0.14.*). `values` set fields such as `heat_of_reaction`. |
 | `rx.set_kind(kind)` | A new rate law. |
 | `rx.set_stoichiometry({component: nu})` | Replace the stoichiometry. |
 | `rx.set_basis("partial_pressure" \| "concentration")` | The activity of the rate. |
 | `rx.set_effectiveness("constant" \| "thiele", key_component=None)` | The effectiveness model. A Thiele model needs a reactant of the reaction as `key_component`. |
-| `rx.add_adsorption_term()` / `rx.remove_adsorption_term(j)` | The denominator terms of an `lhhw` rate. They are numbered from 1. |
+| `rx.add_denominator()` / `rx.remove_denominator(k)` | The denominators of an `lhhw` rate (one per kind of site). They are numbered from 1. The last one cannot be removed. *New in 0.14.* |
+| `rx.add_adsorption_term(denominator=1)` / `rx.remove_adsorption_term(j, denominator=1)` | The terms of a denominator of an `lhhw` rate. They are numbered from 1. |
 | `ads.remove_reaction(reaction)` | Remove a reaction. IDs are not reused. |
 | `ads.reactions` | The reactions: `ads.reactions["SMR"]`, `ads.reactions.by_id(1)`. |
 
-`skarstrom.to_script(sim)` writes the reactions, their rate-law values and their adsorption terms. Running the script gives the same deck. The raw operations (`sim._build("add_reaction", ...)`) are the C++ functions of `adsim/objects/deck_builder.h`. The reaction KPIs are in [Performance Metrics](performance-metrics.md).
+`skarstrom.to_script(sim)` writes the reactions, their rate-law values, their denominators and their adsorption terms. Running the script gives the same deck. The raw operations (`sim._build("add_reaction", ...)`) are the C++ functions of `adsim/objects/deck_builder.h`. The reaction KPIs are in [Performance Metrics](performance-metrics.md).
 
 ### Start-up of fast reactions
 

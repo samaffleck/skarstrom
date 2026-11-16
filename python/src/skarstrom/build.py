@@ -620,7 +620,10 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
             rkw = [f"kind={rx['kind']!r}"]
             if rx["basis"] != "partial_pressure":
                 rkw.append(f"basis={rx['basis']!r}")
-            if rx["adsorption_terms"]:
+            dens = rx.get("denominators") or []
+            if len(dens) > 1:
+                rkw.append(f"denominators={dens}")
+            elif rx["adsorption_terms"]:
                 rkw.append(f"adsorption_terms={rx['adsorption_terms']}")
             if rx["effectiveness"] != "constant":
                 rkw.append(f"effectiveness={rx['effectiveness']!r}, key_component={rx['key_component']!r}")
@@ -637,12 +640,16 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                 for m, entries in rate.maps.items():
                     for c, path in entries.items():
                         w(f"{rv}.rate.{m}[{c!r}] = {_literal(sim, path)}")
-                for j, jt in sorted(rate.keyed.get("adsorption", {}).items(), key=lambda kv: int(kv[0])):
-                    for f, path in jt.leaves.items():
-                        w(f"{rv}.rate.adsorption[{j}].{f} = {_literal(sim, path)}")
-                    for m, entries in jt.maps.items():
-                        for c, path in entries.items():
-                            w(f"{rv}.rate.adsorption[{j}].{m}[{c!r}] = {_literal(sim, path)}")
+                for k, kt in sorted(rate.keyed.get("denominator", {}).items(), key=lambda kv: int(kv[0])):
+                    dv = f"{rv}.rate.denominator[{k}]"
+                    for f, path in kt.leaves.items():
+                        w(f"{dv}.{f} = {_literal(sim, path)}")
+                    for j, jt in sorted(kt.keyed.get("adsorption", {}).items(), key=lambda kv: int(kv[0])):
+                        for f, path in jt.leaves.items():
+                            w(f"{dv}.adsorption[{j}].{f} = {_literal(sim, path)}")
+                        for m, entries in jt.maps.items():
+                            for c, path in entries.items():
+                                w(f"{dv}.adsorption[{j}].{m}[{c!r}] = {_literal(sim, path)}")
         try:
             heats = node.heat_of_adsorption._paths
         except AttributeError:  # an adsorbent no component has been set up on

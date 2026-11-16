@@ -36,6 +36,7 @@ Rules:
 from __future__ import annotations
 
 import difflib
+import re
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -47,6 +48,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Sequence,
     Tuple,
     TypeVar,
     Union,
@@ -202,7 +204,24 @@ class _Index:
         if p is not None:
             return p
         matches = self.by_alias.get(path, [])
-        return matches[0] if len(matches) == 1 else None
+        if len(matches) == 1:
+            return matches[0]
+        legacy = _lhhw_denominator_alias(path)
+        return self.find(legacy) if legacy else None
+
+
+_LEGACY_LHHW = re.compile(r"^(.*\.reaction\[[^\]]*\]\.rate\.)(denominator_exponent|adsorption\[.*)$")
+
+
+def _lhhw_denominator_alias(path: str) -> Optional[str]:
+    """The path of LHHW denominator 1 for a path written before a rate could have
+    several denominators (``...rate.denominator_exponent``, ``...rate.adsorption[j].*``),
+    as the engine's registry resolves it; None for any other path."""
+    m = _LEGACY_LHHW.match(path)
+    if not m:
+        return None
+    head, tail = m.groups()
+    return head + ("denominator[1].exponent" if tail == "denominator_exponent" else "denominator[1]." + tail)
 
 
 # ---------------------------------------------------------------------------
@@ -1839,9 +1858,14 @@ class Reaction(Group):
     ``heat_of_reaction``, ``heat_mode``, ``heat_reference_temperature``,
     ``effectiveness`` (constant mode) or ``tortuosity`` (Thiele mode); the rate
     law's parameters are under ``.rate`` (``r.rate.pre_exp_factor``,
-    ``r.rate.order["Water"]``, ``r.rate.adsorption[1].energy``...) and the
+    ``r.rate.order["Water"]``, ``r.rate.denominator[1].adsorption[1].energy``...) and the
     stoichiometric coefficients are ``r.nu["Hydrogen"]`` (read-only; change them
     with :meth:`set_stoichiometry`).
+
+    An ``"lhhw"`` rate has one or more denominators (one per kind of site),
+    ``r.rate.denominator[k]`` with an ``exponent`` and adsorption terms
+    ``adsorption[j]``. ``r.rate.adsorption[j]`` and ``r.rate.denominator_exponent``
+    still address denominator 1.
 
     *New in 0.9.*
     """
@@ -1897,19 +1921,68 @@ class Reaction(Group):
         self._sim._build("set_effectiveness", *self._args(*args))
         return self._fresh()
 
-    def add_adsorption_term(self) -> int:
-        """A new denominator term of an ``"lhhw"`` rate; returns its index j (from 1). Its values
-        are ``rate.adsorption[j].*``."""
-        j = self._sim._build("add_adsorption_term", *self._args())
+    def add_adsorption_term(self, denominator: int = 1) -> int:
+        """A new term of denominator ``denominator`` (from 1) of an ``"lhhw"`` rate; returns its
+        index j (from 1). Its values are ``rate.denominator[k].adsorption[j].*``.
+        (``denominator`` is *new in 0.14*.)"""
+        j = self._sim._build("add_adsorption_term", *self._args(int(denominator)))
         return int(j)
 
-    def remove_adsorption_term(self, j: int) -> "Reaction":
-        """Remove denominator term ``j`` (from 1) of an ``"lhhw"`` rate."""
-        self._sim._build("remove_adsorption_term", *self._args(int(j)))
+    def remove_adsorption_term(self, j: int, denominator: int = 1) -> "Reaction":
+        """Remove term ``j`` (from 1) of denominator ``denominator`` of an ``"lhhw"`` rate."""
+        self._sim._build("remove_adsorption_term", *self._args(int(j), int(denominator)))
         return self._fresh()
+
+    def add_denominator(self) -> int:
+        """A new denominator of an ``"lhhw"`` rate (one more kind of site, exponent 1, no
+        terms); returns its index k (from 1). Its values are ``rate.denominator[k].*``.
+
+        *New in 0.14.*"""
+        return int(self._sim._build("add_denominator", *self._args()))
+
+    def remove_denominator(self, k: int) -> "Reaction":
+        """Remove denominator ``k`` (from 1) of an ``"lhhw"`` rate; the later ones move down.
+        The last denominator cannot be removed. *New in 0.14.*"""
+        self._sim._build("remove_denominator", *self._args(int(k)))
+        return self._fresh()
+
+    def __getattr__(self, name: str) -> Any:
+        value = super().__getattr__(name)
+        if name == "rate" and isinstance(value, Group):
+            return _RateGroup(self._sim, value._t, value._label)
+        return value
 
     def _header(self) -> str:
         return f"<{self._label} (id {self._id})>"
+
+
+class _RateGroup(Group):
+    """A reaction's ``.rate``: ``adsorption`` and ``denominator_exponent`` (an ``"lhhw"``
+    rate with one denominator, as before it could have several) address denominator 1."""
+
+    __slots__ = ()
+
+    def _first(self) -> Optional[Group]:
+        tree = self._tree
+        first = tree.keyed.get("denominator", {}).get("1") if tree is not None else None
+        return Group(self._sim, first, f"{self._label}.denominator[1]") if first is not None else None
+
+    def __getattr__(self, name: str) -> Any:
+        tree = self._tree
+        if tree is not None and name in ("adsorption", "denominator_exponent") and name not in tree.names():
+            first = self._first()
+            if first is not None:
+                return getattr(first, "exponent" if name == "denominator_exponent" else name)
+        return super().__getattr__(name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        tree = self._tree
+        if tree is not None and name == "denominator_exponent" and name not in tree.names():
+            first = self._first()
+            if first is not None:
+                first.exponent = value
+                return
+        super().__setattr__(name, value)
 
 
 def _nu(sim: "Simulation", nu: Mapping[str, float]) -> Dict[str, float]:
@@ -2069,14 +2142,16 @@ class Adsorbent(_Node):
     def add_reaction(self, name: str, nu: Mapping[str, float], kind: str = "power_law",
                      basis: Optional[str] = None, effectiveness: Optional[str] = None,
                      key_component: Optional[str] = None, adsorption_terms: int = 0,
-                     **values: Value) -> "Reaction":
+                     denominators: Optional[Sequence[int]] = None, **values: Value) -> "Reaction":
         """A reaction on this adsorbent.
 
         ``nu`` maps components to stoichiometric coefficients (< 0 reactant, > 0 product);
         ``kind`` is the rate law (``skarstrom.build_kinds()["reaction_rate"]``); ``basis`` is
         ``"partial_pressure"`` (the default) or ``"concentration"``; ``effectiveness`` is
         ``"constant"`` or ``"thiele"`` (with its ``key_component``); ``adsorption_terms`` adds
-        that many denominator terms to an ``"lhhw"`` rate. ``values`` set the reaction's fields
+        that many terms to the denominator of an ``"lhhw"`` rate; ``denominators`` (*new in
+        0.14*) gives an ``"lhhw"`` rate one denominator per entry, with that many terms each
+        (``[4, 2]``: a two-site rate; not with ``adsorption_terms``). ``values`` set the reaction's fields
         (``heat_of_reaction``...); the rate law's parameters are set on the returned object
         (``r.rate.pre_exp_factor = ...``). Orders default to -nu for reactants and 0 for products.
 
@@ -2086,6 +2161,14 @@ class Adsorbent(_Node):
         rx = self._fresh().reactions.by_id(rid)
         if basis is not None:
             rx = rx.set_basis(basis)
+        if denominators is not None:
+            if adsorption_terms:
+                raise ValueError("give adsorption_terms or denominators, not both")
+            for k, n in enumerate(denominators, start=1):
+                if k > 1:
+                    rx.add_denominator()
+                for _ in range(int(n)):
+                    rx.add_adsorption_term(k)
         for _ in range(adsorption_terms):
             rx.add_adsorption_term()
         if effectiveness is not None:

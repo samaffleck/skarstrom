@@ -188,9 +188,10 @@ namespace adsim {
 
   // ---- LHHW ------------------------------------------------------------------
 
-  double LhhwRate::Denominator(const ReactionState& s, RateBasis basis) const {
+  double LhhwRate::Denominator(const ReactionState& s, RateBasis basis, std::size_t k) const {
     double den = 1.0;
-    for (const auto& term : adsorption_)
+    if (k >= denominators_.size()) return den;
+    for (const auto& term : denominators_[k].adsorption_)
       den += Arrhenius(term.pre_exp_factor_.Get(), term.energy_.Get(), s.T) * Monomial(s, basis, term.exponent_);
     return den;
   }
@@ -202,25 +203,33 @@ namespace adsim {
       const double K = Arrhenius(equilibrium_pre_exp_factor_.Get(), equilibrium_energy_.Get(), s.T);
       driving -= ReverseMonomial(s, basis, order_, nu) / K;
     }
-    return k * driving / std::pow(Denominator(s, basis), denominator_exponent_.Get());
+    // 1 * DEN_1^m_1 is exactly DEN_1^m_1, so one denominator gives the same
+    // bits as the single-denominator formula k driving / DEN^m.
+    double den = 1.0;
+    for (std::size_t d = 0; d < denominators_.size(); ++d)
+      den *= std::pow(Denominator(s, basis, d), denominators_[d].exponent_.Get());
+    return k * driving / den;
   }
   double LhhwRate::MinExponent(const std::string& c, const std::map<std::string, double>& nu) const {
     double m = std::numeric_limits<double>::infinity();
     Fold(Value(order_, c), m);
     if (reversible_) Fold(ReverseExponent(order_, nu, c), m);
-    for (const auto& term : adsorption_) Fold(Value(term.exponent_, c), m);
+    for (const auto& den : denominators_)
+      for (const auto& term : den.adsorption_) Fold(Value(term.exponent_, c), m);
     return m;
   }
   void LhhwRate::SeedComponents(const std::map<std::string, double>& nu) { SeedOrders(order_, nu); }
   bool LhhwRate::UsesComponent(const std::string& c) const {
     if (AnyNonzero(order_, c)) return true;
-    for (const auto& term : adsorption_)
-      if (AnyNonzero(term.exponent_, c)) return true;
+    for (const auto& den : denominators_)
+      for (const auto& term : den.adsorption_)
+        if (AnyNonzero(term.exponent_, c)) return true;
     return false;
   }
   void LhhwRate::RemoveComponent(const std::string& c) {
     order_.erase(c);
-    for (auto& term : adsorption_) term.exponent_.erase(c);
+    for (auto& den : denominators_)
+      for (auto& term : den.adsorption_) term.exponent_.erase(c);
   }
   void LhhwRate::EvaluateExpressions(const EvalContext& ctx) {
     pre_exp_factor_.Evaluate(ctx);
@@ -228,11 +237,13 @@ namespace adsim {
     EvaluateMap(order_, ctx);
     equilibrium_pre_exp_factor_.Evaluate(ctx);
     equilibrium_energy_.Evaluate(ctx);
-    denominator_exponent_.Evaluate(ctx);
-    for (auto& term : adsorption_) {
-      term.pre_exp_factor_.Evaluate(ctx);
-      term.energy_.Evaluate(ctx);
-      EvaluateMap(term.exponent_, ctx);
+    for (auto& den : denominators_) {
+      den.exponent_.Evaluate(ctx);
+      for (auto& term : den.adsorption_) {
+        term.pre_exp_factor_.Evaluate(ctx);
+        term.energy_.Evaluate(ctx);
+        EvaluateMap(term.exponent_, ctx);
+      }
     }
   }
 
@@ -323,13 +334,17 @@ namespace adsim {
           orders(r->order_, "order");
           out.emplace_back("equilibrium_pre_exp_factor", &r->equilibrium_pre_exp_factor_);
           out.emplace_back("equilibrium_energy", &r->equilibrium_energy_);
-          out.emplace_back("denominator_exponent", &r->denominator_exponent_);
-          for (size_t j = 0; j < r->adsorption_.size(); ++j) {
-            const std::string head = "adsorption[" + std::to_string(j + 1) + "].";
-            auto& term = r->adsorption_[j];
-            out.emplace_back(head + "pre_exp_factor", &term.pre_exp_factor_);
-            out.emplace_back(head + "energy", &term.energy_);
-            orders(term.exponent_, head + "exponent");
+          for (size_t k = 0; k < r->denominators_.size(); ++k) {
+            const std::string dhead = "denominator[" + std::to_string(k + 1) + "].";
+            auto& den = r->denominators_[k];
+            out.emplace_back(dhead + "exponent", &den.exponent_);
+            for (size_t j = 0; j < den.adsorption_.size(); ++j) {
+              const std::string head = dhead + "adsorption[" + std::to_string(j + 1) + "].";
+              auto& term = den.adsorption_[j];
+              out.emplace_back(head + "pre_exp_factor", &term.pre_exp_factor_);
+              out.emplace_back(head + "energy", &term.energy_);
+              orders(term.exponent_, head + "exponent");
+            }
           }
         }
         break;

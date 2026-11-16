@@ -90,7 +90,7 @@ def test_add_reaction_creates_structure_and_fields():
     assert "adsorption" in smr.rate.keys() if hasattr(smr.rate, "keys") else True
     assert sim.describe()["adsorbents"][0]["reactions"] == [{
         "id": 1, "name": "SMR", "nu": SMR, "kind": "lhhw", "basis": "partial_pressure",
-        "effectiveness": "constant", "key_component": "", "adsorption_terms": 2}]
+        "effectiveness": "constant", "key_component": "", "denominators": [2], "adsorption_terms": 2}]
     assert ni.reactions["SMR"].id == 1
     assert sim.adsorbents["Sorbent"].reactions.names == []
 
@@ -153,3 +153,94 @@ def test_build_kinds_list_reaction_kinds():
     assert k["reaction_rate"] == ["power_law", "reversible_power_law", "lhhw", "expression"]
     assert k["reaction_basis"] == ["partial_pressure", "concentration"]
     assert k["effectiveness"] == ["constant", "thiele"]
+
+
+# ---- several LHHW denominators ---------------------------------------------------------
+
+
+def build_two_site():
+    """An SMR rate with a metal-site denominator (2 terms) and a support-site one (1 term)."""
+    sim, ni = _base()
+    rx = ni.add_reaction("SMR", SMR, kind="lhhw", denominators=[2, 1])
+    rx.rate.denominator[1].adsorption[1].exponent[CH4] = 1.0
+    rx.rate.denominator[1].adsorption[2].exponent[H2] = 1.0
+    support = rx.rate.denominator[2].adsorption[1]
+    support.pre_exp_factor = 3.14e8
+    support.energy = 126.9e3
+    support.exponent[H2O] = 1.0
+    support.exponent[H2] = -1.0
+    rx.rate.denominator[2].exponent = 0.5
+    return sim
+
+
+def build_two_site_low_level():
+    sim, ni = _base()
+    a = ni.id
+    r = sim._build("add_reaction", a, "SMR", SMR, "lhhw")
+    sim._build("add_adsorption_term", a, r)
+    sim._build("add_adsorption_term", a, r, 1)
+    assert sim._build("add_denominator", a, r) == 2
+    assert sim._build("add_adsorption_term", a, r, 2) == 1
+    head = "adsorbent[%d].reaction[%d].rate." % (a, r)
+    sim[head + "denominator[1].adsorption[1].exponent[%s]" % CH4] = 1.0
+    sim[head + "adsorption[2].exponent[%s]" % H2] = 1.0  # the former path of denominator 1
+    sim[head + "denominator[2].adsorption[1].pre_exp_factor"] = 3.14e8
+    sim[head + "denominator[2].adsorption[1].energy"] = 126.9e3
+    sim[head + "denominator[2].adsorption[1].exponent[%s]" % H2O] = 1.0
+    sim[head + "denominator[2].adsorption[1].exponent[%s]" % H2] = -1.0
+    sim[head + "denominator[2].exponent"] = 0.5
+    return sim
+
+
+def test_two_denominators_structure_and_paths():
+    sim = build_two_site()
+    rx = sim.adsorbents["Ni catalyst"].reactions["SMR"]
+    assert sim.describe()["adsorbents"][0]["reactions"][0]["denominators"] == [2, 1]
+    assert rx.rate.denominator[2].exponent == 0.5
+    assert rx.rate.denominator[2].adsorption[1].exponent[H2] == -1.0
+    paths = [p.path for p in rx.parameters()]
+    assert any(p.endswith("rate.denominator[2].adsorption[1].energy") for p in paths)
+    assert not any("denominator_exponent" in p or ".rate.adsorption[" in p for p in paths)
+    # the former names address denominator 1
+    assert rx.rate.denominator_exponent == 1.0
+    rx.rate.denominator_exponent = 2.0
+    assert rx.rate.denominator[1].exponent == 2.0
+    assert rx.rate.adsorption[2].exponent[H2] == 1.0
+    a, r = rx._adsorbent, rx.id
+    assert sim["adsorbent[%d].reaction[%d].rate.denominator_exponent" % (a, r)] == 2.0
+    sim.set("adsorbent[Ni catalyst].reaction[SMR].rate.adsorption[1].energy", "-10 kJ/mol")
+    assert rx.rate.denominator[1].adsorption[1].energy == pytest.approx(-1e4)
+    # errors and removal
+    with pytest.raises(ValueError, match="no denominator 3"):
+        rx.add_adsorption_term(3)
+    with pytest.raises(ValueError, match="not both"):
+        sim.adsorbents["Ni catalyst"].add_reaction("X", SMR, kind="lhhw", adsorption_terms=1, denominators=[1])
+    rx.remove_adsorption_term(1, denominator=2)
+    rx = rx.remove_denominator(2)
+    assert sim.describe()["adsorbents"][0]["reactions"][0]["denominators"] == [2]
+    with pytest.raises(ValueError, match="at least one"):
+        rx.remove_denominator(1)
+
+
+def test_two_denominators_python_equals_low_level_and_script():
+    sim = build_two_site()
+    assert_same_deck(sim, build_two_site_low_level())
+    script = sk.to_script(sim)
+    assert "denominators=[2, 1]" in script and ".rate.denominator[2].exponent = 0.5" in script
+    ns = {}
+    exec(compile(script, "<two-site>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    assert sk.to_script(ns["sim"]) == script
+    assert_same_deck(sim, sk.Simulation.from_json(sim.to_json()))
+
+
+def test_deck_view_lists_the_denominators():
+    sim = build_two_site()
+    view = sim.deck_view()
+    rx = view["adsorbents"][0]["reactions"][0]
+    assert [d["index"] for d in rx["denominators"]] == [1, 2]
+    assert [len(d["terms"]) for d in rx["denominators"]] == [2, 1]
+    assert [v["key"] for v in rx["denominators"][1]["values"]] == ["exponent"]
+    keys = {v["key"] for v in rx["denominators"][1]["terms"][0]["values"]}
+    assert {"pre_exp_factor", "energy", "exponent[Water]"} <= keys
+    assert not any("denominator[" in v["path"] for v in rx["values"])
