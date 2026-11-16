@@ -150,8 +150,8 @@ or ambient temperature for the wall measure; the pressure of the step. What to d
 The thresholds come from the engine's own decks: every one of the 40 bundled example decks (which include
 the paper cases) was run as shipped, to its own cycle count or CSS stop, and the measures recorded after every
 cycle. The table gives the largest value any deck reached, the deck, and the threshold; the margin is their
-ratio. The `SUPERSATURATION` threshold is physical (saturation itself), not set from the decks; the table
-gives its margin all the same.
+ratio. The `SUPERSATURATION` threshold is physical (saturation itself), not set from the decks; its row
+was measured on all 60 bundled example decks, and the table gives its margin all the same.
 
 | Code | Value | Largest on the example decks | Threshold | Margin |
 |---|---|---|---|---|
@@ -160,7 +160,7 @@ gives its margin all the same.
 | | $\lvert e\rvert$ once the state change is $\le 10^{-3}$ | $2.3 \times 10^{-5}$ (Nguyen2023_Exp_IX) | $2 \times 10^{-3}$ | 87 |
 | `STEP_RETRIES` | rejected attempts per accepted step, per cycle | 0.078 (Perez2019_B) | 0.25 | 3.2 |
 | `REACTION_STIFF` | steps shorter than $10^{-4}$ s at a reacting cell, per cycle step | 0 (no example deck has a reaction) | 100 | |
-| `SUPERSATURATION` | relative saturation $y_i P / p_{sat,i}(T)$, gas or wall | TMPVALUE | 1 | TMPMARGIN |
+| `SUPERSATURATION` | relative saturation $y_i P / p_{sat,i}(T)$, gas or wall | 0.49 (Illustrative_Humid_DAC_Breakthrough, water) | 1 | 2.0 |
 
 Distribution over the decks (the largest value of each deck):
 
@@ -169,6 +169,10 @@ Distribution over the decks (the largest value of each deck):
 - Cycle mole balance: $10^{-8}$ to $10^{-6}$ for most decks, up to a few $10^{-5}$ for the long Nguyen 2023
   and Perez 2019 runs; at most $2.2 \times 10^{-5}$ in the last cycle of any deck.
 - Rejected attempts per accepted step: 0.012 to 0.078 (median about 0.03).
+- Relative saturation (the larger of the gas and wall measures): 0.49 for the humid DAC breakthrough (1.15 %
+  water at 293.15 K and 1 atm), the only deck with water. Carbon dioxide, the one other component below its
+  critical temperature in these decks, reaches at most 0.20 (Streb2021_A5) and 0.17 (Casas 2012 at 15 bar);
+  most decks stay below 0.02.
 
 The broken cases in `core/test/integration/test_run_health.cpp` sit well past the thresholds: a manufactured
 CO2 sink in the component balance only (the sum drifts), the same sink in the overall balance too (a leak:
