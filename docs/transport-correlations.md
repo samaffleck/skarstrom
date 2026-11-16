@@ -291,15 +291,15 @@ In both, $\mathrm{Re} = \rho\thinspace |u|\thinspace d_p/\mu$ on the superficial
 | `gunn` | $(7 - 10\epsilon_b + 5\epsilon_b^2)(1 + 0.7\thinspace \mathrm{Re}^{0.2} X^{1/3}) + (1.33 - 2.4\epsilon_b + 1.2\epsilon_b^2)\thinspace \mathrm{Re}^{0.7} X^{1/3}$ | $7 - 10\epsilon_b + 5\epsilon_b^2$ (2 at $\epsilon_b = 1$) |
 | `ranz_marshall` | $2 + 0.6\thinspace \mathrm{Re}^{1/2} X^{1/3}$ (single sphere) | 2 |
 
-**Wakao–Funazkri (mass) and Wakao–Kaguei–Funazkri (heat).** Fitted to packed-bed data re-reduced with the axial dispersion included, which matches the engine's dispersed plug-flow model. This is the Sherwood number the engine has always used for the Haynes coefficient, so decks keep their results bit for bit. (The cube root is evaluated as $X^{0.3333333}$, as before; it differs from $X^{1/3}$ by a relative $3.3\times10^{-8}\ln X$.) Validity: roughly $3 < \mathrm{Re} < 10\,000$ for mass and $15 < \mathrm{Re} < 8\,500$ for heat (*to be confirmed* against the papers).
+**Wakao–Funazkri (mass) and Wakao–Kaguei–Funazkri (heat).** Fitted to packed-bed data re-reduced with the axial dispersion included, which matches the engine's dispersed plug-flow model. This is the Sherwood number the engine has always used for the Haynes coefficient, so decks keep their results bit for bit. (The cube root is evaluated as $X^{0.3333333}$, as before; it differs from $X^{1/3}$ by a relative $3.3\times10^{-8}\ln X$.) Validity ranges quoted for these fits are roughly $3 < \mathrm{Re} < 10\,000$ for mass and $15 < \mathrm{Re} < 8\,500$ for heat. These are *not confirmed* (checked: no access to the 1978 and 1979 papers; the `ht` library documentation, which cites Wakao and Kaguei's book, gives $3 < \mathrm{Re} < 3000$ for the heat form, which does not match). Equation numbers: *not confirmed* (same reason).
 
-**Gunn (1978).** Covers fixed and fluidised beds over the whole voidage range, and reduces to an isolated sphere's $\mathrm{Nu} = 2$ at $\epsilon_b = 1$, Re = 0. The void fraction is the layer's bed void fraction $\epsilon_b$. Re is on the superficial velocity and $d_p$, the basis of the engine's Re: Gunn's correlation is usually quoted with the superficial (empty-tube) slip velocity, which in CFD–DEM codes appears as $\epsilon\thinspace|u_f - u_p|$ (the velocity basis is *to be confirmed* against the paper). Validity: $0.35 \le \epsilon_b \le 1$, Re up to about $10^5$ (*to be confirmed*). At low Re in a packed bed ($\epsilon_b \approx 0.4$) its limit is $7 - 4 + 0.8 = 3.8$, above Wakao's 2.
+**Gunn (1978).** Covers fixed and fluidised beds over the whole voidage range, and reduces to an isolated sphere's $\mathrm{Nu} = 2$ at $\epsilon_b = 1$, Re = 0. The void fraction is the layer's bed void fraction $\epsilon_b$. Re is on the superficial velocity and $d_p$, the basis of the engine's Re: Gunn's correlation is usually quoted with the superficial (empty-tube) slip velocity, which in CFD–DEM codes appears as $\epsilon\thinspace|u_f - u_p|$ (the velocity basis is *not confirmed* against the paper: checked Crossref metadata only; the full text was not available). Validity of $0.35 \le \epsilon_b \le 1$ and Re up to about $10^5$ is also *not confirmed* (checked: web search and the ANSYS DEM–CFD coupling help page, which give no numbers). At low Re in a packed bed ($\epsilon_b \approx 0.4$) its limit is $7 - 4 + 0.8 = 3.8$, above Wakao's 2.
 
 **Ranz–Marshall (1952).** A correlation for a **single sphere** (evaporating drops), not for a packed bed: in a bed at moderate Re it under-predicts the coefficients. It is offered so that papers that use it can be reproduced, and the run log carries a warning for every packed layer that selects it (a warning, not an error). Re on the superficial velocity, as the papers that apply it to beds usually do.
 
 Not included: older j-factor fits reduced without axial dispersion, which are not consistent with a dispersed plug-flow model.
 
-**Sources.** Equation and table numbers are *to be confirmed* against the texts; the DOIs were checked against Crossref.
+**Sources.** Equation and table numbers: *not confirmed* (checked: the original papers were not available to this review, and no secondary source found reproduces them with a citation). The DOIs and the Gunn title and page range were checked against Crossref.
 
 - N. Wakao and T. Funazkri, "Effect of fluid dispersion coefficients on particle-to-fluid mass transfer coefficients in packed beds", Chem. Eng. Sci. 33 (1978) 1375–1384, doi:10.1016/0009-2509(78)85120-3.
 - N. Wakao, S. Kaguei and T. Funazkri, "Effect of fluid dispersion coefficients on particle-to-fluid heat transfer coefficients in packed beds", Chem. Eng. Sci. 34 (1979) 325–336, doi:10.1016/0009-2509(79)85064-2.
@@ -327,7 +327,7 @@ $$
 
 with Sc in place of Pr for Sh. The Reynolds number of a structured layer is the channel value $\mathrm{Re} = \rho\thinspace (|u|/\phi)\thinspace D_h/\mu$, and the solver warns at the end of a run when it passes 2000, where these laminar closures stop holding (the setting `settings.warn_channel_reynolds`). The film mass-transfer coefficient is $k_f = \mathrm{Sh}\thinspace D_m/D_h$ (Haynes rate model, [Kinetic Models](kinetic-models.md)), and the film heat-transfer coefficient is $h = \mathrm{Nu}\thinspace k_g/D_h$ (the Film gas–solid model above).
 
-**Sources** (the equation and table numbers are still to be confirmed against the texts; the results are as stated above):
+**Sources** (the Shah and London table numbers, Hawthorn's equation number and the Kaviany section are *not confirmed*: the texts were not available to this review; the results are as stated above):
 
 - R. K. Shah and A. L. London, *Laminar Flow Forced Convection in Ducts*, Academic Press, 1978: fully developed $\mathrm{Nu}_T$ for square and circular ducts and parallel plates.
 - R. D. Hawthorn, AIChE Symp. Ser. 70(137) (1974) 428: developing-flow Nu in monolith channels.
@@ -335,6 +335,6 @@ with Sc in place of Pr for Sh. The Reynolds number of a structured layer is the 
 - R. Aris, Proc. R. Soc. Lond. A 235 (1956) 67–77: the molecular term and the parallel-plate result.
 - N. Wakao and T. Funazkri, Chem. Eng. Sci. 33 (1978) 1375–1384: the packed-bed film correlation.
 - E. Glueckauf, Trans. Faraday Soc. 51 (1955) 1540–1551: the linear driving force, [Kinetic Models](kinetic-models.md).
-- M. Kaviany, *Principles of Heat Transfer in Porous Media*, 2nd ed., Springer, 1995: the parallel arrangement of the effective thermal conductivity, the channel conduction model above (the section is to be confirmed).
+- M. Kaviany, *Principles of Heat Transfer in Porous Media*, 2nd ed., Springer, 1995: the parallel arrangement of the effective thermal conductivity, the channel conduction model above (section *not confirmed*: book not available to check).
 
 The verification tests `StructuredTransfer.*` check each closure against these results, and check a parallel-passage breakthrough against the moment analysis of the LDF model; `StructuredHeat.*` check the heat closures ([Verification](verification.md)).
