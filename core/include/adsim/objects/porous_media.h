@@ -206,13 +206,17 @@ namespace adsim {
         mixing_rule_ = MixingRule::None;
       }
       // Version 2 adds the heat-of-adsorption mode of each component; older
-      // archives mean Constant for every component that has a heat of
-      // adsorption, so the registry lists the mode straight after a load.
+      // archives mean Constant. After any load, every component that has a
+      // heat of adsorption has a mode (Constant unless stored), so the
+      // registry lists the mode straight after a load, also for an adsorbent
+      // saved before Initialise ran (a library file).
       if (version >= 2) {
         SerializeMap(ar, "Heat_Of_Adsorption_Mode", heat_of_adsorption_mode_);
       } else if constexpr (!Archive::is_saving::value) {
         heat_of_adsorption_mode_.clear();
-        for (const auto& [c, h] : heat_of_adsorption_) heat_of_adsorption_mode_.emplace(c, HeatOfAdsorptionMode::Constant);
+      }
+      if constexpr (!Archive::is_saving::value) {
+        for (const auto& [c, h] : heat_of_adsorption_) heat_of_adsorption_mode_.try_emplace(c, HeatOfAdsorptionMode::Constant);
       }
     }
   };

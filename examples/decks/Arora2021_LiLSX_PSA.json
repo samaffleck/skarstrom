@@ -334,7 +334,16 @@
                                 }
                             ],
                             "Mixing_Rule": 0,
-                            "Heat_Of_Adsorption_Mode": []
+                            "Heat_Of_Adsorption_Mode": [
+                                {
+                                    "key": "Nitrogen",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Oxygen",
+                                    "value": 0
+                                }
+                            ]
                         },
                         "Particle_Void_Fraction": {
                             "Value": 0.33,
@@ -667,7 +676,16 @@
                                 }
                             ],
                             "Mixing_Rule": 0,
-                            "Heat_Of_Adsorption_Mode": []
+                            "Heat_Of_Adsorption_Mode": [
+                                {
+                                    "key": "Nitrogen",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Oxygen",
+                                    "value": 0
+                                }
+                            ]
                         },
                         "Particle_Void_Fraction": {
                             "Value": 0.33,
@@ -999,7 +1017,16 @@
                                 }
                             ],
                             "Mixing_Rule": 0,
-                            "Heat_Of_Adsorption_Mode": []
+                            "Heat_Of_Adsorption_Mode": [
+                                {
+                                    "key": "Nitrogen",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Oxygen",
+                                    "value": 0
+                                }
+                            ]
                         },
                         "Particle_Void_Fraction": {
                             "Value": 0.65,
