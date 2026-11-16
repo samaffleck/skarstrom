@@ -167,7 +167,8 @@ Sources of the terms:
 - **Knudsen:** Knudsen diffusion in the macropores, alone or in the Bosanquet combination with molecular diffusion; Ruthven (1984), Do (1998).
 - **Micropore:** Kärger & Ruthven (1992); Farooq & Ruthven (*Chem. Eng. Sci.* 46, 1991, 2213).
 - **Lumped:** a fitted LDF coefficient (Glueckauf, 1955), with an optional Arrhenius temperature dependence.
-- **Slab forms:** Rezaei & Webley (2009, p. 5184, Eq. 6; Table 1, p. 5183).
+- **Glueckauf (1955):** *Trans. Faraday Soc.* 51, 1540–1551, doi:10.1039/tf9555101540, "Theory of chromatography. Part 10.—Formulæ for diffusion into spheres and their application to chromatography". Crossref confirms the citation. That the paper derives the factors 15, 8 and 3 from a parabolic profile is *not confirmed* (checked: the full text was not available).
+- **Slab forms:** Rezaei & Webley (2009, p. 5184, Eq. 6; Table 1, p. 5183). Rezaei and Webley, "Optimum structured adsorbents for gas separation processes", *Chem. Eng. Sci.* 64 (2009) 5182–5191, doi:10.1016/j.ces.2009.08.029: Crossref confirms the title, journal, year and page range. The equation and table numbers are *not confirmed* (checked: the full text was not available).
 
 The books are cited without page numbers.
 
