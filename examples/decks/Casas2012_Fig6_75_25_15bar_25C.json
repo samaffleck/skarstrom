@@ -602,7 +602,7 @@
                                 "ptr_wrapper": {
                                     "valid": 1,
                                     "data": {
-                                        "cereal_class_version": 1,
+                                        "cereal_class_version": 2,
                                         "value0": {
                                             "cereal_class_version": 0
                                         },
@@ -610,7 +610,8 @@
                                             "Value": 0.000016,
                                             "Expression": "1.6e-05",
                                             "DisplayUnitIndex": 0
-                                        }
+                                        },
+                                        "Component_Diffusivity": 0
                                     }
                                 }
                             },
