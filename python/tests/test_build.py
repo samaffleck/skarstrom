@@ -281,6 +281,29 @@ def test_blake_kozeny_momentum_builds_and_round_trips():
     assert sim.run(cycles=1).ok
 
 
+def test_per_component_dispersion_builds_and_round_trips():
+    sim, parts = build_vsa()
+    layer = parts["layer"]
+    assert layer.component_diffusivity == "shared"
+    layer = layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5,
+                                 component_diffusivity="mixture_averaged")
+    assert layer.component_diffusivity == "mixture_averaged"
+    assert sim.get("layer[13X].component_diffusivity") == 1
+    assert '"Component_Diffusivity": 1' in sim.to_json()
+    copy = sk.Simulation.from_json(sim.to_json())
+    assert copy.layers["13X"].component_diffusivity == "mixture_averaged"
+    assert_same_deck(sim, copy)
+    script = sk.to_script(sim)
+    assert "component_diffusivity='mixture_averaged'" in script
+    ns = {}
+    exec(compile(script, "<per_component_dispersion>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    assert sim.run(cycles=1).ok
+    # A constant coefficient has no such choice.
+    layer = layer.set_dispersion("constant", dispersion_coefficient=1e-4)
+    assert "component_diffusivity" not in layer.fields
+
+
 def test_layer_fractions_as_expressions_build_and_round_trip():
     """Mass fractions written as x and 1 - x over a deck variable: the builder,
     the registry, describe(), the generated script and a sweep over x."""

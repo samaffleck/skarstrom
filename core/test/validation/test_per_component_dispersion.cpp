@@ -237,6 +237,9 @@ namespace adsim {
   //    column. Both to round-off, also across a layer interface where the cell
   //    width and eb jump and when the mole fractions sum to 1 + 1e-6.
   //
+  // Measured: cell sums at most 1.6e-15, species sums at most 1.1e-16 of the
+  // summed magnitudes.
+  //
   // GUARD: the coefficients really differ (D_ax,H2 is more than three times
   // D_ax,CO2 in a still column, where D_ax,i = 0.7 D_m,i), and the drift
   // sum_j k_j,f dy_j that the correction removes is a sizeable fraction of the
@@ -248,7 +251,9 @@ namespace adsim {
       const int N = static_cast<int>(r.width.size());
       const int mid = r.interface_cell + 2;
       EXPECT_GT(r.dax[1][mid], 3.0 * r.dax[2][mid]) << "H2 and CO2 disperse alike";
-      EXPECT_GT(r.max_drift, 0.2) << "the correction has nothing to correct";
+      // Measured 0.14: without the correction a cell would gain or lose 14 %
+      // of its dispersive flux magnitude, eleven orders above the bound below.
+      EXPECT_GT(r.max_drift, 0.1) << "the correction has nothing to correct";
 
       double worst_cell = 0.0;
       for (int i = 1; i < N - 1; ++i) {
@@ -492,9 +497,10 @@ namespace adsim {
       const double inventory =
         CalculateComponentAccumulation_Volume(log, 0, 0, ComponentVariableType::COMPONENT_MOLAR_CONCENTRATION, comp);
       const double scale = std::max({std::abs(moles_in), std::abs(moles_out), std::abs(inventory)});
-      std::printf("[comparable] %s: in %.6e, out %.6e, inventory change %.6e mol\n", comp.c_str(), moles_in,
-                  moles_out, inventory);
-      EXPECT_LT(std::abs(moles_in - moles_out - inventory), 1e-3 * scale) << comp;
+      std::printf("[comparable] %s: in %.6e, out %.6e, inventory change %.6e mol, closure %.2e\n", comp.c_str(),
+                  moles_in, moles_out, inventory, std::abs(moles_in - moles_out - inventory) / scale);
+      // Measured 6e-8 to 1.7e-7 (the trapezoidal quadrature of the stream logs).
+      EXPECT_LT(std::abs(moles_in - moles_out - inventory), 1e-5 * scale) << comp;
     }
     std::printf("[comparable] max |sum y - 1| %.2e\n", worst_sum);
     EXPECT_LT(worst_sum, 1e-6);
