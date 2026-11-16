@@ -1,0 +1,2 @@
+### Changed — styled comparison plots in the breakthrough examples
+- `examples/ward_2022.py`, `streb_2021.py` and `nguyen_2022.py` now save one two-panel figure per case (outlet composition and thermocouple temperature) in a shared publication style: measured markers, Skarstrom lines, the paper's model dashed for Nguyen 2022, the case conditions and metrics in the header, and a plain statement of what is calibrated. No deck, data or result changes.

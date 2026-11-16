@@ -221,6 +221,13 @@ DECKS = {case: f"Streb2021_{case}" for case in EXPERIMENTS}   # the shipped deck
 Z_CM = [10, 35, 60, 85, 110]                                # thermocouple positions [cm]
 
 
+def ex_conditions(name: str) -> str:
+    """The case's feed, pressure, temperature and flow, as one line for the figure header."""
+    e = EXPERIMENTS[name]
+    feed = "75:20:5 H2/CO2/CH4" if e["ternary"] else "50:50 CO2/CH4"
+    return f"{feed} into helium, {e['pressure']:g} bar, {e['temperature'] - 273.15:.0f} C, {e['flow']:g} cm3/s"
+
+
 def main(argv=None) -> int:
     args = c.parser(__doc__.splitlines()[0], list(CASES), default=["A1", "A3"]).parse_args(argv)
     plt = c.pyplot(args)
@@ -230,42 +237,51 @@ def main(argv=None) -> int:
         if args.cycles is not None:
             sim.cycle.number_of_cycles = int(args.cycles)
         c.run(sim, f"Streb 2021 {name}", args.quiet)
-        fig, axes = (plt.subplots(1, 2, figsize=(10, 4)) if plt else (None, None))
         d = c.DATA / "streb_2021" / name
         row = [name]
+        outlet, temps, front = [], [], []
         for comp, label in (("CarbonDioxide", "CO2"), ("Methane", "CH4")):
             y = sim.series("mole_fraction", comp, location="top", cycle=0)
             t50 = c.crossing_time(y.time, y.values, 0.25)
             err = "-"
+            data = None
             f = d / f"{name}_mole_fraction_{label}.csv"
             if f.is_file():
                 t_e, y_e = c.load_csv(f)
                 err = c.fmt(c.nrmse(y.time, y.values, t_e, y_e, 0.5))
-                if axes is not None:
-                    axes[0].plot(t_e, y_e, "o", ms=3, label=f"{label} experiment")
-            if axes is not None:
-                axes[0].plot(y.time, y.values, "-", label=f"{label} Skarstrom")
+                data = (t_e, y_e)
+                if math.isnan(t50):     # the ternary feed (B1, B2) never reaches y = 0.25
+                    front.append(f"{label} NRMSE {err}")
+                else:
+                    front.append(f"{label} front (y = 0.25) {c.fmt(t50, 4)} s vs "
+                                 f"{c.fmt(c.crossing_time(t_e, y_e, 0.25), 4)} s measured, NRMSE {err}")
+            outlet.append(c.Trace(f"outlet {label}", (y.time, y.values), data))
             row += [c.fmt(t50), err]
         sq, n = 0.0, 0
         for z in Z_CM:
             T = sim.series("temperature", z=z / 100.0, cycle=0)
             f = d / f"{name}_temperature_z={z}[cm].csv"
+            data = None
             if f.is_file():
                 t_e, T_e = c.load_csv(f)
                 sq += float(np.sum((np.interp(t_e, T.time, T.values) - T_e) ** 2))
                 n += len(t_e)
-                if axes is not None:
-                    axes[1].plot(t_e, T_e, "o", ms=2)
-            if axes is not None:
-                axes[1].plot(T.time, T.values, "-", label=f"z = {z} cm")
-        row.append(c.fmt(math.sqrt(sq / n)) if n else "-")
+                data = (t_e, T_e)
+            temps.append(c.Trace(f"z = {z} cm", (T.time, T.values), data))
+        rmse = c.fmt(math.sqrt(sq / n)) if n else "-"
+        row.append(rmse)
         rows.append(row)
-        if fig is not None:
-            axes[0].set(xlabel="time [s]", ylabel="outlet mole fraction [-]")
-            axes[1].set(xlabel="time [s]", ylabel="temperature [K] (lines: Skarstrom, markers: experiment)")
-            for a in axes:
-                a.legend(fontsize=7)
-            c.save(fig, f"streb_2021_{name}.png")
+        calibration = ("Calibrated case: the LDF coefficients, wall coefficient and sampling-line volume are fitted on A3."
+                       if name == "A3" else
+                       "Not fitted on this case: parameters are calibrated on A3; this case's feed flow "
+                       "comes from its own thermocouples.")
+        c.breakthrough_figure(
+            plt, f"streb_2021_{name}.png",
+            f"Streb & Mazzotti 2021: breakthrough on zeolite 13X, experiment {name}",
+            ex_conditions(name),
+            "; ".join(front + [f"thermocouple RMSE {rmse} K (5 TCs)"]),
+            calibration, outlet=outlet, temperature=temps,
+            ylabel_outlet="outlet mole fraction [-]", ylabel_temperature="temperature [K]")
     print()
     c.table(rows, ["case", "t50 CO2 [s]", "NRMSE y_CO2", "t50 CH4 [s]", "NRMSE y_CH4", "RMSE T, 5 TCs [K]"])
     return 0

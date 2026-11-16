@@ -256,6 +256,126 @@ def save(fig, name: str) -> Path:
     return p
 
 
+# ---- publication-style breakthrough plots ------------------------------------------------
+
+# The fixed series palette (light-mode HSL), in series order. Defined once, here.
+_PALETTE_HSL = [
+    (221, 83, 53),   # blue
+    (0, 72, 51),     # red
+    (142, 76, 36),   # green
+    (32, 95, 44),    # amber
+    (262, 83, 58),   # violet
+    (192, 91, 36),   # cyan
+    (333, 71, 51),   # pink
+    (85, 85, 35),    # lime
+]
+
+
+def _hsl_to_hex(h: float, s: float, l: float) -> str:
+    import colorsys
+    r, g, b = colorsys.hls_to_rgb(h / 360.0, l / 100.0, s / 100.0)
+    return "#{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
+
+
+PALETTE = [_hsl_to_hex(*hsl) for hsl in _PALETTE_HSL]
+
+_INK = "#1f2937"       # text
+_MUTED = "#6b7280"     # axes, ticks, secondary text
+_GRID = "#e5e7eb"
+
+_RC = {
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Inter", "Helvetica", "Arial", "DejaVu Sans"],
+    "font.size": 9,
+    "axes.edgecolor": _MUTED, "axes.labelcolor": _INK, "axes.titlecolor": _INK,
+    "axes.spines.top": False, "axes.spines.right": False,
+    "axes.linewidth": 0.8,
+    "axes.grid": True, "axes.axisbelow": True, "grid.color": _GRID, "grid.linewidth": 0.6,
+    "xtick.color": _MUTED, "ytick.color": _MUTED, "text.color": _INK,
+    "legend.fancybox": False, "legend.shadow": False, "legend.frameon": True,
+    "legend.edgecolor": _GRID, "legend.framealpha": 1.0, "legend.fontsize": 8,
+    "lines.linewidth": 1.8,
+    "figure.facecolor": "white", "axes.facecolor": "white", "savefig.facecolor": "white",
+}
+
+
+class Trace:
+    """One series of a breakthrough panel: simulation line, measured markers, paper-model dashes.
+
+    ``sim``, ``data`` and ``model`` are (x, y) array pairs (or None). All three
+    share the trace's palette colour; the line style tells them apart.
+    """
+
+    def __init__(self, label: str, sim, data=None, model=None):
+        self.label, self.sim, self.data, self.model = label, sim, data, model
+
+
+def _draw_panel(ax, traces: Sequence[Trace], xlabel: str, ylabel: str, palette_offset: int = 0) -> None:
+    for i, tr in enumerate(traces):
+        col = PALETTE[(i + palette_offset) % len(PALETTE)]
+        if tr.data is not None:
+            ax.plot(*tr.data, linestyle="none", marker="o", ms=3.2, mfc=col, mec="white", mew=0.4,
+                    color=col, alpha=0.9, zorder=2)
+        if tr.model is not None:
+            ax.plot(*tr.model, linestyle=(0, (4, 2)), lw=1.4, color=col, zorder=3)
+        if tr.sim is not None:
+            ax.plot(*tr.sim, linestyle="-", color=col, zorder=4)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.margins(x=0.02)
+
+
+def _legend(ax, traces: Sequence[Trace], model_label: str):
+    from matplotlib.lines import Line2D
+    handles = []
+    if len(traces) > 1:
+        handles += [Line2D([], [], color=PALETTE[i % len(PALETTE)], lw=2, label=t.label)
+                    for i, t in enumerate(traces)]
+    grey = _MUTED
+    if any(t.data is not None for t in traces):
+        handles.append(Line2D([], [], color=grey, linestyle="none", marker="o", ms=4, label="measured"))
+    handles.append(Line2D([], [], color=grey, lw=1.8, label="Skarstrom"))
+    if any(t.model is not None for t in traces):
+        handles.append(Line2D([], [], color=grey, lw=1.4, linestyle=(0, (4, 2)), label=model_label))
+    leg = ax.legend(handles=handles, loc="best")
+    leg.get_frame().set_linewidth(0.8)
+    return leg
+
+
+def breakthrough_figure(plt, filename: str, title: str, conditions: str, metrics: str, calibration: str,
+                        outlet: Sequence[Trace], temperature: Sequence[Trace], ylabel_outlet: str,
+                        ylabel_temperature: str, model_label: str = "paper model"):
+    """One breakthrough case as a two-panel figure, saved to the output folder; returns the path.
+
+    Left panel: outlet composition; right panel: thermocouple temperature(s).
+    Measured points are markers, Skarstrom is a line, the paper's own model (when
+    given) is dashed. The header gives the case, its conditions and metrics, and
+    says plainly which results are calibrated. The same style (neutral axes, no
+    top/right spines, square legend frames, the fixed PALETTE) is used for every
+    example. Returns None when ``plt`` is None (matplotlib not installed or --no-plot).
+    """
+    if plt is None:
+        return None
+    with plt.rc_context(_RC):
+        fig, (a0, a1) = plt.subplots(1, 2, figsize=(10, 4.9))
+        _draw_panel(a0, outlet, "time [s]", ylabel_outlet)
+        _draw_panel(a1, temperature, "time [s]", ylabel_temperature)
+        _legend(a0, outlet, model_label)
+        _legend(a1, temperature, model_label)
+        fig.subplots_adjust(left=0.075, right=0.985, bottom=0.115, top=0.76, wspace=0.22)
+        x = 0.012
+        fig.text(x, 0.965, title, fontsize=12, fontweight="bold", va="top", ha="left", color=_INK)
+        fig.text(x, 0.915, conditions, fontsize=9, va="top", ha="left", color=_INK)
+        fig.text(x, 0.870, metrics, fontsize=9, va="top", ha="left", color=_INK)
+        fig.text(x, 0.825, calibration, fontsize=9, va="top", ha="left", color=_MUTED, style="italic")
+        OUTPUT.mkdir(parents=True, exist_ok=True)
+        p = OUTPUT / filename
+        fig.savefig(p, dpi=150)
+        plt.close(fig)
+    print(f"plot saved to {p}")
+    return p
+
+
 def cyclic_family(argv, doc: str, paper: str, cases: Dict[str, Union[str, Tuple[str, str]]],
                   quantities: Sequence[Tuple[str, str, str]], plot_component: str, plot_name: str,
                   default: Optional[Sequence[str]] = None, values=None, build=None) -> int:

@@ -27,6 +27,7 @@ doi:10.1007/s10450-022-00361-z
 
 from __future__ import annotations
 
+import math
 import sys
 
 import _common as c
@@ -193,7 +194,6 @@ def build(case: str) -> sk.Simulation:
 def main(argv=None) -> int:
     args = c.parser(__doc__.splitlines()[0], list(FLOW_RATES)).parse_args(argv)
     plt = c.pyplot(args)
-    fig, axes = (plt.subplots(1, 2, figsize=(10, 4)) if plt else (None, None))
     rows = []
     for q in c.selected(args):
         sim = build(q)
@@ -207,28 +207,35 @@ def main(argv=None) -> int:
         hi = c.reference("ward_2022", f"Q{q}ccm", "breakthrough_time_CI_high")
         row = [f"{q} ccm", c.fmt(t_br), "-" if lo is None else f"[{lo:g}, {hi:g}]", "-", "-"]
         data_dir = c.DATA / "ward_2022" / f"Qin={q}"
+        data_y = data_T = None
+        t_meas = math.nan
         if data_dir.is_dir():
             t_e, y_e = c.load_csv(data_dir / f"outlet_CO2_mole_fraction[-]_Qin={q}[ccm].csv")
             tT_e, T_e = c.load_csv(data_dir / f"temperature[K]_z=0.0715[m]_Qin={q}[ccm].csv")
             row[3] = c.fmt(c.nrmse(y.time, y.values, t_e, y_e))  # feed is pure CO2: already normalised
             row[4] = c.fmt(c.nrmse(T.time, T.values, tT_e, T_e))
-            if axes is not None:
-                axes[0].plot(t_e, y_e, "o", ms=3, label=f"{q} ccm, experiment")
-                axes[1].plot(tT_e, T_e, "o", ms=3, label=f"{q} ccm, experiment")
-        if axes is not None:
-            axes[0].plot(y.time, y.values, "-", label=f"{q} ccm, Skarstrom")
-            axes[1].plot(T.time, T.values, "-", label=f"{q} ccm, Skarstrom")
+            data_y, data_T = (t_e, y_e), (tT_e, T_e)
+            t_meas = c.crossing_time(t_e, y_e, 0.5)
         rows.append(row)
+        front = f"front time (y = 0.5): simulated {c.fmt(t_br, 4)} s"
+        if not math.isnan(t_meas):
+            front += f", measured {c.fmt(t_meas, 4)} s"
+        if lo is not None:
+            front += f", paper-model 95% CI [{lo:g}, {hi:g}] s"
+        c.breakthrough_figure(
+            plt, f"ward_2022_{q}ccm.png",
+            f"Ward & Pini 2022: CO2 breakthrough on activated carbon, {q} cm3/min",
+            "pure CO2 into a helium-filled column, 1 bar, 293 K",
+            f"{front}; curve NRMSE {row[3]}; thermocouple RMSE {row[4]} K",
+            "Calibrated: the model is fitted to these same curves, so this is a fit, not a validation.",
+            outlet=[c.Trace("outlet CO2", (y.time, y.values), data_y)],
+            temperature=[c.Trace(f"z = {Z_TC} m", (T.time, T.values), data_T)],
+            ylabel_outlet="outlet CO2 mole fraction [-]",
+            ylabel_temperature=f"temperature at z = {Z_TC} m [K]")
     print()
     c.table(rows, ["case", "t_br (y=0.5) [s]", "paper model 95% CI [s]", "NRMSE y_CO2", "RMSE T [K]"])
     if not c.have_reference_data():
         print("(run from a repository checkout to compare with the digitised data)")
-    if fig is not None:
-        axes[0].set(xlabel="time [s]", ylabel="outlet CO2 mole fraction [-]")
-        axes[1].set(xlabel="time [s]", ylabel=f"temperature at z = {Z_TC} m [K]")
-        for a in axes:
-            a.legend(fontsize=7)
-        c.save(fig, "ward_2022.png")
     return 0
 
 
