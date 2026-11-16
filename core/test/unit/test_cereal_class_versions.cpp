@@ -115,8 +115,8 @@ const std::vector<Pinned>& PinnedVersions() {
       // equations
       ADSIM_PIN(adsim::DispersionModelConstant, 1),
       ADSIM_PIN(adsim::HeatDispersionModelConstant, 1),
-      ADSIM_PIN(adsim::DispersionModelRuthven, 1),
-      ADSIM_PIN(adsim::DispersionModelTaylorAris, 1),
+      ADSIM_PIN(adsim::DispersionModelRuthven, 2),
+      ADSIM_PIN(adsim::DispersionModelTaylorAris, 2),
       ADSIM_PIN(adsim::HeatDispersionModelRuthven, 1),
       ADSIM_PIN(adsim::HeatDispersionModelYagiandKunii, 1),
       ADSIM_PIN(adsim::HeatDispersionModelChannel, 1),

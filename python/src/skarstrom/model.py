@@ -1658,6 +1658,11 @@ class Layer(_Node):
     """Constant axial dispersion coefficient [m2/s]."""
     molecular_diffusion_coefficient = Real()
     """Molecular diffusivity used by the dispersion correlation [m2/s]."""
+    component_diffusivity = Choice()
+    """Molecular diffusivity a "ruthven" or "taylor_aris" dispersion correlation is built on: "shared"
+    (default; molecular_diffusion_coefficient for every component) or "mixture_averaged" (each component's
+    own Chapman-Enskog / Blanc's-law D_m,i, so each component has its own D_ax,i; the component balance then
+    keeps the dispersive fluxes summing to zero). See docs/transport-correlations.md. New in 0.15."""
     heat_dispersion_coefficient = Real()
     """Constant effective axial thermal conductivity lambda of the energy balance [W/(m-K)]."""
     internal_htc = Real()
@@ -1730,8 +1735,9 @@ class Layer(_Node):
         return layer
 
     def set_dispersion(self, kind: str, **values: Value) -> "Layer":
-        """Axial dispersion: ``"constant"`` (dispersion_coefficient) or ``"ruthven"``
-        (molecular_diffusion_coefficient)."""
+        """Axial dispersion: ``"constant"`` (dispersion_coefficient), ``"ruthven"`` (packed beds) or
+        ``"taylor_aris"`` (monoliths and laminates), the last two with molecular_diffusion_coefficient
+        and component_diffusivity (``"shared"`` or ``"mixture_averaged"``)."""
         return self._set_model("set_dispersion", kind, values)
 
     def set_heat_dispersion(self, kind: str, **values: Value) -> "Layer":

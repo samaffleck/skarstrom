@@ -45,6 +45,25 @@ $$
 
 with $\phi$ the open frontal area and $D_h$ the hydraulic diameter. $\kappa = 192$ for a circular tube, which is Taylor's $a^2 U^2/(48 D)$ on the radius $a = D_h/2$. Square channels also use 192; that is an approximation, since the exact square-duct coefficient differs by a few per cent. $\kappa = 840$ for parallel plates, which is Aris's $W^2 U^2/(210 D)$ on the gap $W$ with $D_h = 2W$. Input: **Molecular diffusivity** $D_m$ [m² s⁻¹]. The deck checks refuse this model on a packed layer, and refuse Ruthven's packed-bed model on a structured layer. Switching a layer to a structured kind (`build::SetLayerKind`) installs it. In a cell that is not a channel, or with $D_m \le 0$, the model gives $D_{ax} = D_m$.
 
+### Diffusivity of each component
+
+!!! note "New in 0.15"
+    The `component_diffusivity` choice.
+
+The Ruthven and Taylor–Aris models take one molecular diffusivity $D_m$ for every component by default (`component_diffusivity` = `shared`). With `component_diffusivity` = `mixture_averaged`, each component $i$ uses its own mixture-averaged diffusivity $D_{m,i}$ in the same formula, so each component has its own $D_{ax,i}$:
+
+$$
+D_{m,i} = \frac{1 - y_i}{\sum_{j \ne i} y_j / D_{ij}}
+$$
+
+This is Blanc's law, with the binary diffusivities $D_{ij}$ from Chapman–Enskog theory and the Lennard-Jones parameters of each component. It is the same $D_{m,i}$ that the macropore resistance of the [kinetic models](kinetic-models.md) uses. In a binary mixture $D_{m,1} = D_{m,2} = D_{12}$, so the two components still share one coefficient. The choice matters in mixtures of three or more components, and most where the molecular term is not small against the mechanical term (low velocity, small particles, the channels of a structured layer). In Ruthven's model the mechanical term $0.5\,d_p |u|/\epsilon_b$ is the same for every component.
+
+With coefficients that differ, the component balance takes a corrected dispersive flux, so the total moles stay conserved ([Mass Balance](mass-balance.md#dispersion-with-a-coefficient-per-component)). The **Molecular diffusivity** input of the model is not used in this mode. The logged **Axial Dispersion Coefficient** is then the mole-fraction-weighted mean $\sum_i y_i D_{ax,i}$. The Constant model always has one coefficient for every component.
+
+| Registry path | Choices |
+|---|---|
+| `layer[ID].component_diffusivity` | `shared` (default), `mixture_averaged` |
+
 ---
 
 ## Axial Thermal Conductivity

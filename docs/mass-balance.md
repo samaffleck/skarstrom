@@ -50,7 +50,7 @@ Multiplied by $C$, it is $\epsilon_t\,\partial (C y_i)/\partial t + \partial(u C
 | $\epsilon_t$  | Total void fraction                       | -          |
 | $\epsilon_b$  | Bed void fraction (the open frontal area of a structured layer) | -          |
 | $u$           | Superficial velocity                     | m s⁻¹          |
-| $D_{ax}$      | Axial dispersion coefficient (one value for all components) | m² s⁻¹          |
+| $D_{ax}$      | Axial dispersion coefficient (one value for all components; see [below](#dispersion-with-a-coefficient-per-component) for one per component) | m² s⁻¹          |
 | $\rho_{b,k}$  | Bulk density of adsorbent $k$            | kg m⁻³ |
 | $q_{i,k}$     | Loading of component $i$ on adsorbent $k$ | mol kg⁻¹    |
 | $S_i$         | Reaction source of component $i$         | mol m⁻³ s⁻¹ |
@@ -61,6 +61,24 @@ Multiplied by $C$, it is $\epsilon_t\,\partial (C y_i)/\partial t + \partial(u C
 The solver carries a component balance for **every** component, in addition to the overall balance. It does not impose $\sum_i y_i = 1$: the sum follows from the balances, to within the solver tolerance (see [Numerics](numerics.md#advection-schemes)).
 
 **Void regions.** A [void region](getting-started.md) is one well-mixed cell with $\epsilon_t = \epsilon_b = 1$, no adsorbent and no reactions. Its dispersion coefficient is zero, so no dispersive flux crosses the faces of a void cell: gas moves between a void and the bed by convection only.
+
+### Dispersion with a coefficient per component
+
+!!! note "New in 0.15"
+    Per-component dispersion (`component_diffusivity` = `mixture_averaged`).
+
+With one $D_{ax}$ for all components, the dispersive fluxes $J_i = -\epsilon_b D_{ax} C\,\partial y_i/\partial z$ sum to zero, because $\sum_i y_i = 1$. That is why the overall mass balance has no dispersion term: a dispersive flux moves components relative to the molar-average velocity $u$ and carries no net moles. The molecular diffusivity is different for each component, so the Ruthven and Taylor–Aris models can give each component its own $D_{ax,i}$ ([Transport Correlations](transport-correlations.md#diffusivity-of-each-component)). Fickian fluxes with different coefficients do not sum to zero. The component balance therefore takes the self-consistent effective binary flux of Ramshaw (1990), written for the molar-average velocity:
+
+$$
+J_i = -\epsilon_b C\left(D_{ax,i}\frac{\partial y_i}{\partial z} - y_i\sum_{j=1}^{N} D_{ax,j}\frac{\partial y_j}{\partial z}\right), \qquad \sum_{i=1}^{N} J_i = 0
+$$
+
+The sum runs over all $N$ components, $i$ included. The second term subtracts from every component its share $y_i$ of the net drift $\sum_j J_j^0$ of the uncorrected fluxes. It adds the same velocity to every component, so it treats the components alike and keeps their velocities relative to each other, which are all that the multicomponent (Maxwell–Stefan) diffusion equations determine. The overall balance, the momentum balance and the meaning of $u$ stay as above. With equal coefficients the correction vanishes, and $J_i$ is the flux of the one-coefficient model. [Numerics](numerics.md#spatial-discretisation-cell-centred-finite-volumes) gives the discrete form, which sums to zero to round-off through every face.
+
+Ramshaw derives the correction relative to the mass-average velocity (his eq. 16, with weights $\rho_i/\rho$). The momentum balance here gives the molar-average velocity, so the weights are the mole fractions. The two frames differ by a net molar flux of order $1/Pe$ against the convective flux, below 1 % at the Péclet numbers of adsorption columns. The same correction is used in combustion codes as the "correction velocity" of mixture-averaged transport (Coffee and Heimerl 1981).
+
+- J. D. Ramshaw, "Self-consistent effective binary diffusion in multicomponent gas mixtures", J. Non-Equilib. Thermodyn. 15 (1990) 295–300, doi:10.1515/jnet.1990.15.3.295.
+- T. P. Coffee and J. M. Heimerl, "Transport algorithms for premixed, laminar steady-state flames", Combust. Flame 43 (1981) 273–289, doi:10.1016/0010-2180(81)90027-4.
 
 ### Inlet and outlet conditions
 

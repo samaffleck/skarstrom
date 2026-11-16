@@ -1031,6 +1031,17 @@ namespace adsim {
                       la + ".", "layer", ln);
       };
       models(ModelFamily::Dispersion, eqs.dispersion_model_.get());
+      // Which molecular diffusivity a correlation is built on: one shared
+      // value (molecular_diffusion_coefficient) or each component's
+      // mixture-averaged D_m,i, which gives each component its own D_ax,i.
+      {
+        ComponentDiffusivity* cd = nullptr;
+        if (auto* r = dynamic_cast<DispersionModelRuthven*>(eqs.dispersion_model_.get())) cd = &r->component_diffusivity_;
+        if (auto* t = dynamic_cast<DispersionModelTaylorAris*>(eqs.dispersion_model_.get())) cd = &t->component_diffusivity_;
+        if (cd)
+          EmplaceEnum(lp + ".component_diffusivity", la + ".component_diffusivity", "layer", ln,
+                      "molecular diffusivity of each component (dispersion)", *cd, "shared,mixture_averaged");
+      }
       models(ModelFamily::HeatDispersion, eqs.heat_dispersion_model_.get());
       models(ModelFamily::InternalHeatTransfer, eqs.internal_heat_transfer_model_.get());
       models(ModelFamily::ExternalHeatTransfer, eqs.external_heat_transfer_model_.get());

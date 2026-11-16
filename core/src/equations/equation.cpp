@@ -55,6 +55,14 @@ namespace adsim {
     }
 
     // True when some solid of some layer has a reaction.
+    bool BedHasPerComponentDispersion(const Bed& bed) {
+      for (const auto& layer : bed.layers_.layers_) {
+        const auto& m = layer.equations_.dispersion_model_;
+        if (m && m->PerComponent()) return true;
+      }
+      return false;
+    }
+
     bool BedHasReactions(const Bed& bed, const AdsorbentDirectory& dir) {
       for (const auto& layer : bed.layers_.layers_)
         for (const auto& [ads_id, fraction] : layer.composition_)
@@ -375,6 +383,27 @@ namespace adsim {
     independent_equations_.emplace_back(&pressure_gradient);
     independent_equations_.emplace_back(&axial_dispersion_coefficient);
 
+    // Per-component dispersion: D_ax,i after the shared coefficient (a layer
+    // with one coefficient copies it), then the face drift sums, which read
+    // every D_ax,i and every mole fraction.
+    component_axial_dispersion.clear();
+    per_component_dispersion_ = BedHasPerComponentDispersion(bed);
+    if (per_component_dispersion_) {
+      for (const auto& component : fluid.components_) {
+        auto [it, inserted] = component_axial_dispersion.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(component),
+          std::forward_as_tuple(
+            component + " Axial Dispersion Coefficient",
+            CellType::CellCentre,
+            [component](UserData* udata) { UpdateComponentAxialDispersion(udata, component); }
+          )
+        );
+        independent_equations_.emplace_back(&it->second);
+      }
+      independent_equations_.emplace_back(&dispersion_drift);
+    }
+
     mass_transfer_coefficient.clear();
     for (AdsorbentID ads_id : adsorbent_ids_) {
       auto& comp_map = mass_transfer_coefficient[ads_id];
@@ -600,6 +629,7 @@ namespace adsim {
     }
     if (solid_temperature_aliased_) solid_temperature.Resize(n_cells);
     if (derived_concentration_) concentration.Resize(n_cells);
+    if (per_component_dispersion_) dispersion_face_mole_sum.assign(n_cells > 0 ? n_cells - 1 : 0, 1.0);
 
     for (const auto& eq : independent_equations_) {
       eq->Resize(n_cells);
