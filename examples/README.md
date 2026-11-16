@@ -22,6 +22,15 @@ python examples/ward_2022.py --case 100 # about a second
 python examples/perez_2019.py --case D1 # one VSA configuration to cyclic steady state
 ```
 
+The breakthrough scripts (`ward_2022.py`, `streb_2021.py`, `nguyen_2022.py`) save one
+figure per case through one helper, `_common.breakthrough_figure`: outlet composition
+on the left, thermocouple temperature(s) on the right, measured points as markers,
+Skarstrom as lines and, for Nguyen 2022, the paper's own model as dashed lines. The
+header gives the conditions, the front-time, curve (NRMSE) and thermocouple (RMSE)
+metrics of the table, and says which results are calibrated (Ward: fitted to the same
+curves; Streb: calibrated on A3; Nguyen: nothing fitted). The series palette is
+defined once in `_common.py`.
+
 Options common to every script (`optimise_nsga2.py` and `perez_2019_case_study_optimise.py` have `--pop`, `--gen` and
 `--workers` instead of `--case`; they need `pip install pymoo`): `--case NAME` (repeatable) to run a subset,
 `--cycles N` to override the number of cycles for a quick look, `--no-plot`,

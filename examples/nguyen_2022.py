@@ -194,30 +194,40 @@ def main(argv=None) -> int:
         c.run(sim, f"Nguyen 2022 {name}", args.quiet)
         y = sim.series("mole_fraction", "CarbonDioxide", location="top", cycle=0)
         T = sim.series("temperature", z=THERMOCOUPLE_Z, cycle=0)
-        row = [name, c.fmt(c.crossing_time(y.time, y.values, 0.5 * y_feed)), "-", "-", "-"]
+        t_sim = c.crossing_time(y.time, y.values, 0.5 * y_feed)
+        row = [name, c.fmt(t_sim), "-", "-", "-"]
         d = c.DATA / "nguyen_2022" / k["fig"]
-        fig, axes = (plt.subplots(1, 2, figsize=(10, 4)) if plt else (None, None))
+        m = c.DATA / "nguyen_2022" / "paper_model" / k["fig"]
         f_y, f_T = d / f"Y_CO2_{k['percent']}%.csv", d / f"T_CO2_{k['percent']}%.csv"
+        g_y, g_T = m / f_y.name, m / f_T.name
+        data_y = data_T = model_y = model_T = None
         if f_y.is_file():
             t_e, y_e = c.load_csv(f_y)
             row[2] = c.fmt(c.crossing_time(t_e, y_e, 0.5 * y_feed))
             row[3] = c.fmt(c.nrmse(y.time, y.values, t_e, y_e, y_feed))
-            if axes is not None:
-                axes[0].plot(t_e, y_e, "o", ms=3, label="CO2 measured")
+            data_y = (t_e, y_e)
         if f_T.is_file():
             tT_e, T_e = c.load_csv(f_T)
             row[4] = c.fmt(math.sqrt(float(np.mean((np.interp(tT_e, T.time, T.values) - T_e) ** 2))))
-            if axes is not None:
-                axes[1].plot(tT_e, T_e, "o", ms=3, label="measured")
+            data_T = (tT_e, T_e)
+        if g_y.is_file():
+            model_y = c.load_csv(g_y)
+        if g_T.is_file():
+            model_T = c.load_csv(g_T)
         rows.append(row)
-        if fig is not None:
-            axes[0].plot(y.time, y.values, "-", label="CO2 Skarstrom")
-            axes[1].plot(T.time, T.values, "-", label="Skarstrom")
-            axes[0].set(xlabel="time [s]", ylabel="outlet CO2 mole fraction [-]", title=f"Nguyen 2022 {name}")
-            axes[1].set(xlabel="time [s]", ylabel="temperature 1.82 cm from the outlet [K]")
-            for a in axes:
-                a.legend(fontsize=7)
-            c.save(fig, f"nguyen_2022_{name}.png")
+        carrier = "helium" if k["fig"] == "Fig4" else "nitrogen"
+        c.breakthrough_figure(
+            plt, f"nguyen_2022_{name}.png",
+            f"Nguyen et al. 2022: {k['percent']} % CO2 in {carrier} on CALF-20 ({k['fig'].replace('Fig', 'Fig. ')})",
+            f"{k['flow']:g} cm3/min, {k['temperature']:g} C, {k['pressure']:g} bar, column initially full of helium",
+            f"front time (y = {0.5 * y_feed:.3g}): simulated {row[1]} s, measured {row[2]} s; "
+            f"curve NRMSE {row[3]}; thermocouple RMSE {row[4]} K",
+            "Nothing is fitted: all parameters come from the paper and its thesis; the measurements are not used to tune the model.",
+            outlet=[c.Trace("outlet CO2", (y.time, y.values), data_y, model_y)],
+            temperature=[c.Trace(f"{THERMOCOUPLE_Z * 100:.2f} cm from the outlet", (T.time, T.values), data_T, model_T)],
+            ylabel_outlet="outlet CO2 mole fraction [-]",
+            ylabel_temperature="temperature 1.82 cm from the outlet [K]",
+            model_label="paper's model")
     print()
     c.table(rows, ["case", "t50 simulated [s]", "t50 measured [s]", "NRMSE y_CO2", "RMSE T [K]"])
     return 0
