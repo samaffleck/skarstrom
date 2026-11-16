@@ -19,7 +19,7 @@
             "DisplayUnitIndex": 0
         },
         "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
                 {
@@ -140,7 +140,8 @@
                     "value": 6
                 }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
         },
         "Particle_Void_Fraction": {
             "Value": 0.35,

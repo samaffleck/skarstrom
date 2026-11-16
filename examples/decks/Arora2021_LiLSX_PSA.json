@@ -26,7 +26,7 @@
                             "DisplayUnitIndex": 0
                         },
                         "Adsorption_Source": {
-                            "cereal_class_version": 1,
+                            "cereal_class_version": 2,
                             "Mass_Transfer_Models": [
                                 {
                                     "key": "Nitrogen",
@@ -333,7 +333,17 @@
                                     "value": 1
                                 }
                             ],
-                            "Mixing_Rule": 0
+                            "Mixing_Rule": 0,
+                            "Heat_Of_Adsorption_Mode": [
+                                {
+                                    "key": "Nitrogen",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Oxygen",
+                                    "value": 0
+                                }
+                            ]
                         },
                         "Particle_Void_Fraction": {
                             "Value": 0.33,
@@ -665,7 +675,17 @@
                                     "value": 1
                                 }
                             ],
-                            "Mixing_Rule": 0
+                            "Mixing_Rule": 0,
+                            "Heat_Of_Adsorption_Mode": [
+                                {
+                                    "key": "Nitrogen",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Oxygen",
+                                    "value": 0
+                                }
+                            ]
                         },
                         "Particle_Void_Fraction": {
                             "Value": 0.33,
@@ -996,7 +1016,17 @@
                                     "value": 1
                                 }
                             ],
-                            "Mixing_Rule": 0
+                            "Mixing_Rule": 0,
+                            "Heat_Of_Adsorption_Mode": [
+                                {
+                                    "key": "Nitrogen",
+                                    "value": 0
+                                },
+                                {
+                                    "key": "Oxygen",
+                                    "value": 0
+                                }
+                            ]
                         },
                         "Particle_Void_Fraction": {
                             "Value": 0.65,

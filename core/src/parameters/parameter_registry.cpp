@@ -1145,6 +1145,14 @@ namespace adsim {
         E("heat_of_adsorption[" + component + "]", "adsorbent", an, component + " heat of adsorption",
           "J/mol", dH, 0.0, 1e6);
       }
+      // Where the energy balance takes each heat from: the value above
+      // (constant) or the isosteric heat of the component's isotherm at the
+      // local state (isotherm; HeatOfAdsorptionMode in porous_media.h).
+      for (auto& [component, mode] : source.heat_of_adsorption_mode_) {
+        EmplaceEnum(ap + ".heat_of_adsorption_mode[" + component + "]",
+                    aa + ".heat_of_adsorption_mode[" + component + "]", "adsorbent", an,
+                    component + " heat of adsorption mode", mode, "constant,isotherm");
+      }
 
       for (auto& [component, mtm] : source.mass_transfer_models_) {
         if (!mtm || !mtm->mtc_model_) continue;

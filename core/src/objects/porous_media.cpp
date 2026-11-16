@@ -45,6 +45,7 @@ namespace adsim {
 		};
 		for (const auto& [c, type] : isotherm_map_) collect(c);
 		for (const auto& [c, hoa] : heat_of_adsorption_) collect(c);
+		for (const auto& [c, mode] : heat_of_adsorption_mode_) collect(c);
 		for (const auto& [c, mtm] : mass_transfer_models_) collect(c);
 		for (const auto& [type, isotherm] : isotherms_) {
 			if (isotherm) for (const auto& c : isotherm->GetComponents()) collect(c);
@@ -56,6 +57,7 @@ namespace adsim {
 			if (it_hoa == heat_of_adsorption_.end()) {
 				heat_of_adsorption_[component] = 0.0;
 			}
+			heat_of_adsorption_mode_.try_emplace(component, HeatOfAdsorptionMode::Constant);
 
 			auto it_mtc = mass_transfer_models_.find(component);
 			if (it_mtc == mass_transfer_models_.end()) {
@@ -82,6 +84,7 @@ namespace adsim {
 	void AdsorptionSource::RemoveComponent(const std::string& component) {
 		isotherm_map_.erase(component);
 		heat_of_adsorption_.erase(component);
+		heat_of_adsorption_mode_.erase(component);
 		mass_transfer_models_.erase(component);
 		for (auto& [type, isotherm] : isotherms_) {
 			if (isotherm) isotherm->RemoveComponent(component);
@@ -212,6 +215,34 @@ namespace adsim {
                                      iast_scratch_, iast_psi_[c]);
       iast_psi_[c] = r.converged ? r.psi : 0.0;
       for (int i = 0; i < n; ++i) (*iast_q_of_[i])[c] = iast_q_[i];
+    }
+  }
+
+  void AdsorptionSource::UpdateHeatOfAdsorption(const Equations& state, AdsorbentID ads_id, int start_index, int end_index,
+                                                std::unordered_map<std::string, std::vector<double>>& dH) const {
+    const auto& T = state.solid_temperature.var;  // the isotherm's temperature (the gas's in LTE)
+    const auto& P = state.pressure.var;
+    const std::vector<double>* q_water = nullptr;
+    if (const ComponentEquation* q_map = AdsorbedLoadings(state, ads_id)) {
+      auto w = q_map->find(kCoadsorbedWaterComponent);
+      if (w != q_map->end()) q_water = &w->second.var;
+    }
+    for (const auto& [component, mode] : heat_of_adsorption_mode_) {
+      if (mode != HeatOfAdsorptionMode::Isotherm) continue;
+      IIsotherm* iso = FindIsotherm(component);
+      auto out = dH.find(component);
+      auto y_it = state.mole_fraction.find(component);
+      if (!iso || iso->GetIsothermType() == IsothermType::INERT || out == dH.end() ||
+          y_it == state.mole_fraction.end())
+        continue;
+      auto hoa = heat_of_adsorption_.find(component);
+      const double fallback = hoa != heat_of_adsorption_.end() ? static_cast<double>(hoa->second) : 0.0;
+      const auto& y = y_it->second.var;
+      auto& out_v = out->second;
+      const int last = std::min<int>(end_index, static_cast<int>(out_v.size()) - 1);
+      for (int c = std::max(start_index, 0); c <= last; ++c) {
+        out_v[c] = IsostericHeatAtState(iso, component, T[c], P[c], y[c], q_water ? (*q_water)[c] : 0.0, fallback);
+      }
     }
   }
 

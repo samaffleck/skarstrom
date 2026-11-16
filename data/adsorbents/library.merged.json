@@ -2094,7 +2094,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [
               {
                 "key": "Nitrogen",
@@ -2401,7 +2401,8 @@
                 "value": 1
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.65,
@@ -3369,7 +3370,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -3488,7 +3489,8 @@
                 "value": 1
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.33,
@@ -3620,7 +3622,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [
               {
                 "key": "Nitrogen",
@@ -3927,7 +3929,8 @@
                 "value": 1
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.33,
@@ -4497,7 +4500,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -4618,7 +4621,8 @@
                 "value": 6
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,
@@ -5831,7 +5835,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -5920,7 +5924,8 @@
                 "value": 6
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,
@@ -6480,7 +6485,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -6601,7 +6606,8 @@
                 "value": 6
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,
@@ -7892,7 +7898,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [],
             "Isotherms": [
@@ -7994,7 +8000,8 @@
                 "value": 9
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,
@@ -9270,7 +9277,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -9391,7 +9398,8 @@
                 "value": 12
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,
@@ -9523,7 +9531,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -9642,7 +9650,8 @@
                 "value": 9
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,
@@ -9774,7 +9783,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -9893,7 +9902,8 @@
                 "value": 7
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.383,
@@ -11189,7 +11199,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -11402,7 +11412,8 @@
                 "value": 25
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,
@@ -12785,7 +12796,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -12874,7 +12885,8 @@
                 "value": 6
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,
@@ -14218,7 +14230,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -14331,7 +14343,8 @@
                 "value": 0
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.36,
@@ -15127,7 +15140,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -15357,7 +15370,8 @@
                 "value": 22
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.338,
@@ -17119,7 +17133,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -17314,7 +17328,8 @@
                 "value": 22
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.422,
@@ -17924,7 +17939,7 @@
             "DisplayUnitIndex": 0
           },
           "Adsorption_Source": {
-            "cereal_class_version": 1,
+            "cereal_class_version": 2,
             "Mass_Transfer_Models": [],
             "Heat_Of_Adsorption": [
               {
@@ -18100,7 +18115,8 @@
                 "value": 21
               }
             ],
-            "Mixing_Rule": 0
+            "Mixing_Rule": 0,
+            "Heat_Of_Adsorption_Mode": []
           },
           "Particle_Void_Fraction": {
             "Value": 0.35,

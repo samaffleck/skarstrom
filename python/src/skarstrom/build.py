@@ -649,6 +649,13 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
             heats = {}
         for c, path in heats.items():
             w(f"{v}.heat_of_adsorption[{c!r}] = {_literal(sim, path)}")
+        try:
+            modes = node._tree_or_raise().maps.get("heat_of_adsorption_mode", {})
+        except AttributeError:
+            modes = {}
+        for c, path in modes.items():
+            if sim.get(path) != 0:  # only a heat taken from the isotherm; constant is the default
+                w(f"{v}.heat_of_adsorption_mode[{c!r}] = {_literal(sim, path)}")
 
     w("")
     w("# ---- column ----------------------------------------------------------------------")

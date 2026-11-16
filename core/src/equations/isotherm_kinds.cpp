@@ -8,6 +8,7 @@
 #include "adsim/math/constants.h"
 #include "adsim/objects/model_kinds.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -385,6 +386,13 @@ double IsostericHeat(IIsotherm* iso, const std::string& c, double T, double P, d
   const double dq_dlnp = (EvalIsotherm(iso, c, T, p * std::exp(hl), 1.0, qw) -
                           EvalIsotherm(iso, c, T, p * std::exp(-hl), 1.0, qw)) / (2.0 * hl);
   return -constants::kIdealGasConstant * T * T * dq_dT / dq_dlnp;
+}
+
+double IsostericHeatAtState(IIsotherm* iso, const std::string& c, double T, double P, double yi,
+                            double q_water, double fallback) {
+  const double p = std::max(P * yi, kIsostericHeatPressureFloor);
+  const double q_st = IsostericHeat(iso, c, T, p, 1.0, q_water);
+  return std::isfinite(q_st) ? q_st : fallback;
 }
 
 }  // namespace adsim

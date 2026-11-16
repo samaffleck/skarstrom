@@ -57,6 +57,7 @@ This complements the existing coverage rather than duplicating it:
 | `test_analytic_transport.cpp` | Residence time, pressure drop, breakthrough time, valve blowdown |
 | `test_analytic_dispersion.cpp` | Physical axial dispersion: inert outlet curve against Ogata-Banks |
 | `test_retarded_dispersion.cpp` | Linear-isotherm advection-dispersion: front retarded by R, width by R^2 |
+| `test_isotherm_heat_of_adsorption.cpp` | The heat of adsorption from the isotherm: Langmuir limit, dual-site bounds, adiabatic breakthrough against the constant mode |
 | `test_dispersion_mass_balance.cpp` | Component balance with dispersion and Danckwerts inlets, per step and at CSS |
 | `test_advection_schemes.cpp` | Upwind order on a smooth solution, WENO / van Leer less diffusive, conservation, sum y = 1 |
 | `test_equilibrium_shock.cpp` | Langmuir shock front speed against the equilibrium-theory secant balance |
@@ -192,6 +193,23 @@ reach for. No solver run, so they are near-free.
   adsorption, and it lands straight in the energy balance if the heat of
   adsorption field is filled in with the fitted `q1`.
 - Low-pressure Henry limits and monotonicity/saturation bounds.
+
+### `test_isotherm_heat_of_adsorption.cpp`
+
+The [heat of adsorption mode](energy-balance.md#heat-of-adsorption-from-the-isotherm) `isotherm`
+takes this `q_st` in each cell instead of the stored constant (`IsothermHeatOfAdsorption.*`):
+
+- `IsostericHeatAtState`: Langmuir gives its energy at every pressure and
+  temperature, also at `y = 0` and at a slightly negative `y` (the dilute
+  floor); a dual-site Langmuir stays between its site energies and falls with
+  loading; an inert isotherm gives the fallback.
+- Adiabatic breakthrough on a Henry isotherm `k exp(Q/RT)`: the isotherm mode
+  with a wrong stored constant gives the peak temperature rise of the constant
+  mode with `Q` (within 0.1 %), and every bed cell carries `Q`.
+- Dual-site Langmuir in the same column: the per-cell heats lie between the
+  site energies and are lower at the loaded inlet than at the clean outlet; the
+  peak rise is below that of the strong-site energy as a constant.
+- The mode is a registry parameter and survives a save and a load.
 
 ### `test_compressor_work.cpp`
 

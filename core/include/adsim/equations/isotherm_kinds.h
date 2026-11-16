@@ -133,10 +133,27 @@ double EvalIsotherm(IIsotherm* iso, const std::string& component, double T, doub
 // both partials by central differences of EvalIsotherm. For Langmuir with
 // b = b0 exp(Q / (R T)) this is Q at every loading; for the GAB kinds it varies
 // with loading and includes the heat of condensation through p_sat(T). The
-// energy balance does not call this: it takes the adsorbent's constant
-// heat_of_adsorption[component]; this gives the value to put there (or checks
-// one). NaN when P yi <= 0. q_water as for EvalIsotherm (held fixed).
+// energy balance uses it (through IsostericHeatAtState) for a component whose
+// heat-of-adsorption mode is Isotherm; for the default Constant mode it takes
+// the adsorbent's heat_of_adsorption[component], and this gives the value to
+// put there (or checks one). NaN when P yi <= 0. q_water as for EvalIsotherm
+// (held fixed).
 double IsostericHeat(IIsotherm* iso, const std::string& component, double T, double P, double yi,
                      double q_water = 0.0);
+
+// The partial pressure [Pa] below which IsostericHeatAtState evaluates the
+// isosteric heat at this value instead: the dilute (Henry-limit) heat, so a
+// component that is absent from a cell (y_i = 0, or a slightly negative y_i
+// within the solver's tolerance) has a finite heat, not NaN.
+inline constexpr double kIsostericHeatPressureFloor = 1e-3;
+
+// The heat of adsorption that the energy balance uses for a component whose
+// heat-of-adsorption mode is Isotherm (porous_media.h): IsostericHeat at the
+// partial pressure max(P yi, kIsostericHeatPressureFloor) and temperature T,
+// with the adsorbed water loading q_water held fixed. Returns `fallback` (the
+// stored constant) where the derivative is not finite, for example where the
+// isotherm's slope in ln p is 0.
+double IsostericHeatAtState(IIsotherm* iso, const std::string& component, double T, double P, double yi,
+                            double q_water, double fallback);
 
 }  // namespace adsim

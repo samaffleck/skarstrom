@@ -48,7 +48,7 @@ $$
 | $Q_r$           | [Heat of reaction](#heat-of-reaction) released per unit bed volume | W m⁻³ |
 | $a_x h_x$, $T_m$ | Internal heat exchanger conductance per bed volume and medium temperature ([Wall Energy Balance](wall-energy-balance.md#internal-heat-exchanger)); 0 outside a step with an exchanger and in a void region | W m⁻³ K⁻¹, K |
 
-The sums run over the solids $k$ of the layer ([Mixed Layers](mixed-layers.md)); a layer of one solid has one term, with $\rho_{b,k} = \rho_b$. The adsorption term is the heat released by adsorption: $\Delta H_{k,i}^{\mathrm{eff}}$ follows from the per-component heat of adsorption stored per adsorbent (parameter `adsorbent[<id>].heat_of_adsorption[<component>]`, entered as a **positive** number for exothermic adsorption) according to the [heat of adsorption convention](#heat-of-adsorption-convention); with the default isosteric convention it is the stored value itself. So a loading bed ($\partial q_{k,i}/\partial t > 0$) heats up and a desorbing bed cools. $q_{k,i}$ is the total loading of the solid, including the slow site of a dual-rate model. The convective term uses the face temperature reconstructed with the selected advection scheme, as the mole fractions are. Conduction is one flux per face, the two half cells in series over the distance between the cell centres, so heat is conserved where the cell width or $\lambda$ changes at a layer interface ([Numerics](numerics.md#spatial-discretisation-cell-centred-finite-volumes)). No heat is conducted through the two bed ends, nor through the gas across a face between the bed and a void region, where $\lambda = 0$. [Matching Another Model](model-conventions.md#heat-of-adsorption-sign) has a worked sign example. The wall-coupling term $\tfrac{4 h_i}{d_i}(T - T_w)$ links this equation to the [wall energy balance](wall-energy-balance.md).
+The sums run over the solids $k$ of the layer ([Mixed Layers](mixed-layers.md)); a layer of one solid has one term, with $\rho_{b,k} = \rho_b$. The adsorption term is the heat released by adsorption: $\Delta H_{k,i}^{\mathrm{eff}}$ follows from the per-component heat of adsorption stored per adsorbent (parameter `adsorbent[<id>].heat_of_adsorption[<component>]`, entered as a **positive** number for exothermic adsorption) according to the [heat of adsorption convention](#heat-of-adsorption-convention); with the default isosteric convention it is the stored value itself. A component can instead take the isosteric heat of its isotherm at the cell's state ([Heat of adsorption from the isotherm](#heat-of-adsorption-from-the-isotherm)). So a loading bed ($\partial q_{k,i}/\partial t > 0$) heats up and a desorbing bed cools. $q_{k,i}$ is the total loading of the solid, including the slow site of a dual-rate model. The convective term uses the face temperature reconstructed with the selected advection scheme, as the mole fractions are. Conduction is one flux per face, the two half cells in series over the distance between the cell centres, so heat is conserved where the cell width or $\lambda$ changes at a layer interface ([Numerics](numerics.md#spatial-discretisation-cell-centred-finite-volumes)). No heat is conducted through the two bed ends, nor through the gas across a face between the bed and a void region, where $\lambda = 0$. [Matching Another Model](model-conventions.md#heat-of-adsorption-sign) has a worked sign example. The wall-coupling term $\tfrac{4 h_i}{d_i}(T - T_w)$ links this equation to the [wall energy balance](wall-energy-balance.md).
 
 The effective axial thermal conductivity $\lambda$ and the internal coefficient $h_i$ are either constants or computed from the [transport correlations](transport-correlations.md).
 
@@ -126,6 +126,48 @@ The stored value is positive for exothermic adsorption; [Matching Another Model]
 | `isosteric_rt` | $-\Delta U_i$, the internal energy of adsorption | $\Delta H_i + R\thinspace T$ | Yancy-Caballero 2020 (PEESEgroup PSA) |
 
 $T$ is the temperature of the adsorbed phase: the bed temperature in LTE, the solid temperature in LTNE. With `isosteric_rt`, the isosteric heat follows the ideal-gas relation $q_{st} = -\Delta U + RT$ at the local temperature, where a constant `isosteric` value fixes it at one temperature. For CO₂ on 13X at 313–363 K the two differ by $R\thinspace\Delta T \approx 0.4$ kJ/mol, about 1 %.
+
+## Heat of adsorption from the isotherm
+
+!!! note "New in 0.14"
+    The parameter `adsorbent[<id>].heat_of_adsorption_mode[<component>]` (`constant`, `isotherm`).
+
+Each component of each adsorbent has a **heat of adsorption mode**:
+
+- **Constant** (the default, and the mode of every deck from an earlier version): the stored value `heat_of_adsorption[<component>]`, read according to the [convention](#heat-of-adsorption-convention) above.
+- **Isotherm**: the isosteric heat that the component's isotherm implies, evaluated in each cell at each residual evaluation:
+
+$$
+\Delta H_{k,i}^{\mathrm{eff}} = q_{st,k,i} = R\thinspace T^2 \left(\frac{\partial \ln p_i}{\partial T}\right)_{q} = -R\thinspace T^2\thinspace \frac{(\partial q_i^\circ/\partial T)_{p_i}}{(\partial q_i^\circ/\partial \ln p_i)_T}
+$$
+
+| Symbol | Description | Unit |
+|---|---|---|
+| $q_i^\circ(p_i, T)$ | The component's isotherm on solid $k$, taken as a pure-component isotherm | mol kg⁻¹ |
+| $p_i$ | Partial pressure $y_i P$ of the cell, floored at $10^{-3}$ Pa | Pa |
+| $T$ | Temperature of the adsorbed phase: $T$ in LTE, $T_s$ in LTNE (the isotherm's temperature) | K |
+
+The engine takes the two partial derivatives by central differences of the isotherm (relative steps $10^{-4}$), with the C++ function `adsim::IsostericHeat` (`adsim/equations/isotherm_kinds.h`). How the value behaves:
+
+- **Langmuir family.** For an isotherm whose affinity is $b = b_0\thinspace e^{Q/RT}$ (single-site Langmuir, Henry with $k\thinspace e^{Q/RT}$), $q_{st} = Q$ at every loading. The isotherm mode then gives the constant mode with the stored value $Q$, to the finite-difference error.
+- **Loading-dependent heats.** For a dual-site Langmuir, $q_{st}$ lies between the two site energies and falls as the strong site fills. For the [GAB kinds](isotherms.md#gab-and-bet-water-and-other-vapours) it includes the heat of condensation through $p_{sat}(T)$. In a breakthrough, the loaded part of the bed therefore releases less heat per mole than the clean part.
+- **Mixtures.** The value is that of the pure-component isotherm at the component's partial pressure. For a competitive (extended) kind, and under the [IAST mixing rule](isotherms.md#mixture-loadings-the-mixing-rule-and-iast), this is an approximation of the mixture's isosteric heat at constant loadings. For the extended single-site Langmuir kinds with equal saturation capacities the two agree: both are the site energy $Q_i$.
+- **Water-coupled kinds.** The kinds that read the adsorbed water loading take the cell's actual water loading on the same adsorbent, held fixed in the derivatives.
+- **Dilute limit.** Below a partial pressure of $10^{-3}$ Pa (an absent component, or a slightly negative $y_i$ within the solver tolerance) the engine uses the value at $10^{-3}$ Pa, the Henry-limit heat.
+- **Fallback.** Where the derivative is not finite, for example where the isotherm has no slope in $\ln p$, the stored constant applies in that cell.
+- **Convention.** The isosteric heat is the heat released per mole adsorbed, so it enters as it is under every convention. The convention applies only to constant values. At run start, the solver warns when a component uses the isotherm and the convention is not `isosteric`.
+- **No temperature dependence.** An isotherm that does not depend on temperature (for example Henry with $Q = 0$, or a Freundlich fit at one temperature) gives $q_{st} = 0$, so adsorption releases no heat. The solver warns at run start. Use the constant mode for such a component.
+- **Isothermal runs** have no energy balance, and the mode has no effect.
+
+The heat changes with the local state, so it also enters the Jacobian through the temperature, the pressure and the mole fractions of the cell. The [verification tests](verification.md) `IsothermHeatOfAdsorption.*` check the Langmuir limit, the dual-site bounds and an adiabatic breakthrough against the constant mode.
+
+```python
+import skarstrom
+sim = skarstrom.examples.Perez2019_A.load()
+ads = sim.adsorbents["13X"]
+ads.heat_of_adsorption_mode["CarbonDioxide"] = "isotherm"   # q_st from the isotherm in each cell
+print(ads.heat_of_adsorption_mode["CarbonDioxide"], ads.heat_of_adsorption["CarbonDioxide"])
+```
 
 ## Adsorbed-phase heat capacity
 
