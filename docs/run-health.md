@@ -94,12 +94,63 @@ a bed that holds none yet), the initial gas composition. Try: start the bed with
 `initial.y`, or at the gas-phase equilibrium of the feed; add a trace to the feed; check the orders and the
 units of the rate constants. See [Reactions: start-up of fast reactions](reactions.md#start-up-of-fast-reactions).
 
+### `SUPERSATURATION`
+
+!!! note "New in 0.15"
+    The `SUPERSATURATION` check, its switch `settings.warn_supersaturation`, the start-of-run warnings for
+    supersaturated inlets and initial gas, and the `supersaturation_gas` and `supersaturation_wall` measures of
+    `sim.run_health().cycles` are not in 0.14.
+
+A component's partial pressure passed its saturation pressure. The engine does not model condensation: no
+liquid forms, the gas keeps the supersaturated mole fraction, no heat of condensation is released, and the
+GAB, GAB–Young and cubic-Langmuir kinds continue smoothly past saturation (see [Isotherms](isotherms.md)). A run
+that crosses saturation is outside the model's range, and its results after that point are not physical.
+
+The measure is the relative saturation
+
+$$S = \frac{y_i P}{p_{sat,i}(T)}$$
+
+the largest over the cycle's logged times, the column's cells (packed and void cells) and the components that
+can condense: those with a saturation curve in the engine's component table (the vapour-pressure ancillary,
+`adsim::SaturationPressure`) and below their critical temperature at $T$. Above $T_c$ nothing condenses, so
+nitrogen, hydrogen, methane and helium at ambient temperature never count; carbon dioxide counts below
+304.1 K. The check takes $S$ twice:
+
+- **in the gas**, at the gas temperature: the gas itself is supersaturated;
+- **at the wall**, at the wall temperature (the cold-wall measure): every cell of the axial model touches the
+  wall, and vapour condenses on a wall below its dew point even while the bulk gas is not saturated. A cold
+  jacket, a cold ambient through a thin wall or a cold initial wall gives this one first.
+
+It fires when either measure passes 1. The value is the larger of the two; the message names which measure,
+the component, the cell and its height, the step, the time in the step and the other measure. The measures of
+each cycle are `supersaturation_gas` and `supersaturation_wall` in `sim.run_health().cycles` (NaN when no
+component can condense, and while the check is switched off: it costs one evaluation of the saturation curve
+per logged point, cell and condensable component).
+
+The same switch turns on a check at the start of the run, logged with the other deck warnings: the initial gas
+(at the initial temperature and at the initial wall temperature) and every inlet that carries its own gas
+(not a connected stream or a buffer-tank inlet) at its inlet temperature. A flow inlet is taken at the bed
+pressure, estimated as the end value of the step's pressure boundary at the other end, else the initial
+pressure; a pressure inlet at its own end value. An isothermal run uses the isothermal temperature.
+
+Suspects: the water (or other vapour) content and temperature of the feed and of `initial.y`; the wall, jacket
+or ambient temperature for the wall measure; the pressure of the step. What to do:
+
+- if the process really reaches saturation (a cold humid feed, a compressed humid gas), the model does not
+  hold there: dry or warm the feed, or lower its pressure, before the bed; or treat the results as an upper
+  bound only;
+- if only the wall measure fires, check the wall and jacket temperatures (`initial.wall_temperature`, the
+  heating medium, `bed.ambient_temperature`) and the wall's heat transfer: insulation or a warmer jacket
+  keeps the wall above the dew point;
+- if it fires only briefly ahead of a front, a finer grid tells whether the overshoot is numerical.
+
 ## Thresholds
 
 The thresholds come from the engine's own decks: every one of the 40 bundled example decks (which include
 the paper cases) was run as shipped, to its own cycle count or CSS stop, and the measures recorded after every
 cycle. The table gives the largest value any deck reached, the deck, and the threshold; the margin is their
-ratio.
+ratio. The `SUPERSATURATION` threshold is physical (saturation itself), not set from the decks; the table
+gives its margin all the same.
 
 | Code | Value | Largest on the example decks | Threshold | Margin |
 |---|---|---|---|---|
@@ -108,6 +159,7 @@ ratio.
 | | $\lvert e\rvert$ once the state change is $\le 10^{-3}$ | $2.3 \times 10^{-5}$ (Nguyen2023_Exp_IX) | $2 \times 10^{-3}$ | 87 |
 | `STEP_RETRIES` | rejected attempts per accepted step, per cycle | 0.078 (Perez2019_B) | 0.25 | 3.2 |
 | `REACTION_STIFF` | steps shorter than $10^{-4}$ s at a reacting cell, per cycle step | 0 (no example deck has a reaction) | 100 | |
+| `SUPERSATURATION` | relative saturation $y_i P / p_{sat,i}(T)$, gas or wall | TMPVALUE | 1 | TMPMARGIN |
 
 Distribution over the decks (the largest value of each deck):
 

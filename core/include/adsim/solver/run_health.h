@@ -54,6 +54,22 @@
 //    products. The value is the number of such steps in the cycle step; it
 //    is counted in the step and reported at once, also when the run then
 //    fails (unlike the checks above, which run as each cycle completes).
+//  * SUPERSATURATION: a component's partial pressure passed its saturation
+//    pressure, which the model does not handle: there is no condensation, the
+//    gas keeps the supersaturated mole fraction, no latent heat is released,
+//    and the GAB / GAB-Young / cubic-Langmuir kinds continue past their range.
+//    The measure is the relative saturation S = y_i P / p_sat,i(T), the
+//    largest over the cycle's logged times, the column's cells (packed and
+//    void) and the components with a saturation curve
+//    (SaturationPressure, isotherm.h) that are below their critical
+//    temperature at T (above T_c nothing condenses). It is taken twice: at
+//    the gas temperature (the gas itself is supersaturated) and at the wall
+//    temperature (the cold-wall measure: in the axial model every cell
+//    touches the wall, and vapour condenses on a wall below its dew point
+//    even when the bulk gas is not saturated). The warning fires when either
+//    passes kSupersaturation; its value is the larger one, and its message
+//    names the measure, the component, the cell (and its height), the step
+//    and the time.
 //
 // No check depends on how many cycles of series and profiles the log keeps
 // (settings.max_cycles_to_keep).
@@ -80,7 +96,8 @@ namespace adsim {
     MoleFractionSum,
     MassBalanceStuck,
     StepRetries,
-    ReactionStiff
+    ReactionStiff,
+    Supersaturation
   };
 
   // The codes, in RunHealthCheck order.
@@ -88,9 +105,17 @@ namespace adsim {
     "MOLE_FRACTION_SUM",
     "MASS_BALANCE_STUCK",
     "STEP_RETRIES",
-    "REACTION_STIFF"
+    "REACTION_STIFF",
+    "SUPERSATURATION"
   };
   const char* RunHealthCode(RunHealthCheck check);
+
+  // Relative saturation of a component, partial_pressure / p_sat(T) [-]
+  // (SaturationPressure, isotherm.h). NaN when the component cannot condense
+  // at T: no saturation curve in the component table, or T at or above its
+  // critical temperature. Used by SUPERSATURATION and by the start-of-run
+  // check SupersaturationWarnings (deck_warnings.h).
+  double RelativeSaturation(const std::string& component, double partial_pressure, double T);
 
   // Thresholds (see the header comment and docs/run-health.md).
   struct RunHealthThresholds {
@@ -103,6 +128,7 @@ namespace adsim {
     static constexpr long kStepRetryMinSteps = 50;        // accepted steps in the cycle
     static constexpr double kReactionStiffStep = 1e-4;    // accepted step size [s]
     static constexpr long kReactionStiffMinSteps = 100;   // such steps in one cycle step
+    static constexpr double kSupersaturation = 1.0;       // relative saturation y P / p_sat [-]
   };
 
   struct RunHealthWarning {
@@ -113,7 +139,8 @@ namespace adsim {
     int cycle = -1;                   // 0-based cycle; -1 for the run as a whole
     int step = -1;                    // 0-based step index; -1 when not one step
     std::string step_name;
-    std::string component;            // MASS_BALANCE_STUCK: the component; REACTION_STIFF: the near-zero one
+    std::string component;            // MASS_BALANCE_STUCK: the component; REACTION_STIFF: the near-zero one;
+                                      // SUPERSATURATION: the supersaturated one
     std::string reaction;             // REACTION_STIFF: the reaction's name
     std::vector<std::string> suspects;  // what to look at first
     std::string hint;                 // what to try
@@ -131,6 +158,10 @@ namespace adsim {
     std::vector<double> mass_balance_error;
     long steps = 0;                   // accepted internal steps
     long rejected = 0;                // error-test + convergence failures + recoveries
+    // SUPERSATURATION: the largest relative saturation y P / p_sat at the gas
+    // and at the wall temperature; NaN when no component can condense.
+    double supersaturation_gas = std::numeric_limits<double>::quiet_NaN();
+    double supersaturation_wall = std::numeric_limits<double>::quiet_NaN();
   };
 
   struct RunHealthReport {

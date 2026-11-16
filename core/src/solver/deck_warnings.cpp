@@ -19,6 +19,8 @@
 #include "adsim/equations/ambient_air.h"
 #include "adsim/equations/wall_temperature_boundary_condition.h"
 #include "adsim/equations/mass_transfer_model.h"
+#include "adsim/solver/initial_conditions.h"
+#include "adsim/solver/run_health.h"
 
 #include <algorithm>
 #include <cmath>
@@ -390,6 +392,101 @@ namespace adsim {
           for (size_t i = 0; i < differing.size(); ++i) list += (i ? ", " : "") + differing[i];
           warnings.push_back("Note: " + who + " is not elementary: the orders of " + list +
                              " differ from -nu (reactants) or 0 (products).");
+        }
+      }
+    }
+    return warnings;
+  }
+
+  namespace {
+
+    // The largest relative saturation of a gas (y over `components`) at
+    // pressure P and temperature T; NaN when no component can condense.
+    struct SaturationAt { double S = std::numeric_limits<double>::quiet_NaN(); std::string component; };
+    SaturationAt LargestSaturation(const std::vector<std::string>& components, const ExpressionMap& y, double P,
+                                   double T) {
+      SaturationAt out;
+      for (const auto& c : components) {
+        const auto it = y.find(c);
+        if (it == y.end()) continue;
+        const double S = RelativeSaturation(c, std::max(it->second.Get(), 0.0) * P, T);
+        if (std::isfinite(S) && (std::isnan(out.S) || S > out.S)) out = {S, c};
+      }
+      return out;
+    }
+
+    std::string Fixed(double v, int digits) {
+      std::ostringstream ss;
+      ss << std::fixed << std::setprecision(digits) << v;
+      return ss.str();
+    }
+
+    std::string SaturationText(const SaturationAt& s, double P, double T) {
+      return s.component + " at " + Fixed(s.S, 2) + " times its saturation pressure (" + Fixed(P / 1e5, 3)
+             + " bar, " + Fixed(T, 2) + " K)";
+    }
+
+    const char* kSupersaturationTail =
+        " Condensation is not modelled: the gas keeps the supersaturated mole fraction and no heat of condensation "
+        "is released (see SUPERSATURATION in docs/run-health.md).";
+
+  } // namespace
+
+  std::vector<std::string> SupersaturationWarnings(const Cycle& cycle, const Bed& bed, const Fluid& fluid,
+                                                   const InitialConditions& ic) {
+    std::vector<std::string> warnings;
+    const auto& comps = fluid.components_;
+    const bool isothermal = bed.equations_.IsIsothermal();
+    const double T_iso = bed.equations_.GetIsothermalTemperature(ic.temperature.Get());
+    const double P0 = ic.pressure.Get();
+
+    // The initial gas, at the gas and at the wall temperature.
+    {
+      const double Tg = isothermal ? T_iso : ic.temperature.Get();
+      const double Tw = isothermal ? T_iso : ic.wall_temperature.Get();
+      const SaturationAt gas = LargestSaturation(comps, ic.mole_fraction, P0, Tg);
+      const SaturationAt wall = LargestSaturation(comps, ic.mole_fraction, P0, Tw);
+      if (gas.S > 1.0 || wall.S > 1.0) {
+        const bool at_wall = wall.S > 1.0 && !(gas.S >= wall.S);
+        warnings.push_back("Warning: the initial gas is supersaturated" + std::string(at_wall ? " at the initial wall temperature" : "")
+                           + ": " + (at_wall ? SaturationText(wall, P0, Tw) : SaturationText(gas, P0, Tg)) + "."
+                           + kSupersaturationTail);
+      }
+    }
+
+    // Inlets that carry their own gas.
+    for (const auto& step : cycle.step_list_) {
+      const double t_end = step.step_time_.Get();
+      for (const auto end : {BoundaryLocation::BOTTOM, BoundaryLocation::TOP}) {
+        const auto& bc = end == BoundaryLocation::TOP ? step.top_boundary_condition_ : step.bottom_boundary_condition_;
+        if (!bc || bc->direction_ != BoundaryDirection::INLET) continue;
+        const std::string end_name = end == BoundaryLocation::TOP ? "top" : "bottom";
+        auto check = [&](const std::string& what, const ExpressionMap& y, double P, double T) {
+          const SaturationAt s = LargestSaturation(comps, y, P, T);
+          if (s.S > 1.0)
+            warnings.push_back("Warning: " + what + " (step \"" + step.step_name_ + "\", " + end_name
+                               + ") is supersaturated: " + SaturationText(s, P, T) + "." + kSupersaturationTail);
+        };
+        if (const auto* pbc = dynamic_cast<const PressureBoundaryCondition*>(bc.get())) {
+          if (pbc->connection_.IsConnected() || pbc->buffer_tank_.IsActive()) continue;
+          const auto P = ValueAtStepEnd(*pbc);
+          if (!P) continue;
+          const double T = isothermal ? T_iso
+                                      : std::max(pbc->AssumedInletTemperature(0.0), pbc->AssumedInletTemperature(t_end));
+          check("the inlet gas of the pressure boundary", pbc->mole_fraction_, *P, T);
+        } else if (const auto* fbc = dynamic_cast<const FlowBoundaryCondition*>(bc.get())) {
+          // The bed pressure the stream enters at: the other end's pressure
+          // boundary, else the initial pressure.
+          double P = P0;
+          if (const auto* other = PressureBC(step, Other(end)))
+            if (const auto v = ValueAtStepEnd(*other)) P = *v;
+          for (const auto& stream : fbc->streams_) {
+            if (!stream || stream->connection_.IsConnected() || stream->buffer_tank_.IsActive()) continue;
+            const double T = isothermal ? T_iso
+                                        : std::max(stream->AssumedInletTemperature(0.0),
+                                                   stream->AssumedInletTemperature(t_end));
+            check("inlet stream \"" + stream->name_ + "\"", stream->mole_fraction, P, T);
+          }
         }
       }
     }

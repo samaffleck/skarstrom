@@ -36,6 +36,10 @@ namespace adsim {
     bool mass_balance_stuck = true;    // MASS_BALANCE_STUCK: a cycle mole balance stays open as the run settles
     bool step_retries = true;          // STEP_RETRIES: many rejected integrator attempts in a cycle
     bool reaction_stiff = true;        // REACTION_STIFF: the step collapsed at a reacting cell
+    // A component above its saturation pressure: SUPERSATURATION after every
+    // cycle (run_health.h) and, at the start of a run, supersaturated inlet
+    // streams and initial gas (deck_warnings.h).
+    bool supersaturation = true;
 
   private:
     friend class ::cereal::access;
@@ -75,9 +79,12 @@ namespace adsim {
       // v5: the connection pressure warning (on for older decks).
       if (version >= 5) ar(cereal::make_nvp("Connection_Pressure", connection_pressure));
       else connection_pressure = true;
+      // v6: the supersaturation warning (on for older decks).
+      if (version >= 6) ar(cereal::make_nvp("Supersaturation", supersaturation));
+      else supersaturation = true;
     }
   };
 
 } // namespace adsim
 
-CEREAL_CLASS_VERSION(adsim::WarningSettings, 5);
+CEREAL_CLASS_VERSION(adsim::WarningSettings, 6);

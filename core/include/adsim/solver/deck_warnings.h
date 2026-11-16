@@ -18,6 +18,7 @@ namespace adsim {
   class Bed;
   class Cycle;
   class Fluid;
+  class InitialConditions;
 
   // One warning per step end whose CONSTANT pressure boundary value differs
   // from the bed pressure the step is expected to start at by more than
@@ -118,5 +119,23 @@ namespace adsim {
   //   only, and the isosteric heat enters as it is.
   std::vector<std::string> HeatOfAdsorptionWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed,
                                                     const Fluid& fluid, double T_ref, double P_ref);
+
+  // Supersaturated gas at the start of a run (condensation is not modelled;
+  // see SUPERSATURATION in run_health.h): the relative saturation
+  // y_i P / p_sat,i(T) (RelativeSaturation) of every component that can
+  // condense at T, above 1, gives
+  // - one warning for the initial gas (initial.y at initial.pressure), at the
+  //   initial temperature or, if larger, at the initial wall temperature;
+  // - one per inlet stream and per inlet pressure boundary that carries its
+  //   own gas (not a connected stream or a buffer-tank inlet, which carries
+  //   another endpoint's gas), at its inlet temperature (the larger of the
+  //   step's start and end values of a temperature ramp; the isothermal
+  //   temperature in an isothermal run). The pressure is the boundary's own
+  //   (the end value of a ramp); a flow inlet enters at the bed pressure,
+  //   taken as the step's pressure boundary at the other end (its end
+  //   value), else the initial pressure.
+  // Expressions must already be evaluated.
+  std::vector<std::string> SupersaturationWarnings(const Cycle& cycle, const Bed& bed, const Fluid& fluid,
+                                                   const InitialConditions& ic);
 
 } // namespace adsim

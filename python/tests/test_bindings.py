@@ -168,6 +168,9 @@ def test_run_results(perez_run):
     assert all(c.mole_fraction_sum_error < 1e-3 and c.steps > 0 for c in health.cycles)
     assert len(health.cycles[0].mass_balance_error) == len(health.components)
     assert "MOLE_FRACTION_SUM" in skarstrom._core.RUN_HEALTH_CODES
+    assert "SUPERSATURATION" in skarstrom._core.RUN_HEALTH_CODES
+    # CO2 below its critical temperature counts, far from saturation; N2 never does.
+    assert all(0 <= c.supersaturation_gas < 0.5 and 0 <= c.supersaturation_wall < 0.5 for c in health.cycles)
 
     kpis = sim.kpis()
     assert len(kpis) == 3

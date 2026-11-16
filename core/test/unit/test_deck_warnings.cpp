@@ -4,11 +4,13 @@
 // constant pressure boundary far from the pressure its step starts at (an
 // instantaneous pressurisation or blowdown the integrator has to resolve).
 
+#include <cmath>
 #include <string>
 #include <vector>
 
 #include "../src/pch.h"
 #include "adsim/solver/deck_warnings.h"
+#include "adsim/solver/run_health.h"
 #include "adsim/solver/coupled_solver.h"
 #include "adsim/boundary_conditions/boundary_conditions.h"
 #include "adsim/boundary_conditions/boundary_stream.h"
@@ -156,6 +158,111 @@ namespace adsim {
     });
     ASSERT_GE(quiet.IntegrateCycle(data.cycle, false), 0);
     EXPECT_EQ(warnings, 0);
+  }
+
+  // ---- Supersaturation (SupersaturationWarnings, RelativeSaturation) -------
+
+  TEST(RelativeSaturation, WaterNitrogenAndCarbonDioxide) {
+    // Water boils at 373.124 K under 1 atm (IAPWS-95; the ancillary is within
+    // 0.02 %); p_sat(293.15 K) = 2339 Pa.
+    EXPECT_NEAR(RelativeSaturation("Water", 101325.0, 373.124), 1.0, 1e-3);
+    EXPECT_NEAR(RelativeSaturation("Water", 2339.0, 293.15), 1.0, 2e-3);
+    EXPECT_NEAR(RelativeSaturation("Water", 1169.5, 293.15), 0.5, 1e-3);
+    // Above the critical temperature nothing condenses, however high the pressure.
+    EXPECT_TRUE(std::isnan(RelativeSaturation("Nitrogen", 1e8, 298.15)));
+    EXPECT_TRUE(std::isnan(RelativeSaturation("CarbonDioxide", 1e8, 305.0)));
+    // CO2 below T_c (304.13 K): p_sat(280 K) is about 41.6 bar.
+    EXPECT_NEAR(RelativeSaturation("CarbonDioxide", 41.6e5, 280.0), 1.0, 0.01);
+    // A component without a saturation curve, a temperature that is not positive.
+    EXPECT_TRUE(std::isnan(RelativeSaturation("NotAComponent", 1e5, 298.15)));
+    EXPECT_TRUE(std::isnan(RelativeSaturation("Water", 1e5, 0.0)));
+  }
+
+  class SupersaturationDeckTest : public UserDataTest {
+  protected:
+    static constexpr double kAtm = 101325.0;
+    void SetUp() override {
+      UserDataTest::SetUp();
+      AddComponents({ "Water", "Nitrogen" });
+      // Initial gas at 0.5 % water, 293 K: relative saturation 0.22.
+      AddInitialConditions(kAtm, 293, 293, { {"Water", 0.005}, {"Nitrogen", 0.995} });
+    }
+    // A humid feed through the bottom at `y_water` and `T`, vented at the top at `P_out`.
+    void Feed(double y_water, double T, double P_out = kAtm) {
+      AddStep("Feed", 25.0);
+      std::vector<std::unique_ptr<IBoundaryStream>> streams;
+      streams.push_back(CreateNoValveInletStream(CreateVelocityBC(0.05),
+                                                 { {"Water", y_water}, {"Nitrogen", 1.0 - y_water} }, T));
+      streams.back()->name_ = "Humid feed";
+      AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, "Feed");
+      AddPressureOutletBC(CreateConstantBoundaryValue(P_out), BoundaryLocation::TOP, "Feed");
+      ConfigureCycle(1);
+    }
+    std::vector<std::string> Warnings() {
+      return SupersaturationWarnings(data.cycle, data.bed, data.fluid, data.ic);
+    }
+  };
+
+  TEST_F(SupersaturationDeckTest, HumidFeedBelowSaturationIsSilent) {
+    Feed(0.02, 293);  // 2027 Pa against 2337 Pa: 0.87
+    const auto w = Warnings();
+    EXPECT_TRUE(w.empty()) << w.front();
+  }
+
+  TEST_F(SupersaturationDeckTest, SupersaturatedFeedIsNamed) {
+    Feed(0.03, 293);  // 3040 Pa against 2337 Pa: 1.30
+    const auto w = Warnings();
+    ASSERT_EQ(w.size(), 1u);
+    EXPECT_NE(w[0].find("inlet stream \"Humid feed\" (step \"Feed\", bottom)"), std::string::npos) << w[0];
+    EXPECT_NE(w[0].find("Water at 1.30 times"), std::string::npos) << w[0];
+    EXPECT_NE(w[0].find("Condensation is not modelled"), std::string::npos) << w[0];
+  }
+
+  TEST_F(SupersaturationDeckTest, FlowInletEntersAtTheOutletPressure) {
+    Feed(0.015, 293, 2.0 * kAtm);  // 0.65 at 1 atm, 1.30 at the 2 atm the bed is held at
+    const auto w = Warnings();
+    ASSERT_EQ(w.size(), 1u);
+    EXPECT_NE(w[0].find("2.027 bar"), std::string::npos) << w[0];
+  }
+
+  TEST_F(SupersaturationDeckTest, WarmFeedIsSilent) {
+    Feed(0.03, 303);  // p_sat(303 K) = 4247 Pa: 0.72
+    EXPECT_TRUE(Warnings().empty());
+  }
+
+  TEST_F(SupersaturationDeckTest, PressureInletAtItsEndPressure) {
+    AddStep("Pressurisation", 25.0);
+    AddClosedBC(BoundaryLocation::TOP, "Pressurisation");
+    AddPressureInletBC(CreateExponentialBoundaryValue(3.0 * kAtm, 1.0), { {"Water", 0.01}, {"Nitrogen", 0.99} },
+                       293, BoundaryLocation::BOTTOM, "Pressurisation");
+    ConfigureCycle(1);
+    const auto w = Warnings();  // 3040 Pa at 3 atm: 1.30
+    ASSERT_EQ(w.size(), 1u);
+    EXPECT_NE(w[0].find("pressure boundary (step \"Pressurisation\", bottom)"), std::string::npos) << w[0];
+  }
+
+  TEST_F(SupersaturationDeckTest, InitialGasAtTheGasAndAtTheWallTemperature) {
+    Feed(0.0, 293);
+    data.ic.mole_fraction["Water"] = 0.015;    // 1520 Pa: 0.65 at 293 K
+    data.ic.mole_fraction["Nitrogen"] = 0.985;
+    EXPECT_TRUE(Warnings().empty());
+    data.ic.wall_temperature = 283.0;          // p_sat(283 K) = 1228 Pa: 1.24 at the wall
+    auto w = Warnings();
+    ASSERT_EQ(w.size(), 1u);
+    EXPECT_NE(w[0].find("initial gas is supersaturated at the initial wall temperature"), std::string::npos) << w[0];
+    data.ic.mole_fraction["Water"] = 0.03;     // 1.30 in the gas
+    w = Warnings();
+    ASSERT_EQ(w.size(), 1u);
+    EXPECT_NE(w[0].find("initial gas is supersaturated: Water"), std::string::npos) << w[0];
+  }
+
+  TEST_F(SupersaturationDeckTest, IsothermalRunUsesTheIsothermalTemperature) {
+    Feed(0.03, 293);
+    data.ic.wall_temperature = 283.0;
+    data.bed.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
+    data.bed.equations_.isothermal_use_initial_temperature_ = false;
+    data.bed.equations_.isothermal_temperature_ = 313.0;  // p_sat = 7385 Pa: the feed is at 0.41
+    EXPECT_TRUE(Warnings().empty());
   }
 
 } // namespace adsim
