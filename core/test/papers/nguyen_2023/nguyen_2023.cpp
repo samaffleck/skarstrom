@@ -47,27 +47,28 @@ namespace adsim {
     };
     const std::map<std::string, Nguyen2023Tol> kNguyen2023Tol = {
       // Measured with WENO on 80 cells from a feed-loaded bed (README.md "Grid and
-      // advection scheme"; upwind on 100 cells from a clean bed before).
-      // measured: 1.991 pp, 2.511 pp, 0.06451 rel | 0.9909 pp, 0.6887 pp, 0.03481 rel
-      { "ExperimentI",    { 2.4, 2.8, 0.076, 1.4, 1.1, 0.046 } },
-      // measured: 1.84 pp, 1.314 pp, 0.09313 rel | 0.9399 pp, 0.7136 pp, 0.1267 rel
+      // advection scheme"; upwind on 100 cells from a clean bed before), and
+      // re-measured with each component's own dispersion coefficient (README).
+      // measured: 2.035 pp, 2.084 pp, 0.07039 rel | 1.035 pp, 1.116 pp, 0.04088 rel
+      { "ExperimentI",    { 2.4, 2.8, 0.076, 1.4, 1.4, 0.046 } },
+      // measured: 1.886 pp, 1.008 pp, 0.09706 rel | 0.9856 pp, 0.4077 pp, 0.1305 rel
       { "ExperimentII",   { 2.2, 1.6, 0.11, 1.3, 0.94, 0.15 } },
-      // measured: 1.677 pp, 2.567 pp, 0.084 rel | 1.777 pp, 0.9666 pp, 0.1379 rel
+      // measured: 1.73 pp, 2.282 pp, 0.08765 rel | 1.83 pp, 0.682 pp, 0.1413 rel
       { "ExperimentIII",  { 2.1, 2.9, 0.098, 2.2, 1.2, 0.16 } },
-      // measured: 3.148 pp, 2.733 pp, 0.06948 rel | 2.148 pp, 0.9332 pp, 0.1439 rel
+      // measured: 3.206 pp, 2.464 pp, 0.07296 rel | 2.206 pp, 0.6642 pp, 0.1471 rel
       { "ExperimentIV",   { 3.7, 3.1, 0.081, 2.6, 1.2, 0.17 } },
-      // measured: 4.846 pp, 2.643 pp, 0.04864 rel | 2.046 pp, 1.443 pp, 0.1351 rel
+      // measured: 4.914 pp, 2.353 pp, 0.05244 rel | 2.114 pp, 1.153 pp, 0.1386 rel
       { "ExperimentV",    { 5.7, 3, 0.06, 2.4, 1.7, 0.16 } },
-      // measured: 0.9913 pp, 6.734 pp, 0.06614 rel | 0.4913 pp, 5.034 pp, 0.0005595 rel
-      { "ExperimentVI",   { 1.3, 7.8, 0.076, 0.74, 5.9, 0.0026 } },
-      // measured: 0.8438 pp, 6.847 pp, 0.1284 rel | 2.044 pp, 7.147 pp, 0.1284 rel
+      // measured: 0.9921 pp, 6.378 pp, 0.06985 rel | 0.4921 pp, 4.678 pp, 0.003414 rel
+      { "ExperimentVI",   { 1.3, 7.8, 0.076, 0.74, 5.9, 0.0042 } },
+      // measured: 0.8177 pp, 6.31 pp, 0.122 rel | 2.018 pp, 6.61 pp, 0.122 rel
       { "ExperimentVII",  { 1.1, 9, 0.16, 2.3, 9.3, 0.16 } },
-      // measured: 2.802 pp, 8.345 pp, 0.08733 rel | 3.702 pp, 6.245 pp, 0.03029 rel
+      // measured: 2.748 pp, 7.889 pp, 0.09166 rel | 3.648 pp, 5.789 pp, 0.03489 rel
       { "ExperimentVIII", { 3.1, 11, 0.11, 4.1, 8.3, 0.04 } },
-      // measured: 1.268 pp, 8.394 pp, 0.1005 rel | 3.898 pp, 7.294 pp, 0.02187 rel
+      // measured: 1.086 pp, 8.042 pp, 0.09655 rel | 3.716 pp, 6.942 pp, 0.01823 rel
       { "ExperimentIX",   { 1.6, 12, 0.14, 4.2, 11, 0.047 } },
-      // measured: 0.0375 pp, 7.035 pp, 0.004638 rel | 0.0375 pp, 5.835 pp, 0.1592 rel
-      { "ExperimentX",    { 0.13, 9.7, 0.029, 0.13, 8.3, 0.21 } },
+      // measured: 0.2072 pp, 6.767 pp, 0.001936 rel | 0.2072 pp, 5.567 pp, 0.1561 rel
+      { "ExperimentX",    { 0.25, 9.7, 0.029, 0.25, 8.3, 0.21 } },
     };
 
     void ValidateNguyen2023(const std::string& experiment_name, const UserData& data,
