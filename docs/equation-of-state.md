@@ -227,7 +227,7 @@ $$
 
 | Model term | Diffusivity |
 |---|---|
-| Axial dispersion, Ruthven and Taylor–Aris ([Transport Correlations](transport-correlations.md)) | the **user-entered constant** $D_m$ of the dispersion model; the computed $D_{i,m}$ is not used |
+| Axial dispersion, Ruthven, Taylor–Aris, Edwards–Richardson and Wakao–Funazkri ([Transport Correlations](transport-correlations.md#molecular-diffusivity-of-each-component)) | $D_{i,m}$ of each component (*changed in 0.15*: a user-entered constant $D_m$ before) |
 | Film mass-transfer coefficient, $k_f = \mathrm{Sh}\thinspace D_{i,m}/d$ (the film term of the kinetic models) | $D_{i,m}$ |
 | Haynes (1973) mass-transfer coefficient (film and macropore terms) | $D_{i,m}$ |
 | Macropore molecular-diffusion term (Macropore, Macropore + Knudsen, Macropore capacity factor, Mass-transfer resistances) | the model's constant molecular diffusivity when it is set above 0; otherwise $D_{i,m}$ |

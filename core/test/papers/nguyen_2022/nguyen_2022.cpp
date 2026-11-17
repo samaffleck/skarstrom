@@ -59,28 +59,29 @@ namespace adsim {
     const std::vector<NguyenEntry>& NguyenCases() {
       static const std::vector<NguyenEntry> cases = {
         // Tolerances: measured error x 1.1, rounded up (front times at least 0.002;
-        // README "Validation"). The measured errors are in the comment above each case.
-        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.2944, 0.0652, 7.965, -, 0.1533, 0.01787
+        // README "Validation"). The measured errors are in the comment above each case,
+        // re-measured with each component's own dispersion coefficient (README).
+        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.1672, 0.03579, 6.606, -, 0.2123, 0.04498
         { { "Fig4_100pct", "Fig4", 100, 50, 22.4, 0.97, 7100.0, "Nguyen2022_Fig4_100pct" },
-          { 0.33, 0.075, 9, kNotUsed, 0.17, 0.02 },
+          { 0.33, 0.075, 9, kNotUsed, 0.24, 0.05 },
           "pure CO2 (balance He)" },
-        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.1179, 0.03247, 5.232, -, 0.08878, 0.01651
+        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.0567, 0.01229, 4.427, -, 0.09029, 0.03573
         { { "Fig4_70pct", "Fig4", 70, 50, 22.3, 0.97, 7100.0, "Nguyen2022_Fig4" },
-          { 0.13, 0.04, 6, kNotUsed, 0.1, 0.02 },
+          { 0.13, 0.04, 6, kNotUsed, 0.1, 0.04 },
           "70 % CO2 in He" },
-        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.1875, 0.1086, 6.28, -, 0.1069, 0.03891
+        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.1456, 0.09449, 5.454, -, 0.09323, 0.05117
         { { "Fig4_50pct", "Fig4", 50, 50, 22.4, 0.97, 7100.0, "Nguyen2022_Fig4_50pct" },
-          { 0.21, 0.12, 7, kNotUsed, 0.12, 0.045 },
+          { 0.21, 0.12, 7, kNotUsed, 0.12, 0.06 },
           "50 % CO2 in He" },
-        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.1518, 0.07249, 2.659, 0.2822, 0.09945, 0.001455
+        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.1508, 0.07255, 2.655, 0.09826, 0.09714, 0.00152
         { { "Fig5_30pct", "Fig5", 30, 100, 21.8, 0.98, 11800.0, "Nguyen2022_Fig5_30pct" },
           { 0.17, 0.08, 3, 0.32, 0.11, 0.005 },
           "30 % CO2 in N2" },
-        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.1336, 0.05556, 1.028, 0.1387, 0.08495, 0.04006
+        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.1297, 0.05593, 1.032, 0.03958, 0.08266, 0.03972
         { { "Fig5_15pct", "Fig5", 15, 100, 20.3, 0.97, 11800.0, "Nguyen2022_Fig5" },
           { 0.15, 0.065, 1.25, 0.16, 0.1, 0.045 },
           "15 % CO2 in N2" },
-        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.09487, 0.09655, 1.721, 0.03553, 0.1299, 0.04139
+        // measured: NRMSE y_CO2, front, T RMSE [K], y_N2 RMSE, NRMSE vs model, front vs model = 0.09373, 0.09621, 1.719, 0.02619, 0.1275, 0.04103
         { { "Fig5_5pct", "Fig5", 5, 100, 23.4, 0.97, 11800.0, "Nguyen2022_Fig5_5pct" },
           { 0.11, 0.11, 2, 0.04, 0.15, 0.05 },
           "5 % CO2 in N2" },

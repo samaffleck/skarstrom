@@ -8,6 +8,22 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-11-17
+
+### Changed — axial dispersion with a coefficient per component
+- The Ruthven and Taylor–Aris dispersion models give each component its own coefficient D_ax,i, built on the component's mixture-averaged molecular diffusivity D_m,i (Chapman–Enskog binary diffusivities with Blanc's law, as the macropore resistance uses; it varies as T^1.5 / P). They no longer take a molecular diffusivity: the input `layer[ID].molecular_diffusion_coefficient` (Python `Layer.molecular_diffusion_coefficient`, `set_dispersion("ruthven", molecular_diffusion_coefficient=...)`) is removed. Decks that stored one (`DispersionModelRuthven` and `DispersionModelTaylorAris` cereal versions 1 and 2) load, and the value is dropped. Use the Constant model to impose a fitted or published coefficient.
+- With different coefficients, the component balance takes the self-consistent dispersive flux of Ramshaw (1990), written for the molar-average velocity: J_i = −ε_b C (D_ax,i ∂y_i/∂z − y_i Σ_j D_ax,j ∂y_j/∂z). The fluxes sum to zero through every face to round-off, so the total moles are conserved and the overall balance keeps no dispersion term. The logged axial dispersion coefficient is Σ_i y_i D_ax,i.
+- Results of decks that use Ruthven or Taylor–Aris dispersion change. The example decks and the paper validation tolerances are updated.
+
+### Changed — styled comparison plots in the breakthrough examples
+- `examples/ward_2022.py`, `streb_2021.py` and `nguyen_2022.py` now save one two-panel figure per case (outlet composition and thermocouple temperature) in a shared publication style: measured markers, Skarstrom lines, the paper's model dashed for Nguyen 2022, the case conditions and metrics in the header, and a plain statement of what is calibrated. No deck, data or result changes.
+
+### Added — LHHW rates with several denominators
+- An `lhhw` reaction rate takes a list of denominators, one per kind of site, each with its own exponent and adsorption terms: r = k f(p) / Π_k DEN_k^m_k. A two-site Langmuir–Hinshelwood rate (a metal and a support site) is written as two denominators instead of one denominator of every cross term. Registry paths `adsorbent[A].reaction[R].rate.denominator[k].exponent` and `...rate.denominator[k].adsorption[j].{pre_exp_factor,energy,exponent[C]}`; builder `build::AddDenominator`, `build::RemoveDenominator` and a `denominator` argument on `AddAdsorptionTerm` / `RemoveAdsorptionTerm`; Python `rx.add_denominator()`, `rx.remove_denominator(k)`, `rx.add_adsorption_term(denominator=)` and `add_reaction(..., denominators=[4, 2])`; `sim.describe()` lists each reaction's `denominators`; the deck view gives each reaction a `denominators` list (`index`, `values` with the exponent, `terms`).
+
+### Changed — LHHW denominator paths
+- The LHHW denominator values are listed as `rate.denominator[1].exponent` and `rate.denominator[1].adsorption[j].*`. The former paths `rate.denominator_exponent` and `rate.adsorption[j].*` still resolve to denominator 1 (registry lookup, `sim[...]`, Python `rx.rate.adsorption[j]`), and decks saved with one denominator (`LhhwRate` cereal version 1) load unchanged and give the same rates bit for bit.
+
 ## [0.14.0] — 2026-11-16
 
 ### Added — heat of adsorption from the isotherm

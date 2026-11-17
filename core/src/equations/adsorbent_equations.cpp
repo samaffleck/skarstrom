@@ -148,6 +148,20 @@ namespace adsim {
     // Distance between the centres of two neighbouring cells [m].
     inline double FaceSpacing(double dx_a, double dx_b) { return 0.5 * (dx_a + dx_b); }
 
+    // The face value k_f of eb D_ax, the coefficient of the dispersive flux
+    // eb D_ax C dy/dz through the face between cells a and b (a + 1 == b):
+    // eb times the cell-width-weighted harmonic mean of D_ax where the two
+    // cells share eb, else the half cells in series of the product eb D_ax
+    // (FaceCoefficient). 0 where either cell has no dispersion (a void).
+    inline double DispersionFaceCoefficient(const std::vector<double>& D, const std::vector<double>& eb,
+                                            const std::vector<double>& dx, int a, int b) {
+      const double f = dx[b] / (dx[a] + dx[b]);
+      const double d = 1 / ((1 - f) / D[a] + f / D[b]);
+      if (eb[a] == eb[b]) return eb[a] * d;
+      if (!(d > 0.0)) return 0.0;
+      return FaceCoefficient(eb[a] * D[a], dx[a], eb[b] * D[b], dx[b]);
+    }
+
     // The manufactured source of `component` in `map` (verification hook,
     // see manufactured_sources.h), or null when there is none.
     inline const ManufacturedSources::Field* SourceOf(
@@ -1092,6 +1106,14 @@ namespace adsim {
 
     auto& Dax = state.axial_dispersion_coefficient.var;
 
+    // Per-component dispersion (Equations::PerComponentDispersion): this
+    // component's D_ax,i and the face drift sums of UpdateDispersionDrift.
+    const bool per_component_dispersion = state.PerComponentDispersion();
+    const std::vector<double>* Dax_i =
+      per_component_dispersion ? &state.component_axial_dispersion.at(component).var : nullptr;
+    const std::vector<double>* drift = per_component_dispersion ? &state.dispersion_drift.var : nullptr;
+    const std::vector<double>* face_mole_sum = per_component_dispersion ? &state.dispersion_face_mole_sum : nullptr;
+
     const auto& dx = domain_vectors.cell_width;
     const auto& dV = domain_vectors.volume;
     const auto& A = domain_vectors.area;
@@ -1177,10 +1199,32 @@ namespace adsim {
       // R T_n / P_n. The flux is then the same for the two cells that share
       // the face, so what one loses the other gains, also where the cell
       // width or the bed voidage jumps (a layer interface).
-      double D_e = (n == N - 2) ? 0.0
-        : ((face_eb(n, n + 1, d_e) * Tc * d_e) / (Pc * FaceSpacing(dx[n], dx[n + 1]))) * (Pe / Te * (yi[n + 1] - yi[n]));
-      double D_w = (n == 1) ? 0.0
-        : ((face_eb(n - 1, n, d_w) * Tc * d_w) / (Pc * FaceSpacing(dx[n - 1], dx[n]))) * (Pw / Tw * (yi[n] - yi[n - 1]));
+      double D_e, D_w;
+      if (!per_component_dispersion) {
+        D_e = (n == N - 2) ? 0.0
+          : ((face_eb(n, n + 1, d_e) * Tc * d_e) / (Pc * FaceSpacing(dx[n], dx[n + 1]))) * (Pe / Te * (yi[n + 1] - yi[n]));
+        D_w = (n == 1) ? 0.0
+          : ((face_eb(n - 1, n, d_w) * Tc * d_w) / (Pc * FaceSpacing(dx[n - 1], dx[n]))) * (Pw / Tw * (yi[n] - yi[n - 1]));
+      } else {
+        // Each component its own D_ax,i, with the drift correction that keeps
+        // the dispersive molar fluxes summing to zero (Ramshaw 1990, molar
+        // frame): through the face between cells a and b the flux is
+        //   (C_f / h_f) [k_i,f (y_i,b - y_i,a) - y^_i,f S_f],
+        // with k_i,f the face eb D_ax,i, S_f = sum_j k_j,f (y_j,b - y_j,a) and
+        // y^_i,f the mean face mole fraction normalised over the components,
+        // so that the fluxes of all components sum to zero to round-off even
+        // where the solver's sum of y is not exactly 1. With equal D_ax,i the
+        // correction is k_f y^_i,f sum_j (y_j,b - y_j,a), zero to within the
+        // solver tolerance.
+        const auto& Di = *Dax_i;
+        auto face_flux = [&](int a, int b) {
+          const double y_sum = (*face_mole_sum)[a];
+          const double y_hat = y_sum > 0.0 ? 0.5 * (yi[a] + yi[b]) / y_sum : 0.0;
+          return DispersionFaceCoefficient(Di, eb, dx, a, b) * (yi[b] - yi[a]) - y_hat * (*drift)[a];
+        };
+        D_e = (n == N - 2) ? 0.0 : (Tc / (Pc * FaceSpacing(dx[n], dx[n + 1]))) * (Pe / Te) * face_flux(n, n + 1);
+        D_w = (n == 1) ? 0.0 : (Tc / (Pc * FaceSpacing(dx[n - 1], dx[n]))) * (Pw / Tw) * face_flux(n - 1, n);
+      }
 
       double F_e = Tc / Pc * (yie * Pe * u_e / Te);
       double F_w = Tc / Pc * (yiw * Pw * u_w / Tw);
@@ -1959,6 +2003,47 @@ namespace adsim {
     }
 
     ZeroVoidCellsAndMirrorGhosts(state.axial_dispersion_coefficient.var, bed);
+  }
+
+  void UpdateComponentAxialDispersion(UserData* udata, Component component) {
+    auto& state = udata->state;
+    auto& bed = udata->bed;
+    auto& Dxi = state.component_axial_dispersion.at(component).var;
+    const auto& Dx = state.axial_dispersion_coefficient.var;
+
+    for (auto& layer : bed.layers_.layers_) {
+      auto& model = layer.equations_.dispersion_model_;
+      if (model->PerComponent()) {
+        model->UpdateComponent(state, layer, component, Dxi);
+      } else {
+        // One coefficient for every component in this layer.
+        for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) Dxi[n] = Dx[n];
+      }
+    }
+
+    ZeroVoidCellsAndMirrorGhosts(Dxi, bed);
+  }
+
+  void UpdateDispersionDrift(UserData* udata) {
+    auto& state = udata->state;
+    auto& fluid = udata->fluid;
+    const auto& eb = state.domain_vectors.eb;
+    const auto& dx = state.domain_vectors.cell_width;
+    auto& S = state.dispersion_drift.var;
+    auto& y_sum = state.dispersion_face_mole_sum;
+
+    const int F = static_cast<int>(S.size());
+    std::fill(S.begin(), S.end(), 0.0);
+    std::fill(y_sum.begin(), y_sum.end(), 0.0);
+    // Components in the fluid's order, so the sums are reproducible.
+    for (const auto& component : fluid.components_) {
+      const auto& y = state.mole_fraction.at(component).var;
+      const auto& D = state.component_axial_dispersion.at(component).var;
+      for (int f = 0; f < F; ++f) {
+        S[f] += DispersionFaceCoefficient(D, eb, dx, f, f + 1) * (y[f + 1] - y[f]);
+        y_sum[f] += 0.5 * (y[f] + y[f + 1]);
+      }
+    }
   }
 
   void UpdateMolarMass(UserData* udata) {

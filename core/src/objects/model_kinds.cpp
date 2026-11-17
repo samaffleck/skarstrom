@@ -192,13 +192,13 @@ const std::vector<K>& Momentum() {
 const std::vector<K>& Dispersion() {
   static const std::vector<K> k = WithLayerKinds({
       {"constant", "Constant", {{"dispersion_coefficient", "m2/s", 0.0, 1e-8, 1e-2, true, "dispersion coefficient"}}},
-      {"ruthven",
-       "Ruthven (1984)",
-       {{"molecular_diffusion_coefficient", "m2/s", 1.6e-5, 1e-8, 1e-4, true, "molecular diffusion coefficient"}}},
-      {"taylor_aris",
-       "Taylor-Aris (channels)",
-       {{"molecular_diffusion_coefficient", "m2/s", 1.6e-5, 1e-8, 1e-4, true, "molecular diffusion coefficient"}}},
-  }, {{"constant", AnyLayer()}, {"ruthven", PackedLayer()}, {"taylor_aris", StructuredLayer()}});
+      // Built on each component's mixture-averaged D_m,i: no parameters.
+      {"ruthven", "Ruthven (1984)", {}},
+      {"taylor_aris", "Taylor-Aris (channels)", {}},
+      {"edwards_richardson", "Edwards-Richardson (1968)", {}},
+      {"wakao_funazkri", "Wakao-Funazkri (1978)", {}},
+  }, {{"constant", AnyLayer()}, {"ruthven", PackedLayer()}, {"taylor_aris", StructuredLayer()},
+      {"edwards_richardson", PackedLayer()}, {"wakao_funazkri", PackedLayer()}});
   return k;
 }
 
@@ -833,8 +833,6 @@ ModelFieldList ModelFields(IMassTransferCoefficientModel* m) {
 
 ModelFieldList ModelFields(IDispersionModel* m) {
   if (auto* d = dynamic_cast<DispersionModelConstant*>(m)) return {{"dispersion_coefficient", &d->dispersion_coefficient_}};
-  if (auto* d = dynamic_cast<DispersionModelRuthven*>(m)) return {{"molecular_diffusion_coefficient", &d->Dm}};
-  if (auto* d = dynamic_cast<DispersionModelTaylorAris*>(m)) return {{"molecular_diffusion_coefficient", &d->Dm}};
   return {};
 }
 

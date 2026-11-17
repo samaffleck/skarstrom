@@ -62,7 +62,7 @@ Conditions: thesis Table A2.1.
 | Wall-end condition | **zero flux (assumption)** | not stated | ends at ambient: see the attribution |
 | h_in, h_out | 6.963, 14 W/(m² K) | Table 2 (fitted) | |
 | Axial conduction K_z | 0.4 W/(m K) | Table 2 (fitted) | |
-| Axial dispersion | D_L = 0.7 D_m + v r_p, D_m 1.496 × 10⁻⁵ | Eq. 6 | the engine's Ruthven form |
+| Axial dispersion | **Ruthven per component: D_L,i = 0.7 D_m,i + v r_p, D_m,i mixture-averaged (Chapman–Enskog, Blanc's law)** | Eq. 6: D_L = 0.7 D_m + v r_p, one D_m = 1.496 × 10⁻⁵ | the engine's Ruthven form; since 2026-11-17 each component has its own D_m,i (below) |
 | Pressure drop | Blake–Kozeny (Darcy, 150) | Eq. 7 | |
 | Cells | 30 | Sect. 4.1 | grid-converged (below) |
 | Flow, T, P, feed gas | per case (table above) | thesis Table A2.1 | the flow is taken at the feed conditions |
@@ -93,12 +93,18 @@ N₂ curve as an RMSE in mole fraction.
 
 | Case | CO₂ front vs measured | y_CO₂ NRMSE | Thermocouple RMSE [K] | y_N₂ RMSE | CO₂ front vs paper model |
 |---|---|---|---|---|---|
-| Fig4_100pct | +6.5 % | 0.29 | 8.0 | – | −1.8 % |
-| Fig4_70pct | +3.2 % | 0.12 | 5.2 | – | −1.7 % |
-| Fig4_50pct | +10.9 % | 0.19 | 6.3 | – | −3.9 % |
-| Fig5_30pct | −7.2 % | 0.15 | 2.7 | 0.28 | −0.1 % |
-| Fig5_15pct | +5.6 % | 0.13 | 1.0 | 0.14 | −4.0 % |
-| Fig5_5pct | −9.7 % | 0.09 | 1.7 | 0.036 | −4.1 % |
+| Fig4_100pct | +3.6 % | 0.17 | 6.6 | – | −4.5 % |
+| Fig4_70pct | +1.2 % | 0.06 | 4.4 | – | −3.6 % |
+| Fig4_50pct | +9.4 % | 0.15 | 5.5 | – | −5.1 % |
+| Fig5_30pct | −7.3 % | 0.15 | 2.7 | 0.098 | −0.2 % |
+| Fig5_15pct | +5.6 % | 0.13 | 1.0 | 0.040 | −4.0 % |
+| Fig5_5pct | −9.6 % | 0.09 | 1.7 | 0.026 | −4.1 % |
+
+The table is with each component's own dispersion coefficient (2026-11-17,
+below). With the paper's single D_m it was: fronts +6.5, +3.2, +10.9, −7.2,
++5.6, −9.7 %; y_CO₂ NRMSE 0.29, 0.12, 0.19, 0.15, 0.13, 0.09; thermocouple
+8.0, 5.2, 6.3, 2.7, 1.0, 1.7 K; y_N₂ 0.28, 0.14, 0.036; fronts vs the paper's
+model −1.8, −1.7, −3.9, −0.1, −4.0, −4.1 %.
 
 The paper's own model against the same measured markers (its digitised lines,
 the same metrics): CO₂ fronts +7.6, +5.0, +15.4, −9.6, +10.0, −5.8 %; y_CO₂
@@ -111,6 +117,26 @@ close as the paper's (peaks within 1.5 K).
 
 Tolerances: the measured error × 1.1, rounded up, with a floor of 0.2 % for
 the front times (`nguyen_2022.cpp`).
+
+### Dispersion per component (2026-11-17)
+
+The engine's Ruthven model now gives each component its own coefficient
+D_L,i = 0.7 D_m,i + v r_p, with D_m,i the mixture-averaged molecular
+diffusivity (Chapman–Enskog binary values, Blanc's law), and keeps the
+dispersive fluxes summing to zero (docs/mass-balance.md). The paper uses one
+D_m = 1.496 × 10⁻⁵ m²/s, close to D(CO₂–N₂), for every component and gas. In
+Fig. 4 the carrier is helium and the flow low (50 cm³/min), so the molecular
+term dominates: D(CO₂–He) ≈ 6 × 10⁻⁵ m²/s, four times the paper's value.
+
+Every comparison with the **measurements** improved: the Fig. 4 y_CO₂ NRMSE
+fell from 0.29, 0.12, 0.19 to 0.17, 0.06, 0.15, the Fig. 4 fronts from +6.5,
++3.2, +10.9 % to +3.6, +1.2, +9.4 %, the Fig. 4 thermocouple RMSE by 0.8–1.4 K,
+and the Fig. 5 y_N₂ RMSE from 0.28, 0.14, 0.036 to 0.098, 0.040, 0.026. The
+comparisons with the **paper's model** moved away, as expected for a model that
+no longer uses the paper's single D_m: the Fig. 4 fronts vs the paper's model
+from −1.8, −1.7, −3.9 % to −4.5, −3.6, −5.1 %, and the Fig4_100pct y_CO₂ NRMSE
+vs the model from 0.15 to 0.21. Those four bounds were re-measured (× 1.1,
+rounded up: 0.05, 0.04, 0.06 and 0.24); the others hold.
 
 ### Attribution (Python, one change at a time, 2026-11-12)
 

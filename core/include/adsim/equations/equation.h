@@ -218,6 +218,12 @@ namespace adsim {
     // balances read them. False for every other deck, whose balances skip the
     // reaction terms on this one check (nothing is registered for them).
     bool HasReactions() const { return has_reactions_; }
+    // True when some layer's dispersion model gives each component its own
+    // coefficient (IDispersionModel::PerComponent): component_axial_dispersion
+    // and dispersion_drift are then registered, and the component balance
+    // takes the drift-corrected dispersive flux. False for every other deck,
+    // whose balances keep the one-coefficient flux (nothing is registered).
+    bool PerComponentDispersion() const { return per_component_dispersion_; }
     // True when the loading of `component` on adsorbent `id` is not a DAE
     // unknown: its isotherm is Inert, so q = 0 and dq/dt = 0 for the whole run
     // (the field keeps its storage, filled with zeros, for the logs, the
@@ -267,6 +273,17 @@ namespace adsim {
     IndependentEquation pressure_gradient{ "Pressure Gradient", CellType::CellCentre, UpdatePressureGradient };
     IndependentEquation axial_dispersion_coefficient{ "Axial Dispersion Coefficient", CellType::CellCentre, UpdateAxialDispersionCoefficient };
     ComponentIndependentEquation molar_concentration;
+    // Per-component axial dispersion D_ax,i [m2/s] (only when
+    // PerComponentDispersion(); a layer with one coefficient copies it to
+    // every component).
+    ComponentIndependentEquation component_axial_dispersion;
+    // Per interior face f (between cells f and f + 1), only when
+    // PerComponentDispersion(): the drift sum S_f = sum_j k_j,f (y_j,f+1 - y_j,f),
+    // with k_j,f the face value of eb D_ax,j (DispersionFaceCoefficient), and
+    // the sum over the components of the mean face mole fraction. The
+    // component balance subtracts y_i,f S_f / sum (UpdateMoleFraction).
+    IndependentEquation dispersion_drift{ "Dispersion Drift", CellType::CellFace, UpdateDispersionDrift };
+    vec dispersion_face_mole_sum;
     AdsorbentComponentIndependentEquation mass_transfer_coefficient; // per adsorbent
     AdsorbentComponentIndependentEquation slow_mass_transfer_coefficient; // slow-site k2, same pairs as ads_concentration_slow
     ComponentIndependentEquation molecular_diffusion;
@@ -323,6 +340,7 @@ namespace adsim {
     std::vector<std::vector<AdsorbentEnergyTerm>> energy_terms_;
     Step* current_step_ = nullptr;
     bool has_reactions_ = false;
+    bool per_component_dispersion_ = false;
     // Loading equations of the inert (adsorbent, component) pairs: kept out
     // of equations_, held at zero (see IsInertLoading).
     std::vector<Equation*> inert_loadings_;

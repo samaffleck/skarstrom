@@ -121,7 +121,6 @@ void Build(Built& b) {
       {"layer[13X].cells", "20"},
       {"layer[13X].bed_void_fraction", "0.41"},
       {"layer[13X].particle_diameter", "0.0015"},
-      {"layer[13X].molecular_diffusion_coefficient", "1.6e-5"},
       {"initial.pressure", "1e5"},
       {"initial.temperature", "298"},
       {"initial.y[Nitrogen]", "1"},

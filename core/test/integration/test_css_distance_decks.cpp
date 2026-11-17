@@ -15,11 +15,12 @@
 //  * Perez2019_E as shipped (slow tier, ~70 s): the slowest deck of the
 //    long-reference verification (test_css_reference.cpp), whose plain stop
 //    was measured 35 tolerances from the reference CSS in the state norm. The
-//    estimate at the stop must be of that size. The state change falls
-//    through the tolerance at cycle 192 (cycle 191 is 2.4 % above it), so the
-//    3-cycle window ends at cycle 194 (measured with the gas held in the bed
-//    voids only). The check accepts 194 +/- 1; a stop further away means the
-//    deck or the rule changed.
+//    estimate at the stop must be of that size. The 3-cycle window ends at
+//    cycle 163 with each component's own dispersion coefficient (d/eps 27.6;
+//    measured 2026-11-17). With one D_m for every component it ended at 194:
+//    the state change fell through the tolerance at cycle 192 (cycle 191 was
+//    2.4 % above it). The check accepts 163 +/- 1; a stop further away means
+//    the deck or the rule changed.
 
 #include <cmath>
 #include <cstdio>
@@ -114,9 +115,9 @@ namespace adsim {
     ASSERT_TRUE(o.run.Ok()) << o.run.message;
     ASSERT_TRUE(o.run.css_reached);
     // The diagnostic does not move the stop (the plain stop of the reference
-    // verification, measured at 194; +/- 1 for the boundary, see the top).
-    EXPECT_GE(o.run.css_cycle, 193);
-    EXPECT_LE(o.run.css_cycle, 195);
+    // verification, measured at 163; +/- 1 for the boundary, see the top).
+    EXPECT_GE(o.run.css_cycle, 162);
+    EXPECT_LE(o.run.css_cycle, 164);
 
     const CSSRecord stop = sim.CSSHistory().back();
     ASSERT_EQ(stop.cycle, o.run.css_cycle);

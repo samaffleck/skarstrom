@@ -29,15 +29,53 @@ namespace adsim {
 		}
 	}
 
+	namespace {
+		// sum_i y_i f(D_m,i) over the layer's cells, into out: the logged
+		// mixture value of a per-component dispersion coefficient. Summed in
+		// the map order of the mole fractions (deterministic).
+		template <class F>
+		void MoleFractionWeightedMean(Equations& state, const MixedAdsorbentLayer& layer, F f, std::vector<double>& out) {
+			const int start = layer.domain_.start_index;
+			const int end = layer.domain_.end_index;
+			for (int n = start; n <= end; ++n) out[n] = 0.0;
+			for (const auto& [component, yi_eq] : state.mole_fraction) {
+				const auto& yi = yi_eq.var;
+				const auto& Dmi = state.molecular_diffusion.at(component).var;
+				for (int n = start; n <= end; ++n) out[n] += yi[n] * f(n, Dmi[n]);
+			}
+		}
+	}
+
+	// The logged mixture value sum_i y_i D_ax,i of Ruthven's
+	// D_ax,i = 0.7 D_m,i + 0.5 d_p |u| / eb.
 	void DispersionModelRuthven::Update(Equations& state, const MixedAdsorbentLayer& layer) {
 		auto& Dx = state.axial_dispersion_coefficient.var;
-		auto& u = state.velocity.var;
-    auto& eb = state.domain_vectors.eb;
-    auto& dp = state.domain_vectors.dp;
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		MoleFractionWeightedMean(state, layer,
+			[&](int n, double dmi) { return 0.7 * dmi + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n]; }, Dx);
+	}
 
-    for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-      Dx[n] = 0.7 * Dm + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n];
-    }
+	void DispersionModelRuthven::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+	                                             const std::string& component, std::vector<double>& Dxi) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		const auto& Dmi = state.molecular_diffusion.at(component).var;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
+			Dxi[n] = 0.7 * Dmi[n] + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n];
+		}
+	}
+
+	// D_ax = D_m + u_ch^2 D_h^2 / (kappa D_m) in cell n; D_m alone where the
+	// cell is not a channel.
+	double DispersionModelTaylorAris::TaylorAris(int n, double dm, const std::vector<double>& u,
+	                                             const std::vector<double>& eb, const std::vector<double>& dh,
+	                                             const std::vector<double>& kappa) {
+		if (!(kappa[n] > 0.0) || !(dm > 0.0)) return dm;  // not a channel: molecular diffusion only
+		const double u_ch = std::abs(u[n]) / eb[n];
+		return dm + u_ch * u_ch * dh[n] * dh[n] / (kappa[n] * dm);
 	}
 
 	void DispersionModelTaylorAris::Update(Equations& state, const MixedAdsorbentLayer& layer) {
@@ -46,43 +84,69 @@ namespace adsim {
 		const auto& eb = state.domain_vectors.eb;   // the open frontal area of a structured layer
 		const auto& dh = state.domain_vectors.hydraulic_diameter;
 		const auto& kappa = state.domain_vectors.taylor_aris_kappa;
-		const double dm = Dm;
+		MoleFractionWeightedMean(state, layer, [&](int n, double dmi) { return TaylorAris(n, dmi, u, eb, dh, kappa); }, Dx);
+	}
+
+	void DispersionModelTaylorAris::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+	                                                const std::string& component, std::vector<double>& Dxi) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dh = state.domain_vectors.hydraulic_diameter;
+		const auto& kappa = state.domain_vectors.taylor_aris_kappa;
+		const auto& Dmi = state.molecular_diffusion.at(component).var;
 		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-			if (!(kappa[n] > 0.0) || !(dm > 0.0)) {  // not a channel: molecular diffusion only
-				Dx[n] = dm;
-				continue;
-			}
-			const double u_ch = std::abs(u[n]) / eb[n];
-			Dx[n] = dm + u_ch * u_ch * dh[n] * dh[n] / (kappa[n] * dm);
+			Dxi[n] = TaylorAris(n, Dmi[n], u, eb, dh, kappa);
 		}
 	}
 
-	// void DispersionModelWakaoAndFunazkri::Update(Equations& state, const std::string& component, const MixedAdsorbentLayer& layer) {
-	// 	auto& Dxi = state.dispersion_coefficient.at(component).var;
-	// 	auto& Dmi = state.molecular_diffusion.at(component).var;
-	// 	auto& u = state.velocity.var;
-	// 	auto& Re = state.reynolds_number.var;
-	// 	auto& Sc = state.schmidt_number.var;
-  //   auto& eb = state.domain_vectors.eb;
-  //   auto& dp = state.domain_vectors.dp;
-    
-  //   for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-  //     Dxi[n] = (Dmi[n] / eb[n]) * (20.0 + 0.5 * Sc[n] * Re[n]);
-  //   }
-	// }
+	double DispersionModelEdwardsRichardson::Coefficient(double dm, double ui, double dp) {
+		// 0.5 ui dp / (1 + 9.49 dm / (ui dp)), written so that ui = 0 gives 0.
+		const double v = ui * dp;
+		const double denom = v + 9.49 * dm;
+		return 0.73 * dm + (denom > 0.0 ? 0.5 * v * v / denom : 0.0);
+	}
 
-	// void DispersionModelWakaoAndFunazkri::Update(Equations& state, const MixedAdsorbentLayer& layer) {
-	// 	auto& Dx = state.axial_dispersion_coefficient.var;
-	// 	auto& u = state.velocity.var;
-	// 	auto& Re = state.reynolds_number.var;
-	// 	auto& Sc = state.schmidt_number.var;
-  //   auto& eb = state.domain_vectors.eb;
-  //   auto& dp = state.domain_vectors.dp;
-    
-  //   for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-  //     Dx[n] = 20.0 + 0.5 * Sc[n] * Re[n]; // NOT CORRECT, DONT USE
-  //   }
-	// }
+	void DispersionModelEdwardsRichardson::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		MoleFractionWeightedMean(state, layer,
+			[&](int n, double dmi) { return Coefficient(dmi, std::abs(u[n]) / eb[n], dp[n]); },
+			state.axial_dispersion_coefficient.var);
+	}
+
+	void DispersionModelEdwardsRichardson::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+	                                                       const std::string& component, std::vector<double>& Dxi) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		const auto& Dmi = state.molecular_diffusion.at(component).var;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n)
+			Dxi[n] = Coefficient(Dmi[n], std::abs(u[n]) / eb[n], dp[n]);
+	}
+
+	double DispersionModelWakaoFunazkri::Coefficient(double dm, double eb, double ui, double dp) {
+		return 20.0 * dm / eb + 0.5 * ui * dp;
+	}
+
+	void DispersionModelWakaoFunazkri::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		MoleFractionWeightedMean(state, layer,
+			[&](int n, double dmi) { return Coefficient(dmi, eb[n], std::abs(u[n]) / eb[n], dp[n]); },
+			state.axial_dispersion_coefficient.var);
+	}
+
+	void DispersionModelWakaoFunazkri::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+	                                                   const std::string& component, std::vector<double>& Dxi) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		const auto& Dmi = state.molecular_diffusion.at(component).var;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n)
+			Dxi[n] = Coefficient(Dmi[n], eb[n], std::abs(u[n]) / eb[n], dp[n]);
+	}
 
 	void HeatDispersionModelRuthven::Update(Equations& state, const MixedAdsorbentLayer& layer) {
 		auto& Lam = state.axial_thermal_conductivity.var;
@@ -144,7 +208,8 @@ namespace adsim {
 // Register the derived type with the base type
 CEREAL_REGISTER_TYPE(adsim::DispersionModelConstant)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelConstant)
-// CEREAL_REGISTER_TYPE(adsim::DispersionModelWakaoAndFunazkri)
+CEREAL_REGISTER_TYPE(adsim::DispersionModelEdwardsRichardson)
+CEREAL_REGISTER_TYPE(adsim::DispersionModelWakaoFunazkri)
 CEREAL_REGISTER_TYPE(adsim::DispersionModelRuthven)
 CEREAL_REGISTER_TYPE(adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelRuthven)
@@ -152,10 +217,11 @@ CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelYagiandKunii)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelChannel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelConstant)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelConstant)
-// CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelWakaoAndFunazkri)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelEdwardsRichardson)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelWakaoFunazkri)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelYagiandKunii)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelChannel)
-// CEREAL_CLASS_VERSION(adsim::DispersionModelWakaoAndFunazkri, 1);
+

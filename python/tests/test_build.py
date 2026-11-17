@@ -126,7 +126,7 @@ def build_vsa():
 
     layer = sim.add_layer("13X", composition={"13X": 0.9, "Beads": 0.1}, momentum="kozeny_carman",
                           length="0.3 m", cells=20, bed_void_fraction=0.41, particle_diameter="1.5 mm")
-    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5)
+    layer.set_dispersion("ruthven")
     layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0.0903)
     layer.set_internal_heat_transfer("constant", internal_htc=8.6)
     layer.set_external_heat_transfer("constant", external_htc=10.0)
@@ -279,6 +279,27 @@ def test_blake_kozeny_momentum_builds_and_round_trips():
     sim["layer[13X].momentum_model"] = "blake_kozeny"
     assert sim.describe()["layers"][0]["momentum"] == "blake_kozeny"
     assert sim.run(cycles=1).ok
+
+
+def test_ruthven_dispersion_takes_no_diffusivity_and_round_trips():
+    sim, parts = build_vsa()
+    layer = parts["layer"]
+    assert sim.describe()["layers"][0]["dispersion"] == "ruthven"
+    # Each component's mixture-averaged D_m,i: no input on the layer.
+    assert "molecular_diffusion_coefficient" not in layer.fields
+    assert "component_diffusivity" not in layer.fields
+    assert '"Molecular_Diffusion":' not in sim.to_json()  # the dispersion key (not ..._Coefficient)
+    copy = sk.Simulation.from_json(sim.to_json())
+    assert copy.describe()["layers"][0]["dispersion"] == "ruthven"
+    assert_same_deck(sim, copy)
+    script = sk.to_script(sim)
+    assert "set_dispersion('ruthven')" in script
+    ns = {}
+    exec(compile(script, "<ruthven>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    assert sim.run(cycles=1).ok
+    layer = layer.set_dispersion("constant", dispersion_coefficient=1e-4)
+    assert layer.dispersion_coefficient == 1e-4
 
 
 def test_layer_fractions_as_expressions_build_and_round_trip():

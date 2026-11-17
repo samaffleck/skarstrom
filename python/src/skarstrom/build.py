@@ -690,7 +690,7 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
     w("# ---- layers (feed end first) ------------------------------------------------------")
     layer_var: Dict[int, str] = {}
     model_fields = {
-        "dispersion": ("dispersion_coefficient", "molecular_diffusion_coefficient"),
+        "dispersion": ("dispersion_coefficient",),
         "heat_dispersion": ("heat_dispersion_coefficient",),
         "internal_heat_transfer": ("internal_htc", "leva_eta1", "leva_eta2", "leva_exp_coeff"),
         "external_heat_transfer": ("external_htc", "holman_c", "holman_m", "holman_n", "external_velocity"),

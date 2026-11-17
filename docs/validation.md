@@ -16,23 +16,23 @@ Skarstrom is checked against published adsorption studies by automated tests. Ev
 
 ## Summary
 
-78 cases from 14 publications; 284 asserted comparisons (0 outside their recorded tolerance) and 141 informational ones. Summary generated on 2026-11-15.
+78 cases from 14 publications; 284 asserted comparisons (0 outside their recorded tolerance) and 141 informational ones. Summary generated on 2026-11-17.
 
 | Publication | Cases | Against | Comparisons | Median error | Worst error |
 |---|---|---|---|---|---|
 | [Arora & Hasan (2021)](#arora-hasan-2021) | 2 | paper model | 4 | 5.35 pp (abs. error) | 46.6 pp (abs. error) |
-| [Casas et al. (2012) / Schell et al. (2012)](#casas-2012) | 4 | paper model, isotherm fit | 8 | 3.35 % (rel. error)<br/>0.595 % (max rel. error) | 16.8 % (rel. error)<br/>6.99 % (max rel. error) |
-| [Ferré et al. (2026)](#ferre-2026) | 4 | paper model | 20 | 0.787 pp (abs. error)<br/>6.74 % (rel. error) | 11.5 pp (abs. error)<br/>59.4 % (rel. error) |
+| [Casas et al. (2012) / Schell et al. (2012)](#casas-2012) | 4 | paper model, isotherm fit | 8 | 3.16 % (rel. error)<br/>0.595 % (max rel. error) | 17.1 % (rel. error)<br/>6.99 % (max rel. error) |
+| [Ferré et al. (2026)](#ferre-2026) | 4 | paper model | 20 | 0.805 pp (abs. error)<br/>6.74 % (rel. error) | 11.5 pp (abs. error)<br/>59.4 % (rel. error) |
 | [Haghpanah et al. (2013) / Glover et al. (2026)](#haghpanah-2013) | 7 | reference | 23 | 4.10e-4 (abs. error)<br/>0.61 pp (abs. error)<br/>2.77 % (rel. error) | 4.10e-4 (abs. error)<br/>1.59 pp (abs. error)<br/>4.11 % (rel. error) |
-| [Nguyen et al. (2022)](#nguyen-2022) | 6 | experiment, paper model | 33 | 11.8 % (NRMSE)<br/>4.01 % (rel. error)<br/>1.72 K (RMSE) | 29.4 % (NRMSE)<br/>10.9 % (rel. error)<br/>7.97 K (RMSE) |
-| [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.05 pp (abs. error)<br/>8.42 % (rel. error) | 8.39 pp (abs. error)<br/>15.9 % (rel. error) |
-| [Nguyen et al. (2025)](#nguyen-2024) | 2 | experiment | 2 | 0.931 pp (abs. error)<br/>2.01 % (rel. error) | 0.931 pp (abs. error)<br/>2.01 % (rel. error) |
-| [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 2.02 pp (abs. error) | 5.81 pp (abs. error) |
+| [Nguyen et al. (2022)](#nguyen-2022) | 6 | experiment, paper model | 33 | 9.71 % (NRMSE)<br/>4.1 % (rel. error)<br/>1.72 K (RMSE) | 21.2 % (NRMSE)<br/>9.62 % (rel. error)<br/>6.61 K (RMSE) |
+| [Nguyen et al. (2023)](#nguyen-2023) | 10 | experiment, paper model | 60 | 2.08 pp (abs. error)<br/>8.76 % (rel. error) | 8.04 pp (abs. error)<br/>15.6 % (rel. error) |
+| [Nguyen et al. (2025)](#nguyen-2024) | 2 | experiment | 2 | 0.947 pp (abs. error)<br/>1.42 % (rel. error) | 0.947 pp (abs. error)<br/>1.42 % (rel. error) |
+| [Estupiñan Perez et al. (2019)](#perez-2019) | 6 | experiment, paper model | 24 | 1.74 pp (abs. error) | 6.22 pp (abs. error) |
 | [Streb & Mazzotti (2021)](#streb-2021) | 18 | experiment | 47 | 10.5 % (NRMSE)<br/>0.691 % (rel. error)<br/>7.37 K (RMSE) | 31.2 % (NRMSE)<br/>4.7 % (rel. error)<br/>11.4 K (RMSE) |
-| [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.89 % (rel. error)<br/>0.251 K (abs. error)<br/>1.93 pp (abs. error) | 3.92 % (rel. error)<br/>0.251 K (abs. error)<br/>33.5 pp (abs. error) |
-| [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 2.76 % (NRMSE)<br/>0.0209 % (rel. error)<br/>0.675 K (RMSE) | 3.89 % (NRMSE)<br/>0.404 % (rel. error)<br/>1.4 K (RMSE) |
+| [Vysyaraju et al. (2024)](#vysyarajua-2024) | 3 | experiment, isotherm (derived), paper model | 7 | 1.89 % (rel. error)<br/>0.223 K (abs. error)<br/>1.95 pp (abs. error) | 3.92 % (rel. error)<br/>0.223 K (abs. error)<br/>32.5 pp (abs. error) |
+| [Ward & Pini (2022)](#ward-2022) | 3 | experiment | 9 | 2.76 % (NRMSE)<br/>0.0206 % (rel. error)<br/>0.675 K (RMSE) | 3.88 % (NRMSE)<br/>0.402 % (rel. error)<br/>1.4 K (RMSE) |
 | [Ward & Pini (2022), PVSA](#ward-pini-2022) | 10 | paper model | 29 | 0.38 pp (abs. error)<br/>0.693 % (rel. error) | 2.26 pp (abs. error)<br/>3.36 % (rel. error) |
-| [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 2.34 pp (abs. error)<br/>1.86 % (rel. error) | 2.83 pp (abs. error)<br/>1.86 % (rel. error) |
+| [Ward & Pini (2024)](#ward-pini-2024) | 1 | paper model | 3 | 2.32 pp (abs. error)<br/>1.59 % (rel. error) | 2.64 pp (abs. error)<br/>1.59 % (rel. error) |
 | [Halabi (2011)](#halabi-2011) | 2 | paper model | 15 | 0.61 pp (abs. error) | 1.95 pp (abs. error) |
 
 ## Arora & Hasan (2021) {#arora-hasan-2021}
@@ -75,13 +75,13 @@ N. Casas, J. Schell, R. Pini, M. Mazzotti, Fixed bed adsorption of CO2/H2 mixtur
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| Fig4_Reference_50_50_15bar_25C | H2 breakthrough time (y &gt; 0.002) | paper model | 101.5 s | 105 s | 3.35 % rel. error | 4.1 % | Casas et al. 2012, Table 5 (50/50, 25 C, 15 bar) |
-| Fig4_Reference_50_50_15bar_25C | CO2 breakthrough time (y &gt; 0.002) | paper model | 449.4 s | 440 s | 2.15 % rel. error | 2.4 % | Casas et al. 2012, Table 5 (50/50, 25 C, 15 bar) |
-| Fig4_Reference_50_50_15bar_25C | H2 breakthrough time vs experiment (approx.) | experiment | 101.5 s | 110 s | 7.75 % rel. error | info | Casas et al. 2012, Sect. 4.1 text (Fig. 4) |
-| Fig6_25_75_15bar_25C | H2 breakthrough time (y &gt; 0.002) | paper model | 75 s | 80 s | 6.25 % rel. error | 7.6 % | Casas et al. 2012, Table 5 (25/75, 25 C, 15 bar) |
-| Fig6_25_75_15bar_25C | CO2 breakthrough time (y &gt; 0.002) | paper model | 627.7 s | 610 s | 2.91 % rel. error | 3.6 % | Casas et al. 2012, Table 5 (25/75, 25 C, 15 bar) |
-| Fig6_75_25_15bar_25C | H2 breakthrough time (y &gt; 0.002) | paper model | 151.9 s | 130 s | 16.8 % rel. error | 21 % | Casas et al. 2012, Table 5 (75/25, 25 C, 15 bar) |
-| Fig6_75_25_15bar_25C | CO2 breakthrough time (y &gt; 0.002) | paper model | 360.3 s | 320 s | 12.6 % rel. error | 15 % | Casas et al. 2012, Table 5 (75/25, 25 C, 15 bar) |
+| Fig4_Reference_50_50_15bar_25C | H2 breakthrough time (y &gt; 0.002) | paper model | 101.7 s | 105 s | 3.16 % rel. error | 4.1 % | Casas et al. 2012, Table 5 (50/50, 25 C, 15 bar) |
+| Fig4_Reference_50_50_15bar_25C | CO2 breakthrough time (y &gt; 0.002) | paper model | 449.7 s | 440 s | 2.2 % rel. error | 2.4 % | Casas et al. 2012, Table 5 (50/50, 25 C, 15 bar) |
+| Fig4_Reference_50_50_15bar_25C | H2 breakthrough time vs experiment (approx.) | experiment | 101.7 s | 110 s | 7.56 % rel. error | info | Casas et al. 2012, Sect. 4.1 text (Fig. 4) |
+| Fig6_25_75_15bar_25C | H2 breakthrough time (y &gt; 0.002) | paper model | 75.12 s | 80 s | 6.1 % rel. error | 7.6 % | Casas et al. 2012, Table 5 (25/75, 25 C, 15 bar) |
+| Fig6_25_75_15bar_25C | CO2 breakthrough time (y &gt; 0.002) | paper model | 628.1 s | 610 s | 2.96 % rel. error | 3.6 % | Casas et al. 2012, Table 5 (25/75, 25 C, 15 bar) |
+| Fig6_75_25_15bar_25C | H2 breakthrough time (y &gt; 0.002) | paper model | 152.3 s | 130 s | 17.1 % rel. error | 21 % | Casas et al. 2012, Table 5 (75/25, 25 C, 15 bar) |
+| Fig6_75_25_15bar_25C | CO2 breakthrough time (y &gt; 0.002) | paper model | 360.5 s | 320 s | 12.7 % rel. error | 15 % | Casas et al. 2012, Table 5 (75/25, 25 C, 15 bar) |
 | Isotherm_Table3 | CO2 loading vs Table 3 Sips (25-140 C, 0.5-40 bar), max deviation | isotherm fit | — | — | 6.99 % max rel. error | 8 % | Schell et al. 2012, Table 3 |
 | Isotherm_Table3 | H2 loading vs Table 3 Sips (25-65 C, 0.5-40 bar), max deviation | isotherm fit | — | — | 0.595 % max rel. error | 2 % | Schell et al. 2012, Table 3 |
 
@@ -108,24 +108,24 @@ A. Ferré, C. Wedler, A. Ward, J. Burger, R. Pini, C. Petit, Co-production of hi
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| MIL160Al | CO2 purity (heavy product) | paper model | 97.19 % | 95 % | 2.19 pp abs. error | 2.2 pp | Table 5, MIL-160(Al), recovery-recovery case, first row |
-| MIL160Al | CO2 recovery | paper model | 91.77 % | 94.1 % | 2.33 pp abs. error | 3.5 pp | Table 5, MIL-160(Al), recovery-recovery case, first row |
-| MIL160Al | CH4 purity (light product) | paper model | 96.81 % | 97.6 % | 0.787 pp abs. error | 1.4 pp | Table 5, MIL-160(Al), recovery-recovery case, first row |
+| MIL160Al | CO2 purity (heavy product) | paper model | 97.18 % | 95 % | 2.18 pp abs. error | 2.2 pp | Table 5, MIL-160(Al), recovery-recovery case, first row |
+| MIL160Al | CO2 recovery | paper model | 91.73 % | 94.1 % | 2.37 pp abs. error | 3.5 pp | Table 5, MIL-160(Al), recovery-recovery case, first row |
+| MIL160Al | CH4 purity (light product) | paper model | 96.79 % | 97.6 % | 0.805 pp abs. error | 1.4 pp | Table 5, MIL-160(Al), recovery-recovery case, first row |
 | MIL160Al | CH4 recovery | paper model | 47.33 % | 35.8 % | 11.5 pp abs. error | 13 pp | Table 5, MIL-160(Al), recovery-recovery case, first row |
 | MIL160Al | CH4 productivity | paper model | 1.435 mol/(m3 s) | 0.9 mol/(m3 s) | 59.4 % rel. error | 68 % | Table 5, MIL-160(Al), recovery-recovery case, first row |
-| NaY_F | CO2 purity (heavy product) | paper model | 94.77 % | 95.1 % | 0.335 pp abs. error | 1.1 pp | Table 5, NaY (F), recovery-recovery (Re_CO2-Re_CH4) case, first row |
-| NaY_F | CO2 recovery | paper model | 97.61 % | 97.8 % | 0.191 pp abs. error | 0.25 pp | Table 5, NaY (F), recovery-recovery case, first row |
-| NaY_F | CH4 purity (light product) | paper model | 98.76 % | 98.8 % | 0.0412 pp abs. error | 0.097 pp | Table 5, NaY (F), recovery-recovery case, first row |
+| NaY_F | CO2 purity (heavy product) | paper model | 94.76 % | 95.1 % | 0.336 pp abs. error | 1.1 pp | Table 5, NaY (F), recovery-recovery (Re_CO2-Re_CH4) case, first row |
+| NaY_F | CO2 recovery | paper model | 97.6 % | 97.8 % | 0.204 pp abs. error | 0.25 pp | Table 5, NaY (F), recovery-recovery case, first row |
+| NaY_F | CH4 purity (light product) | paper model | 98.75 % | 98.8 % | 0.0484 pp abs. error | 0.097 pp | Table 5, NaY (F), recovery-recovery case, first row |
 | NaY_F | CH4 recovery | paper model | 62.47 % | 66 % | 3.53 pp abs. error | 5.6 pp | Table 5, NaY (F), recovery-recovery case, first row |
-| NaY_F | CH4 productivity | paper model | 3.104 mol/(m3 s) | 3.2 mol/(m3 s) | 3.01 % rel. error | 4.6 % | Table 5, NaY (F), recovery-recovery case, first row |
-| NaY_W | CO2 purity (heavy product) | paper model | 93.79 % | 95 % | 1.21 pp abs. error | 1.8 pp | Table 5, NaY (W), recovery-recovery case, first row |
-| NaY_W | CO2 recovery | paper model | 96.48 % | 95.9 % | 0.578 pp abs. error | 0.89 pp | Table 5, NaY (W), recovery-recovery case, first row |
-| NaY_W | CH4 purity (light product) | paper model | 98.15 % | 97.6 % | 0.551 pp abs. error | 0.65 pp | Table 5, NaY (W), recovery-recovery case, first row |
+| NaY_F | CH4 productivity | paper model | 3.103 mol/(m3 s) | 3.2 mol/(m3 s) | 3.02 % rel. error | 4.6 % | Table 5, NaY (F), recovery-recovery case, first row |
+| NaY_W | CO2 purity (heavy product) | paper model | 93.78 % | 95 % | 1.22 pp abs. error | 1.8 pp | Table 5, NaY (W), recovery-recovery case, first row |
+| NaY_W | CO2 recovery | paper model | 96.46 % | 95.9 % | 0.562 pp abs. error | 0.89 pp | Table 5, NaY (W), recovery-recovery case, first row |
+| NaY_W | CH4 purity (light product) | paper model | 98.14 % | 97.6 % | 0.542 pp abs. error | 0.65 pp | Table 5, NaY (W), recovery-recovery case, first row |
 | NaY_W | CH4 recovery | paper model | 59.95 % | 65.4 % | 5.45 pp abs. error | 7.6 pp | Table 5, NaY (W), recovery-recovery case, first row |
 | NaY_W | CH4 productivity | paper model | 2.891 mol/(m3 s) | 3.1 mol/(m3 s) | 6.74 % rel. error | 8.5 % | Table 5, NaY (W), recovery-recovery case, first row |
 | Zeolite13X | CO2 purity (heavy product) | paper model | 93.66 % | 95 % | 1.34 pp abs. error | 1.5 pp | Table 5, 13X, recovery-recovery case, first row |
-| Zeolite13X | CO2 recovery | paper model | 95.64 % | 95.9 % | 0.262 pp abs. error | 0.35 pp | Table 5, 13X, recovery-recovery case, first row |
-| Zeolite13X | CH4 purity (light product) | paper model | 97.99 % | 98 % | 0.0139 pp abs. error | 0.076 pp | Table 5, 13X, recovery-recovery case, first row |
+| Zeolite13X | CO2 recovery | paper model | 95.61 % | 95.9 % | 0.288 pp abs. error | 0.35 pp | Table 5, 13X, recovery-recovery case, first row |
+| Zeolite13X | CH4 purity (light product) | paper model | 97.97 % | 98 % | 0.026 pp abs. error | 0.076 pp | Table 5, 13X, recovery-recovery case, first row |
 | Zeolite13X | CH4 recovery | paper model | 43.63 % | 48.6 % | 4.97 pp abs. error | 5.7 pp | Table 5, 13X, recovery-recovery case, first row |
 | Zeolite13X | CH4 productivity | paper model | 1.188 mol/(m3 s) | 1.3 mol/(m3 s) | 8.6 % rel. error | 11 % | Table 5, 13X, recovery-recovery case, first row |
 
@@ -229,39 +229,39 @@ T.T.T. Nguyen, J.-B. Lin, G.K.H. Shimizu, A. Rajendran, Separation of CO2 and N2
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| Fig4_100pct | outlet y_CO2 | experiment | curve | digitised data | 29.4 % NRMSE | 33 % | Fig. 4 (measured markers, re-digitised) |
-| Fig4_100pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1236 s | 1160 s | 6.52 % rel. error | 7.5 % | Fig. 4 (measured markers, re-digitised) |
-| Fig4_100pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 7.97 K RMSE | 9 K | Fig. 4 (measured markers, re-digitised) |
-| Fig4_100pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 15.3 % NRMSE | 17 % | Fig. 4 (paper's model curve, digitised) |
-| Fig4_100pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1236 s | 1258 s | 1.79 % rel. error | 2 % | Fig. 4 (paper's model curve, digitised) |
-| Fig4_50pct | outlet y_CO2 | experiment | curve | digitised data | 18.8 % NRMSE | 21 % | Fig. 4 (measured markers, re-digitised) |
-| Fig4_50pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 2346 s | 2116 s | 10.9 % rel. error | 12 % | Fig. 4 (measured markers, re-digitised) |
-| Fig4_50pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 6.28 K RMSE | 7 K | Fig. 4 (measured markers, re-digitised) |
-| Fig4_50pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 10.7 % NRMSE | 12 % | Fig. 4 (paper's model curve, digitised) |
-| Fig4_50pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 2346 s | 2441 s | 3.89 % rel. error | 4.5 % | Fig. 4 (paper's model curve, digitised) |
-| Fig4_70pct | outlet y_CO2 | experiment | curve | digitised data | 11.8 % NRMSE | 13 % | Fig. 4 (measured markers, re-digitised) |
-| Fig4_70pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1718 s | 1664 s | 3.25 % rel. error | 4 % | Fig. 4 (measured markers, re-digitised) |
-| Fig4_70pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 5.23 K RMSE | 6 K | Fig. 4 (measured markers, re-digitised) |
-| Fig4_70pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 8.88 % NRMSE | 10 % | Fig. 4 (paper's model curve, digitised) |
-| Fig4_70pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1718 s | 1747 s | 1.65 % rel. error | 2 % | Fig. 4 (paper's model curve, digitised) |
-| Fig5_15pct | outlet y_CO2 | experiment | curve | digitised data | 13.4 % NRMSE | 15 % | Fig. 5 (measured markers, re-digitised) |
-| Fig5_15pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 3229 s | 3059 s | 5.56 % rel. error | 6.5 % | Fig. 5 (measured markers, re-digitised) |
+| Fig4_100pct | outlet y_CO2 | experiment | curve | digitised data | 16.7 % NRMSE | 33 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_100pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1202 s | 1160 s | 3.58 % rel. error | 7.5 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_100pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 6.61 K RMSE | 9 K | Fig. 4 (measured markers, re-digitised) |
+| Fig4_100pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 21.2 % NRMSE | 24 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_100pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1202 s | 1258 s | 4.5 % rel. error | 5 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_50pct | outlet y_CO2 | experiment | curve | digitised data | 14.6 % NRMSE | 21 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_50pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 2316 s | 2116 s | 9.45 % rel. error | 12 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_50pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 5.45 K RMSE | 7 K | Fig. 4 (measured markers, re-digitised) |
+| Fig4_50pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 9.32 % NRMSE | 12 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_50pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 2316 s | 2441 s | 5.12 % rel. error | 6 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_70pct | outlet y_CO2 | experiment | curve | digitised data | 5.67 % NRMSE | 13 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_70pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1685 s | 1664 s | 1.23 % rel. error | 4 % | Fig. 4 (measured markers, re-digitised) |
+| Fig4_70pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 4.43 K RMSE | 6 K | Fig. 4 (measured markers, re-digitised) |
+| Fig4_70pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 9.03 % NRMSE | 10 % | Fig. 4 (paper's model curve, digitised) |
+| Fig4_70pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1685 s | 1747 s | 3.57 % rel. error | 4 % | Fig. 4 (paper's model curve, digitised) |
+| Fig5_15pct | outlet y_CO2 | experiment | curve | digitised data | 13 % NRMSE | 15 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_15pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 3230 s | 3059 s | 5.59 % rel. error | 6.5 % | Fig. 5 (measured markers, re-digitised) |
 | Fig5_15pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 1.03 K RMSE | 1.25 K | Fig. 5 (measured markers, re-digitised) |
-| Fig5_15pct | outlet y_N2 | experiment | curve | digitised data | 0.139 RMSE | 0.16 | Fig. 5 (measured markers, re-digitised) |
-| Fig5_15pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 8.49 % NRMSE | 10 % | Fig. 5 (paper's model curve, digitised) |
-| Fig5_15pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 3229 s | 3364 s | 4.01 % rel. error | 4.5 % | Fig. 5 (paper's model curve, digitised) |
-| Fig5_30pct | outlet y_CO2 | experiment | curve | digitised data | 15.2 % NRMSE | 17 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_15pct | outlet y_N2 | experiment | curve | digitised data | 0.0396 RMSE | 0.16 | Fig. 5 (measured markers, re-digitised) |
+| Fig5_15pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 8.27 % NRMSE | 10 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_15pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 3230 s | 3364 s | 3.97 % rel. error | 4.5 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_30pct | outlet y_CO2 | experiment | curve | digitised data | 15.1 % NRMSE | 17 % | Fig. 5 (measured markers, re-digitised) |
 | Fig5_30pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 1706 s | 1839 s | 7.25 % rel. error | 8 % | Fig. 5 (measured markers, re-digitised) |
 | Fig5_30pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 2.66 K RMSE | 3 K | Fig. 5 (measured markers, re-digitised) |
-| Fig5_30pct | outlet y_N2 | experiment | curve | digitised data | 0.282 RMSE | 0.32 | Fig. 5 (measured markers, re-digitised) |
-| Fig5_30pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 9.94 % NRMSE | 11 % | Fig. 5 (paper's model curve, digitised) |
-| Fig5_30pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1706 s | 1708 s | 0.146 % rel. error | 0.5 % | Fig. 5 (paper's model curve, digitised) |
-| Fig5_5pct | outlet y_CO2 | experiment | curve | digitised data | 9.49 % NRMSE | 11 % | Fig. 5 (measured markers, re-digitised) |
-| Fig5_5pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 7091 s | 7849 s | 9.66 % rel. error | 11 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_30pct | outlet y_N2 | experiment | curve | digitised data | 0.0983 RMSE | 0.32 | Fig. 5 (measured markers, re-digitised) |
+| Fig5_30pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 9.71 % NRMSE | 11 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_30pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 1706 s | 1708 s | 0.152 % rel. error | 0.5 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_5pct | outlet y_CO2 | experiment | curve | digitised data | 9.37 % NRMSE | 11 % | Fig. 5 (measured markers, re-digitised) |
+| Fig5_5pct | CO2 front time (y_CO2 = y_feed/2) | experiment | 7094 s | 7849 s | 9.62 % rel. error | 11 % | Fig. 5 (measured markers, re-digitised) |
 | Fig5_5pct | thermocouple T (1.82 cm from the outlet) | experiment | curve | digitised data | 1.72 K RMSE | 2 K | Fig. 5 (measured markers, re-digitised) |
-| Fig5_5pct | outlet y_N2 | experiment | curve | digitised data | 0.0355 RMSE | 0.04 | Fig. 5 (measured markers, re-digitised) |
-| Fig5_5pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 13 % NRMSE | 15 % | Fig. 5 (paper's model curve, digitised) |
-| Fig5_5pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 7091 s | 7397 s | 4.14 % rel. error | 5 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_5pct | outlet y_N2 | experiment | curve | digitised data | 0.0262 RMSE | 0.04 | Fig. 5 (measured markers, re-digitised) |
+| Fig5_5pct | outlet y_CO2 vs paper model | paper model | curve | digitised data | 12.8 % NRMSE | 15 % | Fig. 5 (paper's model curve, digitised) |
+| Fig5_5pct | CO2 front time (y_CO2 = y_feed/2) vs paper model | paper model | 7094 s | 7397 s | 4.1 % rel. error | 5 % | Fig. 5 (paper's model curve, digitised) |
 
 ??? note "Notes on these comparisons"
 
@@ -309,68 +309,68 @@ T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, CO2/N2 separation by vacuum swing a
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| ExperimentI | CO2 purity vs experiment | experiment | 95.71 % | 97.7 % | 1.99 pp abs. error | 2.4 pp | Table 2, Exp. I, Experimental Pu |
-| ExperimentI | CO2 recovery vs experiment | experiment | 69.4 % | 66.9 % | 2.5 pp abs. error | 2.8 pp | Table 2, Exp. I, Experimental Re |
-| ExperimentI | CO2 productivity vs experiment | experiment | 0.608 mol CO2/(m3 s) | 0.65 mol CO2/(m3 s) | 6.46 % rel. error | 7.6 % | Table 2, Exp. I, Experimental Pr |
-| ExperimentI | CO2 purity vs paper model | paper model | 95.71 % | 96.7 % | 0.99 pp abs. error | 1.4 pp | Table 2, Exp. I, Model Pu |
-| ExperimentI | CO2 recovery vs paper model | paper model | 69.4 % | 70.1 % | 0.695 pp abs. error | 1.1 pp | Table 2, Exp. I, Model Re |
-| ExperimentI | CO2 productivity vs paper model | paper model | 0.608 mol CO2/(m3 s) | 0.63 mol CO2/(m3 s) | 3.49 % rel. error | 4.6 % | Table 2, Exp. I, Model Pr |
-| ExperimentII | CO2 purity vs experiment | experiment | 89.36 % | 91.2 % | 1.84 pp abs. error | 2.2 pp | Table 2, Exp. II, Experimental Pu |
-| ExperimentII | CO2 recovery vs experiment | experiment | 73 % | 71.7 % | 1.3 pp abs. error | 1.6 pp | Table 2, Exp. II, Experimental Re |
-| ExperimentII | CO2 productivity vs experiment | experiment | 0.4715 mol CO2/(m3 s) | 0.52 mol CO2/(m3 s) | 9.33 % rel. error | 11 % | Table 2, Exp. II, Experimental Pr |
-| ExperimentII | CO2 purity vs paper model | paper model | 89.36 % | 90.3 % | 0.94 pp abs. error | 1.3 pp | Table 2, Exp. II, Model Pu |
-| ExperimentII | CO2 recovery vs paper model | paper model | 73 % | 72.3 % | 0.704 pp abs. error | 0.94 pp | Table 2, Exp. II, Model Re |
-| ExperimentII | CO2 productivity vs paper model | paper model | 0.4715 mol CO2/(m3 s) | 0.54 mol CO2/(m3 s) | 12.7 % rel. error | 15 % | Table 2, Exp. II, Model Pr |
-| ExperimentIII | CO2 purity vs experiment | experiment | 83.92 % | 85.6 % | 1.68 pp abs. error | 2.1 pp | Table 2, Exp. III, Experimental Pu |
-| ExperimentIII | CO2 recovery vs experiment | experiment | 74.36 % | 71.8 % | 2.56 pp abs. error | 2.9 pp | Table 2, Exp. III, Experimental Re |
-| ExperimentIII | CO2 productivity vs experiment | experiment | 0.4396 mol CO2/(m3 s) | 0.48 mol CO2/(m3 s) | 8.42 % rel. error | 9.8 % | Table 2, Exp. III, Experimental Pr |
-| ExperimentIII | CO2 purity vs paper model | paper model | 83.92 % | 85.7 % | 1.78 pp abs. error | 2.2 pp | Table 2, Exp. III, Model Pu |
-| ExperimentIII | CO2 recovery vs paper model | paper model | 74.36 % | 73.4 % | 0.956 pp abs. error | 1.2 pp | Table 2, Exp. III, Model Re |
-| ExperimentIII | CO2 productivity vs paper model | paper model | 0.4396 mol CO2/(m3 s) | 0.51 mol CO2/(m3 s) | 13.8 % rel. error | 16 % | Table 2, Exp. III, Model Pr |
-| ExperimentIV | CO2 purity vs experiment | experiment | 79.15 % | 82.3 % | 3.15 pp abs. error | 3.7 pp | Table 2, Exp. IV, Experimental Pu |
-| ExperimentIV | CO2 recovery vs experiment | experiment | 75.22 % | 72.5 % | 2.72 pp abs. error | 3.1 pp | Table 2, Exp. IV, Experimental Re |
-| ExperimentIV | CO2 productivity vs experiment | experiment | 0.428 mol CO2/(m3 s) | 0.46 mol CO2/(m3 s) | 6.96 % rel. error | 8.1 % | Table 2, Exp. IV, Experimental Pr |
-| ExperimentIV | CO2 purity vs paper model | paper model | 79.15 % | 81.3 % | 2.15 pp abs. error | 2.6 pp | Table 2, Exp. IV, Model Pu |
-| ExperimentIV | CO2 recovery vs paper model | paper model | 75.22 % | 74.3 % | 0.921 pp abs. error | 1.2 pp | Table 2, Exp. IV, Model Re |
-| ExperimentIV | CO2 productivity vs paper model | paper model | 0.428 mol CO2/(m3 s) | 0.5 mol CO2/(m3 s) | 14.4 % rel. error | 17 % | Table 2, Exp. IV, Model Pr |
-| ExperimentIX | CO2 purity vs experiment | experiment | 84.4 % | 85.67 % | 1.27 pp abs. error | 1.6 pp | Table 2, Exp. IX, Experimental Pu |
-| ExperimentIX | CO2 recovery vs experiment | experiment | 98.89 % | 90.5 % | 8.39 pp abs. error | 12 pp | Table 2, Exp. IX, Experimental Re |
-| ExperimentIX | CO2 productivity vs experiment | experiment | 0.1431 mol CO2/(m3 s) | 0.13 mol CO2/(m3 s) | 10 % rel. error | 14 % | Table 2, Exp. IX, Experimental Pr |
-| ExperimentIX | CO2 purity vs paper model | paper model | 84.4 % | 88.3 % | 3.9 pp abs. error | 4.2 pp | Table 2, Exp. IX, Model Pu |
-| ExperimentIX | CO2 recovery vs paper model | paper model | 98.89 % | 91.6 % | 7.29 pp abs. error | 11 pp | Table 2, Exp. IX, Model Re |
-| ExperimentIX | CO2 productivity vs paper model | paper model | 0.1431 mol CO2/(m3 s) | 0.14 mol CO2/(m3 s) | 2.18 % rel. error | 4.7 % | Table 2, Exp. IX, Model Pr |
-| ExperimentV | CO2 purity vs experiment | experiment | 73.55 % | 78.4 % | 4.85 pp abs. error | 5.7 pp | Table 2, Exp. V, Experimental Pu |
-| ExperimentV | CO2 recovery vs experiment | experiment | 76.83 % | 74.2 % | 2.63 pp abs. error | 3 pp | Table 2, Exp. V, Experimental Re |
-| ExperimentV | CO2 productivity vs experiment | experiment | 0.3805 mol CO2/(m3 s) | 0.4 mol CO2/(m3 s) | 4.88 % rel. error | 6 % | Table 2, Exp. V, Experimental Pr |
-| ExperimentV | CO2 purity vs paper model | paper model | 73.55 % | 75.6 % | 2.05 pp abs. error | 2.4 pp | Table 2, Exp. V, Model Pu |
-| ExperimentV | CO2 recovery vs paper model | paper model | 76.83 % | 75.4 % | 1.43 pp abs. error | 1.7 pp | Table 2, Exp. V, Model Re |
-| ExperimentV | CO2 productivity vs paper model | paper model | 0.3805 mol CO2/(m3 s) | 0.44 mol CO2/(m3 s) | 13.5 % rel. error | 16 % | Table 2, Exp. V, Model Pr |
-| ExperimentVI | CO2 purity vs experiment | experiment | 96.21 % | 97.2 % | 0.99 pp abs. error | 1.3 pp | Table 2, Exp. VI, Experimental Pu |
-| ExperimentVI | CO2 recovery vs experiment | experiment | 89.83 % | 83.1 % | 6.73 pp abs. error | 7.8 pp | Table 2, Exp. VI, Experimental Re |
-| ExperimentVI | CO2 productivity vs experiment | experiment | 0.2801 mol CO2/(m3 s) | 0.3 mol CO2/(m3 s) | 6.62 % rel. error | 7.6 % | Table 2, Exp. VI, Experimental Pr |
-| ExperimentVI | CO2 purity vs paper model | paper model | 96.21 % | 96.7 % | 0.49 pp abs. error | 0.74 pp | Table 2, Exp. VI, Model Pu |
-| ExperimentVI | CO2 recovery vs paper model | paper model | 89.83 % | 84.8 % | 5.03 pp abs. error | 5.9 pp | Table 2, Exp. VI, Model Re |
-| ExperimentVI | CO2 productivity vs paper model | paper model | 0.2801 mol CO2/(m3 s) | 0.28 mol CO2/(m3 s) | 0.0501 % rel. error | 0.26 % | Table 2, Exp. VI, Model Pr |
-| ExperimentVII | CO2 purity vs experiment | experiment | 93.46 % | 94.3 % | 0.843 pp abs. error | 1.1 pp | Table 2, Exp. VII.a, Experimental Pu |
-| ExperimentVII | CO2 recovery vs experiment | experiment | 95.24 % | 88.4 % | 6.84 pp abs. error | 9 pp | Table 2, Exp. VII.a, Experimental Re |
-| ExperimentVII | CO2 productivity vs experiment | experiment | 0.158 mol CO2/(m3 s) | 0.14 mol CO2/(m3 s) | 12.8 % rel. error | 16 % | Table 2, Exp. VII.a, Experimental Pr |
-| ExperimentVII | CO2 purity vs paper model | paper model | 93.46 % | 95.5 % | 2.04 pp abs. error | 2.3 pp | Table 2, Exp. VII, Model Pu |
-| ExperimentVII | CO2 recovery vs paper model | paper model | 95.24 % | 88.1 % | 7.14 pp abs. error | 9.3 pp | Table 2, Exp. VII, Model Re |
-| ExperimentVII | CO2 productivity vs paper model | paper model | 0.158 mol CO2/(m3 s) | 0.14 mol CO2/(m3 s) | 12.8 % rel. error | 16 % | Table 2, Exp. VII, Model Pr |
-| ExperimentVII | CO2 purity vs repeat experiment VII.b | experiment | 93.46 % | 93.8 % | 0.343 pp abs. error | info | Table 2, Exp. VII.b, Experimental Pu |
-| ExperimentVII | CO2 recovery vs repeat experiment VII.b | experiment | 95.24 % | 87.5 % | 7.74 pp abs. error | info | Table 2, Exp. VII.b, Experimental Re |
-| ExperimentVIII | CO2 purity vs experiment | experiment | 89.9 % | 92.7 % | 2.8 pp abs. error | 3.1 pp | Table 2, Exp. VIII, Experimental Pu |
-| ExperimentVIII | CO2 recovery vs experiment | experiment | 96.14 % | 87.8 % | 8.34 pp abs. error | 11 pp | Table 2, Exp. VIII, Experimental Re |
-| ExperimentVIII | CO2 productivity vs experiment | experiment | 0.1551 mol CO2/(m3 s) | 0.17 mol CO2/(m3 s) | 8.74 % rel. error | 11 % | Table 2, Exp. VIII, Experimental Pr |
-| ExperimentVIII | CO2 purity vs paper model | paper model | 89.9 % | 93.6 % | 3.7 pp abs. error | 4.1 pp | Table 2, Exp. VIII, Model Pu |
-| ExperimentVIII | CO2 recovery vs paper model | paper model | 96.14 % | 89.9 % | 6.24 pp abs. error | 8.3 pp | Table 2, Exp. VIII, Model Re |
-| ExperimentVIII | CO2 productivity vs paper model | paper model | 0.1551 mol CO2/(m3 s) | 0.16 mol CO2/(m3 s) | 3.04 % rel. error | 4 % | Table 2, Exp. VIII, Model Pr |
-| ExperimentX | CO2 purity vs experiment | experiment | 80.56 % | 80.6 % | 0.0355 pp abs. error | 0.13 pp | Table 2, Exp. X, Experimental Pu |
-| ExperimentX | CO2 recovery vs experiment | experiment | 99.43 % | 92.4 % | 7.03 pp abs. error | 9.7 pp | Table 2, Exp. X, Experimental Re |
-| ExperimentX | CO2 productivity vs experiment | experiment | 0.1507 mol CO2/(m3 s) | 0.15 mol CO2/(m3 s) | 0.458 % rel. error | 2.9 % | Table 2, Exp. X, Experimental Pr |
-| ExperimentX | CO2 purity vs paper model | paper model | 80.56 % | 80.6 % | 0.0355 pp abs. error | 0.13 pp | Table 2, Exp. X, Model Pu |
-| ExperimentX | CO2 recovery vs paper model | paper model | 99.43 % | 93.6 % | 5.83 pp abs. error | 8.3 pp | Table 2, Exp. X, Model Re |
-| ExperimentX | CO2 productivity vs paper model | paper model | 0.1507 mol CO2/(m3 s) | 0.13 mol CO2/(m3 s) | 15.9 % rel. error | 21 % | Table 2, Exp. X, Model Pr |
+| ExperimentI | CO2 purity vs experiment | experiment | 95.66 % | 97.7 % | 2.04 pp abs. error | 2.4 pp | Table 2, Exp. I, Experimental Pu |
+| ExperimentI | CO2 recovery vs experiment | experiment | 68.98 % | 66.9 % | 2.08 pp abs. error | 2.8 pp | Table 2, Exp. I, Experimental Re |
+| ExperimentI | CO2 productivity vs experiment | experiment | 0.6042 mol CO2/(m3 s) | 0.65 mol CO2/(m3 s) | 7.04 % rel. error | 7.6 % | Table 2, Exp. I, Experimental Pr |
+| ExperimentI | CO2 purity vs paper model | paper model | 95.66 % | 96.7 % | 1.04 pp abs. error | 1.4 pp | Table 2, Exp. I, Model Pu |
+| ExperimentI | CO2 recovery vs paper model | paper model | 68.98 % | 70.1 % | 1.12 pp abs. error | 1.4 pp | Table 2, Exp. I, Model Re |
+| ExperimentI | CO2 productivity vs paper model | paper model | 0.6042 mol CO2/(m3 s) | 0.63 mol CO2/(m3 s) | 4.09 % rel. error | 4.6 % | Table 2, Exp. I, Model Pr |
+| ExperimentII | CO2 purity vs experiment | experiment | 89.31 % | 91.2 % | 1.89 pp abs. error | 2.2 pp | Table 2, Exp. II, Experimental Pu |
+| ExperimentII | CO2 recovery vs experiment | experiment | 72.71 % | 71.7 % | 1.01 pp abs. error | 1.6 pp | Table 2, Exp. II, Experimental Re |
+| ExperimentII | CO2 productivity vs experiment | experiment | 0.4695 mol CO2/(m3 s) | 0.52 mol CO2/(m3 s) | 9.71 % rel. error | 11 % | Table 2, Exp. II, Experimental Pr |
+| ExperimentII | CO2 purity vs paper model | paper model | 89.31 % | 90.3 % | 0.986 pp abs. error | 1.3 pp | Table 2, Exp. II, Model Pu |
+| ExperimentII | CO2 recovery vs paper model | paper model | 72.71 % | 72.3 % | 0.408 pp abs. error | 0.94 pp | Table 2, Exp. II, Model Re |
+| ExperimentII | CO2 productivity vs paper model | paper model | 0.4695 mol CO2/(m3 s) | 0.54 mol CO2/(m3 s) | 13.1 % rel. error | 15 % | Table 2, Exp. II, Model Pr |
+| ExperimentIII | CO2 purity vs experiment | experiment | 83.87 % | 85.6 % | 1.73 pp abs. error | 2.1 pp | Table 2, Exp. III, Experimental Pu |
+| ExperimentIII | CO2 recovery vs experiment | experiment | 74.08 % | 71.8 % | 2.28 pp abs. error | 2.9 pp | Table 2, Exp. III, Experimental Re |
+| ExperimentIII | CO2 productivity vs experiment | experiment | 0.4379 mol CO2/(m3 s) | 0.48 mol CO2/(m3 s) | 8.76 % rel. error | 9.8 % | Table 2, Exp. III, Experimental Pr |
+| ExperimentIII | CO2 purity vs paper model | paper model | 83.87 % | 85.7 % | 1.83 pp abs. error | 2.2 pp | Table 2, Exp. III, Model Pu |
+| ExperimentIII | CO2 recovery vs paper model | paper model | 74.08 % | 73.4 % | 0.682 pp abs. error | 1.2 pp | Table 2, Exp. III, Model Re |
+| ExperimentIII | CO2 productivity vs paper model | paper model | 0.4379 mol CO2/(m3 s) | 0.51 mol CO2/(m3 s) | 14.1 % rel. error | 16 % | Table 2, Exp. III, Model Pr |
+| ExperimentIV | CO2 purity vs experiment | experiment | 79.09 % | 82.3 % | 3.21 pp abs. error | 3.7 pp | Table 2, Exp. IV, Experimental Pu |
+| ExperimentIV | CO2 recovery vs experiment | experiment | 74.96 % | 72.5 % | 2.46 pp abs. error | 3.1 pp | Table 2, Exp. IV, Experimental Re |
+| ExperimentIV | CO2 productivity vs experiment | experiment | 0.4264 mol CO2/(m3 s) | 0.46 mol CO2/(m3 s) | 7.3 % rel. error | 8.1 % | Table 2, Exp. IV, Experimental Pr |
+| ExperimentIV | CO2 purity vs paper model | paper model | 79.09 % | 81.3 % | 2.21 pp abs. error | 2.6 pp | Table 2, Exp. IV, Model Pu |
+| ExperimentIV | CO2 recovery vs paper model | paper model | 74.96 % | 74.3 % | 0.664 pp abs. error | 1.2 pp | Table 2, Exp. IV, Model Re |
+| ExperimentIV | CO2 productivity vs paper model | paper model | 0.4264 mol CO2/(m3 s) | 0.5 mol CO2/(m3 s) | 14.7 % rel. error | 17 % | Table 2, Exp. IV, Model Pr |
+| ExperimentIX | CO2 purity vs experiment | experiment | 84.58 % | 85.67 % | 1.09 pp abs. error | 1.6 pp | Table 2, Exp. IX, Experimental Pu |
+| ExperimentIX | CO2 recovery vs experiment | experiment | 98.54 % | 90.5 % | 8.04 pp abs. error | 12 pp | Table 2, Exp. IX, Experimental Re |
+| ExperimentIX | CO2 productivity vs experiment | experiment | 0.1426 mol CO2/(m3 s) | 0.13 mol CO2/(m3 s) | 9.66 % rel. error | 14 % | Table 2, Exp. IX, Experimental Pr |
+| ExperimentIX | CO2 purity vs paper model | paper model | 84.58 % | 88.3 % | 3.72 pp abs. error | 4.2 pp | Table 2, Exp. IX, Model Pu |
+| ExperimentIX | CO2 recovery vs paper model | paper model | 98.54 % | 91.6 % | 6.94 pp abs. error | 11 pp | Table 2, Exp. IX, Model Re |
+| ExperimentIX | CO2 productivity vs paper model | paper model | 0.1426 mol CO2/(m3 s) | 0.14 mol CO2/(m3 s) | 1.82 % rel. error | 4.7 % | Table 2, Exp. IX, Model Pr |
+| ExperimentV | CO2 purity vs experiment | experiment | 73.49 % | 78.4 % | 4.91 pp abs. error | 5.7 pp | Table 2, Exp. V, Experimental Pu |
+| ExperimentV | CO2 recovery vs experiment | experiment | 76.55 % | 74.2 % | 2.35 pp abs. error | 3 pp | Table 2, Exp. V, Experimental Re |
+| ExperimentV | CO2 productivity vs experiment | experiment | 0.379 mol CO2/(m3 s) | 0.4 mol CO2/(m3 s) | 5.24 % rel. error | 6 % | Table 2, Exp. V, Experimental Pr |
+| ExperimentV | CO2 purity vs paper model | paper model | 73.49 % | 75.6 % | 2.11 pp abs. error | 2.4 pp | Table 2, Exp. V, Model Pu |
+| ExperimentV | CO2 recovery vs paper model | paper model | 76.55 % | 75.4 % | 1.15 pp abs. error | 1.7 pp | Table 2, Exp. V, Model Re |
+| ExperimentV | CO2 productivity vs paper model | paper model | 0.379 mol CO2/(m3 s) | 0.44 mol CO2/(m3 s) | 13.9 % rel. error | 16 % | Table 2, Exp. V, Model Pr |
+| ExperimentVI | CO2 purity vs experiment | experiment | 96.21 % | 97.2 % | 0.992 pp abs. error | 1.3 pp | Table 2, Exp. VI, Experimental Pu |
+| ExperimentVI | CO2 recovery vs experiment | experiment | 89.48 % | 83.1 % | 6.38 pp abs. error | 7.8 pp | Table 2, Exp. VI, Experimental Re |
+| ExperimentVI | CO2 productivity vs experiment | experiment | 0.279 mol CO2/(m3 s) | 0.3 mol CO2/(m3 s) | 6.99 % rel. error | 7.6 % | Table 2, Exp. VI, Experimental Pr |
+| ExperimentVI | CO2 purity vs paper model | paper model | 96.21 % | 96.7 % | 0.492 pp abs. error | 0.74 pp | Table 2, Exp. VI, Model Pu |
+| ExperimentVI | CO2 recovery vs paper model | paper model | 89.48 % | 84.8 % | 4.68 pp abs. error | 5.9 pp | Table 2, Exp. VI, Model Re |
+| ExperimentVI | CO2 productivity vs paper model | paper model | 0.279 mol CO2/(m3 s) | 0.28 mol CO2/(m3 s) | 0.341 % rel. error | 0.42 % | Table 2, Exp. VI, Model Pr |
+| ExperimentVII | CO2 purity vs experiment | experiment | 93.48 % | 94.3 % | 0.818 pp abs. error | 1.1 pp | Table 2, Exp. VII.a, Experimental Pu |
+| ExperimentVII | CO2 recovery vs experiment | experiment | 94.71 % | 88.4 % | 6.31 pp abs. error | 9 pp | Table 2, Exp. VII.a, Experimental Re |
+| ExperimentVII | CO2 productivity vs experiment | experiment | 0.1571 mol CO2/(m3 s) | 0.14 mol CO2/(m3 s) | 12.2 % rel. error | 16 % | Table 2, Exp. VII.a, Experimental Pr |
+| ExperimentVII | CO2 purity vs paper model | paper model | 93.48 % | 95.5 % | 2.02 pp abs. error | 2.3 pp | Table 2, Exp. VII, Model Pu |
+| ExperimentVII | CO2 recovery vs paper model | paper model | 94.71 % | 88.1 % | 6.61 pp abs. error | 9.3 pp | Table 2, Exp. VII, Model Re |
+| ExperimentVII | CO2 productivity vs paper model | paper model | 0.1571 mol CO2/(m3 s) | 0.14 mol CO2/(m3 s) | 12.2 % rel. error | 16 % | Table 2, Exp. VII, Model Pr |
+| ExperimentVII | CO2 purity vs repeat experiment VII.b | experiment | 93.48 % | 93.8 % | 0.318 pp abs. error | info | Table 2, Exp. VII.b, Experimental Pu |
+| ExperimentVII | CO2 recovery vs repeat experiment VII.b | experiment | 94.71 % | 87.5 % | 7.21 pp abs. error | info | Table 2, Exp. VII.b, Experimental Re |
+| ExperimentVIII | CO2 purity vs experiment | experiment | 89.95 % | 92.7 % | 2.75 pp abs. error | 3.1 pp | Table 2, Exp. VIII, Experimental Pu |
+| ExperimentVIII | CO2 recovery vs experiment | experiment | 95.69 % | 87.8 % | 7.89 pp abs. error | 11 pp | Table 2, Exp. VIII, Experimental Re |
+| ExperimentVIII | CO2 productivity vs experiment | experiment | 0.1544 mol CO2/(m3 s) | 0.17 mol CO2/(m3 s) | 9.17 % rel. error | 11 % | Table 2, Exp. VIII, Experimental Pr |
+| ExperimentVIII | CO2 purity vs paper model | paper model | 89.95 % | 93.6 % | 3.65 pp abs. error | 4.1 pp | Table 2, Exp. VIII, Model Pu |
+| ExperimentVIII | CO2 recovery vs paper model | paper model | 95.69 % | 89.9 % | 5.79 pp abs. error | 8.3 pp | Table 2, Exp. VIII, Model Re |
+| ExperimentVIII | CO2 productivity vs paper model | paper model | 0.1544 mol CO2/(m3 s) | 0.16 mol CO2/(m3 s) | 3.49 % rel. error | 4 % | Table 2, Exp. VIII, Model Pr |
+| ExperimentX | CO2 purity vs experiment | experiment | 80.81 % | 80.6 % | 0.207 pp abs. error | 0.25 pp | Table 2, Exp. X, Experimental Pu |
+| ExperimentX | CO2 recovery vs experiment | experiment | 99.17 % | 92.4 % | 6.77 pp abs. error | 9.7 pp | Table 2, Exp. X, Experimental Re |
+| ExperimentX | CO2 productivity vs experiment | experiment | 0.1503 mol CO2/(m3 s) | 0.15 mol CO2/(m3 s) | 0.194 % rel. error | 2.9 % | Table 2, Exp. X, Experimental Pr |
+| ExperimentX | CO2 purity vs paper model | paper model | 80.81 % | 80.6 % | 0.207 pp abs. error | 0.25 pp | Table 2, Exp. X, Model Pu |
+| ExperimentX | CO2 recovery vs paper model | paper model | 99.17 % | 93.6 % | 5.57 pp abs. error | 8.3 pp | Table 2, Exp. X, Model Re |
+| ExperimentX | CO2 productivity vs paper model | paper model | 0.1503 mol CO2/(m3 s) | 0.13 mol CO2/(m3 s) | 15.6 % rel. error | 21 % | Table 2, Exp. X, Model Pr |
 
 ??? note "Notes on these comparisons"
 
@@ -399,12 +399,12 @@ T.T.T. Nguyen, G.K.H. Shimizu, A. Rajendran, Experimental demonstration of humid
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| CaseA0 | CO2 purity vs experiment | experiment | 94.89 % | 98.3 % | 3.41 pp abs. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), purity |
-| CaseA0 | CO2 recovery vs experiment | experiment | 81.98 % | 71.2 % | 10.8 pp abs. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), recovery |
-| CaseA0 | CO2 productivity vs experiment | experiment | 0.4671 mol CO2/(m3 s) | 0.577 mol CO2/(m3 s) | 19.1 % rel. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), productivity |
-| CaseB0 | CO2 purity vs experiment | experiment | 93.33 % | 92.4 % | 0.931 pp abs. error | 1 pp | Table 1, p. 6, Case 2, 0 % RH (B0), purity |
-| CaseB0 | CO2 productivity vs experiment | experiment | 0.15 mol CO2/(m3 s) | 0.147 mol CO2/(m3 s) | 2.01 % rel. error | 2.5 % | Table 1, p. 6, Case 2, 0 % RH (B0), productivity |
-| CaseB0 | CO2 recovery vs experiment | experiment | 94.87 % | 83.3 % | 11.6 pp abs. error | info | Table 1, p. 6, Case 2, 0 % RH (B0), recovery |
+| CaseA0 | CO2 purity vs experiment | experiment | 94.87 % | 98.3 % | 3.43 pp abs. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), purity |
+| CaseA0 | CO2 recovery vs experiment | experiment | 81.72 % | 71.2 % | 10.5 pp abs. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), recovery |
+| CaseA0 | CO2 productivity vs experiment | experiment | 0.4656 mol CO2/(m3 s) | 0.577 mol CO2/(m3 s) | 19.3 % rel. error | info | Table 1, p. 6, Case 1, 0 % RH (A0), productivity |
+| CaseB0 | CO2 purity vs experiment | experiment | 93.35 % | 92.4 % | 0.947 pp abs. error | 1 pp | Table 1, p. 6, Case 2, 0 % RH (B0), purity |
+| CaseB0 | CO2 productivity vs experiment | experiment | 0.1491 mol CO2/(m3 s) | 0.147 mol CO2/(m3 s) | 1.42 % rel. error | 2.5 % | Table 1, p. 6, Case 2, 0 % RH (B0), productivity |
+| CaseB0 | CO2 recovery vs experiment | experiment | 94.32 % | 83.3 % | 11 pp abs. error | info | Table 1, p. 6, Case 2, 0 % RH (B0), recovery |
 
 ??? note "Notes on these comparisons"
 
@@ -431,34 +431,34 @@ L. Estupiñan Perez, P. Sarkar, A. Rajendran, Experimental validation of multi-o
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| ConfigA | CO2 purity vs experiment | experiment | 99.55 % | 99.7 % | 0.149 pp abs. error | 0.3 pp | Table 3, 4-step, Experiment A, Experimental Purity |
-| ConfigA | CO2 recovery vs experiment | experiment | 60.14 % | 58.7 % | 1.44 pp abs. error | 1.5 pp | Table 3, 4-step, Experiment A, Experimental Recovery |
-| ConfigA | CO2 purity vs paper model | paper model | 99.55 % | 99.3 % | 0.251 pp abs. error | 0.3 pp | Table 3, 4-step, Experiment A, Model Purity |
-| ConfigA | CO2 recovery vs paper model | paper model | 60.14 % | 60 % | 0.144 pp abs. error | 0.43 pp | Table 3, 4-step, Experiment A, Model Recovery |
-| ConfigB | CO2 purity vs experiment | experiment | 96.96 % | 96.1 % | 0.861 pp abs. error | 0.9 pp | Table 3, 4-step, Experiment B, Experimental Purity |
-| ConfigB | CO2 recovery vs experiment | experiment | 62.03 % | 61.8 % | 0.234 pp abs. error | 0.3 pp | Table 3, 4-step, Experiment B, Experimental Recovery |
-| ConfigB | CO2 purity vs paper model | paper model | 96.96 % | 95.2 % | 1.76 pp abs. error | 1.8 pp | Table 3, 4-step, Experiment B, Model Purity |
-| ConfigB | CO2 recovery vs paper model | paper model | 62.03 % | 64.1 % | 2.07 pp abs. error | 4.3 pp | Table 3, 4-step, Experiment B, Model Recovery |
-| ConfigC1 | CO2 purity vs experiment | experiment | 88.43 % | 88.1 % | 0.325 pp abs. error | 0.4 pp | Table 3, 4-step, Experiment C1, Experimental Purity |
-| ConfigC1 | CO2 recovery vs experiment | experiment | 62.39 % | 64.6 % | 2.21 pp abs. error | 2.9 pp | Table 3, 4-step, Experiment C1, Experimental Recovery |
-| ConfigC1 | CO2 purity vs paper model | paper model | 88.43 % | 83.4 % | 5.03 pp abs. error | 5.1 pp | Table 3, 4-step, Experiment C1/C2, Model Purity |
-| ConfigC1 | CO2 recovery vs paper model | paper model | 62.39 % | 68.2 % | 5.81 pp abs. error | 9.7 pp | Table 3, 4-step, Experiment C1/C2, Model Recovery |
-| ConfigC1 | CO2 purity vs repeat experiment C2 | experiment | 88.43 % | 86.9 % | 1.53 pp abs. error | info | Table 3, 4-step, Experiment C2, Experimental Purity |
-| ConfigC1 | CO2 recovery vs repeat experiment C2 | experiment | 62.39 % | 71.9 % | 9.51 pp abs. error | info | Table 3, 4-step, Experiment C2, Experimental Recovery |
-| ConfigD1 | CO2 purity vs experiment | experiment | 94.08 % | 97.1 % | 3.02 pp abs. error | 3.9 pp | Table 3, LPP, Experiment D1, Experimental Purity |
-| ConfigD1 | CO2 recovery vs experiment | experiment | 89.48 % | 86.1 % | 3.38 pp abs. error | 4.5 pp | Table 3, LPP, Experiment D1, Experimental Recovery |
-| ConfigD1 | CO2 purity vs paper model | paper model | 94.08 % | 96.1 % | 2.02 pp abs. error | 2.7 pp | Table 3, LPP, Experiment D1/D2, Model Purity |
-| ConfigD1 | CO2 recovery vs paper model | paper model | 89.48 % | 86.8 % | 2.68 pp abs. error | 3.7 pp | Table 3, LPP, Experiment D1/D2, Model Recovery |
-| ConfigD1 | CO2 purity vs repeat experiment D2 | experiment | 94.08 % | 94.5 % | 0.416 pp abs. error | info | Table 3, LPP, Experiment D2, Experimental Purity |
-| ConfigD1 | CO2 recovery vs repeat experiment D2 | experiment | 89.48 % | 83.4 % | 6.08 pp abs. error | info | Table 3, LPP, Experiment D2, Experimental Recovery |
-| ConfigE | CO2 purity vs experiment | experiment | 87.25 % | 88.5 % | 1.25 pp abs. error | 2.1 pp | Table 3, LPP, Experiment E, Experimental Purity |
-| ConfigE | CO2 recovery vs experiment | experiment | 93.91 % | 91.7 % | 2.21 pp abs. error | 3.2 pp | Table 3, LPP, Experiment E, Experimental Recovery |
-| ConfigE | CO2 purity vs paper model | paper model | 87.25 % | 90.4 % | 3.15 pp abs. error | 4.3 pp | Table 3, LPP, Experiment E, Model Purity |
-| ConfigE | CO2 recovery vs paper model | paper model | 93.91 % | 91.1 % | 2.81 pp abs. error | 4 pp | Table 3, LPP, Experiment E, Model Recovery |
-| ConfigF | CO2 purity vs experiment | experiment | 76.78 % | 77.7 % | 0.916 pp abs. error | 2.6 pp | Table 3, LPP, Experiment F, Experimental Purity |
-| ConfigF | CO2 recovery vs experiment | experiment | 97.2 % | 95.6 % | 1.6 pp abs. error | 2.6 pp | Table 3, LPP, Experiment F, Experimental Recovery |
-| ConfigF | CO2 purity vs paper model | paper model | 76.78 % | 79.9 % | 3.12 pp abs. error | 4.4 pp | Table 3, LPP, Experiment F, Model Purity |
-| ConfigF | CO2 recovery vs paper model | paper model | 97.2 % | 94.6 % | 2.6 pp abs. error | 3.8 pp | Table 3, LPP, Experiment F, Model Recovery |
+| ConfigA | CO2 purity vs experiment | experiment | 99.53 % | 99.7 % | 0.17 pp abs. error | 0.3 pp | Table 3, 4-step, Experiment A, Experimental Purity |
+| ConfigA | CO2 recovery vs experiment | experiment | 59.73 % | 58.7 % | 1.03 pp abs. error | 1.5 pp | Table 3, 4-step, Experiment A, Experimental Recovery |
+| ConfigA | CO2 purity vs paper model | paper model | 99.53 % | 99.3 % | 0.23 pp abs. error | 0.3 pp | Table 3, 4-step, Experiment A, Model Purity |
+| ConfigA | CO2 recovery vs paper model | paper model | 59.73 % | 60 % | 0.269 pp abs. error | 0.43 pp | Table 3, 4-step, Experiment A, Model Recovery |
+| ConfigB | CO2 purity vs experiment | experiment | 96.94 % | 96.1 % | 0.841 pp abs. error | 0.9 pp | Table 3, 4-step, Experiment B, Experimental Purity |
+| ConfigB | CO2 recovery vs experiment | experiment | 61.75 % | 61.8 % | 0.0486 pp abs. error | 0.3 pp | Table 3, 4-step, Experiment B, Experimental Recovery |
+| ConfigB | CO2 purity vs paper model | paper model | 96.94 % | 95.2 % | 1.74 pp abs. error | 1.8 pp | Table 3, 4-step, Experiment B, Model Purity |
+| ConfigB | CO2 recovery vs paper model | paper model | 61.75 % | 64.1 % | 2.35 pp abs. error | 4.3 pp | Table 3, 4-step, Experiment B, Model Recovery |
+| ConfigC1 | CO2 purity vs experiment | experiment | 88.36 % | 88.1 % | 0.261 pp abs. error | 0.4 pp | Table 3, 4-step, Experiment C1, Experimental Purity |
+| ConfigC1 | CO2 recovery vs experiment | experiment | 61.98 % | 64.6 % | 2.62 pp abs. error | 2.9 pp | Table 3, 4-step, Experiment C1, Experimental Recovery |
+| ConfigC1 | CO2 purity vs paper model | paper model | 88.36 % | 83.4 % | 4.96 pp abs. error | 5.1 pp | Table 3, 4-step, Experiment C1/C2, Model Purity |
+| ConfigC1 | CO2 recovery vs paper model | paper model | 61.98 % | 68.2 % | 6.22 pp abs. error | 9.7 pp | Table 3, 4-step, Experiment C1/C2, Model Recovery |
+| ConfigC1 | CO2 purity vs repeat experiment C2 | experiment | 88.36 % | 86.9 % | 1.46 pp abs. error | info | Table 3, 4-step, Experiment C2, Experimental Purity |
+| ConfigC1 | CO2 recovery vs repeat experiment C2 | experiment | 61.98 % | 71.9 % | 9.92 pp abs. error | info | Table 3, 4-step, Experiment C2, Experimental Recovery |
+| ConfigD1 | CO2 purity vs experiment | experiment | 94.07 % | 97.1 % | 3.03 pp abs. error | 3.9 pp | Table 3, LPP, Experiment D1, Experimental Purity |
+| ConfigD1 | CO2 recovery vs experiment | experiment | 88.84 % | 86.1 % | 2.74 pp abs. error | 4.5 pp | Table 3, LPP, Experiment D1, Experimental Recovery |
+| ConfigD1 | CO2 purity vs paper model | paper model | 94.07 % | 96.1 % | 2.03 pp abs. error | 2.7 pp | Table 3, LPP, Experiment D1/D2, Model Purity |
+| ConfigD1 | CO2 recovery vs paper model | paper model | 88.84 % | 86.8 % | 2.04 pp abs. error | 3.7 pp | Table 3, LPP, Experiment D1/D2, Model Recovery |
+| ConfigD1 | CO2 purity vs repeat experiment D2 | experiment | 94.07 % | 94.5 % | 0.43 pp abs. error | info | Table 3, LPP, Experiment D2, Experimental Purity |
+| ConfigD1 | CO2 recovery vs repeat experiment D2 | experiment | 88.84 % | 83.4 % | 5.44 pp abs. error | info | Table 3, LPP, Experiment D2, Experimental Recovery |
+| ConfigE | CO2 purity vs experiment | experiment | 87.26 % | 88.5 % | 1.24 pp abs. error | 2.1 pp | Table 3, LPP, Experiment E, Experimental Purity |
+| ConfigE | CO2 recovery vs experiment | experiment | 93.25 % | 91.7 % | 1.55 pp abs. error | 3.2 pp | Table 3, LPP, Experiment E, Experimental Recovery |
+| ConfigE | CO2 purity vs paper model | paper model | 87.26 % | 90.4 % | 3.14 pp abs. error | 4.3 pp | Table 3, LPP, Experiment E, Model Purity |
+| ConfigE | CO2 recovery vs paper model | paper model | 93.25 % | 91.1 % | 2.15 pp abs. error | 4 pp | Table 3, LPP, Experiment E, Model Recovery |
+| ConfigF | CO2 purity vs experiment | experiment | 76.96 % | 77.7 % | 0.741 pp abs. error | 2.6 pp | Table 3, LPP, Experiment F, Experimental Purity |
+| ConfigF | CO2 recovery vs experiment | experiment | 96.59 % | 95.6 % | 0.987 pp abs. error | 2.6 pp | Table 3, LPP, Experiment F, Experimental Recovery |
+| ConfigF | CO2 purity vs paper model | paper model | 76.96 % | 79.9 % | 2.94 pp abs. error | 4.4 pp | Table 3, LPP, Experiment F, Model Purity |
+| ConfigF | CO2 recovery vs paper model | paper model | 96.59 % | 94.6 % | 1.99 pp abs. error | 3.8 pp | Table 3, LPP, Experiment F, Model Recovery |
 
 ??? note "Notes on these comparisons"
 
@@ -632,13 +632,13 @@ R. Vysyaraju, J.A. Sawada, L. Estupiñan Perez, A. Rajendran, Simulation and exp
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| DCB_Ambient_N2 | N2 equilibrium loading | experiment | 0.5381 mol/kg | 0.56 mol/kg | 3.92 % rel. error | 4.9 % | Sect. 4.2 text (Fig. 4a) |
-| DCB_Ambient_N2 | peak bed temperature | experiment | 304.3 K | 304 K | 0.251 K abs. error | 0.56 K | Sect. 4.2 text (Fig. 4) |
+| DCB_Ambient_N2 | N2 equilibrium loading | experiment | 0.538 mol/kg | 0.56 mol/kg | 3.92 % rel. error | 4.9 % | Sect. 4.2 text (Fig. 4a) |
+| DCB_Ambient_N2 | peak bed temperature | experiment | 304.2 K | 304 K | 0.223 K abs. error | 0.56 K | Sect. 4.2 text (Fig. 4) |
 | DCB_HighPressure_N2 | N2 equilibrium loading | isotherm (derived) | 2.126 mol/kg | 2.167 mol/kg | 1.89 % rel. error | 2.9 % | Table 2 DSL parameters evaluated at 11.2 bar, 298 K (Sect. 4.2, Fig. 5b) |
-| PSA_Exp1 | He purity vs experiment | experiment | 99.93 % | 98 % | 1.93 pp abs. error | 2.4 pp | Table 3, Exp. 1, Exp Pu_He |
-| PSA_Exp1 | He purity vs paper model | paper model | 99.93 % | 99.9 % | 0.0318 pp abs. error | 0.084 pp | Table 3, Exp. 1, Model Pu_He |
-| PSA_Exp1 | He recovery vs experiment | experiment | 64.08 % | 30.6 % | 33.5 pp abs. error | 36 pp | Table 3, Exp. 1, Exp Re_He |
-| PSA_Exp1 | He recovery vs paper model | paper model | 64.08 % | 31.3 % | 32.8 pp abs. error | 35 pp | Table 3, Exp. 1, Model Re_He |
+| PSA_Exp1 | He purity vs experiment | experiment | 99.95 % | 98 % | 1.95 pp abs. error | 2.4 pp | Table 3, Exp. 1, Exp Pu_He |
+| PSA_Exp1 | He purity vs paper model | paper model | 99.95 % | 99.9 % | 0.0537 pp abs. error | 0.084 pp | Table 3, Exp. 1, Model Pu_He |
+| PSA_Exp1 | He recovery vs experiment | experiment | 63.14 % | 30.6 % | 32.5 pp abs. error | 36 pp | Table 3, Exp. 1, Exp Re_He |
+| PSA_Exp1 | He recovery vs paper model | paper model | 63.14 % | 31.3 % | 31.8 pp abs. error | 35 pp | Table 3, Exp. 1, Model Re_He |
 
 ??? note "Notes on these comparisons"
 
@@ -667,17 +667,17 @@ A. Ward, R. Pini, Integrated uncertainty quantification and sensitivity analysis
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
 | Q100ccm | outlet y_CO2 | experiment | curve | digitised data | 2.72 % NRMSE | 3.2 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q100ccm | CO2 front time (y_CO2 = 0.5) | experiment | 1259 s | 1259 s | 0.0193 % rel. error | 0.2 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q100ccm | CO2 front time (y_CO2 = 0.5) | experiment | 1259 s | 1259 s | 0.0203 % rel. error | 0.2 % | Fig. 3 / data of ref. [5] (digitised) |
 | Q100ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 0.675 K RMSE | 0.78 K | Fig. 3 / data of ref. [5] (digitised) |
-| Q100ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 1259 s | 1250 s | 9.21 s abs. error | info | Table 10, adsorption, f_in = 100 ccm, t_br 95% CI |
+| Q100ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 1259 s | 1250 s | 9.2 s abs. error | info | Table 10, adsorption, f_in = 100 ccm, t_br 95% CI |
 | Q100ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 13.09 K | 15.05 K | 1.96 K abs. error | info | Table 10, adsorption, f_in = 100 ccm, Delta T_ads 95% CI |
-| Q200ccm | outlet y_CO2 | experiment | curve | digitised data | 3.89 % NRMSE | 4.5 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q200ccm | CO2 front time (y_CO2 = 0.5) | experiment | 593.5 s | 591.1 s | 0.404 % rel. error | 0.47 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q200ccm | outlet y_CO2 | experiment | curve | digitised data | 3.88 % NRMSE | 4.5 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q200ccm | CO2 front time (y_CO2 = 0.5) | experiment | 593.5 s | 591.1 s | 0.402 % rel. error | 0.47 % | Fig. 3 / data of ref. [5] (digitised) |
 | Q200ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 1.4 K RMSE | 1.6 K | Fig. 3 / data of ref. [5] (digitised) |
 | Q200ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 593.5 s | 575 s | 18.5 s abs. error | info | Table 10, adsorption, f_in = 200 ccm, t_br 95% CI |
 | Q200ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 20.87 K | 23.6 K | 2.73 K abs. error | info | Table 10, adsorption, f_in = 200 ccm, Delta T_ads 95% CI |
 | Q50ccm | outlet y_CO2 | experiment | curve | digitised data | 2.76 % NRMSE | 3.3 % | Fig. 3 / data of ref. [5] (digitised) |
-| Q50ccm | CO2 front time (y_CO2 = 0.5) | experiment | 2574 s | 2574 s | 0.0209 % rel. error | 0.2 % | Fig. 3 / data of ref. [5] (digitised) |
+| Q50ccm | CO2 front time (y_CO2 = 0.5) | experiment | 2574 s | 2574 s | 0.0206 % rel. error | 0.2 % | Fig. 3 / data of ref. [5] (digitised) |
 | Q50ccm | thermocouple T at z = 0.0715 m | experiment | curve | digitised data | 0.181 K RMSE | 0.22 K | Fig. 3 / data of ref. [5] (digitised) |
 | Q50ccm | breakthrough time (y_CO2,out = 0.5) | paper model (95% CI) | 2574 s | 2540 s | 33.7 s abs. error | info | Table 10, adsorption, f_in = 50 ccm, t_br 95% CI |
 | Q50ccm | temperature rise at z = 0.0715 m | paper model (95% CI) | 6.666 K | 8.445 K | 1.78 K abs. error | info | Table 10, adsorption, f_in = 50 ccm, Delta T_ads 95% CI |
@@ -777,9 +777,9 @@ A. Ward, R. Pini, Design and Performance Evaluation of Multisorbent Vacuum-Swing
 
 | Case | Quantity | Against | Simulated | Reference | Error | Tolerance | Source |
 |---|---|---|---|---|---|---|---|
-| FourStepPSA | CO2 purity | paper model | 96.16 % | 98.5 % | 2.34 pp abs. error | 2.7 pp | Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent) |
-| FourStepPSA | CO2 recovery | paper model | 91.83 % | 89 % | 2.83 pp abs. error | 3.4 pp | Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent) |
-| FourStepPSA | CO2 productivity | paper model | 0.8434 mol/(m3 s) | 0.828 mol/(m3 s) | 1.86 % rel. error | 2.7 % | Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent) |
+| FourStepPSA | CO2 purity | paper model | 96.18 % | 98.5 % | 2.32 pp abs. error | 2.7 pp | Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent) |
+| FourStepPSA | CO2 recovery | paper model | 91.64 % | 89 % | 2.64 pp abs. error | 3.4 pp | Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent) |
+| FourStepPSA | CO2 productivity | paper model | 0.8412 mol/(m3 s) | 0.828 mol/(m3 s) | 1.59 % rel. error | 2.7 % | Table 4, Maximum separation effectiveness, Mg-MOF-74 (single-adsorbent) |
 
 ??? note "Notes on these comparisons"
 
@@ -805,7 +805,7 @@ M.H. Halabi, Sorption enhanced catalytic reforming of methane for pure hydrogen 
 |---|---|---|---|---|---|---|---|
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Fig. 7 feed, 1.5 bar | paper model | 57.15 % | 57.1 % | 0.0528 pp abs. error | 1 pp | Ch. 9, Fig. 7 legend (p. 205): 'Equilibrium conversion' |
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Fig. 7 feed, 4.5 bar | paper model | 40.14 % | 40.1 % | 0.0372 pp abs. error | 1 pp | Ch. 9, Fig. 7 legend (p. 205): 'Equilibrium conversion' |
-| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Fig. 7 feed, 6 bar | paper model | 36.34 % | 36.8 % | 0.455 pp abs. error | 1 pp | Ch. 9, Fig. 7 legend (p. 205): 'Equilibrium conversion' |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Fig. 7 feed, 6 bar | paper model | 36.35 % | 36.8 % | 0.455 pp abs. error | 1 pp | Ch. 9, Fig. 7 legend (p. 205): 'Equilibrium conversion' |
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 3, 1.5 bar | paper model | 47.25 % | 45.3 % | 1.95 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 3, 4.5 bar | paper model | 32.71 % | 32.1 % | 0.61 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 3, 6 bar | paper model | 29.55 % | 29.2 % | 0.349 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
@@ -814,58 +814,58 @@ M.H. Halabi, Sorption enhanced catalytic reforming of methane for pure hydrogen 
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 4, 6 bar | paper model | 33.22 % | 31.8 % | 1.42 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 5, 1.5 bar | paper model | 57.41 % | 55.6 % | 1.81 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 5, 4.5 bar | paper model | 40.13 % | 39.6 % | 0.532 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
-| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 5, 6 bar | paper model | 36.3 % | 35.9 % | 0.402 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 5, 6 bar | paper model | 36.3 % | 35.9 % | 0.403 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 6, 1.5 bar | paper model | 61.21 % | 59.4 % | 1.81 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
 | GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 6, 4.5 bar | paper model | 43.04 % | 42.4 % | 0.645 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
-| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 6, 6 bar | paper model | 38.97 % | 38.5 % | 0.471 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 1.5 bar | experiment | 81.25 % | 82 % | 0.753 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 1.5 bar | experiment | 94.15 % | 82 % | 12.2 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 1.5 bar | experiment | 94.35 % | 94.7 % | 0.349 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 1.5 bar | experiment | 1.628 min | 4 min | 2.37 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 1.5 bar | experiment | 90.52 % | 92.7 % | 2.18 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 1.5 bar | experiment | 99.15 % | 92.7 % | 6.45 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 1.5 bar | experiment | 97.3 % | 98 % | 0.7 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 1.5 bar | experiment | 1.677 min | 4 min | 2.32 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 1.5 bar | experiment | 96.59 % | 98 % | 1.41 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 1.5 bar | experiment | 99.91 % | 98 % | 1.91 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 1.5 bar | experiment | 99.05 % | 99.5 % | 0.449 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 1.5 bar | experiment | 1.792 min | 4 min | 2.21 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 1.5 bar | experiment | 99.28 % | 99.6 % | 0.321 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 1.5 bar | experiment | 99.97 % | 99.6 % | 0.366 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 1.5 bar | experiment | 99.8 % | 99.8 % | 0.00317 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 1.5 bar | experiment | 1.923 min | 4 min | 2.08 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 4.5 bar | experiment | 72.1 % | 74.9 % | 2.8 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 4.5 bar | experiment | 83.67 % | 74.9 % | 8.77 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 4.5 bar | experiment | 91.18 % | 91.9 % | 0.724 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 4.5 bar | experiment | 2.922 min | 4 min | 1.08 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 4.5 bar | experiment | 80.27 % | 85.2 % | 4.93 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 4.5 bar | experiment | 91.04 % | 85.2 % | 5.84 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 4.5 bar | experiment | 94.19 % | 95.6 % | 1.41 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 4.5 bar | experiment | 2.854 min | 4 min | 1.15 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 4.5 bar | experiment | 86.39 % | 93.4 % | 7.01 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 4.5 bar | experiment | 95.28 % | 93.4 % | 1.88 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 4.5 bar | experiment | 96.18 % | 98.2 % | 2.02 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 4.5 bar | experiment | 2.864 min | 4 min | 1.14 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 4.5 bar | experiment | 90.99 % | 97.5 % | 6.51 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 4.5 bar | experiment | 97.6 % | 97.5 % | 0.0954 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 4.5 bar | experiment | 97.55 % | 99.2 % | 1.65 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 4.5 bar | experiment | 2.91 min | 4 min | 1.09 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 6 bar | experiment | 69.12 % | 72 % | 2.88 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 6 bar | experiment | 79.82 % | 72 % | 7.82 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 6 bar | experiment | 89.98 % | 91.3 % | 1.32 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 6 bar | experiment | 3.379 min | 4 min | 0.621 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 6 bar | experiment | 76.91 % | 83.4 % | 6.49 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 6 bar | experiment | 87.28 % | 83.4 % | 3.88 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 6 bar | experiment | 93.02 % | 95.3 % | 2.28 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 6 bar | experiment | 3.283 min | 4 min | 0.717 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 6 bar | experiment | 82.8 % | 91.4 % | 8.6 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 6 bar | experiment | 92 % | 91.4 % | 0.598 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 6 bar | experiment | 95.05 % | 97.5 % | 2.45 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 6 bar | experiment | 3.282 min | 4 min | 0.718 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
-| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 6 bar | experiment | 87.36 % | 95.2 % | 7.84 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 6 bar | experiment | 95.01 % | 95.2 % | 0.193 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
-| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 6 bar | experiment | 96.49 % | 98.8 % | 2.31 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
-| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 6 bar | experiment | 3.29 min | 4 min | 0.71 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| GasPhaseEquilibrium | CH4 equilibrium conversion vs paper model, Table 6, S/C 6, 6 bar | paper model | 38.97 % | 38.5 % | 0.472 pp abs. error | 2.5 pp | Ch. 9, Table 6 (p. 204), CH4 equil. conversion |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 1.5 bar | experiment | 79.16 % | 82 % | 2.84 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 1.5 bar | experiment | 93.33 % | 82 % | 11.3 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 1.5 bar | experiment | 93.57 % | 94.7 % | 1.13 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 1.5 bar | experiment | 1.476 min | 4 min | 2.52 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 1.5 bar | experiment | 88.29 % | 92.7 % | 4.41 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 1.5 bar | experiment | 98.77 % | 92.7 % | 6.07 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 1.5 bar | experiment | 96.57 % | 98 % | 1.43 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 1.5 bar | experiment | 1.518 min | 4 min | 2.48 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 1.5 bar | experiment | 94.75 % | 98 % | 3.25 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 1.5 bar | experiment | 99.87 % | 98 % | 1.87 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 1.5 bar | experiment | 98.5 % | 99.5 % | 0.995 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 1.5 bar | experiment | 1.622 min | 4 min | 2.38 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 1.5 bar | experiment | 98.36 % | 99.6 % | 1.24 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 1.5 bar | experiment | 99.96 % | 99.6 % | 0.365 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 1.5 bar | experiment | 99.53 % | 99.8 % | 0.27 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 1.5 bar | experiment | 1.765 min | 4 min | 2.23 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 4.5 bar | experiment | 70.63 % | 74.9 % | 4.27 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 4.5 bar | experiment | 82.87 % | 74.9 % | 7.97 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 4.5 bar | experiment | 90.57 % | 91.9 % | 1.33 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 4.5 bar | experiment | 2.698 min | 4 min | 1.3 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 4.5 bar | experiment | 78.68 % | 85.2 % | 6.52 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 4.5 bar | experiment | 90.39 % | 85.2 % | 5.19 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 4.5 bar | experiment | 93.62 % | 95.6 % | 1.98 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 4.5 bar | experiment | 2.635 min | 4 min | 1.36 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 4.5 bar | experiment | 84.81 % | 93.4 % | 8.59 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 4.5 bar | experiment | 94.75 % | 93.4 % | 1.35 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 4.5 bar | experiment | 95.67 % | 98.2 % | 2.53 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 4.5 bar | experiment | 2.643 min | 4 min | 1.36 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 4.5 bar | experiment | 89.54 % | 97.5 % | 7.96 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 4.5 bar | experiment | 97.25 % | 97.5 % | 0.254 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 4.5 bar | experiment | 97.12 % | 99.2 % | 2.08 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 4.5 bar | experiment | 2.684 min | 4 min | 1.32 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 3, 6 bar | experiment | 67.9 % | 72 % | 4.1 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 3, 6 bar | experiment | 79.24 % | 72 % | 7.24 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 3, 6 bar | experiment | 89.46 % | 91.3 % | 1.84 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 3, 6 bar | experiment | 3.182 min | 4 min | 0.818 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 4, 6 bar | experiment | 75.59 % | 83.4 % | 7.81 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 4, 6 bar | experiment | 86.7 % | 83.4 % | 3.3 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 4, 6 bar | experiment | 92.53 % | 95.3 % | 2.77 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 4, 6 bar | experiment | 3.073 min | 4 min | 0.927 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 5, 6 bar | experiment | 81.48 % | 91.4 % | 9.92 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 5, 6 bar | experiment | 91.5 % | 91.4 % | 0.102 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 5, 6 bar | experiment | 94.61 % | 97.5 % | 2.89 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 5, 6 bar | experiment | 3.063 min | 4 min | 0.937 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
+| SorptionEnhanced | CH4 conversion at 60 s vs experiment, S/C 6, 6 bar | experiment | 86.11 % | 95.2 % | 9.09 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | max CH4 conversion (t &gt;= 5 s) vs experiment, S/C 6, 6 bar | experiment | 94.63 % | 95.2 % | 0.575 pp abs. error | info | Ch. 9, Table 6 (p. 204), CH4 conversion |
+| SorptionEnhanced | H2 dry Ar-free at 60 s vs experiment, S/C 6, 6 bar | experiment | 96.1 % | 98.8 % | 2.7 pp abs. error | info | Ch. 9, Table 6 (p. 204), H2 concentration |
+| SorptionEnhanced | CO2 breakthrough time vs experiment, S/C 6, 6 bar | experiment | 3.073 min | 4 min | 0.927 min abs. error | info | Ch. 9, p. 203: "average breakthrough times were determined in the range of 4-15 min" |
 
 ??? note "Notes on these comparisons"
 
