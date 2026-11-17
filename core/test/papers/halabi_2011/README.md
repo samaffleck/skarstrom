@@ -151,18 +151,25 @@ without a read time or an averaging rule.
 
 | S/C | P [bar] | Thesis X [%] | Model X, 60 s | Model X max (t ≥ 5 s) | Thesis H₂ [%] | Model H₂, 60 s | Model breakthrough [min] |
 |---|---|---|---|---|---|---|---|
-| 3 | 1.5 | 82.0 | 81.25 | 94.15 | 94.7 | 94.35 | 1.6 |
-| 4 | 1.5 | 92.7 | 90.52 | 99.15 | 98.0 | 97.30 | 1.7 |
-| 5 | 1.5 | 98.0 | 96.59 | 99.91 | 99.5 | 99.05 | 1.8 |
-| 6 | 1.5 | 99.6 | 99.28 | 99.97 | 99.8 | 99.80 | 1.9 |
-| 3 | 4.5 | 74.9 | 72.10 | 83.67 | 91.9 | 91.18 | 2.9 |
-| 4 | 4.5 | 85.2 | 80.27 | 91.04 | 95.6 | 94.19 | 2.9 |
-| 5 | 4.5 | 93.4 | 86.39 | 95.28 | 98.2 | 96.18 | 2.9 |
-| 6 | 4.5 | 97.5 | 90.99 | 97.60 | 99.2 | 97.55 | 2.9 |
-| 3 | 6.0 | 72.0 | 69.12 | 79.82 | 91.3 | 89.98 | 3.4 |
-| 4 | 6.0 | 83.4 | 76.91 | 87.28 | 95.3 | 93.02 | 3.3 |
-| 5 | 6.0 | 91.4 | 82.80 | 92.00 | 97.5 | 95.05 | 3.3 |
-| 6 | 6.0 | 95.2 | 87.36 | 95.01 | 98.8 | 96.49 | 3.3 |
+| 3 | 1.5 | 82.0 | 79.16 | 93.33 | 94.7 | 93.57 | 1.5 |
+| 4 | 1.5 | 92.7 | 88.29 | 98.77 | 98.0 | 96.57 | 1.5 |
+| 5 | 1.5 | 98.0 | 94.75 | 99.87 | 99.5 | 98.50 | 1.6 |
+| 6 | 1.5 | 99.6 | 98.36 | 99.96 | 99.8 | 99.53 | 1.8 |
+| 3 | 4.5 | 74.9 | 70.63 | 82.87 | 91.9 | 90.57 | 2.7 |
+| 4 | 4.5 | 85.2 | 78.68 | 90.39 | 95.6 | 93.62 | 2.6 |
+| 5 | 4.5 | 93.4 | 84.81 | 94.75 | 98.2 | 95.67 | 2.6 |
+| 6 | 4.5 | 97.5 | 89.54 | 97.25 | 99.2 | 97.12 | 2.7 |
+| 3 | 6.0 | 72.0 | 67.90 | 79.24 | 91.3 | 89.46 | 3.2 |
+| 4 | 6.0 | 83.4 | 75.59 | 86.70 | 95.3 | 92.53 | 3.1 |
+| 5 | 6.0 | 91.4 | 81.48 | 91.50 | 97.5 | 94.61 | 3.1 |
+| 6 | 6.0 | 95.2 | 86.11 | 94.63 | 98.8 | 96.10 | 3.1 |
+
+The table is with each component's own dispersion coefficient (2026-11-17;
+before, one D_m = 1.6 × 10⁻⁵ m²/s for every gas). H₂ disperses about four times
+faster than the other gases, which lowers the 60 s conversion by 0.9–2.2 points
+and the 60 s H₂ by 0.3–0.8 point, lowers the maximum conversion by up to 0.8
+point and brings the breakthrough 0.1–0.3 min earlier. The discussion below
+quotes the earlier values; the conclusions hold.
 
 The thesis gives the breakthrough times of these runs as a range: "4–15 min"
 (p. 203). H₂ is on the dry, Ar-free basis. The model's breakthrough is the last
