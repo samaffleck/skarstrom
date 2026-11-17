@@ -75,7 +75,7 @@ namespace adsim {
   }
 
   // The mixture-averaged D_m,i (Blanc's law) with the engine's D_ij, against
-  // Cantera's mix_diff_coeffs_mole. Measured: within 0.13 %.
+  // Cantera's mix_diff_coeffs_mole. Measured: within 0.2 %.
   TEST(CanteraDiffusivity, MixtureAveragedDiffusivitiesMatch) {
     for (const auto& m : ref::kMixtures) {
       for (size_t i = 0; i < m.components.size(); ++i) {
