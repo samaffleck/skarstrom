@@ -49,14 +49,14 @@ namespace adsim {
     TemperatureCache omega_cache{}; // per-cell memo of the collision integral omega(T / eps)
   };
 
-  // Scale of the smooth floor on the partner mole fractions in Blanc's law
+  // Scale of the smooth floor on the partner mole fractions in Wilke's equation
   // (dimensionless). It is 100 times the absolute tolerance of the solver on a
   // mole fraction (1e-8), which is also the difference-quotient increment of a
   // mole-fraction column near zero. Below about 1e-8 a mole fraction is solver
-  // noise, and Blanc's law weights the partners by their ratios; this floor
+  // noise, and Wilke's equation weights the partners by their ratios; this floor
   // keeps those noise ratios out of D_m,i, and the Jacobian's increment
   // resolves the transition (1 % of its width).
-  inline constexpr double kBlancMoleFractionFloor = 1e-6;
+  inline constexpr double kWilkeMoleFractionFloor = 1e-6;
 
   // Smooth floor of a mole fraction: 0.5 (y + sqrt(y^2 + d^2)). It is
   // infinitely differentiable and > 0 for every y. It equals
@@ -68,10 +68,11 @@ namespace adsim {
     return y >= 0.0 ? 0.5 * (y + r) : 0.5 * d * d / (r - y);
   }
 
-  // Mixture-averaged molecular diffusivity of component i by Blanc's law,
+  // Mixture-averaged molecular diffusivity of component i by Wilke's equation
+  // (Wilke 1950; Blanc's law, Blanc 1908, in the trace limit),
   //   D_m,i = sum_j y_j / sum_j (y_j / D_ij),   j != i,
   // with each partner mole fraction y_j replaced by its smooth floor
-  // (SmoothMoleFractionFloor, scale kBlancMoleFractionFloor). sum_j y_j is
+  // (SmoothMoleFractionFloor, scale kWilkeMoleFractionFloor). sum_j y_j is
   // 1 - y_i when the mole fractions sum to 1.
   //
   // Without the floor the formula is 0 / 0 when every partner is absent (a
@@ -83,15 +84,15 @@ namespace adsim {
   //  - at the pure limit it is the unweighted harmonic mean of the D_ij;
   //  - it is infinitely differentiable in every y_j and does not depend on the
   //    order of the partners;
-  //  - where every partner's fraction is >= 1e-3 it is Blanc's law to a
+  //  - where every partner's fraction is >= 1e-3 it is Wilke's equation to a
   //    relative 2e-7 (2e-5 at >= 1e-4, 2e-3 at >= 1e-5): only a nearly pure
   //    cell sees the floor;
   //  - the solver's difference quotient (increment about 1e-8 near y = 0)
   //    gives its derivative to within 1 % across the transition.
   // A Newton probe with P < 0 makes every D_ij < 0; the magnitude of the
   // denominator keeps D_m,i > 0 there, as the previous form did.
-  inline double BlancMixtureDiffusivity(const double* y, const double* D_ij, std::size_t n_partners,
-                                        double floor = kBlancMoleFractionFloor) {
+  inline double WilkeMixtureDiffusivity(const double* y, const double* D_ij, std::size_t n_partners,
+                                        double floor = kWilkeMoleFractionFloor) {
     double num = 0.0, den = 0.0;
     for (std::size_t j = 0; j < n_partners; ++j) {
       const double yj = SmoothMoleFractionFloor(y[j], floor);

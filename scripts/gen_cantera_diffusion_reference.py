@@ -19,7 +19,7 @@ which moves D_ij by less than 1e-4).
 
   binary    GasTransportData + mixture-averaged transport, binary_diff_coeffs,
             for every pair (self pairs included) at P = 1 bar.
-  mixture   mix_diff_coeffs_mole (Blanc's law: (1 - x_k) / sum_j x_j / D_kj)
+  mixture   mix_diff_coeffs_mole (Wilke's equation: (1 - x_k) / sum_j x_j / D_kj)
             for a few mixtures away from the pure limit, at 300 K and 1 bar.
 
 Needs Cantera (pip install cantera); the version is recorded in the header.

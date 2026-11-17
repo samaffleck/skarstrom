@@ -71,7 +71,7 @@ namespace adsim {
 		// True when the model gives each component its own coefficient
 		// D_ax,i (UpdateComponent), built on the component's mixture-averaged
 		// molecular diffusivity D_m,i (Equations::molecular_diffusion:
-		// Chapman-Enskog binary D_ij with Blanc's law). The component balance
+		// Chapman-Enskog binary D_ij with Wilke's equation). The component balance
 		// then adds the drift correction that keeps the dispersive molar
 		// fluxes summing to zero (Ramshaw, J. Non-Equilib. Thermodyn. 15
 		// (1990) 295, in the molar-average frame; UpdateDispersionDrift).

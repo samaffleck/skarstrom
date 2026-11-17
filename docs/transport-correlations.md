@@ -91,9 +91,9 @@ $$
 D_{m,i} = \frac{1 - y_i}{\sum_{j \ne i} y_j / D_{ij}}
 $$
 
-This is Blanc's law, with the binary diffusivities $D_{ij}$ from Chapman–Enskog theory and the Lennard-Jones parameters of each component.
+This is Wilke's equation (Blanc's law in the trace limit; [Equation of State](equation-of-state.md#molecular-diffusion-in-a-mixture)), with the binary diffusivities $D_{ij}$ from Chapman–Enskog theory and the Lennard-Jones parameters of each component.
 
-With three or more components, the engine replaces each partner mole fraction $y_j$ by a smooth floor, $\hat y_j = \tfrac{1}{2}\left(y_j + \sqrt{y_j^2 + \delta^2}\right)$ with $\delta = 10^{-6}$, and uses $D_{m,i} = \sum_{j \ne i} \hat y_j \big/ \sum_{j \ne i} \hat y_j / D_{ij}$. In a cell of pure $i$ the plain formula is $0/0$; the floor gives the unweighted harmonic mean of the $D_{ij}$. $D_{m,i}$ always lies between the smallest and the largest $D_{ij}$, and it is a smooth function of the mole fractions. Where every partner has $y_j \ge 10^{-3}$, it equals Blanc's law to $2 \times 10^{-7}$.
+With three or more components, the engine replaces each partner mole fraction $y_j$ by a smooth floor, $\hat y_j = \tfrac{1}{2}\left(y_j + \sqrt{y_j^2 + \delta^2}\right)$ with $\delta = 10^{-6}$, and uses $D_{m,i} = \sum_{j \ne i} \hat y_j \big/ \sum_{j \ne i} \hat y_j / D_{ij}$. In a cell of pure $i$ the plain formula is $0/0$; the floor gives the unweighted harmonic mean of the $D_{ij}$. $D_{m,i}$ always lies between the smallest and the largest $D_{ij}$, and it is a smooth function of the mole fractions. Where every partner has $y_j \ge 10^{-3}$, it equals Wilke's equation to $2 \times 10^{-7}$.
 
 !!! note "Changed in 0.16"
     Earlier versions gave $D_{m,i} = 0$ in a cell of pure $i$ with three or more components. Every diffusion-based mass-transfer coefficient of $i$ was then 0, and $i$ did not adsorb in that cell.

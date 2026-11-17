@@ -62,7 +62,7 @@ Conditions: thesis Table A2.1.
 | Wall-end condition | **zero flux (assumption)** | not stated | ends at ambient: see the attribution |
 | h_in, h_out | 6.963, 14 W/(m² K) | Table 2 (fitted) | |
 | Axial conduction K_z | 0.4 W/(m K) | Table 2 (fitted) | |
-| Axial dispersion | **Ruthven per component: D_L,i = 0.7 D_m,i + v r_p, D_m,i mixture-averaged (Chapman–Enskog, Blanc's law)** | Eq. 6: D_L = 0.7 D_m + v r_p, one D_m = 1.496 × 10⁻⁵ | the engine's Ruthven form; since 2026-11-17 each component has its own D_m,i (below) |
+| Axial dispersion | **Ruthven per component: D_L,i = 0.7 D_m,i + v r_p, D_m,i mixture-averaged (Chapman–Enskog, Wilke's equation)** | Eq. 6: D_L = 0.7 D_m + v r_p, one D_m = 1.496 × 10⁻⁵ | the engine's Ruthven form; since 2026-11-17 each component has its own D_m,i (below) |
 | Pressure drop | Blake–Kozeny (Darcy, 150) | Eq. 7 | |
 | Cells | 30 | Sect. 4.1 | grid-converged (below) |
 | Flow, T, P, feed gas | per case (table above) | thesis Table A2.1 | the flow is taken at the feed conditions |
@@ -122,7 +122,7 @@ the front times (`nguyen_2022.cpp`).
 
 The engine's Ruthven model now gives each component its own coefficient
 D_L,i = 0.7 D_m,i + v r_p, with D_m,i the mixture-averaged molecular
-diffusivity (Chapman–Enskog binary values, Blanc's law), and keeps the
+diffusivity (Chapman–Enskog binary values, Wilke's equation), and keeps the
 dispersive fluxes summing to zero (docs/mass-balance.md). The paper uses one
 D_m = 1.496 × 10⁻⁵ m²/s, close to D(CO₂–N₂), for every component and gas. In
 Fig. 4 the carrier is helium and the flow low (50 cm³/min), so the molecular

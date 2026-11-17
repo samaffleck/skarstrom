@@ -9,7 +9,7 @@
 // Taylor-Aris models).
 //
 // Each component i disperses with its own D_ax,i, built on its mixture-averaged
-// molecular diffusivity D_m,i (Chapman-Enskog binary D_ij with Blanc's law).
+// molecular diffusivity D_m,i (Chapman-Enskog binary D_ij with Wilke's equation).
 // Fickian fluxes -eb D_ax,i C dy_i/dz with different coefficients do not sum
 // to zero, and the overall balance has no dispersion term, so the component
 // balance takes the drift-corrected flux (Ramshaw, J. Non-Equilib. Thermodyn.
@@ -288,7 +288,7 @@ namespace adsim {
     }
   }
 
-  // 2. Binary: Blanc's law gives D_m,1 = D_m,2 = D_12, so Ruthven's residuals
+  // 2. Binary: Wilke's equation gives D_m,1 = D_m,2 = D_12, so Ruthven's residuals
   //    are those of a constant coefficient 0.7 D_12 (no flow in a still
   //    column). Uniform T and P make D_12 uniform; it is read from the run.
   TEST(PerComponentDispersion, BinaryEqualsOneCoefficientAtD12) {

@@ -1580,11 +1580,12 @@ namespace adsim {
     ZeroVoidCellsAndMirrorGhosts(state.slow_mass_transfer_coefficient.at(ads_id).at(component).var, bed);
   }
 
-  // D_m,i of each component of a fluid of three or more components: Blanc's law
-  // over the binary D_ij, with a smooth floor on the partner mole fractions
-  // (BlancMixtureDiffusivity in binary_diffusion_model.h). The floor keeps
-  // D_m,i finite and > 0 in a cell of pure i, where the plain formula is 0 / 0.
-  static void BlancLaw(UserData* udata, Component component) {
+  // D_m,i of each component of a fluid of three or more components: Wilke's
+  // equation over the binary D_ij (Wilke 1950; Blanc's law in the trace limit),
+  // with a smooth floor on the partner mole fractions (WilkeMixtureDiffusivity
+  // in binary_diffusion_model.h). The floor keeps D_m,i finite and > 0 in a
+  // cell of pure i, where the plain formula is 0 / 0.
+  static void UpdateWilkeMixtureDiffusivity(UserData* udata, Component component) {
     auto& state = udata->state;
     auto& fluid = udata->fluid;
 
@@ -1621,7 +1622,7 @@ namespace adsim {
         y_cell[j] = (*partners[j].yj)[n];
         D_cell[j] = (*partners[j].Dij)[n];
       }
-      Dmi[n] = BlancMixtureDiffusivity(y_cell.data(), D_cell.data(), n_partners);
+      Dmi[n] = WilkeMixtureDiffusivity(y_cell.data(), D_cell.data(), n_partners);
     }
   }
 
@@ -1684,7 +1685,7 @@ namespace adsim {
 
     // Three or more components
     for (const auto& comp : fluid.components_) {
-      BlancLaw(udata, comp);
+      UpdateWilkeMixtureDiffusivity(udata, comp);
     }
   }
 

@@ -66,7 +66,7 @@ value in a comment next to it. Results of the last run:
 
 The engine's Ruthven model now gives each component its own coefficient
 0.7 D_m,i + v r_p, with D_m,i the mixture-averaged molecular diffusivity
-(Chapman–Enskog, Blanc's law; in this CO₂/N₂ gas both equal D_12, which grows
+(Chapman–Enskog, Wilke's equation; in this CO₂/N₂ gas both equal D_12, which grows
 as 1/P in the evacuation step), instead of one D_m = 1.6 × 10⁻⁵ m²/s, and
 keeps the dispersive fluxes summing to zero (docs/mass-balance.md). Most
 metrics moved by less than 0.5 pp or 0.6 %. Three bounds were exceeded and

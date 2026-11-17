@@ -2,7 +2,7 @@
 // cantera_diffusion_reference.h by scripts/gen_cantera_diffusion_reference.py,
 // with the engine's Lennard-Jones pairs). This tests the Chapman-Enskog and
 // Neufeld implementation (BinaryDiffusionCoefficientModel) and the
-// mixture-averaged rule (BlancMixtureDiffusivity), not the parameter choice.
+// mixture-averaged rule (WilkeMixtureDiffusivity), not the parameter choice.
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -74,7 +74,7 @@ namespace adsim {
               << 100 * mean << " %, worst " << 100 * worst << " % (" << worst_case << ")\n";
   }
 
-  // The mixture-averaged D_m,i (Blanc's law) with the engine's D_ij, against
+  // The mixture-averaged D_m,i (Wilke's equation) with the engine's D_ij, against
   // Cantera's mix_diff_coeffs_mole. Measured: within 0.2 %.
   TEST(CanteraDiffusivity, MixtureAveragedDiffusivitiesMatch) {
     for (const auto& m : ref::kMixtures) {
@@ -85,7 +85,7 @@ namespace adsim {
           y.push_back(m.y[j]);
           D.push_back(EngineBinary(m.components[i], m.components[j])[1]);   // 300 K
         }
-        const double Dm = BlancMixtureDiffusivity(y.data(), D.data(), y.size());
+        const double Dm = WilkeMixtureDiffusivity(y.data(), D.data(), y.size());
         EXPECT_NEAR(Dm, m.D[i], 0.005 * m.D[i]) << m.title << ": " << m.components[i];
       }
     }

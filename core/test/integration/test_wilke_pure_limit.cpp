@@ -1,7 +1,7 @@
 // A fluid of three or more components with a cell of one pure component.
-// Blanc's law was 0 / 0 there and the engine returned D_m,i = 0, so every
+// Wilke's equation was 0 / 0 there and the engine returned D_m,i = 0, so every
 // diffusion-based mass-transfer coefficient of that component was 0 and its
-// loading never moved. With the smooth floor (BlancMixtureDiffusivity),
+// loading never moved. With the smooth floor (WilkeMixtureDiffusivity),
 // D_m,i is the harmonic mean of the partner D_ij, and the solver integrates
 // through the nearly pure region.
 
@@ -56,7 +56,7 @@ namespace adsim {
   } // namespace
 
   // At initialisation every cell is pure N2.
-  TEST_F(UserDataTest, BlancPureLimit_DiffusivityOfThePureComponent) {
+  TEST_F(UserDataTest, WilkePureLimit_DiffusivityOfThePureComponent) {
     auto [layer_id, ads_id] = AddThreeComponentBed(*this);
     AddInitialConditions(1e5, 298, 298, { {"Hydrogen", 0.0}, {"CarbonDioxide", 0.0}, {"Nitrogen", 1.0} });
     data.Initialise();
@@ -84,7 +84,7 @@ namespace adsim {
   // Pressurise the pure-N2 bed with N2: the N2 loading must rise to the new
   // equilibrium. With D_m,N2 = 0 the macropore coefficient was 0 and the
   // loading stayed at its initial value.
-  TEST_F(UserDataTest, BlancPureLimit_PureComponentAdsorbs) {
+  TEST_F(UserDataTest, WilkePureLimit_PureComponentAdsorbs) {
     auto [layer_id, ads_id] = AddThreeComponentBed(*this);
     AddInitialConditions(1e5, 298, 298, { {"Hydrogen", 0.0}, {"CarbonDioxide", 0.0}, {"Nitrogen", 1.0} });
 
@@ -117,7 +117,7 @@ namespace adsim {
   // Feed H2/CO2 into the pure-N2 bed: the front carries every cell through the
   // nearly pure region where the floor acts. The run must complete, and every
   // D_m,i must stay finite and between its smallest and largest D_ij.
-  TEST_F(UserDataTest, BlancPureLimit_SolverIntegratesThroughTheFront) {
+  TEST_F(UserDataTest, WilkePureLimit_SolverIntegratesThroughTheFront) {
     auto [layer_id, ads_id] = AddThreeComponentBed(*this);
     AddInitialConditions(1e5, 298, 298, { {"Hydrogen", 0.0}, {"CarbonDioxide", 0.0}, {"Nitrogen", 1.0} });
 
