@@ -360,6 +360,12 @@ namespace adsim {
          "than 1e-4 s (at least {limit}), with near-zero {component}. Start the bed nearer the reaction's state "
          "(docs/reactions.md, \"Start-up of fast reactions\").",
          "REACTION_STIFF"},
+        {"supersaturation", "Gas above its saturation pressure", "end", "settings.warn_supersaturation",
+         defaults.supersaturation,
+         "{component} is supersaturated in step {step} of cycle {cycle}: its partial pressure reaches {value} times "
+         "its saturation pressure (more than {limit}), in the gas or at the wall temperature. Condensation is not "
+         "modelled. The same switch warns at the start of a run about supersaturated inlets and initial gas.",
+         "SUPERSATURATION"},
       };
       return w;
     }();

@@ -214,6 +214,107 @@ namespace adsim {
     EXPECT_TRUE(r.health_warnings.empty());
   }
 
+  // SUPERSATURATION: a small humid breakthrough (water in nitrogen) through a
+  // bed that takes up little water (Henry), so the bed fills with the feed gas
+  // within the first step. At 293 K p_sat(water) = 2337 Pa.
+  class SupersaturationRunTest : public UserDataTest {
+  protected:
+    static constexpr double kAtm = 101325.0;
+    void Build(double y_water, double T_wall) {
+      AddComponents({ "Water", "Nitrogen" });
+      AddInitialConditions(kAtm, 293, T_wall, { {"Water", 0.0}, {"Nitrogen", 1.0} });
+      auto [layer_id, ads_id] = AddLayer("Adsorbent");
+      GetLayer(layer_id).domain_.n_cells = 10;
+      AddIsotherm({ "Nitrogen" }, ads_id, std::make_unique<HenryIsotherm>("Nitrogen"));
+      AddIsotherm({ "Water" }, ads_id, std::make_unique<HenryIsotherm>("Water"));
+      AddLinearDrivingForceModel(ads_id, "Water", 0.5);
+      AddLinearDrivingForceModel(ads_id, "Nitrogen", 0.5);
+      // No heat exchange with the wall: it stays at its initial temperature.
+      AddConstantInternalHeatTransferCoefficientModel(0.0, layer_id);
+      AddConstantExternalHeatTransferCoefficientModel(0.0, layer_id);
+      AddStep("Humid feed", 30.0);
+      std::vector<std::unique_ptr<IBoundaryStream>> streams;
+      streams.push_back(CreateNoValveInletStream(CreateVelocityBC(0.1),
+                                                 { {"Water", y_water}, {"Nitrogen", 1.0 - y_water} }, 293));
+      AddFlowBC(std::move(streams), BoundaryLocation::BOTTOM, BoundaryDirection::INLET, "Humid feed");
+      AddPressureOutletBC(CreateConstantBoundaryValue(kAtm), BoundaryLocation::TOP, "Humid feed");
+      ConfigureCycle(2);
+      data.settings.css.method_ = CSSMethod::NONE;
+    }
+    std::vector<std::string> Run(CoupledSolver& solver) {
+      std::string error;
+      EXPECT_TRUE(data.PerformChecks(error)) << error;
+      std::vector<std::string> messages;
+      solver.SetLogLevel(LogLevel::LOW);
+      solver.SetMessageCallback([&messages](LogLevel, const std::string& msg) { messages.push_back(msg); });
+      EXPECT_GE(solver.IntegrateCycle(data.cycle, false), 0);
+      return messages;
+    }
+    static const RunHealthWarning* Find(const RunHealthReport& r) {
+      for (const auto& w : r.warnings)
+        if (w.check == RunHealthCheck::Supersaturation) return &w;
+      return nullptr;
+    }
+  };
+
+  TEST_F(SupersaturationRunTest, HumidFeedBelowSaturationIsSilent) {
+    Build(0.02, 293);  // 2027 Pa: 0.87
+    CoupledSolver solver{ data };
+    Run(solver);
+    const auto& report = solver.GetRunHealth();
+    EXPECT_EQ(Find(report), nullptr);
+    ASSERT_EQ(report.cycles.size(), 2u);
+    EXPECT_NEAR(report.cycles.back().supersaturation_gas, 0.87, 0.02);
+    EXPECT_NEAR(report.cycles.back().supersaturation_wall, 0.87, 0.02);
+  }
+
+  TEST_F(SupersaturationRunTest, SupersaturatedFeedFiresInTheGas) {
+    Build(0.03, 293);  // 3040 Pa: 1.30
+    CoupledSolver solver{ data };
+    const auto messages = Run(solver);
+    const auto& report = solver.GetRunHealth();
+    const RunHealthWarning* w = Find(report);
+    ASSERT_NE(w, nullptr);
+    EXPECT_EQ(w->code, "SUPERSATURATION");
+    EXPECT_EQ(w->component, "Water");
+    EXPECT_NEAR(w->value, 1.30, 0.03);
+    EXPECT_EQ(w->threshold, RunHealthThresholds::kSupersaturation);
+    EXPECT_GE(w->cycle, 0);
+    EXPECT_EQ(w->step, 0);
+    EXPECT_EQ(w->step_name, "Humid feed");
+    EXPECT_NE(w->message.find("supersaturated in the gas"), std::string::npos) << w->message;
+    EXPECT_NE(w->message.find("cell "), std::string::npos) << w->message;
+    EXPECT_NE(w->hint.find("not physical"), std::string::npos) << w->hint;
+    EXPECT_FALSE(solver.GetRunHealth().Healthy());
+    EXPECT_EQ(std::count(messages.begin(), messages.end(), w->message), 1);
+    // The start-of-run deck warning names the feed too.
+    EXPECT_TRUE(std::any_of(messages.begin(), messages.end(), [](const std::string& m) {
+      return m.find("inlet stream") != std::string::npos && m.find("is supersaturated") != std::string::npos;
+    }));
+  }
+
+  TEST_F(SupersaturationRunTest, ColdWallFiresAtTheWallTemperature) {
+    Build(0.02, 283);  // 0.87 in the gas at 293 K; p_sat(283 K) = 1228 Pa: 1.65 at the wall
+    CoupledSolver solver{ data };
+    Run(solver);
+    const auto& report = solver.GetRunHealth();
+    const RunHealthWarning* w = Find(report);
+    ASSERT_NE(w, nullptr);
+    EXPECT_NEAR(w->value, 1.65, 0.05);
+    EXPECT_NE(w->message.find("at the wall temperature"), std::string::npos) << w->message;
+    EXPECT_NE(w->message.find("(in the gas: 0.8"), std::string::npos) << w->message;
+    EXPECT_LT(report.cycles.back().supersaturation_gas, 1.0);
+  }
+
+  TEST_F(SupersaturationRunTest, SwitchedOffIsNotReportedOrLogged) {
+    Build(0.03, 293);
+    data.settings.warnings_.supersaturation = false;
+    CoupledSolver solver{ data };
+    const auto messages = Run(solver);
+    EXPECT_EQ(Find(solver.GetRunHealth()), nullptr);
+    for (const auto& m : messages) EXPECT_EQ(m.find("supersaturated"), std::string::npos) << m;
+  }
+
   TEST(RunHealth, EveryCodeHasASwitchedManifestEntry) {
     for (int i = 0; i < static_cast<int>(std::size(kRunHealthCodeList)); ++i) {
       const auto check = static_cast<RunHealthCheck>(i);

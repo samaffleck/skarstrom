@@ -790,7 +790,9 @@ PYBIND11_MODULE(_core, m) {
       .def_readonly("state_change", &adsim::RunHealthCycle::state_change)
       .def_readonly("mass_balance_error", &adsim::RunHealthCycle::mass_balance_error)
       .def_readonly("steps", &adsim::RunHealthCycle::steps)
-      .def_readonly("rejected", &adsim::RunHealthCycle::rejected);
+      .def_readonly("rejected", &adsim::RunHealthCycle::rejected)
+      .def_readonly("supersaturation_gas", &adsim::RunHealthCycle::supersaturation_gas)
+      .def_readonly("supersaturation_wall", &adsim::RunHealthCycle::supersaturation_wall);
 
   py::class_<adsim::RunHealthReport>(m, "RunHealthReport")
       .def_readonly("components", &adsim::RunHealthReport::components)

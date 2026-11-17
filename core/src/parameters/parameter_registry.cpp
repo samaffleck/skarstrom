@@ -230,6 +230,10 @@ namespace adsim {
       BoolField("settings", "warn_reaction_stiff", "warn when the step collapses at a reacting cell (REACTION_STIFF)",
                 [](const UserData& u) { return u.settings.warnings_.reaction_stiff; },
                 [](UserData& u, bool b) { u.settings.warnings_.reaction_stiff = b; }),
+      BoolField("settings", "warn_supersaturation",
+                "warn when a component's partial pressure passes its saturation pressure (SUPERSATURATION)",
+                [](const UserData& u) { return u.settings.warnings_.supersaturation; },
+                [](UserData& u, bool b) { u.settings.warnings_.supersaturation = b; }),
 
       // css (cyclic steady state)
       IntField("css", "method", "CSS method",

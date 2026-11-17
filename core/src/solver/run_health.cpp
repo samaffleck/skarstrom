@@ -7,6 +7,7 @@
 #include "../pch.h"
 #include "adsim/solver/run_health.h"
 #include "adsim/equations/reaction_kinds.h"
+#include "adsim/objects/component_properties.h"
 #include "adsim/objects/reaction.h"
 #include "adsim/objects/user_data.h"
 #include "adsim/solver/coupled_solver.h"
@@ -57,6 +58,7 @@ namespace adsim {
         case RunHealthCheck::MassBalanceStuck: return on.mass_balance_stuck;
         case RunHealthCheck::StepRetries:      return on.step_retries;
         case RunHealthCheck::ReactionStiff:    return on.reaction_stiff;
+        case RunHealthCheck::Supersaturation:  return on.supersaturation;
       }
       return true;
     }
@@ -84,6 +86,97 @@ namespace adsim {
           }
       }
       out.mole_fraction_sum_error = worst;
+    }
+
+    // The saturation curve of a component (null when it has none).
+    const ComponentProperties* SaturationCurve(const std::string& component) {
+      const ComponentProperties* c = FindComponentProperties(component);
+      return c && c->p_sat.valid ? c : nullptr;
+    }
+
+    // p / p_sat(T) on a curve; NaN at or above T_c (nothing condenses) and for
+    // a temperature that is not positive. Below 0.75 T_triple the curve is
+    // held at its value there, as SaturationPressure does.
+    double RelativeSaturationOn(const ComponentProperties& curve, double p, double T) {
+      if (!(T > 0.0) || T >= curve.T_critical) return std::numeric_limits<double>::quiet_NaN();
+      const double p_sat = curve.p_sat.Evaluate(std::max(T, 0.75 * curve.T_triple));
+      return p_sat > 0.0 ? p / p_sat : std::numeric_limits<double>::quiet_NaN();
+    }
+
+    // SUPERSATURATION: the largest relative saturation of one cycle at the
+    // gas temperature (wall = false) or at the wall temperature, and where.
+    struct SaturationPeak {
+      double value = std::numeric_limits<double>::quiet_NaN();
+      std::string component;
+      int step = -1;
+      int cell = -1;
+      double time = 0.0;        // [s] since the step start
+      double temperature = 0.0; // [K] the temperature p_sat was taken at
+      double partial_pressure = 0.0;  // [Pa]
+    };
+
+    void Supersaturation(const UserData& data, const EquationLog& log, int cycle, SaturationPeak& gas,
+                         SaturationPeak& wall) {
+      struct Condensable { std::string name; const ComponentProperties* curve; };
+      std::vector<Condensable> comps;
+      for (const auto& c : data.fluid.components_)
+        if (const auto* curve = SaturationCurve(c)) comps.push_back({c, curve});
+      if (comps.empty()) return;
+      const auto& sim_log = log.GetSimulationLog();
+      const auto it = sim_log.find(cycle);
+      if (it == sim_log.end()) return;
+      const auto& dom = log.GetDomain();
+      std::vector<int> cells = dom.bed_cell_indices;
+      if (dom.bottom_void_cell_index > 0) cells.push_back(dom.bottom_void_cell_index);
+      if (dom.top_void_cell_index > 0) cells.push_back(dom.top_void_cell_index);
+      auto offer = [](SaturationPeak& peak, double S, const std::string& c, int step, int cell, double t, double T,
+                      double p) {
+        if (!std::isfinite(S) || (!std::isnan(peak.value) && S <= peak.value)) return;
+        peak = {S, c, step, cell, t, T, p};
+      };
+      for (const auto& [step, entry] : it->second) {
+        const auto P = entry.variables.find(VariableType::PRESSURE);
+        const auto Tg = entry.variables.find(VariableType::TEMPERATURE);
+        const auto Tw = entry.variables.find(VariableType::WALL_TEMPERATURE);
+        if (P == entry.variables.end() || Tg == entry.variables.end()) continue;
+        const bool has_wall = Tw != entry.variables.end();
+        const auto& times = entry.step_data.times;
+        for (const auto& c : comps) {
+          const auto ci = entry.component_variables.find(c.name);
+          if (ci == entry.component_variables.end()) continue;
+          const auto yi = ci->second.find(ComponentVariableType::MOLE_FRACTION);
+          if (yi == ci->second.end()) continue;
+          const auto& Y = yi->second.values;
+          const size_t rows = std::min({Y.size(), P->second.values.size(), Tg->second.values.size()});
+          for (size_t r = 0; r < rows; ++r) {
+            const auto& y = Y[r];
+            const auto& p = P->second.values[r];
+            const auto& T = Tg->second.values[r];
+            const std::vector<double>* T_wall =
+                has_wall && r < Tw->second.values.size() ? &Tw->second.values[r] : nullptr;
+            const double t = r < times.size() ? times[r] - times.front() : 0.0;  // since the step start
+            for (int i : cells) {
+              if (i < 0 || i >= static_cast<int>(y.size()) || i >= static_cast<int>(p.size())
+                  || i >= static_cast<int>(T.size()))
+                continue;
+              const double pi = std::max(y[i], 0.0) * p[i];
+              offer(gas, RelativeSaturationOn(*c.curve, pi, T[i]), c.name, step, i, t, T[i], pi);
+              if (T_wall && i < static_cast<int>(T_wall->size()))
+                offer(wall, RelativeSaturationOn(*c.curve, pi, (*T_wall)[i]), c.name, step, i, t, (*T_wall)[i], pi);
+            }
+          }
+        }
+      }
+    }
+
+    // Height of the centre of cell i above the column's bottom face [m]
+    // (ghost cells have no width in the sum).
+    double CellHeight(const UserData& data, int i) {
+      const auto& dx = data.state.domain_vectors.cell_width;
+      if (i <= 0 || i >= static_cast<int>(dx.size())) return std::numeric_limits<double>::quiet_NaN();
+      double z = 0.0;
+      for (int j = 1; j < i; ++j) z += dx[j];
+      return z + 0.5 * dx[i];
     }
 
     // REACTION_STIFF: which reaction and component of `cell` to name (see the
@@ -164,6 +257,11 @@ namespace adsim {
     return kRunHealthCodeList[static_cast<int>(check)];
   }
 
+  double RelativeSaturation(const std::string& component, double partial_pressure, double T) {
+    const ComponentProperties* curve = SaturationCurve(component);
+    return curve ? RelativeSaturationOn(*curve, partial_pressure, T) : std::numeric_limits<double>::quiet_NaN();
+  }
+
   void RunHealthMonitor::Begin(const UserData& data) {
     report_ = {};
     report_.components = data.fluid.components_;
@@ -191,6 +289,11 @@ namespace adsim {
       // back to the trapezoid when it has none (KPIIntegration::QUADRATURE).
       m.mass_balance_error.push_back(CycleMassBalanceError(eq_log, b_log, cycle, c));
     }
+    SaturationPeak sat_gas, sat_wall;
+    if (Enabled(data.settings.warnings_, RunHealthCheck::Supersaturation))
+      Supersaturation(data, eq_log, cycle, sat_gas, sat_wall);
+    m.supersaturation_gas = sat_gas.value;
+    m.supersaturation_wall = sat_wall.value;
     m.steps = at_end.num_steps - at_start.num_steps;
     m.rejected = (at_end.num_err_test_fails - at_start.num_err_test_fails)
                + (at_end.num_conv_fails - at_start.num_conv_fails)
@@ -277,6 +380,47 @@ namespace adsim {
                     + Num(ratio) + " per step, more than " + Num(w.threshold) + "). " + w.hint;
         Offer(std::move(w));
       }
+    }
+
+    // (d) A component above its saturation pressure, in the gas or at the wall.
+    const bool gas_over = sat_gas.value > T::kSupersaturation;
+    const bool wall_over = sat_wall.value > T::kSupersaturation;
+    if (gas_over || wall_over) {
+      // The gas measure when the gas itself is supersaturated, else the wall one.
+      const bool at_wall = !gas_over;
+      const SaturationPeak& peak = at_wall ? sat_wall : sat_gas;
+      RunHealthWarning w;
+      w.check = RunHealthCheck::Supersaturation;
+      w.value = peak.value;
+      w.threshold = T::kSupersaturation;
+      w.cycle = cycle;
+      w.step = peak.step;
+      w.step_name = StepName(data, w.step);
+      w.component = peak.component;
+      const double z = CellHeight(data, peak.cell);
+      const std::string where = "cell " + std::to_string(peak.cell)
+                                + (std::isfinite(z) ? " (z = " + Num(z) + " m)" : std::string{});
+      w.suspects = { "the " + w.component + " content and temperature of the feed and of initial.y",
+                     std::string(at_wall ? "the wall temperature (" + Num(peak.temperature) + " K at " + where
+                                               + "): a cold wall, jacket or ambient"
+                                         : "the gas temperature (" + Num(peak.temperature) + " K at " + where
+                                               + ") and pressure in step "" + w.step_name + """),
+                     "the model's range: condensation is not modelled" };
+      w.hint = "The run continues past the model's range: no liquid forms, the gas keeps the supersaturated "
+               "mole fraction, no heat of condensation is released and the isotherm is extrapolated, so results "
+               "after this point are not physical. Lower the " + w.component + " content of the feed, raise the "
+               "temperature" + std::string(at_wall ? " of the wall (jacket, ambient or insulation)" : "")
+               + " or lower the pressure; see docs/run-health.md.";
+      std::ostringstream msg;
+      msg << "Warning: " << w.component << " is supersaturated " << (at_wall ? "at the wall temperature" : "in the gas")
+          << ": its partial pressure reaches " << Num(w.value) << " times its saturation pressure ("
+          << Num(peak.partial_pressure) << " Pa at " << Num(peak.temperature, 5) << " K) in " << where
+          << ", step \"" << w.step_name << "\" of cycle " << cycle + 1 << ", t = " << Num(peak.time, 4) << " s";
+      if (at_wall) msg << " (in the gas: " << Num(sat_gas.value) << ")";
+      else if (std::isfinite(sat_wall.value)) msg << " (at the wall temperature: " << Num(sat_wall.value) << ")";
+      msg << ". " << w.hint;
+      w.message = msg.str();
+      Offer(std::move(w));
     }
   }
 

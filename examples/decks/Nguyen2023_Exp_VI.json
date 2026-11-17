@@ -2201,7 +2201,7 @@
             },
             "Maximum_Log_Points_Per_Step": 200,
             "Warnings": {
-                "cereal_class_version": 5,
+                "cereal_class_version": 6,
                 "Pressure_Step_Change": true,
                 "Wall_Thickness": true,
                 "Design_Pressure": true,
@@ -2214,7 +2214,8 @@
                 "Step_Retries": true,
                 "Outlet_Backflow": true,
                 "Reaction_Stiff": true,
-                "Connection_Pressure": true
+                "Connection_Pressure": true,
+                "Supersaturation": true
             },
             "Valve_Bed_Pressure": 0
         },

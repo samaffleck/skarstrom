@@ -379,7 +379,7 @@ The papers print $C_E$, $F$ and $G$ in kJ: enter them in J ($C_E = 46.83$ kJ mol
 
 **Saturation pressure.** $p_{sat,i}(T)$ is the vapour-pressure ancillary equation of the component's CoolProp fluid file (a closed-form fit of the full equation of state, about 0.1 µs per call), held in the table `component_properties.h`. For water it agrees with the IAPWS-95 saturation pressure to within 0.02 % from 273 K to the critical point. Above the critical temperature $p_{sat}$ is held at the critical pressure. Below 0.75 times the triple-point temperature it is held at its value there; between that and the triple point, the curve over the (supercooled) liquid is extrapolated. Any engine component can use a GAB kind, not only water.
 
-**Safe limits.** The GAB has a pole at $K x = 1$, and a simulation can briefly produce $x > 1$ (supersaturation; condensation is not modelled) or $y_i < 0$ ahead of a front. So the loading is exact for $0 \le x \le x_c$ with $x_c = \min(1,\ 0.95/K)$, and continued so that it stays finite, smooth (continuous slope) and increasing everywhere:
+**Safe limits.** The GAB has a pole at $K x = 1$, and a simulation can briefly produce $x > 1$ (supersaturation; condensation is not modelled, and the run-health check [`SUPERSATURATION`](run-health.md#supersaturation) warns when it happens) or $y_i < 0$ ahead of a front. So the loading is exact for $0 \le x \le x_c$ with $x_c = \min(1,\ 0.95/K)$, and continued so that it stays finite, smooth (continuous slope) and increasing everywhere:
 
 - for $x < 0$ it follows the Henry line $q = q_m C K x$, the GAB's slope at $x = 0$;
 - for $x > x_c$ it follows the tangent at $x_c$, $q = q(x_c) + q'(x_c)\thinspace(x - x_c)$.
