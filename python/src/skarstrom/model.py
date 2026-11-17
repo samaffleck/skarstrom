@@ -821,7 +821,7 @@ class Settings(_Node):
     warn_supersaturation = Boolean()
     """Run health: warn when a component's partial pressure passes its saturation pressure, in the gas or at
     the wall temperature (SUPERSATURATION); also checks the inlets and the initial gas at the start of a run.
-    *New in 0.15.*"""
+    *New in 0.16.*"""
     acceleration_method = Choice()
     """Cyclic-steady-state acceleration: "none", "aitken" (Graves-Morris extrapolation), "anderson" or
     "newton_krylov" (Newton-Krylov with finite-difference Jacobian-vector products)."""

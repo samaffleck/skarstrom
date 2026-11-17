@@ -96,10 +96,10 @@ units of the rate constants. See [Reactions: start-up of fast reactions](reactio
 
 ### `SUPERSATURATION`
 
-!!! note "New in 0.15"
+!!! note "New in 0.16"
     The `SUPERSATURATION` check, its switch `settings.warn_supersaturation`, the start-of-run warnings for
     supersaturated inlets and initial gas, and the `supersaturation_gas` and `supersaturation_wall` measures of
-    `sim.run_health().cycles` are not in 0.14.
+    `sim.run_health().cycles` are not in 0.15.
 
 A component's partial pressure passed its saturation pressure. The engine does not model condensation: no
 liquid forms, the gas keeps the supersaturated mole fraction, no heat of condensation is released, and the
