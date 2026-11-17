@@ -659,31 +659,43 @@ namespace adsim {
   //    deficit stays. The corrected flux keeps the sum at 1 to round-off.
   //
   // GUARD: the error without the correction is a model error, not a numerical
-  // one: on twice the cells it does not shrink. Measured (40 / 80 cells):
-  // max |sum y - 1| 4.4e-2 / 5.1e-2, bed mean at the end of the hold
-  // -1.1e-2 / -1.2e-2; with the correction 4e-15 and 1e-16.
+  // one. Measured on 40 / 80 / 160 cells: max |sum y - 1| 4.3e-2 / 5.7e-2 /
+  // 6.7e-2 (it grows as the fronts sharpen); the bed mean of sum y - 1 at the
+  // end of the hold -3.5e-3 / -2.7e-3 / -2.3e-3, whose differences shrink by
+  // 0.6 per halving towards about -1.6e-3 (Aitken), not towards 0. With the
+  // correction: max 1.6e-15, bed mean 1e-16.
   TEST(PerComponentDispersion, WithoutTheDriftCorrectionTheMoleFractionsDoNotSumToOne) {
     const SumResult corrected = RunFeedThenHold(40);
-    SumResult uncorrected, uncorrected_fine;
+    SumResult off40, off80, off160;
     {
       DriftCorrectionOff off;
-      uncorrected = RunFeedThenHold(40);
-      uncorrected_fine = RunFeedThenHold(80);
+      off40 = RunFeedThenHold(40);
+      off80 = RunFeedThenHold(80);
+      off160 = RunFeedThenHold(160);
     }
-    std::printf("[no correction] max |sum y - 1|: corrected %.2e, uncorrected %.2e (80 cells %.2e); bed mean of "
-                "sum y - 1 at the end of the feed / hold: corrected %.2e / %.2e, uncorrected %.2e / %.2e\n",
-                corrected.max_error, uncorrected.max_error, uncorrected_fine.max_error, corrected.mean_end_feed,
-                corrected.mean_end_hold, uncorrected.mean_end_feed, uncorrected.mean_end_hold);
+    // Aitken extrapolation of the bed mean to an infinitely fine grid.
+    const double d1 = off80.mean_end_hold - off40.mean_end_hold;
+    const double d2 = off160.mean_end_hold - off80.mean_end_hold;
+    const double mean_limit = off160.mean_end_hold - d2 * d2 / (d2 - d1);
+    std::printf("[no correction] corrected: max |sum y - 1| %.2e, bed mean %.2e. Uncorrected on 40 / 80 / 160 cells: "
+                "max %.2e / %.2e / %.2e, bed mean at the end of the hold %.2e / %.2e / %.2e (limit %.2e), "
+                "at the end of the feed (40 cells) %.2e\n",
+                corrected.max_error, corrected.mean_end_hold, off40.max_error, off80.max_error, off160.max_error,
+                off40.mean_end_hold, off80.mean_end_hold, off160.mean_end_hold, mean_limit, off40.mean_end_feed);
 
     EXPECT_LT(corrected.max_error, 1e-10);
     EXPECT_LT(std::abs(corrected.mean_end_hold), 1e-10);
 
-    EXPECT_GT(uncorrected.max_error, 1e-2);
-    EXPECT_GT(uncorrected_fine.max_error, 0.8 * uncorrected.max_error) << "the error shrinks with the grid";
-    EXPECT_LT(uncorrected.mean_end_hold, -3e-3);
-    EXPECT_LT(uncorrected_fine.mean_end_hold, -3e-3);
+    // The local error is several per cent and does not shrink with the grid.
+    EXPECT_GT(off40.max_error, 1e-2);
+    EXPECT_GT(off80.max_error, off40.max_error);
+    EXPECT_GT(off160.max_error, off80.max_error);
+    // The bed keeps a deficit that converges to a non-zero value.
+    EXPECT_LT(off160.mean_end_hold, -1e-3);
+    EXPECT_LT(std::abs(d2), std::abs(d1)) << "the bed mean does not converge";
+    EXPECT_LT(mean_limit, -1e-3);
     // Closed ends: the bed mean of sum y - 1 is locked in over the hold.
-    EXPECT_NEAR(uncorrected.mean_end_hold, uncorrected.mean_end_feed, 1e-6);
+    EXPECT_NEAR(off40.mean_end_hold, off40.mean_end_feed, 1e-6);
   }
 
   // =========================================================================
