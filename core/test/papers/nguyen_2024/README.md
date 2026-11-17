@@ -75,7 +75,7 @@ were changed. Deviations from this paper's SI are in bold.
 | Isotherm: competitive DSL (CO₂ and N₂) | `adsorbent[1].isotherm[C].*` | VII deck (Nguyen 2023, SI Table S1) | this paper prints no isotherm for CO₂ or N₂ |
 | Heats of adsorption 38.0 / 15.0 kJ/mol | `adsorbent[1].heat_of_adsorption[C]` | VII deck | |
 | LDF: macropore, D_m from the state | `adsorbent[1].kinetics[C].*` | VII deck | |
-| Axial dispersion: Ruthven per component, D_m,i mixture-averaged (Chapman–Enskog, Blanc's law; 1.6e-5 m²/s fixed before 2026-11-17) | `layer[1]` dispersion | VII deck | **SI Table A.1: D_m = 1.496e-5 m²/s (printed unit "m s⁻²")**; attribution run (3), with the earlier fixed D_m |
+| Axial dispersion: Ruthven per component, D_m,i mixture-averaged (Chapman–Enskog, Wilke's equation; 1.6e-5 m²/s fixed before 2026-11-17) | `layer[1]` dispersion | VII deck | **SI Table A.1: D_m = 1.496e-5 m²/s (printed unit "m s⁻²")**; attribution run (3), with the earlier fixed D_m |
 | Viscosity | polynomial mixture value (CoolProp fit) | VII deck | **SI Table A.1: 1.812e-5 kg/(m s), constant**; attribution run (3) |
 | Pressure drop | Kozeny–Carman (180) | VII deck | **the Rajendran group's model uses Blake–Kozeny (150) (Nguyen 2023 and Estupiñan Perez 2019); this paper prints no form**; attribution run (4) |
 | Gas C_p N₂ 1040, CO₂ 841 J/(kg K), constant; adsorbed phase = gas | `fluid.gas_heat_capacity[C]` 29.13 / 37.01 J/(mol K), `fluid.adsorbed_heat_capacity_mode` = gas_phase | SI Table A.1 (NIST; adsorbed "assumed") | H₂O 4165 J/(kg K) is a liquid value; not used here |

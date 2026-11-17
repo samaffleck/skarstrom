@@ -66,7 +66,7 @@ Registry paths use the deck's names (`adsorbent[K-HTC]`, `adsorbent[Rh catalyst]
 | Heat of reaction 0 | `rx.heat_of_reaction` | | isothermal run: does not enter |
 | Freundlich q = k p^(1/n), wet, k = 1.11 mol/(kg bar^(1/n)), n = 1.76 | `adsorbent[K-HTC].isotherm[CarbonDioxide].a` = k^n × 10⁻⁵ Pa⁻¹, `.v` = n | Ch. 9, Table 4 ("Wet conditions"), Eq. 2 | the engine's Freundlich is q = (a p)^(1/v) with p in Pa. **Measured at 400 °C, used at 450 °C as is** (the thesis gives no temperature dependence). Steam, H₂, CH₄, CO and Ar are inert on the sorbent (ch. 8, assumption 7, p. 166) |
 | Uptake, Eq. 6 | `kin` series resistance: macropore term only, capacity factor `slope`, `kin.tortuosity` = 1, `kin.macropore_void_fraction` = 0.4, `kin.molecular_diffusion_coefficient` = 6.6×10⁻⁷ m²/s | Ch. 8, Table 5, Eq. 6 (D_p = 1.1×10⁻⁶ m²/s); Table 12 (tortuosity 1, pellet voidage 0.4) | see [Uptake](#uptake) |
-| Ergun momentum, Ruthven dispersion, 40 cells | `layer[Bed]` | Ch. 8, Table 11 (Ergun) | Ruthven with each component's mixture-averaged D_m,i (Chapman–Enskog, Blanc's law; the engine default D_m = 1.6×10⁻⁵ m²/s before 2026-11-17; **assumption**: no value in the thesis for this bed). 80 cells moves every recorded value by ≤ 0.05 point |
+| Ergun momentum, Ruthven dispersion, 40 cells | `layer[Bed]` | Ch. 8, Table 11 (Ergun) | Ruthven with each component's mixture-averaged D_m,i (Chapman–Enskog, Wilke's equation; the engine default D_m = 1.6×10⁻⁵ m²/s before 2026-11-17; **assumption**: no value in the thesis for this bed). 80 cells moves every recorded value by ≤ 0.05 point |
 | Start-up | `initial.y[*]` | | see [Start-up](#start-up) |
 
 ### Uptake

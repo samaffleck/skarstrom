@@ -1580,7 +1580,12 @@ namespace adsim {
     ZeroVoidCellsAndMirrorGhosts(state.slow_mass_transfer_coefficient.at(ads_id).at(component).var, bed);
   }
 
-  static void BlanksLaw(UserData* udata, Component component) {
+  // Wilke's equation (Wilke 1950): the effective diffusivity of component i
+  // through a stagnant mixture of the others, D_i,m = (1 - y_i) / sum_j!=i
+  // (y_j / D_ij), here with sum_j!=i y_j for 1 - y_i and a regularised
+  // denominator (docs/equation-of-state.md). In the trace limit it is Blanc's
+  // law (Blanc 1908).
+  static void WilkeMixtureDiffusivity(UserData* udata, Component component) {
     auto& state = udata->state;
     auto& fluid = udata->fluid;
 
@@ -1727,7 +1732,7 @@ namespace adsim {
     // Three or more components
     // MulticomponentDiffusionCorrection(udata, component);
     for (const auto& comp : fluid.components_) {
-      BlanksLaw(udata, comp);
+      WilkeMixtureDiffusivity(udata, comp);
     }
   }
 

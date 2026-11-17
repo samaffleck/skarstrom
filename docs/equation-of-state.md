@@ -193,29 +193,32 @@ The Lennard-Jones parameters are those of Svehla (NASA TR R-132, 1962, Table I(a
 
 ### Molecular diffusion in a mixture
 
-Each component $i$ has one effective molecular diffusivity $D_{i,m}$ in every cell (`UpdateMolecularDiffusionCoefficient` and `BlanksLaw` in `core/src/equations/adsorbent_equations.cpp`). It depends on the number of components $N$:
+Each component $i$ has one effective molecular diffusivity $D_{i,m}$ in every cell (`UpdateMolecularDiffusionCoefficient` and `WilkeMixtureDiffusivity` in `core/src/equations/adsorbent_equations.cpp`). It depends on the number of components $N$:
 
 - **One component.** $D_{i,m} = D_{ii}$, the self-diffusion coefficient: the relation above with $\sigma_{ii} = \sigma_i$, $\varepsilon_{ii} = \varepsilon_i$ and $M_{ii} = M_i$.
 - **Two components.** Both components take the binary value, $D_{1,m} = D_{2,m} = D_{12}$.
-- **Three or more components.** Blanc's law, with a regularisation in the denominator:
+- **Three or more components.** Wilke's equation (Wilke 1950), with a regularisation in the denominator:
 
 $$
 D_{i,m} = \frac{\left\lvert \sum_{j \ne i} y_j \right\rvert}{\sqrt{\epsilon + \left(\sum_{j \ne i} y_j / D_{ij}\right)^{2}}},
 \qquad \epsilon = 10^{-12}\ \text{s}^2\thinspace\text{m}^{-4}
 $$
 
-The $y_j$ are the raw mole fractions of the cell, the solver's unknowns, not normalised to a sum of one. Away from the regularisation this is the usual Blanc form $D_{i,m} = (1 - y_i)\big/\sum_{j\ne i} (y_j/D_{ij})$, the harmonic mean of the binary coefficients weighted by the other components' mole fractions. Blanc's law describes component $i$ diffusing through a stagnant mixture of the others (see Poling, Prausnitz and O'Connell, Chapter 11). It is not a full Stefan–Maxwell treatment: the diffusion fluxes of the components are not coupled to each other.
+The $y_j$ are the raw mole fractions of the cell, the solver's unknowns, not normalised to a sum of one. Away from the regularisation this is Wilke's equation $D_{i,m} = (1 - y_i)\big/\sum_{j\ne i} (y_j/D_{ij})$, the harmonic mean of the binary coefficients weighted by the other components' mole fractions on an $i$-free basis. It describes component $i$ diffusing through a stagnant mixture of the others (see Poling, Prausnitz and O'Connell, Chapter 11). For a trace component ($y_i \to 0$) it is Blanc's law (Blanc 1908), $1/D_{i,m} = \sum_{j \ne i} y_j/D_{ij}$; the two are often named interchangeably, and the engine called this rule Blanc's law before 0.16. It is not a full Stefan–Maxwell treatment: the diffusion fluxes of the components are not coupled to each other.
 
 Limits:
 
 - **Component $i$ in trace amounts** ($y_i \to 0$, $\sum_{j\ne i} y_j \to 1$): $D_{i,m}$ tends to the mole-fraction-weighted harmonic mean of $D_{ij}$, a finite value.
-- **Component $i$ nearly pure** ($\sum_{j \ne i} y_j \to 0$): Blanc's ratio itself stays finite, but the regularisation takes over once $\sum_{j\ne i} y_j / D_{ij}$ falls to about $\sqrt{\epsilon} = 10^{-6}$ s m⁻² (about $10^{-11}$ in mole fraction for $D_{ij} \approx 10^{-5}$ m² s⁻¹). Below that, $D_{i,m} \approx 10^{6}\sum_{j\ne i} y_j$ m² s⁻¹, which goes to zero with the other components' mole fractions.
+- **Component $i$ nearly pure** ($\sum_{j \ne i} y_j \to 0$): Wilke's ratio itself stays finite, but the regularisation takes over once $\sum_{j\ne i} y_j / D_{ij}$ falls to about $\sqrt{\epsilon} = 10^{-6}$ s m⁻² (about $10^{-11}$ in mole fraction for $D_{ij} \approx 10^{-5}$ m² s⁻¹). Below that, $D_{i,m} \approx 10^{6}\sum_{j\ne i} y_j$ m² s⁻¹, which goes to zero with the other components' mole fractions.
 
 | Symbol | Description | Unit |
 |---|---|---|
 | $D_{i,m}$ | Effective molecular diffusivity of component $i$ in the mixture | m² s⁻¹ |
 | $y_j$ | Mole fraction of component $j$ (unnormalised) | - |
-| $\epsilon$ | Regularisation of the Blanc denominator | s² m⁻⁴ |
+| $\epsilon$ | Regularisation of the denominator of Wilke's equation | s² m⁻⁴ |
+
+- C. R. Wilke, "Diffusional properties of multicomponent gases", Chem. Eng. Prog. 46 (1950) 95–104.
+- A. Blanc, "Recherches sur les mobilités des ions dans les gaz", J. Phys. Theor. Appl. 7 (1908) 825–839.
 
 **Mixture diffusivity in the Schmidt number.** The Schmidt number uses the mole-fraction-weighted mean of the component diffusivities, with a floor:
 
