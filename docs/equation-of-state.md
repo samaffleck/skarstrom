@@ -161,12 +161,17 @@ $$
 The binary molecular diffusion coefficient of every pair of components is evaluated in every cell at every residual evaluation, at the cell's gas temperature and pressure, from the Chapman–Enskog relation in the form of Poling, Prausnitz and O'Connell (*The Properties of Gases and Liquids*, 5th ed., 2001, Chapter 11) (`core/src/equations/binary_diffusion_model.cpp`):
 
 $$
-D_{ij} = \frac{2.66\times10^{-7}\thinspace T^{3/2}}{\left(P/10^{5}\right)\thinspace M_{ij}^{1/2}\thinspace \sigma_{ij}^{2}\thinspace \Omega_D},
+D_{ij} = \frac{2.6635\times10^{-7}\thinspace T^{3/2}}{\left(P/10^{5}\right)\thinspace M_{ij}^{1/2}\thinspace \sigma_{ij}^{2}\thinspace \Omega_D},
 \qquad
 M_{ij} = \frac{2}{1/M_i + 1/M_j}
 $$
 
-with $D_{ij}$ in m² s⁻¹, $T$ in K, $P$ in Pa (so $P/10^5$ is in bar), the molar masses $M$ in g mol⁻¹ and $\sigma_{ij}$ in Å. The collision integral is the correlation of Neufeld, Janzen and Aziz (1972) in the reduced temperature $T^* = T/\varepsilon_{ij}$:
+with $D_{ij}$ in m² s⁻¹, $T$ in K, $P$ in Pa (so $P/10^5$ is in bar), the molar masses $M$ in g mol⁻¹ and $\sigma_{ij}$ in Å. The constant is $\tfrac{3}{16}\sqrt{2\pi k_B^3 N_A / (0.5\times10^{-3}\ \text{kg mol}^{-1})}\big/(10^5\ \text{Pa}\cdot\pi\cdot10^{-20}\ \text{m}^2) = 2.6635246\times10^{-7}$, with the exact SI values of $k_B$ and $N_A$.
+
+!!! note "Changed in 0.16"
+    Earlier versions used the rounded textbook constant $2.66\times10^{-7}$ (0.00266 cm² s⁻¹ in Poling et al.), which gives every $D_{ij}$ 0.13 % low.
+
+The collision integral is the correlation of Neufeld, Janzen and Aziz (1972) in the reduced temperature $T^* = T/\varepsilon_{ij}$:
 
 $$
 \Omega_D = \frac{A}{(T^*)^{B}} + \frac{C}{\exp(D\thinspace T^*)} + \frac{E}{\exp(F\thinspace T^*)} + \frac{G}{\exp(H\thinspace T^*)}
@@ -193,29 +198,36 @@ The Lennard-Jones parameters are those of Svehla (NASA TR R-132, 1962, Table I(a
 
 ### Molecular diffusion in a mixture
 
-Each component $i$ has one effective molecular diffusivity $D_{i,m}$ in every cell (`UpdateMolecularDiffusionCoefficient` and `WilkeMixtureDiffusivity` in `core/src/equations/adsorbent_equations.cpp`). It depends on the number of components $N$:
+Each component $i$ has one effective molecular diffusivity $D_{i,m}$ in every cell (`UpdateMolecularDiffusionCoefficient` and `UpdateWilkeMixtureDiffusivity` in `core/src/equations/adsorbent_equations.cpp`). It depends on the number of components $N$:
 
 - **One component.** $D_{i,m} = D_{ii}$, the self-diffusion coefficient: the relation above with $\sigma_{ii} = \sigma_i$, $\varepsilon_{ii} = \varepsilon_i$ and $M_{ii} = M_i$.
 - **Two components.** Both components take the binary value, $D_{1,m} = D_{2,m} = D_{12}$.
-- **Three or more components.** Wilke's equation (Wilke 1950), with a regularisation in the denominator:
+- **Three or more components.** Wilke's equation (Wilke 1950), with a smooth floor on the partner mole fractions (`WilkeMixtureDiffusivity` in `adsim/equations/binary_diffusion_model.h`):
 
 $$
-D_{i,m} = \frac{\left\lvert \sum_{j \ne i} y_j \right\rvert}{\sqrt{\epsilon + \left(\sum_{j \ne i} y_j / D_{ij}\right)^{2}}},
-\qquad \epsilon = 10^{-12}\ \text{s}^2\thinspace\text{m}^{-4}
+D_{i,m} = \frac{\sum_{j \ne i} \hat y_j}{\left\lvert \sum_{j \ne i} \hat y_j / D_{ij} \right\rvert},
+\qquad \hat y_j = \tfrac{1}{2}\left(y_j + \sqrt{y_j^2 + \delta^2}\right),
+\qquad \delta = 10^{-6}
 $$
 
-The $y_j$ are the raw mole fractions of the cell, the solver's unknowns, not normalised to a sum of one. Away from the regularisation this is Wilke's equation $D_{i,m} = (1 - y_i)\big/\sum_{j\ne i} (y_j/D_{ij})$, the harmonic mean of the binary coefficients weighted by the other components' mole fractions on an $i$-free basis. It describes component $i$ diffusing through a stagnant mixture of the others (see Poling, Prausnitz and O'Connell, Chapter 11). For a trace component ($y_i \to 0$) it is Blanc's law (Blanc 1908), $1/D_{i,m} = \sum_{j \ne i} y_j/D_{ij}$; the two are often named interchangeably, and the engine called this rule Blanc's law before 0.16. It is not a full Stefan–Maxwell treatment: the diffusion fluxes of the components are not coupled to each other.
+The $y_j$ are the raw mole fractions of the cell, the solver's unknowns, not normalised to a sum of one. Without the floor, $\hat y_j = y_j$ and $\sum_{j \ne i} y_j = 1 - y_i$, this is Wilke's equation $D_{i,m} = (1 - y_i)\big/\sum_{j\ne i} (y_j/D_{ij})$: the harmonic mean of the binary coefficients, weighted by the other components' mole fractions on an $i$-free basis. It describes component $i$ diffusing through a stagnant mixture of the others (see Poling, Prausnitz and O'Connell, Chapter 11). For a trace component ($y_i \to 0$) it is Blanc's law (Blanc 1908), $1/D_{i,m} = \sum_{j \ne i} y_j/D_{ij}$, the exact Stefan–Maxwell limit; the two names are often used interchangeably, and the engine called this rule Blanc's law before 0.16. It is not a full Stefan–Maxwell treatment: the diffusion fluxes of the components are not coupled to each other.
+
+The floor $\delta$ is 100 times the solver's absolute tolerance on a mole fraction. Below about $10^{-8}$ a mole fraction is solver noise, and the rule weights the partners by their ratios; the floor keeps those ratios out of $D_{i,m}$. The absolute value keeps $D_{i,m} > 0$ for a Newton probe with $P < 0$, where every $D_{ij} < 0$.
 
 Limits:
 
-- **Component $i$ in trace amounts** ($y_i \to 0$, $\sum_{j\ne i} y_j \to 1$): $D_{i,m}$ tends to the mole-fraction-weighted harmonic mean of $D_{ij}$, a finite value.
-- **Component $i$ nearly pure** ($\sum_{j \ne i} y_j \to 0$): Wilke's ratio itself stays finite, but the regularisation takes over once $\sum_{j\ne i} y_j / D_{ij}$ falls to about $\sqrt{\epsilon} = 10^{-6}$ s m⁻² (about $10^{-11}$ in mole fraction for $D_{ij} \approx 10^{-5}$ m² s⁻¹). Below that, $D_{i,m} \approx 10^{6}\sum_{j\ne i} y_j$ m² s⁻¹, which goes to zero with the other components' mole fractions.
+- **Component $i$ in trace amounts** ($y_i \to 0$, $\sum_{j\ne i} y_j \to 1$): $D_{i,m}$ tends to the mole-fraction-weighted harmonic mean of $D_{ij}$, Blanc's law.
+- **Component $i$ pure** (every $y_j \to 0$): the plain formula is $0/0$; with the floor, $D_{i,m}$ is the unweighted harmonic mean of the $D_{ij}$.
+- **Everywhere:** $D_{i,m}$ lies between the smallest and the largest $D_{ij}$, does not depend on the order of the partners, and is a smooth function of the mole fractions. Where every partner has $y_j \ge 10^{-3}$, it equals Wilke's equation without the floor to a relative $2 \times 10^{-7}$ ($2 \times 10^{-5}$ at $y_j \ge 10^{-4}$).
+
+!!! note "Changed in 0.16"
+    Earlier versions regularised the denominator instead, $\left\lvert \sum_{j \ne i} y_j \right\rvert \big/ \sqrt{\epsilon + (\sum_{j \ne i} y_j / D_{ij})^2}$ with $\epsilon = 10^{-12}$ s² m⁻⁴, which gave $D_{i,m} \to 0$ in a cell of pure $i$.
 
 | Symbol | Description | Unit |
 |---|---|---|
 | $D_{i,m}$ | Effective molecular diffusivity of component $i$ in the mixture | m² s⁻¹ |
-| $y_j$ | Mole fraction of component $j$ (unnormalised) | - |
-| $\epsilon$ | Regularisation of the denominator of Wilke's equation | s² m⁻⁴ |
+| $y_j$, $\hat y_j$ | Mole fraction of component $j$ (unnormalised), and its smooth floor | - |
+| $\delta$ | Scale of the smooth floor (`kWilkeMoleFractionFloor`) | - |
 
 - C. R. Wilke, "Diffusional properties of multicomponent gases", Chem. Eng. Prog. 46 (1950) 95–104.
 - A. Blanc, "Recherches sur les mobilités des ions dans les gaz", J. Phys. Theor. Appl. 7 (1908) 825–839.

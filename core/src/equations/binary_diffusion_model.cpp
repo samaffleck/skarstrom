@@ -50,11 +50,21 @@ namespace adsim {
 	void BinaryDiffusionCoefficientModel::Update(const std::vector<double>& T, const std::vector<double>& P) {
 		auto N = (int)T.size();
 
-		// The numerator 2.66e-7 * T^1.5 is identical for every component pair —
+		// Chapman-Enskog, first approximation:
+		//   D_ij = C T^1.5 / (P[bar] sqrt(M_ij) sigma_ij^2 Omega_D)  [m^2/s],
+		// with M_ij = 2 / (1/M_i + 1/M_j) [g/mol] and sigma_ij [Angstrom]. C is
+		// (3/16) sqrt(2 pi k_B^3 N_A / (0.5e-3 kg/mol)) / (1e5 Pa * pi * 1e-20 m^2)
+		// with the exact SI k_B and N_A: 2.6635246e-7. Textbooks round it to
+		// 0.00266 cm^2/s (Poling, Prausnitz and O'Connell, The Properties of Gases
+		// and Liquids, 5th ed., Ch. 11), which is 0.13 % low; before 0.16 the
+		// engine used that rounded value.
+		constexpr double kChapmanEnskogConstant = 2.6635246e-7;
+		//
+		// The numerator C * T^1.5 is identical for every component pair —
 		// compute it once per cell instead of once per pair per cell.
 		top_scratch_.resize(N);
 		for (int n = 0; n < N; ++n) {
-			top_scratch_[n] = top_cache_.Get(n, T[n], 0.0, [&] { return 2.66e-7 * std::pow(T[n], (3.0 / 2.0)); });
+			top_scratch_[n] = top_cache_.Get(n, T[n], 0.0, [&] { return kChapmanEnskogConstant * std::pow(T[n], (3.0 / 2.0)); });
 		}
 
 		for (auto& [componentPair, params] : m_DiffusionCoefficients) {
@@ -70,7 +80,7 @@ namespace adsim {
 			const double sqrt_M_AB = std::sqrt(M_AB);
 
 			for (int n = 0; n < N; ++n) {
-        // Collision diameter correlation of Neufield et al. (1972); a function
+        // Diffusion collision integral Omega_D, fit of Neufeld et al. (1972); a function
         // of T alone for the pair, so it comes from the per-cell memo.
         omega_D[n] = params.omega_cache.Get(n, T[n], eps, [&] {
           double Ts = T[n] / eps;

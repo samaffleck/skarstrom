@@ -1036,12 +1036,12 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.1896100903158851,
-                                    "Average_Temperature": 301.86853114736285,
+                                    "Total_Moles": 0.18961007451292909,
+                                    "Average_Temperature": 301.8685278599555,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.3820900802367791
+                                            "value": 0.38209009126456347
                                         },
                                         {
                                             "key": "Nitrogen",
@@ -1049,7 +1049,7 @@
                                         },
                                         {
                                             "key": "Helium",
-                                            "value": 0.617909919763221
+                                            "value": 0.6179099087354366
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -1132,7 +1132,7 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.23355362026007338,
+                                                        "Total_Moles": 0.23355362027187019,
                                                         "Average_Temperature": 295.5500000000001,
                                                         "Average_Mole_Fraction": [
                                                             {
