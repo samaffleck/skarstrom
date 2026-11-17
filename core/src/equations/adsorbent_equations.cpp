@@ -1591,7 +1591,7 @@ namespace adsim {
     auto& bed = udata->bed;
     // The pair table is already refreshed once by the caller
     // (UpdateMolecularDiffusionCoefficient) before this loop runs, so do NOT
-    // recompute it here — that would repeat the expensive Neufield pow/exp pass
+    // recompute it here — that would repeat the expensive Neufeld pow/exp pass
     // once per component per residual evaluation.
     auto& diffusion_coefficients = bed.equations_.binary_diffusion_model_.m_DiffusionCoefficients;
 
@@ -1685,7 +1685,7 @@ namespace adsim {
     // fills every component's coefficients (binary_diffusion_model_.Update
     // recomputes the whole pair table over all cells, with a pow + 3 exp per
     // cell). Do all the work on the first component's call and make the
-    // remaining per-component calls no-ops — otherwise the expensive Neufield
+    // remaining per-component calls no-ops — otherwise the expensive Neufeld
     // omega recompute runs once per component per residual evaluation.
     if (component != fluid.components_.front())
       return;

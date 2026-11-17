@@ -70,7 +70,7 @@ namespace adsim {
 			const double sqrt_M_AB = std::sqrt(M_AB);
 
 			for (int n = 0; n < N; ++n) {
-        // Collision diameter correlation of Neufield et al. (1972); a function
+        // Diffusion collision integral Omega_D, fit of Neufeld et al. (1972); a function
         // of T alone for the pair, so it comes from the per-cell memo.
         omega_D[n] = params.omega_cache.Get(n, T[n], eps, [&] {
           double Ts = T[n] / eps;

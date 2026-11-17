@@ -19,7 +19,7 @@ namespace adsim {
   // temperatures: a coloured-Jacobian column group perturbs the temperature of
   // about one cell in three, and most groups perturb no temperature at all, so a
   // transcendental that depends on T alone (an isotherm's exp(q / (R T)), the
-  // Neufield collision integral) is recomputed with exactly the same arguments
+  // Neufeld collision integral) is recomputed with exactly the same arguments
   // most of the time. Get(n, T, k1, k2, f) returns the value stored for cell n
   // when it was computed for the same T and parameter bits, otherwise calls f()
   // and stores the result. Either way the value is the double f() returns, so
