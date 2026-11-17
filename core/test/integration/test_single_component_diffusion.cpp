@@ -19,7 +19,7 @@ namespace adsim {
   namespace {
 
     // Independent evaluation of the Chapman-Enskog self-diffusion coefficient
-    // [m^2/s] for a pure gas: D_ii = 2.66e-7 T^1.5 / (P[bar] sqrt(M_i) sigma_ii^2 Omega_D),
+    // [m^2/s] for a pure gas: D_ii = C T^1.5 / (P[bar] sqrt(M_i) sigma_ii^2 Omega_D), C = 2.6635246e-7,
     // with Omega_D from the Neufeld et al. (1972) correlation and M_AB = M_i.
     double ChapmanEnskogSelfDiffusion(const std::string& component, double T, double P) {
       const ComponentData& cd = Components::GetComponentData(component);
@@ -32,7 +32,7 @@ namespace adsim {
                          + 0.19300 / std::exp(0.47635 * Ts)
                          + 1.03587 / std::exp(1.52996 * Ts)
                          + 1.76474 / std::exp(3.89411 * Ts);
-      return 2.66e-7 * std::pow(T, 1.5) / ((P / 1e5) * std::sqrt(M) * cd.sigma * cd.sigma * omega);
+      return 2.6635246e-7 * std::pow(T, 1.5) / ((P / 1e5) * std::sqrt(M) * cd.sigma * cd.sigma * omega);
     }
 
     void AddCO2Langmuir(UserDataTest& t, AdsorbentID ads_id) {

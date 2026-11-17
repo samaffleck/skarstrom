@@ -161,12 +161,17 @@ $$
 The binary molecular diffusion coefficient of every pair of components is evaluated in every cell at every residual evaluation, at the cell's gas temperature and pressure, from the Chapman–Enskog relation in the form of Poling, Prausnitz and O'Connell (*The Properties of Gases and Liquids*, 5th ed., 2001, Chapter 11) (`core/src/equations/binary_diffusion_model.cpp`):
 
 $$
-D_{ij} = \frac{2.66\times10^{-7}\thinspace T^{3/2}}{\left(P/10^{5}\right)\thinspace M_{ij}^{1/2}\thinspace \sigma_{ij}^{2}\thinspace \Omega_D},
+D_{ij} = \frac{2.6635\times10^{-7}\thinspace T^{3/2}}{\left(P/10^{5}\right)\thinspace M_{ij}^{1/2}\thinspace \sigma_{ij}^{2}\thinspace \Omega_D},
 \qquad
 M_{ij} = \frac{2}{1/M_i + 1/M_j}
 $$
 
-with $D_{ij}$ in m² s⁻¹, $T$ in K, $P$ in Pa (so $P/10^5$ is in bar), the molar masses $M$ in g mol⁻¹ and $\sigma_{ij}$ in Å. The collision integral is the correlation of Neufeld, Janzen and Aziz (1972) in the reduced temperature $T^* = T/\varepsilon_{ij}$:
+with $D_{ij}$ in m² s⁻¹, $T$ in K, $P$ in Pa (so $P/10^5$ is in bar), the molar masses $M$ in g mol⁻¹ and $\sigma_{ij}$ in Å. The constant is $\tfrac{3}{16}\sqrt{2\pi k_B^3 N_A / (0.5\times10^{-3}\ \text{kg mol}^{-1})}\big/(10^5\ \text{Pa}\cdot\pi\cdot10^{-20}\ \text{m}^2) = 2.6635246\times10^{-7}$, with the exact SI values of $k_B$ and $N_A$.
+
+!!! note "Changed in 0.16"
+    Earlier versions used the rounded textbook constant $2.66\times10^{-7}$ (0.00266 cm² s⁻¹ in Poling et al.), which gives every $D_{ij}$ 0.13 % low.
+
+The collision integral is the correlation of Neufeld, Janzen and Aziz (1972) in the reduced temperature $T^* = T/\varepsilon_{ij}$:
 
 $$
 \Omega_D = \frac{A}{(T^*)^{B}} + \frac{C}{\exp(D\thinspace T^*)} + \frac{E}{\exp(F\thinspace T^*)} + \frac{G}{\exp(H\thinspace T^*)}
