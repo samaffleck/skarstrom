@@ -288,7 +288,7 @@ def test_ruthven_dispersion_takes_no_diffusivity_and_round_trips():
     # Each component's mixture-averaged D_m,i: no input on the layer.
     assert "molecular_diffusion_coefficient" not in layer.fields
     assert "component_diffusivity" not in layer.fields
-    assert "Molecular_Diffusion" not in sim.to_json()
+    assert '"Molecular_Diffusion":' not in sim.to_json()  # the dispersion key (not ..._Coefficient)
     copy = sk.Simulation.from_json(sim.to_json())
     assert copy.describe()["layers"][0]["dispersion"] == "ruthven"
     assert_same_deck(sim, copy)
