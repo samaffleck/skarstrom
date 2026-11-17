@@ -582,16 +582,10 @@
                                 "ptr_wrapper": {
                                     "valid": 1,
                                     "data": {
-                                        "cereal_class_version": 2,
+                                        "cereal_class_version": 3,
                                         "value0": {
                                             "cereal_class_version": 0
-                                        },
-                                        "Molecular_Diffusion": {
-                                            "Value": 0.00001496,
-                                            "Expression": "1.496e-05",
-                                            "DisplayUnitIndex": 0
-                                        },
-                                        "Component_Diffusivity": 0
+                                        }
                                     }
                                 }
                             },
@@ -1042,20 +1036,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 0.18960216219772525,
-                                    "Average_Temperature": 301.90896468077957,
+                                    "Total_Moles": 0.1896100903158851,
+                                    "Average_Temperature": 301.86853114736285,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.3820634503122619
+                                            "value": 0.3820900802367791
                                         },
                                         {
                                             "key": "Nitrogen",
-                                            "value": 3.844107459949192e-30
+                                            "value": 0.0
                                         },
                                         {
                                             "key": "Helium",
-                                            "value": 0.6179365496877382
+                                            "value": 0.617909919763221
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -1138,8 +1132,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 0.23355361190632677,
-                                                        "Average_Temperature": 295.55,
+                                                        "Total_Moles": 0.23355362026007338,
+                                                        "Average_Temperature": 295.5500000000001,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Helium",
