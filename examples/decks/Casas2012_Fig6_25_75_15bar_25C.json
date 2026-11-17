@@ -1066,20 +1066,20 @@
                                 "Cycle_Endpoint_Summary": {
                                     "cereal_class_version": 1,
                                     "Is_Valid": true,
-                                    "Total_Moles": 9.87108097957986,
-                                    "Average_Temperature": 302.5407624898433,
+                                    "Total_Moles": 9.871087862267688,
+                                    "Average_Temperature": 302.5407130133373,
                                     "Average_Mole_Fraction": [
                                         {
                                             "key": "CarbonDioxide",
-                                            "value": 0.17196736829983179
+                                            "value": 0.17196797534742384
                                         },
                                         {
                                             "key": "Hydrogen",
-                                            "value": 0.8012252746670645
+                                            "value": 0.801224743474928
                                         },
                                         {
                                             "key": "Helium",
-                                            "value": 0.026807357033103737
+                                            "value": 0.026807281177648257
                                         }
                                     ],
                                     "Source_Cycle_Index": 0
@@ -1162,8 +1162,8 @@
                                                     },
                                                     "Cycle_Endpoint_Summary": {
                                                         "Is_Valid": true,
-                                                        "Total_Moles": 10.891872975776879,
-                                                        "Average_Temperature": 298.15000000000017,
+                                                        "Total_Moles": 10.89187297566033,
+                                                        "Average_Temperature": 298.1500000000002,
                                                         "Average_Mole_Fraction": [
                                                             {
                                                                 "key": "Helium",
@@ -1171,11 +1171,11 @@
                                                             },
                                                             {
                                                                 "key": "Hydrogen",
-                                                                "value": 0.75
+                                                                "value": 0.7500000000000002
                                                             },
                                                             {
                                                                 "key": "CarbonDioxide",
-                                                                "value": 0.2499999999999999
+                                                                "value": 0.24999999999999973
                                                             }
                                                         ],
                                                         "Source_Cycle_Index": 0
