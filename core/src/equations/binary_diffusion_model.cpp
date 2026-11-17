@@ -50,6 +50,15 @@ namespace adsim {
 	void BinaryDiffusionCoefficientModel::Update(const std::vector<double>& T, const std::vector<double>& P) {
 		auto N = (int)T.size();
 
+		// Chapman-Enskog, first approximation:
+		//   D_ij = 2.66e-7 T^1.5 / (P[bar] sqrt(M_ij) sigma_ij^2 Omega_D)  [m^2/s],
+		// with M_ij = 2 / (1/M_i + 1/M_j) [g/mol] and sigma_ij [Angstrom]. 0.00266
+		// [cm^2/s] is the textbook constant (Poling, Prausnitz and O'Connell,
+		// The Properties of Gases and Liquids, 5th ed., Ch. 11), rounded from
+		// (3/16) sqrt(2 pi k^3 N_A / 0.5e-3) / (1e5 pi 1e-20) = 2.6635e-7: D_ij is
+		// 0.13 % below the unrounded value, far below the uncertainty of the
+		// Lennard-Jones parameters.
+		//
 		// The numerator 2.66e-7 * T^1.5 is identical for every component pair —
 		// compute it once per cell instead of once per pair per cell.
 		top_scratch_.resize(N);

@@ -1580,14 +1580,17 @@ namespace adsim {
     ZeroVoidCellsAndMirrorGhosts(state.slow_mass_transfer_coefficient.at(ads_id).at(component).var, bed);
   }
 
-  static void BlanksLaw(UserData* udata, Component component) {
+  // D_m,i of each component of a fluid of three or more components: Blanc's law
+  // over the binary D_ij, with a smooth floor on the partner mole fractions
+  // (BlancMixtureDiffusivity in binary_diffusion_model.h). The floor keeps
+  // D_m,i finite and > 0 in a cell of pure i, where the plain formula is 0 / 0.
+  static void BlancLaw(UserData* udata, Component component) {
     auto& state = udata->state;
     auto& fluid = udata->fluid;
 
     const auto& P = state.pressure.var;
-    const auto& T = state.fluid_temperature.var;
     auto& Dm = state.molecular_diffusion;
-    
+
     auto& bed = udata->bed;
     // The pair table is already refreshed once by the caller
     // (UpdateMolecularDiffusionCoefficient) before this loop runs, so do NOT
@@ -1595,13 +1598,12 @@ namespace adsim {
     // once per component per residual evaluation.
     auto& diffusion_coefficients = bed.equations_.binary_diffusion_model_.m_DiffusionCoefficients;
 
-    const double eps = 1e-12;
-
     // Hoist the per-partner string-keyed lookups out of the cell loop: for this
     // component, resolve each partner's mole-fraction vector and binary-Dij
     // vector once (fluid.components_ order preserved → bit-identical sums).
     struct Partner { const std::vector<double>* yj; const std::vector<double>* Dij; };
     static thread_local std::vector<Partner> partners;
+    static thread_local std::vector<double> y_cell, D_cell;
     partners.clear();
     partners.reserve(fluid.components_.size());
     for (const std::string& comp_j : fluid.components_) {
@@ -1609,21 +1611,17 @@ namespace adsim {
       partners.push_back({ &state.mole_fraction.at(comp_j).var,
                            &diffusion_coefficients[{component, comp_j}].Dm_ij });
     }
+    const size_t n_partners = partners.size();
+    y_cell.resize(n_partners);
+    D_cell.resize(n_partners);
     auto& Dmi = Dm.at(component).var;
 
-    for (int n = 0; n < P.size(); ++n) {
-      double sum_yj = 0.0;
-      for (const auto& p : partners) sum_yj += (*p.yj)[n];
-
-      // Make positive
-      double numerator = std::sqrt(sum_yj * sum_yj);
-
-      double sum_yj_Dij = 0.0;
-      for (const auto& p : partners) sum_yj_Dij += ((*p.yj)[n] / (*p.Dij)[n]);
-
-      double denominator = std::sqrt(eps + std::pow(sum_yj_Dij, 2));
-
-      Dmi[n] = numerator / denominator;
+    for (size_t n = 0; n < P.size(); ++n) {
+      for (size_t j = 0; j < n_partners; ++j) {
+        y_cell[j] = (*partners[j].yj)[n];
+        D_cell[j] = (*partners[j].Dij)[n];
+      }
+      Dmi[n] = BlancMixtureDiffusivity(y_cell.data(), D_cell.data(), n_partners);
     }
   }
 
@@ -1727,7 +1725,7 @@ namespace adsim {
     // Three or more components
     // MulticomponentDiffusionCorrection(udata, component);
     for (const auto& comp : fluid.components_) {
-      BlanksLaw(udata, comp);
+      BlancLaw(udata, comp);
     }
   }
 
