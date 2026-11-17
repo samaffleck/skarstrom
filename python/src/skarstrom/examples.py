@@ -41,6 +41,7 @@ __all__ = [
     "Illustrative_DAC_Breakthrough",
     "Illustrative_Diluted_Bed",
     "Illustrative_Humid_DAC_Breakthrough",
+    "Illustrative_Humid_DAC_TVSA",
     "Illustrative_TSA_13X",
     "Nguyen2022_Fig4",
     "Nguyen2022_Fig4_100pct",
@@ -206,6 +207,18 @@ loading, LDF kinetics and heats of adsorption from the entry (Stampi-Bombelli et
 and wall heat transfer as in that paper; the bed length and the step time are chosen for
 the example. Water saturates the bed first and releases its heat of sorption; the CO2
 front follows with the humid capacity."""
+
+Illustrative_Humid_DAC_TVSA = Example('Illustrative_Humid_DAC_TVSA', 'Illustrative humid DAC TVSA - APDES-NFC, crossing water saturation', 'ILLUSTRATIVE, not a validated reproduction. Five-step temperature-vacuum swing cycle for direct air capture on the library adsorbent APDES-NFC (GAB water, humid Toth CO2): humid air (400 ppm CO2, 49 % RH at 20 C) adsorption, evacuation to 0.2 bar, heating with a 95 C medium at 0.2 bar (water and CO2 product at the feed end), closed cooling with 20 C water, feed pressurisation. Step times, vacuum and medium are round numbers for the example. On cooling, the water-rich gas left by the heating step passes its saturation pressure at the cold wall: condensation is not modelled, and the SUPERSATURATION run-health warning says so.')
+"""Illustrative humid DAC TVSA - APDES-NFC, crossing water saturation
+
+ILLUSTRATIVE, not a validated reproduction. Five-step temperature-vacuum swing cycle for
+direct air capture on the library adsorbent APDES-NFC (GAB water, humid Toth CO2): humid
+air (400 ppm CO2, 49 % RH at 20 C) adsorption, evacuation to 0.2 bar, heating with a 95
+C medium at 0.2 bar (water and CO2 product at the feed end), closed cooling with 20 C
+water, feed pressurisation. Step times, vacuum and medium are round numbers for the
+example. On cooling, the water-rich gas left by the heating step passes its saturation
+pressure at the cold wall: condensation is not modelled, and the SUPERSATURATION
+run-health warning says so."""
 
 Illustrative_TSA_13X = Example('Illustrative_TSA_13X', 'Illustrative TSA - CO2/N2 on 13X', "ILLUSTRATIVE, not a validated reproduction. Four-step indirectly heated TSA (adsorption, heating with a 150 C medium in a jacket and an internal exchanger with CO2 product at the feed end, cooling with 25 C water, feed pressurisation) for a 15 % CO2 / 85 % N2 flue gas. Adsorbent: library entry Zeolite 13X (Perez 2019); column, wall and heat transfer from the Perez2019 decks. Operating conditions are round numbers for the docs tutorial; heating goes above the isotherm's 298-348 K fit range.")
 """Illustrative TSA - CO2/N2 on 13X
@@ -613,6 +626,7 @@ ALL: Tuple[Example, ...] = (
     Illustrative_DAC_Breakthrough,
     Illustrative_Diluted_Bed,
     Illustrative_Humid_DAC_Breakthrough,
+    Illustrative_Humid_DAC_TVSA,
     Illustrative_TSA_13X,
     Nguyen2022_Fig4,
     Nguyen2022_Fig4_100pct,

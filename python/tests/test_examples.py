@@ -31,6 +31,7 @@ FAST = {
     "ward_pini_2024": ["--cycles", "2"],
     "tsa_illustrative": ["--cycles", "2"],
     "illustrative_dac_breakthrough": [],
+    "illustrative_humid_dac_tvsa": ["--cycles", "2"],
     "five_step_product_purge": ["--cycles", "2"],
     "optimise_nsga2": ["--pop", "4", "--gen", "1", "--workers", "2", "--cycles", "2"],
     "perez_2019_case_study_optimise": ["--deck", "Base", "--pop", "2", "--gen", "1", "--workers", "1",
