@@ -38,6 +38,11 @@
 //  5. Registry and deck: the Ruthven and Taylor-Aris models have no
 //     molecular-diffusivity input, and a deck that stored one (cereal
 //     versions 1 and 2) loads.
+//  6. Solved, without the correction (SetDispersionDriftCorrectionForTesting):
+//     Fick's law per component lets the mole fractions drift from summing to
+//     1 by several per cent, independent of the grid, and the bed keeps the
+//     error once its ends close; the corrected flux keeps the sum at 1 to
+//     round-off.
 
 #include "validation_helpers.h"
 
@@ -572,6 +577,113 @@ namespace adsim {
     ASSERT_TRUE(error.empty()) << error;
     EXPECT_NE(dynamic_cast<DispersionModelRuthven*>(loaded.bed.layers_.layers_.front().equations_.dispersion_model_.get()),
               nullptr);
+  }
+
+  // =========================================================================
+  // Without the drift correction
+  // =========================================================================
+
+  namespace {
+
+    // Turns the drift correction off for the life of the object
+    // (SetDispersionDriftCorrectionForTesting) and on again after.
+    struct DriftCorrectionOff {
+      DriftCorrectionOff() { SetDispersionDriftCorrectionForTesting(false); }
+      ~DriftCorrectionOff() { SetDispersionDriftCorrectionForTesting(true); }
+      DriftCorrectionOff(const DriftCorrectionOff&) = delete;
+      DriftCorrectionOff& operator=(const DriftCorrectionOff&) = delete;
+    };
+
+    struct SumResult {
+      double max_error = 0.0;      // max over both steps, every log row, every bed cell of |sum y - 1|
+      double mean_end_feed = 0.0;  // bed mean of sum y - 1, weighted by the gas moles eb V P / T, end of the feed
+      double mean_end_hold = 0.0;  // the same at the end of the hold
+    };
+
+    // A 50/50 H2/CO2 feed into an inert bed of N2 for 40 s (the front passes
+    // through the 0.2 m bed and out of the top), then both ends closed for
+    // 600 s. With the ends closed u = 0, so D_ax,i = 0.7 D_m,i, where the
+    // components differ most (D_m,H2 is about three times D_m,CO2).
+    SumResult RunFeedThenHold(int cells) {
+      UserData data;
+      BuildBreakthrough(data, {{kN2, 0.0}, {kH2, 0.5}, {kCO2, 0.5}}, 40.0, cells, AxialDispersionType::RUTHVEN,
+                        0.008, 0.2);
+      data.settings.reltol = 1e-6;
+      data.settings.max_step = 0.0;
+      data.cycle.AddStep("Hold");
+      Step& hold = data.cycle.GetStep("Hold");
+      hold.step_time_ = 600.0;
+      for (const auto location : {BoundaryLocation::BOTTOM, BoundaryLocation::TOP}) {
+        auto closed = std::make_unique<ClosedBoundaryCondition>();
+        closed->location_ = location;
+        (location == BoundaryLocation::TOP ? hold.top_boundary_condition_ : hold.bottom_boundary_condition_) =
+          std::move(closed);
+      }
+
+      CoupledSolver solver{data};
+      std::string error;
+      EXPECT_TRUE(data.PerformChecks(error)) << error;
+      EXPECT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+      EXPECT_TRUE(data.state.PerComponentDispersion());
+
+      SumResult r;
+      const auto& log = solver.GetLog();
+      const auto& dom = log.GetDomain();
+      for (int step = 0; step < 2; ++step) {
+        const auto ysum = log.GetVariable(0, step, VariableType::TOTAL_MOLE_FRACTION).values;
+        const auto P = log.GetVariable(0, step, VariableType::PRESSURE).values;
+        const auto T = log.GetVariable(0, step, VariableType::TEMPERATURE).values;
+        for (size_t row = 0; row < ysum.size(); ++row) {
+          double moles = 0.0, excess = 0.0;
+          for (int i : dom.bed_cell_indices) {
+            r.max_error = std::max(r.max_error, std::abs(ysum[row][i] - 1.0));
+            const double n = dom.eb[i] * dom.volume[i] * P[row][i] / T[row][i];
+            moles += n;
+            excess += n * (ysum[row][i] - 1.0);
+          }
+          (step == 0 ? r.mean_end_feed : r.mean_end_hold) = excess / moles;  // the last row wins
+        }
+      }
+      return r;
+    }
+
+  } // namespace
+
+  // 6. Why the correction is there. Fick's law per component, without the
+  //    drift correction, makes fluxes that do not sum to zero: H2 runs ahead of
+  //    CO2, and the front carries a mole-fraction sum above 1 ahead of it and
+  //    below 1 behind it. The overall balance has no dispersion term, so
+  //    nothing pulls the sum back to 1. When the front leaves the bed it takes
+  //    its excess with it, and the gas left in the bed keeps a deficit; with
+  //    both ends closed every component and the total are conserved, so the
+  //    deficit stays. The corrected flux keeps the sum at 1 to round-off.
+  //
+  // GUARD: the error without the correction is a model error, not a numerical
+  // one: on twice the cells it does not shrink. Measured (40 / 80 cells):
+  // max |sum y - 1| 4.4e-2 / 5.1e-2, bed mean at the end of the hold
+  // -1.1e-2 / -1.2e-2; with the correction 4e-15 and 1e-16.
+  TEST(PerComponentDispersion, WithoutTheDriftCorrectionTheMoleFractionsDoNotSumToOne) {
+    const SumResult corrected = RunFeedThenHold(40);
+    SumResult uncorrected, uncorrected_fine;
+    {
+      DriftCorrectionOff off;
+      uncorrected = RunFeedThenHold(40);
+      uncorrected_fine = RunFeedThenHold(80);
+    }
+    std::printf("[no correction] max |sum y - 1|: corrected %.2e, uncorrected %.2e (80 cells %.2e); bed mean of "
+                "sum y - 1 at the end of the feed / hold: corrected %.2e / %.2e, uncorrected %.2e / %.2e\n",
+                corrected.max_error, uncorrected.max_error, uncorrected_fine.max_error, corrected.mean_end_feed,
+                corrected.mean_end_hold, uncorrected.mean_end_feed, uncorrected.mean_end_hold);
+
+    EXPECT_LT(corrected.max_error, 1e-10);
+    EXPECT_LT(std::abs(corrected.mean_end_hold), 1e-10);
+
+    EXPECT_GT(uncorrected.max_error, 1e-2);
+    EXPECT_GT(uncorrected_fine.max_error, 0.8 * uncorrected.max_error) << "the error shrinks with the grid";
+    EXPECT_LT(uncorrected.mean_end_hold, -3e-3);
+    EXPECT_LT(uncorrected_fine.mean_end_hold, -3e-3);
+    // Closed ends: the bed mean of sum y - 1 is locked in over the hold.
+    EXPECT_NEAR(uncorrected.mean_end_hold, uncorrected.mean_end_feed, 1e-6);
   }
 
   // =========================================================================
