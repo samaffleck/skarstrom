@@ -46,9 +46,9 @@ namespace adsim {
   }
 
   // Every pair, self pairs included, at 200, 300 and 650 K (0.2 < T* < 70).
-  // Measured: worst 0.31 %, mean -0.17 %. The mean is mostly the textbook
-  // constant 2.66e-7 (0.13 % below 2.6635e-7); the rest is the Neufeld fit
-  // against Cantera's collision-integral tables.
+  // Measured: worst 0.26 %, mean -0.05 %: the Neufeld fit against Cantera's
+  // collision-integral tables. (With the rounded textbook constant 2.66e-7 of
+  // earlier versions the mean was -0.19 %.)
   TEST(CanteraDiffusivity, BinaryDiffusivitiesMatch) {
     double worst = 0.0, sum = 0.0;
     std::string worst_case;
@@ -68,7 +68,7 @@ namespace adsim {
     }
     ASSERT_GT(count, 1000);
     const double mean = sum / count;
-    EXPECT_GT(mean, -0.0035);
+    EXPECT_GT(mean, -0.0015);
     EXPECT_LT(mean, 0.001);
     std::cout << "D_ij vs Cantera " << ref::kCanteraVersion << ": " << count << " values, mean "
               << 100 * mean << " %, worst " << 100 * worst << " % (" << worst_case << ")\n";

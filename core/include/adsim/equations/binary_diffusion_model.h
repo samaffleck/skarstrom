@@ -110,7 +110,7 @@ namespace adsim {
 
   private:
     std::vector<double> top_scratch_{}; // per-cell numerator scratch, reused across Update calls
-    TemperatureCache top_cache_{};      // per-cell memo of 2.66e-7 T^1.5
+    TemperatureCache top_cache_{};      // per-cell memo of C T^1.5 (the Chapman-Enskog numerator)
   };
 
 } // adsim namespace

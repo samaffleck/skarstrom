@@ -1625,46 +1625,6 @@ namespace adsim {
     }
   }
 
-  static void MulticomponentDiffusionCorrection(UserData* udata, Component component) {
-    auto& state = udata->state;
-    auto& fluid = udata->fluid;
-
-    const auto& P = state.pressure.var;
-    const auto& T = state.fluid_temperature.var;
-    auto& Dm = state.molecular_diffusion;
-    
-    auto& bed = udata->bed;
-    bed.equations_.binary_diffusion_model_.Update(T, P);
-    auto& diffusion_coefficients = bed.equations_.binary_diffusion_model_.m_DiffusionCoefficients;
-
-    for (int n = 0; n < P.size(); ++n) {
-      const std::string c1 = fluid.components_[0]; // primary reference
-      const std::string c2 = fluid.components_[1]; // secondary reference
-
-      for (const std::string& comp_i : fluid.components_) {
-        std::string comp_j = c1;
-        if (comp_i == c1) {
-          comp_j = c2;
-        }
-        
-        double D_ij = diffusion_coefficients[{comp_i, comp_j}].Dm_ij[n];
-
-        double correction = 0.0;
-        for (const std::string& comp_k : fluid.components_) {
-          if (comp_k == comp_i || comp_k == comp_j) 
-            continue;
-
-          const auto& yk = state.mole_fraction.at(comp_k).var; 
-          double D_ik = diffusion_coefficients[{comp_i, comp_k}].Dm_ij[n];
-          correction += yk[n] * (D_ik - D_ij);
-        }
-
-        auto& Dmi = Dm.at(comp_i).var;
-        Dmi[n] = D_ij + correction;
-      }
-    }
-  }
-
   void UpdateMolecularDiffusionCoefficient(UserData* udata, Component component){
     auto& state = udata->state;
     auto& fluid = udata->fluid;
@@ -1723,7 +1683,6 @@ namespace adsim {
     }
 
     // Three or more components
-    // MulticomponentDiffusionCorrection(udata, component);
     for (const auto& comp : fluid.components_) {
       BlancLaw(udata, comp);
     }
