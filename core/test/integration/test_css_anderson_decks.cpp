@@ -12,7 +12,11 @@
 //
 //   deck          plain  Aitken  Anderson
 //   Perez2019_A      47       -        35
-//   Perez2019_E     195      59        43
+//   Perez2019_E     163       -        41
+//
+// Re-measured 2026-11-17 with each component's own dispersion coefficient
+// (Aitken not re-measured; with one D_m for every component E's plain stop
+// was 195, Aitken 59, Anderson 43).
 //
 // The reference KPIs are those of a long plain run with the CSS check off
 // (cycle 499 for A, 999 for E). Over its last 300 cycles the reference
@@ -114,14 +118,16 @@ namespace adsim {
   }  // namespace
 
   TEST(CSSAndersonDecks, Perez2019AStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 35, purity error 7.6e-7, recovery error 3.2e-5.
-    CheckAnderson({"Perez2019_A", 47, 40, 0.9955118911, 0.6014141775, 4.3e-7, 2.7e-5});
+    // Reference: cycle 499, CSS check off. Plain stop 47: purity 0.9952997855,
+    // recovery 0.5973060188.
+    CheckAnderson({"Perez2019_A", 47, 40, 0.9952991407, 0.5972750574, 6.4e-7, 3.1e-5});
   }
 
   TEST(CSSAndersonDecks, Perez2019EStopsSoonerAtTheSameKpis) {
-    // Measured: stop at 43, purity error 4.4e-6, recovery error 4.8e-6 (Linux);
-    // stop at 42, 2.5e-5, 5.8e-5 (macOS arm64).
-    CheckAnderson({"Perez2019_E", 195, 70, 0.8723116710, 0.9391619180, 6.6e-5, 2.7e-5});
+    // Reference: cycle 999, CSS check off (it wanders by 1e-7 in purity and
+    // 1.3e-6 in recovery over its last 300 cycles). Plain stop 163: purity
+    // 0.8725921343, recovery 0.9325115615.
+    CheckAnderson({"Perez2019_E", 163, 70, 0.8725396620, 0.9324622930, 5.2e-5, 4.9e-5});
   }
 
 }  // namespace adsim

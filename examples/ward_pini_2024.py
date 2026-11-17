@@ -108,7 +108,7 @@ def build(case: str = "FourStepPSA") -> sk.Simulation:
 
     layer = sim.add_layer("Adsorbent", composition={"Mg-MOF-74": 1.0}, momentum="kozeny_carman",
                           length=1 * u.m, cells=100, bed_void_fraction=0.52, particle_diameter=2 * u.mm)
-    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
+    layer.set_dispersion("ruthven")
     layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
     layer.set_internal_heat_transfer("constant", internal_htc=8.6 * u.W / (u.m**2 * u.K))
     layer.set_external_heat_transfer("constant", external_htc=2.5 * u.W / (u.m**2 * u.K))

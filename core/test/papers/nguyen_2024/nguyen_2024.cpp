@@ -114,8 +114,9 @@ namespace adsim {
       }
       if (v.si_properties) {
         // SI Table A.1: D_m 1.496e-5 m2/s (printed unit "m s-2"), mu 1.812e-5 Pa s.
-        if (auto* r = dynamic_cast<DispersionModelRuthven*>(layer.equations_.dispersion_model_.get()))
-          r->Dm = 1.496e-5;
+        // The dispersion uses each component's mixture-averaged D_m,i (the
+        // Ruthven model has no D_m input); the macropore resistance takes the
+        // table's value.
         std::vector<AdsorbentID> ids;
         for (const auto& [id, a] : t.data.adsorbent_directory.GetAll()) ids.push_back(id);
         for (AdsorbentID id : ids)

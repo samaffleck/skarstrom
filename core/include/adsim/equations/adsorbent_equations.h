@@ -77,6 +77,12 @@ namespace adsim {
   void UpdateComponentMassSource(UserData* udata, Component component);
   void UpdateComponentEnergySource(UserData* udata, Component component);
   void UpdateAxialDispersionCoefficient(UserData* udata);
+  // D_ax,i of one component (Equations::component_axial_dispersion), and the
+  // per-face drift sums of the corrected dispersive flux
+  // (Equations::dispersion_drift). Registered only when
+  // Equations::PerComponentDispersion().
+  void UpdateComponentAxialDispersion(UserData* udata, Component component);
+  void UpdateDispersionDrift(UserData* udata);
   // The reaction fields of the state (Equations::reaction_heat and its
   // siblings): per interior non-void cell, per solid present, per reaction,
   // the intrinsic rate at the cell's gas composition and pressure and the

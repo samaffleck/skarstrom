@@ -1656,8 +1656,6 @@ class Layer(_Node):
     "gunn" or "ranz_marshall" (a single sphere; a deck warning). See docs/transport-correlations.md."""
     dispersion_coefficient = Real()
     """Constant axial dispersion coefficient [m2/s]."""
-    molecular_diffusion_coefficient = Real()
-    """Molecular diffusivity used by the dispersion correlation [m2/s]."""
     heat_dispersion_coefficient = Real()
     """Constant effective axial thermal conductivity lambda of the energy balance [W/(m-K)]."""
     internal_htc = Real()
@@ -1730,8 +1728,9 @@ class Layer(_Node):
         return layer
 
     def set_dispersion(self, kind: str, **values: Value) -> "Layer":
-        """Axial dispersion: ``"constant"`` (dispersion_coefficient) or ``"ruthven"``
-        (molecular_diffusion_coefficient)."""
+        """Axial dispersion: ``"constant"`` (dispersion_coefficient), ``"ruthven"`` (packed beds) or
+        ``"taylor_aris"`` (monoliths and laminates). The last two take no input: each component's
+        coefficient is built on its mixture-averaged molecular diffusivity (docs/transport-correlations.md)."""
         return self._set_model("set_dispersion", kind, values)
 
     def set_heat_dispersion(self, kind: str, **values: Value) -> "Layer":

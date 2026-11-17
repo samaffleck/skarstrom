@@ -187,7 +187,7 @@ ads.set_isotherm("extended_dual_site_langmuir_c", {"CO2": {"m1": ..., ...}, "N2"
 ads.set_rate_model("CO2", "ldf", "macropore", tortuosity=3, macropore_void_fraction=0.35); ads.heat_of_adsorption["CO2"] = 30850
 sim.bed.set_shape("cylinder", diameter=0.032); sim.wall.set_material("ss316l"); sim.wall.set_boundary("zero_flux")
 layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman", length=0.3, cells=30, bed_void_fraction=0.41, particle_diameter=1.5e-3)
-layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5)   # + set_heat_dispersion / set_internal_heat_transfer / set_external_heat_transfer
+layer.set_dispersion("ruthven")   # + set_heat_dispersion / set_internal_heat_transfer / set_external_heat_transfer
 sim.initial_conditions.pressure = 1e5; sim.initial_conditions.y["N2"] = 1.0
 feed = sim.add_step("Feed", time=99)                                     # both ends closed until set
 feed.bottom.set_streams("inlet", [sk.Stream("Feed inlet", flow=sk.velocity(0.085), y={"CO2": 0.15, "N2": 0.85}, temperature=298)])

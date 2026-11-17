@@ -8,6 +8,8 @@
 
 // STL includes
 #include <memory>
+#include <string>
+#include <vector>
 
 // Cereal includes
 #include <cereal/types/memory.hpp>
@@ -62,6 +64,20 @@ namespace adsim {
 		virtual AxialDispersionType GetModelType() = 0;
 		virtual unsigned ReadsTransportProperties() const { return kAllTransportProperties; }
 		virtual void EvaluateExpressions(const EvalContext& ctx) {}
+		// True when the model gives each component its own coefficient
+		// D_ax,i (UpdateComponent), built on the component's mixture-averaged
+		// molecular diffusivity D_m,i (Equations::molecular_diffusion:
+		// Chapman-Enskog binary D_ij with Blanc's law). The component balance
+		// then adds the drift correction that keeps the dispersive molar
+		// fluxes summing to zero (Ramshaw, J. Non-Equilib. Thermodyn. 15
+		// (1990) 295, in the molar-average frame; UpdateDispersionDrift).
+		// Update writes the mole-fraction-weighted mean sum_i y_i D_ax,i, for
+		// the log only.
+		virtual bool PerComponent() const { return false; }
+		// D_ax,i of `component` over the layer's cells, into Dxi. Only called
+		// when PerComponent().
+		virtual void UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+		                             const std::string& component, std::vector<double>& Dxi) {}
 
 	private:
 		friend class cereal::access;
@@ -103,51 +119,66 @@ namespace adsim {
 		}
 	};
 
+	// Ruthven (1984): D_ax,i = 0.7 D_m,i + 0.5 d_p |u| / eb for each
+	// component, with D_m,i its mixture-averaged molecular diffusivity.
 	class DispersionModelRuthven : public IDispersionModel {
 	public:
-    void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
-    AxialDispersionType GetModelType() override { return AxialDispersionType::RUTHVEN; } // Ruthven (1984, Principles of adsorption and adsorption processes)
-    unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
-		void EvaluateExpressions(const EvalContext& ctx) override { Dm.Evaluate(ctx); }
-
-    ExpressionParam Dm{1.6e-5}; // [m2/s]
+		void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
+		AxialDispersionType GetModelType() override { return AxialDispersionType::RUTHVEN; } // Ruthven (1984, Principles of adsorption and adsorption processes)
+		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
+		bool PerComponent() const override { return true; }
+		void UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+		                     const std::string& component, std::vector<double>& Dxi) override;
 
 	private:
 		friend class cereal::access;
 		template <class Archive>
 		void serialize(Archive& ar, std::uint32_t const version) {
-			ar(
-        cereal::virtual_base_class<IDispersionModel>(this),
-        cereal::make_nvp("Molecular_Diffusion", Dm)
-      );
+			ar(cereal::virtual_base_class<IDispersionModel>(this));
+			LoadLegacyDiffusivity(ar, version);
 		}
+		// Versions 1 and 2 stored one molecular diffusivity for every
+		// component (and version 2 a switch to the per-component values).
+		// Both are read and dropped: D_m,i now comes from the gas.
+		template <class Archive>
+		static void LoadLegacyDiffusivity(Archive& ar, std::uint32_t version) {
+			if (version >= 3) return;
+			ExpressionParam legacy_dm{0.0};
+			ar(cereal::make_nvp("Molecular_Diffusion", legacy_dm));
+			if (version == 2) {
+				int legacy_choice = 0;
+				ar(cereal::make_nvp("Component_Diffusivity", legacy_choice));
+			}
+		}
+		friend class DispersionModelTaylorAris;
 	};
 
-	// Taylor-Aris dispersion in laminar channels (structured layers):
-	//   D_ax = D_m + u_ch^2 D_h^2 / (kappa D_m),  u_ch = |u| / OFA,
+	// Taylor-Aris dispersion in laminar channels (structured layers), for each
+	// component:
+	//   D_ax,i = D_m,i + u_ch^2 D_h^2 / (kappa D_m,i),  u_ch = |u| / OFA,
 	// with kappa = 192 for a circular tube (Taylor 1953, Aris 1956; also used
 	// for square channels, an approximation) and 840 for parallel plates on
-	// D_h = 2 x gap (Aris 1956: 210 on the gap width). D_m is this model's
-	// molecular diffusion coefficient. A packed layer cannot use it (deck
-	// checks).
+	// D_h = 2 x gap (Aris 1956: 210 on the gap width). D_m,i is the
+	// component's mixture-averaged molecular diffusivity. A packed layer
+	// cannot use it (deck checks).
 	class DispersionModelTaylorAris : public IDispersionModel {
 	public:
 		void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
 		AxialDispersionType GetModelType() override { return AxialDispersionType::TAYLOR_ARIS; }
-		unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
-		void EvaluateExpressions(const EvalContext& ctx) override { Dm.Evaluate(ctx); }
-
-		ExpressionParam Dm{1.6e-5}; // [m2/s]
+		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
+		bool PerComponent() const override { return true; }
+		void UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+		                     const std::string& component, std::vector<double>& Dxi) override;
 
 	private:
+		static double TaylorAris(int n, double dm, const std::vector<double>& u, const std::vector<double>& eb,
+		                         const std::vector<double>& dh, const std::vector<double>& kappa);
+
 		friend class cereal::access;
 		template <class Archive>
 		void serialize(Archive& ar, std::uint32_t const version) {
-			(void)version;
-			ar(
-				cereal::virtual_base_class<IDispersionModel>(this),
-				cereal::make_nvp("Molecular_Diffusion", Dm)
-			);
+			ar(cereal::virtual_base_class<IDispersionModel>(this));
+			DispersionModelRuthven::LoadLegacyDiffusivity(ar, version);
 		}
 	};
 
@@ -280,8 +311,8 @@ namespace adsim {
 // translation unit that saves or loads a deck must see the same numbers.
 CEREAL_CLASS_VERSION(adsim::DispersionModelConstant, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelConstant, 1);
-CEREAL_CLASS_VERSION(adsim::DispersionModelRuthven, 1);
-CEREAL_CLASS_VERSION(adsim::DispersionModelTaylorAris, 1);
+CEREAL_CLASS_VERSION(adsim::DispersionModelRuthven, 3);
+CEREAL_CLASS_VERSION(adsim::DispersionModelTaylorAris, 3);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelRuthven, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelYagiandKunii, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelChannel, 1);

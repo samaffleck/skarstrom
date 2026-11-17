@@ -70,7 +70,6 @@ namespace adsim {
       double henry_k = 5.0e-8;                       // q = k p [mol/(kg Pa)]
       double rho_s = 1100.0, ep = 0.35, tortuosity = 3.0;
       double dm_ldf = 1.0e-5;                        // [m2/s], the LDF's constant D_m
-      double dm_dispersion = 1.6e-5;                 // [m2/s], Taylor-Aris D_m
       bool ltne = false;
       bool packed = false;                           // a packed bed instead (for the packed closures)
       FilmCorrelation film = FilmCorrelation::WakaoFunazkri;  // packed layer's film correlation
@@ -130,9 +129,7 @@ namespace adsim {
         layer.structured_.sheet_thickness_ = d.sheet;
         layer.structured_.gap_ = d.gap;
         layer.structured_.washcoat_thickness_ = d.washcoat;
-        auto ta = std::make_unique<DispersionModelTaylorAris>();
-        ta->Dm = d.dm_dispersion;
-        layer.equations_.dispersion_model_ = std::move(ta);
+        layer.equations_.dispersion_model_ = std::make_unique<DispersionModelTaylorAris>();
       }
       std::get<CylinderBed>(data.bed.shape_).diameter = d.diameter;
       data.bed.equations_.particle_heat_transfer_model_ =
@@ -247,15 +244,23 @@ namespace adsim {
         const double D_logged = Dx[n];
         const auto& layer = data.bed.layers_.layers_.front();
         const double U = u / layer.GetOpenFraction();  // mean channel velocity
-        const double D = d.dm_dispersion;
-        double expected;
-        if (kind == LayerKind::Monolith) {
-          const double a = 0.5 * layer.GetHydraulicDiameter();  // tube radius
-          expected = D + a * a * U * U / (48.0 * D);             // Taylor (1953)
-        } else {
-          const double W = d.gap;                                // plate spacing
-          expected = D + W * W * U * U / (210.0 * D);            // Aris (1956)
+        // Each component's coefficient on its own molecular diffusivity D_m,i;
+        // the logged value is the mixture's sum_i y_i D_ax,i.
+        auto taylor_aris = [&](double D) {
+          if (kind == LayerKind::Monolith) {
+            const double a = 0.5 * layer.GetHydraulicDiameter();  // tube radius
+            return D + a * a * U * U / (48.0 * D);                 // Taylor (1953)
+          }
+          const double W = d.gap;                                  // plate spacing
+          return D + W * W * U * U / (210.0 * D);                  // Aris (1956)
+        };
+        double expected = 0.0;
+        for (const auto& comp : {kCarrier, kTracer}) {
+          const double y = log.GetComponentVariable(0, 0, ComponentVariableType::MOLE_FRACTION, comp).values.back()[n];
+          const double dm = log.GetComponentVariable(0, 0, ComponentVariableType::MOLECULAR_DIFFUSION, comp).values.back()[n];
+          expected += y * taylor_aris(dm);
         }
+        const double D = log.GetComponentVariable(0, 0, ComponentVariableType::MOLECULAR_DIFFUSION, kCarrier).values.back()[n];
         std::cout << "[Taylor-Aris " << LayerKindList[static_cast<int>(kind)] << "] U " << U << " m/s, D_ax "
                   << D_logged << " m2/s, analytic " << expected << "\n";
         ASSERT_GT(expected, 2.0 * D) << "the convective term must matter";
@@ -417,7 +422,7 @@ namespace adsim {
   // The run uses enough cells that the scheme's numerical dispersion is a
   // small part of sigma^2; it is checked to fall when the grid is refined.
   TEST(StructuredTransfer, ParallelPassageBreakthroughMomentsMatchTheLdfModel) {
-    struct Moments { double t1, var; };
+    struct Moments { double t1, var, dm_tracer; };
     auto measure = [](int cells) {
       ChannelDeck d;
       d.cells = cells;
@@ -427,7 +432,7 @@ namespace adsim {
       d.henry_k = 2.4e-6;      // delta ~ 10
       d.run_time = 80.0;
       d.max_step = 0.05;
-      Moments m{0.0, 0.0};
+      Moments m{0.0, 0.0, 0.0};
       RunChannelDeck(d, [&](const UserData&, const CoupledSolver& solver) {
         const auto& log = solver.GetLog();
         auto [times, y_out] = TopFaceMoleFraction(log, 0, 0, kTracer);
@@ -439,6 +444,8 @@ namespace adsim {
         }
         m.t1 = TimeIntegral(times, unbroken);
         m.var = TimeIntegral(times, weighted) - m.t1 * m.t1;
+        // The tracer disperses on its own D_m,i (dilute in the carrier).
+        m.dm_tracer = Mid(log.GetComponentVariable(0, 0, ComponentVariableType::MOLECULAR_DIFFUSION, kTracer).values);
       });
       return std::make_pair(m, d);
     };
@@ -458,7 +465,8 @@ namespace adsim {
     const double l = 0.5 * d.sheet;
     const double k = 3.0 * d.ep * d.dm_ldf / (d.tortuosity * l * l);  // Glueckauf (1955) slab
     const double U = u / ofa, W = d.gap;
-    const double D_ax = d.dm_dispersion + W * W * U * U / (210.0 * d.dm_dispersion);  // Aris (1956)
+    const double Dm = fine.dm_tracer;
+    const double D_ax = Dm + W * W * U * U / (210.0 * Dm);  // Aris (1956)
     const double De = ofa * D_ax / et;
     const double t1 = d.length / v * (1.0 + delta);
     const double var_ldf = 2.0 * delta * d.length / (v * k);

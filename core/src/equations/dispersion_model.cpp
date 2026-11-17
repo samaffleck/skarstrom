@@ -29,15 +29,53 @@ namespace adsim {
 		}
 	}
 
+	namespace {
+		// sum_i y_i f(D_m,i) over the layer's cells, into out: the logged
+		// mixture value of a per-component dispersion coefficient. Summed in
+		// the map order of the mole fractions (deterministic).
+		template <class F>
+		void MoleFractionWeightedMean(Equations& state, const MixedAdsorbentLayer& layer, F f, std::vector<double>& out) {
+			const int start = layer.domain_.start_index;
+			const int end = layer.domain_.end_index;
+			for (int n = start; n <= end; ++n) out[n] = 0.0;
+			for (const auto& [component, yi_eq] : state.mole_fraction) {
+				const auto& yi = yi_eq.var;
+				const auto& Dmi = state.molecular_diffusion.at(component).var;
+				for (int n = start; n <= end; ++n) out[n] += yi[n] * f(n, Dmi[n]);
+			}
+		}
+	}
+
+	// The logged mixture value sum_i y_i D_ax,i of Ruthven's
+	// D_ax,i = 0.7 D_m,i + 0.5 d_p |u| / eb.
 	void DispersionModelRuthven::Update(Equations& state, const MixedAdsorbentLayer& layer) {
 		auto& Dx = state.axial_dispersion_coefficient.var;
-		auto& u = state.velocity.var;
-    auto& eb = state.domain_vectors.eb;
-    auto& dp = state.domain_vectors.dp;
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		MoleFractionWeightedMean(state, layer,
+			[&](int n, double dmi) { return 0.7 * dmi + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n]; }, Dx);
+	}
 
-    for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-      Dx[n] = 0.7 * Dm + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n];
-    }
+	void DispersionModelRuthven::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+	                                             const std::string& component, std::vector<double>& Dxi) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		const auto& Dmi = state.molecular_diffusion.at(component).var;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
+			Dxi[n] = 0.7 * Dmi[n] + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n];
+		}
+	}
+
+	// D_ax = D_m + u_ch^2 D_h^2 / (kappa D_m) in cell n; D_m alone where the
+	// cell is not a channel.
+	double DispersionModelTaylorAris::TaylorAris(int n, double dm, const std::vector<double>& u,
+	                                             const std::vector<double>& eb, const std::vector<double>& dh,
+	                                             const std::vector<double>& kappa) {
+		if (!(kappa[n] > 0.0) || !(dm > 0.0)) return dm;  // not a channel: molecular diffusion only
+		const double u_ch = std::abs(u[n]) / eb[n];
+		return dm + u_ch * u_ch * dh[n] * dh[n] / (kappa[n] * dm);
 	}
 
 	void DispersionModelTaylorAris::Update(Equations& state, const MixedAdsorbentLayer& layer) {
@@ -46,14 +84,18 @@ namespace adsim {
 		const auto& eb = state.domain_vectors.eb;   // the open frontal area of a structured layer
 		const auto& dh = state.domain_vectors.hydraulic_diameter;
 		const auto& kappa = state.domain_vectors.taylor_aris_kappa;
-		const double dm = Dm;
+		MoleFractionWeightedMean(state, layer, [&](int n, double dmi) { return TaylorAris(n, dmi, u, eb, dh, kappa); }, Dx);
+	}
+
+	void DispersionModelTaylorAris::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+	                                                const std::string& component, std::vector<double>& Dxi) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dh = state.domain_vectors.hydraulic_diameter;
+		const auto& kappa = state.domain_vectors.taylor_aris_kappa;
+		const auto& Dmi = state.molecular_diffusion.at(component).var;
 		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-			if (!(kappa[n] > 0.0) || !(dm > 0.0)) {  // not a channel: molecular diffusion only
-				Dx[n] = dm;
-				continue;
-			}
-			const double u_ch = std::abs(u[n]) / eb[n];
-			Dx[n] = dm + u_ch * u_ch * dh[n] * dh[n] / (kappa[n] * dm);
+			Dxi[n] = TaylorAris(n, Dmi[n], u, eb, dh, kappa);
 		}
 	}
 

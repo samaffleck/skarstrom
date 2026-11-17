@@ -20,30 +20,47 @@ Input: **Dispersion coefficient** [m² s⁻¹].
 
 ### Ruthven (1984)
 
-Combines molecular diffusion and mechanical (eddy) dispersion:
+Combines molecular diffusion and mechanical (eddy) dispersion, for each component $i$:
 
 $$
-D_{ax} = 0.7\thinspace D_m + 0.5\thinspace \frac{|u|}{\epsilon_b}\thinspace d_p
+D_{ax,i} = 0.7\thinspace D_{m,i} + 0.5\thinspace \frac{|u|}{\epsilon_b}\thinspace d_p
 $$
 
 | Symbol | Description | Unit |
 |--------|-------------|------|
-| $D_m$ | Molecular diffusivity | m² s⁻¹ |
+| $D_{m,i}$ | Mixture-averaged molecular diffusivity of component $i$ ([below](#molecular-diffusivity-of-each-component)) | m² s⁻¹ |
 | $u$ | Superficial velocity | m s⁻¹ |
 | $\epsilon_b$ | Bed void fraction | - |
 | $d_p$ | Particle diameter (a cylinder's extrudate diameter, used as an equivalent sphere; [Kinetic Models](kinetic-models.md#particle-shape)) | m |
+
+The model takes no input.
 
 ---
 
 ### Taylor–Aris (channels)
 
-For a structured layer (monolith or laminate; see [Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)), laminar flow in straight channels spreads a solute by the velocity profile across the channel, on top of molecular diffusion (Taylor 1953; Aris 1956):
+For a structured layer (monolith or laminate; see [Momentum Balance](momentum-balance.md#structured-layers-laminar-flow-in-channels)), laminar flow in straight channels spreads a solute by the velocity profile across the channel, on top of molecular diffusion (Taylor 1953; Aris 1956). For each component $i$:
 
 $$
-D_{ax} = D_m + \frac{u_{ch}^2\thinspace D_h^2}{\kappa\thinspace D_m}, \qquad u_{ch} = \frac{|u|}{\phi}
+D_{ax,i} = D_{m,i} + \frac{u_{ch}^2\thinspace D_h^2}{\kappa\thinspace D_{m,i}}, \qquad u_{ch} = \frac{|u|}{\phi}
 $$
 
-with $\phi$ the open frontal area and $D_h$ the hydraulic diameter. $\kappa = 192$ for a circular tube, which is Taylor's $a^2 U^2/(48 D)$ on the radius $a = D_h/2$. Square channels also use 192; that is an approximation, since the exact square-duct coefficient differs by a few per cent. $\kappa = 840$ for parallel plates, which is Aris's $W^2 U^2/(210 D)$ on the gap $W$ with $D_h = 2W$. Input: **Molecular diffusivity** $D_m$ [m² s⁻¹]. The deck checks refuse this model on a packed layer, and refuse Ruthven's packed-bed model on a structured layer. Switching a layer to a structured kind (`build::SetLayerKind`) installs it. In a cell that is not a channel, or with $D_m \le 0$, the model gives $D_{ax} = D_m$.
+with $\phi$ the open frontal area and $D_h$ the hydraulic diameter. $\kappa = 192$ for a circular tube, which is Taylor's $a^2 U^2/(48 D)$ on the radius $a = D_h/2$. Square channels also use 192; that is an approximation, since the exact square-duct coefficient differs by a few per cent. $\kappa = 840$ for parallel plates, which is Aris's $W^2 U^2/(210 D)$ on the gap $W$ with $D_h = 2W$. The model takes no input. The deck checks refuse this model on a packed layer, and refuse Ruthven's packed-bed model on a structured layer. Switching a layer to a structured kind (`build::SetLayerKind`) installs it. In a cell that is not a channel, the model gives $D_{ax,i} = D_{m,i}$.
+
+### Molecular diffusivity of each component
+
+!!! note "Changed in 0.15"
+    The Ruthven and Taylor–Aris models used one molecular diffusivity $D_m$ (the input **Molecular diffusivity**, registry path `layer[ID].molecular_diffusion_coefficient`) for every component. They now use each component's own $D_{m,i}$ and have no input. A deck that stored a $D_m$ loads; the value is dropped.
+
+$D_{m,i}$ is the mixture-averaged diffusivity of component $i$ at the cell's composition, temperature and pressure:
+
+$$
+D_{m,i} = \frac{1 - y_i}{\sum_{j \ne i} y_j / D_{ij}}
+$$
+
+This is Blanc's law, with the binary diffusivities $D_{ij}$ from Chapman–Enskog theory and the Lennard-Jones parameters of each component. It is the same $D_{m,i}$ that the macropore resistance of the [kinetic models](kinetic-models.md) uses. It varies as $T^{3/2}/P$, so the coefficient grows at vacuum pressures. In a binary mixture $D_{m,1} = D_{m,2} = D_{12}$, so the two components share one coefficient; in a pure gas $D_{m}$ is the self-diffusivity. Components differ most in mixtures of three or more components with a light one (H₂, He), and where the molecular term is not small against the mechanical term (low velocity, small particles, the channels of a structured layer).
+
+With coefficients that differ, the component balance takes a corrected dispersive flux, so the total moles stay conserved ([Mass Balance](mass-balance.md#dispersion-with-a-coefficient-per-component)). The logged **Axial Dispersion Coefficient** is the mole-fraction-weighted mean $\sum_i y_i D_{ax,i}$. The Constant model always has one coefficient for every component; use it to impose a fitted or published $D_{ax}$.
 
 ---
 

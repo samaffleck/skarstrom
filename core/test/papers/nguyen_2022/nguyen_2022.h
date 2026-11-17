@@ -110,10 +110,10 @@ namespace adsim {
       AddConstantInternalHeatTransferCoefficientModel(6.963, layer_id);   // Table 2, fitted
       AddConstantExternalHeatTransferCoefficientModel(14.0, layer_id);    // Table 2, fitted
 
-      // Eq. 6: D_L = 0.7 D_m + v r_p (the engine's Ruthven form), D_m of Table 2.
-      auto disp = std::make_unique<DispersionModelRuthven>();
-      disp->Dm = kDm;
-      layer.equations_.dispersion_model_ = std::move(disp);
+      // Eq. 6: D_L = 0.7 D_m + v r_p (the engine's Ruthven form). The paper's
+      // D_m (Table 2, kDm) is one value; the engine uses each component's
+      // mixture-averaged D_m,i (README, model-form audit).
+      layer.equations_.dispersion_model_ = std::make_unique<DispersionModelRuthven>();
       auto kz = std::make_unique<HeatDispersionModelConstant>();
       kz->dispersion_coefficient_ = 0.4;                       // Table 2, fitted
       layer.equations_.heat_dispersion_model_ = std::move(kz);

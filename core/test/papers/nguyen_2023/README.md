@@ -62,6 +62,21 @@ value in a comment next to it. Results of the last run:
 - LPP cycles (VI-X): purity within 0.9-2.8 pp of the experiments, but recovery is 5-8 pp high, at the cyclic steady state of the per-component mass balance (VIII-X need about 140-440 cycles to reach it). Before the Danckwerts inlet and Darcy flow-face fixes (2026-11) recovery exceeded 100 % for IX and X (100.35 % and 100.78 %): the inlet faces let dispersion carry CO₂ into the bed that no stream log recorded, so more CO₂ left than was counted in. With the fixes they are 98.3 % and 97.6 %; purity moved by up to 1.2 pp (X: 80.84 → 79.67 %, now 0.93 pp from the experiment) and VIII's productivity by 1.4 %, and those tolerances were re-measured. The single-bed emulation couples the light-product pressurisation to the feed step by composition, not by moles, so CO2 enters through the LPP stream that is not drawn from the raffinate; this is a limitation of the deck/connection model, recorded rather than hidden.
 - The decks now use the competitive DSL form (as the paper's ref. [10]); the paper's column length (0.267 m) is inconsistent with its adsorbent mass and particle density, and the deck keeps the mass (L = 0.304 m).
 
+### Dispersion per component (2026-11-17)
+
+The engine's Ruthven model now gives each component its own coefficient
+0.7 D_m,i + v r_p, with D_m,i the mixture-averaged molecular diffusivity
+(Chapman–Enskog, Blanc's law; in this CO₂/N₂ gas both equal D_12, which grows
+as 1/P in the evacuation step), instead of one D_m = 1.6 × 10⁻⁵ m²/s, and
+keeps the dispersive fluxes summing to zero (docs/mass-balance.md). Most
+metrics moved by less than 0.5 pp or 0.6 %. Three bounds were exceeded and
+re-measured: Exp. I recovery vs the paper's model 0.69 → 1.12 pp (bound 1.1 →
+1.4), Exp. VI productivity vs the paper's model 0.06 → 0.34 % (bound 0.26 →
+0.42 %), and Exp. X purity 0.04 → 0.21 pp vs both the experiment and the
+paper's model (bounds 0.13 → 0.25). Recovery against the experiments improved
+in I, IV, V, VI, VIII, IX and X (by 0.2–0.4 pp); the LPP cycles still recover
+5–8 pp too much.
+
 ### Gas heat capacity as in the paper (2026-11)
 
 The paper takes constant gas heat capacities per species from NIST (N₂ 1040, CO₂ 841 J/(kg K)) and sets the adsorbed phase's equal to the gas's. The deck now uses the constant gas heat capacity mode with those values per mole (CO₂ 37.01, N₂ 29.13 J/(mol K)) and the `gas_phase` adsorbed heat capacity mode (before: the default ideal-gas C_p0(T), and constant adsorbed values 37.435 / 29.171 J/(mol K)). Every metric moves by less than 0.01 pp or 0.03 %; the largest is Exp. I recovery vs the paper model, 0.688 → 0.695 pp (bound 1.1). No bound changed. All papers' settings: [../README.md](../README.md#gas-heat-capacity-per-paper).

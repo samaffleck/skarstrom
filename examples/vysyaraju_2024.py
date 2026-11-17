@@ -98,7 +98,7 @@ def build(case: str = "PSA_Exp1") -> sk.Simulation:
 
     layer = sim.add_layer("Zeolite5A", composition={"Zeolite5A": 1.0}, momentum="kozeny_carman",
                           length=0.305 * u.m, cells=80, bed_void_fraction=0.35, particle_diameter=2.06 * u.mm)
-    layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5 * u.m**2 / u.s)
+    layer.set_dispersion("ruthven")
     layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0 * u.W / (u.m * u.K))
     layer.set_internal_heat_transfer("constant", internal_htc=15 * u.W / (u.m**2 * u.K))
     layer.set_external_heat_transfer("constant", external_htc=15 * u.W / (u.m**2 * u.K))

@@ -18,9 +18,12 @@ namespace adsim {
 
   namespace {
     // CO2, cycle 1000 (0-based 999), re-measured with the gas held in the bed
-    // voids only (particle_void_fraction 0, as the paper's balances).
-    constexpr double kConvergedPurity = 0.9953381;
-    constexpr double kConvergedRecovery = 0.5959616;
+    // voids only (particle_void_fraction 0, as the paper's balances), and again
+    // with each component's own dispersion coefficient (2026-11-17; 0.9953381
+    // and 0.5959616 with one D_m for every component). Cycle 699 agrees to
+    // 2e-8 in purity and 1.4e-7 in recovery.
+    constexpr double kConvergedPurity = 0.9951911;
+    constexpr double kConvergedRecovery = 0.5932204;
 
     // The converged values above, and the cycle counts the tests expect, are
     // those of the deck's earlier form: upwind on 30 cells from a clean N2 bed.
