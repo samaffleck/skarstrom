@@ -32,14 +32,18 @@ namespace adsim {
 	static const char* AxialDispersionModeList[] = {
 		"Constant",						// 0 
 		"Ruthven (1984)",				// 1
-		"Taylor-Aris (channels)"		// 2
+		"Taylor-Aris (channels)",		// 2
+		"Edwards-Richardson (1968)",	// 3
+		"Wakao-Funazkri (1978)"			// 4
 	};
 
 	// Stored values; never renumber.
 	enum class AxialDispersionType {
 		CONSTANT = 0,
 		RUTHVEN = 1,
-		TAYLOR_ARIS = 2
+		TAYLOR_ARIS = 2,
+		EDWARDS_RICHARDSON = 3,
+		WAKAO_FUNAZKRI = 4
 	};
 
 	static const char* AxialHeatDispersionModeList[] = {
@@ -182,23 +186,62 @@ namespace adsim {
 		}
 	};
 
-	// class DispersionModelWakaoAndFunazkri : public IDispersionModel {
-	// public:
-  //   void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
-  //   void Update(Equations& state, const std::string& component, const MixedAdsorbentLayer& layer) override;
-	// 	AxialDispersionType GetModelType() override { return AxialDispersionType::WAKO_AND_FUNAZKRI; } 
+	// Packed-bed correlations on the particle Peclet number Pe = u_i d_p / D_ax,
+	// with u_i = |u| / eb the interstitial velocity and, for each component,
+	// Re Sc = |u| d_p / D_m,i (u superficial), so eb / (Re Sc) = D_m,i / (u_i d_p).
+	// Both tend to Pe = 2 at high flow, as Ruthven's form. A structured layer
+	// cannot use them (deck checks).
+	//
+	// Edwards and Richardson (1968):
+	//   1/Pe = 0.73 eb / (Re Sc) + 0.5 / (1 + 13 * 0.73 eb / (Re Sc)), i.e.
+	//   D_ax,i = 0.73 D_m,i + 0.5 u_i d_p / (1 + 9.49 D_m,i / (u_i d_p)).
+	// At u -> 0 it gives 0.73 D_m,i (the bed's tortuosity factor on molecular
+	// diffusion); the second term blends smoothly to 0.5 u_i d_p.
+	class DispersionModelEdwardsRichardson : public IDispersionModel {
+	public:
+		void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
+		AxialDispersionType GetModelType() override { return AxialDispersionType::EDWARDS_RICHARDSON; }
+		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
+		bool PerComponent() const override { return true; }
+		void UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+		                     const std::string& component, std::vector<double>& Dxi) override;
+		// D_ax for a molecular diffusivity dm, interstitial velocity ui and
+		// particle diameter dp.
+		static double Coefficient(double dm, double ui, double dp);
 
-	// private:
-	// 	friend class cereal::access;
-	// 	template <class Archive>
-	// 	void serialize(Archive& ar, std::uint32_t const version) {
-	// 		ar(cereal::virtual_base_class<IDispersionModel>(this));
+	private:
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const version) {
+			(void)version;
+			ar(cereal::virtual_base_class<IDispersionModel>(this));
+		}
+	};
 
-	// 		if (version >= 2) {
-	// 			// Future expansion
-	// 		}
-	// 	}
-	// };
+	// Wakao and Funazkri (1978): eb D_ax,i / D_m,i = 20 + 0.5 Sc Re, i.e.
+	//   D_ax,i = 20 D_m,i / eb + 0.5 u_i d_p.
+	// The dispersion with which they re-reduced the packed-bed Sherwood data
+	// (the default film correlation's), so the consistent pairing. Its u -> 0
+	// limit, 20 D_m,i / eb, is about 70 times the 0.73 D_m,i of Edwards and
+	// Richardson at eb = 0.4.
+	class DispersionModelWakaoFunazkri : public IDispersionModel {
+	public:
+		void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
+		AxialDispersionType GetModelType() override { return AxialDispersionType::WAKAO_FUNAZKRI; }
+		unsigned ReadsTransportProperties() const override { return kMolecularDiffusion; }
+		bool PerComponent() const override { return true; }
+		void UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+		                     const std::string& component, std::vector<double>& Dxi) override;
+		static double Coefficient(double dm, double eb, double ui, double dp);
+
+	private:
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const version) {
+			(void)version;
+			ar(cereal::virtual_base_class<IDispersionModel>(this));
+		}
+	};
 
 	class HeatDispersionModelConstant : public IHeatDispersionModel {
 	public:
@@ -290,7 +333,8 @@ namespace adsim {
 		case AxialDispersionType::CONSTANT: return std::make_unique<DispersionModelConstant>();
 		case AxialDispersionType::RUTHVEN: return std::make_unique<DispersionModelRuthven>();
 		case AxialDispersionType::TAYLOR_ARIS: return std::make_unique<DispersionModelTaylorAris>();
-		// case AxialDispersionType::WAKO_AND_FUNAZKRI: return std::make_unique<DispersionModelWakaoAndFunazkri>();
+		case AxialDispersionType::EDWARDS_RICHARDSON: return std::make_unique<DispersionModelEdwardsRichardson>();
+		case AxialDispersionType::WAKAO_FUNAZKRI: return std::make_unique<DispersionModelWakaoFunazkri>();
 		default: return nullptr;
 		}
 	}
@@ -313,6 +357,8 @@ CEREAL_CLASS_VERSION(adsim::DispersionModelConstant, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelConstant, 1);
 CEREAL_CLASS_VERSION(adsim::DispersionModelRuthven, 3);
 CEREAL_CLASS_VERSION(adsim::DispersionModelTaylorAris, 3);
+CEREAL_CLASS_VERSION(adsim::DispersionModelEdwardsRichardson, 1);
+CEREAL_CLASS_VERSION(adsim::DispersionModelWakaoFunazkri, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelRuthven, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelYagiandKunii, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelChannel, 1);

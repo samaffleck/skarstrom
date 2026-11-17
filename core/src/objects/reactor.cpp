@@ -83,9 +83,14 @@ namespace adsim {
     }
     for (const auto& layer : layers_.layers_) {
       const auto* disp = layer.equations_.dispersion_model_.get();
-      if (layer.IsStructured() && dynamic_cast<const DispersionModelRuthven*>(disp)) {
+      const char* packed_dispersion = dynamic_cast<const DispersionModelRuthven*>(disp)              ? "Ruthven's"
+                                      : dynamic_cast<const DispersionModelEdwardsRichardson*>(disp) ? "Edwards and Richardson's"
+                                      : dynamic_cast<const DispersionModelWakaoFunazkri*>(disp)     ? "Wakao and Funazkri's"
+                                                                                                     : nullptr;
+      if (layer.IsStructured() && packed_dispersion) {
         errorMsg += "Error: Layer \"" + layer.name_ + "\" is a " + LayerKindList[static_cast<int>(layer.kind_)] +
-                    " but uses Ruthven's packed-bed dispersion; use Taylor-Aris dispersion (taylor_aris) or a constant coefficient.\n";
+                    " but uses " + packed_dispersion +
+                    " packed-bed dispersion; use Taylor-Aris dispersion (taylor_aris) or a constant coefficient.\n";
         return false;
       }
       if (!layer.IsStructured() && dynamic_cast<const DispersionModelTaylorAris*>(disp)) {

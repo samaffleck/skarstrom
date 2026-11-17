@@ -99,32 +99,54 @@ namespace adsim {
 		}
 	}
 
-	// void DispersionModelWakaoAndFunazkri::Update(Equations& state, const std::string& component, const MixedAdsorbentLayer& layer) {
-	// 	auto& Dxi = state.dispersion_coefficient.at(component).var;
-	// 	auto& Dmi = state.molecular_diffusion.at(component).var;
-	// 	auto& u = state.velocity.var;
-	// 	auto& Re = state.reynolds_number.var;
-	// 	auto& Sc = state.schmidt_number.var;
-  //   auto& eb = state.domain_vectors.eb;
-  //   auto& dp = state.domain_vectors.dp;
-    
-  //   for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-  //     Dxi[n] = (Dmi[n] / eb[n]) * (20.0 + 0.5 * Sc[n] * Re[n]);
-  //   }
-	// }
+	double DispersionModelEdwardsRichardson::Coefficient(double dm, double ui, double dp) {
+		// 0.5 ui dp / (1 + 9.49 dm / (ui dp)), written so that ui = 0 gives 0.
+		const double v = ui * dp;
+		const double denom = v + 9.49 * dm;
+		return 0.73 * dm + (denom > 0.0 ? 0.5 * v * v / denom : 0.0);
+	}
 
-	// void DispersionModelWakaoAndFunazkri::Update(Equations& state, const MixedAdsorbentLayer& layer) {
-	// 	auto& Dx = state.axial_dispersion_coefficient.var;
-	// 	auto& u = state.velocity.var;
-	// 	auto& Re = state.reynolds_number.var;
-	// 	auto& Sc = state.schmidt_number.var;
-  //   auto& eb = state.domain_vectors.eb;
-  //   auto& dp = state.domain_vectors.dp;
-    
-  //   for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-  //     Dx[n] = 20.0 + 0.5 * Sc[n] * Re[n]; // NOT CORRECT, DONT USE
-  //   }
-	// }
+	void DispersionModelEdwardsRichardson::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		MoleFractionWeightedMean(state, layer,
+			[&](int n, double dmi) { return Coefficient(dmi, std::abs(u[n]) / eb[n], dp[n]); },
+			state.axial_dispersion_coefficient.var);
+	}
+
+	void DispersionModelEdwardsRichardson::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+	                                                       const std::string& component, std::vector<double>& Dxi) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		const auto& Dmi = state.molecular_diffusion.at(component).var;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n)
+			Dxi[n] = Coefficient(Dmi[n], std::abs(u[n]) / eb[n], dp[n]);
+	}
+
+	double DispersionModelWakaoFunazkri::Coefficient(double dm, double eb, double ui, double dp) {
+		return 20.0 * dm / eb + 0.5 * ui * dp;
+	}
+
+	void DispersionModelWakaoFunazkri::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		MoleFractionWeightedMean(state, layer,
+			[&](int n, double dmi) { return Coefficient(dmi, eb[n], std::abs(u[n]) / eb[n], dp[n]); },
+			state.axial_dispersion_coefficient.var);
+	}
+
+	void DispersionModelWakaoFunazkri::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
+	                                                   const std::string& component, std::vector<double>& Dxi) {
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		const auto& Dmi = state.molecular_diffusion.at(component).var;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n)
+			Dxi[n] = Coefficient(Dmi[n], eb[n], std::abs(u[n]) / eb[n], dp[n]);
+	}
 
 	void HeatDispersionModelRuthven::Update(Equations& state, const MixedAdsorbentLayer& layer) {
 		auto& Lam = state.axial_thermal_conductivity.var;
@@ -186,7 +208,8 @@ namespace adsim {
 // Register the derived type with the base type
 CEREAL_REGISTER_TYPE(adsim::DispersionModelConstant)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelConstant)
-// CEREAL_REGISTER_TYPE(adsim::DispersionModelWakaoAndFunazkri)
+CEREAL_REGISTER_TYPE(adsim::DispersionModelEdwardsRichardson)
+CEREAL_REGISTER_TYPE(adsim::DispersionModelWakaoFunazkri)
 CEREAL_REGISTER_TYPE(adsim::DispersionModelRuthven)
 CEREAL_REGISTER_TYPE(adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelRuthven)
@@ -194,10 +217,11 @@ CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelYagiandKunii)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelChannel)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelConstant)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelConstant)
-// CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelWakaoAndFunazkri)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelEdwardsRichardson)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelWakaoFunazkri)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelYagiandKunii)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelChannel)
-// CEREAL_CLASS_VERSION(adsim::DispersionModelWakaoAndFunazkri, 1);
+

@@ -47,6 +47,39 @@ $$
 
 with $\phi$ the open frontal area and $D_h$ the hydraulic diameter. $\kappa = 192$ for a circular tube, which is Taylor's $a^2 U^2/(48 D)$ on the radius $a = D_h/2$. Square channels also use 192; that is an approximation, since the exact square-duct coefficient differs by a few per cent. $\kappa = 840$ for parallel plates, which is Aris's $W^2 U^2/(210 D)$ on the gap $W$ with $D_h = 2W$. The model takes no input. The deck checks refuse this model on a packed layer, and refuse Ruthven's packed-bed model on a structured layer. Switching a layer to a structured kind (`build::SetLayerKind`) installs it. In a cell that is not a channel, the model gives $D_{ax,i} = D_{m,i}$.
 
+### Edwards–Richardson (1968)
+
+!!! note "New in 0.15"
+    The `edwards_richardson` dispersion kind.
+
+A gas-phase correlation for packed beds that blends smoothly from the molecular limit to $Pe = 2$, where Ruthven's form adds the two terms. For each component $i$:
+
+$$
+D_{ax,i} = 0.73\thinspace D_{m,i} + \frac{0.5\thinspace u_i\thinspace d_p}{1 + 9.49\thinspace D_{m,i}/(u_i\thinspace d_p)}, \qquad u_i = \frac{|u|}{\epsilon_b}
+$$
+
+This is $1/Pe = 0.73\,\epsilon_b/(Re\,Sc) + 0.5/(1 + 13 \cdot 0.73\,\epsilon_b/(Re\,Sc))$ with $Pe = u_i d_p/D_{ax}$ and $Re\,Sc = |u| d_p/D_{m}$ ($u$ superficial), as Knox et al. (2016, eqs. 10b and 11) print it; $9.49 = 13 \times 0.73$. At $u \to 0$ it gives $0.73\,D_{m,i}$; at high flow $Pe \to 2$. Edwards and Richardson measured gas dispersion in beds of glass spheres of 0.0377–0.607 cm. The model takes no input, and the deck checks refuse it on a structured layer.
+
+### Wakao–Funazkri (1978)
+
+!!! note "New in 0.15"
+    The `wakao_funazkri` dispersion kind.
+
+The dispersion with which Wakao and Funazkri re-reduced the packed-bed mass-transfer data behind the default film correlation, so it is the consistent pairing with that Sherwood number ([Kinetic Models](kinetic-models.md)). For each component $i$:
+
+$$
+\frac{\epsilon_b\thinspace D_{ax,i}}{D_{m,i}} = 20 + 0.5\thinspace Sc_i\thinspace Re, \qquad\text{i.e.}\qquad D_{ax,i} = \frac{20\thinspace D_{m,i}}{\epsilon_b} + 0.5\thinspace u_i\thinspace d_p
+$$
+
+with $Re\,Sc_i = |u| d_p/D_{m,i}$ ($u$ superficial). At high flow $Pe \to 2$. **Its $u \to 0$ limit, $20\,D_{m,i}/\epsilon_b$, is much larger than molecular diffusion through the bed**: about 70 times Edwards–Richardson's $0.73\,D_{m,i}$ at $\epsilon_b = 0.4$. It suits the flow range of the mass-transfer data it was fitted with, not a near-stagnant bed. The model takes no input, and the deck checks refuse it on a structured layer.
+
+**Choosing a correlation.** At $u_i d_p/D_m \gg 1$ the mechanical term dominates and Ruthven, Edwards–Richardson and Wakao–Funazkri agree ($Pe \to 2$). They differ where the molecular term matters: Ruthven and Edwards–Richardson tend to the molecular limit ($0.7$ and $0.73\,D_m$), Wakao–Funazkri to $20\,D_m/\epsilon_b$. Delgado (2006) reviews the measured dispersion in packed beds over the range of $Pe_m = u_i d_p/D_m$ and $Sc$, and is a guide to which form fits which regime.
+
+- M. F. Edwards and J. F. Richardson, "Gas dispersion in packed beds", Chem. Eng. Sci. 23 (1968) 109–123.
+- N. Wakao and T. Funazkri, Chem. Eng. Sci. 33 (1978) 1375–1384, doi:10.1016/0009-2509(78)85120-3.
+- J. C. Knox, A. D. Ebner, M. D. LeVan, R. F. Coker and J. A. Ritter, "Limitations of breakthrough curve analysis in fixed-bed adsorption", Ind. Eng. Chem. Res. 55 (2016) 4734–4748, doi:10.1021/acs.iecr.6b00516 (eqs. 10a, 10b and 11: the forms used here).
+- J. M. P. Q. Delgado, "A critical review of dispersion in packed beds", Heat Mass Transfer 42 (2006) 279–310, doi:10.1007/s00231-005-0019-0.
+
 ### Molecular diffusivity of each component
 
 !!! note "Changed in 0.15"
@@ -60,7 +93,7 @@ $$
 
 This is Blanc's law, with the binary diffusivities $D_{ij}$ from Chapman–Enskog theory and the Lennard-Jones parameters of each component. It is the same $D_{m,i}$ that the macropore resistance of the [kinetic models](kinetic-models.md) uses. It varies as $T^{3/2}/P$, so the coefficient grows at vacuum pressures. In a binary mixture $D_{m,1} = D_{m,2} = D_{12}$, so the two components share one coefficient; in a pure gas $D_{m}$ is the self-diffusivity. Components differ most in mixtures of three or more components with a light one (H₂, He), and where the molecular term is not small against the mechanical term (low velocity, small particles, the channels of a structured layer).
 
-With coefficients that differ, the component balance takes a corrected dispersive flux, so the total moles stay conserved ([Mass Balance](mass-balance.md#dispersion-with-a-coefficient-per-component)). The logged **Axial Dispersion Coefficient** is the mole-fraction-weighted mean $\sum_i y_i D_{ax,i}$. The Constant model always has one coefficient for every component; use it to impose a fitted or published $D_{ax}$.
+The Ruthven, Taylor–Aris, Edwards–Richardson and Wakao–Funazkri models all use this $D_{m,i}$. With coefficients that differ, the component balance takes a corrected dispersive flux, so the total moles stay conserved ([Mass Balance](mass-balance.md#dispersion-with-a-coefficient-per-component)). The logged **Axial Dispersion Coefficient** is the mole-fraction-weighted mean $\sum_i y_i D_{ax,i}$. The Constant model always has one coefficient for every component; use it to impose a fitted or published $D_{ax}$.
 
 ---
 

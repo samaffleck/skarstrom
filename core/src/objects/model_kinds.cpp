@@ -195,7 +195,10 @@ const std::vector<K>& Dispersion() {
       // Built on each component's mixture-averaged D_m,i: no parameters.
       {"ruthven", "Ruthven (1984)", {}},
       {"taylor_aris", "Taylor-Aris (channels)", {}},
-  }, {{"constant", AnyLayer()}, {"ruthven", PackedLayer()}, {"taylor_aris", StructuredLayer()}});
+      {"edwards_richardson", "Edwards-Richardson (1968)", {}},
+      {"wakao_funazkri", "Wakao-Funazkri (1978)", {}},
+  }, {{"constant", AnyLayer()}, {"ruthven", PackedLayer()}, {"taylor_aris", StructuredLayer()},
+      {"edwards_richardson", PackedLayer()}, {"wakao_funazkri", PackedLayer()}});
   return k;
 }
 
