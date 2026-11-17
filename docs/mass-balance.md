@@ -50,7 +50,7 @@ Multiplied by $C$, it is $\epsilon_t\,\partial (C y_i)/\partial t + \partial(u C
 | $\epsilon_t$  | Total void fraction                       | -          |
 | $\epsilon_b$  | Bed void fraction (the open frontal area of a structured layer) | -          |
 | $u$           | Superficial velocity                     | m s⁻¹          |
-| $D_{ax}$      | Axial dispersion coefficient of the Constant model, one value for all components (the Ruthven and Taylor–Aris models give one per component, [below](#dispersion-with-a-coefficient-per-component)) | m² s⁻¹          |
+| $D_{ax}$      | Axial dispersion coefficient of the Constant model, one value for all components (the correlations, Ruthven, Taylor–Aris, Edwards–Richardson and Wakao–Funazkri, give one per component, [below](#dispersion-with-a-coefficient-per-component)) | m² s⁻¹          |
 | $\rho_{b,k}$  | Bulk density of adsorbent $k$            | kg m⁻³ |
 | $q_{i,k}$     | Loading of component $i$ on adsorbent $k$ | mol kg⁻¹    |
 | $S_i$         | Reaction source of component $i$         | mol m⁻³ s⁻¹ |
@@ -67,7 +67,7 @@ The solver carries a component balance for **every** component, in addition to t
 !!! note "New in 0.15"
     Per-component dispersion in the Ruthven and Taylor–Aris models.
 
-With one $D_{ax}$ for all components, the dispersive fluxes $J_i = -\epsilon_b D_{ax} C\,\partial y_i/\partial z$ sum to zero, because $\sum_i y_i = 1$. That is why the overall mass balance has no dispersion term: a dispersive flux moves components relative to the molar-average velocity $u$ and carries no net moles. The molecular diffusivity is different for each component, so the Ruthven and Taylor–Aris models give each component its own $D_{ax,i}$ ([Transport Correlations](transport-correlations.md#molecular-diffusivity-of-each-component)). Fickian fluxes with different coefficients do not sum to zero. The component balance therefore takes the self-consistent effective binary flux of Ramshaw (1990), written for the molar-average velocity:
+With one $D_{ax}$ for all components, the dispersive fluxes $J_i = -\epsilon_b D_{ax} C\,\partial y_i/\partial z$ sum to zero, because $\sum_i y_i = 1$. That is why the overall mass balance has no dispersion term: a dispersive flux moves components relative to the molar-average velocity $u$ and carries no net moles. The molecular diffusivity is different for each component, so the dispersion correlations (Ruthven, Taylor–Aris, Edwards–Richardson, Wakao–Funazkri) give each component its own $D_{ax,i}$ ([Transport Correlations](transport-correlations.md#molecular-diffusivity-of-each-component)). Fickian fluxes with different coefficients do not sum to zero. The component balance therefore takes the self-consistent effective binary flux of Ramshaw (1990), written for the molar-average velocity:
 
 $$
 J_i = -\epsilon_b C\left(D_{ax,i}\frac{\partial y_i}{\partial z} - y_i\sum_{j=1}^{N} D_{ax,j}\frac{\partial y_j}{\partial z}\right), \qquad \sum_{i=1}^{N} J_i = 0

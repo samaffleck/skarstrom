@@ -74,8 +74,9 @@ namespace adsim {
     struct Column {
       std::vector<std::string> components{kN2, kH2, kCO2};
       std::vector<LayerSpec> layers{{0.15, 6, 0.35}, {0.15, 15, 0.48}};
-      // A Constant model of this coefficient instead of Ruthven's (0: Ruthven).
+      // A Constant model of this coefficient instead of `kind` (0: `kind`).
       double constant_dispersion = 0.0;  // [m2/s]
+      AxialDispersionType kind = AxialDispersionType::RUTHVEN;
       double particle_diameter = 0.002;
     };
 
@@ -114,7 +115,7 @@ namespace adsim {
           disp->dispersion_coefficient_ = c.constant_dispersion;
           layer.equations_.dispersion_model_ = std::move(disp);
         } else {
-          layer.equations_.dispersion_model_ = std::make_unique<DispersionModelRuthven>();
+          layer.equations_.dispersion_model_ = CreateAxialDispersionModel(c.kind);
         }
         auto heat_disp = std::make_unique<HeatDispersionModelConstant>();
         heat_disp->dispersion_coefficient_ = 0.0;
@@ -328,16 +329,19 @@ namespace adsim {
 
     // One inert layer, a constant molar feed at the bottom, a pressure outlet
     // at the top. Upwind, so the numerical dispersion is the known u dx / 2.
+    // u_i is the interstitial velocity of the feed.
     void BuildBreakthrough(UserData& data, const std::vector<std::pair<std::string, double>>& feed,
-                           double run_time, int cells) {
+                           double run_time, int cells, AxialDispersionType kind = AxialDispersionType::RUTHVEN,
+                           double u_i = kU, double length = kLength) {
       Column c;
-      c.layers = {{kLength, cells, kEb}};
+      c.layers = {{length, cells, kEb}};
       c.particle_diameter = kDp;
+      c.kind = kind;
       BuildColumn(data, c);
       data.settings.advection_scheme_ = AdvectionScheme::Upwind;
 
       const double area = 0.25 * std::acos(-1.0) * kDiameter * kDiameter;
-      const double molar_flow = kEb * kU * area * kP0 / (kR * kT0);
+      const double molar_flow = kEb * u_i * area * kP0 / (kR * kT0);
 
       data.cycle.AddStep("Feed");
       Step& step = data.cycle.GetStep("Feed");
@@ -384,17 +388,69 @@ namespace adsim {
     // RMS of F - OgataBanks(D) over [t_lo, t_hi], the analytic curve shifted
     // by t_shift (the finite-column offset of the front position), as in
     // test_analytic_dispersion.cpp.
-    double ShiftedRms(const std::vector<double>& t, const std::vector<double>& F, double u, double D,
+    double ShiftedRms(const std::vector<double>& t, const std::vector<double>& F, double length, double u, double D,
                       double t_shift, double t_lo, double t_hi) {
       double sum = 0.0;
       int n = 0;
       for (size_t i = 0; i < t.size(); ++i) {
         if (t[i] < t_lo || t[i] > t_hi) continue;
-        const double d = F[i] - OgataBanks(kLength, u, D, t[i] - t_shift);
+        const double d = F[i] - OgataBanks(length, u, D, t[i] - t_shift);
         sum += d * d;
         ++n;
       }
       return n > 0 ? std::sqrt(sum / n) : 1.0;
+    }
+
+
+    // A trace breakthrough: H2 and CO2 at 1 % each in N2 through an inert bed
+    // with `kind` dispersion. Each tracer's outlet curve against Ogata-Banks
+    // at its own D_ax,i + u dx / 2 (upwind), and at the other tracer's.
+    struct TraceResult {
+      double u, d_num, dm_h2, dm_co2, d_h2, d_co2;
+      double own_h2, other_h2, own_co2, other_co2;
+    };
+
+    TraceResult RunTrace(AxialDispersionType kind, double u_i, double length, int cells, UserData& data) {
+      TraceResult r{};
+      const double t_front = length / u_i;
+      BuildBreakthrough(data, {{kN2, 0.98}, {kH2, 0.01}, {kCO2, 0.01}}, 2.5 * t_front, cells, kind, u_i, length);
+      CoupledSolver solver{data};
+      std::string error;
+      EXPECT_TRUE(data.PerformChecks(error)) << error;
+      EXPECT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
+      EXPECT_TRUE(data.state.PerComponentDispersion());
+
+      const auto& log = solver.GetLog();
+      const auto u_face = log.GetVariable(0, 0, VariableType::VELOCITY).values.back();  // a copy: the entry is a temporary
+      double u_sum = 0.0;
+      int u_n = 0;
+      for (size_t i = 1; i + 1 < u_face.size(); ++i) { u_sum += u_face[i]; ++u_n; }
+      r.u = (u_sum / u_n) / kEb;
+      r.d_num = 0.5 * r.u * length / cells;
+
+      // The bed ends at the feed composition, which is the composition the
+      // fronts travelled through to within the trace fractions.
+      const int mid = cells / 2;
+      r.dm_h2 = data.state.molecular_diffusion.at(kH2).var[mid];
+      r.dm_co2 = data.state.molecular_diffusion.at(kCO2).var[mid];
+      r.d_h2 = data.state.component_axial_dispersion.at(kH2).var[mid];
+      r.d_co2 = data.state.component_axial_dispersion.at(kCO2).var[mid];
+
+      auto fit = [&](const std::string& comp, double d_own, double d_other, double& own, double& other) {
+        auto [t, y] = Outlet(log, comp);
+        std::vector<double> F(y.size());
+        for (size_t i = 0; i < y.size(); ++i) F[i] = y[i] / 0.01;
+        EXPECT_NEAR(F.back(), 1.0, 0.01) << comp << ": breakthrough incomplete";
+        const double shift = CurveMean(t, F) - length / r.u;
+        own = ShiftedRms(t, F, length, r.u, d_own + r.d_num, shift, 0.3 * t_front, 2.2 * t_front);
+        other = ShiftedRms(t, F, length, r.u, d_other + r.d_num, shift, 0.3 * t_front, 2.2 * t_front);
+      };
+      fit(kH2, r.d_h2, r.d_co2, r.own_h2, r.other_h2);
+      fit(kCO2, r.d_co2, r.d_h2, r.own_co2, r.other_co2);
+      std::printf("[trace, %s] D_ax H2 %.3e, CO2 %.3e, numerical %.3e m2/s; RMS H2 %.4f (at CO2's D %.4f), "
+                  "CO2 %.4f (at H2's D %.4f)\n", AxialDispersionModeList[static_cast<int>(kind)], r.d_h2, r.d_co2,
+                  r.d_num, r.own_h2, r.other_h2, r.own_co2, r.other_co2);
+      return r;
     }
 
   } // namespace
@@ -412,57 +468,17 @@ namespace adsim {
   // 1.65e-5 m2/s), scaled to 1 bar.
   TEST(PerComponentDispersion, TraceComponentsSpreadWithTheirOwnCoefficient) {
     UserData data;
-    const double t_front = kLength / kU;
-    BuildBreakthrough(data, {{kN2, 0.98}, {kH2, 0.01}, {kCO2, 0.01}}, 2.5 * t_front, kCells);
-
-    CoupledSolver solver{data};
-    std::string error;
-    ASSERT_TRUE(data.PerformChecks(error)) << error;
-    ASSERT_GE(solver.IntegrateCycle(data.cycle, false), 0) << "Solver did not complete";
-    ASSERT_TRUE(data.state.PerComponentDispersion());
-
-    const auto& log = solver.GetLog();
-    const auto vel = log.GetVariable(0, 0, VariableType::VELOCITY);
-    const auto& u_face = vel.values.back();
-    double u_sum = 0.0;
-    int u_n = 0;
-    for (size_t i = 1; i + 1 < u_face.size(); ++i) { u_sum += u_face[i]; ++u_n; }
-    const double u = (u_sum / u_n) / kEb;
-    const double dx = kLength / kCells;
-    const double d_num = 0.5 * u * dx;
-
-    // The bed ends at the feed composition, which is the composition the
-    // fronts travelled through to within the trace fractions.
-    const int mid = kCells / 2;
+    const TraceResult r = RunTrace(AxialDispersionType::RUTHVEN, kU, kLength, kCells, data);
     const double scale_1bar = 101325.0 / kP0;
-    const double dm_h2 = data.state.molecular_diffusion.at(kH2).var[mid];
-    const double dm_co2 = data.state.molecular_diffusion.at(kCO2).var[mid];
-    EXPECT_NEAR(dm_h2, 7.79e-5 * scale_1bar, 0.1 * 7.79e-5 * scale_1bar);
-    EXPECT_NEAR(dm_co2, 1.65e-5 * scale_1bar, 0.1 * 1.65e-5 * scale_1bar);
-    const double d_h2 = data.state.component_axial_dispersion.at(kH2).var[mid];
-    const double d_co2 = data.state.component_axial_dispersion.at(kCO2).var[mid];
-    EXPECT_NEAR(d_h2, 0.7 * dm_h2 + 0.5 * kDp * u, 1e-3 * d_h2);
-    ASSERT_GT(d_h2, 2.0 * d_co2) << "the tracers disperse alike";
-    ASSERT_GT(d_co2, 3.0 * d_num) << "numerical dispersion dominates";
-
-    struct Fit { double own, other; };
-    auto fit = [&](const std::string& comp, double d_own, double d_other) {
-      auto [t, y] = Outlet(log, comp);
-      std::vector<double> F(y.size());
-      for (size_t i = 0; i < y.size(); ++i) F[i] = y[i] / 0.01;
-      EXPECT_NEAR(F.back(), 1.0, 0.01) << comp << ": breakthrough incomplete";
-      const double shift = CurveMean(t, F) - kLength / u;
-      return Fit{ShiftedRms(t, F, u, d_own + d_num, shift, 0.3 * t_front, 2.2 * t_front),
-                 ShiftedRms(t, F, u, d_other + d_num, shift, 0.3 * t_front, 2.2 * t_front)};
-    };
-    const Fit h2 = fit(kH2, d_h2, d_co2);
-    const Fit co2 = fit(kCO2, d_co2, d_h2);
-    std::printf("[trace] D_ax H2 %.3e, CO2 %.3e, numerical %.3e m2/s; RMS H2 %.4f (at CO2's D %.4f), "
-                "CO2 %.4f (at H2's D %.4f)\n", d_h2, d_co2, d_num, h2.own, h2.other, co2.own, co2.other);
-    EXPECT_LT(h2.own, 0.01);
-    EXPECT_LT(co2.own, 0.01);
-    EXPECT_GT(h2.other, 4.0 * h2.own);
-    EXPECT_GT(co2.other, 4.0 * co2.own);
+    EXPECT_NEAR(r.dm_h2, 7.79e-5 * scale_1bar, 0.1 * 7.79e-5 * scale_1bar);
+    EXPECT_NEAR(r.dm_co2, 1.65e-5 * scale_1bar, 0.1 * 1.65e-5 * scale_1bar);
+    EXPECT_NEAR(r.d_h2, 0.7 * r.dm_h2 + 0.5 * kDp * r.u, 1e-3 * r.d_h2);
+    ASSERT_GT(r.d_h2, 2.0 * r.d_co2) << "the tracers disperse alike";
+    ASSERT_GT(r.d_co2, 3.0 * r.d_num) << "numerical dispersion dominates";
+    EXPECT_LT(r.own_h2, 0.01);
+    EXPECT_LT(r.own_co2, 0.01);
+    EXPECT_GT(r.other_h2, 4.0 * r.own_h2);
+    EXPECT_GT(r.other_co2, 4.0 * r.own_co2);
   }
 
   // 4. Comparable fractions: the correction is first order here. The mole
@@ -556,6 +572,121 @@ namespace adsim {
     ASSERT_TRUE(error.empty()) << error;
     EXPECT_NE(dynamic_cast<DispersionModelRuthven*>(loaded.bed.layers_.layers_.front().equations_.dispersion_model_.get()),
               nullptr);
+  }
+
+  // =========================================================================
+  // Packed-bed correlations: Edwards-Richardson (1968), Wakao-Funazkri (1978)
+  // =========================================================================
+  //
+  // With Pe = u_i d_p / D_ax (u_i interstitial) and Re Sc = u d_p / D_m (u
+  // superficial), so eb / (Re Sc) = D_m / (u_i d_p):
+  //   Edwards-Richardson: 1/Pe = 0.73 eb/(Re Sc) + 0.5 / (1 + 13 * 0.73 eb/(Re Sc))
+  //   Wakao-Funazkri:     1/Pe = 20 / (Re Sc) + 1/2   (eb D_ax / D_m = 20 + 0.5 Sc Re)
+  // as Knox et al., Ind. Eng. Chem. Res. 55 (2016) 4734, eqs 10a, 10b and 11
+  // print them. The references below are written from these forms.
+
+  namespace {
+    double EdwardsRichardsonReference(double dm, double ui, double dp) {
+      const double inv_pe_sc = dm / (ui * dp);  // eb / (Re Sc)
+      return ui * dp * (0.73 * inv_pe_sc + 0.5 / (1.0 + 13.0 * 0.73 * inv_pe_sc));
+    }
+    double WakaoFunazkriReference(double dm, double eb, double ui, double dp) {
+      const double re_sc = eb * ui * dp / dm;  // superficial u d_p / D_m
+      return ui * dp * (20.0 / re_sc + 0.5);
+    }
+  } // namespace
+
+  // Limits: Edwards-Richardson gives 0.73 D_m at u -> 0 and Pe = 2 at u -> inf;
+  // Wakao-Funazkri gives 20 D_m / eb at u -> 0 and Pe = 2 at high Re. Hand
+  // values at intermediate points from the dimensionless forms above.
+  TEST(DispersionCorrelations, LimitsAndHandValues) {
+    const double dm = 1.6e-5, dp = 2.0e-3, eb = 0.4;
+    EXPECT_DOUBLE_EQ(DispersionModelEdwardsRichardson::Coefficient(dm, 0.0, dp), 0.73 * dm);
+    EXPECT_DOUBLE_EQ(DispersionModelWakaoFunazkri::Coefficient(dm, eb, 0.0, dp), 20.0 * dm / eb);
+    for (double ui : {1e4, 1e5}) {  // Pe -> 2 as 20 D_m / (eb u_i d_p) -> 0
+      EXPECT_NEAR(ui * dp / DispersionModelEdwardsRichardson::Coefficient(dm, ui, dp), 2.0, 1e-3) << ui;
+      EXPECT_NEAR(ui * dp / DispersionModelWakaoFunazkri::Coefficient(dm, eb, ui, dp), 2.0, 1e-3) << ui;
+    }
+    for (double ui : {1e-4, 3e-3, 0.05, 0.4}) {
+      EXPECT_NEAR(DispersionModelEdwardsRichardson::Coefficient(dm, ui, dp), EdwardsRichardsonReference(dm, ui, dp),
+                  1e-13 * EdwardsRichardsonReference(dm, ui, dp)) << ui;
+      EXPECT_NEAR(DispersionModelWakaoFunazkri::Coefficient(dm, eb, ui, dp), WakaoFunazkriReference(dm, eb, ui, dp),
+                  1e-13 * WakaoFunazkriReference(dm, eb, ui, dp)) << ui;
+    }
+    // A hand calculation: u_i 0.05 m/s, d_p 2 mm: u_i d_p = 1e-4 m2/s,
+    // 0.73 * 1.6e-5 = 1.168e-5; 0.5e-4 / (1 + 9.49 * 0.16) = 1.98541e-5.
+    EXPECT_NEAR(DispersionModelEdwardsRichardson::Coefficient(dm, 0.05, dp), 3.15341e-5, 1e-9);
+    // 20 * 1.6e-5 / 0.4 + 0.5e-4 = 8.5e-4.
+    EXPECT_NEAR(DispersionModelWakaoFunazkri::Coefficient(dm, eb, 0.05, dp), 8.5e-4, 1e-12);
+  }
+
+  // Metamorphic: the coefficient grows with the velocity, and the
+  // Wakao-Funazkri value lies above Edwards-Richardson's everywhere.
+  TEST(DispersionCorrelations, GrowWithVelocity) {
+    const double dm = 1.6e-5, dp = 2.0e-3, eb = 0.4;
+    double prev_er = 0.0, prev_wf = 0.0;
+    for (double ui = 1e-5; ui < 10.0; ui *= 1.5) {
+      const double er = DispersionModelEdwardsRichardson::Coefficient(dm, ui, dp);
+      const double wf = DispersionModelWakaoFunazkri::Coefficient(dm, eb, ui, dp);
+      EXPECT_GT(er, prev_er) << ui;
+      EXPECT_GT(wf, prev_wf) << ui;
+      EXPECT_GT(wf, er) << ui;
+      prev_er = er;
+      prev_wf = wf;
+    }
+  }
+
+  // Solved, trace limit: each tracer's outlet curve is the Ogata-Banks curve
+  // of its own D_ax,i (+ u dx / 2), and the state's coefficient is the
+  // correlation's at the state's D_m,i. Edwards-Richardson at u_i 5 mm/s
+  // (molecular regime, D_ax close to 0.73 D_m); Wakao-Funazkri at u_i 0.1 m/s
+  // over 1 m (its 20 D_m / eb term would otherwise mix the column).
+  TEST(DispersionCorrelations, EdwardsRichardsonTraceBreakthrough) {
+    UserData data;
+    const TraceResult r = RunTrace(AxialDispersionType::EDWARDS_RICHARDSON, kU, kLength, kCells, data);
+    EXPECT_NEAR(r.d_h2, EdwardsRichardsonReference(r.dm_h2, r.u, kDp), 1e-3 * r.d_h2);
+    EXPECT_NEAR(r.d_co2, EdwardsRichardsonReference(r.dm_co2, r.u, kDp), 1e-3 * r.d_co2);
+    ASSERT_GT(r.d_h2, 2.0 * r.d_co2) << "the tracers disperse alike";
+    ASSERT_GT(r.d_co2, 3.0 * r.d_num) << "numerical dispersion dominates";
+    EXPECT_LT(r.own_h2, 0.01);
+    EXPECT_LT(r.own_co2, 0.01);
+    EXPECT_GT(r.other_h2, 4.0 * r.own_h2);
+    EXPECT_GT(r.other_co2, 4.0 * r.own_co2);
+  }
+
+  TEST(DispersionCorrelations, WakaoFunazkriTraceBreakthrough) {
+    UserData data;
+    const double u_i = 0.1, length = 1.0;
+    const TraceResult r = RunTrace(AxialDispersionType::WAKAO_FUNAZKRI, u_i, length, kCells, data);
+    EXPECT_NEAR(r.d_h2, WakaoFunazkriReference(r.dm_h2, kEb, r.u, kDp), 1e-3 * r.d_h2);
+    EXPECT_NEAR(r.d_co2, WakaoFunazkriReference(r.dm_co2, kEb, r.u, kDp), 1e-3 * r.d_co2);
+    ASSERT_GT(r.d_h2, 2.0 * r.d_co2) << "the tracers disperse alike";
+    ASSERT_GT(r.d_co2, 3.0 * r.d_num) << "numerical dispersion dominates";
+    const double pe_h2 = r.u * length / r.d_h2;
+    ASSERT_GT(pe_h2, 5.0) << "the column is mixed: Ogata-Banks does not apply";
+    EXPECT_LT(r.own_h2, 0.01);
+    EXPECT_LT(r.own_co2, 0.01);
+    EXPECT_GT(r.other_h2, 4.0 * r.own_h2);
+    EXPECT_GT(r.other_co2, 4.0 * r.own_co2);
+  }
+
+  // The deck checks refuse the packed-bed correlations on a structured layer.
+  TEST(DispersionCorrelations, RefusedOnAStructuredLayer) {
+    for (AxialDispersionType kind : {AxialDispersionType::EDWARDS_RICHARDSON, AxialDispersionType::WAKAO_FUNAZKRI}) {
+      UserData data;
+      Column c;
+      c.layers = {{0.3, 10, 0.4}};
+      c.kind = kind;
+      BuildColumn(data, c);
+      std::string error;
+      EXPECT_TRUE(data.bed.PerformChecks(data.adsorbent_directory, error)) << error;  // fine on a packed layer
+      auto& layer = data.bed.layers_.layers_.front();
+      layer.kind_ = LayerKind::Laminate;
+      layer.equations_.dispersion_model_ = CreateAxialDispersionModel(kind);
+      error.clear();
+      EXPECT_FALSE(data.bed.PerformChecks(data.adsorbent_directory, error)) << AxialDispersionModeList[static_cast<int>(kind)];
+      EXPECT_NE(error.find("packed-bed dispersion"), std::string::npos) << error;
+    }
   }
 
 } // namespace adsim

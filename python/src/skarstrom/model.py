@@ -1728,9 +1728,10 @@ class Layer(_Node):
         return layer
 
     def set_dispersion(self, kind: str, **values: Value) -> "Layer":
-        """Axial dispersion: ``"constant"`` (dispersion_coefficient), ``"ruthven"`` (packed beds) or
-        ``"taylor_aris"`` (monoliths and laminates). The last two take no input: each component's
-        coefficient is built on its mixture-averaged molecular diffusivity (docs/transport-correlations.md)."""
+        """Axial dispersion: ``"constant"`` (dispersion_coefficient); ``"ruthven"``, ``"edwards_richardson"``
+        or ``"wakao_funazkri"`` (packed beds); ``"taylor_aris"`` (monoliths and laminates). The correlations
+        take no input: each component's coefficient is built on its mixture-averaged molecular diffusivity
+        (docs/transport-correlations.md)."""
         return self._set_model("set_dispersion", kind, values)
 
     def set_heat_dispersion(self, kind: str, **values: Value) -> "Layer":
