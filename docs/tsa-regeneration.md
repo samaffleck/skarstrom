@@ -171,3 +171,42 @@ print(f"mid-bed temperature peak {T.values.max():.1f} K at {T.time[T.values.argm
 ```
 
 To try the dry case, set the feed's water to zero and the nitrogen to the balance (`sim.steps[0].bottom.y["Water"] = 0` and `sim.steps[0].bottom.y["Nitrogen"] = 0.9996`).
+
+## 7. A humid cycle that crosses saturation
+
+!!! note "New in 0.16"
+    This section and the `Illustrative_Humid_DAC_TVSA` deck.
+
+The deck `Illustrative_Humid_DAC_TVSA` (built by `examples/illustrative_humid_dac_tvsa.py`; **illustrative, not validated**) puts the humid feed of [§6](#6-humid-feeds) through a temperature–vacuum swing cycle on the same APDES-NFC library adsorbent, in a 0.1 m long, 8 cm column:
+
+1. **Adsorption**, 4 h: humid air (400 ppm CO₂, 49 % RH at 20 °C) at 0.01 m/s.
+2. **Evacuation**, 2 min: the top closed, the bottom pulled down to 0.2 bar.
+3. **Heating**, 30 min: a 95 °C medium in a jacket and an internal exchanger heats the bed at 0.2 bar. Water and CO₂ leave the bottom as the product.
+4. **Cooling**, 20 min: both ends closed, 20 °C water in the same jacket and exchanger.
+5. **Pressurisation**, 2 min: humid air back to 1 bar through the bottom.
+
+The feed, column diameter and wall heat transfer are those of the breakthrough deck of §6. The step times, the vacuum level and the media are round numbers chosen for the example, not values from a paper, and the heating step takes the CO₂ isotherm above its 296–343 K fit range.
+
+The cycle exists to show the [`SUPERSATURATION`](run-health.md#supersaturation) run-health warning on a realistic cycle. The heating step leaves water-rich gas in the bed. In the cooling step the jacket cools the thin steel wall faster than the packing gives up its heat, and the water partial pressure passes the saturation pressure at the wall temperature: up to 2.6 times saturation at the top of the column in the first cycles, and 1.4 times at cyclic steady state (reached at cycle 12). The gas itself comes close but stays just below saturation (0.96 to 1.00 in the first cycles, 0.91 at steady state). It is highest in the pressurisation step, where the feed compresses the vapour left in the bed. Readsorption on the GAB water isotherm pins the gas just below saturation: the sorbent takes the water back up as the bed cools and as the feed compresses the gas.
+
+**Condensation is not modelled.** No liquid forms on the wall or in the bed, no heat of condensation is released and the GAB isotherm continues smoothly past saturation. The warning tells you that the run has left the model's range: the results after the crossing (here the cooling energy and the water that the next adsorption step takes up) are not physical. The run status stays `completed`, so examine the warnings yourself:
+
+```python
+import skarstrom
+
+sim = skarstrom.examples.Illustrative_Humid_DAC_TVSA.load()
+result = sim.run(cycles=3)
+print(result.status, result.healthy)
+for w in result.warnings:
+    if w.code == "SUPERSATURATION":
+        print(w.component, w.step_name, round(w.value, 2))
+for c in sim.run_health().cycles:
+    print(c.cycle, round(c.supersaturation_gas, 3), round(c.supersaturation_wall, 3))
+# completed False
+# Water Cooling 2.56
+# 0 0.999 2.125
+# 1 0.982 2.389
+# 2 0.961 2.56
+```
+
+To keep the wall above its dew point, cool through the internal exchanger alone: with `step[Cooling].medium.heat_transfer_coefficient` set to 0 the wall cools slowly with the bed, and in our run no warning fired (wall 0.49, gas 0.89 at steady state). A warmer cooling medium is not enough: at 35 °C the wall still reaches 1.57 times saturation in the cooling step, and at 50 °C it reaches 1.13 in an early pressurisation step, where the feed compresses the warm vapour left in the bed. Where a cycle must cross saturation, a model of liquid hold-up is needed before its results can be trusted.
