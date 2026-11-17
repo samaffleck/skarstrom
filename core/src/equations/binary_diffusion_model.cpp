@@ -56,7 +56,7 @@ namespace adsim {
 		// (3/16) sqrt(2 pi k_B^3 N_A / (0.5e-3 kg/mol)) / (1e5 Pa * pi * 1e-20 m^2)
 		// with the exact SI k_B and N_A: 2.6635246e-7. Textbooks round it to
 		// 0.00266 cm^2/s (Poling, Prausnitz and O'Connell, The Properties of Gases
-		// and Liquids, 5th ed., Ch. 11), which is 0.13 % low; before 0.15 the
+		// and Liquids, 5th ed., Ch. 11), which is 0.13 % low; before 0.16 the
 		// engine used that rounded value.
 		constexpr double kChapmanEnskogConstant = 2.6635246e-7;
 		//

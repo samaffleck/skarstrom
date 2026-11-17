@@ -3,5 +3,5 @@
 - The unused function `MulticomponentDiffusionCorrection` (an arithmetic-mean rule, never called) is removed.
 
 ### Changed — unrounded Chapman–Enskog constant
-- The binary diffusivity uses the unrounded constant 2.6635246e-7 (from the exact SI k_B and N_A) instead of the textbook 2.66e-7. Every computed D_ij, and every computed D_m,i, is 0.13 % higher. Results of decks that compute D_m (dispersion models Ruthven and Taylor–Aris, macropore and film resistances with no constant D_m) change slightly; the example decks are updated.
+- The binary diffusivity uses the unrounded constant 2.6635246e-7 (from the exact SI k_B and N_A) instead of the textbook 2.66e-7. Every computed D_ij, and every computed D_m,i, is 0.13 % higher. Results of decks that compute D_m (the per-component dispersion models Ruthven, Taylor–Aris, Edwards–Richardson and Wakao–Funazkri; macropore and film resistances with no constant D_m) change slightly; the example decks are updated.
 - The molecular diffusivities are tested against Cantera with the engine's Lennard-Jones parameters (`scripts/gen_cantera_diffusion_reference.py`): the binary D_ij of all 528 component pairs agree to 0.26 % (mean −0.05 %) from 200 K to 650 K, and the mixture-averaged values to 0.2 %.
