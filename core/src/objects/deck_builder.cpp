@@ -534,11 +534,8 @@ void SetLayerKind(UserData& data, size_t layer, const std::string& kind) {
     return bed_eqs.particle_heat_transfer_model_ ? static_cast<int>(bed_eqs.particle_heat_transfer_model_->GetModelType()) : -1;
   };
   if (l.IsStructured() && before == LayerKind::Packed) {
-    // Channel closures: Taylor-Aris dispersion (keeping the layer's molecular
-    // diffusion coefficient if it had one) and the film gas-solid model.
-    auto ta = std::make_unique<DispersionModelTaylorAris>();
-    if (auto* r = dynamic_cast<DispersionModelRuthven*>(l.equations_.dispersion_model_.get())) ta->Dm = r->Dm;
-    l.equations_.dispersion_model_ = std::move(ta);
+    // Channel closures: Taylor-Aris dispersion and the film gas-solid model.
+    l.equations_.dispersion_model_ = std::make_unique<DispersionModelTaylorAris>();
     // Channel heat conduction, and a constant wall coefficient in place of a
     // packed-bed correlation (Dixon, Leva); a constant one keeps its value.
     l.equations_.heat_dispersion_model_ = std::make_unique<HeatDispersionModelChannel>();

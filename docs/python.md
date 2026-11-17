@@ -315,7 +315,7 @@ sim.wall.set_boundary("zero_flux")                    # or "fixed", fixed_temper
 
 layer = sim.add_layer("13X", composition={"13X": 1.0}, momentum="kozeny_carman",
                       length=0.3 * u.m, cells=30, bed_void_fraction=0.41, particle_diameter=1.5 * u.mm)
-layer.set_dispersion("ruthven", molecular_diffusion_coefficient=1.6e-5)
+layer.set_dispersion("ruthven")
 layer.set_heat_dispersion("constant", heat_dispersion_coefficient=0.0903)
 layer.set_internal_heat_transfer("constant", internal_htc=8.6)
 layer.set_external_heat_transfer("constant", external_htc=10)

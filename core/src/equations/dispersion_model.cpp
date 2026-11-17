@@ -46,23 +46,15 @@ namespace adsim {
 		}
 	}
 
-	// D_ax = 0.7 D_m + 0.5 d_p |u| / eb (Ruthven 1984), with D_m the shared
-	// value or, per component, D_m,i.
+	// The logged mixture value sum_i y_i D_ax,i of Ruthven's
+	// D_ax,i = 0.7 D_m,i + 0.5 d_p |u| / eb.
 	void DispersionModelRuthven::Update(Equations& state, const MixedAdsorbentLayer& layer) {
 		auto& Dx = state.axial_dispersion_coefficient.var;
-		auto& u = state.velocity.var;
-    auto& eb = state.domain_vectors.eb;
-    auto& dp = state.domain_vectors.dp;
-
-		if (PerComponent()) {
-			MoleFractionWeightedMean(state, layer,
-				[&](int n, double dmi) { return 0.7 * dmi + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n]; }, Dx);
-			return;
-		}
-
-    for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-      Dx[n] = 0.7 * Dm + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n];
-    }
+		const auto& u = state.velocity.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& dp = state.domain_vectors.dp;
+		MoleFractionWeightedMean(state, layer,
+			[&](int n, double dmi) { return 0.7 * dmi + (std::abs(u[n]) / eb[n]) * 0.5 * dp[n]; }, Dx);
 	}
 
 	void DispersionModelRuthven::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,
@@ -92,14 +84,7 @@ namespace adsim {
 		const auto& eb = state.domain_vectors.eb;   // the open frontal area of a structured layer
 		const auto& dh = state.domain_vectors.hydraulic_diameter;
 		const auto& kappa = state.domain_vectors.taylor_aris_kappa;
-		if (PerComponent()) {
-			MoleFractionWeightedMean(state, layer, [&](int n, double dmi) { return TaylorAris(n, dmi, u, eb, dh, kappa); }, Dx);
-			return;
-		}
-		const double dm = Dm;
-		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
-			Dx[n] = TaylorAris(n, dm, u, eb, dh, kappa);
-		}
+		MoleFractionWeightedMean(state, layer, [&](int n, double dmi) { return TaylorAris(n, dmi, u, eb, dh, kappa); }, Dx);
 	}
 
 	void DispersionModelTaylorAris::UpdateComponent(Equations& state, const MixedAdsorbentLayer& layer,

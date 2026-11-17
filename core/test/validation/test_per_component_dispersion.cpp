@@ -5,8 +5,8 @@
  * Licensed under the terms in the LICENSE file at the repository root.
  */
 
-// Axial dispersion with a coefficient per component (component_diffusivity =
-// mixture_averaged on the Ruthven and Taylor-Aris models).
+// Axial dispersion with a coefficient per component (the Ruthven and
+// Taylor-Aris models).
 //
 // Each component i disperses with its own D_ax,i, built on its mixture-averaged
 // molecular diffusivity D_m,i (Chapman-Enskog binary D_ij with Blanc's law).
@@ -24,9 +24,10 @@
 //     components in each cell they vanish (the fluxes sum to zero), and
 //     summed over the cells for each component they vanish (each face flux is
 //     single valued). Also when the mole fractions do not sum exactly to 1.
-//  2. Residual level, binary: with two components D_m,1 = D_m,2 = D_12, so the
-//     mixture-averaged residuals equal the shared-mode residuals with
-//     D_m = D_12 (the correction is then zero to round-off).
+//  2. Residual level, binary: with two components D_m,1 = D_m,2 = D_12, so
+//     the two components share one coefficient and the residuals equal those
+//     of the Constant model at that coefficient (the correction is then zero
+//     to round-off).
 //  3. Solved, trace limit: H2 and CO2 at 1 % each in N2 through an inert bed.
 //     The correction is second order in the trace fraction, so each tracer's
 //     outlet curve is the Ogata-Banks curve of its own D_ax,i; H2 spreads more
@@ -34,8 +35,9 @@
 //  4. Solved, comparable fractions: a 40 % H2, 30 % CO2 feed into N2. The
 //     mole fractions keep summing to 1 and the logged streams account for
 //     every component's inventory change.
-//  5. Registry and deck: the choice is a registry entry of the Ruthven and
-//     Taylor-Aris models only, and it survives a save and a load.
+//  5. Registry and deck: the Ruthven and Taylor-Aris models have no
+//     molecular-diffusivity input, and a deck that stored one (cereal
+//     versions 1 and 2) loads.
 
 #include "validation_helpers.h"
 
@@ -72,13 +74,13 @@ namespace adsim {
     struct Column {
       std::vector<std::string> components{kN2, kH2, kCO2};
       std::vector<LayerSpec> layers{{0.15, 6, 0.35}, {0.15, 15, 0.48}};
-      ComponentDiffusivity mode = ComponentDiffusivity::MIXTURE_AVERAGED;
-      double shared_dm = 1.6e-5;  // [m2/s], the shared mode's D_m
+      // A Constant model of this coefficient instead of Ruthven's (0: Ruthven).
+      double constant_dispersion = 0.0;  // [m2/s]
       double particle_diameter = 0.002;
     };
 
     // An isothermal column of inert packing (no isotherm), each layer with
-    // Ruthven dispersion in the given mode.
+    // Ruthven dispersion (or a constant coefficient).
     void BuildColumn(UserData& data, const Column& c) {
       for (const auto& comp : c.components) data.fluid.AddComponent(comp);
       data.fluid.viscosity_mode_ = ViscosityMode::CONSTANT;
@@ -107,10 +109,13 @@ namespace adsim {
         layer.eb_ = s.eb;
         layer.particle_diameter_ = c.particle_diameter;
         layer.composition_[ads_id] = 1.0;
-        auto disp = std::make_unique<DispersionModelRuthven>();
-        disp->Dm = c.shared_dm;
-        disp->component_diffusivity_ = c.mode;
-        layer.equations_.dispersion_model_ = std::move(disp);
+        if (c.constant_dispersion > 0.0) {
+          auto disp = std::make_unique<DispersionModelConstant>();
+          disp->dispersion_coefficient_ = c.constant_dispersion;
+          layer.equations_.dispersion_model_ = std::move(disp);
+        } else {
+          layer.equations_.dispersion_model_ = std::make_unique<DispersionModelRuthven>();
+        }
         auto heat_disp = std::make_unique<HeatDispersionModelConstant>();
         heat_disp->dispersion_coefficient_ = 0.0;
         layer.equations_.heat_dispersion_model_ = std::move(heat_disp);
@@ -282,10 +287,10 @@ namespace adsim {
     }
   }
 
-  // 2. Binary: Blanc's law gives D_m,1 = D_m,2 = D_12, so the mixture-averaged
-  //    residuals are the shared-mode residuals with D_m = D_12. Uniform T and P
-  //    make D_12 uniform; it is read from the mixture-averaged run.
-  TEST(PerComponentDispersion, BinaryMixtureAveragedEqualsSharedAtD12) {
+  // 2. Binary: Blanc's law gives D_m,1 = D_m,2 = D_12, so Ruthven's residuals
+  //    are those of a constant coefficient 0.7 D_12 (no flow in a still
+  //    column). Uniform T and P make D_12 uniform; it is read from the run.
+  TEST(PerComponentDispersion, BinaryEqualsOneCoefficientAtD12) {
     Column mixed;
     mixed.components = {kN2, kCO2};
     const StillColumn a = StillColumnResiduals(mixed);
@@ -295,8 +300,7 @@ namespace adsim {
     EXPECT_NEAR(a.dax[0][mid], a.dax[1][mid], 1e-15 * a.dax[0][mid]);
 
     Column shared = mixed;
-    shared.mode = ComponentDiffusivity::SHARED;
-    shared.shared_dm = d12;
+    shared.constant_dispersion = 0.7 * d12;
     const StillColumn b = StillColumnResiduals(shared);
 
     double worst = 0.0, scale = 0.0;
@@ -506,39 +510,52 @@ namespace adsim {
     EXPECT_LT(worst_sum, 1e-6);
   }
 
-  // 5. The choice is a registry entry of the Ruthven and Taylor-Aris models
-  //    (not of the Constant model), and a saved deck keeps it.
-  TEST(PerComponentDispersion, RegistryEntryAndDeckRoundTrip) {
+  // 5. The Ruthven and Taylor-Aris models have no molecular-diffusivity input
+  //    (the registry lists none for the layer), and a deck saved when they had
+  //    one loads: the stored value is dropped.
+  TEST(PerComponentDispersion, RegistryHasNoDiffusivityAndOldDecksLoad) {
     UserData data;
     Column c;
-    c.mode = ComponentDiffusivity::SHARED;
+    // One layer: cereal reads a class version once per archive and applies
+    // it to every object of the class, so the spliced version-2 object must
+    // be the only Ruthven model.
+    c.layers = {{0.3, 10, 0.4}};
     BuildColumn(data, c);
-    auto constant = std::make_unique<DispersionModelConstant>();
-    data.bed.layers_.layers_.back().equations_.dispersion_model_ = std::move(constant);
     const auto first = data.bed.layers_.layers_.front().id_;
-    const auto second = data.bed.layers_.layers_.back().id_;
-
     ParameterRegistry reg(data);
-    const std::string path = "layer[" + std::to_string(first) + "].component_diffusivity";
-    Parameter* p = reg.Find(path);
-    ASSERT_NE(p, nullptr);
-    EXPECT_EQ(p->Info().choices, (std::vector<std::string>{"shared", "mixture_averaged"}));
-    EXPECT_EQ(p->GetValue(), 0.0);
-    EXPECT_EQ(reg.Find("layer[" + std::to_string(second) + "].component_diffusivity"), nullptr);
-    p->SetText("mixture_averaged");
+    const std::string lp = "layer[" + std::to_string(first) + "].";
+    EXPECT_EQ(reg.Find(lp + "molecular_diffusion_coefficient"), nullptr);
+    EXPECT_EQ(reg.Find(lp + "component_diffusivity"), nullptr);
     auto* ruthven = dynamic_cast<DispersionModelRuthven*>(data.bed.layers_.layers_.front().equations_.dispersion_model_.get());
     ASSERT_NE(ruthven, nullptr);
-    EXPECT_EQ(ruthven->component_diffusivity_, ComponentDiffusivity::MIXTURE_AVERAGED);
     EXPECT_TRUE(ruthven->PerComponent());
     EXPECT_EQ(ruthven->ReadsTransportProperties(), static_cast<unsigned>(kMolecularDiffusion));
 
+    // A version-2 deck: the class version and the two dropped fields.
     std::string json;
     SaveToString(data, json);
+    const std::string v3 = "\"polymorphic_name\": \"adsim::DispersionModelRuthven\"";
+    size_t at = json.find(v3);
+    ASSERT_NE(at, std::string::npos);
+    const size_t version_at = json.find("\"cereal_class_version\": 3", at);
+    ASSERT_NE(version_at, std::string::npos);
+    std::string old = json;
+    old.replace(version_at, std::string("\"cereal_class_version\": 3").size(),
+                "\"cereal_class_version\": 2, \"Molecular_Diffusion\": {\"cereal_class_version\": 2, \"Value\": 2.5e-05, \"Expression\": "
+                "\"2.5e-05\", \"DisplayUnitIndex\": 0}, \"Component_Diffusivity\": 0");
+    // (cereal looks the fields up by name, so their place in the object does
+    // not matter. The ExpressionParam carries its class version, as the first
+    // one an archive loads must.)
     UserData loaded;
-    LoadFromString(loaded, json);
-    auto* back = dynamic_cast<DispersionModelRuthven*>(loaded.bed.layers_.layers_.front().equations_.dispersion_model_.get());
-    ASSERT_NE(back, nullptr);
-    EXPECT_EQ(back->component_diffusivity_, ComponentDiffusivity::MIXTURE_AVERAGED);
+    std::string error;
+    try {
+      LoadFromString(loaded, old);
+    } catch (const std::exception& e) {
+      error = e.what();
+    }
+    ASSERT_TRUE(error.empty()) << error;
+    EXPECT_NE(dynamic_cast<DispersionModelRuthven*>(loaded.bed.layers_.layers_.front().equations_.dispersion_model_.get()),
+              nullptr);
   }
 
 } // namespace adsim
