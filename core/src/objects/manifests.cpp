@@ -381,6 +381,7 @@ namespace adsim {
       Set(f, "term", l.term, a);
       Set(f, "where", l.where, a);
       Set(f, "where_isothermal", l.where_isothermal, a);
+      Set(f, "parent_term", l.parent_term, a);
       return f;
     };
     for (ModelFamily family : AllModelFamilies()) {

@@ -29,7 +29,8 @@ def test_one_kind_and_the_old_tags_as_presets():
     assert [k["tag"] for k in kinds] == TAGS
     assert [k["legacy"] for k in kinds] == [True] * 6 + [False]
     generic = kinds[-1]
-    assert [r["tag"] for r in generic["resistances"]] == ["film", "macropore", "molecular", "knudsen", "micropore", "lumped"]
+    assert [r["tag"] for r in generic["resistances"]] == ["film", "macropore", "molecular", "knudsen", "surface", "micropore",
+                                                         "lumped"]
     assert [m["tag"] for m in generic["capacity_modes"]] == ["none", "slope", "secant", "fixed"]
     assert {p["tag"] for p in generic["presets"]} == set(TAGS[:-1])
 

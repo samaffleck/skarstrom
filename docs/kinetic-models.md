@@ -81,7 +81,7 @@ ads.set_rate_model("CO2", "dual_rate_ldf", "constant", k=0.05, slow_k=0.002, spl
 
 ## Mass Transfer Coefficient
 
-The coefficient $k_i$ of the LDF models comes from one model: **mass-transfer resistances in series** (tag `series_resistance`). It has four main resistances, and two switches for the pore diffusivity of the macropore term. You switch each one on or off by itself, and the enabled terms add up:
+The coefficient $k_i$ of the LDF models comes from one model: **mass-transfer resistances in series** (tag `series_resistance`). It has four main resistances, two switches for the pore diffusivity of the macropore term, and a switch for surface diffusion in parallel with it. You switch each one on or off by itself, and the enabled terms add up:
 
 $$
 \frac{1}{k_i} = \underbrace{f_\text{film}\thinspace K\thinspace R_\text{film}}_\text{film}
@@ -107,8 +107,24 @@ The geometry comes from the layer. Packed layers use spheres of radius $r_p = d_
 | `macropore` (macropore diffusion) | $\dfrac{K\thinspace\tau\thinspace r_p^2}{15\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace r_f^2}{8\thinspace\varepsilon_p D}$ | $\dfrac{K\thinspace\tau\thinspace\ell^2}{3\thinspace\varepsilon_p D}$ | $D = D_{m,i}$ (molecular only), $D_{K,i}$ (Knudsen only) or $D_{B,i}$ (both) |
 | `molecular` (molecular diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $D_{m,i}$: the local molecular diffusivity of component $i$ in the gas, or the constant `molecular_diffusion_coefficient` |
 | `knudsen` (Knudsen diffusion; only with `macropore` on) | refines the macropore term | refines the macropore term | refines the macropore term | $D_{K,i} = \tfrac{2}{3}\thinspace r_\text{pore}\sqrt{\dfrac{8RT}{\pi M_i}}$; with `molecular` on too, $\dfrac{1}{D_{B,i}} = \dfrac{1}{D_{K,i}} + \dfrac{1}{D_{m,i}}$ |
+| `surface` (surface diffusion; only with `macropore` on) | $\dfrac{K\thinspace\tau\thinspace r_p^2}{15\left(\varepsilon_p D + \tau K D_{s,i}\right)}$ in place of the macropore term | $\dfrac{K\thinspace\tau\thinspace r_f^2}{8\left(\varepsilon_p D + \tau K D_{s,i}\right)}$ | $\dfrac{K\thinspace\tau\thinspace\ell^2}{3\left(\varepsilon_p D + \tau K D_{s,i}\right)}$ | $D_{s,i} = D_{s0}\thinspace e^{-E_s/RT}$; $D_{s,i} = D_{s0}$ when $E_s = 0$ |
 | `micropore` (micropore diffusion) | $\dfrac{r_c^2}{15\thinspace D_{c,i}}$ | the same | the same | $D_{c,i} = D_{c0}\thinspace e^{-E_{a,c}/RT}$ |
 | `lumped` (lumped coefficient) | $\dfrac{1}{k_{L,i}}$ | the same | the same | $k_{L,i} = k\thinspace e^{-E_a/RT}$; $k_{L,i} = k$ when $E_a = 0$ |
+
+**Surface diffusion.** *New in 0.16.* The adsorbed phase can also move along the pore walls. With the switch `surface` on, this flux acts in parallel with the pore-gas flux of the macropore term. The two fluxes are added at local equilibrium between the pore gas and the adsorbed phase, and Glueckauf's argument then gives the macropore term in the table. In the form of an LDF constant:
+
+$$
+k_\text{macro} = \frac{c}{R^2}\left(\frac{\varepsilon_p\thinspace D}{\tau\thinspace K} + D_{s,i}\right),
+$$
+
+with $c/R^2 = 15/r_p^2$ (sphere), $8/r_f^2$ (cylinder) or $3/\ell^2$ (slab). $K = \rho_p\thinspace\partial q_i^*/\partial c_i$ is the capacity factor of the [capacity-factor mode](#capacity-factor-modes). $\rho_p$ is the particle density (`solid_density`, pores included), so the term has no $(1-\varepsilon_p)$ factor. $D_{s,i}$ is one **effective** surface diffusivity: a surface tortuosity, if any, is in its value. It has the leaves `surface_diffusivity` ($D_{s0}$) and `surface_activation_energy` ($E_s$). With $E_s = 0$ it is constant. A concentration dependence of $D_s$ (for example the Darken factor) is not in the engine.
+
+- With $D_{s0} = 0$ the coefficient is the same double as with `surface` off, in every form of the model.
+- The surface term needs $K$. With the capacity-factor mode `none` ($K = 1$), the surface flux is not weighted by the capacity of the solid, and the engine logs a deck warning at the start of the run. Use `slope`, `secant` or `fixed`.
+- A negative `surface_diffusivity` is a deck error.
+
+!!! note "New in 0.16"
+    The switch `surface` and the leaves `surface_diffusivity` and `surface_activation_energy` (also `slow_surface_diffusivity` and `slow_surface_activation_energy`). A deck from an earlier version loads with `surface` off, so its results do not change.
 
 !!! note "New in 0.12"
     The switch `molecular`. Before 0.12 the macropore term always held molecular diffusion; a deck from an earlier version loads with `molecular` on wherever `macropore` is on, so its results do not change. With `molecular` off and `knudsen` on, the pore diffusivity is $D_{K,i}$ alone.
@@ -155,6 +171,8 @@ The parameters are registry leaves with flat names, `adsorbent[A].kinetics[C].<n
 | `macropore_void_fraction` | macropore | $\varepsilon_p$ | – | 0.35 |
 | `molecular_diffusion_coefficient` | molecular | constant $D_m$ (0: local value) | m² s⁻¹ | 0 |
 | `pore_radius` | knudsen | $r_\text{pore}$ | m | 10⁻⁹ |
+| `surface_diffusivity` | surface | $D_{s0}$ (effective) | m² s⁻¹ | 10⁻¹⁰ |
+| `surface_activation_energy` | surface | $E_s$ | J mol⁻¹ | 0 |
 | `crystal_radius` | micropore | $r_c$ | m | 10⁻⁶ |
 | `micropore_diffusivity` | micropore | $D_{c0}$ | m² s⁻¹ | 10⁻¹³ |
 | `micropore_activation_energy` | micropore | $E_{a,c}$ | J mol⁻¹ | 0 |
@@ -163,13 +181,14 @@ The parameters are registry leaves with flat names, `adsorbent[A].kinetics[C].<n
 | `concentration_floor` | modes slope, secant | $c_\text{floor}$ | mol m⁻³ | 10⁻³ |
 | `capacity_factor` | mode fixed | $K_\text{fix}$ | – | 0 (choosing the fixed mode sets 0 to 1) |
 
-At least one of film, macropore, micropore and lumped must stay on. The engine refuses a switch that turns the last one off. It also refuses molecular or Knudsen without macropore, and it refuses to switch off the last of molecular and Knudsen while macropore is on. Switching macropore on with neither on also switches molecular on. Switching macropore off also switches molecular and Knudsen off. When you switch a term on for the first time, a parameter of that term that is out of range (for example a zero from an old deck) gets the default.
+At least one of film, macropore, micropore and lumped must stay on. The engine refuses a switch that turns the last one off. It also refuses molecular, Knudsen or surface without macropore, and it refuses to switch off the last of molecular and Knudsen while macropore is on. Switching macropore on with neither molecular nor Knudsen on also switches molecular on. Switching macropore off also switches molecular, Knudsen and surface off. When you switch a term on for the first time, a parameter of that term that is out of range (for example a zero from an old deck) gets the default.
 
 Sources of the terms:
 
 - **Film:** Haynes & Sarma (1973); Ruthven (1984).
 - **Macropore:** Glueckauf (1955); Ruthven (1984). With the secant capacity factor, Haghpanah et al. (2013, *Ind. Eng. Chem. Res.* 52, p. 4253, Eqs. 40–41).
 - **Knudsen:** Knudsen diffusion in the macropores, alone or in the Bosanquet combination with molecular diffusion; Ruthven (1984), Do (1998).
+- **Surface:** surface diffusion in parallel with pore diffusion in a macroporous particle; Ruthven (1984), Do (1998). The engine writes the term with its own capacity factor $K = \rho_p\thinspace\partial q^*/\partial c$ on the particle volume. The equation numbers of the books are *not confirmed* (checked: the full texts were not available). A published case on activated carbon with $D_s$, $\tau$, $\varepsilon_p$ and the isotherm all reported is not in the test suite (none was found that could be checked).
 - **Micropore:** Kärger & Ruthven (1992); Farooq & Ruthven (*Chem. Eng. Sci.* 46, 1991, 2213).
 - **Lumped:** a fitted LDF coefficient (Glueckauf, 1955), with an optional Arrhenius temperature dependence.
 - **Glueckauf (1955):** *Trans. Faraday Soc.* 51, 1540–1551, doi:10.1039/tf9555101540, "Theory of chromatography. Part 10.—Formulæ for diffusion into spheres and their application to chromatography". Crossref confirms the citation. That the paper derives the factors 15, 8 and 3 from a parabolic profile is *not confirmed* (checked: the full text was not available).
@@ -267,6 +286,14 @@ ads.set_rate_model("CO2", "ldf", "series_resistance", resistances=["macropore", 
 ads.set_rate_resistance("CO2", "molecular", False)   # D = D_K alone
 ```
 
+Surface diffusion in parallel with the pore diffusion (with a capacity-factor mode other than `none`):
+
+```python
+ads.set_rate_model("CO2", "ldf", "series_resistance", resistances=["macropore", "surface"],
+                   capacity_factor_mode="slope", surface_diffusivity=1e-9, surface_activation_energy=1.5e4)
+print(ads.kinetics["CO2"].surface_diffusivity)
+```
+
 !!! note "New in 0.9"
     `set_rate_model` accepts `resistances=` and `capacity_factor_mode=`, and `Adsorbent.set_rate_resistance` sets one switch. A model made from the tag `series_resistance` starts with the lumped term only ($k = 0.5$ s⁻¹), until you set its switches.
 
@@ -276,7 +303,7 @@ The former path `kinetics[C].pre_exp_factor` (and `slow_pre_exp_factor`) of the 
 
 ### Migration
 
-Decks saved by earlier versions load unchanged, and their results do not change. A deck that stores one of the former coefficient kinds loads as the generic model with that preset's switches. A version-1 `series_resistance` model, in which a term was off when its parameter was zero, loads with the switches that those zeros meant. The deck is saved again in the generic form (cereal version 2).
+Decks saved by earlier versions load unchanged, and their results do not change. A deck that stores one of the former coefficient kinds loads as the generic model with that preset's switches. A version-1 `series_resistance` model, in which a term was off when its parameter was zero, loads with the switches that those zeros meant. The deck is saved again in the generic form (cereal version 3; version 3 adds the `surface` switch and its two leaves, and an older deck loads with `surface` off).
 
 ---
 

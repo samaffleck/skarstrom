@@ -238,11 +238,15 @@ TEST(ModelKindManifest, CarriesTheResistanceDescriptor) {
   const auto& g = kinds[kinds.Size() - 1];
   EXPECT_STREQ(g["tag"].GetString(), "series_resistance");
   EXPECT_FALSE(g["legacy"].GetBool());
-  ASSERT_EQ(g["resistances"].Size(), 6u);
+  ASSERT_EQ(g["resistances"].Size(), 7u);
   EXPECT_STREQ(g["resistances"][2]["tag"].GetString(), "molecular");
   EXPECT_STREQ(g["resistances"][2]["parent"].GetString(), "macropore");
   EXPECT_STREQ(g["resistances"][3]["tag"].GetString(), "knudsen");
   EXPECT_STREQ(g["resistances"][3]["parent"].GetString(), "macropore");
+  EXPECT_STREQ(g["resistances"][4]["tag"].GetString(), "surface");
+  EXPECT_STREQ(g["resistances"][4]["parent"].GetString(), "macropore");
+  EXPECT_NE(std::string(g["resistances"][4]["fragments"]["sphere"]["parent_term"].GetString()).find("D_{s,i}"),
+            std::string::npos);
   EXPECT_TRUE(g["resistances"][1]["needs_child"].GetBool());
   EXPECT_FALSE(g["resistances"][0]["needs_child"].GetBool());
   EXPECT_TRUE(g["resistances"][0]["parent"].IsNull());

@@ -97,7 +97,9 @@ K ResistanceModel() {
        {"concentration_floor", "mol/m3", 1e-3, 0.0, 10.0, true, "capacity-factor concentration floor"},
        {"k", "1/s", 0.5, 1e-4, 100.0, true, "mass transfer coefficient"},
        {"activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "MTC activation energy"},
-       {"pore_radius", "m", 1e-9, 1e-10, 1e-5, true, "pore radius"}}};
+       {"pore_radius", "m", 1e-9, 1e-10, 1e-5, true, "pore radius"},
+       {"surface_diffusivity", "m2/s", 1e-10, 0.0, 1e-6, true, "effective surface diffusivity pre-exponential factor"},
+       {"surface_activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "surface diffusion activation energy"}}};
   using R = ResistanceDescriptor;
   R film{"film", "external film", "", true, {"film_resistance_factor"}};
   film.sphere = {R"(f_{film}\,\frac{{K}r_p}{3\,k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{d_p})", ""};
@@ -118,6 +120,18 @@ K ResistanceModel() {
   R knudsen{"knudsen", "Knudsen diffusion", "macropore", false, {"pore_radius"}};
   knudsen.sphere = knudsen.slab = knudsen.cylinder = {"", R"(D_{K,i} = \tfrac{2}{3}\,r_{pore}\sqrt{\tfrac{8RT}{\pi M_i}})", ""};
   knudsen.source = "Ruthven (1984); Do (1998)";
+  // Surface diffusion of the adsorbed phase in parallel with the pore
+  // diffusion: the macropore term becomes K tau r^2 / (c (eps_p D + tau K D_s)).
+  R surface{"surface", "surface diffusion", "macropore", false, {"surface_diffusivity", "surface_activation_energy"}};
+  const std::string surface_where = R"(D_{s,i} = D_{s0}\,e^{-E_s/RT})";
+  const std::string surface_iso = R"(D_{s,i} = D_{s0})";
+  surface.sphere = {"", surface_where, surface_iso,
+                    R"(\frac{{K}\tau\,r_p^{2}}{15\left(\varepsilon_p\,{D} + \tau\,{K}D_{s,i}\right)})"};
+  surface.slab = {"", surface_where, surface_iso,
+                  R"(\frac{{K}\tau\,\ell^{2}}{3\left(\varepsilon_p\,{D} + \tau\,{K}D_{s,i}\right)})"};
+  surface.cylinder = {"", surface_where, surface_iso,
+                      R"(\frac{{K}\tau\,r_f^{2}}{8\left(\varepsilon_p\,{D} + \tau\,{K}D_{s,i}\right)})"};
+  surface.source = "Ruthven (1984); Do (1998)";
   R micro{"micropore", "micropore diffusion", "", false,
           {"crystal_radius", "micropore_diffusivity", "micropore_activation_energy"}};
   micro.sphere = micro.slab = micro.cylinder = {R"(\frac{r_c^{2}}{15\,D_{c,i}})", R"(D_{c,i} = D_{c0}\,e^{-E_{a,c}/RT})",
@@ -126,7 +140,7 @@ K ResistanceModel() {
   R lumped{"lumped", "lumped coefficient", "", false, {"k", "activation_energy"}};
   lumped.sphere = lumped.slab = lumped.cylinder = {R"(\frac{1}{k_{L,i}})", R"(k_{L,i} = k_0\,e^{-E_a/RT})", R"(k_{L,i} = k)"};
   lumped.source = "Glueckauf (1955)";
-  k.resistances = {film, macro, molecular, knudsen, micro, lumped};
+  k.resistances = {film, macro, molecular, knudsen, surface, micro, lumped};
   k.capacity_modes = {
       {"none", "none (K = 1)", ""},
       {"slope", "isotherm slope", R"(K = \max\!\left(\rho_p\,\frac{\partial q_i^{*}}{\partial c_i},\,1\right))"},
@@ -749,7 +763,9 @@ ModelFieldList ResistanceFields(MassTransferCoefficientSeriesResistance* c) {
           {"concentration_floor", &c->concentration_floor_},
           {"k", &c->k_},
           {"activation_energy", &c->activation_energy_},
-          {"pore_radius", &c->pore_radius_}};
+          {"pore_radius", &c->pore_radius_},
+          {"surface_diffusivity", &c->surface_diffusivity_},
+          {"surface_activation_energy", &c->surface_activation_energy_}};
 }
 
 MassTransferCoefficientType CoefficientPreset(IMassTransferCoefficientModel* m) {
@@ -985,6 +1001,10 @@ std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResista
     const ResistanceDescriptor::Latex& f = r.Fragments(shape);
     if (!f.term.empty()) {
       std::string term = f.term;
+      // An enabled refinement may give the term its own form (surface).
+      for (const ResistanceDescriptor& child : kind.resistances)
+        if (child.parent == r.tag && model.Enabled(child.tag) && !child.Fragments(shape).parent_term.empty())
+          term = child.Fragments(shape).parent_term;
       ReplaceAll(term, "{K}", r.scaled_by_capacity && mode != CapacityFactorMode::NONE ? "K\\," : "");
       ReplaceAll(term, "{D}", pore_d);
       terms.push_back(term);
@@ -994,6 +1014,7 @@ std::string MassTransferEquationLatex(const MassTransferCoefficientSeriesResista
       wheres.push_back(R"(\frac{1}{D_{B,i}} = \frac{1}{D_{K,i}} + \frac{1}{D_{m,i}})");
     const ExpressionParam* ea = r.tag == "lumped"      ? &model.activation_energy_
                                 : r.tag == "micropore" ? &model.micropore_activation_energy_
+                                : r.tag == "surface"   ? &model.surface_activation_energy_
                                                        : nullptr;
     const std::string& where = (!f.where_isothermal.empty() && ea && IsZeroNumber(*ea)) ? f.where_isothermal : f.where;
     AppendLines(where, wheres);

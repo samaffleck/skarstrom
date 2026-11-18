@@ -397,12 +397,20 @@ namespace adsim {
       if (tag == "macropore") return &r.macropore;
       if (tag == "molecular") return &r.molecular;
       if (tag == "knudsen") return &r.knudsen;
+      if (tag == "surface") return &r.surface;
       if (tag == "micropore") return &r.micropore;
       if (tag == "lumped") return &r.lumped;
       return nullptr;
     }
 
   }  // namespace
+
+  double MassTransferCoefficientSeriesResistance::SurfaceDiffusivity(double T) const {
+    const double Ds0 = surface_diffusivity_.Get();
+    const double Es = surface_activation_energy_.Get();
+    if (Es == 0.0) return Ds0;  // constant (also at T = 0, where the exponent is 0/0)
+    return Ds0 * std::exp(-Es / (constants::kIdealGasConstant * T));
+  }
 
   bool MassTransferCoefficientSeriesResistance::ActivationEnergyIsZero() const {
     return IsNumber(activation_energy_, 0.0);
@@ -434,8 +442,21 @@ namespace adsim {
     MassTransferResistances next = Resistances();
     bool* sw = SwitchOf(next, tag);
     if (!sw) {
-      err = "unknown mass-transfer resistance '" + tag + "' (film, macropore, molecular, knudsen, micropore, lumped)";
+      err = "unknown mass-transfer resistance '" + tag + "' (film, macropore, molecular, knudsen, surface, micropore, lumped)";
       return false;
+    }
+    if (tag == "surface") {
+      if (on && !next.macropore) {
+        err = "surface diffusion acts in parallel with the macropore term's pore diffusion: switch the macropore "
+              "resistance on first";
+        return false;
+      }
+      if (!on && !next.macropore) return true;  // already off with the macropore term
+      const bool first = on && !Enabled(tag);
+      next.surface = on;
+      resistances_ = next;
+      if (first && !(surface_diffusivity_.Get() >= 0.0)) surface_diffusivity_ = 1e-10;
+      return true;
     }
     const bool pore_term = tag == "molecular" || tag == "knudsen";
     if (on && pore_term && !next.macropore) {
@@ -445,7 +466,7 @@ namespace adsim {
     }
     if (!on && pore_term && !next.macropore) return true;  // already off with the macropore term
     *sw = on;
-    if (tag == "macropore" && !on) next.molecular = next.knudsen = false;
+    if (tag == "macropore" && !on) next.molecular = next.knudsen = next.surface = false;
     if (tag == "macropore" && on && !next.molecular && !next.knudsen) next.molecular = true;
     if (next.macropore && !next.molecular && !next.knudsen) {
       err = "the macropore term needs molecular or Knudsen diffusion: at least one of them must stay on";
@@ -490,12 +511,14 @@ namespace adsim {
     static const std::vector<std::string> macro{"tortuosity", "macropore_void_fraction"};
     static const std::vector<std::string> molecular{"molecular_diffusion_coefficient"};
     static const std::vector<std::string> knudsen{"pore_radius"};
+    static const std::vector<std::string> surface{"surface_diffusivity", "surface_activation_energy"};
     static const std::vector<std::string> micro{"crystal_radius", "micropore_diffusivity", "micropore_activation_energy"};
     static const std::vector<std::string> lumped{"k", "activation_energy"};
     if (tag == "film") return film;
     if (tag == "macropore") return macro;
     if (tag == "molecular") return molecular;
     if (tag == "knudsen") return knudsen;
+    if (tag == "surface") return surface;
     if (tag == "micropore") return micro;
     if (tag == "lumped") return lumped;
     return none;
@@ -585,12 +608,16 @@ namespace adsim {
     micropore_diffusivity_.Evaluate(ctx); micropore_activation_energy_.Evaluate(ctx);
     capacity_factor_.Evaluate(ctx); concentration_floor_.Evaluate(ctx);
     k_.Evaluate(ctx); activation_energy_.Evaluate(ctx); pore_radius_.Evaluate(ctx);
+    surface_diffusivity_.Evaluate(ctx); surface_activation_energy_.Evaluate(ctx);
   }
 
   void MassTransferCoefficientSeriesResistance::UpdateMassTransferCoefficient(Equations& state, AdsorbentID ads_id, const Fluid& fluid, const std::string& component, MixedAdsorbentLayer& layer, const UserVariableRegistry* registry) {
     // The form is chosen by the switches and the mode only (never by a stored
     // preset name); each single-term form is the old class's arithmetic.
-    const MassTransferResistances r = Resistances();
+    // Surface diffusion does not choose the form: each macropore form adds
+    // its D_s term, an exact 0.0 with D_s = 0.
+    MassTransferResistances r = Resistances();
+    r.surface = false;
     const CapacityFactorMode mode = CapacityMode();
     if (r == Only(false, false, false, false, true)) {
       UpdateLumped(state, ads_id, component, layer, registry);
@@ -648,6 +675,8 @@ namespace adsim {
     double dp = geo.length;
     double tortuosity = tortuosity_;
     const double Dm_const = molecular_diffusion_coefficient_;  // > 0: constant D_m in place of the state's
+    // Surface diffusion in parallel: k = c (eps_p D / tau + D_s) / l^2 (K = 1).
+    const bool surface = SurfaceDiffusion();
 
     if (knudsen) {
       double R = constants::kIdealGasConstant;
@@ -661,7 +690,8 @@ namespace adsim {
         double Dki_eff = Dki * ep / tortuosity;
         double Dmi_eff = (Dm_const > 0.0 ? Dm_const : Dmi[n]) * ep / tortuosity;
         double Di_eff = 1.0 / ((1.0 / Dki_eff) + (1.0 / Dmi_eff));
-        mtc[n] = c_ldf * Di_eff / (dp * dp);
+        if (surface) mtc[n] = c_ldf * (Di_eff + SurfaceDiffusivity(T[n])) / (dp * dp);
+        else mtc[n] = c_ldf * Di_eff / (dp * dp);
       }
       return;
     }
@@ -669,7 +699,8 @@ namespace adsim {
       if (T[n] < 0)
         continue;
       double Dmi_eff = (Dm_const > 0.0 ? Dm_const : Dmi[n]) * ep / tortuosity;
-      mtc[n] = c_ldf * Dmi_eff / (dp * dp);
+      if (surface) mtc[n] = c_ldf * (Dmi_eff + SurfaceDiffusivity(T[n])) / (dp * dp);
+      else mtc[n] = c_ldf * Dmi_eff / (dp * dp);
     }
   }
 
@@ -696,6 +727,9 @@ namespace adsim {
     const double rho_p = solid_density_;
     const double Dm_const = molecular_diffusion_coefficient_;
     const int start = layer.domain_.start_index, end = layer.domain_.end_index;
+    // Surface diffusion in parallel: k = (c / l^2) (eps_p D ratio / tau + D_s),
+    // ratio = 1 / K the secant term below.
+    const bool surface = SurfaceDiffusion();
 
     // q* at max(c_i, c_floor) from the isotherm itself, consistent with the
     // current y, P and T; the mole fraction is floored in place and restored,
@@ -747,7 +781,8 @@ namespace adsim {
         const double denom = rho_p * q_floor[n];
         ratio = denom > 0.0 ? std::min(c_eff / denom, 1.0) : 1.0;
       }
-      mtc[n] = k_macro * ratio;
+      if (surface) mtc[n] = k_macro * ratio + c_ldf * SurfaceDiffusivity(T[n]) / (dp * dp);
+      else mtc[n] = k_macro * ratio;
     }
   }
 
@@ -863,9 +898,11 @@ namespace adsim {
     const bool knudsen = KnudsenDiffusion();
     const double r_pore = pore_radius_;
     const double Mr = knudsen ? fluid.molar_mass_.at(component) : 0.0;
+    // Surface diffusion in parallel with the pore diffusion (macropore on).
+    const bool surface = r.surface;
     const bool lumped_ea = r.lumped && !ActivationEnergyIsZero();
     // Terms that divide by T: Newton iterates can probe T <= 0; skip the cell.
-    const bool needs_t = r.micropore || knudsen || lumped_ea;
+    const bool needs_t = r.micropore || knudsen || lumped_ea || (surface && surface_activation_energy_.Get() != 0.0);
 
     // The terms are written as in MassTransferCoefficient_Haynes so that with
     // f_film = 1, K = 1 and only film and macropore on the result is the same
@@ -892,24 +929,37 @@ namespace adsim {
         Dp = molecular ? 1.0 / (1.0 / Dk + 1.0 / Dp) : Dk;
       }
       double film = 0.0, macro = 0.0, micro = 0.0, lumped = 0.0;
+      // With surface diffusion the denominator c eps_p D gains c tau K D_s
+      // (pore and surface fluxes in parallel); without it the expressions are
+      // the ones before the surface term, unchanged.
+      const double Ds = surface ? SurfaceDiffusivity(T[n]) : 0.0;
       if (structured) {
         if (r.film) {
           const double kf = Sh[n] * Dmi[n] / dh;
           film = geo.volume_to_surface / kf;
         }
-        if (r.macropore) macro = tau * l * l / (3.0 * ep * Dp);
+        if (r.macropore) {
+          if (surface) macro = tau * l * l / (3.0 * ep * Dp + 3.0 * tau * K * Ds);
+          else macro = tau * l * l / (3.0 * ep * Dp);
+        }
       } else if (cylinder) {
         if (r.film) {
           const double kf = Sh[n] * Dmi[n] / dp;
           film = geo.volume_to_surface / kf;
         }
-        if (r.macropore) macro = tau * l * l / (c_geo * ep * Dp);
+        if (r.macropore) {
+          if (surface) macro = tau * l * l / (c_geo * ep * Dp + c_geo * tau * K * Ds);
+          else macro = tau * l * l / (c_geo * ep * Dp);
+        }
       } else {
         if (r.film) {
           const double kf = Sh[n] * Dmi[n] / dp;
           film = rp / (3.0 * kf);
         }
-        if (r.macropore) macro = tau * rp * rp / (15.0 * ep * Dp);
+        if (r.macropore) {
+          if (surface) macro = tau * rp * rp / (15.0 * ep * Dp + 15.0 * tau * K * Ds);
+          else macro = tau * rp * rp / (15.0 * ep * Dp);
+        }
       }
       if (r.micropore) micro = rc * rc / (15.0 * Dc0 * std::exp(-Ea / (R * T[n])));
       if (r.lumped) {
@@ -1018,6 +1068,14 @@ namespace adsim {
           error("the macropore void fraction must be in (0, 1] with the macropore resistance on (it is " +
                 ExpressionParam::FormatScalar(ep) + ")");
         if (r.knudsen) positive(g.pore_radius_, "the pore radius", "Knudsen");
+        if (r.surface) {
+          const double ds = g.surface_diffusivity_.Get();
+          if (ds < 0.0 || std::isnan(ds)) error("the surface diffusivity must not be negative");
+          if (g.CapacityMode() == CapacityFactorMode::NONE)
+            warnings.push_back(where + ": surface diffusion is on with the capacity-factor mode none (K = 1): the"
+                               " surface term in parallel with the pore term needs the capacity factor"
+                               " K = rho_p dq*/dc; choose the slope, secant or fixed mode.");
+        }
       }
       if (r.micropore) {
         positive(g.crystal_radius_, "the crystal radius", "micropore");

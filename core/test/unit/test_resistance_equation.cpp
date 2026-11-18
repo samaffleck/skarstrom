@@ -424,6 +424,7 @@ MassTransferCoefficientSeriesResistance Model(const std::string& on, const std::
     else if (t == "macropore") r.macropore = true;
     else if (t == "molecular") r.molecular = true;
     else if (t == "knudsen") r.knudsen = true;
+    else if (t == "surface") r.surface = true;
     else if (t == "micropore") r.micropore = true;
     else if (t == "lumped") r.lumped = true;
     else ADD_FAILURE() << "unknown switch " << t;
@@ -534,6 +535,7 @@ TEST(ResistanceEquation, DescriptorShape) {
   }
   EXPECT_EQ(k.FindResistance("molecular")->parent, "macropore");
   EXPECT_EQ(k.FindResistance("knudsen")->parent, "macropore");
+  EXPECT_EQ(k.FindResistance("surface")->parent, "macropore");
   EXPECT_TRUE(k.FindResistance("macropore")->needs_child);
   EXPECT_FALSE(k.FindResistance("film")->needs_child);
   EXPECT_TRUE(k.FindResistance("film")->scaled_by_capacity);

@@ -44,7 +44,7 @@
                                                         "ptr_wrapper": {
                                                             "valid": 1,
                                                             "data": {
-                                                                "cereal_class_version": 2,
+                                                                "cereal_class_version": 3,
                                                                 "value0": {},
                                                                 "Film_Resistance_Factor": {
                                                                     "Value": 1.0,
@@ -92,13 +92,14 @@
                                                                     "DisplayUnitIndex": 0
                                                                 },
                                                                 "Resistances": {
-                                                                    "cereal_class_version": 2,
+                                                                    "cereal_class_version": 3,
                                                                     "Film": true,
                                                                     "Macropore": true,
                                                                     "Knudsen": false,
                                                                     "Micropore": true,
                                                                     "Lumped": false,
-                                                                    "Molecular": true
+                                                                    "Molecular": true,
+                                                                    "Surface": false
                                                                 },
                                                                 "Capacity_Factor_Mode": 1,
                                                                 "Mass_Transfer_Coefficient": {
@@ -114,6 +115,16 @@
                                                                 "Pore_Radius": {
                                                                     "Value": 1e-9,
                                                                     "Expression": "1e-09",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Surface_Diffusivity": {
+                                                                    "Value": 1e-10,
+                                                                    "Expression": "1e-10",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Surface_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
                                                                     "DisplayUnitIndex": 0
                                                                 }
                                                             }
@@ -182,7 +193,8 @@
                                                                 "Knudsen": false,
                                                                 "Micropore": true,
                                                                 "Lumped": false,
-                                                                "Molecular": true
+                                                                "Molecular": true,
+                                                                "Surface": false
                                                             },
                                                             "Capacity_Factor_Mode": 1,
                                                             "Mass_Transfer_Coefficient": {
@@ -198,6 +210,16 @@
                                                             "Pore_Radius": {
                                                                 "Value": 1e-9,
                                                                 "Expression": "1e-09",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "Surface_Diffusivity": {
+                                                                "Value": 1e-10,
+                                                                "Expression": "1e-10",
+                                                                "DisplayUnitIndex": 0
+                                                            },
+                                                            "Surface_Activation_Energy": {
+                                                                "Value": 0.0,
+                                                                "Expression": "0",
                                                                 "DisplayUnitIndex": 0
                                                             }
                                                         }
@@ -274,7 +296,8 @@
                                                                     "Knudsen": false,
                                                                     "Micropore": false,
                                                                     "Lumped": true,
-                                                                    "Molecular": false
+                                                                    "Molecular": false,
+                                                                    "Surface": false
                                                                 },
                                                                 "Capacity_Factor_Mode": 0,
                                                                 "Mass_Transfer_Coefficient": {
@@ -290,6 +313,16 @@
                                                                 "Pore_Radius": {
                                                                     "Value": 1e-9,
                                                                     "Expression": "1e-09",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Surface_Diffusivity": {
+                                                                    "Value": 1e-10,
+                                                                    "Expression": "1e-10",
+                                                                    "DisplayUnitIndex": 0
+                                                                },
+                                                                "Surface_Activation_Energy": {
+                                                                    "Value": 0.0,
+                                                                    "Expression": "0",
                                                                     "DisplayUnitIndex": 0
                                                                 }
                                                             }

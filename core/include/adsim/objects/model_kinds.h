@@ -85,10 +85,13 @@ DiffusionShape LayerDiffusionShape(const MixedAdsorbentLayer& layer);
 // {K} becomes "K\," when the capacity-factor mode is not none and the term is
 // scaled by capacity (else nothing); {D} becomes the pore diffusivity: D_{m,i}
 // (molecular diffusion), D_{K,i} (Knudsen diffusion) or D_{B,i} (both). A
-// `where` holds one definition per line, lines separated by "\\".
+// `where` holds one definition per line, lines separated by "\\". A
+// refinement whose `parent_term` is not empty replaces its parent's term by
+// it while on (surface diffusion: the pore and surface fluxes in parallel);
+// the placeholders apply to it as to the parent's term.
 // MassTransferEquationLatex composes them.
 struct ResistanceDescriptor {
-  std::string tag;                      // "film", "macropore", "molecular", "knudsen", "micropore", "lumped"
+  std::string tag;                      // "film", "macropore", "molecular", "knudsen", "surface", "micropore", "lumped"
   std::string label;                    // "external film", ...
   std::string parent;                   // "" or the term it refines ("knudsen" -> "macropore")
   bool scaled_by_capacity = false;      // multiplied by K (film, macropore)
@@ -99,6 +102,9 @@ struct ResistanceDescriptor {
     // The definitions when the term's activation energy is the number 0
     // (lumped: k_L = k; micropore: D_c = D_c0); empty: `where` always.
     std::string where_isothermal;
+    // A refinement's form of its parent's term while it is on (empty: the
+    // parent's own term).
+    std::string parent_term;
   };
   Latex sphere, slab, cylinder;  // per DiffusionShape
   std::string source;            // literature, for docs and tooltips

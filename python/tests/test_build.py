@@ -418,6 +418,46 @@ def test_knudsen_alone_builds_and_round_trips():
     assert sim.run(cycles=1).ok
 
 
+def test_surface_diffusion_builds_and_round_trips():
+    # Surface diffusion refines the macropore term; a dual-rate slow site keeps
+    # its own surface switch through the script writer.
+    sim, _ = build_vsa()
+    ads = sim.adsorbents["13X"]
+    ads = ads.set_rate_model("CO2", "dual_rate_ldf", "series_resistance", resistances=["macropore", "surface"],
+                             capacity_factor_mode="slope", split=0.6, tortuosity=3.0, macropore_void_fraction=0.35,
+                             surface_diffusivity=2e-9, surface_activation_energy=1.2e4)
+    kn = ads.kinetics["CO2"]
+    assert kn.resistances.surface is True and kn.resistances.molecular is True
+    assert kn.surface_diffusivity == pytest.approx(2e-9)
+    assert kn.surface_activation_energy == pytest.approx(1.2e4)
+    # The fast site without surface diffusion (to_script writes only the leaves
+    # of enabled terms, so its values go back to the defaults first); the slow
+    # site keeps it, with its own values.
+    kn.surface_diffusivity = 1e-10
+    kn.surface_activation_energy = 0.0
+    ads = ads.set_rate_resistance("CO2", "surface", False)
+    kn = ads.kinetics["CO2"]
+    assert kn.resistances.surface is False
+    assert "surface_diffusivity" not in kn.fields
+    assert kn.slow_resistances.surface is True
+    kn.slow_surface_diffusivity = 5e-9
+    kn.slow_surface_activation_energy = 1.2e4
+    script = sk.to_script(sim)
+    assert "'surface', True, site='slow'" in script
+    ns = {}
+    exec(compile(script, "<surface>", "exec"), ns)
+    assert_same_deck(sim, ns["sim"])
+    copy = ns["sim"].adsorbents["13X"].kinetics["CO2"]
+    assert copy.slow_resistances.surface is True and copy.resistances.surface is False
+    assert copy.slow_surface_diffusivity == pytest.approx(5e-9)
+    assert copy.slow_surface_activation_energy == pytest.approx(1.2e4)
+    # Surface needs macropore.
+    ads = ads.set_rate_model("CO2", "ldf", "series_resistance", resistances=["lumped"])
+    with pytest.raises(ValueError):
+        ads.set_rate_resistance("CO2", "surface", True)
+    assert sim.run(cycles=1).ok
+
+
 def test_log_linear_profiles_build_and_round_trip():
     sim, parts = build_vsa()
     press = sim.steps["Pressurisation"]

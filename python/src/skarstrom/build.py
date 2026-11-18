@@ -601,12 +601,12 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
                 if r["model"] == "dual_rate_ldf" and not slow_differs:
                     w(f"{v}.set_rate_resistance({c!r}, 'molecular', False, site='slow')")
             if slow_differs:
-                tags = ("film", "macropore", "molecular", "knudsen", "micropore", "lumped")
+                tags = ("film", "macropore", "molecular", "knudsen", "surface", "micropore", "lumped")
                 for tag in tags:  # on first: a site keeps one term on
                     if tag in slow["resistances"]:
                         w(f"{v}.set_rate_resistance({c!r}, {tag!r}, True, site='slow')")
                 for tag in reversed(tags):
-                    if tag in ("molecular", "knudsen") and "macropore" not in slow["resistances"]:
+                    if tag in ("molecular", "knudsen", "surface") and "macropore" not in slow["resistances"]:
                         continue  # macropore off switches them off
                     if tag not in slow["resistances"]:
                         w(f"{v}.set_rate_resistance({c!r}, {tag!r}, False, site='slow')")

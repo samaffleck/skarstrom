@@ -56,8 +56,9 @@ namespace adsim {
 
   // The warnings of CheckMassTransferModel (mass_transfer_model.h) for every
   // solid a layer uses: the film resistance on with a film resistance factor
-  // of 0, and a second-order LDF with a physical resistance on. Its errors
-  // stop the run in the deck checks instead.
+  // of 0, a second-order LDF with a physical resistance on, and surface
+  // diffusion on with the capacity-factor mode none. Its errors stop the run
+  // in the deck checks instead.
   std::vector<std::string> MassTransferWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed);
 
   // One warning per packed layer whose film correlation is Ranz-Marshall
