@@ -8,6 +8,31 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-11-18
+
+### Fixed — molecular diffusivity of a pure component with three or more components
+- In a cell of pure component i, in a fluid of three or more components, the mixture rule for D_m,i (Wilke's equation) is 0 / 0, and the engine gave D_m,i = 0. Every diffusion-based mass-transfer coefficient of i (macropore, film) was then 0, so i did not adsorb in that cell, for example in a bed that starts filled with pure N2. Wilke's equation now uses a smooth floor on the partner mole fractions, ½ (y_j + √(y_j² + δ²)) with δ = 1e-6. In a pure cell, D_m,i is the harmonic mean of the D_ij. D_m,i always lies between the smallest and the largest D_ij, and it is a smooth function of the mole fractions, which the solver's difference-quotient Jacobian resolves. Where every partner has y_j ≥ 1e-3, the value equals the plain equation to 2e-7.
+- The unused function `MulticomponentDiffusionCorrection` (an arithmetic-mean rule, never called) is removed.
+
+### Changed — unrounded Chapman–Enskog constant
+- The binary diffusivity uses the unrounded constant 2.6635246e-7 (from the exact SI k_B and N_A) instead of the textbook 2.66e-7. Every computed D_ij, and every computed D_m,i, is 0.13 % higher. Results of decks that compute D_m (the per-component dispersion models Ruthven, Taylor–Aris, Edwards–Richardson and Wakao–Funazkri; macropore and film resistances with no constant D_m) change slightly; the example decks are updated.
+- The molecular diffusivities are tested against Cantera with the engine's Lennard-Jones parameters (`scripts/gen_cantera_diffusion_reference.py`): the binary D_ij of all 528 component pairs agree to 0.26 % (mean −0.05 %) from 200 K to 650 K, and the mixture-averaged values to 0.2 %.
+
+### Added — viscous macropore flow check
+- A start-of-run warning when viscous (Poiseuille) flow in the macropores could matter: the ratio of viscous to Knudsen pore transport, 3 r P / (16 mu v), is above 0.1 for a component whose macropore term has Knudsen diffusion on (r is the `pore_radius`, P the highest pressure of the deck, mu the gas viscosity of the initial state, v the mean molecular speed). Viscous flow is still not modelled: an additive term would over-predict the uptake of an isobaric step. The upper bound of `pore_radius` is now 10 µm (before: 1 µm), because real macropores can be larger than 1 µm. No results change. See docs/kinetic-models.md.
+
+### Added — humid DAC TVSA example deck that crosses saturation
+- A new illustrative example deck `Illustrative_Humid_DAC_TVSA` (not validated) and its builder `examples/illustrative_humid_dac_tvsa.py`: a five-step temperature-vacuum swing cycle for direct air capture on the APDES-NFC library adsorbent with humid air feed (400 ppm CO2, 49 % RH at 20 °C), evacuation to 0.2 bar, heating with a 95 °C medium, closed cooling with 20 °C water and feed pressurisation. In the cooling step the water-rich gas passes its saturation pressure at the cold wall (up to 2.6 times; 1.4 at cyclic steady state, cycle 12), so the `SUPERSATURATION` run-health warning fires. The gas itself stays just below saturation (0.91 to 1.00). Condensation is not modelled. See "A humid cycle that crosses saturation" in docs/tsa-regeneration.md. No existing deck or result changes.
+
+### Fixed — the mixture diffusivity rule is named after Wilke
+- The docs called the effective molecular diffusivity of a component in a mixture, D_i,m = (1 − y_i) / Σ_j≠i (y_j / D_ij), "Blanc's law". Its usual name is Wilke's equation (Wilke 1950); Blanc's law (1908) is its trace limit. The docs, code comments and paper READMEs now say Wilke's equation, and the code names follow: `adsim::WilkeMixtureDiffusivity` and `kWilkeMoleFractionFloor` (`binary_diffusion_model.h`), and the cell update `UpdateWilkeMixtureDiffusivity`. The values do not change.
+
+### Added — Edwards–Richardson and Wakao–Funazkri axial dispersion
+- Two packed-bed dispersion kinds, each per component on the mixture-averaged D_m,i: `edwards_richardson`, D_ax,i = 0.73 D_m,i + 0.5 u_i d_p / (1 + 9.49 D_m,i / (u_i d_p)) (Edwards and Richardson 1968), which blends from the molecular limit to Pe = 2; and `wakao_funazkri`, D_ax,i = 20 D_m,i / ε_b + 0.5 u_i d_p (Wakao and Funazkri 1978), the dispersion of the default film correlation's data, whose u → 0 limit is about 70 times the molecular one. Builder `set_dispersion("edwards_richardson" | "wakao_funazkri")`, deck-edit kind switches and the deck view list them; the deck checks refuse them on a structured layer. The commented-out Wakao–Funazkri model is removed.
+
+### Added — supersaturation warning
+- A run-health check `SUPERSATURATION` warns when a component's partial pressure passes its saturation pressure (the engine's vapour-pressure ancillary), which the model does not handle: there is no condensation, the gas keeps the supersaturated mole fraction and no heat of condensation is released. It measures the relative saturation y P / p_sat(T) in every cell, at the gas temperature and at the wall temperature (a cold wall), for the components below their critical temperature, and names the component, cell, step, cycle and time. At the start of a run the same switch, `settings.warn_supersaturation` (on by default; `WarningSettings` cereal version 6, older decks load with it on), also warns about supersaturated inlet streams and initial gas. `sim.run_health().cycles` gives the measures of every cycle (`supersaturation_gas`, `supersaturation_wall`). No results change. See docs/run-health.md.
+
 ## [0.15.0] — 2026-11-17
 
 ### Changed — axial dispersion with a coefficient per component

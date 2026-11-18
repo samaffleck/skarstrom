@@ -1,2 +1,0 @@
-### Fixed — the mixture diffusivity rule is named after Wilke
-- The docs called the effective molecular diffusivity of a component in a mixture, D_i,m = (1 − y_i) / Σ_j≠i (y_j / D_ij), "Blanc's law". Its usual name is Wilke's equation (Wilke 1950); Blanc's law (1908) is its trace limit. The docs, code comments and paper READMEs now say Wilke's equation, and the code names follow: `adsim::WilkeMixtureDiffusivity` and `kWilkeMoleFractionFloor` (`binary_diffusion_model.h`), and the cell update `UpdateWilkeMixtureDiffusivity`. The values do not change.
