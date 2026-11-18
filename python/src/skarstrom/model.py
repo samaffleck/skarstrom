@@ -58,9 +58,10 @@ from typing import (
 from .manifests import component_aliases
 
 # The resistances of the generic coefficient model, in series order.
-_RESISTANCE_TAGS = ("film", "macropore", "molecular", "knudsen", "micropore", "lumped")
-# The terms that refine the macropore term (its pore diffusivity).
-_PORE_TAGS = ("molecular", "knudsen")
+_RESISTANCE_TAGS = ("film", "macropore", "molecular", "knudsen", "surface", "micropore", "lumped")
+# The terms that refine the macropore term (its pore diffusivity, and surface
+# diffusion in parallel); switching macropore off switches them off.
+_PORE_TAGS = ("molecular", "knudsen", "surface")
 
 
 def _wanted_resistances(resistances: Iterable[str]) -> List[str]:
@@ -1809,6 +1810,11 @@ class Kinetics(_Node):
     """Concentration floor of the slope and secant capacity factors: the gas concentration below which K is evaluated at this value [mol/m3]."""
     pore_radius = Real()
     """Pore radius of the Knudsen diffusivity [m]."""
+    surface_diffusivity = Real()
+    """Effective surface diffusivity pre-exponential D_s0 of the surface term (surface tortuosity folded in),
+    D_s = D_s0 exp(-E_s / R T) [m2/s]. *New in 0.16.*"""
+    surface_activation_energy = Real()
+    """Activation energy E_s of the surface diffusivity; 0 keeps D_s = D_s0 [J/mol]. *New in 0.16.*"""
     molecular_diffusion_coefficient = Real()
     """Constant molecular diffusivity D_m of the macropore term [m2/s]; 0 (the default) uses the binary-diffusion
     value from the local T and P, which scales as 1/P. Haghpanah et al. (2013) and Estupinan Perez et al. (2019)
@@ -1841,6 +1847,10 @@ class Kinetics(_Node):
     """Slow-site value of ``concentration_floor`` in the ``dual_rate_ldf`` model: capacity-factor concentration floor [mol/m3]."""
     slow_pore_radius = Real()
     """Slow-site value of ``pore_radius`` in the ``dual_rate_ldf`` model: Knudsen pore radius [m]."""
+    slow_surface_diffusivity = Real()
+    """Slow-site value of ``surface_diffusivity`` in the ``dual_rate_ldf`` model: surface diffusivity D_s0 [m2/s]."""
+    slow_surface_activation_energy = Real()
+    """Slow-site value of ``surface_activation_energy`` in the ``dual_rate_ldf`` model: surface diffusion activation energy E_s [J/mol]."""
     slow_molecular_diffusion_coefficient = Real()
     """Slow-site value of ``molecular_diffusion_coefficient`` in the ``dual_rate_ldf`` model: constant molecular diffusivity D_m [m2/s]."""
     slow_film_resistance_factor = Real()
@@ -2093,7 +2103,7 @@ class Adsorbent(_Node):
         et al. 2013; + concentration_floor) or ``"haynes"`` (film + macropore).
 
         ``resistances`` switches on exactly the terms named (``"film"``, ``"macropore"``,
-        ``"molecular"``, ``"knudsen"``, ``"micropore"``, ``"lumped"``) and the others off; the
+        ``"molecular"``, ``"knudsen"``, ``"surface"``, ``"micropore"``, ``"lumped"``) and the others off; the
         macropore term keeps molecular diffusion on (for Knudsen diffusion alone, switch
         ``"molecular"`` off after with ``set_rate_resistance``); ``capacity_factor_mode`` is ``"none"``,
         ``"slope"``, ``"secant"`` or ``"fixed"``. Both apply to the two sites of a dual-rate model. Then
@@ -2122,11 +2132,12 @@ class Adsorbent(_Node):
 
     def set_rate_resistance(self, component: str, tag: str, on: bool = True, site: str = "fast") -> "Adsorbent":
         """Switch one resistance (``"film"``, ``"macropore"``, ``"molecular"``, ``"knudsen"``,
-        ``"micropore"`` or ``"lumped"``) of a component's coefficient on or off, on the ``"fast"`` site
-        or the ``"slow"`` site of a dual-rate model. The engine refuses (ValueError) switching the last
-        of film, macropore, micropore and lumped off, molecular or knudsen without macropore, and the
-        last of molecular and knudsen off while macropore is on; macropore on also switches molecular
-        on when neither is on, and macropore off switches both off. Parameter values are kept."""
+        ``"surface"``, ``"micropore"`` or ``"lumped"``) of a component's coefficient on or off, on the
+        ``"fast"`` site or the ``"slow"`` site of a dual-rate model. The engine refuses (ValueError)
+        switching the last of film, macropore, micropore and lumped off, molecular, knudsen or surface
+        without macropore, and the last of molecular and knudsen off while macropore is on; macropore on
+        also switches molecular on when neither molecular nor knudsen is on, and macropore off switches
+        molecular, knudsen and surface off. Parameter values are kept."""
         self._sim.edit.set_mass_transfer_resistance(self._id, self._sim._component(component), tag, bool(on),
                                                     site=site)
         return self._fresh()

@@ -839,9 +839,9 @@ namespace adsim {
     },
     "Resistances": {
       "type": "object", "additionalProperties": false,
-      "required": ["film", "macropore", "molecular", "knudsen", "micropore", "lumped"],
+      "required": ["film", "macropore", "molecular", "knudsen", "surface", "micropore", "lumped"],
       "properties": {"film": {"type": "boolean"}, "macropore": {"type": "boolean"}, "molecular": {"type": "boolean"},
-                     "knudsen": {"type": "boolean"}, "micropore": {"type": "boolean"}, "lumped": {"type": "boolean"}}
+                     "knudsen": {"type": "boolean"}, "surface": {"type": "boolean"}, "micropore": {"type": "boolean"}, "lumped": {"type": "boolean"}}
     },
     "StoichiometricCoefficient": {
       "type": "object", "additionalProperties": false, "required": ["component", "nu"],

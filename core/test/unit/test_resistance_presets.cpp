@@ -210,8 +210,9 @@ std::unique_ptr<IMassTransferCoefficientModel> Load(const std::string& text) {
   return ToResistances(std::move(m));  // as IMassTransferModel's loader does
 }
 
-// The version-1 archive of a series model with these values: the v2 save with
-// the fields version 2 added removed and the class version set back to 1.
+// The version-1 archive of a series model with these values: the current save
+// with the fields versions 2 and 3 added removed and the class version set
+// back to 1.
 std::string VersionOne(const LegacySeriesResistanceV1& v1) {
   auto g = std::make_unique<Generic>();
   g->film_resistance_factor_ = v1.film_resistance_factor_;
@@ -225,11 +226,12 @@ std::string VersionOne(const LegacySeriesResistanceV1& v1) {
   g->concentration_floor_ = v1.concentration_floor_;
   std::unique_ptr<IMassTransferCoefficientModel> base = std::move(g);
   std::string text = Save(base);
-  for (const char* field : {"Resistances", "Mass_Transfer_Coefficient", "Activation_Energy", "Pore_Radius"})
+  for (const char* field : {"Resistances", "Mass_Transfer_Coefficient", "Activation_Energy", "Pore_Radius",
+                            "Surface_Diffusivity", "Surface_Activation_Energy"})
     text = std::regex_replace(text, std::regex(std::string(",\\s*\"") + field + "\": \\{[^}]*\\}"), "");
   text = std::regex_replace(text, std::regex(",\\s*\"Capacity_Factor_Mode\": -?[0-9]+"), "");
   const std::string before = text;
-  text = std::regex_replace(text, std::regex("(\"data\": \\{\\s*\"cereal_class_version\": )2"), "$011");  // group 01, then "1"
+  text = std::regex_replace(text, std::regex("(\"data\": \\{\\s*\"cereal_class_version\": )3"), "$011");  // group 01, then "1"
   EXPECT_NE(text, before) << "class version not found";
   EXPECT_EQ(text.find("Resistances"), std::string::npos);
   return text;

@@ -187,12 +187,15 @@ TEST(MacroporeCoefficient, Version1SwitchesLoadWithMolecularDiffusion) {
   build::SetRateModel(d, a, kCO2, "ldf", "macropore_knudsen");
   std::string json = sim.ToJson();
   // The switch block's class version and its new key, as an older engine wrote them.
-  const std::regex block(R"re(("Resistances":\s*\{\s*"cereal_class_version":\s*)2)re");
+  const std::regex block(R"re(("Resistances":\s*\{\s*"cereal_class_version":\s*)3)re");
   ASSERT_TRUE(std::regex_search(json, block));
   json = std::regex_replace(json, block, "$011", std::regex_constants::format_first_only);
   const std::regex molecular(R"re(,\s*"Molecular":\s*(true|false))re");
   ASSERT_TRUE(std::regex_search(json, molecular));
   json = std::regex_replace(json, molecular, "");
+  const std::regex surface(R"re(,\s*"Surface":\s*(true|false))re");  // version 3
+  ASSERT_TRUE(std::regex_search(json, surface));
+  json = std::regex_replace(json, surface, "");
   Simulation back;
   back.LoadJson(json);
   auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(

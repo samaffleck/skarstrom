@@ -109,7 +109,9 @@ namespace adsim {
 	// and Knudsen diffusion refine the macropore term: its pore diffusivity is
 	// D_m (molecular only), D_K (Knudsen only) or the Bosanquet mean
 	// 1/D = 1/D_K + 1/D_m (both). They are on only with the macropore term,
-	// and at least one of them is on while it is on.
+	// and at least one of them is on while it is on. Surface diffusion of the
+	// adsorbed phase also refines the macropore term (in parallel with the
+	// pore diffusion); it is on only with the macropore term and never alone.
 	struct MassTransferResistances {
 		bool film = false;
 		bool macropore = false;
@@ -117,10 +119,11 @@ namespace adsim {
 		bool knudsen = false;
 		bool micropore = false;
 		bool lumped = true;
+		bool surface = false;  // last: positional initialisers keep their meaning
 
 		bool operator==(const MassTransferResistances& o) const {
 			return film == o.film && macropore == o.macropore && molecular == o.molecular && knudsen == o.knudsen &&
-			       micropore == o.micropore && lumped == o.lumped;
+			       surface == o.surface && micropore == o.micropore && lumped == o.lumped;
 		}
 		bool operator!=(const MassTransferResistances& o) const { return !(*this == o); }
 
@@ -133,12 +136,16 @@ namespace adsim {
 			// always held molecular diffusion.
 			if (version >= 2) ar(cereal::make_nvp("Molecular", molecular));
 			else molecular = macropore;
+			// v3: the surface-diffusion switch. Before v3 there was no
+			// surface term: off.
+			if (version >= 3) ar(cereal::make_nvp("Surface", surface));
+			else surface = false;
 		}
 	};
 
 	// The resistance tags, in the fixed series order of the model.
 	inline const std::vector<std::string>& ResistanceTags() {
-		static const std::vector<std::string> tags{"film", "macropore", "molecular", "knudsen", "micropore", "lumped"};
+		static const std::vector<std::string> tags{"film", "macropore", "molecular", "knudsen", "surface", "micropore", "lumped"};
 		return tags;
 	}
 
@@ -154,6 +161,15 @@ namespace adsim {
 	//             molecular_diffusion_coefficient when > 0, else the state's),
 	//             D = D_K with Knudsen diffusion only, and the Bosanquet mean
 	//             1/D = 1/D_K + 1/D_m with both; D_K = (2/3) r_pore sqrt(8 R T / (pi M));
+	//             with surface diffusion on, the adsorbed-phase flux in
+	//             parallel (Glueckauf's argument with pore and surface fluxes
+	//             at local equilibrium; Ruthven 1984; Do 1998):
+	//             R_macro = K tau r_p^2 / (15 (eps_p D + tau K D_s)) (sphere;
+	//             c = 8 cylinder, 3 slab on l), shown here without the K
+	//             factor the series sum applies, i.e.
+	//             k_macro = (c / r^2) (eps_p D / (tau K) + D_s),
+	//             D_s = D_s0 exp(-E_s / (R T)) the effective surface
+	//             diffusivity (surface tortuosity folded in);
 	//   R_micro = r_c^2 / (15 D_c),  D_c = D_c0 exp(-E_a,c / (R T));
 	//   R_lumped = 1 / k_L,  k_L = k exp(-E_a / (R T)) (k when E_a = 0).
 	// K multiplies the gas-side terms (film, macropore) only; how it is taken
@@ -199,7 +215,7 @@ namespace adsim {
 
 		// ---- switches and capacity factor ----
 		// Whether a resistance ("film", "macropore", "molecular", "knudsen",
-		// "micropore", "lumped") is on; false for an unknown tag.
+		// "surface", "micropore", "lumped") is on; false for an unknown tag.
 		bool Enabled(const std::string& tag) const;
 		// The switch set in effect: molecular and knudsen only with macropore
 		// on, and molecular on when macropore is on with neither (a set
@@ -207,6 +223,7 @@ namespace adsim {
 		MassTransferResistances Resistances() const {
 			MassTransferResistances r = resistances_;
 			r.knudsen = r.macropore && r.knudsen;
+			r.surface = r.macropore && r.surface;
 			r.molecular = r.macropore && (r.molecular || !r.knudsen);
 			return r;
 		}
@@ -216,8 +233,9 @@ namespace adsim {
 		// Sets one switch with the model's rules: at least one of film,
 		// macropore, micropore and lumped stays on; molecular and knudsen need
 		// macropore, and at least one of them stays on while it is on;
-		// switching macropore on with neither on switches molecular on, and
-		// switching macropore off clears both. Parameter values are kept,
+		// surface needs macropore; switching macropore on with neither
+		// molecular nor knudsen on switches molecular on, and switching
+		// macropore off clears molecular, knudsen and surface. Parameter values are kept,
 		// except that switching a term on replaces those of its parameters
 		// that are out of range (a version-1 zero, say) by the term's defaults.
 		// Returns false (err set) when refused.
@@ -228,6 +246,10 @@ namespace adsim {
 		// The macropore term's pore diffusion in effect (Resistances()).
 		bool MolecularDiffusion() const { return Resistances().molecular; }
 		bool KnudsenDiffusion() const { return Resistances().knudsen; }
+		bool SurfaceDiffusion() const { return Resistances().surface; }
+		// The effective surface diffusivity D_s = D_s0 exp(-E_s / (R T)) [m2/s]
+		// at temperature T (D_s0 when E_s = 0); whatever the switch.
+		double SurfaceDiffusivity(double T) const;
 		// K matters only with a gas-side term (film or macropore) on.
 		bool UsesCapacityFactor() const { const auto r = Resistances(); return r.film || r.macropore; }
 		// The parameters of the current mode: concentration_floor (slope,
@@ -273,6 +295,10 @@ namespace adsim {
 		ExpressionParam k_{0.5};                            // lumped k [1/s] (LDF2: kg/(mol s))
 		ExpressionParam activation_energy_{0.0};            // lumped E_a [J/mol]; 0: k_L = k
 		ExpressionParam pore_radius_{1e-9};                 // Knudsen pore radius [m]
+		// Effective surface diffusivity D_s0 [m2/s] (surface tortuosity folded
+		// in) and its activation energy E_s [J/mol]: D_s = D_s0 exp(-E_s/(R T)).
+		ExpressionParam surface_diffusivity_{1e-10};
+		ExpressionParam surface_activation_energy_{0.0};
 
 		MassTransferResistances resistances_;               // the stored switches
 		int capacity_mode_ = static_cast<int>(CapacityFactorMode::NONE);  // CapacityFactorMode
@@ -321,6 +347,11 @@ namespace adsim {
 				   cereal::make_nvp("Mass_Transfer_Coefficient", s.k_),
 				   cereal::make_nvp("Activation_Energy", s.activation_energy_),
 				   cereal::make_nvp("Pore_Radius", s.pore_radius_));
+			// v3: the surface-diffusion parameters (older archives keep the
+			// defaults; their surface switch is off).
+			if (version >= 3)
+				ar(cereal::make_nvp("Surface_Diffusivity", s.surface_diffusivity_),
+				   cereal::make_nvp("Surface_Activation_Energy", s.surface_activation_energy_));
 		}
 
 		friend class cereal::access;
@@ -509,11 +540,13 @@ namespace adsim {
 	// would be meaningless): no resistance on; an enabled term with a
 	// parameter out of range (tortuosity <= 0, macropore void fraction outside
 	// (0, 1], pore radius, crystal radius or micropore diffusivity <= 0,
-	// lumped k < 0, film_resistance_factor < 0); the fixed capacity-factor
-	// mode with capacity_factor <= 0. A lumped k = 0 is allowed (no uptake).
+	// lumped k < 0, film_resistance_factor < 0, surface_diffusivity < 0); the
+	// fixed capacity-factor mode with capacity_factor <= 0. A lumped k = 0 is
+	// allowed (no uptake), and so is D_s = 0 (no surface flux).
 	// Warnings: film on with film_resistance_factor = 0; a second-order LDF
 	// with a physical resistance on (its coefficient is in 1/s, while the
-	// LDF2 rate constant is in kg/(mol s)).
+	// LDF2 rate constant is in kg/(mol s)); surface diffusion on with the
+	// capacity-factor mode none (the surface term needs K).
 	void CheckMassTransferModel(const IMassTransferModel& model, const std::string& where,
 	                            std::vector<std::string>& errors, std::vector<std::string>& warnings);
 
@@ -526,8 +559,8 @@ namespace adsim {
 
 // Class versions live next to the inline serialize templates: every
 // translation unit that saves or loads a deck must see the same numbers.
-CEREAL_CLASS_VERSION(adsim::MassTransferResistances, 2);
-CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientSeriesResistance, 2);
+CEREAL_CLASS_VERSION(adsim::MassTransferResistances, 3);
+CEREAL_CLASS_VERSION(adsim::MassTransferCoefficientSeriesResistance, 3);
 // Its save/load pair, not the serialize it inherits from the interface.
 CEREAL_SPECIALIZE_FOR_ALL_ARCHIVES(adsim::MassTransferCoefficientSeriesResistance,
                                    cereal::specialization::member_load_save);
