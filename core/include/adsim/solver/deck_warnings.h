@@ -139,4 +139,18 @@ namespace adsim {
   std::vector<std::string> SupersaturationWarnings(const Cycle& cycle, const Bed& bed, const Fluid& fluid,
                                                    const InitialConditions& ic);
 
+  // Viscous flow in the macropores (not modelled; docs/kinetic-models.md):
+  // one warning per component of an adsorbent that a layer uses, whose
+  // macropore resistance has Knudsen diffusion on (it holds the pore radius r)
+  // and whose ratio of viscous to Knudsen pore transport
+  //   (B0 P / mu) / D_K = (r^2 P / (8 mu)) / ((2/3) r v) = 3 r P / (16 mu v)
+  // is above kViscousPoreFlowRatio. B0 = r^2/8 is the permeability of a
+  // cylindrical pore, v = sqrt(8 R T / (pi M)) the mean molecular speed, P the
+  // highest pressure of the deck (initial pressure and pressure boundaries)
+  // and mu the gas viscosity of the initial state (the initial temperature,
+  // or the isothermal temperature). Expressions must already be evaluated.
+  inline constexpr double kViscousPoreFlowRatio = 0.1;
+  std::vector<std::string> ViscousMacroporeWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed, const Fluid& fluid,
+                                                    const InitialConditions& ic, const Cycle& cycle);
+
 } // namespace adsim

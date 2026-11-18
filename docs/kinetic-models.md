@@ -113,6 +113,11 @@ The geometry comes from the layer. Packed layers use spheres of radius $r_p = d_
 !!! note "New in 0.12"
     The switch `molecular`. Before 0.12 the macropore term always held molecular diffusion; a deck from an earlier version loads with `molecular` on wherever `macropore` is on, so its results do not change. With `molecular` off and `knudsen` on, the pore diffusivity is $D_{K,i}$ alone.
 
+**Viscous flow in the macropores is not modelled.** The pore diffusivity is molecular, Knudsen or Bosanquet; there is no Poiseuille term. An additive viscous diffusivity $B_0 P/\mu$, with $B_0 = r_\text{pore}^2/8$, is wrong for an isobaric step. In a particle at uniform pressure, viscous flow has no pressure gradient to drive it, and the uptake is a diffusion of composition only: the extra term would raise the uptake rate by up to a factor of 47 in the cases checked, with no physical basis. A viscous term matters in a particle where the pressure changes, as in a fast pressure swing with large pores. The ratio of viscous to Knudsen pore transport is $\dfrac{B_0 P/\mu}{D_K} = \dfrac{r^2 P/(8\mu)}{\tfrac{2}{3}\thinspace r\bar v} = \dfrac{3\thinspace r\thinspace P}{16\thinspace\mu\thinspace\bar v}$, with $\bar v = \sqrt{8RT/(\pi M)}$. At the start of a run, the engine logs a warning for each component whose macropore term has `knudsen` on and whose ratio is above 0.1. It uses the highest pressure of the deck (the initial pressure and the pressure boundaries), the gas viscosity of the initial state and the `pore_radius`. The warning means that the model can under-predict the uptake of a pressure step in that deck. It does not change the results. The upper bound of `pore_radius` is 10 µm, because real macropores can be larger than 1 µm.
+
+!!! note "New in 0.16"
+    The viscous-flow warning, and the upper bound of 10 µm (before: 1 µm) for `pore_radius`.
+
 The film coefficient $k_f$ uses the Sherwood number $\mathrm{Sh}$ of the layer's film correlation (default Wakao and Funazkri; [Transport Correlations](transport-correlations.md#packed-bed-film-correlations)). For a structured layer it uses the channel Sh and the hydraulic diameter $D_h$ ([Transport Correlations](transport-correlations.md#film-coefficients-in-structured-layers)). The micropore term is that of a spherical crystal in all geometries.
 
 #### Particle shape

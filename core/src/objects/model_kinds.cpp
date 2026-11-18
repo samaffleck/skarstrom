@@ -97,7 +97,7 @@ K ResistanceModel() {
        {"concentration_floor", "mol/m3", 1e-3, 0.0, 10.0, true, "capacity-factor concentration floor"},
        {"k", "1/s", 0.5, 1e-4, 100.0, true, "mass transfer coefficient"},
        {"activation_energy", "J/mol", 0.0, 0.0, 1e5, true, "MTC activation energy"},
-       {"pore_radius", "m", 1e-9, 1e-10, 1e-6, true, "pore radius"}}};
+       {"pore_radius", "m", 1e-9, 1e-10, 1e-5, true, "pore radius"}}};
   using R = ResistanceDescriptor;
   R film{"film", "external film", "", true, {"film_resistance_factor"}};
   film.sphere = {R"(f_{film}\,\frac{{K}r_p}{3\,k_f})", R"(k_f = \frac{Sh\,D_{m,i}}{d_p})", ""};
@@ -155,7 +155,7 @@ const std::vector<K>& RateCoefficients() {
       {"macropore", "Macropore Diffusion", {Tortuosity(), MacroporeVoid(0.35), MolecularDiffusivity()}, true},
       {"macropore_knudsen",
        "Macropore + Knudsen Diffusion",
-       {{"pore_radius", "m", 1e-9, 1e-10, 1e-6, true, "pore radius"}, Tortuosity(), MacroporeVoid(0.2),
+       {{"pore_radius", "m", 1e-9, 1e-10, 1e-5, true, "pore radius"}, Tortuosity(), MacroporeVoid(0.2),
         MolecularDiffusivity()},
        true},
       {"haynes", "Haynes (1973)", {Tortuosity(), MacroporeVoid(0.2)}, true},

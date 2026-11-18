@@ -493,4 +493,77 @@ namespace adsim {
     return warnings;
   }
 
+  std::vector<std::string> ViscousMacroporeWarnings(const AdsorbentDirectory& adsorbents, const Bed& bed, const Fluid& fluid,
+                                                    const InitialConditions& ic, const Cycle& cycle) {
+    std::vector<std::string> warnings;
+    const bool isothermal = bed.equations_.IsIsothermal();
+    const double T = isothermal ? bed.equations_.GetIsothermalTemperature(ic.temperature.Get()) : ic.temperature.Get();
+    if (!(T > 0.0)) return warnings;
+
+    // The highest pressure of the deck: the initial pressure and every
+    // pressure boundary value (a ramp's end value, a constant's value).
+    double P_max = ic.pressure.Get();
+    for (const auto& step : cycle.step_list_)
+      for (const auto end : {BoundaryLocation::BOTTOM, BoundaryLocation::TOP})
+        if (const auto* pbc = PressureBC(step, end))
+          if (const auto v = ValueAtStepEnd(*pbc)) P_max = std::max(P_max, *v);
+    if (!(P_max > 0.0)) return warnings;
+
+    // The gas viscosity of the initial state: the constant value, or the mole
+    // fraction average of the pure-component polynomials (as the solver does).
+    double mu = fluid.ConstantViscosity();
+    if (!(mu > 0.0)) {
+      double sum_y = 0.0, sum_mu = 0.0;
+      for (const auto& c : fluid.components_) {
+        const auto it = ic.mole_fraction.find(c);
+        if (it == ic.mole_fraction.end()) continue;
+        const double y = std::max(it->second.Get(), 0.0);
+        sum_y += y;
+        sum_mu += y * Fluid::GetComponentViscosity(c, T);
+      }
+      mu = sum_y > 0.0 ? sum_mu / sum_y : 0.0;
+    }
+    if (!(mu > 0.0)) return warnings;
+
+    constexpr double kPi = 3.14159265358979323846;
+    constexpr double kR = 8.31446261815324;
+    std::set<AdsorbentID> in_layer;
+    for (const auto& layer : bed.layers_.layers_)
+      for (const auto& [id, frac] : layer.composition_) in_layer.insert(id);
+    for (AdsorbentID id : in_layer) {
+      if (!adsorbents.Contains(id)) continue;
+      const Adsorbent& ads = adsorbents.Get(id);
+      for (const auto& [component, model] : ads.adsorption_source_.mass_transfer_models_) {
+        if (!model) continue;
+        const double M = GetMolarMass(component);
+        if (!(M > 0.0)) continue;
+        const double v_bar = std::sqrt(8.0 * kR * T / (kPi * M));
+        auto check = [&](const IMassTransferCoefficientModel* mtc, const std::string& site) {
+          const auto* g = dynamic_cast<const MassTransferCoefficientSeriesResistance*>(mtc);
+          if (!g) return;
+          const auto res = g->Resistances();
+          if (!res.macropore || !res.knudsen) return;
+          const double r = g->pore_radius_.Get();
+          if (!(r > 0.0)) return;
+          const double ratio = 3.0 * r * P_max / (16.0 * mu * v_bar);
+          if (!(ratio > kViscousPoreFlowRatio)) return;
+          std::ostringstream os;
+          os << std::setprecision(3) << "Warning: the macropore resistance of " << component << " in " << ads.name_ << site
+             << " ignores viscous (Poiseuille) flow in the pores, which may matter here: the ratio of viscous to"
+                " Knudsen pore transport 3 r P / (16 mu v) is "
+             << ratio << " (pore radius " << r << " m, highest pressure " << P_max / 1.0e5 << " bar, viscosity " << mu
+             << " Pa s, mean molecular speed " << v_bar << " m/s), above " << kViscousPoreFlowRatio
+             << ". A viscous term adds to the uptake only for a pressure gradient across the particle, so the model"
+                " can under-predict the uptake of a pressure step; a larger pore radius or a higher pressure raises the"
+                " ratio. See docs/kinetic-models.md.";
+          warnings.push_back(os.str());
+        };
+        check(model->mtc_model_.get(), "");
+        if (const auto* dual = dynamic_cast<const DualRateLinearDrivingForce*>(model.get()))
+          if (dual->HasSlowSite()) check(dual->slow_mtc_model_.get(), " (slow site)");
+      }
+    }
+    return warnings;
+  }
+
 } // namespace adsim
