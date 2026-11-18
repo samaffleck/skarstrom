@@ -584,6 +584,9 @@ namespace adsim {
     for (const auto& w : HeatOfAdsorptionWarnings(user_data_.adsorbent_directory, user_data_.bed, user_data_.fluid,
                                                   user_data_.ic.temperature.Get(), user_data_.ic.pressure.Get()))
       LogMessage(LogLevel::LOW, w);
+    for (const auto& w : ViscousMacroporeWarnings(user_data_.adsorbent_directory, user_data_.bed, user_data_.fluid,
+                                                      user_data_.ic, cycle))
+      LogMessage(LogLevel::LOW, w);
     if (warn.supersaturation)
       for (const auto& w : SupersaturationWarnings(cycle, user_data_.bed, user_data_.fluid, user_data_.ic))
         LogMessage(LogLevel::LOW, w);
@@ -886,6 +889,9 @@ namespace adsim {
         LogMessage(LogLevel::LOW, w);
       for (const auto& w : HeatOfAdsorptionWarnings(user_data_.adsorbent_directory, user_data_.bed, user_data_.fluid,
                                                     user_data_.ic.temperature.Get(), user_data_.ic.pressure.Get()))
+        LogMessage(LogLevel::LOW, w);
+      for (const auto& w : ViscousMacroporeWarnings(user_data_.adsorbent_directory, user_data_.bed, user_data_.fluid,
+                                                        user_data_.ic, cycle))
         LogMessage(LogLevel::LOW, w);
       if (warn.supersaturation)
         for (const auto& w : SupersaturationWarnings(cycle, user_data_.bed, user_data_.fluid, user_data_.ic))

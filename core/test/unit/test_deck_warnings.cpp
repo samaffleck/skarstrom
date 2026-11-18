@@ -5,6 +5,7 @@
 // instantaneous pressurisation or blowdown the integrator has to resolve).
 
 #include <cmath>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,7 @@
 #include "adsim/solver/deck_warnings.h"
 #include "adsim/solver/run_health.h"
 #include "adsim/solver/coupled_solver.h"
+#include "adsim/simulation.h"
 #include "adsim/boundary_conditions/boundary_conditions.h"
 #include "adsim/boundary_conditions/boundary_stream.h"
 #include "adsim/boundary_conditions/step.h"
@@ -263,6 +265,60 @@ namespace adsim {
     data.bed.equations_.isothermal_use_initial_temperature_ = false;
     data.bed.equations_.isothermal_temperature_ = 313.0;  // p_sat = 7385 Pa: the feed is at 0.41
     EXPECT_TRUE(Warnings().empty());
+  }
+
+  // Viscous flow in the macropores: 3 r P / (16 mu v) > 0.1 (deck_warnings.h).
+  // CO2 at 293 K: v = 360 m/s, mu = 1.5e-5 Pa s: the initial gas (N2) has mu = 1.75e-5 Pa s, so
+  // the ratio is 2.9e6 r [m] at 1 atm: 0.029 for r = 10 nm, 0.29 for 100 nm.
+  TEST_F(DeckWarningsTest, ViscousMacroporeFlowWarnsAboveTheRatioAndIsSilentBelow) {
+    auto [layer_id, ads_id] = AddLayer("Adsorbent");
+    AddLinearDrivingForceModel_MacroporeKnudsen(ads_id, "CarbonDioxide", 1e-8, 3.0, 0.35);
+    AddStep("Feed", 10.0);
+    AddPressureOutletBC(CreateConstantBoundaryValue(kAtm), BoundaryLocation::TOP, "Feed");
+    AddClosedBC(BoundaryLocation::BOTTOM, "Feed");
+    ConfigureCycle(1);
+    auto run = [&]() { return ViscousMacroporeWarnings(data.adsorbent_directory, data.bed, data.fluid, data.ic, data.cycle); };
+    EXPECT_TRUE(run().empty());  // r = 10 nm: ratio ~ 0.03
+
+    auto* g = dynamic_cast<MassTransferCoefficientSeriesResistance*>(
+        GetAdsorbent(ads_id).adsorption_source_.mass_transfer_models_["CarbonDioxide"]->mtc_model_.get());
+    ASSERT_NE(g, nullptr);
+    g->pore_radius_ = 1e-7;  // ratio ~ 0.29
+    const auto w = run();
+    ASSERT_EQ(w.size(), 1u);
+    EXPECT_NE(w[0].find("CarbonDioxide"), std::string::npos) << w[0];
+    EXPECT_NE(w[0].find("viscous"), std::string::npos) << w[0];
+
+    // The highest pressure of the deck counts: 10 bar lifts a 10 nm pore over the limit.
+    g->pore_radius_ = 1e-8;
+    AddStep("High", 10.0);
+    AddPressureOutletBC(CreateConstantBoundaryValue(10.0 * kAtm), BoundaryLocation::TOP, "High");
+    AddClosedBC(BoundaryLocation::BOTTOM, "High");
+    EXPECT_EQ(run().size(), 1u);
+  }
+
+  TEST_F(DeckWarningsTest, ViscousMacroporeCheckSkipsModelsWithoutAKnudsenTerm) {
+    auto [layer_id, ads_id] = AddLayer("Adsorbent");
+    AddLinearDrivingForceModel(ads_id, "CarbonDioxide", 0.5);
+    AddStep("Feed", 10.0);
+    AddPressureOutletBC(CreateConstantBoundaryValue(100.0 * kAtm), BoundaryLocation::TOP, "Feed");
+    AddClosedBC(BoundaryLocation::BOTTOM, "Feed");
+    ConfigureCycle(1);
+    EXPECT_TRUE(ViscousMacroporeWarnings(data.adsorbent_directory, data.bed, data.fluid, data.ic, data.cycle).empty());
+  }
+
+  // No shipped example deck is in the regime where the check fires.
+  TEST(ViscousMacroporeDecks, NoExampleDeckWarns) {
+    int checked = 0;
+    for (const auto& entry : std::filesystem::directory_iterator("../examples/decks")) {
+      if (entry.path().extension() != ".json") continue;
+      Simulation sim = Simulation::FromFile(entry.path().string());
+      auto& d = sim.Data();
+      const auto w = ViscousMacroporeWarnings(d.adsorbent_directory, d.bed, d.fluid, d.ic, d.cycle);
+      EXPECT_TRUE(w.empty()) << entry.path().filename().string() << ": " << (w.empty() ? "" : w[0]);
+      ++checked;
+    }
+    EXPECT_GT(checked, 50);
   }
 
 } // namespace adsim
