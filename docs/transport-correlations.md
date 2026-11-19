@@ -266,7 +266,7 @@ Casas et al. fitted $\eta_1 = 41.13$ and $\eta_2 = 0.32$ to their breakthrough e
 !!! note "New in 0.17"
     The kind `li_finlayson`.
 
-The wall coefficient of Li and Finlayson's re-evaluation of packed-bed heat transfer data, lumped with Dixon's radial conductivity $k_e$ ([above](#dixon-1996)):
+The wall coefficient of Li and Finlayson's re-evaluation of packed-bed heat transfer data, lumped with Dixon's radial conductivity $k_e$ ([above](#dixon-1996)). Li and Finlayson fitted only $h_w$. The pairing with Dixon's $k_e$ is a choice of this engine, not part of the source.
 
 $$
 \frac{h_w\thinspace d_p}{k_g} = 0.17\thinspace \mathrm{Re}^{0.79} \quad \text{(spheres)}, \qquad
@@ -295,6 +295,8 @@ $k_0$ is the Zehner–Schlünder stagnant bed conductivity, the same term as the
 $$
 k_e = k_0 + k_g\thinspace\frac{\mathrm{Re}\thinspace\mathrm{Pr}}{K_r}, \qquad K_r = 7\left[2 - \left(1 - 2\thinspace\frac{d_p}{D_c}\right)^2\right]
 $$
+
+This pairing follows the VDI Heat Atlas model that the wall Nusselt number comes from: the same $k_0$ is in $\mathrm{Nu}_w$ and in $k_e$. The form of the radial term and the constant 7 of $K_r$ are to be confirmed against the source.
 
 $\mathrm{Re}$ is the particle Reynolds number on the superficial velocity (taken as 0 if negative) and $\mathrm{Pr} = C_{p,g}\mu/k_g$. In still gas, $h_w = (1.3 + 5\thinspace d_p/D_c)\thinspace k_0/d_p$ and $k_e = k_0$, so $h_i > 0$. With $\kappa = k_s/k_g = 1$, $k_0 = k_g$ and $\mathrm{Nu}_w = 1.3 + 5\thinspace d_p/D_c$. The constants are to be confirmed against the paper.
 
