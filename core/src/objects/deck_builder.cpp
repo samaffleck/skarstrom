@@ -196,7 +196,17 @@ const std::vector<std::string>& ChannelShapeKinds() {
   return k;
 }
 const std::vector<std::string>& DispersionKinds() { return KindTags(ModelFamily::Dispersion); }
-const std::vector<std::string>& HeatDispersionKinds() { return KindTags(ModelFamily::HeatDispersion); }
+// Offered kinds only: yagi_kunii (legacy) still loads and SetHeatDispersion
+// still accepts it, but it is not listed.
+const std::vector<std::string>& HeatDispersionKinds() {
+  static const std::vector<std::string> k = [] {
+    std::vector<std::string> out;
+    for (const auto& d : KindDescriptors(ModelFamily::HeatDispersion))
+      if (!d.legacy) out.push_back(d.tag);
+    return out;
+  }();
+  return k;
+}
 const std::vector<std::string>& InternalHeatTransferKinds() { return KindTags(ModelFamily::InternalHeatTransfer); }
 const std::vector<std::string>& ExternalHeatTransferKinds() { return KindTags(ModelFamily::ExternalHeatTransfer); }
 const std::vector<std::string>& ParticleHeatTransferKinds() { return KindTags(ModelFamily::ParticleHeatTransfer); }
@@ -568,7 +578,7 @@ void SetDispersion(UserData& data, size_t layer, const std::string& kind) {
 
 void SetHeatDispersion(UserData& data, size_t layer, const std::string& kind) {
   GetLayer(data, layer).equations_.heat_dispersion_model_ = CreateAxialHeatDispersionModel(
-      KindEnum<AxialHeatDispersionType>(HeatDispersionKinds(), kind, "heat dispersion"));
+      KindEnum<AxialHeatDispersionType>(KindTags(ModelFamily::HeatDispersion), kind, "heat dispersion"));
 }
 
 void SetInternalHeatTransfer(UserData& data, size_t layer, const std::string& kind) {

@@ -393,7 +393,8 @@ namespace {
     auto* kept = dynamic_cast<ConstantInternalHeatTransferModel*>(layer.equations_.internal_heat_transfer_model_.get());
     ASSERT_NE(kept, nullptr);
     EXPECT_DOUBLE_EQ(kept->heat_transfer_coefficient_.Get(), 42.0);
-    EXPECT_EQ(build::HeatDispersionKinds(), (std::vector<std::string>{"constant", "ruthven", "yagi_kunii", "channel"}));
+    EXPECT_EQ(build::HeatDispersionKinds(),
+              (std::vector<std::string>{"constant", "ruthven", "channel", "krupiczka", "zehner_schlunder"}));
 
     // The channel model survives a save and load.
     std::string json;

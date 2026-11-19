@@ -742,3 +742,12 @@ def test_thermal_energy_and_cooling_duty_of_a_tsa_deck():
     d = k.as_dict()
     assert {"thermal_energy", "cooling_duty", "step_thermal_energy", "step_cooling_duty"} <= set(d)
 
+
+
+def test_legacy_yagi_kunii_layer_is_named():
+    # An old deck's legacy heat dispersion kind is named, not mistaken for the
+    # kind at its index in the offered list.
+    sim = sk.examples.Ward2022_Q100ccm.load()
+    assert {layer["heat_dispersion"] for layer in sim.describe()["layers"]} == {"yagi_kunii"}
+    assert "yagi_kunii" not in sk.build_kinds()["heat_dispersion"]
+    assert {"krupiczka", "zehner_schlunder"} <= set(sk.build_kinds()["heat_dispersion"])

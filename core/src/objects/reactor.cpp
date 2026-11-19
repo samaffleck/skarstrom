@@ -44,9 +44,9 @@ namespace adsim {
     if (!geometry_ok) return false;
 
     // Closures that belong to one kind of layer. On a structured layer:
-    // Ruthven's packed-bed dispersion (Taylor-Aris replaces it), Ruthven's and
-    // Yagi-Kunii's packed-bed heat dispersion (channel conduction replaces
-    // them) and Dixon's and Leva's packed-bed wall coefficients (a constant
+    // Ruthven's packed-bed dispersion (Taylor-Aris replaces it), the packed-bed
+    // heat dispersion kinds (Ruthven, Yagi-Kunii, Krupiczka, Zehner-Schlunder;
+    // channel conduction replaces them) and Dixon's and Leva's packed-bed wall coefficients (a constant
     // h_i replaces them). On a packed bed: Taylor-Aris dispersion and channel
     // conduction (they need channels).
     for (const auto& layer : layers_.layers_) {
@@ -62,6 +62,12 @@ namespace adsim {
         } else if (dynamic_cast<const HeatDispersionModelYagiandKunii*>(heat)) {
           packed_closure = "Yagi and Kunii's packed-bed heat dispersion";
           replacement = "use channel conduction (channel) or a constant axial conductivity";
+        } else if (dynamic_cast<const HeatDispersionModelKrupiczka*>(heat)) {
+          packed_closure = "the Krupiczka packed-bed heat dispersion";
+          replacement = "use channel conduction (channel) or a constant axial conductivity";
+        } else if (dynamic_cast<const HeatDispersionModelZehnerSchlunder*>(heat)) {
+          packed_closure = "the Zehner-Schlunder packed-bed heat dispersion";
+          replacement = "use channel conduction (channel) or a constant axial conductivity";
         } else if (dynamic_cast<const InternalHeatTransferModel_Dixon*>(wall)) {
           packed_closure = "Dixon's packed-bed wall heat transfer coefficient";
           replacement = "use a constant coefficient";
@@ -76,8 +82,8 @@ namespace adsim {
         }
       } else if (dynamic_cast<const HeatDispersionModelChannel*>(heat)) {
         errorMsg += "Error: Layer \"" + layer.name_ + "\" is a packed bed but uses channel heat conduction, which is"
-                    " for monoliths and laminates; use Ruthven or Yagi-Kunii heat dispersion or a constant axial"
-                    " conductivity.\n";
+                    " for monoliths and laminates; use Ruthven, Krupiczka (krupiczka) or Zehner-Schlunder"
+                    " (zehner_schlunder) heat dispersion or a constant axial conductivity.\n";
         return false;
       }
     }

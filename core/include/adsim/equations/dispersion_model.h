@@ -50,16 +50,61 @@ namespace adsim {
 		"Constant",                 // 0
 		"Ruthven (1984)",           // 1
 		"Yagi and Kunii (1957)",    // 2
-		"Channel conduction"        // 3
+		"Channel conduction",       // 3
+		"Krupiczka + dynamic term", // 4
+		"Zehner-Schlunder + dynamic term" // 5
 	};
 
 	// Stored values; never renumber.
 	enum class AxialHeatDispersionType {
 		CONSTANT = 0,
 		RUTHVEN = 1,
-		YAGI_AND_KUNII = 2,
-		CHANNEL = 3
+		YAGI_AND_KUNII = 2,  // legacy: loads old decks; KRUPICZKA with c = 0.75 is the same model
+		CHANNEL = 3,
+		KRUPICZKA = 4,
+		ZEHNER_SCHLUNDER = 5
 	};
+
+	// ---- stagnant (no-flow) effective conductivity of a packed bed ----------------
+
+	// Shape factor C of the Zehner-Schlunder deformation parameter
+	// B = C ((1 - eps) / eps)^(10/9) for spheres (Zehner and Schlunder 1970).
+	inline constexpr double kZehnerSchlunderShapeFactorSphere = 1.25;
+
+	// Zehner-Schlunder stagnant conductivity ratio k0 / k_g of a packed bed of
+	// void fraction eps and solid-to-gas conductivity ratio kappa = k_s / k_g
+	// (Zehner and Schlunder, Chem. Ing. Tech. 42 (1970) 933-941; the
+	// deformation parameter B as Bauer and Schlunder 1978 use it):
+	//   k0/k_g = 1 - sqrt(1-eps) + (2 sqrt(1-eps) / N)
+	//            [ ((kappa-1) B / (kappa N^2)) ln(kappa/B) - (B+1)/2 - (B-1)/N ],
+	//   N = 1 - B/kappa,  B = C ((1-eps)/eps)^(10/9).
+	// No radiation, Smoluchowski (gas rarefaction) or contact-flattening
+	// terms. kappa -> B (N -> 0) is a removable singularity: there the
+	// bracket is summed as its series in N,
+	//   [ . ] / N = sum_{k>=1} N^(k-1) [ (B-1)/(k+2) + 1/(k+1) ],
+	// which the closed form equals. Needs 0 < eps <= 1 and kappa > 0; eps = 1
+	// gives 1 (gas only). Reusable by other packed-bed correlations (the
+	// bed-to-wall ones build on k0).
+	double ZehnerSchlunderConductivityRatio(double eps, double kappa,
+	                                        double shape_factor = kZehnerSchlunderShapeFactorSphere);
+
+	// The Krupiczka-type stagnant conductivity ratio of the Yagi and Kunii
+	// heat dispersion, k0/k_g = kappa^(0.28 - 0.757 log10(eps) - 0.057 log10(kappa))
+	// (a Krupiczka-type correlation; the exact source reference is to be
+	// confirmed). It is the stagnant term of the existing yagi_kunii kind,
+	// evaluated in the same order so that results stay bitwise equal.
+	double KrupiczkaConductivityRatio(double eps, double kappa);
+
+	// The effective axial conductivity of one cell of the stagnant + dynamic
+	// kinds: lambda = k_g (k0/k_g) + c k_g Pr Re with Pr = cp mu / k_g. The
+	// statements are those of the yagi_kunii model's Update (same operation
+	// order, so no rounding difference).
+	inline double StagnantDynamicConductivity(double kg, double stagnant_ratio, double c, double cp, double mu,
+	                                          double re) {
+		const double k0 = kg * stagnant_ratio;
+		const double pr = cp * mu / kg;
+		return k0 + c * kg * pr * re;
+	}
 
 	class IDispersionModel {
 	public:
@@ -299,6 +344,73 @@ namespace adsim {
 		}
 	};
 
+	// Packed-bed axial heat dispersion as a stagnant term plus a dynamic term:
+	//   lambda = k0 + c k_g Pr Re,  Pr = cp mu / k_g,  Re = rho |u| d_p / mu
+	// (u superficial). The dynamic coefficient c is a parameter. Literature
+	// values: 0.75 (Yagi and Kunii 1957), 0.5 (Wakao and Kaguei 1982) and
+	// 1/K_ax with K_ax about 2 (Bauer and Schlunder 1978; the form and the
+	// constant are to be confirmed). The stagnant term k0 is the kind's: the
+	// Krupiczka-type ratio (KrupiczkaConductivityRatio) or Zehner-Schlunder
+	// (ZehnerSchlunderConductivityRatio). k_s is the layer's effective solid
+	// conductivity. A structured layer cannot use them (deck checks).
+	class HeatDispersionModelStagnantDynamic : public IHeatDispersionModel {
+	public:
+		explicit HeatDispersionModelStagnantDynamic(double dynamic_coefficient)
+		    : dynamic_coefficient_(dynamic_coefficient) {}
+		unsigned ReadsTransportProperties() const override { return kReynoldsNumber | kGasThermalConductivity; }
+		void EvaluateExpressions(const EvalContext& ctx) override { dynamic_coefficient_.Evaluate(ctx); }
+
+		ExpressionParam dynamic_coefficient_;  // c [-]
+
+	protected:
+		template <class Stagnant>
+		void UpdateWith(Equations& state, const MixedAdsorbentLayer& layer, Stagnant stagnant_ratio);
+
+	private:
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const version) {
+			(void)version;
+			ar(cereal::virtual_base_class<IHeatDispersionModel>(this),
+			   cereal::make_nvp("Dynamic_Coefficient", dynamic_coefficient_));
+		}
+	};
+
+	// Krupiczka-type stagnant term plus c k_g Pr Re. With c = 0.75 (the
+	// default) it is the yagi_kunii model, bitwise.
+	class HeatDispersionModelKrupiczka : public HeatDispersionModelStagnantDynamic {
+	public:
+		HeatDispersionModelKrupiczka() : HeatDispersionModelStagnantDynamic(0.75) {}
+		void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
+		AxialHeatDispersionType GetModelType() override { return AxialHeatDispersionType::KRUPICZKA; }
+
+	private:
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const version) {
+			(void)version;
+			ar(cereal::base_class<HeatDispersionModelStagnantDynamic>(this));
+		}
+	};
+
+	// Zehner-Schlunder stagnant term (sphere shape factor C = 1.25, also used
+	// for other particle shapes) plus c k_g Pr Re. Default c = 0.5 (Wakao and
+	// Kaguei; Bauer and Schlunder at K_ax = 2).
+	class HeatDispersionModelZehnerSchlunder : public HeatDispersionModelStagnantDynamic {
+	public:
+		HeatDispersionModelZehnerSchlunder() : HeatDispersionModelStagnantDynamic(0.5) {}
+		void Update(Equations& state, const MixedAdsorbentLayer& layer) override;
+		AxialHeatDispersionType GetModelType() override { return AxialHeatDispersionType::ZEHNER_SCHLUNDER; }
+
+	private:
+		friend class cereal::access;
+		template <class Archive>
+		void serialize(Archive& ar, std::uint32_t const version) {
+			(void)version;
+			ar(cereal::base_class<HeatDispersionModelStagnantDynamic>(this));
+		}
+	};
+
 	// Axial conduction in a structured layer (monolith, laminate), on the
 	// cross-sections the gas and the solid occupy in parallel (the parallel
 	// bound of the effective conductivity of a two-phase medium; for straight
@@ -345,6 +457,8 @@ namespace adsim {
 		case AxialHeatDispersionType::RUTHVEN: return std::make_unique<HeatDispersionModelRuthven>();
 		case AxialHeatDispersionType::YAGI_AND_KUNII: return std::make_unique<HeatDispersionModelYagiandKunii>();
 		case AxialHeatDispersionType::CHANNEL: return std::make_unique<HeatDispersionModelChannel>();
+		case AxialHeatDispersionType::KRUPICZKA: return std::make_unique<HeatDispersionModelKrupiczka>();
+		case AxialHeatDispersionType::ZEHNER_SCHLUNDER: return std::make_unique<HeatDispersionModelZehnerSchlunder>();
 		default: return nullptr;
 		}
 	}
@@ -362,3 +476,6 @@ CEREAL_CLASS_VERSION(adsim::DispersionModelWakaoFunazkri, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelRuthven, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelYagiandKunii, 1);
 CEREAL_CLASS_VERSION(adsim::HeatDispersionModelChannel, 1);
+CEREAL_CLASS_VERSION(adsim::HeatDispersionModelStagnantDynamic, 1);
+CEREAL_CLASS_VERSION(adsim::HeatDispersionModelKrupiczka, 1);
+CEREAL_CLASS_VERSION(adsim::HeatDispersionModelZehnerSchlunder, 1);

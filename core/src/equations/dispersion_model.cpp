@@ -12,6 +12,35 @@
 
 namespace adsim {
 
+	double ZehnerSchlunderConductivityRatio(double eps, double kappa, double shape_factor) {
+		if (eps >= 1.0) return 1.0;
+		const double s = std::sqrt(1.0 - eps);
+		const double B = shape_factor * std::pow((1.0 - eps) / eps, 10.0 / 9.0);
+		const double N = 1.0 - B / kappa;
+		// Near kappa = B the closed form cancels catastrophically (the (B-1)/N
+		// terms); its series in N is used there instead. At |N| = 0.1 the two
+		// agree to ~1e-13 and 16 terms truncate at ~1e-16.
+		double bracket_over_n;
+		if (std::abs(N) < 0.1) {
+			bracket_over_n = 0.0;
+			double nk = 1.0;  // N^(k-1)
+			for (int k = 1; k <= 16; ++k) {
+				bracket_over_n += nk * ((B - 1.0) / (k + 2) + 1.0 / (k + 1));
+				nk *= N;
+			}
+		} else {
+			const double bracket = ((kappa - 1.0) * B / (kappa * N * N)) * std::log(kappa / B) - 0.5 * (B + 1.0) -
+			                       (B - 1.0) / N;
+			bracket_over_n = bracket / N;
+		}
+		return 1.0 - s + 2.0 * s * bracket_over_n;
+	}
+
+	double KrupiczkaConductivityRatio(double eps, double kappa) {
+		const double exponent = 0.28 - 0.757 * std::log10(eps) - 0.057 * std::log10(kappa);
+		return std::pow(kappa, exponent);
+	}
+
   void DispersionModelConstant::Update(Equations& state, const MixedAdsorbentLayer& layer) {		
     auto& Dx = state.axial_dispersion_coefficient.var;
     for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
@@ -188,6 +217,34 @@ namespace adsim {
     }
   }
 
+	// lambda = k_g (k0/k_g) + c k_g Pr Re, in the order of the yagi_kunii
+	// model (HeatDispersionModelYagiandKunii::Update), so that krupiczka with
+	// c = 0.75 reproduces it bitwise.
+	template <class Stagnant>
+	void HeatDispersionModelStagnantDynamic::UpdateWith(Equations& state, const MixedAdsorbentLayer& layer,
+	                                                    Stagnant stagnant_ratio) {
+		auto& Lam = state.axial_thermal_conductivity.var;
+		const auto& Cpg = state.heat_capacity.var;
+		const auto& kg = state.fluid_thermal_conductivity.var;
+		const auto& vis = state.viscosity.var;
+		const auto& re = state.reynolds_number.var;
+		const auto& eb = state.domain_vectors.eb;
+		const auto& ks = state.domain_vectors.ks;
+		const double c = dynamic_coefficient_;
+		for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
+			Lam[n] = StagnantDynamicConductivity(kg[n], stagnant_ratio(eb[n], ks[n] / kg[n]), c, Cpg[n], vis[n], re[n]);
+		}
+	}
+
+	void HeatDispersionModelKrupiczka::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+		UpdateWith(state, layer, [](double eps, double kappa) { return KrupiczkaConductivityRatio(eps, kappa); });
+	}
+
+	void HeatDispersionModelZehnerSchlunder::Update(Equations& state, const MixedAdsorbentLayer& layer) {
+		UpdateWith(state, layer,
+		           [](double eps, double kappa) { return ZehnerSchlunderConductivityRatio(eps, kappa); });
+	}
+
 	void HeatDispersionModelChannel::Update(Equations& state, const MixedAdsorbentLayer& layer) {
 		auto& Lam = state.axial_thermal_conductivity.var;
 		const auto& kg = state.fluid_thermal_conductivity.var;
@@ -215,6 +272,8 @@ CEREAL_REGISTER_TYPE(adsim::DispersionModelTaylorAris)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelYagiandKunii)
 CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelChannel)
+CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelKrupiczka)
+CEREAL_REGISTER_TYPE(adsim::HeatDispersionModelZehnerSchlunder)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelConstant)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelConstant)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionModelEdwardsRichardson)
@@ -224,4 +283,6 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IDispersionModel, adsim::DispersionM
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelRuthven)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelYagiandKunii)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelChannel)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelKrupiczka)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(adsim::IHeatDispersionModel, adsim::HeatDispersionModelZehnerSchlunder)
 

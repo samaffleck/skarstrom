@@ -372,7 +372,7 @@ namespace adsim {
             return ptr ? Str(KindName(kinds, static_cast<int>(ptr->GetModelType())), a_) : Value();
           };
           Set(v, "dispersion", model(b::DispersionKinds(), le.dispersion_model_), a_);
-          Set(v, "heat_dispersion", model(b::HeatDispersionKinds(), le.heat_dispersion_model_), a_);
+          Set(v, "heat_dispersion", model(KindTags(ModelFamily::HeatDispersion), le.heat_dispersion_model_), a_);
           Set(v, "internal_heat_transfer", model(b::InternalHeatTransferKinds(), le.internal_heat_transfer_model_), a_);
           Set(v, "external_heat_transfer", model(b::ExternalHeatTransferKinds(), le.external_heat_transfer_model_), a_);
 
@@ -1143,7 +1143,7 @@ namespace adsim {
       {"@MOMENTUM@", JsonList(b::MomentumKinds())},
       {"@FILM_CORRELATION@", JsonList(b::FilmCorrelationKinds())},
       {"@DISPERSION@", JsonList(b::DispersionKinds(), true)},
-      {"@HEAT_DISPERSION@", JsonList(b::HeatDispersionKinds(), true)},
+      {"@HEAT_DISPERSION@", JsonList(KindTags(ModelFamily::HeatDispersion), true)},
       {"@INTERNAL_HEAT_TRANSFER@", JsonList(b::InternalHeatTransferKinds(), true)},
       {"@EXTERNAL_HEAT_TRANSFER@", JsonList(b::ExternalHeatTransferKinds(), true)},
       {"@WALL_MATERIAL@", JsonList(b::WallMaterialKinds())},
