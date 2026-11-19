@@ -12,6 +12,7 @@
 // Short grids and one cycle: these check that the feature works.
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -21,6 +22,7 @@
 #include "adsim/equations/dispersion_model.h"
 #include "adsim/objects/deck_builder.h"
 #include "adsim/objects/deck_edit.h"
+#include "adsim/objects/deck_view.h"
 #include "adsim/objects/model_kinds.h"
 #include "adsim/simulation.h"
 
@@ -136,6 +138,19 @@ TEST(HeatDispersionKinds, YagiKuniiIsLegacy) {
   EXPECT_NE(dynamic_cast<HeatDispersionModelYagiandKunii*>(
                 sim.Data().bed.layers_.layers_.front().equations_.heat_dispersion_model_.get()),
             nullptr);
+}
+
+// The deck view names an old yagi_kunii layer "yagi_kunii" (the kind is
+// named by its enum value over every tag, legacy ones included), and its
+// schema accepts it.
+TEST(HeatDispersionKinds, DeckViewNamesTheLegacyKind) {
+  Simulation sim = ShortDeck("Ward2022_Q100ccm.json");
+  std::string view = DeckView(sim.Data());
+  // Compact or pretty printed: compare without whitespace.
+  view.erase(std::remove_if(view.begin(), view.end(), [](unsigned char ch) { return std::isspace(ch); }), view.end());
+  EXPECT_NE(view.find("\"heat_dispersion\":\"yagi_kunii\""), std::string::npos);
+  EXPECT_EQ(view.find("\"heat_dispersion\":\"channel\""), std::string::npos);
+  EXPECT_NE(DeckViewSchema().find("\"yagi_kunii\""), std::string::npos);
 }
 
 }  // namespace adsim

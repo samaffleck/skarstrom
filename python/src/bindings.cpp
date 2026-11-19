@@ -1713,7 +1713,7 @@ PYBIND11_MODULE(_core, m) {
           l["film_correlation"] = kind(b::FilmCorrelationKinds(), static_cast<int>(layer.film_correlation_));
           auto& le = layer.equations_;
           l["dispersion"] = kind(b::DispersionKinds(), static_cast<int>(le.dispersion_model_->GetModelType()));
-          l["heat_dispersion"] = kind(b::HeatDispersionKinds(), static_cast<int>(le.heat_dispersion_model_->GetModelType()));
+          l["heat_dispersion"] = kind(adsim::KindTags(adsim::ModelFamily::HeatDispersion), static_cast<int>(le.heat_dispersion_model_->GetModelType()));
           l["internal_heat_transfer"] =
               kind(b::InternalHeatTransferKinds(), static_cast<int>(le.internal_heat_transfer_model_->GetModelType()));
           l["external_heat_transfer"] =
