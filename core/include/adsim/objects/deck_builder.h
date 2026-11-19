@@ -35,7 +35,8 @@
 //   internal heat transfer "constant", "dixon", "leva"
 //   external heat transfer "constant", "holman", "churchill_chu_vertical",
 //                          "churchill_chu_horizontal", "yang_vertical_cylinder",
-//                          "churchill_bernstein"
+//                          "churchill_bernstein", "mixed_convection_vertical",
+//                          "mixed_convection_horizontal"
 //   particle heat transfer "constant", "film"
 //   thermal equilibrium  "lte", "ltne"
 //   bed shape            "cylinder", "square", "rectangle"

@@ -324,9 +324,49 @@ Source: S.M. Yang, "General correlating equations for free convection heat trans
 
 Sources: S.W. Churchill, H.H.S. Chu, "Correlating equations for laminar and turbulent free convection from a vertical plate", *Int. J. Heat Mass Transfer* 18 (1975) 1323–1329; "Correlating equations for laminar and turbulent free convection from a horizontal cylinder", *Int. J. Heat Mass Transfer* 18 (1975) 1049–1053.
 
+### Mixed convection: wind and buoyancy together
+
+!!! note "New in 0.17"
+    The kinds `mixed_convection_vertical` and `mixed_convection_horizontal`.
+
+A column in slow-moving air loses heat by natural and forced convection at the same time. The mixed-convection kinds add the two coefficients with Churchill's blend:
+
+$$
+h_o = \left(h_F^{\thinspace n} + h_N^{\thinspace n}\right)^{1/n}
+$$
+
+- $h_N$ is the natural-convection coefficient of the orientation. A **vertical** column (`mixed_convection_vertical`) uses [Yang's vertical cylinder](#yang-1985-natural-convection-from-a-vertical-cylinder) of the bed height $L$ and the external diameter $d_e$. A **horizontal** column (`mixed_convection_horizontal`) uses [Churchill and Chu's horizontal cylinder](#churchill-and-chu-1975-natural-convection) of the external diameter.
+- $h_F$ is the forced-convection coefficient of [Churchill and Bernstein](#churchill-and-bernstein-1977-cylinder-in-crossflow) on $d_e$, with the external air velocity, but without its constant term: $h_F = (\mathrm{Nu}_{CB} - 0.3)\thinspace k_{air}/d_e$.
+- The blend is of $h$, not of Nu, because the two correlations use different lengths ($L$ or $d_e$ for $h_N$, $d_e$ for $h_F$).
+- The two terms always add. The wind crosses the column, normal to the buoyant flow, so there is no opposing-flow form.
+- The air properties are at the film temperature of each cell, for both terms ([ambient air properties](#ambient-air-properties)).
+
+| Input | Default | Bounds | Parameter |
+|---|---|---|---|
+| External air velocity $v_{ext}$ [m s⁻¹] | 0.5 | 0–10 | `layer[ID].external_velocity` |
+| Blending exponent $n$ | 3 | 1–6 | `layer[ID].mixed_convection_exponent` |
+
+**The constant 0.3 is not in $h_F$ (a modelling choice of this code).** Churchill and Bernstein's constant is the conduction limit of a cylinder in still air, and $h_N$ already has its own conduction limit ($0.36\thinspace k_{air}/d_e$ for Yang, the $0.60^2$ term for Churchill–Chu). If both terms kept their constants, the stagnant conduction would count twice. Without the constant, $h_F \to 0$ as $v_{ext} \to 0$, so with no wind $h_o$ is exactly the natural-convection coefficient of the orientation. In strong wind ($\mathrm{Re}_{air} \ge 10^4$, $\mathrm{Nu}_{CB} \ge 54$) $h_o$ is within 1 % of `churchill_bernstein`. $h_o$ rises with the wind speed and with the wall-to-air temperature difference.
+
+With $n = 3$, the usual value for crossflow over a cylinder, $h_o$ is at most about 26 % above the larger of the two terms ($2^{1/3}$, when they are equal). $n = 1$ is the plain sum $h_F + h_N$, the largest blend. A larger $n$ moves $h_o$ towards the larger term.
+
+**Worked example.** A vertical column 1 m tall and 30 mm across, with the wall at 310 K, in air at 300 K that crosses it at 0.1 m/s ($\mathrm{Re}_{air} \approx 186$), $n = 3$:
+
+| Term | $h$ [W m⁻² K⁻¹] |
+|---|---|
+| $h_N$, Yang vertical cylinder | 4.85 |
+| $h_F$, Churchill–Bernstein without 0.3 (full value 6.18) | 5.91 |
+| $h_o$, mixed convection | 6.85 |
+| for comparison: the blend with the full Churchill–Bernstein value | 7.05 |
+| for comparison: the full value blended with the vertical-plate (Churchill–Chu) $h_N = 3.13$ | 6.44 |
+
+The horizontal kind gives 6.81 for the same column ($h_N = 4.77$).
+
+Sources: S.W. Churchill, "A comprehensive correlating equation for laminar, assisting, forced and free convection", *AIChE J.* 23 (1977) 10–16, for the blend; Incropera et al., *Fundamentals of Heat and Mass Transfer*, Sec. 9.9, for the exponent $n = 3$ for transverse flow over a cylinder *(both to be confirmed)*. Dropping the constant 0.3 from $h_F$ is our choice, not a form taken from these sources.
+
 ### Ambient air properties
 
-Holman, Churchill–Bernstein, Churchill–Chu and Yang use the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
+Holman, Churchill–Bernstein, Churchill–Chu, Yang and the mixed-convection kinds use the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
 
 | Property | Formula | Source |
 |---|---|---|

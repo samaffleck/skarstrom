@@ -693,7 +693,8 @@ def to_script(sim: "Simulation", name: str = "sim") -> str:
         "dispersion": ("dispersion_coefficient",),
         "heat_dispersion": ("heat_dispersion_coefficient",),
         "internal_heat_transfer": ("internal_htc", "leva_eta1", "leva_eta2", "leva_exp_coeff"),
-        "external_heat_transfer": ("external_htc", "holman_c", "holman_m", "holman_n", "external_velocity"),
+        "external_heat_transfer": ("external_htc", "holman_c", "holman_m", "holman_n", "external_velocity",
+                                   "mixed_convection_exponent"),
     }
     model_owned = {f for fs in model_fields.values() for f in fs} | {"momentum_model"}
     for l in d["layers"]:

@@ -13,6 +13,8 @@
 //     Nu_H = {(0.36 H/d)^(1/2) + [0.150 (Ra_H / [1 + (0.492/Pr)^(9/16)]^(16/9))^(1/3)]^(1/2)}^2;
 //   Churchill and Bernstein (1977, J. Heat Transfer 99, 300), cylinder in crossflow:
 //     Nu_D = 0.3 + 0.62 Re^(1/2) Pr^(1/3) / [1 + (0.4/Pr)^(2/3)]^(1/4) [1 + (Re/282000)^(5/8)]^(4/5);
+//   mixed convection (Churchill 1977 blend), h = (h_F^n + h_N^n)^(1/n), with h_N Yang
+//     (vertical) or Churchill-Chu horizontal and h_F Churchill-Bernstein less its 0.3 k/d;
 // and the ambient air properties (Sutherland's law, White 2006). Checked here:
 // the analytic limits, values worked out by hand (Python, double precision)
 // from the formulas above, the air properties against Incropera et al.'s
@@ -183,9 +185,92 @@ TEST(ForcedConvection, ChurchillBernsteinMonotoneInVelocity) {
                    air::ChurchillBernsteinCoefficient(320.0, 300.0, 1.0, 0.05));
 }
 
+namespace mixed {
+double ForcedTerm(double Tw, double Tinf, double v, double d) {
+  return air::ChurchillBernsteinCoefficient(Tw, Tinf, v, d) - 0.3 * air::ThermalConductivity(0.5 * (Tw + Tinf)) / d;
+}
+}  // namespace mixed
+
+// v = 0 gives exactly the natural-convection kind of the orientation: Yang's
+// vertical cylinder, or Churchill and Chu's horizontal cylinder.
+TEST(MixedConvection, NoWindIsTheNaturalKind) {
+  for (double n : {1.0, 3.0, 6.0}) {
+    EXPECT_DOUBLE_EQ(air::MixedConvectionCoefficient(true, 310.0, 300.0, 0.0, 1.0, 0.03, n),
+                     air::YangCoefficient(310.0, 300.0, 1.0, 0.03));
+    EXPECT_DOUBLE_EQ(air::MixedConvectionCoefficient(false, 310.0, 300.0, 0.0, 1.0, 0.03, n),
+                     air::ChurchillChuCoefficient(false, 310.0, 300.0, 1.0, 0.03));
+  }
+}
+
+// Strong wind (Re_D >= 1e4): within 1 % of churchill_bernstein. The forced
+// term lacks the 0.3 of Nu >= 53.6, and the natural term adds little.
+TEST(MixedConvection, StrongWindIsChurchillBernstein) {
+  const double nu_air = air::Viscosity(305.0) / air::Density(305.0);
+  for (double re : {1e4, 1e5}) {
+    for (bool vertical : {true, false}) {
+      const double v = re * nu_air / 0.03;
+      const double h = air::MixedConvectionCoefficient(vertical, 310.0, 300.0, v, 1.0, 0.03, 3.0);
+      EXPECT_NEAR(h / air::ChurchillBernsteinCoefficient(310.0, 300.0, v, 0.03), 1.0, 0.01) << re << vertical;
+    }
+  }
+}
+
+// Hand values (Python, double precision) of the blend. A lab column 30 mm
+// across and 1 m tall, wall 310 K in air at 300 K crossing at 0.1 m/s:
+// h_F = 5.913 (6.180 by Churchill-Bernstein less 0.3 k/d), h_N = 4.849
+// (Yang), h = 6.846 W/(m2 K). (With the full Churchill-Bernstein value the
+// blend would be 7.05; with the vertical-plate h_N = 3.13 and the full
+// value, 6.44.)
+TEST(MixedConvection, HandValues) {
+  EXPECT_NEAR(mixed::ForcedTerm(310.0, 300.0, 0.1, 0.03), 5.913366110760218, 1e-11);
+  EXPECT_NEAR(air::MixedConvectionCoefficient(true, 310.0, 300.0, 0.1, 1.0, 0.03, 3.0), 6.845732030430517, 1e-11);
+  EXPECT_NEAR(air::MixedConvectionCoefficient(false, 310.0, 300.0, 0.1, 1.0, 0.03, 3.0), 6.8084109905233285, 1e-11);
+  EXPECT_NEAR(air::MixedConvectionCoefficient(true, 350.0, 300.0, 1.0, 2.0, 0.1, 4.0), 11.036954398488174, 1e-11);
+  // n = 1 is the plain sum.
+  EXPECT_NEAR(air::MixedConvectionCoefficient(true, 310.0, 300.0, 0.1, 1.0, 0.03, 1.0),
+              mixed::ForcedTerm(310.0, 300.0, 0.1, 0.03) + air::YangCoefficient(310.0, 300.0, 1.0, 0.03), 1e-12);
+}
+
+// h rises with the wind and with the wall-to-air difference, it is
+// continuous at v = 0, and it lies between max(h_F, h_N) and h_F + h_N.
+TEST(MixedConvection, MonotoneAndContinuous) {
+  for (bool vertical : {true, false}) {
+    double last = air::MixedConvectionCoefficient(vertical, 320.0, 300.0, 0.0, 1.0, 0.03, 3.0);
+    for (double v : {1e-6, 1e-3, 0.01, 0.05, 0.1, 0.5, 2.0, 10.0}) {
+      const double h = air::MixedConvectionCoefficient(vertical, 320.0, 300.0, v, 1.0, 0.03, 3.0);
+      EXPECT_GT(h, last) << v;
+      if (v == 1e-6) EXPECT_NEAR(h, last, 1e-3 * last);
+      const double hF = mixed::ForcedTerm(320.0, 300.0, v, 0.03);
+      const double hN = vertical ? air::YangCoefficient(320.0, 300.0, 1.0, 0.03)
+                                 : air::ChurchillChuCoefficient(false, 320.0, 300.0, 1.0, 0.03);
+      EXPECT_GE(h, std::max(hF, hN));
+      EXPECT_LE(h, hF + hN);
+      last = h;
+    }
+    last = 0.0;
+    for (double dT : {1.0, 5.0, 10.0, 30.0, 80.0}) {
+      const double h = air::MixedConvectionCoefficient(vertical, 300.0 + dT, 300.0, 0.1, 1.0, 0.03, 3.0);
+      EXPECT_GT(h, last) << dT;
+      last = h;
+    }
+  }
+}
+
 TEST(NaturalConvection, KindsAndFactory) {
   const auto& tags = build::ExternalHeatTransferKinds();
-  ASSERT_EQ(tags.size(), 6u);
+  ASSERT_EQ(tags.size(), 8u);
+  EXPECT_EQ(tags[6], "mixed_convection_vertical");
+  EXPECT_EQ(tags[7], "mixed_convection_horizontal");
+  for (auto t : {ExternalHeatTransferType::MIXED_CONVECTION_VERTICAL, ExternalHeatTransferType::MIXED_CONVECTION_HORIZONTAL}) {
+    auto m = CreateExternalHeatTransferModel(t);
+    ASSERT_TRUE(m);
+    EXPECT_EQ(m->GetModelType(), t);
+    const auto f = ModelFields(m.get());
+    ASSERT_EQ(f.size(), 2u);
+    EXPECT_EQ(f[0].first, "external_velocity");
+    EXPECT_EQ(f[1].first, "mixed_convection_exponent");
+    EXPECT_DOUBLE_EQ(f[1].second->Get(), 3.0);
+  }
   EXPECT_EQ(tags[1], "holman");
   EXPECT_EQ(tags[2], "churchill_chu_vertical");
   EXPECT_EQ(tags[3], "churchill_chu_horizontal");
@@ -245,6 +330,31 @@ TEST(ForcedConvection, ChurchillBernsteinRoundTripsThroughTheArchive) {
   EXPECT_DOUBLE_EQ(cb->external_velocity.Get(), 1.7);
 }
 
+// The orientation, velocity and exponent survive a deck save and load.
+TEST(MixedConvection, RoundTripsThroughTheArchive) {
+  for (bool vertical : {true, false}) {
+    auto model = std::make_unique<ExternalHeatTransferModel_MixedConvection>(vertical);
+    model->external_velocity = ExpressionParam{0.2};
+    model->exponent = ExpressionParam{4.0};
+    std::unique_ptr<IExternalHeatTransferModel> in = std::move(model);
+    std::stringstream ss;
+    {
+      cereal::JSONOutputArchive ar(ss);
+      ar(cereal::make_nvp("model", in));
+    }
+    std::unique_ptr<IExternalHeatTransferModel> out;
+    {
+      cereal::JSONInputArchive ar(ss);
+      ar(cereal::make_nvp("model", out));
+    }
+    auto* m = dynamic_cast<ExternalHeatTransferModel_MixedConvection*>(out.get());
+    ASSERT_TRUE(m);
+    EXPECT_EQ(m->Vertical(), vertical);
+    EXPECT_DOUBLE_EQ(m->external_velocity.Get(), 0.2);
+    EXPECT_DOUBLE_EQ(m->exponent.Get(), 4.0);
+  }
+}
+
 // A non-isothermal bed of one layer with a 2 mm wall.
 Bed SmallBed(ExternalHeatTransferType kind, double length, double diameter) {
   Bed bed;
@@ -289,6 +399,24 @@ TEST(ForcedConvection, KindSwitchKeepsTheExternalVelocity) {
       d.bed.layers_.layers_.front().equations_.external_heat_transfer_model_.get());
   ASSERT_TRUE(cb);
   EXPECT_DOUBLE_EQ(cb->external_velocity.Get(), 2.5);
+}
+
+// Switching churchill_bernstein -> mixed convection keeps the external velocity.
+TEST(MixedConvection, KindSwitchKeepsTheExternalVelocity) {
+  UserData d;
+  d.bed = SmallBed(ExternalHeatTransferType::CHURCHILL_BERNSTEIN, 1.0, 0.03);
+  auto& layer = d.bed.layers_.layers_.front();
+  dynamic_cast<ExternalHeatTransferModel_ChurchillBernstein&>(*layer.equations_.external_heat_transfer_model_)
+      .external_velocity = ExpressionParam{0.15};
+  std::string err;
+  ASSERT_TRUE(SetExternalHeatTransferKind(d, layer.id_, ExternalHeatTransferType::MIXED_CONVECTION_HORIZONTAL, err))
+      << err;
+  auto* m = dynamic_cast<ExternalHeatTransferModel_MixedConvection*>(
+      d.bed.layers_.layers_.front().equations_.external_heat_transfer_model_.get());
+  ASSERT_TRUE(m);
+  EXPECT_FALSE(m->Vertical());
+  EXPECT_DOUBLE_EQ(m->external_velocity.Get(), 0.15);
+  EXPECT_DOUBLE_EQ(m->exponent.Get(), 3.0);
 }
 
 }  // namespace

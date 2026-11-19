@@ -626,15 +626,17 @@ namespace adsim {
   // with RK4, h_o from YangCoefficient (vertical cylinder at any H/d), from
   // ChurchillChuCoefficient on the column height (vertical)
   // or the outer diameter (horizontal), or from ChurchillBernsteinCoefficient
-  // (air at kExternalVelocity crossing the outer diameter). This checks the solver hands the
+  // (air at kExternalVelocity crossing the outer diameter), or from
+  // MixedConvectionCoefficient (the two together, vertical column). This checks the solver hands the
   // model the ambient temperature, the cell's wall temperature, the bed
   // height and the outer diameter. The logged h_o must also equal the
   // correlation at the logged wall temperature in every cell.
 
   class NaturalConvectionCoolingTest : public ClosedBedEnergyTest {
   public:
-    enum class Kind { Vertical, Horizontal, YangCylinder, ChurchillBernstein };
+    enum class Kind { Vertical, Horizontal, YangCylinder, ChurchillBernstein, MixedVertical };
     static constexpr double kExternalVelocity = 0.3;  // [m/s], ChurchillBernstein only
+    static constexpr double kMixedVelocity = 0.05;    // [m/s], MixedVertical: both terms matter
     void Run(Kind kind) {
       data.info.title = "Validation: natural-convection cooling";
 
@@ -648,6 +650,10 @@ namespace adsim {
         auto cb = std::make_unique<ExternalHeatTransferModel_ChurchillBernstein>();
         cb->external_velocity = ExpressionParam{kExternalVelocity};
         ehtm = std::move(cb);
+      } else if (kind == Kind::MixedVertical) {
+        auto mc = std::make_unique<ExternalHeatTransferModel_MixedConvection>(true);
+        mc->external_velocity = ExpressionParam{kMixedVelocity};
+        ehtm = std::move(mc);
       } else if (kind == Kind::YangCylinder) {
         ehtm = std::make_unique<ExternalHeatTransferModel_YangCylinder>();
       } else {
@@ -692,6 +698,8 @@ namespace adsim {
       auto ho = [&](double Tw) {
         if (kind == Kind::ChurchillBernstein)
           return ambient_air::ChurchillBernsteinCoefficient(Tw, T_ambient, kExternalVelocity, d_o);
+        if (kind == Kind::MixedVertical)
+          return ambient_air::MixedConvectionCoefficient(true, Tw, T_ambient, kMixedVelocity, kLength, d_o, 3.0);
         return kind == Kind::YangCylinder
                  ? ambient_air::YangCoefficient(Tw, T_ambient, kLength, d_o)
                  : ambient_air::ChurchillChuCoefficient(kind == Kind::Vertical, Tw, T_ambient, kLength, d_o);
@@ -753,6 +761,7 @@ namespace adsim {
   TEST_F(NaturalConvectionCoolingTest, ChurchillBernsteinCrossflowMatchesLumpedSolution) {
     Run(Kind::ChurchillBernstein);
   }
+  TEST_F(NaturalConvectionCoolingTest, MixedConvectionVerticalMatchesLumpedSolution) { Run(Kind::MixedVertical); }
 
   // ===========================================================================
   // 6. Open-system energy balance
