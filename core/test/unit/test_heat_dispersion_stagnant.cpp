@@ -81,3 +81,21 @@ TEST(HeatDispersionStagnant, KrupiczkaKappaOneGivesGasConductivity) {
 
 }  // namespace
 }  // namespace adsim
+
+namespace adsim {
+namespace {
+
+// The per-cell conductivity of the stagnant + dynamic kinds.
+TEST(HeatDispersionStagnant, DynamicTermScalesWithTheCoefficientAndVanishesAtNoFlow) {
+  const double kg = 0.026, cp = 1005.0, mu = 1.8e-5, re = 12.0;
+  const double ratio = ZehnerSchlunderConductivityRatio(0.4, 10.0);
+  const double stagnant = StagnantDynamicConductivity(kg, ratio, 0.75, cp, mu, 0.0);
+  EXPECT_DOUBLE_EQ(stagnant, kg * ratio);  // u -> 0 (Re = 0): the stagnant term alone
+  const double yagi = StagnantDynamicConductivity(kg, ratio, 0.75, cp, mu, re) - stagnant;
+  const double wakao = StagnantDynamicConductivity(kg, ratio, 0.5, cp, mu, re) - stagnant;
+  EXPECT_NEAR(wakao / yagi, 0.5 / 0.75, 1e-12);
+  EXPECT_NEAR(yagi, 0.75 * cp * mu * re, 1e-15);  // c k_g Pr Re = c cp mu Re
+}
+
+}  // namespace
+}  // namespace adsim

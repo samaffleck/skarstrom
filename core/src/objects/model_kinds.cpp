@@ -202,6 +202,12 @@ const std::vector<K>& Dispersion() {
   return k;
 }
 
+// The dynamic coefficient c of lambda = k0 + c k_g Pr Re. Bounds 0 to 2 span
+// the literature values (0.5 to 0.75; Bauer and Schlunder's 1/K_ax).
+KindParameter DynamicCoefficient(double default_value) {
+  return {"dynamic_coefficient", "-", default_value, 0.0, 2.0, true, "dynamic coefficient (c in c Pr Re)"};
+}
+
 const std::vector<K>& HeatDispersion() {
   // The constant model's coefficient is the effective axial thermal
   // conductivity of the energy balance, so W/(m K), not a diffusivity.
@@ -210,10 +216,16 @@ const std::vector<K>& HeatDispersion() {
        "Constant",
        {{"heat_dispersion_coefficient", "W/(m-K)", 0.0, 1e-3, 100.0, true, "axial thermal conductivity"}}},
       {"ruthven", "Ruthven (1984)", {}},
-      {"yagi_kunii", "Yagi and Kunii (1957)", {}},
+      // Kept so old decks load; krupiczka with dynamic_coefficient 0.75 is
+      // the same model (legacy: not offered).
+      {"yagi_kunii", "Yagi and Kunii (1957)", {}, true},
       {"channel", "Channel conduction", {}},
+      // A stagnant term plus c k_g Pr Re. c: 0.75 Yagi and Kunii (1957),
+      // 0.5 Wakao and Kaguei (1982), 1/K_ax Bauer and Schlunder (1978).
+      {"krupiczka", "Krupiczka stagnant + dynamic term", {DynamicCoefficient(0.75)}},
+      {"zehner_schlunder", "Zehner-Schlunder stagnant + dynamic term", {DynamicCoefficient(0.5)}},
   }, {{"constant", AnyLayer()}, {"ruthven", PackedLayer()}, {"yagi_kunii", PackedLayer()},
-      {"channel", StructuredLayer()}});
+      {"channel", StructuredLayer()}, {"krupiczka", PackedLayer()}, {"zehner_schlunder", PackedLayer()}});
   return k;
 }
 
@@ -854,6 +866,8 @@ ModelFieldList ModelFields(IDispersionModel* m) {
 ModelFieldList ModelFields(IHeatDispersionModel* m) {
   if (auto* d = dynamic_cast<HeatDispersionModelConstant*>(m))
     return {{"heat_dispersion_coefficient", &d->dispersion_coefficient_}};
+  if (auto* d = dynamic_cast<HeatDispersionModelStagnantDynamic*>(m))
+    return {{"dynamic_coefficient", &d->dynamic_coefficient_}};
   return {};
 }
 

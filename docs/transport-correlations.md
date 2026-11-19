@@ -124,30 +124,58 @@ $$
 
 It has no stagnant (no-flow) term: $\lambda = 0$ in still gas.
 
-### Yagi and Kunii (1957)
+### Stagnant term plus dynamic term (packed beds)
 
-A stagnant-plus-flow correlation that accounts for the solid/gas conductivity ratio:
+!!! note "New in 0.17"
+    The kinds `krupiczka` and `zehner_schlunder` and their parameter `dynamic_coefficient`. They replace `yagi_kunii`, which still loads but is no longer offered.
+
+The effective axial conductivity of a packed bed is a stagnant (no-flow) term, conduction through the packing, plus a dynamic term that grows with the flow:
 
 $$
-\lambda = \lambda_{z}^{0} + 0.75\thinspace k_g\thinspace \mathrm{Pr}\thinspace \mathrm{Re}
+\lambda = k_0 + c\thinspace k_g\thinspace \mathrm{Pr}\thinspace \mathrm{Re}
+$$
+
+The kind chooses the stagnant term $k_0$. The parameter `dynamic_coefficient` gives $c$ (bounds 0 to 2). The literature values are:
+
+| $c$ | Source |
+|-----|--------|
+| 0.75 | Yagi and Kunii (1957). Default of `krupiczka`. |
+| 0.5 | Wakao and Kaguei (1982). Default of `zehner_schlunder`. |
+| $1/K_{ax}$, $K_{ax} \approx 2$ | Bauer and Schlünder (1978): $\mathrm{Pe}_0/K_{ax}$ with $\mathrm{Pe}_0 = \mathrm{Re}\thinspace\mathrm{Pr}$. The form and the constant are to be confirmed. |
+
+`krupiczka`, the Krupiczka-type stagnant term of Yagi and Kunii's correlation (the exact source reference is to be confirmed):
+
+$$
+\frac{k_0}{k_g} = \kappa^{n}, \qquad
+n = 0.28 - 0.757 \log_{10}(\epsilon_b) - 0.057 \log_{10}\kappa, \qquad \kappa = \frac{k_s}{k_g}
+$$
+
+`zehner_schlunder`, the Zehner–Schlünder stagnant term (Zehner and Schlünder, Chem. Ing. Tech. 42 (1970) 933–941), with the deformation parameter $B$ as Bauer and Schlünder (1978) write it:
+
+$$
+\frac{k_0}{k_g} = 1 - \sqrt{1-\epsilon_b} + \frac{2\sqrt{1-\epsilon_b}}{N}
+\left[\frac{(\kappa-1)B}{\kappa N^2}\ln\frac{\kappa}{B} - \frac{B+1}{2} - \frac{B-1}{N}\right]
 $$
 
 $$
-\lambda_{z}^{0} = k_g \left(\frac{k_s}{k_g}\right)^{n}, \qquad
-n = 0.28 - 0.757 \log_{10}(\epsilon_b) - 0.057 \log_{10}\negthinspace \left(\frac{k_s}{k_g}\right)
+N = 1 - \frac{B}{\kappa}, \qquad B = C\left(\frac{1-\epsilon_b}{\epsilon_b}\right)^{10/9}, \qquad C = 1.25
 $$
+
+$C = 1.25$ is the value for spheres. The engine also uses it for other particle shapes. It leaves out radiation, gas rarefaction (Smoluchowski) and contact flattening. At $\kappa = B$ ($N = 0$) the bracket over $N$ has a finite limit. Near it the engine sums the bracket as its series in $N$, $\sum_{k \ge 1} N^{k-1}\left[\frac{B-1}{k+2} + \frac{1}{k+1}\right]$, because the closed form loses its precision there. $\kappa = 1$ gives $k_0 = k_g$, and $\epsilon_b \to 1$ gives $k_0 \to k_g$. For example, $k_0/k_g$ = 3.643 at $\epsilon_b = 0.4$, $\kappa = 10$, and 8.887 at $\kappa = 100$.
 
 | Symbol | Description | Unit |
 |--------|-------------|------|
-| $\lambda_z^0$ | Stagnant (no-flow) conductivity | W m⁻¹ K⁻¹ |
+| $k_0$ | Stagnant (no-flow) conductivity | W m⁻¹ K⁻¹ |
 | $k_g, k_s$ | Gas and solid thermal conductivity | W m⁻¹ K⁻¹ |
 | $\mathrm{Pr}, \mathrm{Re}$ | Prandtl number $C_{p,g}\mu/k_g$ and particle Reynolds number $\rho_g\thinspace \lvert u\rvert\thinspace d_p/\mu$ (superficial velocity) | - |
 
 $k_s$ is the layer's effective solid conductivity, the solid-volume average over its solids ([Mixed Layers](mixed-layers.md#mixing-rules)).
 
-Ruthven's and Yagi and Kunii's correlations are for packed beds: the deck checks refuse them on a structured layer.
+`yagi_kunii` (Yagi and Kunii 1957) is `krupiczka` at $c = 0.75$. Decks that use it still load and give the same results, bit for bit, but the kind is no longer offered. Use `krupiczka`.
 
-Under local thermal non-equilibrium the solid of a packed layer has no conduction term, so the conductivity of the chosen model (constant, Ruthven, or Yagi and Kunii) goes into the gas equation alone. With Yagi and Kunii that includes the stagnant term $\lambda_z^0$, which describes conduction through the packing ([Energy Balance](energy-balance.md#local-thermal-non-equilibrium-ltne)).
+Ruthven's correlation and the stagnant-plus-dynamic kinds are for packed beds: the deck checks refuse them on a structured layer.
+
+Under local thermal non-equilibrium the solid of a packed layer has no conduction term, so the conductivity of the chosen model goes into the gas equation alone. With the stagnant-plus-dynamic kinds that includes the stagnant term $k_0$, which describes conduction through the packing ([Energy Balance](energy-balance.md#local-thermal-non-equilibrium-ltne)).
 
 ### Channel conduction (structured layers)
 

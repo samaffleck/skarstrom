@@ -1662,6 +1662,9 @@ class Layer(_Node):
     """Constant axial dispersion coefficient [m2/s]."""
     heat_dispersion_coefficient = Real()
     """Constant effective axial thermal conductivity lambda of the energy balance [W/(m-K)]."""
+    dynamic_coefficient = Real()
+    """Dynamic coefficient c of the stagnant + dynamic heat dispersion, lambda = k0 + c k_g Pr Re [-]:
+    0.75 Yagi and Kunii, 0.5 Wakao and Kaguei, 1/K_ax Bauer and Schlunder."""
     internal_htc = Real()
     """Constant bed-to-wall heat transfer coefficient [W/m2-K]."""
     leva_eta1 = Real()
@@ -1741,8 +1744,10 @@ class Layer(_Node):
         return self._set_model("set_dispersion", kind, values)
 
     def set_heat_dispersion(self, kind: str, **values: Value) -> "Layer":
-        """Axial heat dispersion: ``"constant"`` (heat_dispersion_coefficient), ``"ruthven"`` or
-        ``"yagi_kunii"`` (packed beds), or ``"channel"`` (monoliths and laminates)."""
+        """Axial heat dispersion: ``"constant"`` (heat_dispersion_coefficient); ``"ruthven"``,
+        ``"krupiczka"`` or ``"zehner_schlunder"`` (packed beds; the last two take dynamic_coefficient);
+        or ``"channel"`` (monoliths and laminates). ``"yagi_kunii"`` (legacy) is ``"krupiczka"`` at
+        dynamic_coefficient 0.75."""
         return self._set_model("set_heat_dispersion", kind, values)
 
     def set_internal_heat_transfer(self, kind: str, **values: Value) -> "Layer":
