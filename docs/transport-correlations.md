@@ -251,7 +251,32 @@ $d_e = d_i + 2\thinspace t_w$ is the external column diameter and $\mathrm{Pr}_{
 | Reynolds exponent $m$ | 0.8 | `layer[ID].holman_m` |
 | Prandtl exponent $n$ | 1/3 | `layer[ID].holman_n` |
 
-The default constants give $\mathrm{Nu} = 0.027\thinspace\mathrm{Re}^{0.8}\mathrm{Pr}^{1/3}$, the form of a turbulent-flow correlation, not of a cylinder in cross-flow. To model cross-flow, set $c$ and $m$ from a cylinder correlation for the column's Reynolds number range.
+The default constants give $\mathrm{Nu} = 0.027\thinspace\mathrm{Re}^{0.8}\mathrm{Pr}^{1/3}$, the form of a turbulent-flow correlation, not of a cylinder in cross-flow. To model cross-flow, use the [Churchill–Bernstein kind](#churchill-and-bernstein-1977-cylinder-in-crossflow), or set $c$ and $m$ from a cylinder correlation for the column's Reynolds number range.
+
+### Churchill and Bernstein (1977): cylinder in crossflow
+
+!!! note "New in 0.17"
+    The kind `churchill_bernstein`.
+
+Forced convection of air crossing the column (`churchill_bernstein`). The column is a long cylinder of the external diameter $d_e$ in crossflow. Churchill and Bernstein's correlation for the average Nusselt number holds over the whole laminar, transition and turbulent range:
+
+$$
+\mathrm{Nu}_{d_e} = 0.3 + \frac{0.62\thinspace\mathrm{Re}_{air}^{1/2}\thinspace\mathrm{Pr}^{1/3}}{\left[1 + (0.4/\mathrm{Pr})^{2/3}\right]^{1/4}}\left[1 + \left(\frac{\mathrm{Re}_{air}}{282\,000}\right)^{5/8}\right]^{4/5}, \qquad h_o = \frac{\mathrm{Nu}_{d_e}\thinspace k_{air}}{d_e}
+$$
+
+with $\mathrm{Re}_{air} = d_e\thinspace v_{ext}\thinspace \rho_{air}/\mu_{air}$ as for Holman, and the air properties at the film temperature of each cell ([ambient air properties](#ambient-air-properties)). Each cell uses its own wall temperature, so $h_o$ changes along the column and in time.
+
+| Input | Default | Parameter |
+|---|---|---|
+| External air velocity $v_{ext}$ [m s⁻¹] | 0.5 | `layer[ID].external_velocity` |
+
+The correlation is valid for $\mathrm{Re}_{air}\thinspace\mathrm{Pr} > 0.2$. In air ($\mathrm{Pr} \approx 0.7$) this is $\mathrm{Re}_{air} > 0.3$: for a column 30 mm across, an air velocity above about 0.2 mm/s. At smaller velocities, $h_o$ goes to the constant term, $0.3\thinspace k_{air}/d_e$, and natural convection (not included in this kind) controls the heat loss. For still air, use a [natural-convection kind](#churchill-and-chu-1975-natural-convection).
+
+For a column 30 mm across with the wall at 310 K, in air at 300 K that crosses it at 0.1 m/s ($\mathrm{Re}_{air} \approx 186$), $h_o = 6.2$ W m⁻² K⁻¹. At 2 m/s on a column 0.1 m across ($\mathrm{Re}_{air} \approx 11\,000$, wall at 350 K), $h_o = 15.9$ W m⁻² K⁻¹.
+
+Switching between `holman` and `churchill_bernstein` keeps the external velocity.
+
+Source: S.W. Churchill, M. Bernstein, "A correlating equation for forced convection from gases and liquids to a circular cylinder in crossflow", *J. Heat Transfer* 99 (1977) 300–306. The formula above is the standard form, as in Incropera et al., *Fundamentals of Heat and Mass Transfer*, Sec. 7.4 (equation numbers in both *to be confirmed*).
 
 ### Churchill and Chu (1975): natural convection
 
@@ -301,7 +326,7 @@ Sources: S.W. Churchill, H.H.S. Chu, "Correlating equations for laminar and turb
 
 ### Ambient air properties
 
-Holman, Churchill–Chu and Yang use the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
+Holman, Churchill–Bernstein, Churchill–Chu and Yang use the properties of dry air at one atmosphere (101 325 Pa), at the film temperature $T_f = (T_w + T_\infty)/2$ of each cell:
 
 | Property | Formula | Source |
 |---|---|---|

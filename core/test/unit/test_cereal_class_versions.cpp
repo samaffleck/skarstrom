@@ -129,6 +129,7 @@ const std::vector<Pinned>& PinnedVersions() {
       ADSIM_PIN(adsim::ConstantExternalHeatTransferModel, 1),
       ADSIM_PIN(adsim::ExternalHeatTransferModel_Holman, 1),
       ADSIM_PIN(adsim::ExternalHeatTransferModel_ChurchillChu, 1),
+      ADSIM_PIN(adsim::ExternalHeatTransferModel_ChurchillBernstein, 1),
       ADSIM_PIN(adsim::ExternalHeatTransferModel_YangCylinder, 1),
       ADSIM_PIN(adsim::FilmParticleHeatTransferModel, 1),
       ADSIM_PIN(adsim::InertIsotherm, 2),

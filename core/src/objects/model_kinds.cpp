@@ -250,8 +250,13 @@ const std::vector<K>& ExternalHeatTransfer() {
       {"churchill_chu_horizontal", "Churchill and Chu (1975), horizontal column", {}},
       // Natural convection from a vertical cylinder at any H/d (Yang 1985); no parameters.
       {"yang_vertical_cylinder", "Yang (1985), vertical cylinder", {}},
+      // Forced convection from a cylinder in crossflow (Churchill and Bernstein 1977).
+      {"churchill_bernstein",
+       "Churchill and Bernstein (1977), cylinder in crossflow",
+       {{"external_velocity", "m/s", 0.5, 0.0, 10.0, true, "external velocity"}}},
   }, {{"constant", AnyLayer()}, {"holman", AnyLayer()}, {"churchill_chu_vertical", AnyLayer()},
-      {"churchill_chu_horizontal", AnyLayer()}, {"yang_vertical_cylinder", AnyLayer()}});
+      {"churchill_chu_horizontal", AnyLayer()}, {"yang_vertical_cylinder", AnyLayer()},
+      {"churchill_bernstein", AnyLayer()}});
   return k;
 }
 
@@ -855,6 +860,8 @@ ModelFieldList ModelFields(IExternalHeatTransferModel* m) {
     return {{"external_htc", &h->heat_transfer_coefficient_}};
   if (auto* h = dynamic_cast<ExternalHeatTransferModel_Holman*>(m))
     return {{"holman_c", &h->c}, {"holman_m", &h->m}, {"holman_n", &h->n}, {"external_velocity", &h->external_velocity}};
+  if (auto* h = dynamic_cast<ExternalHeatTransferModel_ChurchillBernstein*>(m))
+    return {{"external_velocity", &h->external_velocity}};
   return {};
 }
 

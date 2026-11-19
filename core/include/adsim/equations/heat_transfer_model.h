@@ -44,7 +44,8 @@ namespace adsim {
     HOLMAN = 1,
     CHURCHILL_CHU_VERTICAL = 2,
     CHURCHILL_CHU_HORIZONTAL = 3,
-    YANG_VERTICAL_CYLINDER = 4
+    YANG_VERTICAL_CYLINDER = 4,
+    CHURCHILL_BERNSTEIN = 5
   };
 
   static const char* ExternalHeatTransferModeList[] = {
@@ -52,7 +53,8 @@ namespace adsim {
     "Holman (2008)",
     "Churchill and Chu (1975), vertical column",
     "Churchill and Chu (1975), horizontal column",
-    "Yang (1985), vertical cylinder"
+    "Yang (1985), vertical cylinder",
+    "Churchill and Bernstein (1977), cylinder in crossflow"
   };
 
   class IInternalHeatTransferModel {
@@ -258,6 +260,33 @@ namespace adsim {
     }
   };
 
+  // Forced convection from a cylinder in crossflow by Churchill and Bernstein
+  // (1977) (ambient_air.h): air at external_velocity crosses the column, a
+  // cylinder of the outer wall diameter. Each cell uses its own wall
+  // temperature; the air properties are at the film temperature. Valid for
+  // Re Pr > 0.2.
+  class ExternalHeatTransferModel_ChurchillBernstein : public IExternalHeatTransferModel {
+  public:
+    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                double ambient_temperature) override;
+    ExternalHeatTransferType GetModelType() override { return ExternalHeatTransferType::CHURCHILL_BERNSTEIN; }
+    unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
+    void EvaluateExpressions(const EvalContext& ctx) override { external_velocity.Evaluate(ctx); }
+
+    ExpressionParam external_velocity{0.5}; // External air flow [m/s]
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      (void)version;
+      ar(
+        cereal::virtual_base_class<IExternalHeatTransferModel>(this),
+        cereal::make_nvp("External_Velocity", external_velocity)
+      );
+    }
+  };
+
   // ---- Particle Heat Transfer (gas-to-solid) ----
 
   // Stored values; never renumber.
@@ -357,6 +386,8 @@ namespace adsim {
       return std::make_unique<ExternalHeatTransferModel_ChurchillChu>(false);
     case ExternalHeatTransferType::YANG_VERTICAL_CYLINDER:
       return std::make_unique<ExternalHeatTransferModel_YangCylinder>();
+    case ExternalHeatTransferType::CHURCHILL_BERNSTEIN:
+      return std::make_unique<ExternalHeatTransferModel_ChurchillBernstein>();
     default: return nullptr;
     }
   }
@@ -373,4 +404,5 @@ CEREAL_CLASS_VERSION(adsim::ConstantExternalHeatTransferModel, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_Holman, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_ChurchillChu, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_YangCylinder, 1);
+CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_ChurchillBernstein, 1);
 CEREAL_CLASS_VERSION(adsim::FilmParticleHeatTransferModel, 1);

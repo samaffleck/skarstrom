@@ -7,8 +7,8 @@
 #pragma once
 
 // Properties of the dry air around a column, and the Churchill-Chu
-// natural-convection correlations that the wall-to-ambient heat transfer
-// models use. Pure functions, so the tests can check them directly.
+// natural-convection and Churchill-Bernstein forced-convection correlations
+// that the wall-to-ambient heat transfer models use. Pure functions, so the tests can check them directly.
 
 #include <algorithm>
 #include <cmath>
@@ -113,6 +113,31 @@ namespace adsim::ambient_air {
     const double Pr = Prandtl(T_film);
     const double Nu = vertical ? ChurchillChuVerticalPlateNu(Ra, Pr) : ChurchillChuHorizontalCylinderNu(Ra, Pr);
     return Nu * ThermalConductivity(T_film) / L;
+  }
+
+  // Churchill and Bernstein (1977), average Nusselt number over a long
+  // cylinder of diameter D in crossflow, for Re_D Pr > 0.2:
+  //   Nu_D = 0.3 + 0.62 Re^(1/2) Pr^(1/3) / [1 + (0.4/Pr)^(2/3)]^(1/4)
+  //              * [1 + (Re/282000)^(5/8)]^(4/5).
+  // S.W. Churchill, M. Bernstein, "A correlating equation for forced
+  // convection from gases and liquids to a circular cylinder in crossflow",
+  // J. Heat Transfer 99 (1977) 300-306 (equation number to be confirmed).
+  inline double ChurchillBernsteinNu(double Re, double Pr) {
+    const double re = std::max(Re, 0.0);
+    const double laminar = 0.62 * std::sqrt(re) * std::cbrt(Pr) / std::pow(1.0 + std::pow(0.4 / Pr, 2.0 / 3.0), 0.25);
+    return 0.3 + laminar * std::pow(1.0 + std::pow(re / 282000.0, 5.0 / 8.0), 4.0 / 5.0);
+  }
+
+  // Reynolds number on the length L [m] of air at T [K] flowing at v [m/s].
+  inline double Reynolds(double velocity, double L, double T) { return Density(T) * std::abs(velocity) * L / Viscosity(T); }
+
+  // Forced-convection coefficient h [W/(m2 K)] of a column wall of outer
+  // diameter d at T_wall in air at T_inf crossing it at v: Churchill and
+  // Bernstein, with the air properties at the film temperature.
+  inline double ChurchillBernsteinCoefficient(double T_wall, double T_inf, double velocity, double outer_diameter) {
+    const double T_film = 0.5 * (T_wall + T_inf);
+    const double Nu = ChurchillBernsteinNu(Reynolds(velocity, outer_diameter, T_film), Prandtl(T_film));
+    return Nu * ThermalConductivity(T_film) / outer_diameter;
   }
 
   // Grashof number on L [m] (film properties, as Rayleigh): Gr = Ra / Pr.
