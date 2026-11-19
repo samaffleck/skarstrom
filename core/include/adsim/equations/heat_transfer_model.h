@@ -26,17 +26,60 @@ namespace adsim {
   class MixedAdsorbentLayer;
   class Equations;
 
+  // Stored values; never renumber.
   enum class InternalHeatTransferType {
-    CONSTANT,
-    DIXON_1996,
-    LEVA_1947
+    CONSTANT = 0,
+    DIXON_1996 = 1,
+    LEVA_1947 = 2,
+    LI_FINLAYSON_1977 = 3,
+    MARTIN_NILLES_1993 = 4
   };
 
   static const char* InternalHeatTransferModeList[] = {
     "Constant", // 0
     "Dixon (1996)", // 1
-    "Leva (1947)" // 2
+    "Leva (1947)", // 2
+    "Li and Finlayson (1977)", // 3
+    "Martin and Nilles (1993)" // 4
   };
+
+  // ---- Bed-to-wall heat transfer in a 1-D bed model --------------------------
+  //
+  // A packed-bed wall correlation gives the wall coefficient h_w of a 2-D
+  // (radial) pseudo-homogeneous model. A 1-D model has no radial profile, so
+  // h_w is lumped in series with the radial conduction resistance of the bed
+  // (effective radial conductivity k_e) into one apparent coefficient h_i
+  // (Dixon 1996):
+  //     1/h_i = 1/h_w + D_c/(6 k_e) (Bi + 3)/(Bi + 4),   Bi = h_w D_c / (2 k_e).
+  // The kinds that use it differ in h_w (and k_e). h_w <= 0 gives h_i = 0.
+  double LumpedWallHeatTransferCoefficient(double h_w, double k_e, double D_c);
+
+  // Dixon's wall coefficient h_w [W/(m2 K)]: a stagnant term plus the film
+  // term (k_g/d_p) 0.0835 Re^0.91. re is the particle Reynolds number (>= 0).
+  double DixonWallCoefficient(double k_g, double k_s, double eb, double dp, double D_c, double re);
+
+  // Dixon's effective radial bed conductivity k_e [W/(m K)]: the stagnant
+  // term k_g [eb + (1 - eb)/((2/3) k_g/k_s + 0.22 eb^2)] plus the dynamic
+  // term |u| rho_g Cp_g d_p / Pe_H, Pe_H = 8.65 (1 + 19.4 (d_p/D_c)^2).
+  // u is the superficial velocity [m/s], cp_g the gas heat capacity per unit
+  // mass as the energy balance uses it.
+  double DixonRadialConductivity(double k_g, double k_s, double eb, double dp, double D_c, double u,
+                                 double rho_g, double cp_g);
+
+  // Li and Finlayson (1977) wall Nusselt number h_w d_p / k_g of a packed
+  // bed: 0.17 Re^0.79 for spheres, 0.16 Re^0.93 for cylinders (re >= 0).
+  double LiFinlaysonWallNusselt(double re, bool cylinders);
+
+  // Martin and Nilles (1993) wall Nusselt number h_w d_p / k_g:
+  //     Nu_w = (1.3 + 5 d_p/D_c) k_0/k_g + 0.19 Re^(3/4) Pr^(1/3),
+  // with k_0/k_g the stagnant bed conductivity ratio (Zehner-Schlunder).
+  double MartinNillesWallNusselt(double re, double pr, double k0_over_kg, double dp_over_D);
+
+  // Effective radial bed conductivity k_r [W/(m K)] of the VDI Heat Atlas
+  // model that Martin and Nilles's h_w belongs to: the stagnant term plus the
+  // radial dynamic term Pe_0/K_r (Bauer and Schlunder 1978),
+  //     k_r = k_g [k_0/k_g + Re Pr / K_r],   K_r = 7 [2 - (1 - 2 d_p/D_c)^2].
+  double ZehnerSchlunderRadialConductivity(double k_g, double k0_over_kg, double re, double pr, double dp_over_D);
 
   // Stored values; never renumber.
   enum class ExternalHeatTransferType {
@@ -124,6 +167,40 @@ namespace adsim {
       ar(
         cereal::virtual_base_class<IInternalHeatTransferModel>(this)
       );
+    }
+  };
+
+  // Li and Finlayson (1977) wall coefficient (LiFinlaysonWallNusselt, by the
+  // layer's particle shape), lumped with Dixon's radial conductivity
+  // (LumpedWallHeatTransferCoefficient). No parameters.
+  class InternalHeatTransferModel_LiFinlayson : public IInternalHeatTransferModel {
+  public:
+    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall) override;
+    InternalHeatTransferType GetModelType() override { return InternalHeatTransferType::LI_FINLAYSON_1977; }
+    unsigned ReadsTransportProperties() const override { return kReynoldsNumber | kGasThermalConductivity; }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      ar(cereal::virtual_base_class<IInternalHeatTransferModel>(this));
+    }
+  };
+
+  // Martin and Nilles (1993) wall coefficient (MartinNillesWallNusselt, with
+  // the Zehner-Schlunder stagnant conductivity), lumped with a radial
+  // conductivity (LumpedWallHeatTransferCoefficient). No parameters.
+  class InternalHeatTransferModel_MartinNilles : public IInternalHeatTransferModel {
+  public:
+    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall) override;
+    InternalHeatTransferType GetModelType() override { return InternalHeatTransferType::MARTIN_NILLES_1993; }
+    unsigned ReadsTransportProperties() const override { return kReynoldsNumber | kGasThermalConductivity; }
+
+  private:
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      ar(cereal::virtual_base_class<IInternalHeatTransferModel>(this));
     }
   };
 
@@ -417,6 +494,8 @@ namespace adsim {
     case InternalHeatTransferType::CONSTANT: return std::make_unique<ConstantInternalHeatTransferModel>();
     case InternalHeatTransferType::DIXON_1996: return std::make_unique<InternalHeatTransferModel_Dixon>();
     case InternalHeatTransferType::LEVA_1947: return std::make_unique<InternalHeatTransferModel_Leva>();
+    case InternalHeatTransferType::LI_FINLAYSON_1977: return std::make_unique<InternalHeatTransferModel_LiFinlayson>();
+    case InternalHeatTransferType::MARTIN_NILLES_1993: return std::make_unique<InternalHeatTransferModel_MartinNilles>();
     default: return nullptr;
     }
   }
@@ -449,6 +528,8 @@ CEREAL_CLASS_VERSION(adsim::ConstantParticleHeatTransferModel, 1);
 CEREAL_CLASS_VERSION(adsim::ConstantInternalHeatTransferModel, 1);
 CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Dixon, 1);
 CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_Leva, 1);
+CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_LiFinlayson, 1);
+CEREAL_CLASS_VERSION(adsim::InternalHeatTransferModel_MartinNilles, 1);
 CEREAL_CLASS_VERSION(adsim::ConstantExternalHeatTransferModel, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_Holman, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_ChurchillChu, 1);

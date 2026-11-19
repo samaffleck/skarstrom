@@ -1,0 +1,5 @@
+### Added — bed-to-wall heat transfer: Li–Finlayson and Martin–Nilles
+- Two new packed-bed internal (bed-to-wall) heat transfer kinds, `li_finlayson` and `martin_nilles`. Each gives the wall coefficient h_w of a 2-D model and lumps it into the 1-D h_i with the bed radial conductivity, as `dixon` does (1/h_i = 1/h_w + D/(6 k_e) (Bi + 3)/(Bi + 4)). `li_finlayson`: h_w d_p/k_g = 0.17 Re^0.79 (spheres) or 0.16 Re^0.93 (cylinders, from the layer's particle shape), with Dixon's k_e; it has no stagnant term, so h_i = 0 in still gas. `martin_nilles`: Nu_w = (1.3 + 5 d_p/D) k_0/k_g + 0.19 Re^0.75 Pr^(1/3), with the Zehner–Schlünder k_0 and k_e = k_0 + k_g Re Pr / K_r. The deck checks refuse both on structured layers.
+
+### Changed — the `dixon` lumping is a shared step
+- The 1-D lumping of `dixon` is now a shared function (`LumpedWallHeatTransferCoefficient`), with Dixon's wall coefficient and radial conductivity as separate functions. `dixon` decks load unchanged and give the same results, bit for bit.

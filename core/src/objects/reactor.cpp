@@ -46,8 +46,8 @@ namespace adsim {
     // Closures that belong to one kind of layer. On a structured layer:
     // Ruthven's packed-bed dispersion (Taylor-Aris replaces it), the packed-bed
     // heat dispersion kinds (Ruthven, Yagi-Kunii, Krupiczka, Zehner-Schlunder;
-    // channel conduction replaces them) and Dixon's and Leva's packed-bed wall coefficients (a constant
-    // h_i replaces them). On a packed bed: Taylor-Aris dispersion and channel
+    // channel conduction replaces them) and the packed-bed wall coefficients
+    // (Dixon, Leva, Li-Finlayson, Martin-Nilles; a constant h_i replaces them). On a packed bed: Taylor-Aris dispersion and channel
     // conduction (they need channels).
     for (const auto& layer : layers_.layers_) {
       const std::string kind = LayerKindList[static_cast<int>(layer.kind_)];
@@ -73,6 +73,12 @@ namespace adsim {
           replacement = "use a constant coefficient";
         } else if (dynamic_cast<const InternalHeatTransferModel_Leva*>(wall)) {
           packed_closure = "Leva's packed-bed wall heat transfer coefficient";
+          replacement = "use a constant coefficient";
+        } else if (dynamic_cast<const InternalHeatTransferModel_LiFinlayson*>(wall)) {
+          packed_closure = "Li and Finlayson's packed-bed wall heat transfer coefficient";
+          replacement = "use a constant coefficient";
+        } else if (dynamic_cast<const InternalHeatTransferModel_MartinNilles*>(wall)) {
+          packed_closure = "Martin and Nilles's packed-bed wall heat transfer coefficient";
           replacement = "use a constant coefficient";
         }
         if (packed_closure) {

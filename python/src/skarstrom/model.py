@@ -1751,8 +1751,8 @@ class Layer(_Node):
         return self._set_model("set_heat_dispersion", kind, values)
 
     def set_internal_heat_transfer(self, kind: str, **values: Value) -> "Layer":
-        """Bed-to-wall heat transfer: ``"constant"`` (internal_htc), ``"dixon"`` or ``"leva"``
-        (leva_eta1, leva_eta2, leva_exp_coeff)."""
+        """Bed-to-wall heat transfer: ``"constant"`` (internal_htc), ``"dixon"``, ``"leva"``
+        (leva_eta1, leva_eta2, leva_exp_coeff), ``"li_finlayson"`` or ``"martin_nilles"``."""
         return self._set_model("set_internal_heat_transfer", kind, values)
 
     def set_external_heat_transfer(self, kind: str, **values: Value) -> "Layer":

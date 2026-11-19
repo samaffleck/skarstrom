@@ -205,6 +205,22 @@ $$
 
 Input: **Heat transfer coefficient** [W m⁻² K⁻¹]. This is the most common choice for fitting experimental breakthrough data.
 
+### Lumping a wall coefficient into the 1-D model
+
+A packed-bed wall correlation gives the wall coefficient $h_w$ of a two-dimensional (radial) pseudo-homogeneous model, with a radial temperature profile in the bed. The engine's bed model is one-dimensional, so it has no radial profile. The kinds `dixon`, `li_finlayson` and `martin_nilles` therefore put $h_w$ in series with the radial conduction resistance of the bed (effective radial conductivity $k_e$) and give one apparent coefficient $h_i$ (Dixon 1996), with the wall Biot number $\mathrm{Bi} = h_w D_c / (2 k_e)$:
+
+$$
+\frac{1}{h_i} = \frac{1}{h_w} + \frac{D_c}{6 k_e}\cdot\frac{\mathrm{Bi} + 3}{\mathrm{Bi} + 4}
+$$
+
+$D_c$ is the column internal diameter. The radial term only adds resistance, so $h_i < h_w$, and $h_i \to h_w$ as $k_e \to \infty$. If $h_w = 0$, then $h_i = 0$. The three kinds differ in $h_w$ and in $k_e$:
+
+| Kind | $h_w$ | $k_e$ |
+|------|-------|-------|
+| `dixon` | Dixon (below) | Dixon (below) |
+| `li_finlayson` | Li and Finlayson (1977) | Dixon (below) |
+| `martin_nilles` | Martin and Nilles (1993) | Zehner–Schlünder $k_0$ plus the radial dynamic term $\mathrm{Pe}_0/K_r$ |
+
 ### Dixon (1996)
 
 An apparent wall coefficient derived from a two-dimensional pseudo-homogeneous model, folding the near-wall resistance and the effective radial bed conductivity into a single 1-D coefficient. First the wall film and stagnant contributions,
@@ -219,7 +235,7 @@ $$
 k_e = k_g\left[\epsilon_b + \frac{1-\epsilon_b}{\tfrac{2}{3}(k_g/k_s) + 0.22\thinspace \epsilon_b^2}\right] + \frac{|u|\thinspace \rho_g C_{p,g}\thinspace d_p}{\mathrm{Pe}_H}, \qquad \mathrm{Pe}_H = 8.65\left[1 + 19.4\left(\frac{d_p}{D_c}\right)^2\right]
 $$
 
-and finally the apparent internal coefficient via the wall Biot number $\mathrm{Bi} = h_w D_c / (2 k_e)$,
+and finally the apparent internal coefficient by the [lumping](#lumping-a-wall-coefficient-into-the-1-d-model) with the wall Biot number $\mathrm{Bi} = h_w D_c / (2 k_e)$,
 
 $$
 \frac{1}{h_i} = \frac{1}{h_w} + \frac{D_c}{6 k_e}\cdot\frac{\mathrm{Bi} + 3}{\mathrm{Bi} + 4}
@@ -245,7 +261,48 @@ with $\mathrm{Re} = \rho_g\thinspace|u|\thinspace d_p/\mu$ the particle Reynolds
 
 Casas et al. fitted $\eta_1 = 41.13$ and $\eta_2 = 0.32$ to their breakthrough experiment.
 
-Dixon's and Leva's correlations are for packed beds (they read the particle diameter): the deck checks refuse them on a structured layer, which uses a constant $h_i$. Switching a layer to a structured kind replaces either with a constant coefficient (default 0, an adiabatic contact, so set it); a constant coefficient keeps its value. At run start the solver warns about a structured layer whose $h_i$ is 0 while the column wall exchanges heat (an outer coefficient $h_o > 0$, a fixed-temperature wall end or a heating medium), naming `layer[ID].internal_htc`. In a structured layer the whole bed-to-wall flux passes through the solid ([Wall Energy Balance](wall-energy-balance.md)).
+### Li and Finlayson (1977)
+
+!!! note "New in 0.17"
+    The kind `li_finlayson`.
+
+The wall coefficient of Li and Finlayson's re-evaluation of packed-bed heat transfer data, lumped with Dixon's radial conductivity $k_e$ ([above](#dixon-1996)). Li and Finlayson fitted only $h_w$. The pairing with Dixon's $k_e$ is a choice of this engine, not part of the source.
+
+$$
+\frac{h_w\thinspace d_p}{k_g} = 0.17\thinspace \mathrm{Re}^{0.79} \quad \text{(spheres)}, \qquad
+\frac{h_w\thinspace d_p}{k_g} = 0.16\thinspace \mathrm{Re}^{0.93} \quad \text{(cylinders)}
+$$
+
+The layer's [particle shape](kinetic-models.md#particle-shape) chooses the form. $\mathrm{Re} = \rho_g\thinspace|u|\thinspace d_p/\mu$ is the particle Reynolds number on the superficial velocity (taken as 0 if negative). The source gives the range of about $20 < \mathrm{Re} < 7600$ and $0.05 < d_p/D_c < 0.3$ for spheres. The constants and the ranges are to be confirmed against the paper.
+
+The correlation has no stagnant term: $h_w = 0$ in still gas, so $h_i = 0$ and the layer exchanges no heat with the wall when the gas does not flow (for example in a closed hold step). Use `martin_nilles` or `dixon` if the low-flow steps are important.
+
+Source: C.-H. Li and B. A. Finlayson, "Heat transfer in packed beds — a reevaluation", Chem. Eng. Sci. 32 (1977) 1055–1066.
+
+### Martin and Nilles (1993)
+
+!!! note "New in 0.17"
+    The kind `martin_nilles`.
+
+The wall Nusselt number of Martin and Nilles, as the VDI Heat Atlas gives it:
+
+$$
+\frac{h_w\thinspace d_p}{k_g} = \left(1.3 + 5\thinspace\frac{d_p}{D_c}\right)\frac{k_0}{k_g} + 0.19\thinspace \mathrm{Re}^{3/4}\thinspace \mathrm{Pr}^{1/3}
+$$
+
+$k_0$ is the Zehner–Schlünder stagnant bed conductivity, the same term as the [`zehner_schlunder` heat dispersion](#stagnant-term-plus-dynamic-term-packed-beds) ($C = 1.25$). The radial conductivity of the lumping is the stagnant term plus the radial dynamic term of the same model (Bauer and Schlünder 1978):
+
+$$
+k_e = k_0 + k_g\thinspace\frac{\mathrm{Re}\thinspace\mathrm{Pr}}{K_r}, \qquad K_r = 7\left[2 - \left(1 - 2\thinspace\frac{d_p}{D_c}\right)^2\right]
+$$
+
+This pairing follows the VDI Heat Atlas model that the wall Nusselt number comes from: the same $k_0$ is in $\mathrm{Nu}_w$ and in $k_e$. The form of the radial term and the constant 7 of $K_r$ are to be confirmed against the source.
+
+$\mathrm{Re}$ is the particle Reynolds number on the superficial velocity (taken as 0 if negative) and $\mathrm{Pr} = C_{p,g}\mu/k_g$. In still gas, $h_w = (1.3 + 5\thinspace d_p/D_c)\thinspace k_0/d_p$ and $k_e = k_0$, so $h_i > 0$. With $\kappa = k_s/k_g = 1$, $k_0 = k_g$ and $\mathrm{Nu}_w = 1.3 + 5\thinspace d_p/D_c$. The constants are to be confirmed against the paper.
+
+Sources: H. Martin and M. Nilles, "Radiale Wärmeleitung in durchströmten Schüttungsrohren", Chem. Ing. Tech. 65 (1993) 1468–1477; VDI Heat Atlas, 2nd ed. (2010), the chapter on heat transfer in packed beds with fluid flow.
+
+The wall correlations (Dixon, Leva, Li–Finlayson, Martin–Nilles) are for packed beds (they read the particle diameter): the deck checks refuse them on a structured layer, which uses a constant $h_i$. Switching a layer to a structured kind replaces any of them with a constant coefficient (default 0, an adiabatic contact, so set it); a constant coefficient keeps its value. At run start the solver warns about a structured layer whose $h_i$ is 0 while the column wall exchanges heat (an outer coefficient $h_o > 0$, a fixed-temperature wall end or a heating medium), naming `layer[ID].internal_htc`. In a structured layer the whole bed-to-wall flux passes through the solid ([Wall Energy Balance](wall-energy-balance.md)).
 
 ---
 
