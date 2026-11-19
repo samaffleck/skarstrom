@@ -61,6 +61,36 @@ namespace adsim {
 		CHANNEL = 3
 	};
 
+	// ---- stagnant (no-flow) effective conductivity of a packed bed ----------------
+
+	// Shape factor C of the Zehner-Schlunder deformation parameter
+	// B = C ((1 - eps) / eps)^(10/9) for spheres (Zehner and Schlunder 1970).
+	inline constexpr double kZehnerSchlunderShapeFactorSphere = 1.25;
+
+	// Zehner-Schlunder stagnant conductivity ratio k0 / k_g of a packed bed of
+	// void fraction eps and solid-to-gas conductivity ratio kappa = k_s / k_g
+	// (Zehner and Schlunder, Chem. Ing. Tech. 42 (1970) 933-941; the
+	// deformation parameter B as Bauer and Schlunder 1978 use it):
+	//   k0/k_g = 1 - sqrt(1-eps) + (2 sqrt(1-eps) / N)
+	//            [ ((kappa-1) B / (kappa N^2)) ln(kappa/B) - (B+1)/2 - (B-1)/N ],
+	//   N = 1 - B/kappa,  B = C ((1-eps)/eps)^(10/9).
+	// No radiation, Smoluchowski (gas rarefaction) or contact-flattening
+	// terms. kappa -> B (N -> 0) is a removable singularity: there the
+	// bracket is summed as its series in N,
+	//   [ . ] / N = sum_{k>=1} N^(k-1) [ (B-1)/(k+2) + 1/(k+1) ],
+	// which the closed form equals. Needs 0 < eps <= 1 and kappa > 0; eps = 1
+	// gives 1 (gas only). Reusable by other packed-bed correlations (the
+	// bed-to-wall ones build on k0).
+	double ZehnerSchlunderConductivityRatio(double eps, double kappa,
+	                                        double shape_factor = kZehnerSchlunderShapeFactorSphere);
+
+	// The Krupiczka-type stagnant conductivity ratio of the Yagi and Kunii
+	// heat dispersion, k0/k_g = kappa^(0.28 - 0.757 log10(eps) - 0.057 log10(kappa))
+	// (a Krupiczka-type correlation; the exact source reference is to be
+	// confirmed). It is the stagnant term of the existing yagi_kunii kind,
+	// evaluated in the same order so that results stay bitwise equal.
+	double KrupiczkaConductivityRatio(double eps, double kappa);
+
 	class IDispersionModel {
 	public:
 		virtual ~IDispersionModel() = default;

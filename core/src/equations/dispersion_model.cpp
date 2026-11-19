@@ -12,6 +12,35 @@
 
 namespace adsim {
 
+	double ZehnerSchlunderConductivityRatio(double eps, double kappa, double shape_factor) {
+		if (eps >= 1.0) return 1.0;
+		const double s = std::sqrt(1.0 - eps);
+		const double B = shape_factor * std::pow((1.0 - eps) / eps, 10.0 / 9.0);
+		const double N = 1.0 - B / kappa;
+		// Near kappa = B the closed form cancels catastrophically (the (B-1)/N
+		// terms); its series in N is used there instead. At |N| = 0.1 the two
+		// agree to ~1e-13 and 16 terms truncate at ~1e-16.
+		double bracket_over_n;
+		if (std::abs(N) < 0.1) {
+			bracket_over_n = 0.0;
+			double nk = 1.0;  // N^(k-1)
+			for (int k = 1; k <= 16; ++k) {
+				bracket_over_n += nk * ((B - 1.0) / (k + 2) + 1.0 / (k + 1));
+				nk *= N;
+			}
+		} else {
+			const double bracket = ((kappa - 1.0) * B / (kappa * N * N)) * std::log(kappa / B) - 0.5 * (B + 1.0) -
+			                       (B - 1.0) / N;
+			bracket_over_n = bracket / N;
+		}
+		return 1.0 - s + 2.0 * s * bracket_over_n;
+	}
+
+	double KrupiczkaConductivityRatio(double eps, double kappa) {
+		const double exponent = 0.28 - 0.757 * std::log10(eps) - 0.057 * std::log10(kappa);
+		return std::pow(kappa, exponent);
+	}
+
   void DispersionModelConstant::Update(Equations& state, const MixedAdsorbentLayer& layer) {		
     auto& Dx = state.axial_dispersion_coefficient.var;
     for (int n = layer.domain_.start_index; n <= layer.domain_.end_index; ++n) {
