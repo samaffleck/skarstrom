@@ -366,7 +366,9 @@ namespace {
     for (const Case& c : {Case{"heat", "ruthven", "Ruthven's packed-bed heat dispersion"},
                           Case{"heat", "yagi_kunii", "Yagi and Kunii's packed-bed heat dispersion"},
                           Case{"wall", "dixon", "Dixon's packed-bed wall heat transfer coefficient"},
-                          Case{"wall", "leva", "Leva's packed-bed wall heat transfer coefficient"}}) {
+                          Case{"wall", "leva", "Leva's packed-bed wall heat transfer coefficient"},
+                          Case{"wall", "li_finlayson", "Li and Finlayson's packed-bed wall heat transfer coefficient"},
+                          Case{"wall", "martin_nilles", "Martin and Nilles's packed-bed wall heat transfer coefficient"}}) {
       if (std::string(c.op) == "heat") build::SetHeatDispersion(d, id, c.kind);
       else build::SetInternalHeatTransfer(d, id, c.kind);
       err.clear();

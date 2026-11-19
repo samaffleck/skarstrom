@@ -32,7 +32,8 @@
 //   film correlation     "wakao_funazkri", "gunn", "ranz_marshall"
 //   dispersion           "constant", "ruthven"
 //   heat dispersion      "constant", "ruthven", "yagi_kunii"
-//   internal heat transfer "constant", "dixon", "leva"
+//   internal heat transfer "constant", "dixon", "leva", "li_finlayson",
+//                          "martin_nilles"
 //   external heat transfer "constant", "holman", "churchill_chu_vertical",
 //                          "churchill_chu_horizontal", "yang_vertical_cylinder",
 //                          "churchill_bernstein", "mixed_convection_vertical",
@@ -189,7 +190,7 @@ void SetFilmCorrelation(UserData& data, size_t layer, const std::string& kind);
 // the momentum model. Switching a packed layer to a structured kind installs
 // the channel closures: Taylor-Aris dispersion on the layer (keeping a
 // Ruthven model's molecular diffusion coefficient), channel heat conduction,
-// a constant wall coefficient h_i (replacing Dixon or Leva; a constant model
+// a constant wall coefficient h_i (replacing a packed-bed correlation; a constant model
 // keeps its value) and the bed's film gas-solid heat transfer. Switching back
 // restores the packed defaults: constant dispersion and heat-dispersion
 // models instead of Taylor-Aris and channel conduction, and the constant

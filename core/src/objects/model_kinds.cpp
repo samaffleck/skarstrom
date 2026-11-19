@@ -242,7 +242,12 @@ const std::vector<K>& InternalHeatTransfer() {
        {{"leva_eta1", "-", 0.813, 0.01, 100.0, true, "Leva Re coefficient (eta1)"},
         {"leva_eta2", "-", 0.90, 0.1, 1.5, true, "Leva Re exponent (eta2)"},
         {"leva_exp_coeff", "-", 6.0, 0.0, 20.0, true, "Leva wall-decay coefficient (exp_coeff)"}}},
-  }, {{"constant", AnyLayer()}, {"dixon", PackedLayer()}, {"leva", PackedLayer()}});
+      // Wall coefficients of a 2-D model, lumped with a radial bed
+      // conductivity into the 1-D h_i (LumpedWallHeatTransferCoefficient).
+      {"li_finlayson", "Li and Finlayson (1977)", {}},
+      {"martin_nilles", "Martin and Nilles (1993)", {}},
+  }, {{"constant", AnyLayer()}, {"dixon", PackedLayer()}, {"leva", PackedLayer()},
+      {"li_finlayson", PackedLayer()}, {"martin_nilles", PackedLayer()}});
   return k;
 }
 

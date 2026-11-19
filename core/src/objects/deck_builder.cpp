@@ -547,7 +547,7 @@ void SetLayerKind(UserData& data, size_t layer, const std::string& kind) {
     // Channel closures: Taylor-Aris dispersion and the film gas-solid model.
     l.equations_.dispersion_model_ = std::make_unique<DispersionModelTaylorAris>();
     // Channel heat conduction, and a constant wall coefficient in place of a
-    // packed-bed correlation (Dixon, Leva); a constant one keeps its value.
+    // packed-bed correlation (Dixon, Leva, ...); a constant one keeps its value.
     l.equations_.heat_dispersion_model_ = std::make_unique<HeatDispersionModelChannel>();
     if (!dynamic_cast<ConstantInternalHeatTransferModel*>(l.equations_.internal_heat_transfer_model_.get()))
       l.equations_.internal_heat_transfer_model_ = std::make_unique<ConstantInternalHeatTransferModel>();
