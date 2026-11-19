@@ -1,0 +1,2 @@
+### Added — validation of the dispersion drift correction
+- `test_per_component_dispersion.cpp` check 6 runs a 50/50 H2/CO2 front through an inert N2 bed, then closes both ends, with the drift correction of the per-component dispersive flux on and off (`SetDispersionDriftCorrectionForTesting`, for tests only). With Fick's law per component the mole fractions stop summing to 1 by 4–7 %, by more on finer grids, and the bed keeps a deficit of about 0.2 % once closed; with the correction the sum stays at 1 to round-off.

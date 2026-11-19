@@ -1076,6 +1076,16 @@ namespace adsim {
     }
   }
 
+  namespace {
+    // SetDispersionDriftCorrectionForTesting (adsorbent_equations.h).
+    bool& DispersionDriftCorrectionOn() {
+      static bool on = true;
+      return on;
+    }
+  } // namespace
+
+  void SetDispersionDriftCorrectionForTesting(bool on) { DispersionDriftCorrectionOn() = on; }
+
   void UpdateMoleFraction(UserData* udata, Component component) {
     auto& state = udata->state;
     auto& bed = udata->bed;
@@ -1113,6 +1123,7 @@ namespace adsim {
       per_component_dispersion ? &state.component_axial_dispersion.at(component).var : nullptr;
     const std::vector<double>* drift = per_component_dispersion ? &state.dispersion_drift.var : nullptr;
     const std::vector<double>* face_mole_sum = per_component_dispersion ? &state.dispersion_face_mole_sum : nullptr;
+    const bool drift_correction = DispersionDriftCorrectionOn();
 
     const auto& dx = domain_vectors.cell_width;
     const auto& dV = domain_vectors.volume;
@@ -1220,7 +1231,8 @@ namespace adsim {
         auto face_flux = [&](int a, int b) {
           const double y_sum = (*face_mole_sum)[a];
           const double y_hat = y_sum > 0.0 ? 0.5 * (yi[a] + yi[b]) / y_sum : 0.0;
-          return DispersionFaceCoefficient(Di, eb, dx, a, b) * (yi[b] - yi[a]) - y_hat * (*drift)[a];
+          const double correction = drift_correction ? y_hat * (*drift)[a] : 0.0;
+          return DispersionFaceCoefficient(Di, eb, dx, a, b) * (yi[b] - yi[a]) - correction;
         };
         D_e = (n == N - 2) ? 0.0 : (Tc / (Pc * FaceSpacing(dx[n], dx[n + 1]))) * (Pe / Te) * face_flux(n, n + 1);
         D_w = (n == 1) ? 0.0 : (Tc / (Pc * FaceSpacing(dx[n - 1], dx[n]))) * (Pw / Tw) * face_flux(n - 1, n);

@@ -83,6 +83,12 @@ namespace adsim {
   // Equations::PerComponentDispersion().
   void UpdateComponentAxialDispersion(UserData* udata, Component component);
   void UpdateDispersionDrift(UserData* udata);
+  // TESTING ONLY. Off, the per-component dispersive flux is Fick's law of each
+  // component alone, k_i,f (y_i,b - y_i,a), without the drift correction
+  // - y^_i,f S_f: the fluxes no longer sum to zero, and the mole fractions
+  // stop summing to 1 (test_per_component_dispersion.cpp, check 6). On by
+  // default and process-wide; a test that turns it off must turn it on again.
+  void SetDispersionDriftCorrectionForTesting(bool on);
   // The reaction fields of the state (Equations::reaction_heat and its
   // siblings): per interior non-void cell, per solid present, per reaction,
   // the intrinsic rate at the cell's gas composition and pressure and the
