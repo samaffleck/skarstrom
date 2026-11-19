@@ -1679,7 +1679,7 @@ class Layer(_Node):
     holman_n = Real()
     """Holman correlation Pr exponent [-]."""
     external_velocity = Real()
-    """Air velocity outside the column for the Holman correlation [m/s]."""
+    """Air velocity outside the column for the Holman and Churchill-Bernstein correlations [m/s]."""
 
     def __init__(self, sim: "Simulation", tree: Optional[_Tree], label: str, id: int, name: str) -> None:
         super().__init__(sim, tree, label)
@@ -1750,7 +1750,8 @@ class Layer(_Node):
 
     def set_external_heat_transfer(self, kind: str, **values: Value) -> "Layer":
         """Wall-to-ambient heat transfer: ``"constant"`` (external_htc), ``"holman"``
-        (holman_c, holman_m, holman_n, external_velocity), or natural convection to still air,
+        (holman_c, holman_m, holman_n, external_velocity), ``"churchill_bernstein"`` (air crossing
+        the column, a cylinder in crossflow; external_velocity), or natural convection to still air,
         ``"churchill_chu_vertical"``, ``"churchill_chu_horizontal"`` or ``"yang_vertical_cylinder"``
         (a vertical column at any height-to-diameter ratio; no values)."""
         return self._set_model("set_external_heat_transfer", kind, values)

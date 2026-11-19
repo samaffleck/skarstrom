@@ -4,13 +4,15 @@
  *
  * Licensed under the terms in the LICENSE file at the repository root.
  */
-// Wall-to-ambient natural convection (adsim/equations/ambient_air.h):
+// Wall-to-ambient natural and forced convection (adsim/equations/ambient_air.h):
 //   Churchill and Chu (1975, Int. J. Heat Mass Transfer 18, 1323), vertical plate:
 //     Nu_L = {0.825 + 0.387 Ra^(1/6) / [1 + (0.492/Pr)^(9/16)]^(8/27)}^2;
 //   Churchill and Chu (1975, Int. J. Heat Mass Transfer 18, 1049), horizontal cylinder:
 //     Nu_D = {0.60 + 0.387 Ra^(1/6) / [1 + (0.559/Pr)^(9/16)]^(8/27)}^2;
 //   Yang (1985), vertical cylinder at any H/d:
 //     Nu_H = {(0.36 H/d)^(1/2) + [0.150 (Ra_H / [1 + (0.492/Pr)^(9/16)]^(16/9))^(1/3)]^(1/2)}^2;
+//   Churchill and Bernstein (1977, J. Heat Transfer 99, 300), cylinder in crossflow:
+//     Nu_D = 0.3 + 0.62 Re^(1/2) Pr^(1/3) / [1 + (0.4/Pr)^(2/3)]^(1/4) [1 + (Re/282000)^(5/8)]^(4/5);
 // and the ambient air properties (Sutherland's law, White 2006). Checked here:
 // the analytic limits, values worked out by hand (Python, double precision)
 // from the formulas above, the air properties against Incropera et al.'s
@@ -29,8 +31,10 @@
 #include "adsim/equations/ambient_air.h"
 #include "adsim/equations/heat_transfer_model.h"
 #include "adsim/objects/deck_builder.h"
+#include "adsim/objects/deck_edit.h"
 #include "adsim/objects/model_kinds.h"
 #include "adsim/objects/reactor.h"
+#include "adsim/objects/user_data.h"
 #include "adsim/solver/deck_warnings.h"
 
 namespace adsim {
@@ -141,12 +145,58 @@ TEST(NaturalConvection, YangSlenderColumnAbovePlate) {
   EXPECT_GT(air::YangCoefficient(330.0, 300.0, 1.0, 0.03), 1.2 * plate);
 }
 
+// Churchill and Bernstein (1977): Re -> 0 leaves the constant 0.3 at any Pr.
+TEST(ForcedConvection, ChurchillBernsteinStagnantLimit) {
+  for (double pr : {0.5, 0.71, 7.0}) EXPECT_DOUBLE_EQ(air::ChurchillBernsteinNu(0.0, pr), 0.3);
+  // A negative Re (a sign slip) is clamped to the stagnant value, not NaN.
+  EXPECT_DOUBLE_EQ(air::ChurchillBernsteinNu(-5.0, 0.71), 0.3);
+  // With no air flow, h = 0.3 k / d (film temperature 300 K, d = 30 mm).
+  EXPECT_DOUBLE_EQ(air::ChurchillBernsteinCoefficient(300.0, 300.0, 0.0, 0.03),
+                   0.3 * air::ThermalConductivity(300.0) / 0.03);
+}
+
+// Hand values (Python, double precision) of the formula in the header, at
+// Pr = 0.71. A textbook check: Re = 6071, Pr = 0.7 gives Nu = 40.6, the value
+// of Incropera et al.'s worked example of a cylinder in crossflow (to be
+// confirmed against the book).
+TEST(ForcedConvection, ChurchillBernsteinHandValues) {
+  EXPECT_NEAR(air::ChurchillBernsteinNu(1e3, 0.71), 16.018791873942707, 1e-11);
+  EXPECT_NEAR(air::ChurchillBernsteinNu(1e5, 0.71), 215.34609302481786, 1e-10);
+  EXPECT_NEAR(air::ChurchillBernsteinNu(1e6, 0.71), 1233.7195753575413, 1e-9);
+  EXPECT_NEAR(air::ChurchillBernsteinNu(6071.0, 0.7), 40.6, 0.05);
+  // A lab column 30 mm across, wall 310 K in air at 300 K crossing at
+  // 0.1 m/s (Re_D = 186): h = 6.18 W/(m2 K). A 0.1 m column at 350 K in
+  // air at 300 K and 2 m/s (Re_D = 11 065): h = 15.9 W/(m2 K).
+  EXPECT_NEAR(air::ChurchillBernsteinCoefficient(310.0, 300.0, 0.1, 0.03), 6.179707809873068, 1e-11);
+  EXPECT_NEAR(air::ChurchillBernsteinCoefficient(350.0, 300.0, 2.0, 0.1), 15.90337881484203, 1e-11);
+}
+
+// h rises with the air velocity, and the wind direction does not matter.
+TEST(ForcedConvection, ChurchillBernsteinMonotoneInVelocity) {
+  double last = air::ChurchillBernsteinCoefficient(320.0, 300.0, 0.0, 0.05);
+  for (double v : {0.01, 0.1, 0.5, 2.0, 10.0, 50.0}) {
+    const double h = air::ChurchillBernsteinCoefficient(320.0, 300.0, v, 0.05);
+    EXPECT_GT(h, last) << v;
+    last = h;
+  }
+  EXPECT_DOUBLE_EQ(air::ChurchillBernsteinCoefficient(320.0, 300.0, -1.0, 0.05),
+                   air::ChurchillBernsteinCoefficient(320.0, 300.0, 1.0, 0.05));
+}
+
 TEST(NaturalConvection, KindsAndFactory) {
   const auto& tags = build::ExternalHeatTransferKinds();
-  ASSERT_EQ(tags.size(), 5u);
+  ASSERT_EQ(tags.size(), 6u);
+  EXPECT_EQ(tags[1], "holman");
   EXPECT_EQ(tags[2], "churchill_chu_vertical");
   EXPECT_EQ(tags[3], "churchill_chu_horizontal");
   EXPECT_EQ(tags[4], "yang_vertical_cylinder");
+  EXPECT_EQ(tags[5], "churchill_bernstein");
+  auto cb = CreateExternalHeatTransferModel(ExternalHeatTransferType::CHURCHILL_BERNSTEIN);
+  ASSERT_TRUE(cb);
+  EXPECT_EQ(cb->GetModelType(), ExternalHeatTransferType::CHURCHILL_BERNSTEIN);
+  const auto fields = ModelFields(cb.get());
+  ASSERT_EQ(fields.size(), 1u);
+  EXPECT_EQ(fields[0].first, "external_velocity");
   EXPECT_EQ(CreateExternalHeatTransferModel(ExternalHeatTransferType::YANG_VERTICAL_CYLINDER)->GetModelType(),
             ExternalHeatTransferType::YANG_VERTICAL_CYLINDER);
   auto v = CreateExternalHeatTransferModel(ExternalHeatTransferType::CHURCHILL_CHU_VERTICAL);
@@ -173,6 +223,26 @@ TEST(NaturalConvection, OrientationRoundTripsThroughTheArchive) {
     ASSERT_TRUE(out);
     EXPECT_EQ(out->GetModelType(), in->GetModelType());
   }
+}
+
+// The external velocity survives a deck save and load.
+TEST(ForcedConvection, ChurchillBernsteinRoundTripsThroughTheArchive) {
+  auto model = std::make_unique<ExternalHeatTransferModel_ChurchillBernstein>();
+  model->external_velocity = ExpressionParam{1.7};
+  std::unique_ptr<IExternalHeatTransferModel> in = std::move(model);
+  std::stringstream ss;
+  {
+    cereal::JSONOutputArchive ar(ss);
+    ar(cereal::make_nvp("model", in));
+  }
+  std::unique_ptr<IExternalHeatTransferModel> out;
+  {
+    cereal::JSONInputArchive ar(ss);
+    ar(cereal::make_nvp("model", out));
+  }
+  auto* cb = dynamic_cast<ExternalHeatTransferModel_ChurchillBernstein*>(out.get());
+  ASSERT_TRUE(cb);
+  EXPECT_DOUBLE_EQ(cb->external_velocity.Get(), 1.7);
 }
 
 // A non-isothermal bed of one layer with a 2 mm wall.
@@ -204,6 +274,21 @@ TEST(NaturalConvection, SlenderColumnWarning) {
   Bed iso = SmallBed(T::CHURCHILL_CHU_VERTICAL, 1.0, 0.03);
   iso.equations_.energy_balance_mode_ = EnergyBalanceMode::ISOTHERMAL;
   EXPECT_TRUE(NaturalConvectionWarnings(iso).empty());
+}
+
+// Switching holman <-> churchill_bernstein keeps the shared external velocity.
+TEST(ForcedConvection, KindSwitchKeepsTheExternalVelocity) {
+  UserData d;
+  d.bed = SmallBed(ExternalHeatTransferType::HOLMAN, 1.0, 0.03);
+  auto& layer = d.bed.layers_.layers_.front();
+  dynamic_cast<ExternalHeatTransferModel_Holman&>(*layer.equations_.external_heat_transfer_model_).external_velocity =
+      ExpressionParam{2.5};
+  std::string err;
+  ASSERT_TRUE(SetExternalHeatTransferKind(d, layer.id_, ExternalHeatTransferType::CHURCHILL_BERNSTEIN, err)) << err;
+  auto* cb = dynamic_cast<ExternalHeatTransferModel_ChurchillBernstein*>(
+      d.bed.layers_.layers_.front().equations_.external_heat_transfer_model_.get());
+  ASSERT_TRUE(cb);
+  EXPECT_DOUBLE_EQ(cb->external_velocity.Get(), 2.5);
 }
 
 }  // namespace
