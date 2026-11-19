@@ -128,7 +128,8 @@ balance had two.
 - **`NaturalConvectionCoolingTest.*`** — the same two-body system with the
   wall losing heat by natural convection: Churchill–Chu (vertical and
   horizontal column) and Yang's vertical cylinder; and by forced convection
-  to air crossing the column at 0.3 m/s (Churchill–Bernstein). `h_o` depends on the wall temperature, so the reference
+  to air crossing the column at 0.3 m/s (Churchill–Bernstein); and by both
+  together at 0.05 m/s (mixed convection, vertical column). `h_o` depends on the wall temperature, so the reference
   is the two lumped ODEs integrated with RK4. The bed and wall temperatures
   must agree within 1 % of their excess over ambient, and the logged `h_o`
   must equal the correlation at the logged wall temperature in every cell.

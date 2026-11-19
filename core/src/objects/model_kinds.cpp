@@ -254,9 +254,19 @@ const std::vector<K>& ExternalHeatTransfer() {
       {"churchill_bernstein",
        "Churchill and Bernstein (1977), cylinder in crossflow",
        {{"external_velocity", "m/s", 0.5, 0.0, 10.0, true, "external velocity"}}},
+      // Natural and forced convection together (Churchill 1977), by orientation.
+      {"mixed_convection_vertical",
+       "Mixed convection (Churchill 1977), vertical column",
+       {{"external_velocity", "m/s", 0.5, 0.0, 10.0, true, "external velocity"},
+        {"mixed_convection_exponent", "-", 3.0, 1.0, 6.0, true, "mixed convection blending exponent (n)"}}},
+      {"mixed_convection_horizontal",
+       "Mixed convection (Churchill 1977), horizontal column",
+       {{"external_velocity", "m/s", 0.5, 0.0, 10.0, true, "external velocity"},
+        {"mixed_convection_exponent", "-", 3.0, 1.0, 6.0, true, "mixed convection blending exponent (n)"}}},
   }, {{"constant", AnyLayer()}, {"holman", AnyLayer()}, {"churchill_chu_vertical", AnyLayer()},
       {"churchill_chu_horizontal", AnyLayer()}, {"yang_vertical_cylinder", AnyLayer()},
-      {"churchill_bernstein", AnyLayer()}});
+      {"churchill_bernstein", AnyLayer()}, {"mixed_convection_vertical", AnyLayer()},
+      {"mixed_convection_horizontal", AnyLayer()}});
   return k;
 }
 
@@ -862,6 +872,8 @@ ModelFieldList ModelFields(IExternalHeatTransferModel* m) {
     return {{"holman_c", &h->c}, {"holman_m", &h->m}, {"holman_n", &h->n}, {"external_velocity", &h->external_velocity}};
   if (auto* h = dynamic_cast<ExternalHeatTransferModel_ChurchillBernstein*>(m))
     return {{"external_velocity", &h->external_velocity}};
+  if (auto* h = dynamic_cast<ExternalHeatTransferModel_MixedConvection*>(m))
+    return {{"external_velocity", &h->external_velocity}, {"mixed_convection_exponent", &h->exponent}};
   return {};
 }
 

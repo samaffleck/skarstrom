@@ -8,7 +8,8 @@
 
 // Properties of the dry air around a column, and the Churchill-Chu
 // natural-convection and Churchill-Bernstein forced-convection correlations
-// that the wall-to-ambient heat transfer models use. Pure functions, so the tests can check them directly.
+// (and Churchill's blend of the two) that the wall-to-ambient heat transfer
+// models use. Pure functions, so the tests can check them directly.
 
 #include <algorithm>
 #include <cmath>
@@ -138,6 +139,32 @@ namespace adsim::ambient_air {
     const double T_film = 0.5 * (T_wall + T_inf);
     const double Nu = ChurchillBernsteinNu(Reynolds(velocity, outer_diameter, T_film), Prandtl(T_film));
     return Nu * ThermalConductivity(T_film) / outer_diameter;
+  }
+
+  // Mixed (combined natural and forced) convection from a column wall of
+  // outer diameter d and height H at T_wall, in air at T_inf crossing it at
+  // v, by Churchill's (1977) blend of the two coefficients:
+  //   h = (h_F^n + h_N^n)^(1/n),
+  // always adding (the wind crosses the column, normal to the buoyant flow).
+  // h_N is the natural-convection coefficient of the orientation: Yang's
+  // vertical cylinder (Ra on H) or Churchill and Chu's horizontal cylinder
+  // (Ra on d). h_F is Churchill and Bernstein's forced-convection
+  // coefficient on d without its stagnant constant 0.3, which h_N already
+  // holds as its conduction limit: h_F -> 0 as v -> 0, so v = 0 gives the
+  // natural coefficient exactly. The blend is of h, not Nu: the two use
+  // different lengths. S.W. Churchill, "A comprehensive correlating equation
+  // for laminar, assisting, forced and free convection", AIChE J. 23 (1977)
+  // 10-16; n = 3 for crossflow over a cylinder, as Incropera et al.,
+  // Sec. 9.9 (to be confirmed).
+  inline double MixedConvectionCoefficient(bool vertical, double T_wall, double T_inf, double velocity,
+                                           double height, double outer_diameter, double exponent) {
+    const double T_film = 0.5 * (T_wall + T_inf);
+    const double h_F = ChurchillBernsteinCoefficient(T_wall, T_inf, velocity, outer_diameter) -
+                       0.3 * ThermalConductivity(T_film) / outer_diameter;
+    const double h_N = vertical ? YangCoefficient(T_wall, T_inf, height, outer_diameter)
+                                : ChurchillChuCoefficient(false, T_wall, T_inf, height, outer_diameter);
+    const double n = exponent;
+    return std::pow(std::pow(std::max(h_F, 0.0), n) + std::pow(h_N, n), 1.0 / n);
   }
 
   // Grashof number on L [m] (film properties, as Rayleigh): Gr = Ra / Pr.

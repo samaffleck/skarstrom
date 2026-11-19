@@ -45,7 +45,9 @@ namespace adsim {
     CHURCHILL_CHU_VERTICAL = 2,
     CHURCHILL_CHU_HORIZONTAL = 3,
     YANG_VERTICAL_CYLINDER = 4,
-    CHURCHILL_BERNSTEIN = 5
+    CHURCHILL_BERNSTEIN = 5,
+    MIXED_CONVECTION_VERTICAL = 6,
+    MIXED_CONVECTION_HORIZONTAL = 7
   };
 
   static const char* ExternalHeatTransferModeList[] = {
@@ -54,7 +56,9 @@ namespace adsim {
     "Churchill and Chu (1975), vertical column",
     "Churchill and Chu (1975), horizontal column",
     "Yang (1985), vertical cylinder",
-    "Churchill and Bernstein (1977), cylinder in crossflow"
+    "Churchill and Bernstein (1977), cylinder in crossflow",
+    "Mixed convection (Churchill 1977), vertical column",
+    "Mixed convection (Churchill 1977), horizontal column"
   };
 
   class IInternalHeatTransferModel {
@@ -287,6 +291,47 @@ namespace adsim {
     }
   };
 
+  // Mixed convection: air at external_velocity crossing a column that also
+  // loses heat by natural convection, h = (h_F^n + h_N^n)^(1/n)
+  // (ambient_air.h, MixedConvectionCoefficient). h_N is Yang's vertical
+  // cylinder of the bed height (vertical) or Churchill and Chu's horizontal
+  // cylinder (horizontal); h_F is Churchill and Bernstein's forced term. Each
+  // cell uses its own wall temperature; the air properties are at the film
+  // temperature.
+  class ExternalHeatTransferModel_MixedConvection : public IExternalHeatTransferModel {
+  public:
+    explicit ExternalHeatTransferModel_MixedConvection(bool vertical = true) : vertical_(vertical) {}
+    void Update(Equations& state, const MixedAdsorbentLayer& layer, const BedWall& wall,
+                double ambient_temperature) override;
+    ExternalHeatTransferType GetModelType() override {
+      return vertical_ ? ExternalHeatTransferType::MIXED_CONVECTION_VERTICAL
+                       : ExternalHeatTransferType::MIXED_CONVECTION_HORIZONTAL;
+    }
+    unsigned ReadsTransportProperties() const override { return kNoTransportProperties; }
+    void EvaluateExpressions(const EvalContext& ctx) override {
+      external_velocity.Evaluate(ctx); exponent.Evaluate(ctx);
+    }
+    bool Vertical() const { return vertical_; }
+
+    ExpressionParam external_velocity{0.5}; // External air flow [m/s]
+    ExpressionParam exponent{3.0};          // Blending exponent n [-]
+
+  private:
+    bool vertical_ = true;
+
+    friend class cereal::access;
+    template <class Archive>
+    void serialize(Archive& ar, std::uint32_t const version) {
+      (void)version;
+      ar(
+        cereal::virtual_base_class<IExternalHeatTransferModel>(this),
+        cereal::make_nvp("Vertical", vertical_),
+        cereal::make_nvp("External_Velocity", external_velocity),
+        cereal::make_nvp("Exponent", exponent)
+      );
+    }
+  };
+
   // ---- Particle Heat Transfer (gas-to-solid) ----
 
   // Stored values; never renumber.
@@ -388,6 +433,10 @@ namespace adsim {
       return std::make_unique<ExternalHeatTransferModel_YangCylinder>();
     case ExternalHeatTransferType::CHURCHILL_BERNSTEIN:
       return std::make_unique<ExternalHeatTransferModel_ChurchillBernstein>();
+    case ExternalHeatTransferType::MIXED_CONVECTION_VERTICAL:
+      return std::make_unique<ExternalHeatTransferModel_MixedConvection>(true);
+    case ExternalHeatTransferType::MIXED_CONVECTION_HORIZONTAL:
+      return std::make_unique<ExternalHeatTransferModel_MixedConvection>(false);
     default: return nullptr;
     }
   }
@@ -405,4 +454,5 @@ CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_Holman, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_ChurchillChu, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_YangCylinder, 1);
 CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_ChurchillBernstein, 1);
+CEREAL_CLASS_VERSION(adsim::ExternalHeatTransferModel_MixedConvection, 1);
 CEREAL_CLASS_VERSION(adsim::FilmParticleHeatTransferModel, 1);
