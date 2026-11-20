@@ -8,6 +8,29 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-11-20
+
+### Added — bed-to-wall heat transfer: Li–Finlayson and Martin–Nilles
+- Two new packed-bed internal (bed-to-wall) heat transfer kinds, `li_finlayson` and `martin_nilles`. Each gives the wall coefficient h_w of a 2-D model and lumps it into the 1-D h_i with the bed radial conductivity, as `dixon` does (1/h_i = 1/h_w + D/(6 k_e) (Bi + 3)/(Bi + 4)). `li_finlayson`: h_w d_p/k_g = 0.17 Re^0.79 (spheres) or 0.16 Re^0.93 (cylinders, from the layer's particle shape), with Dixon's k_e; it has no stagnant term, so h_i = 0 in still gas. `martin_nilles`: Nu_w = (1.3 + 5 d_p/D) k_0/k_g + 0.19 Re^0.75 Pr^(1/3), with the Zehner–Schlünder k_0 and k_e = k_0 + k_g Re Pr / K_r. The deck checks refuse both on structured layers.
+
+### Changed — the `dixon` lumping is a shared step
+- The 1-D lumping of `dixon` is now a shared function (`LumpedWallHeatTransferCoefficient`), with Dixon's wall coefficient and radial conductivity as separate functions. `dixon` decks load unchanged and give the same results, bit for bit.
+
+### Added — axial heat dispersion as a stagnant term plus a dynamic term
+- Two new packed-bed heat dispersion kinds, `krupiczka` and `zehner_schlunder`: lambda = k0 + c k_g Pr Re. The kind chooses the stagnant term k0: the Krupiczka-type term of Yagi and Kunii's correlation, or Zehner–Schlünder (Zehner and Schlünder 1970, shape factor C = 1.25). The new parameter `dynamic_coefficient` gives c. Literature values: 0.75 Yagi–Kunii (default of `krupiczka`), 0.5 Wakao–Kaguei (default of `zehner_schlunder`), 1/K_ax Bauer–Schlünder. The Zehner–Schlünder term is also available to other correlations as `ZehnerSchlunderConductivityRatio`; near kappa = B it uses a series form instead of the closed form.
+
+### Changed — `yagi_kunii` heat dispersion is legacy
+- `yagi_kunii` is `krupiczka` at `dynamic_coefficient` 0.75. Decks that use it load and give the same results, bit for bit. The builder still accepts it, but the kind lists and the manifest no longer offer it (`legacy`).
+
+### Added — mixed natural and forced convection from the column wall
+- Two new wall-to-ambient heat transfer kinds, `mixed_convection_vertical` and `mixed_convection_horizontal`, for a column in slow-moving air: h = (h_F^n + h_N^n)^(1/n) (Churchill 1977). h_N is the natural-convection coefficient of the orientation (Yang's vertical cylinder, or Churchill and Chu's horizontal cylinder). h_F is the Churchill–Bernstein crossflow coefficient at `external_velocity`, without its constant 0.3, so the stagnant conduction limit counts once and no wind gives the natural-convection kind exactly. The exponent is `mixed_convection_exponent` (default 3, bounds 1–6). For a 1 m column 30 mm across, 10 K above air at 300 K crossing it at 0.1 m/s, h = 6.85 W/(m² K).
+
+### Added — forced convection from a column in crossflow (Churchill and Bernstein 1977)
+- A new wall-to-ambient heat transfer kind, `churchill_bernstein`: air at `external_velocity` crosses the column, a cylinder of the external diameter, with Churchill and Bernstein's correlation Nu = 0.3 + 0.62 Re^(1/2) Pr^(1/3) / [1 + (0.4/Pr)^(2/3)]^(1/4) [1 + (Re/282 000)^(5/8)]^(4/5). The air properties are at the film temperature, as for the other wall-to-ambient kinds. Valid for Re Pr > 0.2. The `holman` kind keeps its default pipe-flow form; switching between the two kinds keeps the external velocity.
+
+### Added — validation of the dispersion drift correction
+- `test_per_component_dispersion.cpp` check 6 runs a 50/50 H2/CO2 front through an inert N2 bed, then closes both ends, with the drift correction of the per-component dispersive flux on and off (`SetDispersionDriftCorrectionForTesting`, for tests only). With Fick's law per component the mole fractions stop summing to 1 by 4–7 %, by more on finer grids, and the bed keeps a deficit of about 0.2 % once closed; with the correction the sum stays at 1 to round-off.
+
 ## [0.16.0] — 2026-11-18
 
 ### Fixed — molecular diffusivity of a pure component with three or more components
