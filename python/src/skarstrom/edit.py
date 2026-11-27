@@ -80,6 +80,17 @@ class Editor:
     def _adsorbent(self, adsorbent: Any) -> int:
         return int(self._sim._adsorbent_id(adsorbent))
 
+    def _reaction(self, adsorbent_id: int, reaction: Any) -> int:
+        if isinstance(reaction, int):
+            return reaction
+        if hasattr(reaction, "id") and not isinstance(reaction, str):
+            return int(reaction.id)
+        return int(self._sim.adsorbents.by_id(adsorbent_id).reactions[reaction].id)
+
+    def _rx(self, adsorbent: Any, reaction: Any) -> tuple:
+        aid = self._adsorbent(adsorbent)
+        return aid, self._reaction(aid, reaction)
+
     @staticmethod
     def _endpoint(endpoint: Any) -> int:
         if isinstance(endpoint, int):
@@ -202,6 +213,60 @@ class Editor:
 
     def set_pump_power_kind(self, endpoint: Any, kind: str) -> None:
         self._do("set_pump_power_kind", self._endpoint(endpoint), kind)
+
+    # ---- reactions -------------------------------------------------------------------------
+    # A reaction is given by its ID, its name on the adsorbent or its object
+    # (``sim.adsorbents["Ni"].reactions["SMR"]``). Values go through the registry
+    # (``adsorbent[A].reaction[R].*``). *New in 0.18.*
+    def add_reaction(self, adsorbent: Any, name: str = "", kind: str = "power_law") -> int:
+        """A reaction with an empty stoichiometry and a ``kind`` rate at its defaults ("Reaction N"
+        when unnamed; a name the adsorbent has is made unique); returns its reaction ID."""
+        return int(self._do("add_reaction", self._adsorbent(adsorbent), name, kind))
+
+    def remove_reaction(self, adsorbent: Any, reaction: Any) -> None:
+        """Remove a reaction (the reaction KPIs name components and stay)."""
+        self._do("remove_reaction", *self._rx(adsorbent, reaction))
+
+    def rename_reaction(self, adsorbent: Any, reaction: Any, name: str) -> None:
+        """Rename a reaction; refused for an empty name or one the adsorbent's other reactions have."""
+        self._do("rename_reaction", *self._rx(adsorbent, reaction), name)
+
+    def set_reaction_kind(self, adsorbent: Any, reaction: Any, kind: str) -> None:
+        """A new rate law (``"power_law"``, ``"reversible_power_law"``, ``"lhhw"``, ``"expression"``);
+        shared parameters keep their values."""
+        self._do("set_reaction_kind", *self._rx(adsorbent, reaction), kind)
+
+    def set_stoichiometric_coefficient(self, adsorbent: Any, reaction: Any, component: str,
+                                       coefficient: float) -> None:
+        """One coefficient (< 0 reactant, > 0 product); 0 removes the entry and its order. A new
+        entry takes the default order (-coefficient for a reactant, 0 for a product)."""
+        self._do("set_stoichiometric_coefficient", *self._rx(adsorbent, reaction),
+                 self._sim._component(component), float(coefficient))
+
+    def set_reaction_basis(self, adsorbent: Any, reaction: Any, basis: str) -> None:
+        """``"partial_pressure"`` (bar) or ``"concentration"`` (mol/m3)."""
+        self._do("set_reaction_basis", *self._rx(adsorbent, reaction), basis)
+
+    def set_reaction_effectiveness(self, adsorbent: Any, reaction: Any, mode: str, key_component: str = "") -> None:
+        """``"constant"`` or ``"thiele"`` with a key reactant (empty: the first reactant)."""
+        key = self._sim._component(key_component) if key_component else ""
+        self._do("set_reaction_effectiveness", *self._rx(adsorbent, reaction), mode, key)
+
+    def add_reaction_denominator(self, adsorbent: Any, reaction: Any) -> int:
+        """A new LHHW denominator (exponent 1, no terms); returns its index k (from 1)."""
+        return int(self._do("add_reaction_denominator", *self._rx(adsorbent, reaction)))
+
+    def remove_reaction_denominator(self, adsorbent: Any, reaction: Any, k: int) -> None:
+        """Remove LHHW denominator k (from 1); refused for the last one."""
+        self._do("remove_reaction_denominator", *self._rx(adsorbent, reaction), int(k))
+
+    def add_reaction_adsorption_term(self, adsorbent: Any, reaction: Any, k: int = 1) -> int:
+        """A new adsorption term of LHHW denominator k; returns its index j (from 1)."""
+        return int(self._do("add_reaction_adsorption_term", *self._rx(adsorbent, reaction), int(k)))
+
+    def remove_reaction_adsorption_term(self, adsorbent: Any, reaction: Any, k: int, j: int) -> None:
+        """Remove adsorption term j of LHHW denominator k (both from 1)."""
+        self._do("remove_reaction_adsorption_term", *self._rx(adsorbent, reaction), int(k), int(j))
 
     # ---- identity and repair -----------------------------------------------------------------
     def ensure_ids(self) -> None:

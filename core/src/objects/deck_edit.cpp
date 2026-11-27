@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -18,8 +19,10 @@
 #include <cereal/archives/json.hpp>
 
 #include "adsim/equations/isotherm_kinds.h"
+#include "adsim/equations/reaction_kinds.h"
 #include "adsim/objects/adsorbent_library.h"
 #include "adsim/objects/component_migration.h"
+#include "adsim/objects/deck_builder.h"
 
 namespace adsim {
 
@@ -1312,6 +1315,207 @@ bool SetPumpPowerKind(UserData& data, size_t endpoint_id, PumpPowerType kind, st
   SwitchModel(p->power_, std::move(fresh), ModelFamily::PumpPower,
               p->power_ ? static_cast<std::size_t>(p->power_->GetType()) : 0, static_cast<std::size_t>(kind));
   return true;
+}
+
+// ---- reactions -------------------------------------------------------------------------
+
+namespace {
+
+Reaction* ReactionOrError(UserData& data, AdsorbentID solid, ReactionID reaction, std::string& err) {
+  Adsorbent* ads = AdsorbentOrError(data, solid, err);
+  if (!ads) return nullptr;
+  Reaction* r = ads->reaction_source_.Find(reaction);
+  if (!r) err = "no reaction with ID " + std::to_string(reaction) + " on adsorbent '" + ads->name_ + "'";
+  return r;
+}
+
+LhhwRate* LhhwOrError(Reaction& r, std::string& err) {
+  auto* l = dynamic_cast<LhhwRate*>(r.rate_.get());
+  if (!l) err = "reaction '" + r.name_ + "' does not use the lhhw rate kind";
+  return l;
+}
+
+bool HasDenominator(const Reaction& r, const LhhwRate& l, size_t k, std::string& err) {
+  if (k >= 1 && k <= l.denominators_.size()) return true;
+  err = "reaction '" + r.name_ + "' has no denominator " + std::to_string(k) + " (it has " +
+        std::to_string(l.denominators_.size()) + ")";
+  return false;
+}
+
+// The per-component orders of a rate (none for the expression kind).
+std::map<std::string, ExpressionParam>* RateOrders(IReactionRate* rate) {
+  if (auto* p = dynamic_cast<PowerLawRate*>(rate)) return &p->order_;
+  if (auto* p = dynamic_cast<ReversiblePowerLawRate*>(rate)) return &p->order_;
+  if (auto* p = dynamic_cast<LhhwRate*>(rate)) return &p->order_;
+  return nullptr;
+}
+
+std::vector<std::string> ReactionNames(const Adsorbent& ads, ReactionID except = 0) {
+  std::vector<std::string> out;
+  for (const auto& r : ads.reaction_source_.reactions_)
+    if (r.id_ != except) out.push_back(r.name_);  // IDs start at 1: 0 excepts none
+  return out;
+}
+
+// Runs a builder call whose input the cascade has already checked; a throw is
+// reported in err, never propagated (the builder checks before it changes
+// anything).
+template <class Fn>
+bool RunBuilder(std::string& err, Fn fn) {
+  try {
+    fn();
+    return true;
+  } catch (const std::exception& e) {
+    err = e.what();
+    return false;
+  }
+}
+
+}  // namespace
+
+bool AddReaction(UserData& data, AdsorbentID solid, const std::string& name, ReactionRateType kind,
+                 ReactionID& reaction_id, std::string& err) {
+  Adsorbent* ads = AdsorbentOrError(data, solid, err);
+  if (!ads) return false;
+  if (static_cast<std::size_t>(kind) >= kAllReactionRateKinds.size())
+    return BadKind(err, "reaction rate", static_cast<int>(kind));
+  const std::string base =
+      name.empty() ? "Reaction " + std::to_string(ads->reaction_source_.reactions_.size() + 1) : name;
+  const std::string unique = UniqueName(ReactionNames(*ads), base);
+  return RunBuilder(err, [&] { reaction_id = build::AddReaction(data, solid, unique, {}, ReactionRateKindString(kind)); });
+}
+
+bool RemoveReaction(UserData& data, AdsorbentID solid, ReactionID reaction, std::string& err) {
+  if (!ReactionOrError(data, solid, reaction, err)) return false;
+  return RunBuilder(err, [&] { build::RemoveReaction(data, solid, reaction); });
+}
+
+bool RenameReaction(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& name,
+                    std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r) return false;
+  if (name.empty()) {
+    err = "a reaction needs a name";
+    return false;
+  }
+  if (name == r->name_) return true;
+  const Adsorbent& ads = data.adsorbent_directory.Get(solid);
+  const auto taken = ReactionNames(ads, reaction);
+  if (std::find(taken.begin(), taken.end(), name) != taken.end()) {
+    err = "adsorbent '" + ads.name_ + "' already has a reaction named '" + name + "'";
+    return false;
+  }
+  r->name_ = name;
+  return true;
+}
+
+bool SetReactionKind(UserData& data, AdsorbentID solid, ReactionID reaction, ReactionRateType kind,
+                     std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r) return false;
+  if (static_cast<std::size_t>(kind) >= kAllReactionRateKinds.size())
+    return BadKind(err, "reaction rate", static_cast<int>(kind));
+  if (r->rate_ && r->rate_->GetType() == kind) return true;
+  return RunBuilder(err, [&] { build::SetReactionKind(data, solid, reaction, ReactionRateKindString(kind)); });
+}
+
+bool SetStoichiometricCoefficient(UserData& data, AdsorbentID solid, ReactionID reaction,
+                                  const std::string& component, double coefficient, std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r || !HasComponent(data, component, err)) return false;
+  if (!std::isfinite(coefficient)) {
+    err = "the coefficient of " + component + " is not finite";
+    return false;
+  }
+  std::map<std::string, double> nu = r->nu_;
+  auto it = nu.find(component);
+  const bool had = it != nu.end();
+  if (coefficient == 0.0 ? !had : (had && it->second == coefficient)) return true;
+  auto* orders = RateOrders(r->rate_.get());
+  if (coefficient == 0.0) {
+    nu.erase(component);
+  } else {
+    // A new entry takes the default order, not a stale one the rate kept.
+    if (!had && orders) orders->erase(component);
+    nu[component] = coefficient;
+  }
+  // Not build::SetReactionStoichiometry: it checks every entry, and an
+  // imported solid may keep entries of components the deck lacks.
+  r->SetStoichiometry(nu);
+  if (coefficient == 0.0 && orders) orders->erase(component);
+  if (r->effectiveness_.key_component_ == component && !(coefficient < 0.0)) r->effectiveness_.key_component_.clear();
+  return true;
+}
+
+bool SetReactionBasis(UserData& data, AdsorbentID solid, ReactionID reaction, RateBasis basis, std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r) return false;
+  if (static_cast<std::size_t>(basis) >= build::ReactionBasisKinds().size())
+    return BadKind(err, "reaction basis", static_cast<int>(basis));
+  r->basis_ = basis;
+  return true;
+}
+
+bool SetReactionEffectiveness(UserData& data, AdsorbentID solid, ReactionID reaction, EffectivenessMode mode,
+                              const std::string& key_component, std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r) return false;
+  if (static_cast<std::size_t>(mode) >= build::EffectivenessKinds().size())
+    return BadKind(err, "effectiveness", static_cast<int>(mode));
+  const bool thiele = mode == EffectivenessMode::Thiele;
+  if (thiele && !key_component.empty()) {
+    auto it = r->nu_.find(key_component);
+    if (it == r->nu_.end() || !(it->second < 0.0)) {
+      err = "the Thiele effectiveness needs a key reactant of reaction '" + r->name_ + "'; '" + key_component +
+            "' is not one";
+      return false;
+    }
+  }
+  r->effectiveness_.mode_ = mode;
+  r->effectiveness_.key_component_ = thiele ? key_component : std::string{};
+  return true;
+}
+
+bool AddReactionDenominator(UserData& data, AdsorbentID solid, ReactionID reaction, size_t& k, std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r || !LhhwOrError(*r, err)) return false;
+  return RunBuilder(err, [&] { k = build::AddDenominator(data, solid, reaction); });
+}
+
+bool RemoveReactionDenominator(UserData& data, AdsorbentID solid, ReactionID reaction, size_t k, std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r) return false;
+  LhhwRate* l = LhhwOrError(*r, err);
+  if (!l || !HasDenominator(*r, *l, k, err)) return false;
+  if (l->denominators_.size() == 1) {
+    err = "reaction '" + r->name_ + "' keeps at least one denominator (set its exponent to 0 or remove its terms)";
+    return false;
+  }
+  return RunBuilder(err, [&] { build::RemoveDenominator(data, solid, reaction, k); });
+}
+
+bool AddReactionAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t k, size_t& j,
+                               std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r) return false;
+  LhhwRate* l = LhhwOrError(*r, err);
+  if (!l || !HasDenominator(*r, *l, k, err)) return false;
+  return RunBuilder(err, [&] { j = build::AddAdsorptionTerm(data, solid, reaction, k); });
+}
+
+bool RemoveReactionAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t k, size_t j,
+                                  std::string& err) {
+  Reaction* r = ReactionOrError(data, solid, reaction, err);
+  if (!r) return false;
+  LhhwRate* l = LhhwOrError(*r, err);
+  if (!l || !HasDenominator(*r, *l, k, err)) return false;
+  const size_t terms = l->denominators_[k - 1].adsorption_.size();
+  if (j < 1 || j > terms) {
+    err = "denominator " + std::to_string(k) + " of reaction '" + r->name_ + "' has no adsorption term " +
+          std::to_string(j) + " (it has " + std::to_string(terms) + ")";
+    return false;
+  }
+  return RunBuilder(err, [&] { build::RemoveAdsorptionTerm(data, solid, reaction, j, k); });
 }
 
 // ---- experimental datasets ------------------------------------------------------
