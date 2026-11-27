@@ -6,12 +6,15 @@
  */
 // Reactions in a deck (adsim/objects/reaction.h): the builder, serialisation
 // (round trip, old v4 adsorbents and decks still load), the parameter
-// registry, the component-removal cascade, the deck checks and warnings.
+// registry, the component-removal cascade, the deck checks and warnings, and
+// the reaction edit cascades of deck_edit.h.
 
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <limits>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -541,6 +544,303 @@ TEST(ReactionDeck, Warnings) {
   w = ReactionWarnings(d.adsorbent_directory, d.bed);
   ASSERT_EQ(w.size(), 1u);
   EXPECT_NE(w[0].find("no layer uses it"), std::string::npos) << w[0];
+}
+
+// ---- edit cascades (deck_edit.h) --------------------------------------------------------
+
+const LhhwRate& LhhwOf(const Reaction& r) { return dynamic_cast<const LhhwRate&>(*r.rate_); }
+
+const std::map<std::string, ExpressionParam>& OrdersOf(const Reaction& r) {
+  if (auto* p = dynamic_cast<const PowerLawRate*>(r.rate_.get())) return p->order_;
+  if (auto* p = dynamic_cast<const ReversiblePowerLawRate*>(r.rate_.get())) return p->order_;
+  return LhhwOf(r).order_;
+}
+
+TEST(ReactionEdit, CascadesEditTheStructure) {
+  Reformer b;
+  Build(b);
+  UserData& d = b.sim.Data();
+  const auto& src = d.adsorbent_directory.Get(b.ni).reaction_source_;
+  std::string err;
+
+  // New reactions: a default name, a taken name made unique, an empty stoichiometry.
+  ReactionID r = 0, r2 = 0;
+  ASSERT_TRUE(AddReaction(d, b.ni, "", ReactionRateType::PowerLaw, r, err)) << err;
+  EXPECT_EQ(r, 3u);
+  EXPECT_EQ(src.Get(r).name_, "Reaction 3");
+  EXPECT_TRUE(src.Get(r).nu_.empty());
+  EXPECT_EQ(src.Get(r).rate_->GetType(), ReactionRateType::PowerLaw);
+  ASSERT_TRUE(AddReaction(d, b.ni, "SMR", ReactionRateType::Expression, r2, err)) << err;
+  EXPECT_EQ(src.Get(r2).name_, "SMR 2");
+  EXPECT_EQ(src.Get(r2).rate_->GetType(), ReactionRateType::Expression);
+  // The same name on another solid is not taken.
+  ReactionID other = 0;
+  ASSERT_TRUE(AddReaction(d, b.sorbent, "SMR", ReactionRateType::PowerLaw, other, err)) << err;
+  EXPECT_EQ(d.adsorbent_directory.Get(b.sorbent).reaction_source_.Get(other).name_, "SMR");
+
+  ASSERT_TRUE(RenameReaction(d, b.ni, r, "Methanation", err)) << err;
+  EXPECT_EQ(src.Get(r).name_, "Methanation");
+  EXPECT_TRUE(RenameReaction(d, b.ni, r, "Methanation", err));  // its own name
+
+  // Stoichiometry, one entry at a time; new entries take the default orders.
+  for (const auto& [c, v] : std::map<std::string, double>{{CO, -1}, {H2, -3}, {CH4, 1}, {H2O, 1}})
+    ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, c, v, err)) << err;
+  EXPECT_EQ(src.Get(r).nu_, (std::map<std::string, double>{{CO, -1}, {H2, -3}, {CH4, 1}, {H2O, 1}}));
+  EXPECT_DOUBLE_EQ(OrdersOf(src.Get(r)).at(CO).Get(), 1.0);
+  EXPECT_DOUBLE_EQ(OrdersOf(src.Get(r)).at(H2).Get(), 3.0);
+  EXPECT_DOUBLE_EQ(OrdersOf(src.Get(r)).at(CH4).Get(), 0.0);
+  // A changed coefficient keeps the order; 0 removes the entry and its order.
+  ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, CO, -2, err)) << err;
+  EXPECT_DOUBLE_EQ(src.Get(r).nu_.at(CO), -2.0);
+  EXPECT_DOUBLE_EQ(OrdersOf(src.Get(r)).at(CO).Get(), 1.0);
+  ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, H2O, 0, err)) << err;
+  EXPECT_FALSE(src.Get(r).nu_.count(H2O));
+  EXPECT_FALSE(OrdersOf(src.Get(r)).count(H2O));
+  EXPECT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, H2O, 0, err));  // absent: nothing to do
+  // A re-added entry takes the default order again, not the one it had.
+  b.sim.RefreshParameters();
+  b.sim.Parameters().Get("adsorbent[1].reaction[3].rate.order[Hydrogen]").SetValue(0.5);
+  ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, H2, 0, err)) << err;
+  ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, H2, -3, err)) << err;
+  EXPECT_DOUBLE_EQ(OrdersOf(src.Get(r)).at(H2).Get(), 3.0);
+
+  // Kind switch: the orders carry over; a new lhhw rate has one empty denominator.
+  ASSERT_TRUE(SetReactionKind(d, b.ni, r, ReactionRateType::Lhhw, err)) << err;
+  ASSERT_EQ(src.Get(r).rate_->GetType(), ReactionRateType::Lhhw);
+  EXPECT_DOUBLE_EQ(OrdersOf(src.Get(r)).at(CO).Get(), 1.0);
+  ASSERT_EQ(LhhwOf(src.Get(r)).denominators_.size(), 1u);
+  EXPECT_TRUE(LhhwOf(src.Get(r)).denominators_[0].adsorption_.empty());
+
+  ASSERT_TRUE(SetReactionBasis(d, b.ni, r, RateBasis::Concentration, err)) << err;
+  EXPECT_EQ(src.Get(r).basis_, RateBasis::Concentration);
+
+  // Effectiveness: a key reactant, an empty key, back to constant.
+  ASSERT_TRUE(SetReactionEffectiveness(d, b.ni, r, EffectivenessMode::Thiele, CO, err)) << err;
+  EXPECT_EQ(src.Get(r).effectiveness_.mode_, EffectivenessMode::Thiele);
+  EXPECT_EQ(src.Get(r).effectiveness_.key_component_, CO);
+  // The key turning into a product clears it (the first reactant is used).
+  ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, CO, 1, err)) << err;
+  EXPECT_EQ(src.Get(r).effectiveness_.key_component_, "");
+  EXPECT_EQ(src.Get(r).KeyReactant(), H2);
+  ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, CO, -1, err)) << err;
+  ASSERT_TRUE(SetReactionEffectiveness(d, b.ni, r, EffectivenessMode::Thiele, H2, err)) << err;
+  ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, r, H2, 0, err)) << err;  // removed: cleared too
+  EXPECT_EQ(src.Get(r).effectiveness_.key_component_, "");
+  ASSERT_TRUE(SetReactionEffectiveness(d, b.ni, r, EffectivenessMode::Thiele, "", err)) << err;
+  EXPECT_EQ(src.Get(r).effectiveness_.mode_, EffectivenessMode::Thiele);
+  ASSERT_TRUE(SetReactionEffectiveness(d, b.ni, r, EffectivenessMode::Constant, CO, err)) << err;
+  EXPECT_EQ(src.Get(r).effectiveness_.mode_, EffectivenessMode::Constant);
+  EXPECT_EQ(src.Get(r).effectiveness_.key_component_, "");
+
+  // LHHW structure.
+  size_t k = 0, j = 0;
+  ASSERT_TRUE(AddReactionDenominator(d, b.ni, r, k, err)) << err;
+  EXPECT_EQ(k, 2u);
+  ASSERT_TRUE(AddReactionAdsorptionTerm(d, b.ni, r, 2, j, err)) << err;
+  EXPECT_EQ(j, 1u);
+  ASSERT_TRUE(AddReactionAdsorptionTerm(d, b.ni, r, 2, j, err)) << err;
+  EXPECT_EQ(j, 2u);
+  ASSERT_TRUE(AddReactionAdsorptionTerm(d, b.ni, r, 1, j, err)) << err;
+  EXPECT_EQ(j, 1u);
+  EXPECT_EQ(LhhwOf(src.Get(r)).denominators_[1].adsorption_[0].exponent_.size(), 5u);  // every component
+  ASSERT_TRUE(RemoveReactionAdsorptionTerm(d, b.ni, r, 2, 1, err)) << err;
+  EXPECT_EQ(LhhwOf(src.Get(r)).denominators_[1].adsorption_.size(), 1u);
+  ASSERT_TRUE(RemoveReactionDenominator(d, b.ni, r, 1, err)) << err;  // the second moves down
+  ASSERT_EQ(LhhwOf(src.Get(r)).denominators_.size(), 1u);
+  EXPECT_EQ(LhhwOf(src.Get(r)).denominators_[0].adsorption_.size(), 1u);
+
+  // Removal: the others keep their IDs, and IDs are not reused.
+  ASSERT_TRUE(RemoveReaction(d, b.ni, r, err)) << err;
+  EXPECT_EQ(src.Find(r), nullptr);
+  EXPECT_NE(src.Find(b.smr), nullptr);
+  EXPECT_NE(src.Find(r2), nullptr);
+  ReactionID r3 = 0;
+  ASSERT_TRUE(AddReaction(d, b.ni, "Later", ReactionRateType::PowerLaw, r3, err)) << err;
+  EXPECT_EQ(r3, 5u);
+
+  // The edited deck reaches the registry.
+  b.sim.RefreshParameters();
+  EXPECT_NO_THROW(b.sim.Parameters().Get("adsorbent[Ni catalyst].reaction[Later].rate.pre_exp_factor"));
+}
+
+TEST(ReactionEdit, RefusalsLeaveTheDeckUnchanged) {
+  Reformer b;
+  Build(b);
+  UserData& d = b.sim.Data();
+  build::SetEffectiveness(d, b.ni, b.smr, "thiele", CH4);
+  const std::string before = Snapshot(d);
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  const double inf = std::numeric_limits<double>::infinity();
+  ReactionID id = 0;
+  size_t idx = 0;
+
+  struct Refusal {
+    std::string what;
+    std::function<bool(std::string&)> call;
+    std::string message;  // a part of the expected message
+  };
+  const std::vector<Refusal> refusals = {
+      {"add: unknown solid", [&](std::string& e) { return AddReaction(d, 99, "X", ReactionRateType::PowerLaw, id, e); },
+       "no adsorbent with ID 99"},
+      {"add: unknown kind",
+       [&](std::string& e) { return AddReaction(d, b.ni, "X", static_cast<ReactionRateType>(7), id, e); },
+       "unknown reaction rate kind 7"},
+      {"remove: unknown reaction", [&](std::string& e) { return RemoveReaction(d, b.ni, 99, e); },
+       "no reaction with ID 99 on adsorbent 'Ni catalyst'"},
+      {"remove: unknown solid", [&](std::string& e) { return RemoveReaction(d, 99, b.smr, e); },
+       "no adsorbent with ID 99"},
+      {"remove: another solid's reaction", [&](std::string& e) { return RemoveReaction(d, b.sorbent, b.smr, e); },
+       "no reaction with ID 1 on adsorbent 'Sorbent'"},
+      {"rename: empty", [&](std::string& e) { return RenameReaction(d, b.ni, b.smr, "", e); }, "needs a name"},
+      {"rename: taken", [&](std::string& e) { return RenameReaction(d, b.ni, b.smr, "WGS", e); },
+       "already has a reaction named 'WGS'"},
+      {"kind: unknown kind",
+       [&](std::string& e) { return SetReactionKind(d, b.ni, b.smr, static_cast<ReactionRateType>(-1), e); },
+       "unknown reaction rate kind"},
+      {"kind: unknown reaction",
+       [&](std::string& e) { return SetReactionKind(d, b.ni, 99, ReactionRateType::PowerLaw, e); }, "no reaction"},
+      {"coefficient: component not in the deck",
+       [&](std::string& e) { return SetStoichiometricCoefficient(d, b.ni, b.smr, "Argon", -1, e); },
+       "'Argon' is not a component of this deck"},
+      {"coefficient: unknown name",
+       [&](std::string& e) { return SetStoichiometricCoefficient(d, b.ni, b.smr, "Unobtainium", -1, e); },
+       "not a component"},
+      {"coefficient: NaN", [&](std::string& e) { return SetStoichiometricCoefficient(d, b.ni, b.smr, CO, nan, e); },
+       "not finite"},
+      {"coefficient: infinite",
+       [&](std::string& e) { return SetStoichiometricCoefficient(d, b.ni, b.smr, CO, -inf, e); }, "not finite"},
+      {"coefficient: unknown reaction",
+       [&](std::string& e) { return SetStoichiometricCoefficient(d, b.ni, 99, CO, -1, e); }, "no reaction"},
+      {"basis: unknown", [&](std::string& e) { return SetReactionBasis(d, b.ni, b.smr, static_cast<RateBasis>(2), e); },
+       "unknown reaction basis kind 2"},
+      {"effectiveness: unknown mode",
+       [&](std::string& e) {
+         return SetReactionEffectiveness(d, b.ni, b.smr, static_cast<EffectivenessMode>(5), "", e);
+       },
+       "unknown effectiveness kind 5"},
+      {"effectiveness: key is a product",
+       [&](std::string& e) { return SetReactionEffectiveness(d, b.ni, b.smr, EffectivenessMode::Thiele, H2, e); },
+       "'Hydrogen' is not one"},
+      {"effectiveness: key not in the reaction",
+       [&](std::string& e) { return SetReactionEffectiveness(d, b.ni, b.smr, EffectivenessMode::Thiele, CO2, e); },
+       "key reactant"},
+      {"denominator: not lhhw", [&](std::string& e) { return AddReactionDenominator(d, b.ni, b.wgs, idx, e); },
+       "does not use the lhhw rate kind"},
+      {"remove denominator: the last one",
+       [&](std::string& e) { return RemoveReactionDenominator(d, b.ni, b.smr, 1, e); }, "at least one denominator"},
+      {"remove denominator: absent", [&](std::string& e) { return RemoveReactionDenominator(d, b.ni, b.smr, 2, e); },
+       "has no denominator 2"},
+      {"remove denominator: 0", [&](std::string& e) { return RemoveReactionDenominator(d, b.ni, b.smr, 0, e); },
+       "has no denominator 0"},
+      {"remove denominator: not lhhw",
+       [&](std::string& e) { return RemoveReactionDenominator(d, b.ni, b.wgs, 1, e); }, "lhhw"},
+      {"term: absent denominator",
+       [&](std::string& e) { return AddReactionAdsorptionTerm(d, b.ni, b.smr, 2, idx, e); }, "has no denominator 2"},
+      {"term: not lhhw", [&](std::string& e) { return AddReactionAdsorptionTerm(d, b.ni, b.wgs, 1, idx, e); }, "lhhw"},
+      {"remove term: absent", [&](std::string& e) { return RemoveReactionAdsorptionTerm(d, b.ni, b.smr, 1, 3, e); },
+       "has no adsorption term 3"},
+      {"remove term: 0", [&](std::string& e) { return RemoveReactionAdsorptionTerm(d, b.ni, b.smr, 1, 0, e); },
+       "has no adsorption term 0"},
+      {"remove term: absent denominator",
+       [&](std::string& e) { return RemoveReactionAdsorptionTerm(d, b.ni, b.smr, 2, 1, e); }, "has no denominator 2"},
+      {"remove term: not lhhw",
+       [&](std::string& e) { return RemoveReactionAdsorptionTerm(d, b.ni, b.wgs, 1, 1, e); }, "lhhw"},
+  };
+  for (const auto& r : refusals) {
+    std::string err;
+    EXPECT_FALSE(r.call(err)) << r.what;
+    EXPECT_NE(err.find(r.message), std::string::npos) << r.what << ": " << err;
+    EXPECT_EQ(Snapshot(d), before) << r.what;
+  }
+
+  // Edits that change nothing succeed and leave the deck as it was too.
+  std::string err;
+  EXPECT_TRUE(RenameReaction(d, b.ni, b.smr, "SMR", err));
+  EXPECT_TRUE(SetReactionKind(d, b.ni, b.smr, ReactionRateType::Lhhw, err));
+  EXPECT_TRUE(SetStoichiometricCoefficient(d, b.ni, b.smr, CH4, -1, err));
+  EXPECT_TRUE(SetStoichiometricCoefficient(d, b.ni, b.smr, CO2, 0, err));
+  EXPECT_EQ(Snapshot(d), before);
+}
+
+TEST(ReactionEdit, ReactionKpisNameComponentsAndOutliveReactionEdits) {
+  Reformer b;
+  Build(b);
+  UserData& d = b.sim.Data();
+  build::SetReactionKPI(d, CH4, {H2, CO2});
+  std::string err;
+  // Removing a stoichiometry entry or a whole reaction leaves the components
+  // in the deck, so the reaction KPIs stay as they are.
+  ASSERT_TRUE(SetStoichiometricCoefficient(d, b.ni, b.wgs, CO2, 0, err)) << err;
+  ASSERT_TRUE(RemoveReaction(d, b.ni, b.wgs, err)) << err;
+  ASSERT_TRUE(RemoveReaction(d, b.ni, b.smr, err)) << err;
+  EXPECT_EQ(d.kpi_config.reaction.key_reactant, CH4);
+  EXPECT_EQ(d.kpi_config.reaction.products, (std::vector<std::string>{H2, CO2}));
+  // With no reaction using them, the components can go, and the KPIs forget them.
+  ASSERT_TRUE(RemoveComponentFromDeck(d, CO2, err)) << err;
+  ASSERT_TRUE(RemoveComponentFromDeck(d, CH4, err)) << err;
+  EXPECT_FALSE(d.kpi_config.reaction.IsSet());
+  EXPECT_EQ(d.kpi_config.reaction.products, (std::vector<std::string>{H2}));
+}
+
+// The two-site LHHW rate of Halabi (2011, ch. 8): a metal-site denominator
+// and a support-site denominator, each with its adsorption terms, next to a
+// reversible water-gas shift. Built once with the builder and once only
+// through the edit cascades, the decks are the same.
+void TwoSiteBase(Simulation& sim, AdsorbentID& cat) {
+  UserData& d = sim.Data();
+  for (const auto& c : {CH4, H2O, CO, H2, CO2}) build::AddComponent(d, c);
+  cat = build::AddAdsorbent(d, "Rh catalyst");
+  const size_t layer = build::AddLayer(d, "Bed");
+  build::SetLayerComposition(d, layer, {{cat, 1.0}});
+}
+
+TEST(ReactionEdit, CascadesBuildTheBuilderDeck) {
+  const std::map<std::string, double> r1 = {{CH4, -1}, {H2O, -1}, {CO, 1}, {H2, 3}};
+  const std::map<std::string, double> r2 = {{CO, -1}, {H2O, -1}, {CO2, 1}, {H2, 1}};
+
+  Simulation built;
+  AdsorbentID cat = 0;
+  TwoSiteBase(built, cat);
+  {
+    UserData& d = built.Data();
+    const ReactionID a = build::AddReaction(d, cat, "R1", r1, "lhhw");
+    build::AddAdsorptionTerm(d, cat, a, 1);  // metal sites
+    build::AddAdsorptionTerm(d, cat, a, 1);
+    EXPECT_EQ(build::AddDenominator(d, cat, a), 2u);
+    build::AddAdsorptionTerm(d, cat, a, 2);  // support sites
+    build::AddAdsorptionTerm(d, cat, a, 2);
+    build::AddAdsorptionTerm(d, cat, a, 2);
+    build::SetReactionBasis(d, cat, a, "partial_pressure");
+    build::SetEffectiveness(d, cat, a, "thiele", CH4);
+    const ReactionID w = build::AddReaction(d, cat, "R2", r2, "reversible_power_law");
+    build::SetReactionBasis(d, cat, w, "concentration");
+  }
+
+  Simulation edited;
+  AdsorbentID cat2 = 0;
+  TwoSiteBase(edited, cat2);
+  {
+    UserData& d = edited.Data();
+    std::string err;
+    ReactionID a = 0, w = 0;
+    size_t k = 0, j = 0;
+    ASSERT_TRUE(AddReaction(d, cat2, "R1", ReactionRateType::Lhhw, a, err)) << err;
+    for (const auto& [c, v] : r1) ASSERT_TRUE(SetStoichiometricCoefficient(d, cat2, a, c, v, err)) << err;
+    ASSERT_TRUE(AddReactionAdsorptionTerm(d, cat2, a, 1, j, err)) << err;
+    ASSERT_TRUE(AddReactionAdsorptionTerm(d, cat2, a, 1, j, err)) << err;
+    ASSERT_TRUE(AddReactionDenominator(d, cat2, a, k, err)) << err;
+    for (int n = 0; n < 3; ++n) ASSERT_TRUE(AddReactionAdsorptionTerm(d, cat2, a, k, j, err)) << err;
+    EXPECT_EQ(j, 3u);
+    ASSERT_TRUE(SetReactionBasis(d, cat2, a, RateBasis::PartialPressure, err)) << err;
+    ASSERT_TRUE(SetReactionEffectiveness(d, cat2, a, EffectivenessMode::Thiele, CH4, err)) << err;
+    // The second reaction starts under another name and kind and is set right.
+    ASSERT_TRUE(AddReaction(d, cat2, "", ReactionRateType::PowerLaw, w, err)) << err;
+    ASSERT_TRUE(SetReactionKind(d, cat2, w, ReactionRateType::ReversiblePowerLaw, err)) << err;
+    ASSERT_TRUE(RenameReaction(d, cat2, w, "R2", err)) << err;
+    for (const auto& [c, v] : r2) ASSERT_TRUE(SetStoichiometricCoefficient(d, cat2, w, c, v, err)) << err;
+    ASSERT_TRUE(SetReactionBasis(d, cat2, w, RateBasis::Concentration, err)) << err;
+  }
+  EXPECT_EQ(Snapshot(edited.Data()), Snapshot(built.Data()));
 }
 
 }  // namespace

@@ -1,6 +1,7 @@
 """sim.edit: the engine's structural cascades (adsim/objects/deck_edit.h), and skarstrom.model_kinds()."""
 
 import json
+import re
 
 import pytest
 
@@ -257,3 +258,47 @@ def test_housekeeping_cascades_on_every_example(example):
     assert _paths(sim) == filled
     ok, msg = sim.check()
     assert ok, msg
+
+
+def test_reaction_cascades():
+    sim = skarstrom.Simulation.new(title="reactions")
+    for c in ("Methane", "Water", "CarbonMonoxide", "Hydrogen", "CarbonDioxide"):
+        sim.add_component(c)
+    ni = sim.add_adsorbent("Ni catalyst", solid_density=2000, heat_capacity=900,
+                           thermal_conductivity=0.5, particle_void_fraction=0.4)
+    rid = sim.edit.add_reaction(ni, "", kind="power_law")
+    assert ni.reactions.by_id(rid).name == "Reaction 1"
+    assert sim.edit.add_reaction(ni, "Reaction 1") != rid          # a taken name is made unique
+    assert [r.name for r in ni.reactions] == ["Reaction 1", "Reaction 1 2"]
+    for c, nu in {"Methane": -1, "Water": -1, "CarbonMonoxide": 1, "Hydrogen": 3}.items():
+        sim.edit.set_stoichiometric_coefficient(ni, rid, c, nu)
+    assert sim.get(f"adsorbent[{ni.id}].reaction[{rid}].rate.order[Methane]") == 1.0
+    sim.edit.set_reaction_kind(ni, rid, "lhhw")
+    assert sim.edit.add_reaction_denominator(ni, rid) == 2
+    assert sim.edit.add_reaction_adsorption_term(ni, rid, 2) == 1
+    sim.edit.rename_reaction(ni, rid, "SMR")
+    sim.edit.set_reaction_basis(ni, "SMR", "concentration")
+    sim.edit.set_reaction_effectiveness(ni, ni.reactions["SMR"], "thiele", "Methane")
+    sim.edit.remove_reaction_adsorption_term(ni, rid, 2, 1)
+    sim.edit.remove_reaction_denominator(ni, rid, 2)
+    sim.edit.set_stoichiometric_coefficient(ni, rid, "Hydrogen", 0)
+    with pytest.raises(KeyError):
+        sim.get(f"adsorbent[{ni.id}].reaction[{rid}].rate.order[Hydrogen]")
+
+    # Refusals raise ValueError and change nothing.
+    def deck():  # each save bumps info.version
+        return re.sub(r'"Version": \d+', "", sim.to_json())
+
+    before = deck()
+    for call in (lambda: sim.edit.remove_reaction_denominator(ni, rid, 1),          # the last one
+                 lambda: sim.edit.rename_reaction(ni, rid, "Reaction 1 2"),          # taken
+                 lambda: sim.edit.set_reaction_effectiveness(ni, rid, "thiele", "Hydrogen"),
+                 lambda: sim.edit.set_reaction_kind(ni, rid, "michaelis"),
+                 lambda: sim.edit.set_reaction_basis(ni, rid, "molality"),
+                 lambda: sim.edit.add_reaction_denominator(ni, "Reaction 1 2"),       # not lhhw
+                 lambda: sim.edit.remove_reaction(ni, 99)):
+        with pytest.raises(ValueError):
+            call()
+    assert deck() == before
+    sim.edit.remove_reaction(ni, rid)
+    assert [r.name for r in ni.reactions] == ["Reaction 1 2"]

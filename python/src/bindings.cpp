@@ -1569,6 +1569,43 @@ PYBIND11_MODULE(_core, m) {
           ok = SetPumpEfficiencyKind(d, id(0), static_cast<PumpEfficiencyType>(kind(ModelFamily::PumpEfficiency, 1)), err);
         else if (op == "set_pump_power_kind")
           ok = SetPumpPowerKind(d, id(0), static_cast<PumpPowerType>(kind(ModelFamily::PumpPower, 1)), err);
+        // Reactions: solid (adsorbent ID), reaction ID, then the op's arguments.
+        else if (op == "add_reaction" || op == "set_reaction_kind") {
+          const std::string tag = str(2);
+          ReactionRateType t{};
+          if (!ReactionRateKindFromString(tag, t)) {
+            std::string valid;
+            for (auto k : kAllReactionRateKinds) valid += (valid.empty() ? "" : ", ") + std::string(ReactionRateKindString(k));
+            throw py::value_error("unknown reaction rate kind '" + tag + "'; one of: " + valid);
+          }
+          if (op == "add_reaction") ret_id(AddReaction(d, id(0), str(1), t, new_id, err));
+          else ok = SetReactionKind(d, id(0), id(1), t, err);
+        }
+        else if (op == "remove_reaction") ok = RemoveReaction(d, id(0), id(1), err);
+        else if (op == "rename_reaction") ok = RenameReaction(d, id(0), id(1), str(2), err);
+        else if (op == "set_stoichiometric_coefficient")
+          ok = SetStoichiometricCoefficient(d, id(0), id(1), str(2), args[3].cast<double>(), err);
+        else if (op == "set_reaction_basis" || op == "set_reaction_effectiveness") {
+          const bool basis = op == "set_reaction_basis";
+          const auto& tags = basis ? adsim::build::ReactionBasisKinds() : adsim::build::EffectivenessKinds();
+          const std::string tag = str(2);
+          auto at = std::find(tags.begin(), tags.end(), tag);
+          if (at == tags.end()) {
+            std::string valid;
+            for (const auto& t : tags) valid += (valid.empty() ? "" : ", ") + t;
+            throw py::value_error(std::string("unknown ") + (basis ? "reaction basis" : "effectiveness") + " '" + tag +
+                                  "'; one of: " + valid);
+          }
+          const auto index = static_cast<int>(at - tags.begin());
+          if (basis) ok = SetReactionBasis(d, id(0), id(1), static_cast<RateBasis>(index), err);
+          else ok = SetReactionEffectiveness(d, id(0), id(1), static_cast<EffectivenessMode>(index), str(3), err);
+        }
+        else if (op == "add_reaction_denominator") ret_id(AddReactionDenominator(d, id(0), id(1), new_id, err));
+        else if (op == "remove_reaction_denominator") ok = RemoveReactionDenominator(d, id(0), id(1), id(2), err);
+        else if (op == "add_reaction_adsorption_term")
+          ret_id(AddReactionAdsorptionTerm(d, id(0), id(1), id(2), new_id, err));
+        else if (op == "remove_reaction_adsorption_term")
+          ok = RemoveReactionAdsorptionTerm(d, id(0), id(1), id(2), id(3), err);
         else throw py::value_error("unknown edit operation '" + op + "'");
         s.RefreshParameters();
         if (!ok) throw py::value_error(err);

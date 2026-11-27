@@ -159,6 +159,41 @@ The structure setters of a `Reaction` replace what was there. A new rate law kee
 
 `skarstrom.to_script(sim)` writes the reactions, their rate-law values, their denominators and their adsorption terms. Running the script gives the same deck. The raw operations (`sim._build("add_reaction", ...)`) are the C++ functions of `adsim/objects/deck_builder.h`. The reaction KPIs are in [Performance Metrics](performance-metrics.md).
 
+### Editing reactions from a front end
+
+!!! note "New in 0.18"
+    The reaction edit cascades of `adsim/objects/deck_edit.h` and their `sim.edit` methods.
+
+A front end (or a script) that edits a deck one change at a time uses the edit cascades. Each takes simple arguments (the solid's adsorbent ID, the reaction ID, a name, one coefficient, a kind), so each can be one operation of an editor. The stoichiometry is set one entry at a time. A refused edit raises `ValueError` with the engine's message and changes nothing. Values (rate constants, orders, exponents, heats of reaction) are set through the registry as usual.
+
+```python
+rid = sim.edit.add_reaction(ni, "Methanation", kind="power_law")   # empty stoichiometry
+for c, nu in {"CarbonMonoxide": -1, "Hydrogen": -3, "Methane": 1, "Water": 1}.items():
+    sim.edit.set_stoichiometric_coefficient(ni, rid, c, nu)        # new entries take the default order
+sim.edit.set_reaction_kind(ni, rid, "lhhw")                         # shared parameters are kept
+k = sim.edit.add_reaction_denominator(ni, rid)                      # a second kind of site: k = 2
+sim.edit.add_reaction_adsorption_term(ni, rid, k)
+sim.edit.set_reaction_effectiveness(ni, "Methanation", "thiele", "CarbonMonoxide")
+sim.edit.rename_reaction(ni, rid, "CO methanation")
+sim.edit.set_stoichiometric_coefficient(ni, rid, "Water", 0)       # 0 removes the entry and its order
+sim["adsorbent[Ni catalyst].reaction[CO methanation].rate.pre_exp_factor"] = 1e2
+sim.edit.remove_reaction(ni, rid)
+```
+
+| Cascade (C++, `sim.edit.*`) | Effect |
+|---|---|
+| `AddReaction` (`add_reaction(adsorbent, name="", kind="power_law")`) | A reaction with an empty stoichiometry, the partial-pressure basis and a constant effectiveness. An empty name gives "Reaction N"; a name the solid already has is made unique. Returns the reaction ID. |
+| `RemoveReaction` (`remove_reaction`) | Remove a reaction. IDs are not reused. |
+| `RenameReaction` (`rename_reaction`) | Refused for an empty name or a name another reaction of the solid has. |
+| `SetReactionKind` (`set_reaction_kind`) | A new rate law; the parameters the two kinds share keep their values. |
+| `SetStoichiometricCoefficient` (`set_stoichiometric_coefficient`) | One coefficient. A new entry gets the default order ($-\nu$ for a reactant, 0 for a product); a changed coefficient keeps the order. 0 removes the entry and its order. A Thiele key reactant that stops being a reactant is cleared. Refused for a component the deck does not have. |
+| `SetReactionBasis` (`set_reaction_basis`) | `partial_pressure` or `concentration`. |
+| `SetReactionEffectiveness` (`set_reaction_effectiveness`) | `constant`, or `thiele` with a key reactant (empty: the first reactant). |
+| `AddReactionDenominator` / `RemoveReactionDenominator` | The denominators of an `lhhw` rate, from 1. The last one cannot be removed. |
+| `AddReactionAdsorptionTerm` / `RemoveReactionAdsorptionTerm` | The terms of denominator `k`, from 1. |
+
+The LHHW cascades are refused for a rate that is not `lhhw`. The reaction KPIs name components, not reactions, so these edits do not change them. Removing a component removes it from the reaction KPIs.
+
 ### Start-up of fast reactions
 
 !!! note "New in 0.9"

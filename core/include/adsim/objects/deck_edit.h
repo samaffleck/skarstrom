@@ -39,6 +39,7 @@
 #include "adsim/objects/compressor.h"
 #include "adsim/objects/model_kinds.h"
 #include "adsim/objects/porous_media.h"
+#include "adsim/objects/reaction.h"
 #include "adsim/objects/user_data.h"
 
 namespace adsim {
@@ -425,6 +426,88 @@ bool SetPumpKind(UserData& data, size_t endpoint_id, std::size_t pump_kind, std:
 bool SetPumpEfficiencyKind(UserData& data, size_t endpoint_id, PumpEfficiencyType kind, std::string& err);
 // The shaft-power model of a pump stream.
 bool SetPumpPowerKind(UserData& data, size_t endpoint_id, PumpPowerType kind, std::string& err);
+
+// ---- reactions (objects/reaction.h) ---------------------------------------------
+//
+// The structure of the reactions on a solid: which reactions exist, their
+// names, stoichiometry, rate kind, activity basis, effectiveness model and
+// the LHHW denominators and adsorption terms. Every value (rate constants,
+// orders, exponents, heats of reaction, eta) is set through the parameter
+// registry (adsorbent[ID].reaction[ID].*). Each cascade takes simple
+// arguments (IDs, a name, one coefficient, a kind enum), so a front end can
+// expose each as one operation; the stoichiometry is edited one entry at a
+// time. A reaction is addressed by its solid (an adsorbent ID) and its stable
+// ReactionID. All of them are refused (false + err, deck unchanged) for an
+// unknown solid or reaction.
+//
+// The reaction KPIs (KPIConfig::reaction) name components, not reactions, so
+// these edits leave them as they are; removing a component cleans them
+// (RemoveComponentFromDeck).
+
+// Add a reaction to solid `solid` with an empty stoichiometry, a rate of
+// `kind` at its defaults, the partial-pressure basis and a constant
+// effectiveness of 1. An empty `name` gives "Reaction N" (N = the solid's new
+// reaction count); a name another reaction of the solid has is made unique
+// (UniqueName). `reaction_id` is the new reaction's ID. A new lhhw rate has
+// one denominator with no terms. Refused for an unknown kind.
+bool AddReaction(UserData& data, AdsorbentID solid, const std::string& name, ReactionRateType kind,
+                 ReactionID& reaction_id, std::string& err);
+
+// Remove a reaction from its solid (the other reactions keep their IDs).
+bool RemoveReaction(UserData& data, AdsorbentID solid, ReactionID reaction, std::string& err);
+
+// Rename a reaction. Refused for an empty name or one another reaction of the
+// same solid has (the registry alias adsorbent[A].reaction[name] must name
+// one reaction). Renaming to the current name changes nothing.
+bool RenameReaction(UserData& data, AdsorbentID solid, ReactionID reaction, const std::string& name,
+                    std::string& err);
+
+// A new rate law of `kind`; parameters the two layouts share
+// (ReactionRateFields: the Arrhenius constants, the orders, the LHHW
+// denominators and terms between two lhhw rates) keep their values
+// (Reaction::SetRateType). Switching to the kind in place changes nothing.
+bool SetReactionKind(UserData& data, AdsorbentID solid, ReactionID reaction, ReactionRateType kind,
+                     std::string& err);
+
+// One stoichiometric coefficient (< 0 reactant, > 0 product). A component the
+// reaction did not have gets the default order (-coefficient for a reactant,
+// 0 for a product); a changed coefficient keeps the order the rate has.
+// Coefficient 0 removes the entry together with its order (the LHHW
+// adsorption exponents of the component stay: they are values of the
+// denominator terms). When the entry was the key reactant of the Thiele
+// effectiveness and is no longer a reactant, the key is cleared (the first
+// reactant is then used, Reaction::KeyReactant). Refused for a component not
+// in the deck's fluid or a coefficient that is not finite.
+bool SetStoichiometricCoefficient(UserData& data, AdsorbentID solid, ReactionID reaction,
+                                  const std::string& component, double coefficient, std::string& err);
+
+// The activity the rate law is written in. Refused for an unknown basis.
+bool SetReactionBasis(UserData& data, AdsorbentID solid, ReactionID reaction, RateBasis basis, std::string& err);
+
+// The effectiveness model: constant (eta through the registry; the key is
+// cleared) or Thiele with its key reactant. An empty key uses the first
+// reactant (Reaction::KeyReactant). Refused for an unknown mode or, for
+// Thiele, a key component that is not a reactant of the reaction.
+bool SetReactionEffectiveness(UserData& data, AdsorbentID solid, ReactionID reaction, EffectivenessMode mode,
+                              const std::string& key_component, std::string& err);
+
+// LHHW structure (refused when the reaction's rate is not lhhw). Denominators
+// and terms are numbered from 1, as in the registry paths
+// (rate.denominator[k].adsorption[j].*).
+// A new denominator (one more kind of site): exponent 1 and no terms
+// (DEN = 1). `k` is its index.
+bool AddReactionDenominator(UserData& data, AdsorbentID solid, ReactionID reaction, size_t& k, std::string& err);
+// Remove denominator k; the later ones move down. Refused for the last one
+// (set its exponent to 0 or remove its terms instead).
+bool RemoveReactionDenominator(UserData& data, AdsorbentID solid, ReactionID reaction, size_t k, std::string& err);
+// A new adsorption term of denominator k with an exponent entry (0) for every
+// component of the deck and of the reaction. `j` is its index in the
+// denominator.
+bool AddReactionAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t k, size_t& j,
+                               std::string& err);
+// Remove term j of denominator k; the later terms move down.
+bool RemoveReactionAdsorptionTerm(UserData& data, AdsorbentID solid, ReactionID reaction, size_t k, size_t j,
+                                  std::string& err);
 
 // ---- experimental datasets ------------------------------------------------------
 
