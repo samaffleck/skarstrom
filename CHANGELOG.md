@@ -8,6 +8,11 @@ root `CMakeLists.txt`.
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-11-27
+
+### Added — edit cascades for reactions
+- `adsim/objects/deck_edit.h` has edit cascades for the reactions of a solid: `AddReaction`, `RemoveReaction`, `RenameReaction`, `SetReactionKind`, `SetStoichiometricCoefficient` (one stoichiometry entry at a time; 0 removes it), `SetReactionBasis`, `SetReactionEffectiveness`, `AddReactionDenominator`, `RemoveReactionDenominator`, `AddReactionAdsorptionTerm` and `RemoveReactionAdsorptionTerm`. Each takes simple arguments and refuses bad input with a message, leaving the deck unchanged. Python: the matching `sim.edit.*` methods.
+
 ## [0.17.0] — 2026-11-20
 
 ### Added — bed-to-wall heat transfer: Li–Finlayson and Martin–Nilles

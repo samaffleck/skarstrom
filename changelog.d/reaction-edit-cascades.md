@@ -1,2 +1,0 @@
-### Added — edit cascades for reactions
-- `adsim/objects/deck_edit.h` has edit cascades for the reactions of a solid: `AddReaction`, `RemoveReaction`, `RenameReaction`, `SetReactionKind`, `SetStoichiometricCoefficient` (one stoichiometry entry at a time; 0 removes it), `SetReactionBasis`, `SetReactionEffectiveness`, `AddReactionDenominator`, `RemoveReactionDenominator`, `AddReactionAdsorptionTerm` and `RemoveReactionAdsorptionTerm`. Each takes simple arguments and refuses bad input with a message, leaving the deck unchanged. Python: the matching `sim.edit.*` methods.
